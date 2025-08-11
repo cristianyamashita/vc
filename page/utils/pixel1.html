@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pixel Art Editor - Vintage Style</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --machine-bg: linear-gradient(145deg, #f95738, #e84855);
+            --machine-border: #4a4a4a;
+            --screen-bg: #f3f3f3;
+            --screen-border: #2c2c2c;
+            --button-bg: linear-gradient(145deg, #00a8e8, #007ea7);
+            --button-hover-bg: linear-gradient(145deg, #00bfff, #0096c7);
+            --button-text: #ffffff;
+            --text-color: #1a1a1a;
+            --shadow-color: rgba(0,0,0,0.2);
+            --highlight-color: rgba(255,255,255,0.3);
+        }
+
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #1e1e24;
+            font-family: 'Press Start 2P', cursive;
+            color: var(--text-color);
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        #vintage-machine {
+            background: var(--machine-bg);
+            border-radius: 30px;
+            padding: 25px;
+            border: 8px solid var(--machine-border);
+            box-shadow: 0 15px 30px rgba(0,0,0,0.4), inset 0 0 20px var(--shadow-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+            width: 100%;
+            max-width: 600px;
+            position: relative;
+        }
+
+        #vintage-machine::before, #vintage-machine::after {
+            content: '';
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background: #ffdd00;
+            border-radius: 50%;
+            border: 3px solid var(--machine-border);
+            box-shadow: 0 0 10px #ffdd00;
+        }
+
+        #vintage-machine::before {
+            top: 20px;
+            left: 20px;
+        }
+
+        #vintage-machine::after {
+            top: 20px;
+            right: 20px;
+        }
+
+        #header {
+            width: 100%;
+            text-align: center;
+        }
+
+        #title {
+            font-size: 1.8rem;
+            color: var(--button-text);
+            text-shadow: 3px 3px 0px var(--machine-border);
+            margin: 0;
+        }
+
+        #language-selector {
+            margin-top: 15px;
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        .lang-btn {
+            background: #4caf50;
+            border: 2px solid var(--machine-border);
+            font-family: inherit;
+            font-size: 0.7rem;
+            padding: 5px 10px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: transform 0.2s, background-color 0.2s;
+        }
+
+        .lang-btn:hover {
+            transform: translateY(-2px);
+            background: #66bb6a;
+        }
+        
+        .lang-btn.active {
+            background: #81c784;
+            box-shadow: inset 0 0 5px rgba(0,0,0,0.3);
+        }
+
+        #main-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+            width: 100%;
+        }
+
+        #canvas-container {
+            background-color: var(--screen-bg);
+            border: 5px solid var(--screen-border);
+            border-radius: 15px;
+            padding: 10px;
+            box-shadow: inset 0 0 15px var(--shadow-color);
+        }
+
+        #pixel-canvas {
+            cursor: crosshair;
+            background-color: white;
+            display: block;
+        }
+
+        #controls {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+            width: 100%;
+            background: rgba(0,0,0,0.1);
+            padding: 20px;
+            border-radius: 15px;
+        }
+
+        #color-palette {
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            gap: 10px;
+            max-width: 300px;
+        }
+
+        .color-swatch {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 3px solid transparent;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 5px var(--shadow-color);
+        }
+
+        .color-swatch:hover {
+            transform: scale(1.1);
+        }
+
+        .color-swatch.selected {
+            border-color: #fff;
+            box-shadow: 0 0 10px #fff, 0 0 5px #000;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+
+        label {
+            font-size: 0.9rem;
+            color: var(--button-text);
+            text-shadow: 1px 1px 2px var(--machine-border);
+        }
+
+        select, .btn {
+            font-family: 'Press Start 2P', cursive;
+            padding: 12px 20px;
+            border-radius: 10px;
+            border: 3px solid var(--machine-border);
+            font-size: 0.9rem;
+            cursor: pointer;
+            text-align: center;
+            box-shadow: 0 5px 0px var(--machine-border);
+            transition: all 0.1s ease-in-out;
+        }
+
+        select {
+            background: #fff;
+            color: var(--text-color);
+        }
+
+        .btn {
+            background: var(--button-bg);
+            color: var(--button-text);
+            text-transform: uppercase;
+        }
+
+        .btn:hover {
+            background: var(--button-hover-bg);
+        }
+
+        .btn:active {
+            transform: translateY(5px);
+            box-shadow: 0 0 0px var(--machine-border);
+        }
+
+        #action-buttons {
+            display: flex;
+            gap: 15px;
+            margin-top: 10px;
+        }
+        
+        @media (max-width: 640px) {
+            body {
+                align-items: flex-start;
+            }
+            #title {
+                font-size: 1.5rem;
+            }
+            #color-palette {
+                grid-template-columns: repeat(6, 1fr);
+            }
+            .color-swatch {
+                 width: 35px;
+                 height: 35px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div id="vintage-machine">
+    <div id="header">
+        <h1 id="title">Pixel Art Editor</h1>
+        <div id="language-selector">
+            <button class="lang-btn" data-lang="pt">Português</button>
+            <button class="lang-btn active" data-lang="en">English</button>
+            <button class="lang-btn" data-lang="ja">日本語</button>
+        </div>
+    </div>
+
+    <div id="main-content">
+        <div id="canvas-container">
+            <canvas id="pixel-canvas" width="480" height="480"></canvas>
+        </div>
+
+        <div id="controls">
+            <div id="color-palette"></div>
+
+            <div class="control-group">
+                <label for="grid-size" id="grid-size-label">Grid Size</label>
+                <select id="grid-size">
+                    <option value="16">16x16</option>
+                    <option value="32" selected>32x32</option>
+                    <option value="48">48x48</option>
+                </select>
+            </div>
+
+            <div id="action-buttons">
+                <button class="btn" id="clear-btn">Clear</button>
+                <button class="btn" id="save-btn">Save</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // --- DOM Elements ---
+        const canvas = document.getElementById('pixel-canvas');
+        const ctx = canvas.getContext('2d');
+        const gridSizeSelector = document.getElementById('grid-size');
+        const colorPaletteContainer = document.getElementById('color-palette');
+        const clearBtn = document.getElementById('clear-btn');
+        const saveBtn = document.getElementById('save-btn');
+        const langBtns = document.querySelectorAll('.lang-btn');
+
+        // --- Application State ---
+        let gridSize = parseInt(gridSizeSelector.value, 10);
+        let pixelSize = canvas.width / gridSize;
+        let isDrawing = false;
+        let currentColor = '#000000'; // Initial color: black
+        let pixelData = [];
+
+        // --- Translations ---
+        const translations = {
+            pt: {
+                title: "Editor de Pixel Art",
+                gridSizeLabel: "Tamanho da Grade",
+                clearBtn: "Limpar",
+                saveBtn: "Salvar"
+            },
+            en: {
+                title: "Pixel Art Editor",
+                gridSizeLabel: "Grid Size",
+                clearBtn: "Clear",
+                saveBtn: "Save"
+            },
+            ja: {
+                title: "ピクセルアートエディタ",
+                gridSizeLabel: "グリッドサイズ",
+                clearBtn: "クリア",
+                saveBtn: "保存"
+            }
+        };
+
+        // --- Color Palette ---
+        const colors = [
+            '#ffffff', '#c2c2c2', '#858585', '#4a4a4a', '#000000', '#ff4c4c', '#ff9b4c', '#ffff4c',
+            '#95ff4c', '#4cff4c', '#4cffff', '#4c95ff', '#4c4cff', '#9b4cff', '#ff4cff', '#ff4c9b'
+        ];
+
+        // --- Main Functions ---
+
+        /**
+         * Initializes the color palette
+         */
+        function setupColorPalette() {
+            colorPaletteContainer.innerHTML = '';
+            colors.forEach(color => {
+                const swatch = document.createElement('div');
+                swatch.className = 'color-swatch';
+                swatch.style.backgroundColor = color;
+                swatch.dataset.color = color;
+                if (color === currentColor) {
+                    swatch.classList.add('selected');
+                }
+                swatch.addEventListener('click', () => {
+                    currentColor = color;
+                    document.querySelector('.color-swatch.selected').classList.remove('selected');
+                    swatch.classList.add('selected');
+                });
+                colorPaletteContainer.appendChild(swatch);
+            });
+        }
+
+        /**
+         * Initializes or resets the pixel data matrix
+         */
+        function initializePixelData() {
+            pixelData = Array(gridSize).fill(0).map(() => Array(gridSize).fill(null));
+        }
+
+        /**
+         * Draws the grid on the canvas
+         */
+        function drawGrid() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#FFFFFF'; // White background
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Redraws the saved pixels
+            for(let y = 0; y < gridSize; y++) {
+                for (let x = 0; x < gridSize; x++) {
+                    if (pixelData[y][x]) {
+                        ctx.fillStyle = pixelData[y][x];
+                        ctx.fillRect(x * pixelSize, y * pixelSize, pixelSize, pixelSize);
+                    }
+                }
+            }
+
+            // Draws the grid lines
+            ctx.strokeStyle = '#e0e0e0';
+            ctx.lineWidth = 1;
+            for (let i = 0; i <= gridSize; i++) {
+                // Vertical lines
+                ctx.beginPath();
+                ctx.moveTo(i * pixelSize, 0);
+                ctx.lineTo(i * pixelSize, canvas.height);
+                ctx.stroke();
+                // Horizontal lines
+                ctx.beginPath();
+                ctx.moveTo(0, i * pixelSize);
+                ctx.lineTo(canvas.width, i * pixelSize);
+                ctx.stroke();
+            }
+        }
+
+        /**
+         * Paints a pixel on the canvas
+         * @param {MouseEvent} e - The mouse event
+         */
+        function paintPixel(e) {
+            if (!isDrawing) return;
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+
+            const x = Math.floor(((e.clientX - rect.left) * scaleX) / pixelSize);
+            const y = Math.floor(((e.clientY - rect.top) * scaleY) / pixelSize);
+
+            if (x >= 0 && x < gridSize && y >= 0 && y < gridSize) {
+                // Saves the color in the data matrix
+                pixelData[y][x] = currentColor;
+                
+                // Paints the rectangle on the canvas
+                ctx.fillStyle = currentColor;
+                ctx.fillRect(x * pixelSize, y * pixelSize, pixelSize, pixelSize);
+
+                // Redraws the grid line over the pixel to maintain visibility
+                ctx.strokeStyle = '#e0e0e0';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(x * pixelSize, y * pixelSize, pixelSize, pixelSize);
+            }
+        }
+
+        /**
+         * Updates the grid size
+         */
+        function updateGridSize() {
+            gridSize = parseInt(gridSizeSelector.value, 10);
+            pixelSize = canvas.width / gridSize;
+            initializePixelData();
+            drawGrid();
+        }
+
+        /**
+         * Clears the canvas
+         */
+        function clearCanvas() {
+            initializePixelData();
+            drawGrid();
+        }
+
+        /**
+         * Saves the art as a PNG image
+         */
+        function saveArt() {
+            // Creates a temporary canvas to draw the art without grid lines
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = canvas.width;
+            tempCanvas.height = canvas.height;
+            const tempCtx = tempCanvas.getContext('2d');
+
+            // Paints the white background
+            tempCtx.fillStyle = '#FFFFFF';
+            tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+
+            // Draws each pixel from the data matrix
+            for (let y = 0; y < gridSize; y++) {
+                for (let x = 0; x < gridSize; x++) {
+                    if (pixelData[y][x]) {
+                        tempCtx.fillStyle = pixelData[y][x];
+                        tempCtx.fillRect(x * pixelSize, y * pixelSize, pixelSize, pixelSize);
+                    }
+                }
+            }
+            
+            // Creates a download link
+            const link = document.createElement('a');
+            link.download = 'pixel-art.png';
+            link.href = tempCanvas.toDataURL('image/png');
+            link.click();
+        }
+        
+        /**
+         * Changes the interface language
+         * @param {string} lang - The language code (pt, en, ja)
+         */
+        function changeLanguage(lang) {
+            const t = translations[lang];
+            document.getElementById('title').innerText = t.title;
+            document.getElementById('grid-size-label').innerText = t.gridSizeLabel;
+            document.getElementById('clear-btn').innerText = t.clearBtn;
+            document.getElementById('save-btn').innerText = t.saveBtn;
+
+            // Updates the active button
+            langBtns.forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.lang === lang);
+            });
+        }
+
+        // --- Event Listeners Configuration ---
+        gridSizeSelector.addEventListener('change', updateGridSize);
+        clearBtn.addEventListener('click', clearCanvas);
+        saveBtn.addEventListener('click', saveArt);
+
+        canvas.addEventListener('mousedown', (e) => {
+            isDrawing = true;
+            paintPixel(e);
+        });
+        canvas.addEventListener('mousemove', paintPixel);
+        canvas.addEventListener('mouseup', () => {
+            isDrawing = false;
+        });
+        canvas.addEventListener('mouseleave', () => {
+            isDrawing = false;
+        });
+        
+        langBtns.forEach(btn => {
+            btn.addEventListener('click', () => changeLanguage(btn.dataset.lang));
+        });
+
+        // --- Initialization ---
+        function init() {
+            setupColorPalette();
+            initializePixelData();
+            drawGrid();
+            changeLanguage('en'); // Sets the initial language as English
+        }
+
+        init();
+    });
+</script>
+
+</body>
+</html>
