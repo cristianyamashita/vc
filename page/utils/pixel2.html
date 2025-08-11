@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pixel Art Editor</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            touch-action: none;
+        }
+        .canvas-container {
+            cursor: crosshair;
+            aspect-ratio: 1 / 1;
+        }
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+        .color-box {
+            transition: transform 0.1s ease-in-out;
+        }
+        .color-box:hover {
+            transform: scale(1.1);
+        }
+        .color-box.selected {
+            transform: scale(1.1);
+            box-shadow: 0 0 0 3px #3b82f6;
+        }
+        .tool-btn.active {
+            background-color: #3b82f6;
+            color: white;
+        }
+        #selection-box {
+            position: absolute;
+            border: 2px dashed #007bff;
+            pointer-events: none;
+            display: none;
+        }
+        select:focus, input:focus {
+            outline: 2px solid #3b82f6;
+            outline-offset: 2px;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200 flex flex-col items-center justify-center min-h-screen p-4">
+
+    <div class="w-full max-w-6xl">
+        <header class="flex justify-between items-center mb-4">
+            <h1 class="text-2xl md:text-3xl font-bold text-gray-800 dark:text-white" data-lang="title">Pixel Art Editor</h1>
+            <div class="flex items-center space-x-2">
+                 <span data-lang="language">Language:</span>
+                <select id="lang-selector" class="bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md p-1.5 text-sm">
+                    <option value="en">English</option>
+                    <option value="ja">日本語</option>
+                    <option value="pt">Português</option>
+                </select>
+            </div>
+        </header>
+
+        <main class="flex flex-col lg:flex-row gap-4">
+            <div class="w-full lg:w-64 bg-white dark:bg-gray-800 p-4 rounded-xl shadow-lg flex flex-col space-y-4">
+                <div>
+                    <h3 class="font-bold mb-2" data-lang="tools">Tools</h3>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button id="brush-tool" class="tool-btn active flex items-center justify-center p-2 rounded-lg bg-gray-200 dark:bg-gray-700 hover:bg-blue-500 hover:text-white transition-colors" title="Brush">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+                            <span class="ml-2" data-lang="brush">Brush</span>
+                        </button>
+                        <button id="eraser-tool" class="tool-btn flex items-center justify-center p-2 rounded-lg bg-gray-200 dark:bg-gray-700 hover:bg-blue-500 hover:text-white transition-colors" title="Eraser">
+                           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21H7Z"/><path d="M22 21H7"/><path d="m5 12 5 5"/></svg>
+                            <span class="ml-2" data-lang="eraser">Eraser</span>
+                        </button>
+                         <button id="select-tool" class="tool-btn flex items-center justify-center p-2 rounded-lg bg-gray-200 dark:bg-gray-700 hover:bg-blue-500 hover:text-white transition-colors" title="Select Area">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h4"/><path d="M21 3h-4"/><path d="M3 21h4"/><path d="M21 21h-4"/><path d="M7 3v4"/><path d="M7 21v-4"/><path d="M17 3v4"/><path d="M17 21v-4"/><rect width="18" height="18" x="3" y="3" rx="2"/></svg>
+                            <span class="ml-2" data-lang="select">Select</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div>
+                    <h3 class="font-bold mb-2" data-lang="colors">Colors</h3>
+                    <div id="color-palette" class="grid grid-cols-6 gap-2"></div>
+                </div>
+
+                 <div>
+                    <label for="grid-resolution" class="font-bold mb-2 block" data-lang="gridResolution">Grid Resolution</label>
+                    <select id="grid-resolution" class="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md p-2 text-sm">
+                        <option value="16">16x16</option>
+                        <option value="32" selected>32x32</option>
+                        <option value="64">64x64</option>
+                        <option value="128">128x128</option>
+                    </select>
+                </div>
+
+                <div>
+                    <h3 class="font-bold mb-2" data-lang="actions">Actions</h3>
+                    <div class="flex flex-col space-y-2">
+                        <div>
+                            <label for="export-size" class="text-sm font-medium" data-lang="exportSize">Export Size (px)</label>
+                            <input type="number" id="export-size" value="512" class="w-full mt-1 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md p-2 text-sm">
+                        </div>
+                        <button id="save-btn" class="p-2 rounded-lg bg-green-500 text-white hover:bg-green-600 transition-colors" data-lang="save">Save as PNG</button>
+                        <button id="clear-btn" class="p-2 rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors" data-lang="clear">Clear Canvas</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex-grow bg-white dark:bg-gray-800 rounded-xl shadow-lg p-2 relative canvas-container">
+                <canvas id="pixel-canvas"></canvas>
+                <div id="selection-box"></div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const translations = {
+            en: {
+                title: 'Pixel Art Editor', language: 'Language', tools: 'Tools', brush: 'Brush',
+                eraser: 'Eraser', select: 'Select', colors: 'Colors', gridResolution: 'Grid Resolution',
+                actions: 'Actions', exportSize: 'Export Size (px)', save: 'Save as PNG', clear: 'Clear Canvas',
+            },
+            ja: {
+                title: 'ピクセルアートエディター', language: '言語', tools: 'ツール', brush: 'ブラシ',
+                eraser: '消しゴム', select: '選択', colors: 'カラー', gridResolution: 'グリッド解像度',
+                actions: 'アクション', exportSize: 'エクスポートサイズ (px)', save: 'PNGで保存', clear: 'クリア',
+            },
+            pt: {
+                title: 'Editor de Pixel Art', language: 'Idioma', tools: 'Ferramentas', brush: 'Pincel',
+                eraser: 'Borracha', select: 'Selecionar', colors: 'Cores', gridResolution: 'Resolução da Grade',
+                actions: 'Ações', exportSize: 'Tamanho da Exportação (px)', save: 'Salvar como PNG', clear: 'Limpar Tela',
+            }
+        };
+
+        const langSelector = document.getElementById('lang-selector');
+        langSelector.addEventListener('change', (e) => setLanguage(e.target.value));
+
+        function setLanguage(lang) {
+            document.querySelectorAll('[data-lang]').forEach(el => {
+                const key = el.getAttribute('data-lang');
+                if (translations[lang] && translations[lang][key]) {
+                    el.textContent = translations[lang][key];
+                }
+            });
+        }
+
+        const canvas = document.getElementById('pixel-canvas');
+        const ctx = canvas.getContext('2d');
+        const canvasContainer = document.querySelector('.canvas-container');
+        
+        // --- Data Model ---
+        let pixelGrid = [];
+        let gridResolution = 32;
+        
+        let pixelSize = 0;
+        let isDrawing = false;
+        let currentColor = '#000000';
+        let currentTool = 'brush';
+
+        let isSelecting = false;
+        let isDragging = false;
+        let selectionRect = { x: 0, y: 0, w: 0, h: 0 };
+        let selectedPixelData = null; // Will store pixel data from our model
+        let selectionStartGrid = {x: 0, y: 0};
+        let dragStart = { x: 0, y: 0 };
+        const selectionBox = document.getElementById('selection-box');
+
+        const colors = [
+            '#ffffff', '#c2c2c2', '#858585', '#474747', '#000000', '#203548',
+            '#ff4500', '#ff8c00', '#ffd700', '#9acd32', '#32cd32', '#008080',
+            '#00ced1', '#1e90ff', '#4169e1', '#8a2be2', '#9932cc', '#c71585'
+        ];
+
+        const colorPalette = document.getElementById('color-palette');
+        colors.forEach(color => {
+            const colorBox = document.createElement('div');
+            colorBox.className = 'w-8 h-8 rounded-full cursor-pointer border-2 border-gray-300 dark:border-gray-600 color-box';
+            colorBox.style.backgroundColor = color;
+            colorBox.addEventListener('click', () => {
+                currentColor = color;
+                document.querySelectorAll('.color-box').forEach(b => b.classList.remove('selected'));
+                colorBox.classList.add('selected');
+            });
+            colorPalette.appendChild(colorBox);
+        });
+        colorPalette.children[4].classList.add('selected');
+
+        function initializeGrid(resolution) {
+            gridResolution = resolution;
+            pixelGrid = Array(resolution).fill(0).map(() => Array(resolution).fill(null));
+        }
+
+        function renderCanvas() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            for (let y = 0; y < gridResolution; y++) {
+                for (let x = 0; x < gridResolution; x++) {
+                    if (pixelGrid[y][x]) {
+                        ctx.fillStyle = pixelGrid[y][x];
+                        ctx.fillRect(x * pixelSize, y * pixelSize, pixelSize, pixelSize);
+                    }
+                }
+            }
+            drawGrid();
+        }
+
+        function resizeAndRender() {
+            const containerRect = canvasContainer.getBoundingClientRect();
+            const size = Math.min(containerRect.width, containerRect.height) - 16;
+            
+            canvas.width = size;
+            canvas.height = size;
+            
+            pixelSize = canvas.width / gridResolution;
+
+            renderCanvas();
+        }
+
+        function drawGrid() {
+            ctx.strokeStyle = '#e0e0e0';
+            ctx.lineWidth = 1;
+            for (let i = 0; i <= gridResolution; i++) {
+                const pos = i * pixelSize;
+                ctx.beginPath();
+                ctx.moveTo(pos + 0.5, 0);
+                ctx.lineTo(pos + 0.5, canvas.height);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(0, pos + 0.5);
+                ctx.lineTo(canvas.width, pos + 0.5);
+                ctx.stroke();
+            }
+        }
+
+        function getMousePos(evt) {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            let clientX = evt.touches ? evt.touches[0].clientX : evt.clientX;
+            let clientY = evt.touches ? evt.touches[0].clientY : evt.clientY;
+            return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY };
+        }
+
+        function drawOnGrid(x, y) {
+            const gridX = Math.floor(x / pixelSize);
+            const gridY = Math.floor(y / pixelSize);
+
+            if (gridX >= 0 && gridX < gridResolution && gridY >= 0 && gridY < gridResolution) {
+                pixelGrid[gridY][gridX] = (currentTool === 'eraser') ? null : currentColor;
+                renderCanvas();
+            }
+        }
+
+        function handleStart(e) {
+            e.preventDefault();
+            const pos = getMousePos(e);
+            if (currentTool === 'select') {
+                if (selectedPixelData && pos.x >= selectionRect.x && pos.x <= selectionRect.x + selectionRect.w && pos.y >= selectionRect.y && pos.y <= selectionRect.y + selectionRect.h) {
+                    isDragging = true;
+                    dragStart = { x: pos.x - selectionRect.x, y: pos.y - selectionRect.y };
+                    canvasContainer.style.cursor = 'move';
+                } else {
+                    stampSelection();
+                    isSelecting = true;
+                    selectionRect.x = pos.x;
+                    selectionRect.y = pos.y;
+                    selectionRect.w = 0;
+                    selectionRect.h = 0;
+                }
+            } else {
+                isDrawing = true;
+                drawOnGrid(pos.x, pos.y);
+            }
+        }
+
+        function handleMove(e) {
+            if (!isDrawing && !isSelecting && !isDragging) return;
+            e.preventDefault();
+            const pos = getMousePos(e);
+
+            if (isDrawing) {
+                drawOnGrid(pos.x, pos.y);
+            } else if (isSelecting) {
+                selectionRect.w = pos.x - selectionRect.x;
+                selectionRect.h = pos.y - selectionRect.y;
+                updateSelectionBox();
+            } else if (isDragging) {
+                renderCanvas(); // Redraw canvas from model (already has the hole)
+                selectionRect.x = pos.x - dragStart.x;
+                selectionRect.y = pos.y - dragStart.y;
+                
+                // Draw the floating selection data on top
+                ctx.globalAlpha = 0.7;
+                for (const pixel of selectedPixelData) {
+                    ctx.fillStyle = pixel.color;
+                    const drawX = selectionRect.x + pixel.dx * pixelSize;
+                    const drawY = selectionRect.y + pixel.dy * pixelSize;
+                    ctx.fillRect(drawX, drawY, pixelSize, pixelSize);
+                }
+                ctx.globalAlpha = 1.0;
+                
+                updateSelectionBox(true);
+            }
+        }
+
+        function handleEnd(e) {
+            e.preventDefault();
+            isDrawing = false;
+            if (isSelecting) {
+                isSelecting = false;
+                captureSelection();
+            }
+            if (isDragging) {
+                isDragging = false;
+                canvasContainer.style.cursor = 'crosshair';
+                stampSelection();
+            }
+        }
+
+        function updateSelectionBox(isDragging = false) {
+            const sx = Math.min(selectionRect.x, selectionRect.x + selectionRect.w);
+            const sy = Math.min(selectionRect.y, selectionRect.y + selectionRect.h);
+            const sw = Math.abs(selectionRect.w);
+            const sh = Math.abs(selectionRect.h);
+
+            selectionBox.style.display = 'block';
+            selectionBox.style.left = `${sx / canvas.width * 100}%`;
+            selectionBox.style.top = `${sy / canvas.height * 100}%`;
+            selectionBox.style.width = `${sw / canvas.width * 100}%`;
+            selectionBox.style.height = `${sh / canvas.height * 100}%`;
+            selectionBox.style.borderStyle = isDragging ? 'solid' : 'dashed';
+        }
+
+        function captureSelection() {
+            const startX = Math.floor(Math.min(selectionRect.x, selectionRect.x + selectionRect.w) / pixelSize);
+            const startY = Math.floor(Math.min(selectionRect.y, selectionRect.y + selectionRect.h) / pixelSize);
+            const endX = Math.ceil(Math.max(selectionRect.x, selectionRect.x + selectionRect.w) / pixelSize);
+            const endY = Math.ceil(Math.max(selectionRect.y, selectionRect.y + selectionRect.h) / pixelSize);
+            
+            selectedPixelData = [];
+            for (let y = startY; y < endY; y++) {
+                for (let x = startX; x < endX; x++) {
+                    if (y >= 0 && y < gridResolution && x >= 0 && x < gridResolution && pixelGrid[y][x]) {
+                        selectedPixelData.push({ color: pixelGrid[y][x], dx: x - startX, dy: y - startY });
+                        pixelGrid[y][x] = null; // Cut from the model
+                    }
+                }
+            }
+
+            if (selectedPixelData.length > 0) {
+                selectionRect = { x: startX * pixelSize, y: startY * pixelSize, w: (endX - startX) * pixelSize, h: (endY - startY) * pixelSize };
+                renderCanvas(); // Redraw to show the hole
+                updateSelectionBox(true);
+            } else {
+                resetSelection();
+            }
+        }
+
+        function stampSelection() {
+            if (selectedPixelData) {
+                const gridX = Math.round(selectionRect.x / pixelSize);
+                const gridY = Math.round(selectionRect.y / pixelSize);
+                
+                for (const pixel of selectedPixelData) {
+                    const finalX = gridX + pixel.dx;
+                    const finalY = gridY + pixel.dy;
+                    if (finalY >= 0 && finalY < gridResolution && finalX >= 0 && finalX < gridResolution) {
+                        pixelGrid[finalY][finalX] = pixel.color;
+                    }
+                }
+            }
+            resetSelection();
+            renderCanvas();
+        }
+
+        function resetSelection() {
+            selectedPixelData = null;
+            selectionBox.style.display = 'none';
+        }
+
+        window.addEventListener('resize', resizeAndRender);
+        
+        document.getElementById('grid-resolution').addEventListener('change', (e) => {
+            const newRes = parseInt(e.target.value);
+            initializeGrid(newRes);
+            resizeAndRender();
+        });
+
+        document.getElementById('save-btn').addEventListener('click', () => {
+            stampSelection();
+            const exportSize = parseInt(document.getElementById('export-size').value) || 512;
+            
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = exportSize;
+            tempCanvas.height = exportSize;
+            const tempCtx = tempCanvas.getContext('2d');
+            tempCtx.fillStyle = '#ffffff';
+            tempCtx.fillRect(0, 0, exportSize, exportSize);
+
+            const exportPixelSize = exportSize / gridResolution;
+            for (let y = 0; y < gridResolution; y++) {
+                for (let x = 0; x < gridResolution; x++) {
+                    if (pixelGrid[y][x]) {
+                        tempCtx.fillStyle = pixelGrid[y][x];
+                        tempCtx.fillRect(x * exportPixelSize, y * exportPixelSize, exportPixelSize, exportPixelSize);
+                    }
+                }
+            }
+
+            const dataURL = tempCanvas.toDataURL('image/png');
+            const link = document.createElement('a');
+            link.download = `pixel-art-${gridResolution}x${gridResolution}.png`;
+            link.href = dataURL;
+            link.click();
+        });
+
+        document.getElementById('clear-btn').addEventListener('click', () => {
+            if (confirm('Are you sure you want to clear the canvas?')) {
+                resetSelection();
+                initializeGrid(gridResolution);
+                renderCanvas();
+            }
+        });
+
+        // Input events (mouse and touch) for drawing/selecting
+        canvas.addEventListener('mousedown', handleStart);
+        canvas.addEventListener('mousemove', handleMove);
+        canvas.addEventListener('mouseup', handleEnd);
+        canvas.addEventListener('mouseleave', handleEnd);
+
+        canvas.addEventListener('touchstart', handleStart, { passive: false });
+        canvas.addEventListener('touchmove', handleMove, { passive: false });
+        canvas.addEventListener('touchend', handleEnd, { passive: false });
+        canvas.addEventListener('touchcancel', handleEnd, { passive: false });
+
+        const toolButtons = document.querySelectorAll('.tool-btn');
+        toolButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                stampSelection();
+                toolButtons.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentTool = btn.id.replace('-tool', '');
+                canvasContainer.style.cursor = 'crosshair';
+                if (currentTool !== 'select') resetSelection();
+            });
+        });
+
+        setLanguage('en');
+        initializeGrid(gridResolution);
+        resizeAndRender();
+    </script>
+</body>
+</html>
