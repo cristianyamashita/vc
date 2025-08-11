@@ -94,7 +94,7 @@
           <h3 class="font-bold" data-lang="layers">Layers</h3>
           <button id="add-layer-btn" class="px-2 py-1 text-xs rounded bg-blue-500 text-white hover:bg-blue-600" data-lang="addLayer">Add</button>
         </div>
-        <div id="layers-list" class="space-y-2 max-h-[70vh] overflow-auto pr-1"></div>
+        <div id="layers-list" class="space-y-2 max-h-[70vh] overflow-y-auto overflow-x-hidden pr-1"></div>
         <div class="pt-2 border-t border-gray-200 dark:border-gray-700">
           <h3 class="font-bold mb-2" data-lang="playback">Playback</h3>
           <div class="flex items-center space-x-2">
@@ -117,21 +117,21 @@
         colors: 'Colors', gridResolution: 'Grid Resolution', layers: 'Layers', addLayer: 'Add', duplicate: 'Duplicate',
         delete: 'Delete', visibility: 'Visible', opacity: 'Opacity', actions: 'Actions', exportSize: 'Export Size (px)',
         exportActive: 'Export Active', exportAll: 'Export All', playback: 'Playback', frameDuration: 'Frame (ms)',
-        play: 'Play', stop: 'Stop', layerName: 'Layer'
+        play: 'Play', stop: 'Stop', layerName: 'Layer', exportPrefixPrompt: 'Enter filename prefix', zipNameDefault: 'layers'
       },
       ja: {
         title: 'ピクセルアート スプリントエディタ', language: '言語', tools: 'ツール', brush: 'ブラシ', eraser: '消しゴム',
         colors: 'カラー', gridResolution: 'グリッド解像度', layers: 'レイヤー', addLayer: '追加', duplicate: '複製',
         delete: '削除', visibility: '表示', opacity: '不透明度', actions: 'アクション', exportSize: 'エクスポートサイズ (px)',
         exportActive: 'アクティブを保存', exportAll: 'すべて保存', playback: '再生', frameDuration: 'フレーム (ms)',
-        play: '再生', stop: '停止', layerName: 'レイヤー'
+        play: '再生', stop: '停止', layerName: 'レイヤー', exportPrefixPrompt: 'ファイル名のプレフィックスを入力してください', zipNameDefault: 'レイヤー'
       },
       pt: {
         title: 'Editor de Sprint de Pixel Art', language: 'Idioma', tools: 'Ferramentas', brush: 'Pincel', eraser: 'Borracha',
         colors: 'Cores', gridResolution: 'Resolução da Grade', layers: 'Camadas', addLayer: 'Adicionar', duplicate: 'Duplicar',
-        delete: 'Excluir', visibility: 'Visível', opacity: 'Opacidade', actions: 'Ações', exportSize: 'Tamanho da Exportação (px)',
+        delete: 'Excluir', visibility: 'Visível', opacity: 'Opac.', actions: 'Ações', exportSize: 'Tamanho da Exportação (px)',
         exportActive: 'Exportar Ativa', exportAll: 'Exportar Todas', playback: 'Reprodução', frameDuration: 'Quadro (ms)',
-        play: 'Reproduzir', stop: 'Parar', layerName: 'Camada'
+        play: 'Reproduzir', stop: 'Parar', layerName: 'Camada', exportPrefixPrompt: 'Digite o prefixo do nome do arquivo', zipNameDefault: 'camadas'
       }
     };
 
@@ -300,15 +300,16 @@
         const opLabel = document.createElement('label');
         opLabel.className = 'flex items-center gap-2 text-sm flex-1';
         const opText = document.createElement('span');
+        opText.className = 'text-xs';
         opText.textContent = t.opacity;
         const opRange = document.createElement('input');
         opRange.type = 'range';
         opRange.min = '0';
         opRange.max = '100';
         opRange.value = String(Math.round(layer.opacity * 100));
-        opRange.className = 'flex-1';
+        opRange.className = 'flex-1 max-w-[110px]';
         const opVal = document.createElement('span');
-        opVal.className = 'w-10 text-right';
+        opVal.className = 'w-8 text-right text-xs';
         opVal.textContent = `${Math.round(layer.opacity * 100)}%`;
         opRange.addEventListener('input', () => { layer.opacity = parseInt(opRange.value, 10) / 100; opVal.textContent = `${opRange.value}%`; renderCanvas(); });
 
@@ -596,16 +597,21 @@
 
     document.getElementById('export-all-btn').addEventListener('click', async () => {
       const exportSize = parseInt(document.getElementById('export-size').value, 10) || 512;
+      const t = translations[langSelector.value];
+      let prefix = prompt(t.exportPrefixPrompt, 'frame');
+      if (prefix === null) return; // cancelled
+      prefix = (prefix || 'frame').trim().replace(/[^\w.\-]+/g, '_');
       const zip = new JSZip();
       for (let i = 0; i < layers.length; i++) {
         const layer = layers[i];
         const c = renderLayerToCanvas(layer, exportSize);
         // eslint-disable-next-line no-await-in-loop
         const blob = await new Promise(resolve => c.toBlob(resolve));
-        if (blob) zip.file(`${String(i+1).padStart(2,'0')}_${layer.name.replace(/\s+/g, '_')}.png`, blob);
+        if (blob) zip.file(`${prefix}_${String(i+1).padStart(2,'0')}.png`, blob);
       }
       const zipBlob = await zip.generateAsync({ type: 'blob' });
-      saveAs(zipBlob, 'pixel-sprint-layers.zip');
+      const zipName = `${prefix || t.zipNameDefault}.zip`;
+      saveAs(zipBlob, zipName);
     });
 
     // Image import (palette quantization) into active layer
