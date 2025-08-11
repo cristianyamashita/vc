@@ -103,6 +103,8 @@
                             <label for="export-size" class="text-sm font-medium" data-lang="exportSize">Export Size (px)</label>
                             <input type="number" id="export-size" value="512" class="w-full mt-1 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md p-2 text-sm">
                         </div>
+                        <button id="import-btn" class="p-2 rounded-lg bg-blue-500 text-white hover:bg-blue-600 transition-colors">Import Image</button>
+                        <input id="image-input" type="file" accept="image/*" class="hidden" />
                         <button id="save-btn" class="p-2 rounded-lg bg-green-500 text-white hover:bg-green-600 transition-colors" data-lang="save">Save as PNG</button>
                         <button id="clear-btn" class="p-2 rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors" data-lang="clear">Clear Canvas</button>
                     </div>
@@ -425,6 +427,77 @@
                 initializeGrid(gridResolution);
                 renderCanvas();
             }
+        });
+
+        // --- Image Import to Pixel Grid ---
+        function hexToRgb(hex) {
+            const clean = hex.replace('#', '');
+            const num = parseInt(clean, 16);
+            return { r: (num >> 16) & 255, g: (num >> 8) & 255, b: num & 255 };
+        }
+
+        function nearestPaletteColor(r, g, b) {
+            let best = colors[0];
+            let bestDist = Infinity;
+            for (const c of colors) {
+                const rgb = hexToRgb(c);
+                const dr = r - rgb.r;
+                const dg = g - rgb.g;
+                const db = b - rgb.b;
+                const dist = dr * dr + dg * dg + db * db;
+                if (dist < bestDist) {
+                    bestDist = dist;
+                    best = c;
+                }
+            }
+            return best;
+        }
+
+        function importImageFromFile(file) {
+            const url = URL.createObjectURL(file);
+            const img = new Image();
+            img.onload = () => {
+                // Draw the image scaled to gridResolution x gridResolution
+                const small = document.createElement('canvas');
+                small.width = gridResolution;
+                small.height = gridResolution;
+                const sctx = small.getContext('2d');
+                sctx.imageSmoothingEnabled = true;
+                sctx.clearRect(0, 0, small.width, small.height);
+                sctx.drawImage(img, 0, 0, small.width, small.height);
+
+                const imgData = sctx.getImageData(0, 0, small.width, small.height).data;
+                for (let y = 0; y < gridResolution; y++) {
+                    for (let x = 0; x < gridResolution; x++) {
+                        const idx = (y * gridResolution + x) * 4;
+                        const r = imgData[idx];
+                        const g = imgData[idx + 1];
+                        const b = imgData[idx + 2];
+                        const a = imgData[idx + 3];
+                        if (a < 8) {
+                            pixelGrid[y][x] = null; // transparent -> empty
+                        } else {
+                            pixelGrid[y][x] = nearestPaletteColor(r, g, b);
+                        }
+                    }
+                }
+                renderCanvas();
+                URL.revokeObjectURL(url);
+            };
+            img.onerror = () => URL.revokeObjectURL(url);
+            img.src = url;
+        }
+
+        const importBtn = document.getElementById('import-btn');
+        const imageInput = document.getElementById('image-input');
+        importBtn.addEventListener('click', () => imageInput.click());
+        imageInput.addEventListener('change', (e) => {
+            const file = e.target.files && e.target.files[0];
+            if (!file) return;
+            stampSelection();
+            resetSelection();
+            importImageFromFile(file);
+            imageInput.value = '';
         });
 
         // Input events (mouse and touch) for drawing/selecting
