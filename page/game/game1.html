@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Melee Survivors (HTML + JS)</title>
+    <style>
+      :root {
+        --bg-1: #0b1220;
+        --bg-2: #0a0f1a;
+        --panel: #0b1324cc;
+        --border: #1f2a44;
+        --text: #e5e7eb;
+        --muted: #94a3b8;
+        --emerald: #22c55e;
+        --emerald-2: #34d399;
+      }
+      * { box-sizing: border-box; }
+      html, body { height: 100%; }
+      body {
+        margin: 0;
+        font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica Neue, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+        color: var(--text);
+        background: radial-gradient(1200px 800px at 10% -10%, #0e1a2e 0%, #080f1d 40%, #060b16 100%);
+        padding: 16px;
+      }
+      .page {
+        display: grid;
+        grid-template-rows: auto 1fr auto;
+        gap: 12px;
+        height: 80vh;
+        min-height: 520px;
+      }
+      .topbar {
+        display: flex; align-items: center; justify-content: space-between;
+        background: var(--panel);
+        backdrop-filter: blur(6px);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 10px 12px;
+      }
+      .row { display: flex; align-items: center; gap: 10px; }
+      .muted { color: var(--muted); font-size: 12px; }
+      label { font-size: 14px; color: #cbd5e1; }
+      select, button {
+        border-radius: 12px;
+        border: 1px solid var(--border);
+        background: #0b1220;
+        color: var(--text);
+      }
+      select { padding: 6px 10px; }
+      button { padding: 8px 12px; cursor: pointer; }
+      button.primary { background: var(--emerald); color: #0a0a0a; border: none; font-weight: 600; }
+      button.primary:hover { background: var(--emerald-2); }
+      button.ghost { background: #1f2937; color: #e5e7eb; border: 1px solid #334155; }
+      button.ghost:hover { background: #374151; }
+      .stage {
+        position: relative;
+        border-radius: 16px;
+        overflow: hidden;
+        border: 1px solid var(--border);
+        background: #020617;
+        display: grid;
+      }
+      canvas { display: block; width: 100%; height: 100%; }
+      .overlay {
+        position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+        padding: 16px;
+        background: rgba(0,0,0,0.7);
+        backdrop-filter: blur(3px);
+      }
+      .hidden { display: none !important; }
+      .card {
+        background: #0b1324b3; border: 1px solid var(--border); border-radius: 16px; padding: 20px; text-align: center;
+        max-width: 640px; width: 100%; margin: 0 auto;
+      }
+      .upgrade-grid {
+        width: 100%; max-width: 1000px;
+        display: grid; grid-template-columns: repeat(1, minmax(0,1fr)); gap: 12px;
+      }
+      @media (min-width: 720px) {
+        .upgrade-grid { grid-template-columns: repeat(3, minmax(0,1fr)); }
+      }
+      .upgrade-btn {
+        text-align: left; border-radius: 16px; border: 1px solid var(--border);
+        background: #0b1324cc; padding: 14px; transition: border-color .15s ease, background .15s ease;
+      }
+      .upgrade-btn:hover { border-color: #86efac66; background: #0b1324; }
+      .upgrade-title { color: #86efac; font-weight: 600; font-size: 18px; margin-bottom: 6px; }
+      .upgrade-desc { color: #cbd5e1; font-size: 13px; }
+      .footer { font-size: 12px; color: var(--muted); display: flex; align-items: center; justify-content: space-between; }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <div class="topbar">
+        <div class="row">
+          <h1 id="title" style="font-size: 16px; margin: 0; font-weight: 600;">Melee Survivors</h1>
+          <span id="hint" class="muted">WASD/Setas para mover • P para pausar</span>
+        </div>
+        <div class="row">
+          <label id="lang-label" for="language">Idioma</label>
+          <select id="language">
+            <option value="pt">Português</option>
+            <option value="en">English</option>
+            <option value="ja">日本語</option>
+          </select>
+          <label id="diff-label" for="difficulty">Dificuldade</label>
+          <select id="difficulty">
+            <option value="Normal">Normal</option>
+            <option value="Hard">Hard</option>
+            <option value="Brutal">Brutal</option>
+          </select>
+          <div class="row" id="controls">
+            <button id="start-btn" class="primary">Iniciar</button>
+            <button id="pause-btn" class="ghost hidden">Pausar</button>
+            <button id="stop-btn" class="ghost hidden">Parar</button>
+            <button id="restart-btn" class="primary hidden">Reiniciar</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="stage" id="stage">
+        <canvas id="game"></canvas>
+
+        <div id="upgrade-overlay" class="overlay hidden">
+          <div class="upgrade-grid" id="upgrade-grid"></div>
+        </div>
+
+        <div id="start-overlay" class="overlay">
+          <div class="card">
+            <h2 id="start-title" style="margin:0 0 8px 0; font-size: 22px; font-weight: 700;">Pronto para o combate?</h2>
+            <p id="start-desc" style="margin: 0 0 14px 0; color: #cbd5e1;">Movimente-se com WASD/Setas, a espada gira automaticamente. Coleta XP, evolua e sobreviva o máximo possível.</p>
+            <button id="big-start" class="primary">Iniciar</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="footer">
+        <div id="footer-tip">Dica: pegue upgrades de giro + espessura cedo para controlar hordas. Depois priorize dano/ímã.</div>
+        <div id="footer-note">© demo sem assets — apenas Canvas 2D.</div>
+      </div>
+    </div>
+
+    <script>
+// ===== Utility helpers =====
+const rand = (min, max) => Math.random() * (max - min) + min;
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const lerp = (a, b, t) => a + (b - a) * t;
+      const dist2 = (x1, y1, x2, y2) => { const dx = x2 - x1, dy = y2 - y1; return dx * dx + dy * dy; };
+const nowSec = () => performance.now() / 1000;
+
+function linePointDistance(px, py, x1, y1, x2, y2) {
+        const A = px - x1, B = py - y1; const C = x2 - x1, D = y2 - y1;
+        const dot = A * C + B * D; const lenSq = C * C + D * D || 1e-6;
+        let t = dot / lenSq; t = clamp(t, 0, 1);
+        const ex = x1 + C * t; const ey = y1 + D * t;
+        const dx = px - ex, dy = py - ey; return Math.sqrt(dx * dx + dy * dy);
+      }
+
+      // ===== DOM refs =====
+      const canvas = document.getElementById('game');
+      const stageEl = document.getElementById('stage');
+      const difficultyEl = document.getElementById('difficulty');
+      const languageEl = document.getElementById('language');
+      const titleEl = document.getElementById('title');
+      const hintEl = document.getElementById('hint');
+      const langLabelEl = document.getElementById('lang-label');
+      const diffLabelEl = document.getElementById('diff-label');
+      const startBtn = document.getElementById('start-btn');
+      const bigStartBtn = document.getElementById('big-start');
+      const pauseBtn = document.getElementById('pause-btn');
+      const stopBtn = document.getElementById('stop-btn');
+      const restartBtn = document.getElementById('restart-btn');
+      const startOverlay = document.getElementById('start-overlay');
+      const upgradeOverlay = document.getElementById('upgrade-overlay');
+      const upgradeGrid = document.getElementById('upgrade-grid');
+      const startTitleEl = document.getElementById('start-title');
+      const startDescEl = document.getElementById('start-desc');
+      const footerTipEl = document.getElementById('footer-tip');
+      const footerNoteEl = document.getElementById('footer-note');
+
+      // ===== Game state =====
+      let running = false;
+      let paused = false;
+      let showUpgrades = false;
+      let choices = [];
+      let difficulty = 'Normal';
+      let lang = 'pt';
+      let dieStats = null;
+      let gameState = null;
+      let lastTS = 0;
+      let rafId = 0;
+
+      // ===== i18n =====
+      const i18n = {
+        pt: {
+          title: 'Melee Survivors',
+          hint: 'WASD/Setas para mover • P para pausar',
+          language: 'Idioma',
+          difficulty: 'Dificuldade',
+          start: 'Iniciar',
+          pause: 'Pausar',
+          resume: 'Retomar',
+          stop: 'Parar',
+          restart: 'Reiniciar',
+          startCardTitle: 'Pronto para o combate?',
+          startCardDesc: 'Movimente-se com WASD/Setas, a espada gira automaticamente. Coleta XP, evolua e sobreviva o máximo possível.',
+          tip: 'Dica: pegue upgrades de giro + espessura cedo para controlar hordas. Depois priorize dano/ímã.',
+          footerNote: '© demo sem assets — apenas Canvas 2D.',
+          paused: 'PAUSADO',
+          gameOver: 'GAME OVER',
+          hudLvl: 'Lvl',
+          hudKills: 'Kills',
+          hudTime: 'Tempo',
+          hudLevelWord: 'Nível',
+          restartHint: "Clique em 'Reiniciar' para jogar novamente.",
+          diffLabels: { Normal: 'Normal', Hard: 'Hard', Brutal: 'Brutal' },
+        },
+        en: {
+          title: 'Melee Survivors',
+          hint: 'WASD/Arrows to move • P to pause',
+          language: 'Language',
+          difficulty: 'Difficulty',
+          start: 'Start',
+          pause: 'Pause',
+          resume: 'Resume',
+          stop: 'Stop',
+          restart: 'Restart',
+          startCardTitle: 'Ready for battle?',
+          startCardDesc: 'Move with WASD/Arrows, the sword spins automatically. Collect XP, level up, and survive as long as you can.',
+          tip: 'Tip: get spin + thickness early to control hordes. Then prioritize damage/magnet.',
+          footerNote: '© asset-free demo — Canvas 2D only.',
+          paused: 'PAUSED',
+          gameOver: 'GAME OVER',
+          hudLvl: 'Lvl',
+          hudKills: 'Kills',
+          hudTime: 'Time',
+          hudLevelWord: 'Level',
+          restartHint: "Click 'Restart' to play again.",
+          diffLabels: { Normal: 'Normal', Hard: 'Hard', Brutal: 'Brutal' },
+        },
+        ja: {
+          title: 'Melee Survivors',
+          hint: 'WASD/矢印キーで移動 • P で一時停止',
+          language: '言語',
+          difficulty: '難易度',
+          start: '開始',
+          pause: '一時停止',
+          resume: '再開',
+          stop: '停止',
+          restart: 'リスタート',
+          startCardTitle: '戦う準備はできた？',
+          startCardDesc: 'WASD/矢印キーで移動。剣は自動で回転。XP を集めてレベルアップし、できるだけ長く生き延びよう。',
+          tip: 'ヒント: 早めに回転速度と厚みを上げて制圧し、その後はダメージ/磁力を優先。',
+          footerNote: '© アセットなしのデモ — 2D Canvas のみ',
+          paused: '一時停止中',
+          gameOver: 'ゲームオーバー',
+          hudLvl: 'Lv.',
+          hudKills: '撃破',
+          hudTime: '時間',
+          hudLevelWord: 'レベル',
+          restartHint: '「リスタート」を押すともう一度遊べます。',
+          diffLabels: { Normal: 'ノーマル', Hard: 'ハード', Brutal: 'ブルータル' },
+        },
+      };
+      const t = (key) => (i18n[lang] && i18n[lang][key]) || i18n['en'][key] || key;
+
+      // ===== Resize handling =====
+      function resizeCanvas() {
+        const parent = canvas.parentElement;
+      const w = parent.clientWidth;
+      const h = Math.min(parent.clientHeight || 600, (w * 9) / 16);
+      const dpr = window.devicePixelRatio || 1;
+        canvas.width = w * dpr; canvas.height = h * dpr;
+        canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
+        const ctx = canvas.getContext('2d');
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      }
+      const ro = new ResizeObserver(resizeCanvas);
+      ro.observe(stageEl);
+      resizeCanvas();
+
+      // ===== Upgrades (localized) =====
+      const allUpgrades = [
+        { id: 'sword_len',
+          title: { pt: 'Lâmina +20%', en: 'Blade +20%', ja: '刃の長さ +20%' },
+          desc:  { pt: 'Aumenta o alcance da espada.', en: 'Increases sword reach.', ja: '剣のリーチが伸びる。' },
+          apply: st => st.player.sword.length *= 1.2 },
+        { id: 'sword_thick',
+          title: { pt: 'Espessura +25%', en: 'Thickness +25%', ja: '厚み +25%' },
+          desc:  { pt: 'Mais fácil de acertar inimigos.', en: 'Easier to hit enemies.', ja: '敵に当てやすくなる。' },
+          apply: st => st.player.sword.thickness *= 1.25 },
+        { id: 'swing_speed',
+          title: { pt: 'Giro +20%', en: 'Spin Speed +20%', ja: '回転速度 +20%' },
+          desc:  { pt: 'Espada gira mais rápido.', en: 'Sword spins faster.', ja: '剣の回転が速くなる。' },
+          apply: st => st.player.sword.angularSpeed *= 1.2 },
+        { id: 'dano',
+          title: { pt: 'Dano +25%', en: 'Damage +25%', ja: 'ダメージ +25%' },
+          desc:  { pt: 'Mais dano por golpe.', en: 'More damage per hit.', ja: '一撃の威力が上がる。' },
+          apply: st => st.player.sword.damage *= 1.25 },
+        { id: 'crit',
+          title: { pt: 'Crítico +10%', en: 'Crit Chance +10%', ja: 'クリ率 +10%' },
+          desc:  { pt: 'Mais chance de crítico.', en: 'Higher critical chance.', ja: 'クリティカル率が上がる。' },
+          apply: st => st.player.sword.critChance = Math.min(0.6, st.player.sword.critChance + 0.1) },
+        { id: 'knock',
+          title: { pt: 'Recuo +30%', en: 'Knockback +30%', ja: 'ノックバック +30%' },
+          desc:  { pt: 'Aumenta o knockback.', en: 'Increases knockback.', ja: 'ノックバックが強くなる。' },
+          apply: st => st.player.sword.knockback *= 1.3 },
+        { id: 'speed',
+          title: { pt: 'Velocidade +15%', en: 'Speed +15%', ja: '移動速度 +15%' },
+          desc:  { pt: 'Corre mais rápido.', en: 'Run faster.', ja: '移動が速くなる。' },
+          apply: st => st.player.speed *= 1.15 },
+        { id: 'magnet',
+          title: { pt: 'Ímã +40%', en: 'Magnet +40%', ja: '磁力 +40%' },
+          desc:  { pt: 'Maior alcance para puxar XP.', en: 'Wider XP pickup range.', ja: 'XP の吸引範囲が広がる。' },
+          apply: st => st.player.magnet *= 1.4 },
+        { id: 'vida',
+          title: { pt: '+30 Vida', en: '+30 Health', ja: '体力 +30' },
+          desc:  { pt: 'Cura e aumenta vida máxima.', en: 'Heal and increase max HP.', ja: '回復し最大体力も上がる。' },
+          apply: st => { st.player.maxHp += 30; st.player.hp = Math.min(st.player.maxHp, st.player.hp + 30); } },
+      ];
+
+      function levelUp(st) {
+        st.player.level++;
+        st.player.xp = 0;
+        st.player.nextXp = Math.floor(st.player.nextXp * 1.35 + 10);
+        const pool = allUpgrades.slice();
+        const picks = [];
+        for (let i = 0; i < 3 && pool.length; i++) {
+          const idx = Math.floor(rand(0, pool.length));
+          picks.push(pool[idx]);
+          pool.splice(idx, 1);
+        }
+        choices = picks;
+        showUpgrades = true;
+        paused = true;
+        renderUpgrades();
+        updateUI();
+      }
+
+      function takeUpgrade(u) {
+        if (!gameState) return;
+        u.apply(gameState);
+        showUpgrades = false;
+        paused = false;
+        renderUpgrades();
+        updateUI();
+        // resume loop if it had stopped due to paused flag
+        if (running && !gameState.gameOver && !rafId) rafId = requestAnimationFrame(loop);
+      }
+
+      function renderUpgrades() {
+        if (showUpgrades) {
+          upgradeGrid.innerHTML = '';
+          for (const c of choices) {
+            const btn = document.createElement('button');
+            btn.className = 'upgrade-btn';
+            const title = (c.title && (c.title[lang] || c.title['en'])) || c.title || '';
+            const desc = (c.desc && (c.desc[lang] || c.desc['en'])) || c.desc || '';
+            btn.innerHTML = `<div class="upgrade-title">${title}</div><div class="upgrade-desc">${desc}</div>`;
+            btn.addEventListener('click', () => takeUpgrade(c));
+            upgradeGrid.appendChild(btn);
+          }
+          upgradeOverlay.classList.remove('hidden');
+        } else {
+          upgradeOverlay.classList.add('hidden');
+        }
+      }
+
+      // ===== Game control =====
+      function startGame() {
+        resizeCanvas();
+        const w = canvas.clientWidth;
+        const h = canvas.clientHeight;
+    const diffCfg = {
+      Normal: { enemySpeed: 70, spawnRate: 1, damage: 6 },
+      Hard: { enemySpeed: 90, spawnRate: 1.25, damage: 8 },
+      Brutal: { enemySpeed: 110, spawnRate: 1.5, damage: 10 },
+    }[difficulty];
+
+        gameState = {
+      width: w,
+      height: h,
+      t: 0,
+      startTime: nowSec(),
+      bgHue: rand(190, 260),
+      player: {
+            x: w / 2, y: h / 2, r: 16, speed: 190,
+            hp: 100, maxHp: 100, invuln: 0, magnet: 90,
+            kills: 0, level: 1, xp: 0, nextXp: 20, dash: 0, move: { x: 0, y: 0 },
+            sword: { length: 85, thickness: 14, angle: 0, angularSpeed: 3.2, damage: 15, knockback: 220, critChance: 0.1, critMult: 1.8 }
+      },
+      input: { up: false, down: false, left: false, right: false },
+          enemies: [], orbs: [], particles: [], rng: Math.random() * 1e9,
+          spawnTimer: 0, baseSpawn: 1.2 / diffCfg.spawnRate, enemyBaseSpeed: diffCfg.enemySpeed, enemyContactDmg: diffCfg.damage,
+      gameOver: false,
+    };
+
+        running = true; paused = false; showUpgrades = false; dieStats = null;
+        startOverlay.classList.add('hidden');
+        renderUpgrades();
+        updateUI();
+
+        lastTS = performance.now();
+        if (rafId) cancelAnimationFrame(rafId);
+        rafId = requestAnimationFrame(loop);
+      }
+
+      function stopGame() {
+        running = false; paused = false; showUpgrades = false; dieStats = null; choices = []; gameState = null;
+        if (rafId) cancelAnimationFrame(rafId); rafId = 0;
+        renderUpgrades();
+        startOverlay.classList.remove('hidden');
+        updateUI();
+      }
+
+      function togglePause() {
+        if (!running || !gameState) return;
+        paused = !paused;
+        updateUI();
+        if (!paused && !gameState.gameOver && !rafId) rafId = requestAnimationFrame(loop);
+      }
+
+      // ===== Input =====
+      function onKey(e, down) {
+        if (!gameState) return;
+        if (e.code === 'ArrowUp' || e.code === 'KeyW') gameState.input.up = down;
+        if (e.code === 'ArrowDown' || e.code === 'KeyS') gameState.input.down = down;
+        if (e.code === 'ArrowLeft' || e.code === 'KeyA') gameState.input.left = down;
+        if (e.code === 'ArrowRight' || e.code === 'KeyD') gameState.input.right = down;
+        if (e.code === 'KeyP' && down) togglePause();
+      }
+      window.addEventListener('keydown', e => onKey(e, true));
+      window.addEventListener('keyup', e => onKey(e, false));
+
+      // ===== Loop/update/render =====
+      function spawnBurst(st, x, y, n, r, g, b) {
+        for (let i = 0; i < n; i++) {
+          const a = rand(0, Math.PI * 2); const sp = rand(30, 160);
+          st.particles.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: rand(0.3, 0.9), r, g, b, kind: 'spark' });
+        }
+      }
+
+  function update(st, dt) {
+    st.t += dt;
+        if ((st.width !== canvas.clientWidth) || (st.height !== canvas.clientHeight)) {
+          st.width = canvas.clientWidth; st.height = canvas.clientHeight;
+        }
+    const mvx = (st.input.right ? 1 : 0) - (st.input.left ? 1 : 0);
+    const mvy = (st.input.down ? 1 : 0) - (st.input.up ? 1 : 0);
+        const mvlen = Math.hypot(mvx, mvy) || 1;
+    const speed = st.player.speed;
+        st.player.x += (mvx / mvlen) * speed * dt;
+        st.player.y += (mvy / mvlen) * speed * dt;
+    st.player.x = clamp(st.player.x, 20, st.width - 20);
+    st.player.y = clamp(st.player.y, 20, st.height - 20);
+
+        const sw = st.player.sword; sw.angle += sw.angularSpeed * dt;
+
+    st.spawnTimer -= dt;
+    if (st.spawnTimer <= 0) {
+      st.spawnTimer = Math.max(0.25, st.baseSpawn - st.t * 0.002);
+      const edge = Math.floor(rand(0, 4));
+      let x, y;
+      if (edge === 0) { x = -20; y = rand(0, st.height); }
+      else if (edge === 1) { x = st.width + 20; y = rand(0, st.height); }
+      else if (edge === 2) { x = rand(0, st.width); y = -20; }
+      else { x = rand(0, st.width); y = st.height + 20; }
+      const spd = st.enemyBaseSpeed + st.t * 1.5 + rand(-10, 20);
+      const hp = 25 + st.t * 2 + rand(-5, 10);
+      st.enemies.push({ x, y, r: 14, hp, maxHp: hp, speed: spd, vx: 0, vy: 0, lastHit: 0 });
+      if (Math.floor(st.t) % 20 === 0) {
+            const ex = Math.random() < 0.5 ? -40 : st.width + 40; const ey = rand(0, st.height);
+        const ehp = 220 + st.t * 12;
+        st.enemies.push({ x: ex, y: ey, r: 22, hp: ehp, maxHp: ehp, speed: spd * 0.8, vx: 0, vy: 0, elite: true, lastHit: 0 });
+      }
+    }
+
+    for (const e of st.enemies) {
+          const dx = st.player.x - e.x; const dy = st.player.y - e.y; const d = Math.hypot(dx, dy) || 1; const ux = dx / d, uy = dy / d;
+          e.vx += ux * e.speed * dt; e.vy += uy * e.speed * dt; e.vx *= 0.92; e.vy *= 0.92; e.x += e.vx * dt; e.y += e.vy * dt;
+      const rr = st.player.r + e.r - 3;
+      if (dist2(st.player.x, st.player.y, e.x, e.y) < rr * rr) {
+        if (st.player.invuln <= 0) {
+              st.player.hp -= st.enemyContactDmg; st.player.invuln = 0.6; st.player.x -= ux * 18; st.player.y -= uy * 18;
+          spawnBurst(st, st.player.x, st.player.y, 10, 0, 0, 0);
+          if (st.player.hp <= 0) {
+                st.gameOver = true; dieStats = { time: (nowSec() - st.startTime), kills: st.player.kills, level: st.player.level }; updateUI();
+            break;
+          }
+        }
+      }
+      e.lastHit = Math.max(0, e.lastHit - dt);
+    }
+
+    st.player.invuln = Math.max(0, st.player.invuln - dt);
+
+        const tipX = st.player.x + Math.cos(sw.angle) * sw.length; const tipY = st.player.y + Math.sin(sw.angle) * sw.length;
+    for (const e of st.enemies) {
+      if (e.lastHit > 0) continue;
+      const d = linePointDistance(e.x, e.y, st.player.x, st.player.y, tipX, tipY);
+      if (d < e.r + sw.thickness * 0.5) {
+            const isCrit = Math.random() < sw.critChance; const dmg = sw.damage * (isCrit ? sw.critMult : 1);
+            e.hp -= dmg; e.lastHit = 0.08; const kx = (e.x - st.player.x), ky = (e.y - st.player.y); const klen = Math.hypot(kx, ky) || 1; const ux = kx / klen, uy = ky / klen;
+            e.vx += ux * sw.knockback; e.vy += uy * sw.knockback; spawnBurst(st, e.x, e.y, isCrit ? 18 : 10, 255, isCrit ? 220 : 160, 80);
+            st.particles.push({ x: e.x, y: e.y - 10, vx: rand(-20, 20), vy: -40, life: 0.8, text: Math.round(dmg).toString() + (isCrit ? '!' : ''), kind: 'text' });
+        if (e.hp <= 0) {
+          st.player.kills++;
+          const drop = e.elite ? 6 : (Math.random() < 0.3 ? 2 : 1);
+          for (let i = 0; i < drop; i++) st.orbs.push({ x: e.x + rand(-8,8), y: e.y + rand(-8,8), r: 5, xp: e.elite ? 6 : 2, vx: rand(-20,20), vy: rand(-20,20) });
+        }
+      }
+    }
+    st.enemies = st.enemies.filter(e => e.hp > 0);
+
+    for (const o of st.orbs) {
+      const dx = st.player.x - o.x; const dy = st.player.y - o.y; const d = Math.hypot(dx, dy) || 1;
+          if (d < st.player.magnet) { o.vx += (dx / d) * 500 * dt; o.vy += (dy / d) * 500 * dt; }
+      o.vx *= 0.9; o.vy *= 0.9; o.x += o.vx * dt; o.y += o.vy * dt;
+      if (d < st.player.r + 6) {
+            st.player.xp += o.xp; spawnBurst(st, o.x, o.y, 8, 120, 220, 255); o._dead = true; if (st.player.xp >= st.player.nextXp) levelUp(st);
+      }
+    }
+    st.orbs = st.orbs.filter(o => !o._dead);
+
+        for (const p of st.particles) { p.x += (p.vx || 0) * dt; p.y += (p.vy || 0) * dt; p.life -= dt; }
+    st.particles = st.particles.filter(p => p.life > 0);
+  }
+
+  function drawHUD(st, ctx) {
+    const W = st.width, H = st.height;
+        ctx.save(); ctx.globalAlpha = 0.95; ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fillRect(10, 10, W - 20, 58);
+        const hpPct = st.player.hp / st.player.maxHp; ctx.fillStyle = '#203c36'; ctx.fillRect(20, 20, W * 0.35, 12);
+        const grad = ctx.createLinearGradient(20, 20, 20 + W * 0.35 * hpPct, 32); grad.addColorStop(0, '#22ffa6'); grad.addColorStop(1, '#00a885');
+        ctx.fillStyle = grad; ctx.fillRect(20, 20, W * 0.35 * hpPct, 12); ctx.fillStyle = '#fff'; ctx.font = '12px ui-sans-serif'; ctx.fillText(`${Math.round(st.player.hp)}/${st.player.maxHp}`, 24, 30);
+        const xpPct = clamp(st.player.xp / st.player.nextXp, 0, 1); ctx.fillStyle = '#1a2438'; ctx.fillRect(20, 40, W - 40, 14);
+        const xg = ctx.createLinearGradient(20, 40, 20 + (W - 40) * xpPct, 54); xg.addColorStop(0, '#6ad0ff'); xg.addColorStop(1, '#3a9cff'); ctx.fillStyle = xg; ctx.fillRect(20, 40, (W - 40) * xpPct, 14);
+        ctx.fillStyle = '#fff'; ctx.font = 'bold 14px ui-sans-serif'; ctx.fillText(`${t('hudLvl')} ${st.player.level}`, 24, 58); ctx.textAlign = 'right'; ctx.fillText(`${t('hudKills')} ${st.player.kills}`, W - 24, 58);
+        ctx.textAlign = 'center'; const time = Math.max(0, (nowSec() - st.startTime)); const mm = Math.floor(time / 60).toString().padStart(2, '0'); const ss = Math.floor(time % 60).toString().padStart(2, '0'); ctx.fillText(`${mm}:${ss}`, W / 2, 58);
+    ctx.restore();
+        if (paused && !st.gameOver) { ctx.save(); ctx.fillStyle = '#ffffff'; ctx.font = 'bold 26px ui-sans-serif'; ctx.textAlign = 'center'; ctx.fillText(t('paused'), W / 2, H / 2); ctx.restore(); }
+    if (st.gameOver) {
+          ctx.save(); ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(0, 0, W, H); ctx.fillStyle = '#fff'; ctx.textAlign = 'center';
+          ctx.font = 'bold 40px ui-sans-serif'; ctx.fillText(t('gameOver'), W / 2, H / 2 - 40);
+          ctx.font = '16px ui-sans-serif';
+          const tms = dieStats ? dieStats.time : 0; const mm2 = Math.floor(tms / 60).toString().padStart(2, '0'); const ss2 = Math.floor(tms % 60).toString().padStart(2, '0');
+          const kills = dieStats ? dieStats.kills : 0; const lvl = dieStats ? dieStats.level : 1;
+          const line = `${t('hudTime')}: ${mm2}:${ss2}  |  ${t('hudKills')}: ${kills}  |  ${t('hudLevelWord')}: ${lvl}`;
+          ctx.fillText(line, W / 2, H / 2 + 4);
+          ctx.fillText(t('restartHint'), W / 2, H / 2 + 28);
+      ctx.restore();
+    }
+  }
+
+      function render(st) {
+        const ctx = canvas.getContext('2d');
+        const W = st.width, H = st.height;
+        const grd = ctx.createLinearGradient(0, 0, 0, H);
+        grd.addColorStop(0, `hsl(${st.bgHue}, 40%, 10%)`); grd.addColorStop(1, `hsl(${(st.bgHue + 60) % 360}, 40%, 6%)`);
+        ctx.fillStyle = grd; ctx.fillRect(0, 0, W, H);
+        ctx.save(); ctx.globalAlpha = 0.15; ctx.lineWidth = 1; for (let y = 0; y < H; y += 40) { ctx.strokeStyle = '#ffffff10'; ctx.beginPath(); ctx.moveTo(0, y + ((st.t * 10) % 40)); ctx.lineTo(W, y + ((st.t * 10) % 40)); ctx.stroke(); } ctx.restore();
+        for (const o of st.orbs) { const rad = o.r + Math.sin(st.t * 6 + o.x * 0.05) * 1.0; ctx.beginPath(); const grad = ctx.createRadialGradient(o.x, o.y, 0, o.x, o.y, rad * 2); grad.addColorStop(0, 'rgba(100,220,255,0.9)'); grad.addColorStop(1, 'rgba(100,220,255,0.0)'); ctx.fillStyle = grad; ctx.arc(o.x, o.y, rad * 2, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = '#8be9fd'; ctx.beginPath(); ctx.arc(o.x, o.y, o.r, 0, Math.PI * 2); ctx.fill(); }
+        for (const e of st.enemies) { const p = e.elite ? 1.3 : 1; ctx.save(); ctx.shadowBlur = 12; ctx.shadowColor = e.elite ? '#ffaf40' : '#ff4d4f'; ctx.fillStyle = e.elite ? '#4b1f00' : '#2b0d10'; ctx.beginPath(); ctx.arc(e.x, e.y, e.r * p, 0, Math.PI * 2); ctx.fill(); ctx.lineWidth = 3; ctx.strokeStyle = e.elite ? '#ffaf40' : '#ff4d4f'; ctx.beginPath(); ctx.arc(e.x, e.y, e.r * p + 3, -Math.PI / 2, -Math.PI / 2 + (1 - e.hp / e.maxHp) * Math.PI * 2); ctx.stroke(); ctx.restore(); }
+        const pl = st.player; const sw = pl.sword; const tipX = pl.x + Math.cos(sw.angle) * sw.length; const tipY = pl.y + Math.sin(sw.angle) * sw.length;
+        ctx.save(); ctx.shadowBlur = 25; ctx.shadowColor = '#66ffcc'; ctx.fillStyle = '#0b2a24'; ctx.beginPath(); ctx.arc(pl.x, pl.y, pl.r + 2, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = '#66ffcc'; ctx.beginPath(); ctx.arc(pl.x, pl.y, pl.r * 0.6, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+        ctx.save(); ctx.lineCap = 'round'; ctx.lineWidth = sw.thickness + Math.sin(st.t * 10) * 1.5; ctx.strokeStyle = '#b3f7e8'; ctx.shadowBlur = 16; ctx.shadowColor = '#c8fff2'; ctx.beginPath(); ctx.moveTo(pl.x, pl.y); ctx.lineTo(tipX, tipY); ctx.stroke(); ctx.globalAlpha = 0.25; ctx.lineWidth = sw.thickness * 1.8; ctx.beginPath(); ctx.moveTo(pl.x, pl.y); ctx.lineTo(tipX, tipY); ctx.stroke(); ctx.restore();
+        for (const p of st.particles) { if (p.kind === 'spark') { ctx.save(); ctx.globalAlpha = clamp(p.life, 0, 1); ctx.fillStyle = `rgba(${p.r||255},${p.g||160},${p.b||120},${clamp(p.life,0,1)})`; ctx.beginPath(); ctx.arc(p.x, p.y, 2.2, 0, Math.PI * 2); ctx.fill(); ctx.restore(); } else if (p.kind === 'text') { ctx.save(); ctx.globalAlpha = clamp(p.life, 0, 1); ctx.font = 'bold 14px ui-sans-serif, system-ui'; ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.fillText(p.text, p.x, p.y); ctx.restore(); } }
+        drawHUD(st, ctx);
+      }
+
+      function loop(ts) {
+        if (!gameState) return;
+        const dt = Math.min(0.033, (ts - lastTS) / 1000); lastTS = ts;
+        if (!paused && !gameState.gameOver) update(gameState, dt);
+        render(gameState);
+        if (!gameState.gameOver || paused) { rafId = requestAnimationFrame(loop); } else { rafId = 0; }
+      }
+
+      // ===== UI bindings =====
+      function updateUI() {
+        difficultyEl.disabled = running;
+        document.getElementById('start-btn').classList.toggle('hidden', running);
+        document.getElementById('pause-btn').classList.toggle('hidden', !running);
+        document.getElementById('stop-btn').classList.toggle('hidden', !running);
+        restartBtn.classList.toggle('hidden', !(running && gameState && gameState.gameOver));
+        pauseBtn.textContent = paused ? t('resume') : t('pause');
+        if (!running) startOverlay.classList.remove('hidden'); else startOverlay.classList.add('hidden');
+        if (showUpgrades) upgradeOverlay.classList.remove('hidden'); else upgradeOverlay.classList.add('hidden');
+      }
+
+      function applyTranslations() {
+        // html lang
+        document.documentElement.lang = lang === 'pt' ? 'pt-BR' : (lang === 'ja' ? 'ja' : 'en');
+        // Basic labels
+        titleEl.textContent = t('title');
+        hintEl.textContent = t('hint');
+        langLabelEl.textContent = t('language');
+        diffLabelEl.textContent = t('difficulty');
+        startBtn.textContent = t('start');
+        stopBtn.textContent = t('stop');
+        restartBtn.textContent = t('restart');
+        bigStartBtn.textContent = t('start');
+        startTitleEl.textContent = t('startCardTitle');
+        startDescEl.textContent = t('startCardDesc');
+        footerTipEl.textContent = t('tip');
+        footerNoteEl.textContent = t('footerNote');
+        // Difficulty option labels keep values as keys
+        for (const opt of difficultyEl.options) {
+          const key = opt.value; opt.textContent = (i18n[lang].diffLabels[key] || key);
+        }
+        // Re-render upgrades if open
+        renderUpgrades();
+      }
+
+      startBtn.addEventListener('click', startGame);
+      bigStartBtn.addEventListener('click', startGame);
+      pauseBtn.addEventListener('click', togglePause);
+      stopBtn.addEventListener('click', stopGame);
+      restartBtn.addEventListener('click', startGame);
+      difficultyEl.addEventListener('change', (e) => { difficulty = e.target.value; });
+      languageEl.addEventListener('change', (e) => { lang = e.target.value; applyTranslations(); updateUI(); });
+
+      // Initial UI state
+      applyTranslations();
+      updateUI();
+    </script>
+  </body>
+</html>

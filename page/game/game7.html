@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Labyrinth Runner</title>
+<style>
+  :root{
+    --bg:#0b0e14; --ink:#e6edf3; --muted:#9aa4ae; --accent:#6ee7ff; --accent2:#a78bfa; --red:#ff6b6b; --gold:#ffd166; --green:#80ffb2;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0;background:radial-gradient(1200px 800px at 70% -20%, #172033 0%, #0b0e14 55%, #07090d 100%);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Helvetica,Arial,sans-serif}
+  #wrap{display:flex;flex-direction:column;align-items:center;gap:.75rem;padding:10px 10px 18px}
+  header{display:flex;gap:.75rem;flex-wrap:wrap;align-items:center;justify-content:center}
+  h1{font-size:clamp(18px,3vw,24px);margin:0;font-weight:800;letter-spacing:.6px;background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 2px 12px rgba(102,176,255,.25))}
+  .panel{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap}
+  .btn{appearance:none;border:0;background:linear-gradient(180deg,#2a3347,#1a2233);color:var(--ink);padding:.45rem .7rem;border-radius:10px;box-shadow:inset 0 1px 0 rgba(255,255,255,.04),0 8px 20px rgba(0,0,0,.35);cursor:pointer}
+  .btn:hover{filter:brightness(1.1)}
+  label{font-size:.9rem;color:var(--muted)}
+  select{background:#141b29;color:var(--ink);border:1px solid #243049;border-radius:10px;padding:.35rem .55rem}
+  #game{position:relative;border-radius:16px;overflow:hidden;box-shadow:0 20px 80px rgba(0,0,0,.45), inset 0 0 0 1px rgba(255,255,255,.04)}
+  canvas{display:block;background:#0a0f18}
+  #hud{position:absolute;left:0;right:0;top:0;display:flex;gap:8px;align-items:center;padding:10px}
+  .bar{flex:1;height:12px;border-radius:999px;overflow:hidden;background:#0c1320;border:1px solid #1e2a40}
+  .bar>i{display:block;height:100%;background:linear-gradient(90deg,var(--red),#ff9f7a)}
+  #stam>i{background:linear-gradient(90deg,#74f7d3,#3bf)}
+  #xp>i{background:linear-gradient(90deg,#fef08a,#facc15)}
+  .chip{padding:.2rem .5rem;background:#0d1422;border:1px solid #1e2a40;border-radius:999px;color:#cbd5e1;font-size:.8rem}
+  #overlay{position:absolute;inset:0;display:grid;place-items:center;background:linear-gradient(180deg,rgba(4,8,16,.8),rgba(4,8,16,.94));backdrop-filter:blur(2px);}
+  #card{max-width:850px;margin:16px;padding:18px 18px 14px;background:linear-gradient(180deg,#101826,#0e1522);border:1px solid #1f2b45;border-radius:14px;box-shadow:0 10px 50px rgba(0,0,0,.45)}
+  #title{font-size:1.6rem;margin:.2rem 0 .8rem}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px}
+  .opt{background:#0b111d;border:1px solid #1e2a40;border-radius:12px;padding:10px}
+  .opt h3{margin:.2rem 0 .5rem;font-size:1rem;color:#cfe4ff}
+  ul{margin:.2rem 0 .2rem 1.1rem;padding:0}
+  li{margin:.15rem 0;color:#cfd7e3;font-size:.92rem}
+  kbd{background:#0b1425;border:1px solid #243049;border-bottom-color:#1a253b;border-radius:6px;padding:.05rem .35rem;color:#cfe4ff}
+  #levelUp{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(7,10,16,.75)}
+  #levelUp .pick{background:#0c1422;border:1px solid #1e2a40;border-radius:12px;padding:12px;max-width:760px}
+  #levelUp h2{margin-top:0}
+  .picks{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px}
+  .card{background:linear-gradient(180deg,#0f1a2b,#0a1221);border:1px solid #1e2a40;border-radius:12px;padding:10px;cursor:pointer}
+  .card:hover{outline:2px solid #2b7fff}
+  .muted{color:#a8b0bd}
+  footer{font-size:.8rem;color:#7b8596}
+  .radar{position:absolute;right:10px;bottom:10px;background:#0b111d;border:1px solid #1f2b45;border-radius:10px;padding:6px 8px;font-size:.8rem;color:#cfe4ff;opacity:.85}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <header>
+    <h1>Labyrinth Runner</h1>
+    <div class="panel">
+      <button id="btnStart" class="btn">▶ Start</button>
+      <button id="btnPause" class="btn">⏸ Pause</button>
+      <button id="btnReset" class="btn">⟲ Reset</button>
+      <label for="lang">Language / Idioma / 言語</label>
+      <select id="lang">
+        <option value="en">English</option>
+        <option value="pt">Português</option>
+        <option value="ja">日本語</option>
+      </select>
+      <span class="chip" id="chipDiff"></span>
+    </div>
+  </header>
+  <div id="game">
+    <canvas id="c" width="960" height="672" aria-label="game canvas"></canvas>
+    <div id="hud">
+      <div class="bar" title="HP"><i id="hpFill" style="width:100%"></i></div>
+      <div class="bar" id="stam" title="Stamina"><i id="stamFill" style="width:100%"></i></div>
+      <div class="bar" id="xp" title="XP"><i id="xpFill" style="width:0%"></i></div>
+      <span class="chip" id="chipKeys">🔑0</span>
+      <span class="chip" id="chipOrbs">●0</span>
+      <span class="chip" id="chipLvl">Lv.1</span>
+      <span class="chip" id="chipTime">0:00</span>
+    </div>
+    <div id="levelUp">
+      <div class="pick">
+        <h2 id="lvlTitle">Level Up!</h2>
+        <div class="picks" id="picks"></div>
+        <footer id="lvlHint" class="muted">Pick 1 of 3 upgrades</footer>
+      </div>
+    </div>
+    <div class="radar" id="radar" style="display:none">Radar ▶</div>
+    <div id="overlay">
+      <div id="card">
+        <div id="title">Labyrinth Runner</div>
+        <div class="grid">
+          <div class="opt">
+            <h3 id="hControls">Controls</h3>
+            <ul id="ulControls">
+              <li><kbd>WASD</kbd> / <kbd>←↑→↓</kbd> — Move</li>
+              <li><kbd>Shift</kbd> — Sprint (uses stamina)</li>
+              <li><kbd>Space</kbd> — Ghost (phase through enemies briefly)</li>
+              <li><kbd>P</kbd> — Pause</li>
+            </ul>
+          </div>
+          <div class="opt">
+            <h3 id="hGoal">Goal</h3>
+            <ul id="ulGoal">
+              <li>Explore the maze under fog of war.</li>
+              <li>Collect orbs to gain XP and level up.</li>
+              <li>Find keys to open locked doors.</li>
+              <li>Survive as long as you can.</li>
+            </ul>
+          </div>
+          <div class="opt">
+            <h3>Difficulty</h3>
+            <div class="panel">
+              <button class="btn" data-diff="easy">Easy</button>
+              <button class="btn" data-diff="normal">Normal</button>
+              <button class="btn" data-diff="hard">Hard</button>
+            </div>
+            <p class="muted" id="pDiff">Pick one, then press Start.</p>
+          </div>
+          <div class="opt">
+            <h3>Save</h3>
+            <p class="muted" id="pSave">Highscore and meta-upgrades are saved locally.</p>
+            <div class="panel">
+              <button id="btnClearSave" class="btn">Clear Save</button>
+            </div>
+            <p><span id="hiLabel">Highscore</span>: <b id="hiValue">0</b></p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+// ========================= I18N =========================
+const I18N = {
+  en:{
+    Controls:'Controls',Goal:'Goal',Start:'Start',Pause:'Pause',Reset:'Reset',
+    listControls:[
+      'WASD / Arrow keys — Move',
+      'Shift — Sprint (uses stamina)',
+      'Space — Ghost (phase through enemies briefly)',
+      'P — Pause'
+    ],
+    listGoal:[
+      'Explore the maze under fog of war.',
+      'Collect orbs to gain XP and level up.',
+      'Find keys to open locked doors.',
+      'Survive as long as you can.'
+    ],
+    diffHint:'Pick one, then press Start.',
+    saveHint:'Highscore and meta-upgrades are saved locally.',
+    highscore:'Highscore',
+    lvlUp:'Level Up!', pickHint:'Pick 1 of 3 upgrades',
+    upgs:{fov:'+ FOV','stam+':'+ Stamina','regen+':'+ Stamina Regen',radar:'Radar: show chests',ghost:'Ghost: longer + faster CD'}
+  },
+  pt:{
+    Controls:'Controles',Goal:'Objetivo',Start:'Iniciar',Pause:'Pausar',Reset:'Reiniciar',
+    listControls:[
+      'WASD / Setas — mover',
+      'Shift — correr (gasta stamina)',
+      'Espaço — Fantasma (atravessa inimigos brevemente)',
+      'P — pausar'
+    ],
+    listGoal:[
+      'Explore o labirinto com neblina de guerra.',
+      'Pegue orbes para ganhar XP e subir de nível.',
+      'Ache chaves para abrir portas trancadas.',
+      'Sobreviva o máximo possível.'
+    ],
+    diffHint:'Escolha uma dificuldade e aperte Iniciar.',
+    saveHint:'Recorde e meta‑upgrades são salvos localmente.',
+    highscore:'Recorde',
+    lvlUp:'Subiu de Nível!', pickHint:'Escolha 1 de 3 upgrades',
+    upgs:{fov:'+ Campo de visão','stam+':'+ Stamina','regen+':'+ Regen de Stamina',radar:'Radar: mostrar baús',ghost:'Fantasma: +duração / -recarga'}
+  },
+  ja:{
+    Controls:'操作',Goal:'目的',Start:'開始',Pause:'一時停止',Reset:'リセット',
+    listControls:[
+      'WASD / 矢印キー — 移動',
+      'Shift — ダッシュ（スタミナ消費）',
+      'Space — ゴースト（短時間 敵をすり抜け）',
+      'P — ポーズ'
+    ],
+    listGoal:[
+      '視界制限の迷路を探索。',
+      'オーブでXPを得てレベルアップ。',
+      '鍵を見つけて扉を開ける。',
+      'できるだけ長く生き延びる。'
+    ],
+    diffHint:'難易度を選んで開始を押してください。',
+    saveHint:'ハイスコアとメタ強化はローカル保存。',
+    highscore:'ハイスコア',
+    lvlUp:'レベルアップ！', pickHint:'3つから1つ選択',
+    upgs:{fov:'視界 +','stam+':'スタミナ +','regen+':'スタミナ回復 +',radar:'レーダー（宝箱）',ghost:'ゴースト（長/短CT）'}
+  }
+};
+
+// =============== Utility Helpers ===============
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const rand=(a,b)=>Math.random()*(b-a)+a;
+const irand=(a,b)=>Math.floor(rand(a,b+1));
+const pick=(arr)=>arr[irand(0,arr.length-1)];
+
+// =============== Game State ===============
+const c=document.getElementById('c');
+const ctx=c.getContext('2d');
+let W=c.width,H=c.height; // fixed canvas for deterministic feel
+
+const TILE=24; // tile size
+const MAZE_W=40, MAZE_H=28; // tiles
+
+const KEYS={};
+addEventListener('keydown',e=>{KEYS[e.key.toLowerCase()]=true; if(e.key==='p'||e.key==='P') togglePause();});
+addEventListener('keyup',e=>{KEYS[e.key.toLowerCase()]=false;});
+
+let langSel=document.getElementById('lang').value;
+let DIFF='normal';
+let paused=false, inLevelPick=false, gameOver=false, started=false;
+
+let save={hi: Number(localStorage.getItem('labyrinth_runner_highscore')||0), meta: JSON.parse(localStorage.getItem('labyrinth_runner_meta')||'{}')};
+
+// Player
+const player={x:0,y:0,px:0,py:0,sp:2.2,stam:100,stamMax:100,stamRegen:12,ghost:false,ghostCD:0,ghostDur:0,hp:100,hpMax:100,keys:0,xp:0,next:20,level:1,fov:150};
+
+// World
+let grid=[], rooms=[], doors=[], chests=[], orbs=[], enemies=[];
+let tStart=0, elapsed=0, orbsCollected=0; // score basis
+
+// Difficulty modifiers
+const DIFFCFG={
+  easy:{spawnRate:1.0, enemyHP:.8, enemyDMG:.8, enemySp:.95},
+  normal:{spawnRate:1.25, enemyHP:1, enemyDMG:1, enemySp:1},
+  hard:{spawnRate:1.6, enemyHP:1.2, enemyDMG:1.15, enemySp:1.1}
+};
+
+// =============== Map Generation (maze + rooms) ===============
+const isInside=(x,y)=>x>=0&&y>=0&&x<MAZE_W&&y<MAZE_H;
+function carveMaze(){
+  grid=Array.from({length:MAZE_H},()=>Array(MAZE_W).fill(1)); // 1=wall, 0=floor, 2=door, 3=locked
+  // start with recursive backtracker
+  const stack=[]; let cx=irand(1,MAZE_W-2)|1; let cy=irand(1,MAZE_H-2)|1; // odd start
+  grid[cy][cx]=0; stack.push([cx,cy]);
+  const dirs=[[2,0],[0,2],[-2,0],[0,-2]];
+  while(stack.length){
+    const [x,y]=stack[stack.length-1];
+    const candidates=dirs.map(([dx,dy])=>[x+dx,y+dy,dx,dy]).filter(([nx,ny])=>isInside(nx,ny)&&grid[ny][nx]===1);
+    const next=candidates.sort(()=>Math.random()-.5).find(([nx,ny])=>{
+      // ensure surrounding mostly walls
+      let walls=0; for(let oy=-1;oy<=1;oy++)for(let ox=-1;ox<=1;ox++){ if(!isInside(nx+ox,ny+oy)||grid[ny+oy][nx+ox]===1) walls++; }
+      return walls>=6;
+    });
+    if(next){
+      const [nx,ny,dx,dy]=next; grid[y+dy/2][x+dx/2]=0; grid[ny][nx]=0; stack.push([nx,ny]);
+    }else stack.pop();
+  }
+  // add some rooms
+  rooms=[];
+  for(let i=0;i<8;i++){
+    const rw=irand(4,7), rh=irand(3,6);
+    const rx=irand(1,MAZE_W-rw-2), ry=irand(1,MAZE_H-rh-2);
+    rooms.push({x:rx,y:ry,w:rw,h:rh});
+    for(let y=ry;y<ry+rh;y++)for(let x=rx;x<rx+rw;x++){ grid[y][x]=0; }
+  }
+  // place some locked doors (value 3). Ensure door between floor cells
+  doors=[];
+  for(let i=0;i<10;i++){
+    let x=irand(2,MAZE_W-3), y=irand(2,MAZE_H-3);
+    const h=(grid[y][x-1]===0 && grid[y][x+1]===0 && grid[y-1][x]===1 && grid[y+1][x]===1);
+    const v=(grid[y-1][x]===0 && grid[y+1][x]===0 && grid[y][x-1]===1 && grid[y][x+1]===1);
+    if((h||v) && grid[y][x]===1){ grid[y][x]=3; doors.push({x,y}); }
+  }
+}
+
+function placeStuff(){
+  // place chests (contain orbs and sometimes a key)
+  chests=[]; orbs=[];
+  const freeTiles=[]; for(let y=1;y<MAZE_H-1;y++)for(let x=1;x<MAZE_W-1;x++) if(grid[y][x]===0) freeTiles.push([x,y]);
+  for(let i=0;i<18;i++){ const [x,y]=pick(freeTiles); chests.push({x,y,opened:false,hasKey:Math.random()<.35}); }
+  for(let i=0;i<35;i++){ const [x,y]=pick(freeTiles); orbs.push({x,y,val:1,alive:true}); }
+}
+
+function findSpawnRoom(){ return pick(rooms); }
+
+// =============== A* Pathfinding ===============
+function astar(sx,sy,gx,gy){
+  const key=(x,y)=>x+","+y;
+  const open=[[sx,sy,0,Math.abs(gx-sx)+Math.abs(gy-sy),null]]; // [x,y,g,h,parentIndex]
+  const openMap=new Map([[key(sx,sy),0]]);
+  const closed=new Set();
+  const dirs=[[1,0],[-1,0],[0,1],[0,-1]];
+  while(open.length){
+    open.sort((a,b)=>a[2]+a[3]-b[2]-b[3]);
+    const cur=open.shift(); openMap.delete(key(cur[0],cur[1]));
+    const k=key(cur[0],cur[1]); if(closed.has(k)) continue; closed.add(k);
+    if(cur[0]===gx && cur[1]===gy){
+      const path=[[cur[0],cur[1]]]; let p=cur[4];
+      while(p){ path.push([p[0],p[1]]); p=p[4]; }
+      path.reverse(); return path;
+    }
+    for(const [dx,dy] of dirs){
+      const nx=cur[0]+dx, ny=cur[1]+dy; if(!isInside(nx,ny)) continue;
+      if(grid[ny][nx]!==0) continue; // walkable floor only for enemies
+      const nk=key(nx,ny); if(closed.has(nk)) continue;
+      const g=cur[2]+1, h=Math.abs(gx-nx)+Math.abs(gy-ny);
+      const existing=openMap.get(nk);
+      if(existing==null || g+h < open[existing]?.[2]+open[existing]?.[3]){
+        open.push([nx,ny,g,h,cur]); openMap.set(nk,open.length-1);
+      }
+    }
+  }
+  return null;
+}
+
+// =============== Enemies & Spawner ===============
+function spawner(seconds, difficulty){
+  // returns array of enemy descriptors based on time and diff
+  const mult=DIFFCFG[difficulty].spawnRate;
+  const wave=Math.floor(seconds/20)+1; // escalate every 20s
+  const base=Math.min(6+wave*2, 40);
+  const n=Math.floor(base*mult);
+  const out=[];
+  for(let i=0;i<n;i++){
+    const r=Math.random();
+    if(r<.65) out.push({type:'stalker'}); // basic
+    else if(r<.9) out.push({type:'runner'}); // fast
+    else out.push({type:'brute'}); // tank
+  }
+  return out;
+}
+
+function spawnEnemies(){
+  const room=findSpawnRoom();
+  const list=spawner(elapsed, DIFF);
+  for(const e of list){
+    const x=irand(room.x,room.x+room.w-1); const y=irand(room.y,room.y+room.h-1);
+    enemies.push(makeEnemy(e.type, x+0.5, y+0.5));
+  }
+}
+
+function makeEnemy(type,x,y){
+  const cfg=DIFFCFG[DIFF];
+  if(type==='stalker') return {type,x,y,hp:20*cfg.enemyHP,spd:1.4*cfg.enemySp,dmg:7*cfg.enemyDMG,cd:0,path:[],cool:0};
+  if(type==='runner') return {type,x,y,hp:16*cfg.enemyHP,spd:2.0*cfg.enemySp,dmg:6*cfg.enemyDMG,cd:0,path:[],cool:0};
+  return {type:'brute',x,y,hp:45*cfg.enemyHP,spd:1.0*cfg.enemySp,dmg:12*cfg.enemyDMG,cd:0,path:[],cool:0};
+}
+
+// =============== Rendering ===============
+function drawGradientCircle(x,y,r,inner,outer,color1,color2){
+  const g=ctx.createRadialGradient(x,y,inner,x,y,r);
+  g.addColorStop(0,color1); g.addColorStop(1,color2); ctx.fillStyle=g; ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill();
+}
+
+function drawWorld(){
+  // floor
+  ctx.fillStyle='#0a0f18'; ctx.fillRect(0,0,W,H);
+  // subtle grid glow
+  for(let y=0;y<MAZE_H;y++){
+    for(let x=0;x<MAZE_W;x++){
+      const tile=grid[y][x];
+      const px=x*TILE, py=y*TILE;
+      if(tile===1){ // wall
+        ctx.fillStyle='#2b406b'; ctx.fillRect(px,py,TILE,TILE);
+        // outline where wall touches floor to increase contrast
+        ctx.strokeStyle='rgba(170,195,255,.35)'; ctx.lineWidth=1;
+        if(y>0 && grid[y-1][x]===0){ ctx.beginPath(); ctx.moveTo(px,py+.5); ctx.lineTo(px+TILE,py+.5); ctx.stroke(); }
+        if(y<MAZE_H-1 && grid[y+1][x]===0){ ctx.beginPath(); ctx.moveTo(px,py+TILE-.5); ctx.lineTo(px+TILE,py+TILE-.5); ctx.stroke(); }
+        if(x>0 && grid[y][x-1]===0){ ctx.beginPath(); ctx.moveTo(px+.5,py); ctx.lineTo(px+.5,py+TILE); ctx.stroke(); }
+        if(x<MAZE_W-1 && grid[y][x+1]===0){ ctx.beginPath(); ctx.moveTo(px+TILE-.5,py); ctx.lineTo(px+TILE-.5,py+TILE); ctx.stroke(); }
+      } else if(tile===3){ // locked door
+        ctx.fillStyle='#314363'; ctx.fillRect(px,py,TILE,TILE);
+        ctx.strokeStyle='#ffd166'; ctx.lineWidth=1; ctx.strokeRect(px+3,py+3,TILE-6,TILE-6);
+        ctx.fillStyle='#ffd166'; ctx.fillRect(px+TILE*0.45,py+TILE*0.15,4,TILE*0.7);
+      } else {
+        // brighter floor for readability
+        ctx.fillStyle='#162a46'; ctx.fillRect(px,py,TILE,TILE);
+      }
+    }
+  }
+  // chests
+  for(const cst of chests){
+    const px=cst.x*TILE+TILE/2, py=cst.y*TILE+TILE/2;
+    ctx.save();
+    ctx.translate(px,py); ctx.rotate((Math.sin(perfNow()/500+px)*0.08));
+    ctx.fillStyle=cst.opened?'#3b4a6a':'#22314e'; ctx.fillRect(-10,-7,20,14);
+    ctx.fillStyle=cst.opened?'#324262':'#1a2742'; ctx.fillRect(-11,-11,22,6);
+    ctx.fillStyle=cst.opened?'#4f5f80':'#2a3a5d'; ctx.fillRect(-12,-12,24,3);
+    ctx.fillStyle='#ffd166'; ctx.fillRect(-2,-12,4,3);
+    ctx.restore();
+  }
+  // loose orbs
+  for(const o of orbs){ if(!o.alive) continue; const px=o.x*TILE+TILE/2, py=o.y*TILE+TILE/2; drawGradientCircle(px,py,7,0,7,'rgba(255,255,190,.9)','rgba(250,220,80,.1)'); }
+}
+
+// Fog of war via raycasts
+function renderFOV(){
+  const pX=player.x*TILE, pY=player.y*TILE; const R=player.fov; const rays=120; // reduced rays
+  // Build a polygon fan for visible area using raycast, then punch a hole with even-odd fill.
+  ctx.save();
+  ctx.fillStyle='rgba(6,8,12,.90)';
+  ctx.beginPath();
+  // Outer full-rect
+  ctx.rect(0,0,W,H);
+  // FOV fan path
+  ctx.moveTo(pX,pY);
+  for(let i=0;i<=rays;i++){
+    const ang=i*(Math.PI*2/rays);
+    let r=R; const step=6;
+    for(let s=0;s<R;s+=step){
+      const x=pX+Math.cos(ang)*s; const y=pY+Math.sin(ang)*s;
+      const gx=Math.floor(x/TILE), gy=Math.floor(y/TILE);
+      if(!isInside(gx,gy) || grid[gy][gx]===1 || grid[gy][gx]===3){ r=s; break; }
+    }
+    const vx=pX+Math.cos(ang)*r, vy=pY+Math.sin(ang)*r;
+    ctx.lineTo(vx,vy);
+  }
+  ctx.closePath();
+  // Fill with even-odd rule: draws the rect minus the fan (a clean hole showing the world)
+  ctx.fill('evenodd');
+  // Soft light around player for style
+  ctx.globalCompositeOperation='lighter';
+  drawGradientCircle(pX,pY,R*0.9,0,R*0.9,'rgba(200,230,255,.38)','rgba(200,230,255,0)');
+  ctx.restore();
+}
+
+
+function drawPlayer(){
+  const x=player.x*TILE, y=player.y*TILE;
+  drawGradientCircle(x,y,10,0,10,'#8be9fd','#00b4ff22');
+  ctx.fillStyle='#a5b4fc'; ctx.beginPath(); ctx.arc(x,y,6,0,Math.PI*2); ctx.fill();
+  if(player.ghost){ ctx.strokeStyle='rgba(190,255,255,.8)'; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(x,y,10,0,Math.PI*2); ctx.stroke(); }
+}
+
+function drawEnemies(){
+  for(const e of enemies){
+    const x=e.x*TILE, y=e.y*TILE;
+    let col=e.type==='runner'?'#74f7d3':(e.type==='brute'?'#ff9f7a':'#facc15');
+    drawGradientCircle(x,y,9,0,9,col,col+'22');
+    ctx.fillStyle=col; ctx.beginPath(); ctx.arc(x,y,6,0,Math.PI*2); ctx.fill();
+  }
+}
+
+// =============== Game Loop ===============
+let last=0; function perfNow(){ return performance.now(); }
+
+function update(dt){
+  if(paused||inLevelPick||gameOver||!started) return;
+  elapsed=(perfNow()-tStart)/1000;
+  // input
+  let mx=(KEYS['d']||KEYS['arrowright']?1:0)-(KEYS['a']||KEYS['arrowleft']?1:0);
+  let my=(KEYS['s']||KEYS['arrowdown']?1:0)-(KEYS['w']||KEYS['arrowup']?1:0);
+  const len=Math.hypot(mx,my)||1; mx/=len; my/=len;
+  let sp=player.sp; const sprint=(KEYS['shift']&&player.stam>0);
+  if(sprint){ sp*=1.7; player.stam=Math.max(0,player.stam - 30*dt); } else { player.stam=Math.min(player.stamMax, player.stam + player.stamRegen*dt); }
+  // ghost ability
+  if((KEYS[' ']||KEYS['spacebar']) && player.ghostCD<=0){ player.ghost=true; player.ghostDur=2.5; player.ghostCD=10; }
+  if(player.ghost){ player.ghostDur-=dt; if(player.ghostDur<=0) player.ghost=false; }
+  if(player.ghostCD>0) player.ghostCD-=dt;
+
+  const nx=player.x + mx*sp*dt, ny=player.y + my*sp*dt;
+  // collision with walls & doors
+  function canWalk(x,y){
+    const gx=Math.floor(x), gy=Math.floor(y); if(!isInside(gx,gy)) return false; const t=grid[gy][gx];
+    if(t===0) return true; if(t===3){ // locked door: open if has key and close on use
+      if(player.keys>0){ player.keys--; grid[gy][gx]=0; // open permanently
+        doors=doors.filter(d=>!(d.x===gx&&d.y===gy));
+        updateHUD(); return true; } else return false;
+    } return false;
+  }
+  if(canWalk(nx,player.y)) player.x=nx; if(canWalk(player.x,ny)) player.y=ny;
+
+  // pickups
+  for(const o of orbs){
+    if(!o.alive) continue; const dx=player.x-(o.x+0.5), dy=player.y-(o.y+0.5); if(Math.hypot(dx,dy)<.6){ o.alive=false; player.xp+=o.val; orbsCollected++; if(player.xp>=player.next){ levelUp(); } }
+  }
+  for(const cst of chests){
+    if(!cst.opened && Math.hypot(player.x-(cst.x+0.5), player.y-(cst.y+0.5))<.8){ cst.opened=true; // drop orbs and maybe key
+      for(let i=0;i<irand(2,5);i++) orbs.push({x:cst.x+irand(-1,1),y:cst.y+irand(-1,1),val:1,alive:true});
+      if(cst.hasKey){ player.keys++; }
+      updateHUD();
+    }
+  }
+
+  // enemies AI
+  for(const e of enemies){
+    e.cool-=dt; if(e.cool<=0){
+      const sx=Math.floor(e.x), sy=Math.floor(e.y); const gx=Math.floor(player.x), gy=Math.floor(player.y);
+      const p=astar(sx,sy,gx,gy); e.path=p||[]; e.cool=0.5+Math.random()*0.5; // recalc sometimes
+    }
+    if(e.path && e.path.length>1){ const [nx,ny]=e.path[1]; const dx=nx+0.5-e.x, dy=ny+0.5-e.y; const d=Math.hypot(dx,dy)||1; e.x+= (dx/d)*e.spd*dt; e.y+= (dy/d)*e.spd*dt; }
+    // contact damage
+    const dist=Math.hypot(e.x-player.x, e.y-player.y);
+    if(dist<0.7 && !player.ghost){ player.hp-= e.dmg*dt; if(player.hp<=0){ endGame(); } }
+  }
+  // spawn pacing
+  if(Math.floor(elapsed)%7===0 && enemies._lastSpawn!==Math.floor(elapsed)) { enemies._lastSpawn=Math.floor(elapsed); spawnEnemies(); }
+
+  updateHUD();
+}
+
+function render(){
+  drawWorld();
+  drawEnemies();
+  drawPlayer();
+  renderFOV();
+}
+
+function loop(ts){ const dt=(ts-last)/1000; last=ts; update(dt); render(); 
+requestAnimationFrame(loop); }
+
+// =============== Level Up ===============
+const UPG_POOL=['fov','stam+','regen+','radar','ghost'];
+function levelUp(){
+  player.level++; player.xp=0; player.next=Math.floor(player.next*1.35);
+  inLevelPick=true; document.getElementById('levelUp').style.display='flex';
+  const picks=[]; const pool=[...UPG_POOL];
+  for(let i=0;i<3;i++){ const j=irand(0,pool.length-1); picks.push(pool.splice(j,1)[0]); }
+  const picksDiv=document.getElementById('picks'); picksDiv.innerHTML='';
+  for(const p of picks){
+    const el=document.createElement('div'); el.className='card'; el.innerHTML=`<h3>${I18N[langSel].upgs[p]}</h3><p class="muted">${describeUpgrade(p)}</p>`; el.onclick=()=>{ applyUpgrade(p); document.getElementById('levelUp').style.display='none'; inLevelPick=false;}; picksDiv.appendChild(el);
+  }
+  document.getElementById('lvlTitle').textContent=I18N[langSel].lvlUp;
+  document.getElementById('lvlHint').textContent=I18N[langSel].pickHint;
+}
+
+function describeUpgrade(k){
+  switch(k){
+    case 'fov': return 'Wider light radius to see more corridors.';
+    case 'stam+': return 'Increase max stamina by 25.';
+    case 'regen+': return 'Stamina regenerates 30% faster.';
+    case 'radar': return 'Shows a mini-indicator pointing to nearest chest.';
+    case 'ghost': return 'Ghost lasts longer and cooldown is shorter.';
+  }
+  return '';
+}
+function applyUpgrade(k){
+  if(k==='fov') player.fov+=24;
+  if(k==='stam+') { player.stamMax+=25; player.stam=player.stamMax; }
+  if(k==='regen+') player.stamRegen*=1.3;
+  if(k==='radar') radarOn=true;
+  if(k==='ghost'){ ghostBonus=true; }
+}
+let radarOn=false, ghostBonus=false;
+
+// =============== HUD/Overlay ===============
+function updateHUD(){
+  document.getElementById('hpFill').style.width= (player.hp/player.hpMax*100).toFixed(1)+'%';
+  document.getElementById('stamFill').style.width= (player.stam/player.stamMax*100).toFixed(1)+'%';
+  document.getElementById('xpFill').style.width= (player.xp/player.next*100).toFixed(1)+'%';
+  document.getElementById('chipKeys').textContent='\uD83D\uDD11'+player.keys; // key emoji literal
+  document.getElementById('chipOrbs').textContent='\u25CF'+orbsCollected;
+  document.getElementById('chipLvl').textContent='Lv.'+player.level;
+  const s=Math.floor(elapsed%60).toString().padStart(2,'0'); const m=Math.floor(elapsed/60);
+  document.getElementById('chipTime').textContent=`${m}:${s}`;
+  const radar=document.getElementById('radar');
+  if(radarOn){
+    radar.style.display='block'; const target=nearestChest(); if(target){
+      const dx=target.x+0.5 - player.x, dy=target.y+0.5 - player.y; const ang=Math.atan2(dy,dx);
+      radar.textContent='Radar ▶'; radar.style.transform=`rotate(${ang}rad)`; }
+  } else radar.style.display='none';
+}
+
+function nearestChest(){ let best=null,bD=1e9; for(const c of chests){ if(c.opened) continue; const d=Math.hypot(c.x+0.5-player.x, c.y+0.5-player.y); if(d<bD){ bD=d; best=c; } } return best; }
+
+// =============== Start/End/Pause ===============
+function startGame(){
+  started=true; paused=false; gameOver=false; inLevelPick=false; radarOn=false; ghostBonus=false; enemies=[]; orbsCollected=0; elapsed=0; tStart=perfNow();
+  // player spawn
+  const r=findSpawnRoom(); player.x=r.x+0.5; player.y=r.y+0.5; player.stam=player.stamMax; player.hp=player.hpMax; player.level=1; player.fov=150; player.xp=0; player.next=20; player.keys=0; player.ghost=false; player.ghostCD=0;
+  updateHUD(); document.getElementById('overlay').style.display='none';
+}
+function endGame(){
+  gameOver=true; paused=true; started=false;
+  const score=Math.floor(orbsCollected + elapsed*0.5);
+  if(score>save.hi){ save.hi=score; localStorage.setItem('labyrinth_runner_highscore', String(save.hi)); }
+  document.getElementById('hiValue').textContent=save.hi;
+  const card=document.getElementById('card');
+  card.querySelector('#title').textContent='Game Over — Score: '+score;
+  document.getElementById('overlay').style.display='grid';
+}
+function togglePause(){ if(!started||inLevelPick||gameOver) return; paused=!paused; }
+
+// =============== Language & UI Wires ===============
+function setLang(code){
+  langSel=code; const L=I18N[code];
+  document.getElementById('btnStart').textContent='▶ '+L.Start;
+  document.getElementById('btnPause').textContent='⏸ '+L.Pause;
+  document.getElementById('btnReset').textContent='⟲ '+L.Reset;
+  document.getElementById('hControls').textContent=L.Controls;
+  document.getElementById('hGoal').textContent=L.Goal;
+  const ulC=document.getElementById('ulControls'); ulC.innerHTML=''; L.listControls.forEach(s=>{ const li=document.createElement('li'); li.textContent=s; ulC.appendChild(li); });
+  const ulG=document.getElementById('ulGoal'); ulG.innerHTML=''; L.listGoal.forEach(s=>{ const li=document.createElement('li'); li.textContent=s; ulG.appendChild(li); });
+  document.getElementById('pDiff').textContent=L.diffHint;
+  document.getElementById('pSave').textContent=L.saveHint;
+  document.getElementById('hiLabel').textContent=L.highscore;
+  document.getElementById('lvlTitle').textContent=L.lvlUp; document.getElementById('lvlHint').textContent=L.pickHint;
+}
+
+function setDiff(d){ DIFF=d; document.getElementById('chipDiff').textContent='Difficulty: '+d; }
+
+// UI events
+setLang('en'); setDiff('normal');
+
+document.getElementById('lang').addEventListener('change',e=>setLang(e.target.value));
+for(const b of document.querySelectorAll('[data-diff]')) b.addEventListener('click', e=>setDiff(e.target.getAttribute('data-diff')));
+
+document.getElementById('btnStart').onclick=()=>{ startGame(); }
+
+document.getElementById('btnPause').onclick=()=>togglePause();
+
+document.getElementById('btnReset').onclick=()=>{ carveMaze(); placeStuff(); document.getElementById('overlay').style.display='grid'; started=false; paused=false; gameOver=false; updateHUD(); document.getElementById('card').querySelector('#title').textContent='Labyrinth Runner'; };
+
+document.getElementById('btnClearSave').onclick=()=>{ localStorage.removeItem('labyrinth_runner_highscore'); save.hi=0; document.getElementById('hiValue').textContent='0'; };
+
+// =============== Lightweight Self-Tests ===============
+function runSelfTests(){
+  const ensure=(name,cond)=>{ if(!cond) throw new Error(name+" failed"); console.log('TEST ✓ '+name); };
+  const noThrow=(name,fn)=>{ try{ fn(); console.log('TEST ✓ '+name); } catch(e){ console.error('TEST ✗ '+name, e); } };
+  ensure('Grid dims', grid.length===MAZE_H && grid[0].length===MAZE_W);
+  ensure('Rooms exist', rooms.length>0);
+  noThrow('A* path exists between two floor cells', ()=>{
+    const r=rooms[0]||{x:1,y:1};
+    const path=astar(r.x,r.y, Math.min(MAZE_W-2,r.x+1), Math.min(MAZE_H-2,r.y+1));
+    if(!path||path.length<1) throw new Error('no path');
+  });
+  noThrow('renderFOV does not throw', ()=>{
+    const r=rooms[0]||{x:1,y:1}; const ox=player.x, oy=player.y; player.x=r.x+0.5; player.y=r.y+0.5; renderFOV(); player.x=ox; player.y=oy;
+  });
+  noThrow('Spawner types valid', ()=>{
+    const arr=spawner(0,'normal'); if(!Array.isArray(arr)||arr.length===0) throw new Error('empty');
+    const ok=arr.every(e=>['stalker','runner','brute'].includes(e.type)); if(!ok) throw new Error('types');
+  });
+  console.log('Self-tests complete.');
+}
+
+// =============== Initialize ===============
+carveMaze(); placeStuff();
+updateHUD(); document.getElementById('hiValue').textContent=save.hi;
+requestAnimationFrame(loop);
+
+</script>
+</body>
+</html>

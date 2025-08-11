@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Turret Survivor</title>
+<style>
+  html, body { height: 100%; margin: 0; background:#0b0f1a; color:#e6ecff; font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji"; }
+  #wrap { display: grid; grid-template-columns: 1fr 320px; gap: 8px; padding: 8px; box-sizing: border-box; height: 100%; }
+  #game { background: radial-gradient(ellipse at center, #10182b 0%, #0b0f1a 70%); border-radius: 12px; box-shadow: 0 10px 24px rgba(0,0,0,.35) inset; position: relative; }
+  canvas { display:block; width:100%; height:100%; border-radius:12px; }
+  #ui { display:flex; flex-direction:column; gap:8px; }
+  .card { background:#111927; border:1px solid #1d2a44; border-radius:12px; padding:10px; box-shadow: 0 6px 16px rgba(0,0,0,.25); }
+  .title { font-weight:700; letter-spacing:.3px; margin-bottom:6px; }
+  .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  select, button, input[type=range] { width:100%; padding:8px; border-radius:10px; border:1px solid #1d2a44; background:#0f1526; color:#e6ecff; }
+  button.primary { background:#3a64ff; border-color:#3a64ff; font-weight:700; }
+  button.primary:disabled { opacity:.6; }
+  .pill { display:inline-flex; align-items:center; gap:6px; background:#0e1b33; border:1px solid #1d2a44; border-radius:999px; padding:4px 10px; font-size:12px; }
+  .statbar { background:#0f1a2f; border:1px solid #203357; height:10px; border-radius:8px; overflow:hidden; }
+  .statbar > div { height:100%; background: linear-gradient(90deg, #51ff9c, #34d399); }
+  .statbar.hp > div { background: linear-gradient(90deg, #ff5d6e, #ff9b4b); }
+  .muted { color:#9fb0d9; font-size:12px; }
+  .upgrade-grid { display:grid; grid-template-columns: 1fr; gap:8px; }
+  .upgrade { cursor:pointer; padding:10px; background:#0f1526; border:1px solid #213662; border-radius:12px; }
+  .upgrade:hover { border-color:#3a64ff; }
+  .flex { display:flex; gap:8px; align-items:center; }
+  .center { text-align:center; }
+  .kbd { background:#0e1b33; border:1px solid #213662; border-radius:6px; padding:2px 6px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; font-size:12px; }
+  .small { font-size:12px; }
+  .lang-row { display:flex; gap:8px; }
+  .chips { display:flex; gap:6px; flex-wrap:wrap; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="game"><canvas id="c" width="960" height="600"></canvas></div>
+  <div id="ui">
+    <div class="card">
+      <div class="title" data-i="title">Turret Survivor</div>
+      <div class="row">
+        <select id="lang">
+          <option value="en">English</option>
+          <option value="pt">Português</option>
+          <option value="ja">日本語</option>
+        </select>
+      </div>
+      <div class="row">
+        <select id="difficulty">
+          <option value="0.8">Easy</option>
+          <option value="1" selected>Normal</option>
+          <option value="1.3">Hard</option>
+        </select>
+      </div>
+      <div class="row">
+        <button class="primary" id="startBtn" data-i="start">Start</button>
+        <button id="pauseBtn" data-i="pause">Pause</button>
+        <button id="saveBtn" data-i="save">Save meta</button>
+        <button id="clearBtn" data-i="clear">Clear save</button>
+      </div>
+      <div class="row chips">
+        <span class="pill"><span data-i="hp">HP</span>: <b id="hp">100</b></span>
+        <span class="pill"><span data-i="score">Score</span>: <b id="score">0</b></span>
+        <span class="pill"><span data-i="wave">Wave</span>: <b id="wave">0</b></span>
+        <span class="pill"><span data-i="level">Level</span>: <b id="level">1</b></span>
+        <span class="pill">XP: <b id="xp">0</b>/<b id="next">20</b></span>
+        <span class="pill" id="slotsPill" title="Turret slots">Slots: <b id="slots">1</b>/<b id="slotsMax">1</b></span>
+      </div>
+      <div class="statbar hp"><div id="hpBar" style="width:100%"></div></div>
+      <div class="statbar" style="margin-top:6px"><div id="xpBar" style="width:0%"></div></div>
+      <div class="muted small" id="tips">
+        <div data-i="tip1">Move with WASD / Arrows. Click to place a turret (no grid). Avoid overlap. Pull mobs through crossfire.</div>
+        <div data-i="tip2">Between waves pick an upgrade. XP orbs are magnetized when close.</div>
+        <div data-i="tip3">Elites/Bosses have more HP/damage and special particles.</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="title" data-i="upgrades">Upgrades (on level up)</div>
+      <div id="upgradeChoices" class="upgrade-grid"></div>
+      <div class="muted small" data-i="uinfo">You will get 3 unique random choices every level.</div>
+    </div>
+
+    <div class="card">
+      <div class="title" data-i="controls">Controls</div>
+      <div class="small">
+        <div><span class="kbd">WASD</span>/<span class="kbd">←↑→↓</span> <span data-i="move">Move</span></div>
+        <div><span class="kbd">Click</span> <span data-i="place">Place turret (if a slot is free)</span></div>
+        <div><span class="kbd">Space</span> <span data-i="pause2">Pause / resume</span></div>
+        <div><span class="kbd">R</span> <span data-i="restart">Restart</span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="title">Save</div>
+      <div class="small" id="saveInfo">—</div>
+      <div class="small"><b>Highscore:</b> <span id="highscore">0</span></div>
+    </div>
+
+    <div class="muted small center" id="status">Ready.</div>
+  </div>
+</div>
+<script>
+(() => {
+  // ===== i18n =====
+  const I18N = {
+    en: {
+      title: "Turret Survivor",
+      start: "Start",
+      pause: "Pause",
+      save: "Save meta",
+      clear: "Clear save",
+      hp: "HP",
+      score: "Score",
+      wave: "Wave",
+      level: "Level",
+      tip1: "Move with WASD / Arrows. Click to place a turret (no grid). Avoid overlap. Pull mobs through crossfire.",
+      tip2: "Between waves pick an upgrade. XP orbs are magnetized when close.",
+      tip3: "Elites/Bosses have more HP/damage and special particles.",
+      upgrades: "Upgrades (on level up)",
+      uinfo: "You will get 3 unique random choices every level.",
+      controls: "Controls",
+      move: "Move",
+      place: "Place turret (if a slot is free)",
+      pause2: "Pause / resume",
+      restart: "Restart",
+    },
+    pt: {
+      title: "Turret Survivor",
+      start: "Iniciar",
+      pause: "Pausar",
+      save: "Salvar meta",
+      clear: "Limpar save",
+      hp: "HP",
+      score: "Pontos",
+      wave: "Wave",
+      level: "Nível",
+      tip1: "Movimente com WASD / Setas. Clique para colocar uma torre (sem grade). Evite sobreposição. Puxe mobs para o fogo cruzado.",
+      tip2: "Entre waves escolha um upgrade. Orbes de XP são atraídas quando perto.",
+      tip3: "Elites/Chefes têm mais HP/dano e partículas especiais.",
+      upgrades: "Upgrades (ao subir de nível)",
+      uinfo: "Você receberá 3 opções aleatórias únicas por nível.",
+      controls: "Controles",
+      move: "Mover",
+      place: "Colocar torre (se houver slot)",
+      pause2: "Pausar / continuar",
+      restart: "Reiniciar",
+    },
+    ja: {
+      title: "タレット・サバイバー",
+      start: "開始",
+      pause: "一時停止",
+      save: "メタ保存",
+      clear: "保存クリア",
+      hp: "体力",
+      score: "スコア",
+      wave: "ウェーブ",
+      level: "レベル",
+      tip1: "WASD/矢印で移動。クリックでタレット設置（グリッドなし）。重なり禁止。クロスファイアへ敵を誘導。",
+      tip2: "ウェーブ間でアップグレードを選択。近いXPオーブは磁力で吸収。",
+      tip3: "エリート/ボスはHPとダメージが高く、特別なパーティクル。",
+      upgrades: "アップグレード（レベルアップ時）",
+      uinfo: "毎レベル3つのユニークな選択肢が出ます。",
+      controls: "操作",
+      move: "移動",
+      place: "タレット設置（空きスロット時）",
+      pause2: "一時停止/再開",
+      restart: "再開",
+    }
+  };
+  function applyI18n(lang){
+    const dict = I18N[lang]||I18N.en;
+    document.querySelectorAll('[data-i]').forEach(el=>{
+      const k = el.getAttribute('data-i');
+      if(dict[k]) el.textContent = dict[k];
+    });
+  }
+
+  // ===== Utilities =====
+  const rand = (a=1,b=0)=>Math.random()*(a-b)+b;
+  const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+  const dist2=(a,b)=>{const dx=a.x-b.x, dy=a.y-b.y; return dx*dx+dy*dy};
+  class RNG{ constructor(s=Date.now()%1e9){this.s=s>>>0;} next(){this.s=(1664525*this.s+1013904223)>>>0;return this.s/2**32;} pick(arr){return arr[(this.next()*arr.length)|0]} }
+
+  // ===== Canvas setup =====
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+
+  // ===== Input =====
+  const keys = {}; window.addEventListener('keydown',e=>{keys[e.key.toLowerCase()]=true; if(e.key===' ') e.preventDefault();});
+  window.addEventListener('keyup',e=>{keys[e.key.toLowerCase()]=false});
+
+  // ===== Game State =====
+  const state = {
+    running:false, paused:false, time:0, dt:0, last:0,
+    lang:'en', difficulty:1,
+    score:0, wave:0,
+    player:{x:W/2,y:H/2,r:14,speed:200,hp:100,maxhp:100, magnet:80, xp:0, nextXp:20, level:1, ifr:0},
+    bullets:[], enemies:[], particles:[], orbs:[], turrets:[],
+    turretSlotsMax:1, turretSlots:1,
+    placing:true,
+    rng:new RNG(12345),
+    pendingUpgrades:[], inUpgrade:false, waveTime:40, timeInWave:0,
+    meta:{},
+    highscore: Number(localStorage.getItem('run_highscore')||0)
+  };
+
+  // ===== Saving =====
+  function saveMeta(){ localStorage.setItem('meta_upgrades', JSON.stringify(state.meta)); localStorage.setItem('run_highscore', String(Math.max(state.highscore, state.score))); updateSaveInfo(); }
+  function clearSave(){ localStorage.removeItem('meta_upgrades'); localStorage.removeItem('run_highscore'); state.highscore=0; updateSaveInfo(); }
+  function loadMeta(){ try{ state.meta = JSON.parse(localStorage.getItem('meta_upgrades')||'{}'); state.highscore = Number(localStorage.getItem('run_highscore')||0);}catch{} updateSaveInfo(); }
+  function updateSaveInfo(){ document.getElementById('saveInfo').textContent = JSON.stringify(state.meta)||'—'; document.getElementById('highscore').textContent = String(state.highscore); }
+
+  // ===== Entities =====
+  class Enemy{
+    constructor(x,y, tier=0){
+      this.x=x; this.y=y; this.r=10+tier*2; this.speed= 55 + tier*12; this.hp= 30 + tier*35; this.maxhp=this.hp; this.dmg= 6 + tier*4; this.tier=tier; this.elite=false; this.boss=false; this.spark=0;
+    }
+  }
+  class Bullet{ constructor(x,y,vx,vy, dmg=10, pierce=1, splash=0){ this.x=x; this.y=y; this.vx=vx; this.vy=vy; this.r=3; this.dmg=dmg; this.pierce=pierce; this.splash=splash; this.life=2; } }
+  class Turret{
+    constructor(x,y, kind='gatling', dur=10, range=140){ this.x=x; this.y=y; this.kind=kind; this.r=16; this.range=range; this.cool=0; this.dur=dur; this.rotation=0; this.level=1; this.stats={ dmg: (kind==='laser'?12:10), firerate: (kind==='gatling'?8: (kind==='splash'?1.8: (kind==='slow'?1.2:6))), pierce: (kind==='laser'?99: (kind==='gatling'?1:1)), slow: (kind==='slow'?0.55:0), splash: (kind==='splash'?45:0) }; }
+  }
+  class Orb{ constructor(x,y, xp=5){ this.x=x; this.y=y; this.vx=rand(50,-50); this.vy=rand(50,-50); this.r=4; this.xp=xp; this.magnet=false; }
+  }
+
+  // ===== Spawner (t, difficulty) => enemy batches =====
+  function spawner(t, diff){
+    // t is seconds since run start; diff multiplier ~ 0.8 easy, 1 normal, 1.3 hard
+    const waves = [];
+    const rate = 1.0 * diff; // global scaling
+    // base spawn every few seconds
+    if((t%2)<0.016){
+      const count = Math.min(3 + Math.floor(t/10), 10);
+      waves.push({type:'grunt', count: count});
+    }
+    if(t>20 && (t%4)<0.016){ waves.push({type:'fast', count: 2+((t/30)|0)}); }
+    if(t>35 && (t%6)<0.016){ waves.push({type:'tank', count: 1+((t/40)|0)}); }
+    // elites
+    if(t>30 && (t%20)<0.016){ waves.push({type:'elite', count: 1}); }
+    // boss every 90s
+    if(t>0 && Math.abs((t%90) - 0) < 0.016){ waves.push({type:'boss', count: 1}); }
+    return waves;
+  }
+
+  // ===== Upgrade catalog =====
+  const UPG = [
+    { id:'hp20', name:'+HP', desc:'+20% max HP', apply:()=>{ const p=state.player; p.maxhp = p.maxhp*1.2; p.hp = Math.min(p.maxhp, p.hp*1.2); } },
+    { id:'dur', name:'+Duration', desc:'+40% turret duration', apply:()=>{ state.turrets.forEach(t=>t.dur*=1.4); } },
+    { id:'range', name:'+Range', desc:'+25% turret range', apply:()=>{ state.turrets.forEach(t=>t.range*=1.25); } },
+    { id:'dmg', name:'+Damage', desc:'+30% turret damage', apply:()=>{ state.turrets.forEach(t=>t.stats.dmg*=1.3); } },
+    { id:'rate', name:'+Fire rate', desc:'+20% fire rate', apply:()=>{ state.turrets.forEach(t=>t.stats.firerate*=1.2); } },
+    { id:'pierce', name:'+Pierce', desc:'+1 pierce (projectiles)', apply:()=>{ state.turrets.forEach(t=>t.stats.pierce+=1); } },
+    { id:'slot', name:'+1 Slot', desc:'Add one turret slot (max 6).', apply:()=>{ state.turretSlotsMax = Math.min(6, state.turretSlotsMax+1); } },
+    { id:'mod_fire', name:'Fire mod', desc:'Bullets apply burn (small DoT).', apply:()=>{ META.mods.fire=true; } },
+    { id:'mod_ice', name:'Ice mod', desc:'Hits slow enemies briefly.', apply:()=>{ META.mods.ice=true; } },
+    { id:'mod_weak', name:'Weakness mod', desc:'Hits apply -10% defense for 3s.', apply:()=>{ META.mods.weak=true; } },
+  ];
+  // Upgrade translations
+  const UPG_I18N = {
+    pt: {
+      hp20: { name: '+HP', desc: '+20% de HP máximo' },
+      dur:   { name: '+Duração',       desc: '+40% de duração das torres' },
+      range: { name: '+Alcance',       desc: '+25% de alcance das torres' },
+      dmg:   { name: '+Dano',          desc: '+30% de dano das torres' },
+      rate:  { name: '+Cadência de tiro', desc: '+20% de cadência de tiro' },
+      pierce:{ name: '+Perfuração',    desc: '+1 de perfuração (projéteis)' },
+      slot:  { name: '+1 Slot',        desc: 'Adicionar um slot de torre (máx. 6).' },
+      mod_fire: { name: 'Mod de Fogo', desc: 'Balas aplicam queimadura (pequeno dano por tempo).' },
+      mod_ice:  { name: 'Mod de Gelo', desc: 'Acertos desaceleram inimigos por pouco tempo.' },
+      mod_weak: { name: 'Mod de Fraqueza', desc: 'Acertos aplicam -10% de defesa por 3s.' },
+    },
+    ja: {
+      hp20: { name: '体力+', desc: '最大体力+20%' },
+      dur:   { name: '持続時間+',         desc: 'タレットの持続時間+40%' },
+      range: { name: '射程+',             desc: 'タレットの射程+25%' },
+      dmg:   { name: 'ダメージ+',         desc: 'タレットのダメージ+30%' },
+      rate:  { name: '発射速度+',         desc: '発射速度+20%' },
+      pierce:{ name: '貫通+',             desc: '貫通+1（弾）' },
+      slot:  { name: '+1スロット',         desc: 'タレットスロットを1つ追加（最大6）' },
+      mod_fire: { name: '火炎モッド',    desc: '弾が燃焼を付与（小さなDoT）。' },
+      mod_ice:  { name: '氷結モッド',    desc: '命中時、短時間スロー。' },
+      mod_weak: { name: '弱体化モッド',  desc: '命中時、3秒間防御-10%。' },
+    }
+  };
+  function getUpgradeTexts(u){
+    const lang = state.lang || 'en';
+    const loc = (UPG_I18N[lang] && UPG_I18N[lang][u.id]) || null;
+    return { name: loc?.name || u.name, desc: loc?.desc || u.desc };
+  }
+  const META = { mods: { fire:false, ice:false, weak:false } };
+
+  // ===== Helpers =====
+  function nearestEnemy(x,y, r){
+    let best=null, bestd=Infinity;
+    for(const e of state.enemies){
+      const d2=dist2({x,y}, e); if(d2<r*r && d2<bestd){ best=e; bestd=d2; }
+    }
+    return best;
+  }
+  function canPlaceTurret(x,y){
+    // must not overlap other turrets and keep inside bounds
+    if(x<24||y<24||x>W-24||y>H-24) return false;
+    for(const t of state.turrets){ const d2=dist2({x,y}, t); if(d2 < (t.r+18)*(t.r+18)) return false; }
+    return true;
+  }
+
+  // ===== Game control =====
+  function reset(){
+    state.running=true; state.paused=false; state.time=0; state.last=performance.now();
+    state.score=0; state.wave=1; state.timeInWave=0; state.inUpgrade=false; state.pendingUpgrades=[];
+    state.player={x:W/2,y:H/2,r:14,speed:200,hp:100,maxhp:100, magnet:90, xp:0, nextXp:20, level:1, ifr:0};
+    state.bullets.length=0; state.enemies.length=0; state.particles.length=0; state.orbs.length=0; state.turrets.length=0;
+    state.turretSlotsMax=1; state.turretSlots=1; META.mods={fire:false,ice:false,weak:false};
+    document.getElementById('status').textContent='Running...';
+  }
+
+  // ===== Update & Render =====
+  function loop(ts){
+    if(!state.running){ requestAnimationFrame(loop); return; }
+    state.dt = Math.min(0.033, (ts - state.last)/1000 || 0); state.last=ts; if(state.paused){ requestAnimationFrame(loop); return; }
+    state.time += state.dt; state.timeInWave += state.dt;
+    update(state.dt); render(); requestAnimationFrame(loop);
+  }
+
+  function update(dt){
+    const p = state.player;
+    // movement
+    let dx=(keys['a']||keys['arrowleft']?-1:0)+(keys['d']||keys['arrowright']?1:0);
+    let dy=(keys['w']||keys['arrowup']?-1:0)+(keys['s']||keys['arrowdown']?1:0);
+    const len=Math.hypot(dx,dy)||1; dx/=len; dy/=len; p.x=clamp(p.x+dx*p.speed*dt, p.r, W-p.r); p.y=clamp(p.y+dy*p.speed*dt, p.r, H-p.r);
+    if(p.ifr>0) p.ifr-=dt;
+
+    // spawn
+    for(const wave of spawner(state.time, state.difficulty)){
+      for(let i=0;i<wave.count;i++){
+        const edge = Math.floor(rand(4));
+        let x=0,y=0; if(edge===0){x=-20;y=rand(H,0)} else if(edge===1){x=W+20;y=rand(H,0)} else if(edge===2){x=rand(W,0);y=-20} else {x=rand(W,0);y=H+20}
+        const tier = wave.type==='fast'?1: (wave.type==='tank'?2:0);
+        const e = new Enemy(x,y,tier);
+        if(wave.type==='fast'){ e.speed*=1.35; e.hp*=0.8; }
+        if(wave.type==='tank'){ e.speed*=0.75; e.hp*=1.8; }
+        if(wave.type==='elite'){ e.tier=2; e.elite=true; e.hp*=3; e.speed*=1.15; e.dmg*=1.5; e.r+=3; }
+        if(wave.type==='boss'){ e.tier=3; e.boss=true; e.hp*=12; e.speed*=0.95; e.dmg*=3; e.r+=8; }
+        state.enemies.push(e);
+      }
+    }
+
+    // enemies movement
+    for(const e of state.enemies){
+      const dx=p.x-e.x, dy=p.y-e.y; const d=Math.hypot(dx,dy)||1; let s=e.speed; if(e.slowTimer>0){ s*=0.55; e.slowTimer-=dt; }
+      e.x += (dx/d) * s * dt; e.y += (dy/d) * s * dt;
+      if(e.spark>0) e.spark-=dt;
+      // contact damage
+      const rr = (p.r+e.r); if(p.ifr<=0 && dist2(p,e) < rr*rr){ p.hp -= e.dmg*dt; p.ifr=0.4; if(p.hp<=0){ gameOver(); return; } }
+    }
+
+    // turrets targeting & firing
+    state.turrets = state.turrets.filter(t=> (t.dur -= dt) > 0);
+    for(const t of state.turrets){
+      const target = nearestEnemy(t.x,t.y,t.range);
+      t.rotation += dt*2;
+      if(!target) continue;
+      // rotate towards target (purely visual)
+      // fire
+      t.cool -= dt * t.stats.firerate;
+      if(t.cool<=0){ t.cool=1;
+        if(t.kind==='laser'){
+          // continuous beam simulated as frequent thin bullets with high pierce
+          const dx=target.x-t.x, dy=target.y-t.y; const d=Math.hypot(dx,dy)||1; const sp=420; const vx=dx/d*sp, vy=dy/d*sp; state.bullets.push(new Bullet(t.x,t.y,vx,vy, t.stats.dmg*0.9, 99, 0));
+        } else if(t.kind==='splash'){
+          const dx=target.x-t.x, dy=target.y-t.y; const d=Math.hypot(dx,dy)||1; const sp=260; const vx=dx/d*sp, vy=dy/d*sp; const b=new Bullet(t.x,t.y,vx,vy, t.stats.dmg*1.2, 1, t.stats.splash); state.bullets.push(b);
+        } else if(t.kind==='slow'){
+          const dx=target.x-t.x, dy=target.y-t.y; const d=Math.hypot(dx,dy)||1; const sp=240; const vx=dx/d*sp, vy=dy/d*sp; const b=new Bullet(t.x,t.y,vx,vy, t.stats.dmg*0.7, 1, 0); b.slow=0.65; state.bullets.push(b);
+        } else { // gatling
+          const aimA = Math.atan2(target.y-t.y, target.x-t.x) + rand(0.07,-0.07);
+          const sp=420; const b=new Bullet(t.x,t.y, Math.cos(aimA)*sp, Math.sin(aimA)*sp, t.stats.dmg, t.stats.pierce, 0); state.bullets.push(b);
+        }
+      }
+    }
+
+    // bullets
+    state.bullets = state.bullets.filter(b=> (b.life-=dt) > 0 && b.x>-40&&b.x<W+40&&b.y>-40&&b.y<H+40);
+    for(const b of state.bullets){ b.x+=b.vx*dt; b.y+=b.vy*dt; }
+
+    // bullet-enemy collisions
+    outer: for(const b of state.bullets){
+      for(const e of state.enemies){ const rr=(e.r+(b.r)); if(dist2(b,e)<rr*rr){
+          let dmg=b.dmg; if(META.mods.weak){ e.weakTimer = Math.max(e.weakTimer||0, 3); }
+          if(e.weakTimer>0) dmg*=1.1;
+          e.hp -= dmg; e.spark=0.08;
+          if(b.slow){ e.slowTimer = Math.max(e.slowTimer||0, 1.2); }
+          if(b.splash>0){
+            for(const e2 of state.enemies){ if(e2===e) continue; const d2=dist2(e,e2); if(d2 < b.splash*b.splash){ e2.hp -= b.dmg*0.6; e2.spark=0.05; }
+            }
+          }
+          if(META.mods.fire){ e.burn = Math.max(e.burn||0, 2); }
+          if((b.pierce = (b.pierce||1)-1) <= 0){ b.life=0; continue outer; }
+        }
+      }
+    }
+
+    // burn/weak ticks
+    for(const e of state.enemies){ if(e.burn>0){ e.burn-=dt; e.hp -= 6*dt; } if(e.weakTimer>0){ e.weakTimer-=dt; } }
+
+    // kill & drops
+    for(let i=state.enemies.length-1;i>=0;i--){ const e=state.enemies[i]; if(e.hp<=0){
+      state.enemies.splice(i,1); state.score += (e.boss?50:(e.elite?14:6));
+      const orb = new Orb(e.x,e.y, e.boss?40: e.elite?16: 6); state.orbs.push(orb);
+      // particles
+      for(let k=0;k<8;k++){ state.particles.push({x:e.x,y:e.y,vx:rand(120,-120),vy:rand(120,-120),life:.6, c: e.boss? '#ffd75e' : e.elite? '#84f2ff' : '#7af7b5'}); }
+    }}
+
+    // orbs (magnet)
+    for(const o of state.orbs){
+      const d2 = dist2(o, p); if(d2 < p.magnet*p.magnet){ o.magnet=true; }
+      if(o.magnet){ const dx=p.x-o.x, dy=p.y-o.y; const d=Math.hypot(dx,dy)||1; const sp = 300 + (200*(1 - clamp(d/220,0,1))); o.vx = dx/d*sp; o.vy = dy/d*sp; }
+      o.x += o.vx*dt; o.y += o.vy*dt;
+      // collect
+      const rr=(p.r+6); if(dist2(o,p) < rr*rr){ state.player.xp += o.xp; o.collected=true; }
+    }
+    state.orbs = state.orbs.filter(o=>!o.collected);
+
+    // level up
+    while(p.xp >= p.nextXp){ p.xp -= p.nextXp; p.level++; p.nextXp = Math.floor(p.nextXp*1.35)+8; openUpgradeChoices(); }
+
+    // wave/upgrade pacing (simple): every waveTime seconds, pause and give upgrade
+    if(state.timeInWave >= state.waveTime){ state.timeInWave=0; state.wave++; openUpgradeChoices(); }
+
+    // particles
+    state.particles = state.particles.filter(pt=> (pt.life-=dt)>0 );
+
+    // UI
+    document.getElementById('hp').textContent = Math.max(0, p.hp).toFixed(0);
+    document.getElementById('score').textContent = state.score.toFixed(0);
+    document.getElementById('wave').textContent = state.wave;
+    document.getElementById('level').textContent = p.level;
+    document.getElementById('xp').textContent = p.xp.toFixed(0);
+    document.getElementById('next').textContent = p.nextXp;
+    document.getElementById('hpBar').style.width = (100*p.hp/p.maxhp)+'%';
+    document.getElementById('xpBar').style.width = (100*p.xp/p.nextXp)+'%';
+    document.getElementById('slots').textContent = state.turretSlots;
+    document.getElementById('slotsMax').textContent = state.turretSlotsMax;
+
+    // highscore
+    if(state.score > state.highscore){ state.highscore = state.score; document.getElementById('highscore').textContent = String(state.highscore); }
+  }
+
+  function render(){
+    ctx.clearRect(0,0,W,H);
+    // bg grid (faint)
+    ctx.save(); ctx.globalAlpha=.08; ctx.strokeStyle="#8ab3ff"; ctx.lineWidth=1; ctx.beginPath(); for(let x=0;x<W;x+=40){ ctx.moveTo(x,0); ctx.lineTo(x,H);} for(let y=0;y<H;y+=40){ ctx.moveTo(0,y); ctx.lineTo(W,y);} ctx.stroke(); ctx.restore();
+
+    // turrets
+    for(const t of state.turrets){
+      ctx.save(); ctx.translate(t.x,t.y);
+      ctx.rotate(t.rotation);
+      ctx.fillStyle = ({gatling:'#7af7b5', splash:'#ffd75e', slow:'#84f2ff', laser:'#ff8bd1'})[t.kind];
+      ctx.beginPath(); ctx.arc(0,0,t.r,0,Math.PI*2); ctx.fill();
+      ctx.globalAlpha=.12; ctx.beginPath(); ctx.arc(0,0,t.range,0,Math.PI*2); ctx.fill(); ctx.globalAlpha=1;
+      ctx.restore();
+    }
+
+    // player
+    const p = state.player; ctx.save(); ctx.translate(p.x,p.y); ctx.fillStyle='#ffffff'; ctx.beginPath(); ctx.arc(0,0,p.r,0,Math.PI*2); ctx.fill(); ctx.restore();
+
+    // enemies
+    for(const e of state.enemies){ ctx.save(); ctx.translate(e.x,e.y); ctx.fillStyle = e.boss? '#ffd75e' : e.elite? '#84f2ff' : '#ff7a96'; if(e.spark>0){ ctx.shadowColor=ctx.fillStyle; ctx.shadowBlur=14; }
+      ctx.beginPath(); ctx.arc(0,0,e.r,0,Math.PI*2); ctx.fill(); ctx.shadowBlur=0;
+      // hp bar
+      ctx.fillStyle='#203357'; ctx.fillRect(-e.r, e.r+4, e.r*2, 4); ctx.fillStyle='#51ff9c'; ctx.fillRect(-e.r, e.r+4, e.r*2*(e.hp/e.maxhp), 4);
+      ctx.restore(); }
+
+    // bullets
+    for(const b of state.bullets){ ctx.save(); ctx.translate(b.x,b.y); ctx.fillStyle='#e6ecff'; ctx.beginPath(); ctx.arc(0,0,b.r,0,Math.PI*2); ctx.fill(); ctx.restore(); }
+
+    // orbs
+    for(const o of state.orbs){ ctx.save(); ctx.translate(o.x,o.y); ctx.fillStyle='#6cf0ff'; ctx.beginPath(); ctx.arc(0,0,o.r,0,Math.PI*2); ctx.fill(); ctx.restore(); }
+
+    // particles
+    for(const pt of state.particles){ ctx.save(); ctx.globalAlpha = clamp(pt.life/0.6,0,1); ctx.fillStyle=pt.c||'#7af7b5'; ctx.beginPath(); ctx.arc(pt.x += pt.vx*state.dt, pt.y += pt.vy*state.dt, 2, 0, Math.PI*2); ctx.fill(); ctx.restore(); }
+  }
+
+  function gameOver(){ state.running=false; document.getElementById('status').textContent = 'Game Over. Press R to restart.'; saveMeta(); }
+
+  // ===== Upgrades UI =====
+  function openUpgradeChoices(){
+    state.inUpgrade=true; state.paused=true;
+    // 3 unique
+    const choices = new Set(); const rng=state.rng; while(choices.size<3){ choices.add( rng.pick(UPG).id ); }
+    const list=[...choices].map(id=>UPG.find(u=>u.id===id));
+    const grid = document.getElementById('upgradeChoices'); grid.innerHTML='';
+    for(const u of list){
+      const { name, desc } = getUpgradeTexts(u);
+      const div=document.createElement('div');
+      div.className='upgrade';
+      div.innerHTML = `<b>${name}</b><br><span class="muted small">${desc}</span>`;
+      div.onclick=()=>{ u.apply(); state.inUpgrade=false; state.paused=false; grid.innerHTML=''; };
+      grid.appendChild(div);
+    }
+  }
+
+  // ===== Placement =====
+  canvas.addEventListener('mousemove', e=>{ const rect=canvas.getBoundingClientRect(); state.mouseX=(e.clientX-rect.left)* (canvas.width/rect.width); state.mouseY=(e.clientY-rect.top)* (canvas.height/rect.height); });
+  canvas.addEventListener('click', ()=>{
+    if(!state.running || state.paused) return;
+    if(state.turretSlots <= 0) return;
+    const x=state.mouseX||W/2, y=state.mouseY||H/2; if(!canPlaceTurret(x,y)) return;
+    // pick type in cycle: gatling -> splash -> slow -> laser
+    const types=['gatling','splash','slow','laser']; const next = types[(state.turrets.length)%types.length];
+    const t = new Turret(x,y,next, 12, 140);
+    state.turrets.push(t); state.turretSlots--; setTimeout(()=>{ // free slot when turret expires
+      const i = state.turrets.indexOf(t); if(i>=0){ /* keep until dur ends naturally */ }
+    }, t.dur*1000);
+  });
+
+  // Recover turret slot when any turret expires (poll)
+  setInterval(()=>{ const alive = state.turrets.length; const used = alive; state.turretSlots = clamp(state.turretSlotsMax - used, 0, state.turretSlotsMax); }, 250);
+
+  // ===== Events =====
+  document.getElementById('startBtn').onclick=()=>{ reset(); };
+  document.getElementById('pauseBtn').onclick=()=>{ if(!state.running) return; state.paused=!state.paused; };
+  document.getElementById('saveBtn').onclick=()=>{ saveMeta(); };
+  document.getElementById('clearBtn').onclick=()=>{ clearSave(); };
+  window.addEventListener('keydown', e=>{
+    if(e.key==='r'){ reset(); }
+    if(e.key===' '){ if(state.running){ state.paused=!state.paused; e.preventDefault(); }}
+  });
+
+  // ===== Language & Difficulty =====
+  const langSel = document.getElementById('lang'); const diffSel=document.getElementById('difficulty');
+  langSel.onchange=()=>{ state.lang=langSel.value; applyI18n(state.lang); };
+  diffSel.onchange=()=>{ state.difficulty = Number(diffSel.value); };
+
+  // Init
+  loadMeta(); applyI18n('en'); state.difficulty = Number(diffSel.value);
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

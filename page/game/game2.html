@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Orbit Weapons</title>
+  <style>
+    :root {
+      --bg: #0b0f14;
+      --panel: #0f1720;
+      --text: #d7e1ec;
+      --accent: #59f;
+      --accent2: #8cf5a6;
+      --danger: #ff6b6b;
+      --gold: #ffd166;
+    }
+    html, body { height: 100%; }
+    body {
+      margin: 0; background: radial-gradient(1200px 800px at 50% 50%, #0c1220, var(--bg));
+      color: var(--text); font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, 'Noto Sans', 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif;
+      overflow: hidden;
+    }
+    #ui { position: fixed; inset: 0; pointer-events: none; }
+    #hud { position: absolute; top: 8px; left: 8px; right: 8px; display: flex; gap: 8px; align-items: center; pointer-events: auto; }
+    .hud-card { background: rgba(15,23,32,.72); border: 1px solid rgba(255,255,255,.08); border-radius: 12px; padding: 8px 12px; backdrop-filter: blur(6px); box-shadow: 0 6px 20px rgba(0,0,0,.35); }
+    #leftHUD { display: flex; gap: 8px; align-items: center; }
+    #rightHUD { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+    .pill { padding: 6px 10px; border-radius: 999px; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.08); font-size: 12px; }
+    .btn { pointer-events: auto; cursor: pointer; user-select: none; }
+    .btn:hover { filter: brightness(1.08); }
+    .btn:active { filter: brightness(.95); }
+    .primary { background: linear-gradient(180deg, #3f6fff, #2a50d6); border: none; color: white; }    #hpbar { width: 180px; height: 10px; background: rgba(255,255,255,.08); border-radius: 999px; overflow: hidden; border: 1px solid rgba(255,255,255,.1); }
+    #hpfill { height: 100%; width: 100%; background: linear-gradient(90deg, var(--danger), var(--gold)); }
+
+    
+
+    #xpbar { width: 240px; height: 10px; background: rgba(255,255,255,.08); border-radius: 999px; overflow: hidden; border: 1px solid rgba(255,255,255,.1); }
+    #xpfill { height: 100%; width: 0%; background: linear-gradient(90deg, #59f, #8cf5a6); }
+
+    #overlay { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: auto; }
+    .panel { width: min(860px, 92vw); background: rgba(16,20,28,.9); border: 1px solid rgba(255,255,255,.08); border-radius: 16px; padding: 20px; box-shadow: 0 10px 40px rgba(0,0,0,.5); }
+    .title { font-size: 28px; font-weight: 800; letter-spacing: .5px; }
+    .subtitle { opacity: .8; margin-top: 4px; }
+    .row { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+    .col { display: flex; flex-direction: column; gap: 8px; }
+    label { font-size: 13px; opacity: .8; }
+    select, input[type=range] { pointer-events: auto; }
+
+    #startPanel .row { margin-top: 14px; }
+    .start-actions { margin-top: 16px; display: flex; gap: 10px; flex-wrap: wrap; }
+
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-top: 14px; }
+    .card { background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1); border-radius: 14px; padding: 14px; cursor: pointer; transition: transform .08s ease;
+            min-height: 120px; display: flex; flex-direction: column; justify-content: space-between; }
+    .card:hover { transform: translateY(-2px); }
+    .card .name { font-weight: 700; }
+    .card .desc { font-size: 13px; opacity: .8; margin-top: 6px; }
+
+    #gameOverStats { margin-top: 10px; display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 8px; }
+    .stat { background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.08); border-radius: 10px; padding: 8px; }
+
+    canvas { display: block; width: 100vw; height: 100vh; }
+  </style>
+</head>
+<body>
+  <canvas id="game"></canvas>
+  <div id="ui">
+    <div id="hud">
+      <div id="leftHUD" class="hud-card">
+        <span id="timer" class="pill">00:00</span>
+        <span id="hp" class="pill">HP 100</span>
+        <div id="hpbar"><div id="hpfill"></div></div>
+        <div id="xpbar"><div id="xpfill"></div></div>
+        <span id="xpText" class="pill">XP 0/30</span>
+        <span id="level" class="pill">Lv 1</span>
+        <span id="orbsHUD" class="pill">Orbs: 3</span>
+      </div>
+      <div id="rightHUD">
+        <button id="pauseBtn" class="hud-card btn">⏸</button>
+        <div class="hud-card">
+          <label for="langSel" id="langLabel">Language</label>
+          <select id="langSel">
+            <option value="en">English</option>
+            <option value="pt" selected>Português</option>
+            <option value="ja">日本語</option>
+          </select>
+        </div>
+        <div class="hud-card" id="hisBox">Best: <span id="his"></span></div>
+      </div>
+    </div>
+
+    <div id="overlay">
+      <div id="startPanel" class="panel">
+        <div class="title">Orbit Weapons</div>
+        <div class="subtitle" id="subInstructions">Orbs circle you and deal contact damage. Move to kite.</div>
+        <div class="row">
+          <div class="col">
+            <label id="diffLabel">Difficulty</label>
+            <select id="difficulty">
+              <option value="0.8">Easy</option>
+              <option value="1" selected>Normal</option>
+              <option value="1.35">Hard</option>
+              <option value="1.8">Insane</option>
+            </select>
+          </div>
+          <div class="col">
+            <label id="controlsLabel">Controls</label>
+            <div class="pill">WASD / Arrows to move, P to pause</div>
+          </div>
+        </div>
+        <div class="start-actions">
+          <button id="startBtn" class="btn primary hud-card">Start</button>
+          <button id="howBtn" class="btn hud-card">How to play</button>
+        </div>
+        <div id="howText" style="display:none; margin-top: 10px; opacity:.9; font-size:14px"></div>
+      </div>
+
+      <div id="levelPanel" class="panel" style="display:none">
+        <div class="title" id="lvlTitle">Level Up</div>
+        <div class="subtitle" id="lvlSubtitle">Choose one upgrade</div>
+        <div class="cards" id="upgradeCards"></div>
+      </div>
+
+      <div id="gameOverPanel" class="panel" style="display:none">
+        <div class="title" id="overTitle">Game Over</div>
+        <div class="subtitle" id="overSubtitle">You were overwhelmed.</div>
+        <div id="gameOverStats"></div>
+        <div class="start-actions">
+          <button id="restartBtn" class="btn primary hud-card">Restart</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  // ===== Multilingual strings (EN, PT, JA) =====
+  const I18N = {
+    en: {
+      language: 'Language', title: 'Orbit Weapons', subtitle: 'Orbs circle you and deal contact damage. Move to kite.',
+      controls: 'Controls', controlsHelp: 'WASD / Arrows to move. P to pause.',
+      difficulty: 'Difficulty', start: 'Start', how: 'How to play', howText: `Loop: orbs orbit and deal contact damage; use positioning and kiting.\nMechanics: N evenly spaced orbs; scalable radius & rotation; per-enemy hit cooldown; synergies.\nSpawner: function of time & difficulty.\nXP & Level: pick 1 of 3 unique upgrades.\nMagnet: XP orbs accelerate towards you in a radius.\nElites/Bosses: more HP/damage and special particles.\nSave: best run time in localStorage.`,
+      levelUp: 'Level Up', chooseOne: 'Choose one upgrade', gameOver: 'Game Over', overwhelmed: 'You were overwhelmed.', restart: 'Restart',
+      stats: { time: 'Time', level: 'Level', kills: 'Kills', orbs: 'Orbs', dps: 'DPS (last 20s)'},
+      upgrades: {
+        moreOrb: ['+1 Orb', 'Adds one orbiting orb (max 12).'],
+        radius: ['+Radius', 'Increase orbit radius.'],
+        rot: ['+Rotation', 'Increase orbit rotation speed.'],
+        dmg: ['+Damage', 'Increase orb damage.'],
+        burn: ['Burning Touch', 'Orbs apply burn (DoT).'],
+        freeze: ['Freezing Touch', 'Orbs slow enemies on hit.'],
+        pierce: ['Piercing Shots', 'Satellites projectiles pierce 2 foes.'],
+        sat: ['+1 Satellite', 'Adds a drone that fires at enemies.'],
+        satRate: ['Satellite Fire Rate', 'Satellites fire faster.'],
+        magnet: ['Magnet', 'Increase XP pickup radius.'],
+        speed: ['Movement Speed', 'Move faster.'],
+        xpgain: ['XP Gain', 'Gain more XP from pickups.'],
+      }
+    },
+    pt: {
+      language: 'Idioma', title: 'Orbit Weapons', subtitle: 'Orbes giram ao seu redor e causam dano por contato. Mova-se para kite.',
+      controls: 'Controles', controlsHelp: 'WASD / Setas para mover. P pausa.',
+      difficulty: 'Dificuldade', start: 'Iniciar', how: 'Como jogar', howText: `Loop: orbes orbitam e causam dano por contato; use posicionamento e kite.\nMecânicas: N orbes igualmente espaçados; raio e rotação escaláveis; cooldown por inimigo; sinergias.\nSpawner: função do tempo e da dificuldade.\nXP & Nível: escolha 1 de 3 upgrades únicos.\nÍmã: orbes de XP aceleram em direção ao player dentro do raio.\nElites/Chefes: mais HP/dano e partículas especiais.\nSave: melhor tempo no localStorage.`,
+      levelUp: 'Subiu de Nível', chooseOne: 'Escolha um upgrade', gameOver: 'Fim de Jogo', overwhelmed: 'Você foi sobrecarregado.', restart: 'Reiniciar',
+      stats: { time: 'Tempo', level: 'Nível', kills: 'Abates', orbs: 'Orbes', dps: 'DPS (últ. 20s)'},
+      upgrades: {
+        moreOrb: ['+1 Orbe', 'Adiciona um orbe (máx. 12).'],
+        radius: ['+Raio', 'Aumenta o raio da órbita.'],
+        rot: ['+Rotação', 'Aumenta a velocidade de rotação.'],
+        dmg: ['+Dano', 'Aumenta o dano dos orbes.'],
+        burn: ['Toque Flamejante', 'Orbes aplicam queimadura (DPS).'],
+        freeze: ['Toque Gélido', 'Orbes reduzem velocidade ao atingir.'],
+        pierce: ['Tiros Perfurantes', 'Satélites perfuram 2 inimigos.'],
+        sat: ['+1 Satélite', 'Adiciona um drone que atira.'],
+        satRate: ['Taxa de Fogo Satélite', 'Satélites atiram mais rápido.'],
+        magnet: ['Ímã', 'Aumenta o raio de coleta de XP.'],
+        speed: ['Velocidade', 'Move-se mais rápido.'],
+        xpgain: ['Ganho de XP', 'Mais XP por coleta.'],
+      }
+    },
+    ja: {
+      language: '言語', title: 'Orbit Weapons', subtitle: 'オーブはプレイヤーの周りを回転し、接触ダメージを与える。動いて回避。',
+      controls: '操作', controlsHelp: 'WASD / 矢印で移動。P で一時停止。',
+      difficulty: '難易度', start: '開始', how: '遊び方', howText: `ループ：オーブが回転して接触ダメージ。位置取りとカイト。\nメカニクス：均等配置の N 個オーブ。半径/回転は拡張可能。敵ごとのヒットクールダウン。\nスポーナー：時間と難易度から生成。\nXP とレベル：3 つの候補から 1 つ選択。\nマグネット：一定半径内の XP オーブが加速して吸い寄せ。\nエリート/ボス：HP/ダメージ増、特殊パーティクル。\nセーブ：ベストタイムを保存。`,
+      levelUp: 'レベルアップ', chooseOne: 'アップグレードを選択', gameOver: 'ゲームオーバー', overwhelmed: '敵に押しつぶされた。', restart: '再開',
+      stats: { time: '時間', level: 'レベル', kills: '撃破', orbs: 'オーブ', dps: 'DPS（直近20秒）'},
+      upgrades: {
+        moreOrb: ['+1 オーブ', 'オーブを 1 個追加（最大12）。'],
+        radius: ['半径アップ', 'オーブ軌道の半径を拡大。'],
+        rot: ['回転速度アップ', '回転速度を上昇。'],
+        dmg: ['ダメージアップ', 'オーブのダメージ上昇。'],
+        burn: ['灼熱の触れ', 'オーブが火傷（DoT）を付与。'],
+        freeze: ['氷結の触れ', 'ヒット時に減速を付与。'],
+        pierce: ['貫通弾', '衛星の弾が 2 体まで貫通。'],
+        sat: ['+1 衛星', '敵を狙って射撃するドローン追加。'],
+        satRate: ['衛星の連射', '衛星の射撃間隔を短縮。'],
+        magnet: ['マグネット', 'XP 吸引半径を拡大。'],
+        speed: ['移動速度', '移動速度アップ。'],
+        xpgain: ['XP獲得', '取得 XP 増加。'],
+      }
+    }
+  };
+
+  // ===== Canvas & basic setup =====
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  const DPR = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+  function resize() {
+    canvas.width = Math.floor(innerWidth * DPR);
+    canvas.height = Math.floor(innerHeight * DPR);
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  }
+  addEventListener('resize', resize); resize();
+
+  // ===== DOM refs =====
+  const overlay = document.getElementById('overlay');
+  const startPanel = document.getElementById('startPanel');
+  const levelPanel = document.getElementById('levelPanel');
+  const gameOverPanel = document.getElementById('gameOverPanel');
+  const startBtn = document.getElementById('startBtn');
+  const restartBtn = document.getElementById('restartBtn');
+  const pauseBtn = document.getElementById('pauseBtn');
+  const howBtn = document.getElementById('howBtn');
+  const howText = document.getElementById('howText');
+  const langSel = document.getElementById('langSel');
+  const diffSel = document.getElementById('difficulty');
+  const hisSpan = document.getElementById('his');
+  const hudTimer = document.getElementById('timer');
+  const hudHp = document.getElementById('hp');
+  const hudLvl = document.getElementById('level');
+  const hudOrbs = document.getElementById('orbsHUD');
+  const xpFill = document.getElementById('xpfill');
+  const hpFill = document.getElementById('hpfill');
+  const xpText = document.getElementById('xpText');
+  const hisBox = document.getElementById('hisBox');
+  const lvlTitle = document.getElementById('lvlTitle');
+  const lvlSubtitle = document.getElementById('lvlSubtitle');
+  const upgradeCards = document.getElementById('upgradeCards');
+  const overTitle = document.getElementById('overTitle');
+  const overSubtitle = document.getElementById('overSubtitle');
+  const gameOverStats = document.getElementById('gameOverStats');
+
+  const langLabel = document.getElementById('langLabel');
+  const subInstructions = document.getElementById('subInstructions');
+  const controlsLabel = document.getElementById('controlsLabel');
+  const diffLabel = document.getElementById('diffLabel');
+
+  // ===== Helpers =====
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const rand = (a=1,b=0) => Math.random()*(a-b)+b;
+  const randi = (a,b=0) => Math.floor(rand(a+1,b));
+  const dist2 = (x1,y1,x2,y2)=>{ const dx=x2-x1, dy=y2-y1; return dx*dx+dy*dy; };
+  const now = () => performance.now();
+
+  function timeFmt(sec){ sec|=0; const m = (sec/60)|0; const s = (sec%60)|0; return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`; }
+
+  // ===== Save/Load =====
+  const SAVE_KEY = 'orbitweapons_save_v1';
+  function loadSave(){ try{ return JSON.parse(localStorage.getItem(SAVE_KEY)||'{}'); }catch{ return {}; } }
+  function save(data){ try{ localStorage.setItem(SAVE_KEY, JSON.stringify(data)); }catch{} }
+  const saveData = loadSave();
+  const best = saveData.best || { seconds: 0, level: 1 };
+  hisSpan.textContent = timeFmt(best.seconds);
+
+  // ===== Input =====
+  const keys = new Set();
+  addEventListener('keydown', (e)=>{ if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','w','a','s','d','W','A','S','D'].includes(e.key)) { keys.add(e.key.toLowerCase()); e.preventDefault(); } if(e.key==='p' || e.key==='P'){ togglePause(); }
+  });
+  addEventListener('keyup', (e)=>{ keys.delete(e.key.toLowerCase()); });
+
+  // ===== Game State =====
+  const state = {
+    lang: 'pt',
+    running: false,
+    paused: false,
+    t0: 0, // ms
+    time: 0, // seconds
+    diff: 1,
+    player: { x: innerWidth/2, y: innerHeight/2, r: 14, speed: 240, hp: 100, hpMax: 100, invuln: 0 },
+    orbs: { baseAngle: 0, count: 3, radius: 60, rotSpeed: 2.2, damage: 14, burn: false, freeze: false, pierceShots: 0 },
+    satellites: { count: 0, timer: 0, fireInterval: 0.95, bulletDamage: 10, pierce: 0 },
+    bullets: [],
+    enemies: [],
+    xpOrbs: [],
+    particles: [],
+    nextEnemyId: 1,
+    hitCooldown: 260, // ms per enemy (orbs)
+    bulletCooldown: 80,
+    xp: 0, level: 1, nextXp: 30, xpGain: 1, magnet: 120,
+    kills: 0,
+    damageLog: [], // recent damage for DPS
+    offerStack: [],
+  };
+
+  // ===== Language wiring =====
+  function applyLang(){
+    const L = I18N[state.lang];
+    document.title = L.title;
+    subInstructions.textContent = L.subtitle;
+    document.querySelector('#startBtn').textContent = L.start;
+    document.querySelector('#howBtn').textContent = L.how;
+    document.querySelector('#howText').textContent = L.howText;
+    langLabel.textContent = L.language;
+    controlsLabel.textContent = L.controls;
+    diffLabel.textContent = L.difficulty;
+    document.querySelector('#controlsLabel + .pill').textContent = L.controlsHelp;
+
+    document.querySelector('#levelPanel .title').textContent = L.levelUp;
+    document.querySelector('#levelPanel .subtitle').textContent = L.chooseOne;
+    overTitle.textContent = L.gameOver;
+    overSubtitle.textContent = L.overwhelmed;
+    restartBtn.textContent = L.restart;
+  }
+  langSel.addEventListener('change', ()=>{ state.lang = langSel.value; applyLang(); });
+  // Initialize to pt
+  state.lang = langSel.value; applyLang();
+
+  // ===== Spawner: input (t, difficulty) -> array of {type, count} =====
+  function spawner(t, difficulty){
+    // t in seconds (survival time)
+    const waves = [];
+    const stage = 1 + Math.floor(t/60);
+    // base rate increases over time and with difficulty
+    const rate = (0.7 + t*0.015) * difficulty; // spawns per second baseline
+    const toSpawn = Math.random() < clamp(rate*dt, 0, 0.9) ? 1 + (Math.random() < 0.25 ? 1:0) : 0;
+    if(toSpawn>0){
+      // choose type by time/stage
+      for(let i=0;i<toSpawn;i++){
+        let type = 'grunt';
+        const roll = Math.random();
+        if(stage>=2 && roll>0.75) type='runner';
+        if(stage>=3 && roll>0.88) type='tank';
+        waves.push({type, count:1});
+      }
+    }
+    // Elites every ~25s after 30s
+    if(t>30 && Math.abs((t%25)-0) < dt && Math.random() < 0.8){ waves.push({type:'elite', count:1}); }
+    // Boss every 120s
+    if(t>60 && Math.abs((t%120)-0) < dt){ waves.push({type:'boss', count:1}); }
+    return waves;
+  }
+
+  // ===== Entities =====
+  function addEnemy(type){
+    const id = state.nextEnemyId++;
+    // spawn at edges
+    const edge = randi(3);
+    const margin = 40; const w = innerWidth, h = innerHeight;
+    const x = edge===0? -margin : edge===1? w+margin : rand(w);
+    const y = edge===2? -margin : edge===3? h+margin : (edge<2? rand(h): rand(h));
+
+    let hp=30, speed=60, r=13, dmg=8, color='#8bd3ff', elite=false, boss=false;
+    if(type==='runner'){ speed=120; hp=24; r=11; color='#b7f'; }
+    if(type==='tank'){ hp=80; speed=42; r=16; color='#fa7'; }
+    if(type==='elite'){ elite=true; hp=130; speed=70; r=16; dmg=14; color='#ff5ecb'; }
+    if(type==='boss'){ boss=true; hp=600; speed=55; r=28; dmg=20; color='#ffd166'; }
+
+    // Scale with time and difficulty
+    const t = state.time; const diff = state.diff;
+    const scale = 1 + t*0.015*diff;
+    hp = Math.floor(hp * (elite? 1.6:1) * (boss? 6:1) * scale);
+    dmg = Math.floor(dmg * (elite? 1.5:1) * (boss? 2:1) * (0.85 + diff*0.25));
+
+    state.enemies.push({ id, type, x, y, vx:0, vy:0, r, hp, hpMax:hp, speed, dmg, elite, boss, lastOrbHit:0, lastBulletHit:0, burn:{t:0,dps:0}, slow:{t:0, factor:1} });
+  }
+
+  function addXP(x,y, value=5){ state.xpOrbs.push({x,y, vx:0, vy:0, r:5, value}); }
+  function addParticle(x,y, life=0.6, size=3, color='white'){ state.particles.push({x,y, vx:rand(60,-60), vy:rand(60,-60), life, t:0, size, color}); }
+
+  function fireSatellites(){
+    // target nearest enemy
+    if(state.enemies.length===0) return;
+    for(let i=0;i<state.satellites.count;i++){
+      const satAngle = state.orbs.baseAngle + (i*Math.PI*2/state.satellites.count);
+      const sx = state.player.x + Math.cos(satAngle)*(state.orbs.radius+24);
+      const sy = state.player.y + Math.sin(satAngle)*(state.orbs.radius+24);
+      let target=null, bestD2=1e9;
+      for(const e of state.enemies){ const d2 = dist2(sx,sy, e.x,e.y); if(d2<bestD2){ bestD2=d2; target=e; } }
+      if(!target) continue;
+      const ang = Math.atan2(target.y-sy, target.x-sx);
+      const speed = 420;
+      state.bullets.push({x:sx,y:sy, vx:Math.cos(ang)*speed, vy:Math.sin(ang)*speed, r:3.2, dmg: state.satellites.bulletDamage, pierce: state.satellites.pierce, life: 2});
+    }
+  }
+
+  // ===== Upgrade Catalog =====
+  const U = {
+    moreOrb: { id:'moreOrb', max:12, apply(){ state.orbs.count = Math.min(state.orbs.count+1, 12); } },
+    radius:  { id:'radius', apply(){ state.orbs.radius = Math.min(state.orbs.radius+14, 220); } },
+    rot:     { id:'rot',    apply(){ state.orbs.rotSpeed = Math.min(state.orbs.rotSpeed+0.35, 6); } },
+    dmg:     { id:'dmg',    apply(){ state.orbs.damage = Math.round(state.orbs.damage*1.18); } },
+    burn:    { id:'burn',   apply(){ state.orbs.burn = true; } },
+    freeze:  { id:'freeze', apply(){ state.orbs.freeze = true; } },
+    pierce:  { id:'pierce', apply(){ state.satellites.pierce = 2; } },
+    sat:     { id:'sat',    apply(){ state.satellites.count = Math.min(state.satellites.count+1, 6); } },
+    satRate: { id:'satRate',apply(){ state.satellites.fireInterval = Math.max(0.45, state.satellites.fireInterval*0.84); } },
+    magnet:  { id:'magnet', apply(){ state.magnet = Math.min(500, state.magnet*1.25); } },
+    speed:   { id:'speed',  apply(){ state.player.speed = Math.min(500, state.player.speed*1.12); } },
+    xpgain:  { id:'xpgain', apply(){ state.xpGain = state.xpGain*1.15; } },
+  };
+  const upgradePool = Object.keys(U);
+
+  function offerUpgrades(){
+    // 3 unique choices; allow repeatables like dmg/radius to appear multiple times across different level-ups
+    const picks = new Set();
+    while(picks.size<3){ picks.add(upgradePool[randi(upgradePool.length-1,0)]); }
+    return [...picks];
+  }
+
+  function showLevelPanel(offers){
+    const L = I18N[state.lang];
+    levelPanel.style.display = '';
+    startPanel.style.display = 'none';
+    gameOverPanel.style.display = 'none';
+    overlay.style.display = '';
+    upgradeCards.innerHTML = '';
+    offers.forEach(id => {
+      const [name, desc] = L.upgrades[id];
+      const card = document.createElement('div');
+      card.className = 'card';
+      const title = document.createElement('div'); title.className = 'name'; title.textContent = name;
+      const body = document.createElement('div'); body.className = 'desc'; body.textContent = desc;
+      const pickBtn = document.createElement('div'); pickBtn.className = 'btn pill'; pickBtn.textContent = 'OK'; pickBtn.style.alignSelf='flex-end';
+      card.append(title, body, pickBtn);
+      card.addEventListener('click', ()=>{ applyUpgrade(id); hideOverlay(); resume(); });
+      upgradeCards.appendChild(card);
+    });
+  }
+
+  function applyUpgrade(id){ U[id].apply(); state.offerStack.length = 0; updateHUD(); }
+
+  function hideOverlay(){ overlay.style.display = 'none'; levelPanel.style.display='none'; startPanel.style.display='none'; gameOverPanel.style.display='none'; }
+
+  // ===== Start/Restart/Pause =====
+  function newRun(){
+    state.running=true; state.paused=false; state.t0 = now(); state.time=0;
+    state.player.x=innerWidth/2; state.player.y=innerHeight/2; state.player.hp=state.player.hpMax=100; state.player.invuln=0;
+    state.orbs.baseAngle=0; state.orbs.count=3; state.orbs.radius=60; state.orbs.rotSpeed=2.2; state.orbs.damage=14; state.orbs.burn=false; state.orbs.freeze=false; state.satellites={count:0,timer:0,fireInterval:0.95,bulletDamage:10,pierce:0};
+    state.enemies.length=0; state.xpOrbs.length=0; state.particles.length=0; state.bullets.length=0; state.kills=0; state.damageLog.length=0;
+    state.xp=0; state.level=1; state.nextXp=30; state.magnet=120; state.xpGain=1;
+    state.offerStack.length=0;
+    updateHUD(); hideOverlay();
+  }
+
+  function endRun(){
+    state.running=false; overlay.style.display=''; startPanel.style.display='none'; levelPanel.style.display='none'; gameOverPanel.style.display='';
+    // Save best
+    if(state.time>best.seconds){ best.seconds = state.time|0; best.level = state.level; save({best}); }
+    hisSpan.textContent = timeFmt(best.seconds);
+    // Stats
+    const L = I18N[state.lang];
+    const dps = recentDPS();
+    gameOverStats.innerHTML = '';
+    const entries = [ [L.stats.time, timeFmt(state.time|0)], [L.stats.level, state.level], [L.stats.kills, state.kills], [L.stats.orbs, state.orbs.count], [L.stats.dps, dps.toFixed(1)] ];
+    for(const [k,v] of entries){ const div=document.createElement('div'); div.className='stat'; div.textContent=`${k}: ${v}`; gameOverStats.appendChild(div); }
+  }
+
+  function togglePause(){ if(!state.running) return; state.paused = !state.paused; pauseBtn.textContent = state.paused? '▶' : '⏸'; overlay.style.display = state.paused? '' : 'none'; if(state.paused){ startPanel.style.display=''; startPanel.querySelector('.title').textContent = I18N[state.lang].title + ' — Paused'; } else { hideOverlay(); } }
+  function resume(){ state.paused=false; pauseBtn.textContent='⏸'; hideOverlay(); }
+
+  startBtn.addEventListener('click', ()=>{ state.diff = parseFloat(diffSel.value); newRun(); });
+  restartBtn.addEventListener('click', ()=>{ state.diff = parseFloat(diffSel.value); newRun(); });
+  pauseBtn.addEventListener('click', togglePause);
+  howBtn.addEventListener('click', ()=>{ howText.style.display = howText.style.display==='none'? 'block':'none'; });
+
+  // ===== Main Loop =====
+  let last = now();
+  window.dt = 0.016;
+  function loop(){
+    const t = now(); dt = Math.min(0.033, (t-last)/1000); last = t;
+    if(state.running && !state.paused){
+      state.time += dt;
+      update(dt);
+      render();
+    } else {
+      // idle render for nice background
+      render(true);
+    }
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+
+  function updateHUD(){
+    hudTimer.textContent = timeFmt(state.time|0);
+    hudHp.textContent = 'HP ' + (state.player.hp|0);
+    hudLvl.textContent = 'Lv ' + state.level;
+    hudOrbs.textContent = 'Orbs: ' + state.orbs.count;
+    hpFill.style.width = clamp((state.player.hp/state.player.hpMax)*100,0,100) + '%';
+    xpFill.style.width = clamp((state.xp/state.nextXp)*100,0,100) + '%';
+    if (xpText) xpText.textContent = 'XP ' + (Math.floor(state.xp)) + '/' + state.nextXp;
+  }
+
+  // ===== Update =====
+  function update(dt){
+    // Movement
+    const p = state.player; let ax=0, ay=0; const sp = p.speed;
+    if(keys.has('w')||keys.has('arrowup')) ay -= 1;
+    if(keys.has('s')||keys.has('arrowdown')) ay += 1;
+    if(keys.has('a')||keys.has('arrowleft')) ax -= 1;
+    if(keys.has('d')||keys.has('arrowright')) ax += 1;
+    const len = Math.hypot(ax,ay)||1; p.x += (ax/len)*sp*dt; p.y += (ay/len)*sp*dt;
+    p.x = clamp(p.x, p.r, innerWidth-p.r); p.y = clamp(p.y, p.r, innerHeight-p.r);
+
+    // Orbs rotation
+    state.orbs.baseAngle += state.orbs.rotSpeed * dt;
+
+    // Satellites
+    state.satellites.timer += dt;
+    if(state.satellites.count>0 && state.satellites.timer>=state.satellites.fireInterval){ state.satellites.timer=0; fireSatellites(); }
+
+    // Bullets
+    for(let i=state.bullets.length-1;i>=0;i--){ const b=state.bullets[i]; b.x+=b.vx*dt; b.y+=b.vy*dt; b.life-=dt; if(b.life<=0) { state.bullets.splice(i,1); continue; } }
+
+    // Spawn
+    const waves = spawner(state.time, state.diff);
+    for(const w of waves){ for(let i=0;i<w.count;i++) addEnemy(w.type); }
+
+    // Enemies behavior
+    for(let i=state.enemies.length-1;i>=0;i--){ const e=state.enemies[i];
+      // status effects
+      let slowFactor = 1;
+      if(e.slow.t>0){ e.slow.t -= dt; slowFactor = e.slow.factor; }
+      if(e.burn.t>0){ e.burn.t -= dt; if(e.burn.t>0){ const d = e.burn.dps*dt; e.hp -= d; damageTick(d); addParticle(e.x, e.y, 0.2, 2, '#ff9966'); if(state.orbs.freeze){ // synergy: burn + freeze -> shatter tick
+          e.hp -= d*0.15; damageTick(d*0.15); addParticle(e.x, e.y, 0.15, 2, '#aaf'); } } }
+
+      const ang = Math.atan2(p.y-e.y, p.x-e.x); const spd = e.speed*slowFactor;
+      e.vx = Math.cos(ang)*spd; e.vy = Math.sin(ang)*spd; e.x += e.vx*dt; e.y += e.vy*dt;
+
+      // touch player
+      const pr = p.r + e.r; if(dist2(p.x,p.y,e.x,e.y) < pr*pr){
+        if(p.invuln<=0){ p.hp -= e.dmg*dt*0.8; p.invuln = 0.2; addParticle(p.x,p.y,0.25,4,'#ff8080'); if(p.hp<=0){ endRun(); return; } }
+      }
+      p.invuln = Math.max(0, p.invuln - dt);
+
+      if(e.hp<=0){
+        // death
+        state.kills++; addXP(e.x,e.y, e.elite? 20 : e.boss? 80 : 8);
+        for(let k=0;k<(e.boss? 40 : e.elite? 16: 8);k++) addParticle(e.x,e.y, rand(0.4,0.9), rand(2,4), e.boss? '#ffd166' : e.elite? '#ff5ecb' : '#8bd3ff');
+        state.enemies.splice(i,1); continue;
+      }
+    }
+
+    // Orbs contact damage (per-enemy cooldown)
+    const N = state.orbs.count; const base = state.orbs.baseAngle; const rad = state.orbs.radius;
+    for(const e of state.enemies){
+      if((tNow()-e.lastOrbHit) < state.hitCooldown) continue; // per-enemy cooldown
+      for(let i=0;i<N;i++){
+        const ang = base + i*(Math.PI*2/N);
+        const ox = state.player.x + Math.cos(ang)*rad;
+        const oy = state.player.y + Math.sin(ang)*rad;
+        const rr = (e.r + 7); // orb hit radius
+        if(dist2(ox,oy,e.x,e.y) < rr*rr){
+          // hit
+          const dmg = state.orbs.damage;
+          e.hp -= dmg; damageTick(dmg);
+          // statuses
+          if(state.orbs.burn){ e.burn.t = 1.8; e.burn.dps = dmg*0.35; }
+          if(state.orbs.freeze){ e.slow.t = 1.2; e.slow.factor = 0.55; }
+          e.lastOrbHit = tNow();
+          // hit particles (elite/boss special)
+          addParticle(e.x, e.y, 0.25, 3, e.elite? '#ff5ecb' : e.boss? '#ffd166' : '#bfe8ff');
+          break; // avoid multi-hit same frame
+        }
+      }
+    }
+
+    // Bullets vs enemies (satellites)
+    for(let bi=state.bullets.length-1; bi>=0; bi--){ const b=state.bullets[bi]; let pierced=0; let removed=false;
+      for(let ei=state.enemies.length-1; ei>=0; ei--){ const e=state.enemies[ei]; const rr=(b.r+e.r); if(dist2(b.x,b.y,e.x,e.y) < rr*rr){
+          if((tNow()-e.lastBulletHit) < state.bulletCooldown) continue; e.lastBulletHit=tNow();
+          const dmg = b.dmg; e.hp -= dmg; damageTick(dmg); addParticle(e.x,e.y,0.2,3,'#aaf');
+          if(pierced < b.pierce){ pierced++; } else { state.bullets.splice(bi,1); removed=true; break; }
+      } }
+      if(removed) continue;
+    }
+
+    // XP orbs (magnet)
+    for(let i=state.xpOrbs.length-1;i>=0;i--){ const g = state.xpOrbs[i];
+      const d2p = dist2(g.x,g.y, p.x,p.y);
+      if(d2p < state.magnet*state.magnet){ const ang = Math.atan2(p.y-g.y, p.x-g.x); const acc = 800 / Math.max(80, Math.sqrt(d2p)); g.vx += Math.cos(ang)*acc*dt; g.vy += Math.sin(ang)*acc*dt; }
+      g.x += g.vx*dt; g.y += g.vy*dt; g.vx *= 0.98; g.vy *= 0.98;
+      if(d2p < (p.r+8)*(p.r+8)){
+        state.xp += g.value * state.xpGain; state.xpOrbs.splice(i,1); addParticle(p.x,p.y,0.25,3,'#8cf5a6');
+        while(state.xp >= state.nextXp){ state.xp -= state.nextXp; levelUp(); state.nextXp = Math.round(state.nextXp*1.32 + 10); }
+      }
+    }
+
+    // Particles decay
+    for(let i=state.particles.length-1;i>=0;i--){ const pa=state.particles[i]; pa.t += dt; pa.x+=pa.vx*dt; pa.y+=pa.vy*dt; pa.vx*=0.96; pa.vy*=0.96; if(pa.t>pa.life) state.particles.splice(i,1); }
+
+    updateHUD();
+  }
+
+  function levelUp(){ state.level++; state.offerStack = offerUpgrades(); pauseForLevel(); }
+  function pauseForLevel(){ state.paused=true; pauseBtn.textContent='▶'; showLevelPanel(state.offerStack); }
+
+  function tNow(){ return performance.now(); }
+  function damageTick(v){ state.damageLog.push({t: state.time, v}); // keep only last 20s
+    while(state.damageLog.length && (state.time - state.damageLog[0].t) > 20) state.damageLog.shift(); }
+  function recentDPS(){ const sum = state.damageLog.reduce((a,b)=>a+b.v,0); const span = Math.min(20, state.time); return span>0? sum/span : 0; }
+
+  // ===== Render =====
+  function render(idle=false){
+    ctx.clearRect(0,0,innerWidth,innerHeight);
+
+    // background grid
+    ctx.save(); ctx.globalAlpha = idle? .4 : .18; ctx.lineWidth = 1;
+    const s = 48; ctx.strokeStyle = '#203040';
+    for(let x= (state.player.x%s)|0; x<innerWidth; x+=s){ ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,innerHeight); ctx.stroke(); }
+    for(let y= (state.player.y%s)|0; y<innerHeight; y+=s){ ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(innerWidth,y); ctx.stroke(); }
+    ctx.restore();
+
+    if(!state.running){
+      // idle center sparkle
+      ctx.save(); ctx.globalAlpha = 0.3; ctx.fillStyle = '#59f'; ctx.beginPath(); ctx.arc(innerWidth/2, innerHeight/2, 40+Math.sin(performance.now()/500)*6, 0, Math.PI*2); ctx.fill(); ctx.restore();
+      return;
+    }
+
+    const p = state.player;
+
+    // XP orbs
+    for(const g of state.xpOrbs){ ctx.fillStyle = '#8cf5a6'; ctx.beginPath(); ctx.arc(g.x,g.y,g.r,0,Math.PI*2); ctx.fill(); }
+
+    // Enemies
+    for(const e of state.enemies){
+      ctx.fillStyle = e.boss? '#ffd166' : e.elite? '#ff5ecb' : '#8bd3ff';
+      ctx.beginPath(); ctx.arc(e.x, e.y, e.r, 0, Math.PI*2); ctx.fill();
+      // health bar
+      ctx.fillStyle = '#203040'; ctx.fillRect(e.x-e.r, e.y-e.r-8, e.r*2, 4);
+      ctx.fillStyle = '#66e'; if(e.elite) ctx.fillStyle = '#f4f'; if(e.boss) ctx.fillStyle='#fc4';
+      const w = clamp((e.hp/e.hpMax)*e.r*2, 0, e.r*2); ctx.fillRect(e.x-e.r, e.y-e.r-8, w, 4);
+    }
+
+    // Bullets
+    ctx.fillStyle = '#bfe8ff';
+    for(const b of state.bullets){ ctx.beginPath(); ctx.arc(b.x,b.y,b.r,0,Math.PI*2); ctx.fill(); }
+
+    // Player
+    ctx.save();
+    // magnet radius (subtle)
+    ctx.globalAlpha = 0.06; ctx.fillStyle = '#8cf5a6'; ctx.beginPath(); ctx.arc(p.x,p.y, state.magnet, 0, Math.PI*2); ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = '#d7e1ec'; ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.fill();
+
+    // Orbs
+    const N = state.orbs.count; const base = state.orbs.baseAngle; const rad = state.orbs.radius;
+    for(let i=0;i<N;i++){
+      const ang = base + i*(Math.PI*2/N);
+      const ox = p.x + Math.cos(ang)*rad;
+      const oy = p.y + Math.sin(ang)*rad;
+      const grd = ctx.createRadialGradient(ox,oy,0, ox,oy,9);
+      grd.addColorStop(0, '#fff'); grd.addColorStop(1, '#59f');
+      ctx.fillStyle = grd; ctx.beginPath(); ctx.arc(ox,oy,7,0,Math.PI*2); ctx.fill();
+      if(state.orbs.burn){ ctx.globalAlpha=.6; ctx.fillStyle='#ff9966'; ctx.beginPath(); ctx.arc(ox,oy,4,0,Math.PI*2); ctx.fill(); ctx.globalAlpha=1; }
+      if(state.orbs.freeze){ ctx.globalAlpha=.6; ctx.fillStyle='#aaf'; ctx.beginPath(); ctx.arc(ox,oy,2.5,0,Math.PI*2); ctx.fill(); ctx.globalAlpha=1; }
+    }
+
+    // Satellites
+    if(state.satellites.count>0){
+      for(let i=0;i<state.satellites.count;i++){
+        const ang = base + i*(Math.PI*2/state.satellites.count);
+        const sx = p.x + Math.cos(ang)*(rad+24);
+        const sy = p.y + Math.sin(ang)*(rad+24);
+        ctx.fillStyle = '#bfe8ff'; ctx.beginPath(); ctx.arc(sx,sy,5,0,Math.PI*2); ctx.fill();
+      }
+    }
+    ctx.restore();
+
+    // Particles
+    for(const pa of state.particles){ ctx.globalAlpha = clamp(1-(pa.t/pa.life), 0, 1); ctx.fillStyle = pa.color; ctx.beginPath(); ctx.arc(pa.x,pa.y,pa.size,0,Math.PI*2); ctx.fill(); ctx.globalAlpha = 1; }
+  }
+
+  // ===== Initial text per language =====
+  function setLangUI(){
+    const L = I18N[state.lang];
+    document.querySelector('#startPanel .title').textContent = L.title;
+    document.querySelector('#startPanel .subtitle').textContent = L.subtitle;
+    document.querySelector('#startBtn').textContent = L.start;
+    document.querySelector('#howBtn').textContent = L.how;
+    document.querySelector('#howText').textContent = L.howText;
+  }
+  setLangUI();
+
+})();
+</script>
+</body>
+</html>

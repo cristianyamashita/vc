@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Hexagon Spin — Physics Sandbox</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.3/p5.min.js"></script>
+<style>
+  :root {
+    --panel-bg: #111518;
+    --panel-fg: #e6eef5;
+    --accent: #49a3ff;
+    --muted: #7e8a97;
+  }
+  html, body { height: 100%; margin: 0; background:#0b0f12; color: var(--panel-fg); font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Noto Sans", "Helvetica Neue", Arial, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol"; }
+  #ui {
+    position: fixed; top: 0; left: 0; right: 0;
+    background: linear-gradient(180deg, rgba(10,14,18,.95), rgba(10,14,18,.80));
+    backdrop-filter: blur(6px);
+    border-bottom: 1px solid rgba(255,255,255,.06);
+    z-index: 10;
+  }
+  #controls {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 10px 14px;
+    padding: 10px 12px 12px;
+    align-items: center;
+  }
+  .ctrl { display:flex; gap:10px; align-items:center; }
+  .ctrl label { width: 175px; color: var(--muted); font-size: 12px; }
+  .ctrl input[type="range"] { flex: 1; }
+  .ctrl input[type="number"] { width: 80px; background:#0b0f12; border:1px solid #2a333b; color:var(--panel-fg); border-radius:6px; padding:4px 6px; }
+  .palette { display:flex; gap:8px; flex-wrap:wrap; }
+  .palette input[type="color"] { width: 36px; height: 28px; padding: 0; }
+  .row {
+    display:flex; gap:12px; align-items:center; padding: 8px 12px 12px;
+    border-top: 1px solid rgba(255,255,255,.06);
+  }
+  button, select, input[type="color"] {
+    background:#12181e; color:var(--panel-fg); border:1px solid #2d3740; border-radius:10px; padding:8px 12px; cursor:pointer;
+  }
+  button:hover { border-color: var(--accent); }
+  #stats { margin-left:auto; color:var(--muted); font-variant-numeric: tabular-nums; }
+  canvas { display:block; }
+  /* keep canvas under the panel */
+  #sketch-holder { position: fixed; inset: 56px 0 0 0; }
+  @media (max-width: 980px) {
+    #sketch-holder { inset: 92px 0 0 0; }
+  }
+</style>
+</head>
+<body>
+<div id="ui">
+  <div id="controls"></div>
+  <div class="row">
+    <button id="toggleBtn">Pause</button>
+    <button id="resetBtn">Reset</button>
+    <span id="stats">FPS: -- | Balls: --</span>
+  </div>
+</div>
+<div id="sketch-holder"></div>
+
+<script>
+/* ======== Simulation State ======== */
+let params = {
+  numBalls: 60,
+  radiusPx: 8,
+  massVar: true,
+  eWall: 0.9,
+  eBall: 0.95,
+  gravity: 0.0,
+  friction: 0.02,     // tangential damping on wall hit + global linear damping
+  air: 0.01,          // per-second velocity damping
+  spin: 1.5,          // rad/s
+  speedMul: 1.2,
+  trails: false,
+  hexStroke: 2,
+  bg: '#0b0f12',
+  colorMode: 'palette',        // 'random' | 'uniform' | 'palette'
+  ballColor: '#49a3ff',       // used when colorMode = 'uniform'
+  palette: ['#49a3ff', '#22c55e', '#f59e0b', '#ef4444', '#a855f7'],
+};
+
+let running = true;
+let hex = {
+  angle: 0,           // current hexagon angle (radians)
+  omega: params.spin, // rad/s
+  R: 0,               // circumradius (draw)
+  center: null,       // p5.Vector
+  vertices: [],       // world-space vertices this frame
+  edges: []           // edges with normals this frame
+};
+
+const balls = [];
+let lastMillis;
+let fpsEMA = 0;
+
+/* ======== UI ======== */
+const UI = {};
+function addRange(label, key, min, max, step, fmt = (v)=>v) {
+  const wrap = document.createElement('div'); wrap.className = 'ctrl';
+  const lab = document.createElement('label'); lab.textContent = label; wrap.appendChild(lab);
+  const slider = document.createElement('input'); slider.type='range'; slider.min=min; slider.max=max; slider.step=step; slider.value=params[key];
+  const num = document.createElement('input'); num.type='number'; num.min=min; num.max=max; num.step=step; num.value=params[key];
+  slider.oninput = ()=>{ num.value = slider.value; onParam(key, Number(slider.value)); };
+  num.onchange = ()=>{ slider.value = num.value; onParam(key, Number(num.value)); };
+  wrap.appendChild(slider); wrap.appendChild(num);
+  document.getElementById('controls').appendChild(wrap);
+  UI[key] = { slider, num, set(v){ slider.value=v; num.value=v; } };
+}
+function addToggle(label, key) {
+  const wrap = document.createElement('div'); wrap.className = 'ctrl';
+  const lab = document.createElement('label'); lab.textContent = label; wrap.appendChild(lab);
+  const box = document.createElement('input'); box.type='checkbox'; box.checked=params[key];
+  box.onchange = ()=> onParam(key, box.checked);
+  wrap.appendChild(box);
+  document.getElementById('controls').appendChild(wrap);
+  UI[key] = { box, set(v){ box.checked = v; } };
+}
+function addColor(label, key) {
+  const wrap = document.createElement('div'); wrap.className = 'ctrl';
+  const lab = document.createElement('label'); lab.textContent = label; wrap.appendChild(lab);
+  const input = document.createElement('input'); input.type='color'; input.value=params[key];
+  input.oninput = ()=> onParam(key, input.value);
+  wrap.appendChild(input);
+  document.getElementById('controls').appendChild(wrap);
+  UI[key] = { input, set(v){ input.value = v; } };
+}
+
+function addSelect(label, key, options) {
+  const wrap = document.createElement('div'); wrap.className = 'ctrl';
+  const lab = document.createElement('label'); lab.textContent = label; wrap.appendChild(lab);
+  const sel = document.createElement('select');
+  for (const opt of options) {
+    const o = document.createElement('option');
+    o.value = opt.value; o.textContent = opt.label;
+    if (opt.value === params[key]) o.selected = true;
+    sel.appendChild(o);
+  }
+  sel.onchange = ()=> onParam(key, sel.value);
+  wrap.appendChild(sel);
+  document.getElementById('controls').appendChild(wrap);
+  UI[key] = { sel, set(v){ sel.value = v; } };
+}
+
+function addPalette(labelPrefix, key) {
+  const wrap = document.createElement('div'); wrap.className = 'ctrl';
+  const lab = document.createElement('label'); lab.textContent = labelPrefix; wrap.appendChild(lab);
+  const holder = document.createElement('div'); holder.className = 'palette';
+  wrap.appendChild(holder);
+  const inputs = [];
+  params[key].forEach((col, idx) => {
+    const input = document.createElement('input');
+    input.type = 'color'; input.value = col;
+    input.title = `Palette ${idx+1}`;
+    input.oninput = ()=> { params[key][idx] = input.value; refreshBallColorsIfNeeded(); };
+    holder.appendChild(input);
+    inputs.push(input);
+  });
+  document.getElementById('controls').appendChild(wrap);
+  UI[key] = { inputs, set(arr){ arr.forEach((v,i)=>{ if (inputs[i]) inputs[i].value=v; }); } };
+}
+
+function onParam(key, val) {
+  params[key] = val;
+  if (key === 'numBalls') syncBallCount();
+  if (key === 'radiusPx') updateBallSizes();
+  if (key === 'massVar' || key === 'radiusPx') updateBallMasses();
+  if (key === 'spin') hex.omega = val;
+  if (key === 'bg') { /* background set next draw */ }
+  if (key === 'hexStroke') { /* draw-time */ }
+  if (key === 'colorMode' || key === 'ballColor') refreshBallColorsIfNeeded();
+}
+
+addRange('Number of balls',      'numBalls', 1, 200, 1);
+addRange('Ball size (px)',       'radiusPx', 1, 30, 1);
+addToggle('Ball mass variability','massVar');
+addRange('Wall elasticity',      'eWall', 0, 1, 0.01);
+addRange('Ball-ball elasticity', 'eBall', 0, 1, 0.01);
+addRange('Gravity strength',     'gravity', 0, 10, 0.1);
+addRange('Friction',             'friction', 0, 1, 0.01);
+addRange('Air resistance',       'air', 0, 1, 0.01);
+addRange('Hexagon spin (rad/s)', 'spin', -5, 5, 0.01);
+addRange('Initial speed x',      'speedMul', 0, 5, 0.1);
+addToggle('Enable trails',       'trails');
+addRange('Hex stroke thickness', 'hexStroke', 0, 12, 1);
+addColor('Background color',     'bg');
+
+// Color controls
+addSelect('Ball color mode', 'colorMode', [
+  { value: 'random', label: 'Random' },
+  { value: 'uniform', label: 'Uniform' },
+  { value: 'palette', label: 'Palette' },
+]);
+addColor('Uniform ball color', 'ballColor');
+addPalette('Palette colors', 'palette');
+
+document.getElementById('toggleBtn').onclick = () => {
+  running = !running;
+  document.getElementById('toggleBtn').textContent = running ? 'Pause' : 'Start';
+};
+document.getElementById('resetBtn').onclick = () => resetSim();
+
+/* ======== p5 Sketch ======== */
+new p5((p) => {
+  p.setup = function() {
+    const holder = document.getElementById('sketch-holder');
+    const c = p.createCanvas(holder.clientWidth, holder.clientHeight);
+    c.parent(holder);
+
+    hex.center = p.createVector(p.width/2, p.height/2);
+    recalcHexRadius();
+    initBalls(params.numBalls);
+    lastMillis = p.millis();
+    p.frameRate(120);
+  };
+
+  p.windowResized = function() {
+    const holder = document.getElementById('sketch-holder');
+    p.resizeCanvas(holder.clientWidth, holder.clientHeight);
+    hex.center.set(p.width/2, p.height/2);
+    recalcHexRadius();
+    // keep balls inside after resize
+    for (const b of balls) clampInsideHex(b);
+  };
+
+  p.draw = function() {
+    const now = p.millis();
+    const dt = Math.min(0.033, (now - lastMillis) / 1000); // clamp to avoid huge steps
+    lastMillis = now;
+
+    // fps smoothing
+    const inst = 1/dt;
+    fpsEMA = fpsEMA ? p.lerp(fpsEMA, inst, 0.1) : inst;
+
+    // background / trails
+    if (params.trails) {
+      p.fill(p.color(params.bg + '33')); // translucent trail
+      p.noStroke();
+      p.rect(0,0,p.width,p.height);
+    } else {
+      p.background(params.bg);
+    }
+
+    // update rotating hexagon
+    if (running) hex.angle += hex.omega * dt;
+    updateHexGeometry(p);
+
+    // physics step
+    if (running) stepPhysics(p, dt);
+
+    // draw hexagon
+    p.push();
+    p.noFill();
+    p.stroke(200,220,255);
+    p.strokeWeight(params.hexStroke);
+    p.beginShape();
+    for (const v of hex.vertices) p.vertex(v.x, v.y);
+    p.endShape(p.CLOSE);
+    p.pop();
+
+    // draw balls
+    for (const b of balls) {
+      p.noStroke();
+      p.fill(b.fill);
+      p.circle(b.pos.x, b.pos.y, b.r*2);
+    }
+
+    // stats
+    document.getElementById('stats').textContent =
+      `FPS: ${fpsEMA.toFixed(0)} | Balls: ${balls.length}`;
+  };
+});
+
+/* ======== Helpers & Physics ======== */
+
+function recalcHexRadius() {
+  // Leave margin for UI panel and stroke
+  const margin = 24 + Math.max(2, params.hexStroke);
+  const usableW = window.innerWidth - margin*2;
+  const usableH = (window.innerHeight - document.getElementById('ui').offsetHeight) - margin*2;
+  // circumradius R from center to vertex
+  hex.R = 0.45 * Math.min(usableW, usableH);
+}
+
+function updateHexGeometry(p) {
+  hex.vertices.length = 0;
+  hex.edges.length = 0;
+  const C = hex.center;
+  // Regular hexagon (CCW), starting at angle offset so one edge is flat-ish
+  for (let i = 0; i < 6; i++) {
+    const a = hex.angle + i * (Math.PI/3);
+    hex.vertices.push(p.createVector(
+      C.x + hex.R * Math.cos(a),
+      C.y + hex.R * Math.sin(a)
+    ));
+  }
+  // edges with inward normals
+  for (let i = 0; i < 6; i++) {
+    const v0 = hex.vertices[i];
+    const v1 = hex.vertices[(i+1)%6];
+    const edge = p5.Vector.sub(v1, v0);
+    let n = createPerp(edge); // candidate normal
+    n.normalize();
+    const mid = p5.Vector.add(v0, v1).mult(0.5);
+    const toCenter = p5.Vector.sub(hex.center, mid);
+    if (p5.Vector.dot(n, toCenter) < 0) n.mult(-1); // ensure inward
+    hex.edges[i] = { v0, v1, n, mid };
+  }
+}
+
+// 2D perpendicular: (x,y) -> (-y, x)
+function createPerp(v) { return new p5.Vector(-v.y, v.x); }
+
+function initBalls(n) {
+  balls.length = 0;
+  for (let i = 0; i < n; i++) balls.push(makeBall());
+}
+
+function syncBallCount() {
+  const target = Math.max(1, Math.min(200, Math.floor(params.numBalls)));
+  while (balls.length < target) balls.push(makeBall());
+  while (balls.length > target) balls.pop();
+}
+
+function updateBallSizes() {
+  for (const b of balls) { b.r = params.radiusPx; }
+}
+
+function updateBallMasses() {
+  for (const b of balls) {
+    const base = Math.PI * b.r * b.r;
+    b.m = params.massVar ? base * (0.5 + Math.random()) : base;
+    b.inv = 1 / b.m;
+  }
+}
+
+function makeBall() {
+  const r = params.radiusPx;
+  // place roughly inside hex
+  let pos;
+  for (let tries=0; tries<1000; tries++) {
+    const angle = Math.random()*2*Math.PI;
+    const rad = (hex.R - r - 4) * Math.sqrt(Math.random());
+    pos = createVector(hex.center.x + rad*Math.cos(angle), hex.center.y + rad*Math.sin(angle));
+    if (insideHex(pos, r)) break;
+  }
+  const v = p5.Vector.random2D().mult(60 * params.speedMul);
+  const base = Math.PI*r*r;
+  const m = params.massVar ? base * (0.5 + Math.random()) : base;
+  return {
+    pos, vel: v, r,
+    m, inv: 1/m,
+    fill: colorForBall()
+  };
+}
+
+function colorForBall() {
+  if (params.colorMode === 'uniform') return params.ballColor;
+  if (params.colorMode === 'palette') {
+    const arr = params.palette && params.palette.length ? params.palette : [params.ballColor];
+    return arr[Math.floor(Math.random() * arr.length) % arr.length];
+  }
+  // random pleasant palette varying with slight randomness
+  const h = 190 + Math.floor(Math.random()*140) - 70; // ~blue-cyan-green range
+  const s = 60 + Math.random()*30;
+  const l = 55 + Math.random()*25;
+  return `hsl(${h} ${s}% ${l}%)`;
+}
+
+function refreshBallColorsIfNeeded() {
+  if (params.colorMode === 'uniform') {
+    for (const b of balls) b.fill = params.ballColor;
+  } else if (params.colorMode === 'palette') {
+    for (const b of balls) b.fill = colorForBall();
+  } else {
+    for (const b of balls) b.fill = colorForBall();
+  }
+}
+
+function clampInsideHex(b) {
+  // push inward if outside/overlapping
+  for (const e of hex.edges) {
+    const d = p5.Vector.dot(p5.Vector.sub(b.pos, e.v0), e.n);
+    if (d < b.r) {
+      const push = (b.r - d) + 0.1;
+      b.pos.add(p5.Vector.mult(e.n, push));
+    }
+  }
+}
+
+function insideHex(p, r=0) {
+  for (const e of hex.edges) {
+    const d = p5.Vector.dot(p5.Vector.sub(p, e.v0), e.n);
+    if (d < r) return false;
+  }
+  return true;
+}
+
+function resetSim() {
+  hex.angle = 0;
+  hex.omega = params.spin;
+  initBalls(params.numBalls);
+}
+
+function stepPhysics(p, dt) {
+  const g = new p5.Vector(0, params.gravity * 100); // px/s^2 for noticeable gravity
+  const globalDamp = Math.max(0, Math.min(1, params.air));
+  const friction = Math.max(0, Math.min(1, params.friction));
+
+  // integrate + drag
+  for (const b of balls) {
+    // Air resistance (approx: exponential -> linearized)
+    b.vel.mult(Math.max(0, 1 - globalDamp * dt));
+    // Gravity
+    b.vel.add(p5.Vector.mult(g, dt));
+    // Integrate
+    b.pos.add(p5.Vector.mult(b.vel, dt));
+  }
+
+  // wall collisions (with rotating wall velocity)
+  for (const b of balls) {
+    for (const e of hex.edges) {
+      const rel = p5.Vector.sub(b.pos, e.v0);
+      const d = p5.Vector.dot(rel, e.n); // inward distance from line
+      if (d < b.r) {
+        // positional correction
+        const corr = (b.r - d) + 0.01;
+        b.pos.add(p5.Vector.mult(e.n, corr));
+
+        // contact point on wall (foot of perpendicular)
+        const q = p5.Vector.sub(b.pos, p5.Vector.mult(e.n, b.r));
+
+        // wall velocity due to rotation: v_w = ω × r (2D)
+        const rvec = p5.Vector.sub(q, hex.center);
+        const vwall = new p5.Vector(-hex.omega * rvec.y, hex.omega * rvec.x);
+
+        // relative velocity
+        const vrel = p5.Vector.sub(b.vel, vwall);
+        const vn = p5.Vector.dot(vrel, e.n);
+        // reflect only if approaching
+        if (vn < 0) {
+          const eCoef = params.eWall;
+          // Split into normal / tangential
+          const vN = p5.Vector.mult(e.n, vn);
+          const vT = p5.Vector.sub(vrel, vN);
+          // restitution on normal, friction (tangential damping)
+          const vrelAfter = p5.Vector.add(
+            p5.Vector.mult(vN, -eCoef),
+            p5.Vector.mult(vT, Math.max(0, 1 - friction))
+          );
+          // back to world frame
+          b.vel = p5.Vector.add(vrelAfter, vwall);
+        }
+      }
+    }
+  }
+
+  // ball-ball collisions (impulse-based, frictionless with restitution)
+  for (let i = 0; i < balls.length; i++) {
+    for (let j = i+1; j < balls.length; j++) {
+      const A = balls[i], B = balls[j];
+      const delta = p5.Vector.sub(B.pos, A.pos);
+      const dist2 = delta.x*delta.x + delta.y*delta.y;
+      const rSum = A.r + B.r;
+      if (dist2 > 0 && dist2 < rSum*rSum) {
+        const dist = Math.sqrt(dist2);
+        const n = p5.Vector.mult(delta, 1/dist); // from A to B
+        // separate positions (baumgarte style)
+        const penetration = rSum - dist + 0.01;
+        const totalInv = A.inv + B.inv;
+        if (totalInv > 0) {
+          const corr = penetration / totalInv;
+          A.pos.add(p5.Vector.mult(n, -corr * A.inv));
+          B.pos.add(p5.Vector.mult(n,  corr * B.inv));
+        }
+        // relative velocity along normal
+        const relv = p5.Vector.sub(B.vel, A.vel);
+        const vrn = p5.Vector.dot(relv, n);
+        if (vrn < 0) {
+          const eCoef = params.eBall;
+          const jImpulse = -(1 + eCoef) * vrn / (A.inv + B.inv);
+          const J = p5.Vector.mult(n, jImpulse);
+          A.vel.add(p5.Vector.mult(J, -A.inv));
+          B.vel.add(p5.Vector.mult(J,  B.inv));
+        }
+      }
+    }
+  }
+
+  // keep inside after interactions (robustness)
+  for (const b of balls) clampInsideHex(b);
+}
+
+/* ======== Tiny p5 helpers in global scope ======== */
+function createVector(x,y){ return new p5.Vector(x,y); }
+</script>
+</body>
+</html>

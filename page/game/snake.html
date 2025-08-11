@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Snake FX — Single File</title>
+<style>
+  :root{
+    --bg:#0b0f14; --panel:#0f141b; --panel-2:#151b24; --txt:#dbe7ff; --muted:#7f8da3;
+    --accent:#33e1ed; --good:#ffd166; --warn:#c77dff; --cyan:#37e6ff; --blue:#6aa5ff;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0;background:var(--bg); color:var(--txt); font:14px/1.45 system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Arial, "Apple Color Emoji","Segoe UI Emoji"}
+  .wrap{display:grid; grid-template-columns:1fr 320px; height:100%;}
+  #stage{width:100%; height:100%; display:block; background: #0a0e12;}
+  aside{background:linear-gradient(180deg,var(--panel),var(--panel-2)); border-left:1px solid #0b1118; padding:14px 14px 18px; overflow:auto}
+  h1{font-size:16px;margin:0 0 8px; letter-spacing:.4px}
+  .chipbar{position:fixed; left:12px; top:10px; display:flex; gap:8px; z-index:3;}
+  .chip{background:#0c141eaa; backdrop-filter: blur(6px); border:1px solid #0e1620; padding:6px 10px; border-radius:12px; box-shadow:0 2px 12px #0008;}
+  .chip .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px; vertical-align:middle}
+  .dot.len{background:#4bfcc6} .dot.score{background:#aac2ff} .dot.speed{background:#ffe28b} .dot.fx{background:#b79cff}
+  .kv{opacity:.9}
+  .section{margin:12px 0; padding:10px 10px; border-radius:12px; background:#0d141ee0; border:1px solid #0f1b2a}
+  label{display:flex; align-items:center; gap:8px; margin:6px 0; user-select:none}
+  input[type="range"]{width:100%}
+  .kbd{display:inline-grid; grid-template-columns:repeat(4,28px); gap:6px; margin-top:6px}
+  .kbd span{display:grid; place-items:center; height:28px; border:1px solid #1a2635; background:#0c121a; border-radius:6px; color:#a9b8cf}
+  .pill{display:inline-block; padding:4px 8px; border-radius:999px; border:1px solid #1a2635; background:#0b1118; color:#a9b8cf; margin-right:6px}
+  .legend{font-size:12px; color:#9fb0c8}
+  .btn{cursor:pointer; padding:8px 10px; border-radius:10px; border:1px solid #1b283a; background:#0c141d; color:#dfe9ff}
+  .btn:hover{background:#0e1822}
+  .row{display:flex; gap:8px; align-items:center; flex-wrap:wrap}
+  .muted{color:var(--muted)}
+  .note{font-size:12px; color:#8aa0bd}
+</style>
+</head>
+<body>
+  <div class="chipbar" id="chipbar">
+    <div class="chip"><span class="dot len"></span><span class="kv" id="lenOut">Len 1</span></div>
+    <div class="chip"><span class="dot score"></span><span class="kv" id="scoreOut">Score 0</span></div>
+    <div class="chip"><span class="dot speed"></span><span class="kv" id="spdOut">Speed 1.00x</span></div>
+    <div class="chip"><span class="dot fx"></span><span class="kv" id="fxOut">FX On</span></div>
+  </div>
+  <div class="wrap">
+    <canvas id="stage"></canvas>
+    <aside>
+      <h1>Snake FX</h1>
+      <div class="section">
+        <div class="row">
+          <button class="btn" id="playBtn">Start / Reset</button>
+          <button class="btn" id="pauseBtn">Pause</button>
+        </div>
+        <label>Grid <input id="gridRange" type="range" min="12" max="64" value="40"></label>
+        <label>Base speed <input id="speedRange" type="range" min="4" max="16" value="8"></label>
+        <label><input id="wrapToggle" type="checkbox" checked> Wrap walls</label>
+      </div>
+      <div class="section">
+        <strong>Visual FX</strong>
+        <label><input id="trailToggle" type="checkbox" checked> Trail glow</label>
+        <label><input id="pulseToggle" type="checkbox" checked> Background pulse</label>
+        <label><input id="particleToggle" type="checkbox" checked> Particles</label>
+        <label><input id="postToggle" type="checkbox" checked> Post FX (bleed)</label>
+        <label>FX intensity <input id="fxRange" type="range" min="0" max="100" value="40"></label>
+      </div>
+      <div class="section">
+        <strong>Powers and food</strong>
+        <div class="legend">
+          <span class="pill" style="border-color:#2a2; color:#ffd166">Speed boost</span>
+          <span class="pill" style="border-color:#7342a9; color:#d0b0ff">Reverse</span>
+          <span class="pill" style="border-color:#1aa7c1; color:#9ff">Double Vision</span>
+          <span class="pill" style="border-color:#234aa9; color:#b8d0ff">Time slow</span>
+        </div>
+        <label><input id="allowSpeed" type="checkbox" checked> Speed boost (gold)</label>
+        <label><input id="allowReverse" type="checkbox" checked> Reverse controls (purple)</label>
+        <label><input id="allowDouble" type="checkbox" checked> Double vision (cyan)</label>
+        <label><input id="allowSlow" type="checkbox" checked> Time slow (blue)</label>
+      </div>
+      <div class="section">
+        <strong>Controls</strong>
+        <div class="legend">WASD / Arrow keys to turn. Space = dash (brief boost). On mobile, swipe.</div>
+        <div class="kbd">
+          <span>W</span><span>↑</span><span>Space</span><span>⟲</span>
+          <span>A</span><span>←</span><span></span><span></span>
+          <span>S</span><span>↓</span><span></span><span></span>
+          <span>D</span><span>→</span><span></span><span></span>
+        </div>
+        <div class="note">Reverse power flips your controls. Double Vision spawns a decoy that copies your moves but cannot hit walls or food. Time Slow drops global time scale and paints distortion rings.</div>
+      </div>
+      <div class="section muted">Built as a single HTML file. Enjoy!</div>
+    </aside>
+  </div>
+<script>
+(()=>{
+  // ------ helpers
+  const lerp=(a,b,t)=>a+(b-a)*t;
+  const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+  const rnd=(a=1,b=0)=>Math.random()*(b-a)+a;
+  const pick=a=>a[(Math.random()*a.length)|0];
+  const TAU=Math.PI*2;
+
+  // ------ canvas setup
+  const canvas=document.getElementById('stage');
+  const ctx=canvas.getContext('2d');
+  let W=0,H=0, DPR=window.devicePixelRatio||1;
+  const resize=()=>{W=canvas.clientWidth;H=canvas.clientHeight; canvas.width=W*DPR; canvas.height=H*DPR; ctx.setTransform(DPR,0,0,DPR,0,0);};
+  window.addEventListener('resize',resize,{passive:true}); resize();
+
+  // ------ UI elements
+  const el={
+    len:document.getElementById('lenOut'),
+    score:document.getElementById('scoreOut'),
+    spd:document.getElementById('spdOut'),
+    fx:document.getElementById('fxOut'),
+    play:document.getElementById('playBtn'),
+    pause:document.getElementById('pauseBtn'),
+    grid:document.getElementById('gridRange'),
+    speed:document.getElementById('speedRange'),
+    wrap:document.getElementById('wrapToggle'),
+    trail:document.getElementById('trailToggle'),
+    pulse:document.getElementById('pulseToggle'),
+    particles:document.getElementById('particleToggle'),
+    post:document.getElementById('postToggle'),
+    fxRange:document.getElementById('fxRange'),
+    allowSpeed:document.getElementById('allowSpeed'),
+    allowReverse:document.getElementById('allowReverse'),
+    allowDouble:document.getElementById('allowDouble'),
+    allowSlow:document.getElementById('allowSlow')
+  };
+
+  // ------ game state
+  const state={
+    grid: +el.grid.value, // cell size in px
+    baseHz: +el.speed.value, // steps per second
+    wrap: el.wrap.checked,
+    time:0, last:0, paused:false, running:false,
+    timeScale:1,
+    moveAccum:0,
+    dir:{x:1,y:0}, nextDir:{x:1,y:0}, reverse:false,
+    dash:0,
+    snake:[],
+    len:8,
+    score:0,
+    food:null,
+    foodAnimT:0,
+    particles:[],
+    decoy:null,
+    effects:{ speed:0, reverse:0, double:0, slow:0 },
+  };
+
+  // food types
+  const FOODS=[
+    {id:'normal', color:'#7cf9a9', weight:4, anim:'pulse'},
+    {id:'speed', color:'#ffd166', weight:1, anim:'rays'},
+    {id:'reverse', color:'#b28dff', weight:1, anim:'spin'},
+    {id:'double', color:'#7ce8ff', weight:1, anim:'flicker'},
+    {id:'slow', color:'#86a9ff', weight:1, anim:'ring'}
+  ];
+
+  function weightedPick(){
+    const allowed={speed:el.allowSpeed.checked, reverse:el.allowReverse.checked, double:el.allowDouble.checked, slow:el.allowSlow.checked};
+    const pool=[];
+    for(const f of FOODS){
+      if(f.id==='normal' || allowed[f.id]) for(let i=0;i<f.weight;i++) pool.push(f);
+    }
+    return pick(pool);
+  }
+
+  function reset(){
+    state.running=true; state.paused=false; state.time=0; state.last=performance.now();
+    state.grid=+el.grid.value; state.baseHz=+el.speed.value; state.wrap=el.wrap.checked;
+    state.timeScale=1; state.moveAccum=0; state.dir={x:1,y:0}; state.nextDir={x:1,y:0}; state.reverse=false; state.dash=0;
+    state.snake=[]; state.len=8; state.score=0; state.particles.length=0; state.decoy=null; state.effects={speed:0,reverse:0,double:0,slow:0};
+    const cx=((W/state.grid/2)|0); const cy=((H/state.grid/2)|0);
+    for(let i=0;i<state.len;i++) state.snake.push({x:cx-i,y:cy});
+    spawnFood();
+    updateHUD();
+  }
+
+  function spawnFood(){
+    let fx,fy; const cols=(W/state.grid)|0, rows=(H/state.grid)|0;
+    do{ fx=(Math.random()*cols)|0; fy=(Math.random()*rows)|0; } while (state.snake.some(s=>s.x===fx&&s.y===fy));
+    state.food={x:fx,y:fy, type: weightedPick()};
+    state.foodAnimT=0;
+  }
+
+  function updateHUD(){
+    el.len.textContent=`Len ${state.snake.length}`;
+    el.score.textContent=`Score ${state.score}`;
+    const spd=effectiveHz(); el.spd.textContent=`Speed ${spd.toFixed(2)}x`;
+    el.fx.textContent = (el.trail.checked||el.pulse.checked||el.particles.checked||el.post.checked)?'FX On':'FX Off';
+  }
+
+  // input
+  const keys=new Set();
+  const mapDir=(k)=>{
+    switch(k){
+      case 'ArrowUp': case 'KeyW': return {x:0,y:-1};
+      case 'ArrowDown': case 'KeyS': return {x:0,y:1};
+      case 'ArrowLeft': case 'KeyA': return {x:-1,y:0};
+      case 'ArrowRight': case 'KeyD': return {x:1,y:0};
+    }
+    return null;
+  };
+  window.addEventListener('keydown',e=>{
+    if(e.code==='Space'){ state.dash=0.45; }
+    const m=mapDir(e.code); if(m){ e.preventDefault();
+      const d = state.reverse? {x:-m.x,y:-m.y}: m;
+      if(!(d.x===-state.dir.x && d.y===-state.dir.y)) state.nextDir=d;
+    }
+  });
+
+  // simple swipe for mobile
+  let touchStart=null;
+  window.addEventListener('touchstart',e=>{const t=e.changedTouches[0]; touchStart={x:t.clientX,y:t.clientY};});
+  window.addEventListener('touchend',e=>{ if(!touchStart) return; const t=e.changedTouches[0];
+    const dx=t.clientX-touchStart.x, dy=t.clientY-touchStart.y; if(Math.hypot(dx,dy)<12) return;
+    const ax=Math.abs(dx), ay=Math.abs(dy); let d={x:0,y:0}; if(ax>ay) d.x=Math.sign(dx); else d.y=Math.sign(dy);
+    if(state.reverse){d.x*=-1; d.y*=-1;} if(!(d.x===-state.dir.x && d.y===-state.dir.y)) state.nextDir=d; touchStart=null; });
+
+  // UI hooks
+  el.play.onclick=reset; el.pause.onclick=()=>state.paused=!state.paused;
+  for(const k of ['grid','speed','wrap','trail','pulse','particles','post','fxRange','allowSpeed','allowReverse','allowDouble','allowSlow']){
+    el[k].addEventListener('input',()=>{ if(k==='grid'||k==='speed'||k==='wrap'){/* apply next reset */} updateHUD(); });
+  }
+
+  function effectiveHz(){
+    let hz=state.baseHz; // base steps per second
+    if(state.effects.speed>0) hz*=1.8;
+    if(state.dash>0) hz*=2.2;
+    if(state.effects.slow>0) hz*=0.4;
+    return hz/ +el.speed.value; // express as multiplier vs base slider
+  }
+
+  // particles
+  function burst(x,y,color){ if(!el.particles.checked) return; for(let i=0;i<40;i++){
+      state.particles.push({x,y, vx:rnd(-2,2), vy:rnd(-2,2), life:rnd(0.5,1.2), age:0, color});
+    }}
+  function updateParticles(dt){ for(let i=state.particles.length-1;i>=0;i--){const p=state.particles[i]; p.age+=dt; p.x+=p.vx*60*dt; p.y+=p.vy*60*dt; p.vx*=0.98; p.vy*=0.98; if(p.age>p.life) state.particles.splice(i,1);} }
+  function drawParticles(){ ctx.save(); for(const p of state.particles){ const t=1-p.age/p.life; ctx.globalAlpha=t; ctx.shadowBlur=20*t*+el.fxRange.value/40; ctx.shadowColor=p.color; ctx.fillStyle=p.color; ctx.beginPath(); ctx.arc((p.x+0.5)*state.grid,(p.y+0.5)*state.grid, 2+6*t,0,TAU); ctx.fill(); } ctx.restore(); }
+
+  // main loop
+  function step(now){
+    if(!state.running) return requestAnimationFrame(step);
+    const rawDt=(now-state.last)/1000; state.last=now; const dt = state.paused?0: rawDt * state.timeScale;
+    // effect timers
+    for(const k of Object.keys(state.effects)) if(state.effects[k]>0) state.effects[k]=Math.max(0,state.effects[k]-rawDt);
+    state.reverse = state.effects.reverse>0;
+    state.timeScale = state.effects.slow>0? 0.45 : 1;
+
+    // dash decay
+    state.dash=Math.max(0,state.dash-rawDt);
+
+    const hz = state.baseHz * (state.effects.speed>0?1.8:1) * (state.dash>0?2.2:1) * (state.effects.slow>0?0.4:1);
+    const stepTime=1/ hz; state.moveAccum+=dt;
+    while(state.moveAccum>=stepTime){ state.moveAccum-=stepTime; advance(); }
+
+    draw(dt);
+    requestAnimationFrame(step);
+  }
+
+  function advance(){
+    state.dir=state.nextDir; const head={...state.snake[0]}; head.x+=state.dir.x; head.y+=state.dir.y;
+    const cols=(W/state.grid)|0, rows=(H/state.grid)|0;
+    if(state.wrap){ head.x=(head.x+cols)%cols; head.y=(head.y+rows)%rows; }
+    // collisions
+    if(!state.wrap && (head.x<0||head.y<0||head.x>=cols||head.y>=rows)) { reset(); return; }
+    if(state.snake.some(s=>s.x===head.x && s.y===head.y)) { reset(); return; }
+
+    state.snake.unshift(head);
+    let ate=false;
+    if(state.food && head.x===state.food.x && head.y===state.food.y){
+      ate=true; state.score+=10; state.len++; applyFood(state.food.type); burst(head.x,head.y,state.food.type.color); spawnFood(); updateHUD();
+    }
+    if(!ate){ while(state.snake.length>state.len) state.snake.pop(); }
+  }
+
+  function applyFood(food){
+    switch(food.id){
+      case 'speed': state.effects.speed=4.0; break;
+      case 'reverse': state.effects.reverse=6.0; break;
+      case 'double': state.effects.double=8.0; state.decoy={life:8, offset: {x:rnd(-2,2), y:rnd(-2,2)}, jitter:0}; break;
+      case 'slow': state.effects.slow=5.0; break;
+      default: /* normal */ break;
+    }
+  }
+
+  function draw(dt){
+    state.time+=dt;
+    // background pulse
+    if(el.pulse.checked){
+      const t=state.time*0.5; const cx=W*0.5 + Math.sin(t*0.7)*W*0.1; const cy=H*0.5 + Math.cos(t*0.9)*H*0.1;
+      const g=ctx.createRadialGradient(cx,cy, 0, cx,cy, Math.max(W,H)*0.9);
+      const hue=(t*30)%360; g.addColorStop(0,`hsla(${hue},80%,12%,1)`); g.addColorStop(1,`hsla(${(hue+60)%360},80%,6%,1)`);
+      ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+    } else { ctx.fillStyle='#0a0e12'; ctx.fillRect(0,0,W,H); }
+
+    // grid
+    const cs=state.grid; ctx.globalAlpha=0.25; ctx.strokeStyle='#0e1620'; ctx.lineWidth=1; ctx.beginPath();
+    for(let x=0;x<=W;x+=cs){ ctx.moveTo(x,0); ctx.lineTo(x,H);} for(let y=0;y<=H;y+=cs){ ctx.moveTo(0,y); ctx.lineTo(W,y);} ctx.stroke(); ctx.globalAlpha=1;
+
+    // particles below snake trail
+    updateParticles(dt); drawParticles();
+
+    // food
+    if(state.food){ drawFood(state.food); }
+
+    // snake trail + glow
+    const fxIntensity=+el.fxRange.value/100;
+    if(el.trail.checked){ ctx.save(); ctx.shadowColor='#37e6ff'; ctx.shadowBlur= 24 + 80*fxIntensity; }
+    for(let i=state.snake.length-1;i>=0;i--){ const s=state.snake[i]; const t=i/state.snake.length; const a=lerp(0.15,0.95,1-t); const r=lerp(3, cs*0.45, Math.min(1,1-t+0.05));
+      ctx.fillStyle=`hsla(${lerp(170,200,t*0.8)},90%,65%,${a})`;
+      ctx.beginPath(); ctx.arc((s.x+0.5)*cs,(s.y+0.5)*cs,r,0,TAU); ctx.fill();
+    }
+    if(el.trail.checked) ctx.restore();
+
+    // decoy snake
+    if(state.effects.double>0 && state.decoy){ state.decoy.life-=dt; state.decoy.jitter+=dt*9; const off=state.decoy.offset; ctx.save(); ctx.globalAlpha=0.5+Math.sin(state.time*20)*0.1; ctx.strokeStyle='#7ce8ff'; ctx.lineWidth=2; for(let i=0;i<state.snake.length;i++){ const s=state.snake[i]; const j=Math.sin(state.decoy.jitter+i)*0.2; ctx.beginPath(); ctx.arc((s.x+0.5+off.x+j)*cs,(s.y+0.5+off.y-j)*cs, cs*0.32*(1-i/state.snake.length*0.9),0,TAU); ctx.stroke(); } ctx.restore(); }
+
+    // head highlight
+    const head=state.snake[0]; ctx.save(); ctx.shadowColor='#b8fdff'; ctx.shadowBlur= el.trail.checked? 30:0; ctx.fillStyle='#b8fdff'; ctx.beginPath(); ctx.arc((head.x+0.5)*cs,(head.y+0.5)*cs, cs*0.28,0,TAU); ctx.fill(); ctx.restore();
+
+    // time slow distortion rings
+    if(state.effects.slow>0){ ctx.save(); const t=state.time*2; for(let i=0;i<3;i++){ const r=( (t+i*0.7)%3 )/3; const R=lerp(10, Math.max(W,H)*0.6, r); ctx.globalAlpha=0.18*(1-r); ctx.strokeStyle='#99b6ff'; ctx.lineWidth=2; ctx.beginPath(); ctx.arc((head.x+0.5)*cs,(head.y+0.5)*cs, R,0,TAU); ctx.stroke(); } ctx.restore(); }
+
+    // post-fx: subtle frame bleed for motion blur
+    if(el.post.checked){ ctx.save(); ctx.globalCompositeOperation='lighter'; ctx.globalAlpha=0.05+0.15*fxIntensity; ctx.drawImage(canvas, 0,0); ctx.restore(); }
+  }
+
+  function drawFood(f){
+    const cs=state.grid; const x=(f.x+0.5)*cs, y=(f.y+0.5)*cs; state.foodAnimT+=0.016; const t=state.foodAnimT;
+    ctx.save(); ctx.translate(x,y);
+    // glow
+    ctx.shadowColor=f.type.color; ctx.shadowBlur= 12 + +el.fxRange.value*0.6; ctx.fillStyle=f.type.color; ctx.strokeStyle=f.type.color; ctx.lineWidth=2;
+    const baseR=cs*0.32; const pulse=1+0.1*Math.sin(t*6);
+    // unique animations
+    if(f.type.anim==='rays'){
+      const n=8; for(let i=0;i<n;i++){ const a=i/n*TAU + t*0.8; ctx.globalAlpha=0.25; ctx.beginPath(); ctx.moveTo(Math.cos(a)*baseR, Math.sin(a)*baseR); ctx.lineTo(Math.cos(a)*(baseR+10), Math.sin(a)*(baseR+10)); ctx.stroke(); }
+      ctx.globalAlpha=1; ctx.beginPath(); ctx.arc(0,0, baseR*0.8*pulse,0,TAU); ctx.fill();
+    } else if(f.type.anim==='spin'){
+      ctx.rotate(t*1.5); ctx.beginPath(); ctx.moveTo(baseR,0); for(let i=1;i<4;i++){ const a=i*TAU/4; ctx.lineTo(Math.cos(a)*baseR, Math.sin(a)*baseR);} ctx.closePath(); ctx.stroke(); ctx.beginPath(); ctx.arc(0,0, baseR*0.6,0,TAU); ctx.fill();
+    } else if(f.type.anim==='flicker'){
+      const a=0.7+0.3*Math.sin(t*20); ctx.globalAlpha=a; ctx.beginPath(); ctx.arc(0,0, baseR*0.9,0,TAU); ctx.fill();
+      ctx.globalAlpha=1; ctx.beginPath(); ctx.arc(0,0, baseR*0.4,0,TAU); ctx.fillStyle='#eaffff'; ctx.fill();
+    } else if(f.type.anim==='ring'){
+      const r=baseR*0.9*pulse; ctx.beginPath(); ctx.arc(0,0,r,0,TAU); ctx.stroke(); ctx.beginPath(); ctx.arc(0,0, r*0.45,0,TAU); ctx.fill();
+    } else { // pulse
+      ctx.beginPath(); ctx.arc(0,0, baseR*pulse,0,TAU); ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  // init
+  reset();
+  requestAnimationFrame(step);
+})();
+</script>
+</body>
+</html>

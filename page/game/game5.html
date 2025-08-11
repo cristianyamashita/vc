@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Asteroids Survivors</title>
+<style>
+  html, body { height: 100%; margin: 0; background: #0b1020; color: #e8ecf1; font-family: system-ui, Segoe UI, Roboto, Helvetica, Arial, sans-serif; }
+  #ui { position: absolute; inset: 0; pointer-events: none; }
+  canvas { display: block; width: 100vw; height: 100vh; background: radial-gradient(ellipse at 50% 40%, #0f1633 0%, #0b1020 60%, #070b16 100%); }
+  .topbar { position: absolute; left: 12px; top: 8px; display: flex; gap: 12px; align-items: center; pointer-events: auto; }
+  .pill { background: rgba(0,0,0,0.35); backdrop-filter: blur(3px); border: 1px solid rgba(255,255,255,0.12); border-radius: 999px; padding: 6px 10px; font-size: 12px; }
+  .stat { padding: 6px 10px; border-radius: 8px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); }
+  .rightbar { position: absolute; right: 12px; top: 8px; display: flex; gap: 8px; align-items: center; pointer-events: auto; }
+  select, button { pointer-events: auto; background: #121a33; color: #e8ecf1; border: 1px solid #2b385f; border-radius: 8px; padding: 6px 10px; font-size: 14px; }
+  button.primary { background: #2a5fff; border-color: #5b86ff; }
+  button.ghost { background: transparent; }
+  .center { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; }
+  .panel { pointer-events: auto; background: rgba(1,4,12,0.75); border: 1px solid rgba(255,255,255,0.12); border-radius: 14px; padding: 18px; width: min(560px, 92vw); box-shadow: 0 15px 40px rgba(0,0,0,0.5); }
+  .title { font-size: 28px; font-weight: 800; letter-spacing: 0.5px; margin-bottom: 6px; }
+  .subtitle { font-size: 14px; opacity: 0.85; margin-bottom: 14px; }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; }
+  .card { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.12); border-radius: 12px; padding: 10px; }
+  .muted { opacity: 0.7; font-size: 12px; }
+  .upgrade-choice { cursor: pointer; transition: transform .05s ease; }
+  .upgrade-choice:hover { transform: translateY(-2px); }
+  .hidden { display: none; }
+  .hud { position: absolute; left: 12px; bottom: 10px; right: 12px; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; pointer-events: none; }
+  .bar { height: 10px; background: rgba(255,255,255,0.08); border-radius: 6px; overflow: hidden; border: 1px solid rgba(255,255,255,0.12); }
+  .bar > div { height: 100%; }
+  .hp    { background: linear-gradient(90deg, #ff4d6d, #ff8fa3); }
+  .shield{ background: linear-gradient(90deg, #00e5ff, #6ef3ff); }
+  .xp    { background: linear-gradient(90deg, #94d82d, #b2f669); }
+  .toast { position: absolute; left: 50%; transform: translateX(-50%); top: 64px; background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.12); padding: 6px 10px; border-radius: 999px; font-size: 12px; pointer-events: none; }
+  .small { font-size: 12px; }
+  #tests { position: absolute; left: 12px; bottom: 12px; background: rgba(0,0,0,.4); border: 1px solid rgba(255,255,255,.12); border-radius: 8px; padding: 8px 10px; font-size: 11px; max-width: 40vw; pointer-events: none; }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div id="ui">
+  <div class="topbar">
+    <div id="score" class="stat">Score: 0</div>
+    <div id="level" class="stat">Lv 1</div>
+    <div id="time" class="stat">00:00</div>
+    <div id="high" class="pill">High: 0</div>
+  </div>
+  <div class="rightbar">
+    <select id="lang">
+      <option value="en">English</option>
+      <option value="pt" selected>Português</option>
+      <option value="ja">日本語</option>
+    </select>
+    <button id="pauseBtn" class="ghost">⏸</button>
+  </div>
+  <div id="startPanel" class="center">
+    <div class="panel">
+      <div class="title" data-i18n="title">Asteroids Survivors</div>
+      <div class="subtitle" data-i18n="subtitle">Nave com inércia, meteoros, drones e upgrades. Coleta sucata para subir de nível.</div>
+      <div class="grid" style="margin:12px 0">
+        <div class="card">
+          <b data-i18n="controls">Controles</b>
+          <div class="muted small" data-i18n="controls_detail">W/↑ acelera, S/↓ freia, A/D ou ←/→ giram. Espaço atira. E: Overdrive. P: Pausar.</div>
+        </div>
+        <div class="card">
+          <b data-i18n="goal">Objetivo</b>
+          <div class="muted small" data-i18n="goal_detail">Sobreviva o máximo que puder, destrua meteoros (dividem-se) e pegue XP.</div>
+        </div>
+        <div class="card">
+          <b data-i18n="features">Destaques</b>
+          <div class="muted small" data-i18n="features_detail">Drones orbitais, mísseis teleguiados, escudo regenerativo, ímã de XP, elites e chefes.</div>
+        </div>
+      </div>
+      <div class="row">
+        <label class="small" for="difficulty" data-i18n="difficulty">Dificuldade</label>
+        <select id="difficulty">
+          <option value="0.8" data-i18n="diff_easy">Fácil</option>
+          <option value="1" selected data-i18n="diff_normal">Normal</option>
+          <option value="1.3" data-i18n="diff_hard">Difícil</option>
+          <option value="1.7" data-i18n="diff_insane">Insano</option>
+        </select>
+        <button id="startBtn" class="primary" data-i18n="start">Iniciar</button>
+      </div>
+      <div class="muted small" style="margin-top:8px" data-i18n="note">Projeto single-file (HTML/CSS/JS) — roda direto no navegador.</div>
+    </div>
+  </div>
+  <div id="levelPanel" class="center hidden">
+    <div class="panel">
+      <div class="title" data-i18n="choose_upgrade">Escolha um upgrade</div>
+      <div id="choices" class="grid"></div>
+    </div>
+  </div>
+  <div id="gameOverPanel" class="center hidden">
+    <div class="panel">
+      <div class="title" data-i18n="game_over">Fim de jogo</div>
+      <div id="finalStats" class="subtitle">—</div>
+      <div class="row">
+        <button id="restartBtn" class="primary" data-i18n="restart">Reiniciar</button>
+        <button id="menuBtn" class="ghost" data-i18n="menu">Menu</button>
+      </div>
+    </div>
+  </div>
+  <div class="hud">
+    <div class="bar"><div id="hpBar" class="hp" style="width:100%"></div></div>
+    <div class="bar"><div id="shieldBar" class="shield" style="width:0%"></div></div>
+    <div class="bar"><div id="xpBar" class="xp" style="width:0%"></div></div>
+  </div>
+  <div id="toast" class="toast hidden">—</div>
+  <div id="tests" class="hidden"></div>
+</div>
+<script>
+// ====== i18n ======
+const I18N = {
+  en: {
+    title: 'Asteroids Survivors',
+    subtitle: 'Inertia ship, asteroids, drones and upgrades. Collect scrap to level up.',
+    controls: 'Controls',
+    controls_detail: 'W/↑ thrust, S/↓ brake, A/D or ←/→ rotate. Space shoots. E: Overdrive. P: Pause.',
+    goal: 'Goal',
+    goal_detail: 'Survive as long as possible, destroy asteroids (they split) and gather XP.',
+    features: 'Highlights',
+    features_detail: 'Orbital drones, homing missiles, regen shield, XP magnet, elites & bosses.',
+    difficulty: 'Difficulty',
+    diff_easy: 'Easy', diff_normal:'Normal', diff_hard:'Hard', diff_insane:'Insane',
+    start: 'Start',
+    choose_upgrade: 'Choose an upgrade',
+    game_over: 'Game Over',
+    restart: 'Restart', menu:'Menu',
+    score: 'Score', level: 'Lv', time: 'Time', high:'High',
+    up_double: 'Double Cannon',
+    up_missile: 'Homing Missiles',
+    up_shield: 'Regenerative Shield',
+    up_magnet: 'Magnet Radius',
+    up_drone: 'Extra Drone',
+    up_overdrive: 'Overdrive Booster',
+    up_desc_double: 'Fire twin shots from the ship.',
+    up_desc_missile: 'Launch seeking missiles periodically.',
+    up_desc_shield: 'Shield slowly regenerates after not taking damage.',
+    up_desc_magnet: 'XP orbs are attracted from farther away.',
+    up_desc_drone: 'Add an orbital drone that auto-fires.',
+    up_desc_overdrive: 'Hold E to overdrive (speed & fire rate).',
+    paused: 'Paused',
+  },
+  pt: {
+    title: 'Asteroids Survivors',
+    subtitle: 'Nave com inércia, meteoros, drones e upgrades. Coleta sucata para subir de nível.',
+    controls: 'Controles',
+    controls_detail: 'W/↑ acelera, S/↓ freia, A/D ou ←/→ giram. Espaço atira. E: Overdrive. P: Pausar.',
+    goal: 'Objetivo',
+    goal_detail: 'Sobreviva o máximo, destrua meteoros (dividem-se) e pegue XP.',
+    features: 'Destaques',
+    features_detail: 'Drones orbitais, mísseis teleguiados, escudo regenerativo, ímã, elites e chefes.',
+    difficulty: 'Dificuldade',
+    diff_easy: 'Fácil', diff_normal:'Normal', diff_hard:'Difícil', diff_insane:'Insano',
+    start: 'Iniciar',
+    choose_upgrade: 'Escolha um upgrade',
+    game_over: 'Fim de jogo',
+    restart: 'Reiniciar', menu:'Menu',
+    score: 'Pontos', level: 'Nv', time:'Tempo', high:'Recorde',
+    up_double: 'Canhão Duplo',
+    up_missile: 'Mísseis Teleguiados',
+    up_shield: 'Escudo Regenerativo',
+    up_magnet: 'Raio do Ímã',
+    up_drone: 'Drone Extra',
+    up_overdrive: 'Overdrive',
+    up_desc_double: 'Dispara tiros duplos da nave.',
+    up_desc_missile: 'Lança mísseis que perseguem inimigos.',
+    up_desc_shield: 'Escudo regenera após um tempo sem dano.',
+    up_desc_magnet: 'Orbes de XP são atraídos de mais longe.',
+    up_desc_drone: 'Adiciona um drone orbital que atira.',
+    up_desc_overdrive: 'Segure E para overdrive (velocidade & cadência).',
+    paused: 'Pausado',
+  },
+  ja: {
+    title: 'Asteroids Survivors',
+    subtitle: '慣性のある宇宙船、隕石、ドローン、各種アップグレード。スクラップを集めてレベルアップ。',
+    controls: '操作',
+    controls_detail: 'W/↑ 加速、S/↓ 減速、A/D または ←/→ 回転。Space: 射撃。E: オーバードライブ。P: 一時停止。',
+    goal: '目的',
+    goal_detail: 'できるだけ長く生き残り、隕石（分裂する）を破壊してXPを集める。',
+    features: '特徴',
+    features_detail: '周回ドローン、誘導ミサイル、再生シールド、XPマグネット、エリートとボス。',
+    difficulty: '難易度',
+    diff_easy: 'やさしい', diff_normal:'ふつう', diff_hard:'むずかしい', diff_insane:'インセイン',
+    start: 'スタート',
+    choose_upgrade: 'アップグレードを選ぶ',
+    game_over: 'ゲームオーバー',
+    restart: 'リスタート', menu:'メニュー',
+    score: 'スコア', level: 'Lv', time:'時間', high:'ハイスコア',
+    up_double: 'ダブルキャノン',
+    up_missile: '誘導ミサイル',
+    up_shield: '再生シールド',
+    up_magnet: 'マグネット半径',
+    up_drone: '追加ドローン',
+    up_overdrive: 'オーバードライブ',
+    up_desc_double: '機体から二連射。',
+    up_desc_missile: '敵を追尾するミサイルを定期発射。',
+    up_desc_shield: '被弾しないと少しずつ回復。',
+    up_desc_magnet: 'XPオーブが遠くから引き寄せられる。',
+    up_desc_drone: '周回ドローンが自動で射撃。',
+    up_desc_overdrive: 'E長押しで加速＆連射強化。',
+    paused: '一時停止',
+  }
+};
+
+// ====== Helpers ======
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const lerp = (a,b,t)=>a+(b-a)*t;
+const rand = (a=1,b=null)=> b==null?Math.random()*a: a+Math.random()*(b-a);
+const randSign = ()=> (Math.random()<.5? -1:1);
+const dist2 = (ax,ay,bx,by)=>{const dx=ax-bx, dy=ay-by; return dx*dx+dy*dy;};
+const angleTo = (ax,ay,bx,by)=> Math.atan2(by-ay,bx-ax);
+const now = ()=> performance.now();
+
+// Save
+const SAVE_KEYS = {
+  HIGH: 'asteroids_survivors_run_highscore',
+  META: 'asteroids_survivors_meta_upgrades'
+};
+const Save = {
+  high(){ return +(localStorage.getItem(SAVE_KEYS.HIGH)||0); },
+  setHigh(v){ localStorage.setItem(SAVE_KEYS.HIGH, String(v)); },
+  meta(){ try{ return JSON.parse(localStorage.getItem(SAVE_KEYS.META)||'{}'); }catch{ return {}; } },
+  setMeta(obj){ localStorage.setItem(SAVE_KEYS.META, JSON.stringify(obj)); }
+};
+
+// ====== Game State ======
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+let W=innerWidth, H=innerHeight; canvas.width=W; canvas.height=H;
+addEventListener('resize', ()=>{W=innerWidth;H=innerHeight;canvas.width=W;canvas.height=H;});
+
+const UI = {
+  score: document.getElementById('score'),
+  level: document.getElementById('level'),
+  time: document.getElementById('time'),
+  high: document.getElementById('high'),
+  hpBar: document.getElementById('hpBar'),
+  shieldBar: document.getElementById('shieldBar'),
+  xpBar: document.getElementById('xpBar'),
+  toast: document.getElementById('toast'),
+  startPanel: document.getElementById('startPanel'),
+  levelPanel: document.getElementById('levelPanel'),
+  gameOverPanel: document.getElementById('gameOverPanel'),
+  choices: document.getElementById('choices'),
+  finalStats: document.getElementById('finalStats'),
+  startBtn: document.getElementById('startBtn'),
+  restartBtn: document.getElementById('restartBtn'),
+  menuBtn: document.getElementById('menuBtn'),
+  pauseBtn: document.getElementById('pauseBtn'),
+  lang: document.getElementById('lang'),
+  diff: document.getElementById('difficulty')
+};
+
+// IMPORTANT: declare state BEFORE any function that might reference it runs
+let state = null; // will be set in startGame()
+
+let LANG = 'pt';
+function setLang(l){ LANG = l; for(const el of document.querySelectorAll('[data-i18n]')){ const k=el.getAttribute('data-i18n'); el.textContent = (I18N[LANG][k]||I18N['en'][k]||k); } refreshTopbarLabels(); UI.pauseBtn.title = I18N[LANG].paused; }
+UI.lang.addEventListener('change', e=> setLang(e.target.value));
+setLang(UI.lang.value);
+
+// Input
+const keys = new Set();
+addEventListener('keydown', e=>{ keys.add(e.key.toLowerCase()); if(e.key==='p' || e.key==='P'){togglePause();} if([' '].includes(e.key)) e.preventDefault(); });
+addEventListener('keyup', e=> keys.delete(e.key.toLowerCase()));
+
+function defaultState(){
+  return {
+    running:false, paused:false, inLevelUp:false,
+    t0: now(), t:0, dt:0, timeSurvived:0,
+    score:0, level:1, xp:0, nextXp: 30,
+    player: {
+      x: W/2, y:H/2, r:14, a:0,
+      vx:0, vy:0, thrust: 0.09, turn: 0.12, friction: 0.992,
+      fireCd: 0, fireDelay: 120, // ms
+      double:false, missiles:false, overdrive:false, overdriveHeld:false,
+      hp: 100, maxHp:100, shield: 0, maxShield: 40, shieldRegen: 4/1000, shieldDown:0,
+      magnet: 120, drones: 1, droneFireDelay: 550,
+    },
+    bullets: [], missiles: [], drones: [], enemies: [], xpOrbs: [], particles: [],
+    difficulty: +UI.diff.value,
+    lastSpawn: 0, lastElite: 0, lastBoss: 0,
+    rng: Math.random()*1e9|0,
+  }
+}
+
+function startGame(){
+  state = defaultState();
+  state.running = true; state.paused=false; state.inLevelUp=false;
+  UI.startPanel.classList.add('hidden');
+  UI.levelPanel.classList.add('hidden');
+  UI.gameOverPanel.classList.add('hidden');
+  UI.pauseBtn.textContent='⏸';
+  // Setup drones
+  state.drones.length = 0;
+  for(let i=0;i<state.player.drones;i++) state.drones.push(makeDrone(i));
+  gameLoop();
+}
+
+function gameOver(){
+  state.running=false;
+  const high = Math.max(Save.high(), state.score);
+  if(high>Save.high()) Save.setHigh(high);
+  UI.finalStats.textContent = `${I18N[LANG].score}: ${state.score} · ${I18N[LANG].level} ${state.level} · ${I18N[LANG].time}: ${formatTime(state.timeSurvived)}`;
+  UI.gameOverPanel.classList.remove('hidden');
+}
+
+function togglePause(){
+  if(!state?.running) return;
+  state.paused = !state.paused;
+  UI.pauseBtn.textContent = state.paused? '▶' : '⏸';
+  showToast(state.paused? I18N[LANG].paused: '');
+}
+
+function showToast(msg){
+  if(!msg){ UI.toast.classList.add('hidden'); return; }
+  UI.toast.textContent = msg; UI.toast.classList.remove('hidden');
+  clearTimeout(showToast._t); showToast._t = setTimeout(()=> UI.toast.classList.add('hidden'), 1200);
+}
+
+// ====== Entity factories ======
+function makeBullet(x,y,a,speed=8){
+  return {x,y, r:3, vx: Math.cos(a)*speed, vy: Math.sin(a)*speed, life: 4000, born: now()};
+}
+function makeMissile(x,y,target){
+  return {x,y, r:4.5, vx:0, vy:0, speed: 4.8, turn:0.06, targetId: target?.id || null, born: now(), life: 4000};
+}
+let ENEMY_ID=1;
+function makeAsteroid(x,y,size=3, elite=false, boss=false){
+  const baseHp = size===3? 45: size===2? 20: 9;
+  let hp = baseHp;
+  if(elite) hp*=5; if(boss) hp*=20;
+  const speed = boss? 0.5 : elite? 0.9 : rand(0.6,1.2);
+  const angle = rand(Math.PI*2);
+  return { id: ENEMY_ID++, type:'asteroid', x,y, r: size*14 + (boss?26:0), vx: Math.cos(angle)*speed, vy: Math.sin(angle)*speed, a: rand(Math.PI*2), va: rand(-0.01,0.01), size, hp, maxHp:hp, elite, boss };
+}
+function makeDrone(i){
+  return { angle: (i/Math.max(1,state?.player?.drones||1))*Math.PI*2, dist: 36+ i*6, fireCd:0 };
+}
+function makeXp(x,y,value=5){
+  return {x,y, r: 4, value, vx:0, vy:0};
+}
+function makeExplosion(x,y,color,count=12){
+  for(let i=0;i<count;i++){
+    state.particles.push({x,y, vx: rand(-1,1), vy: rand(-1,1), life: rand(400,900), born: now(), r: rand(1.5,3), color});
+  }
+}
+
+// ====== Spawner ======
+function spawner(t, diff){
+  // t in seconds — tuned down to avoid overcrowding
+  const meteors = Math.min(2 + Math.floor(t/9), 7); // was 3 + floor(t/6) up to 10
+  const out = { asteroids: Math.round(meteors*diff), elite: 0, boss: 0 };
+  if(t>35 && Math.random()<0.1*diff) out.elite = 1; // slightly lower chance
+  if(t>90 && (t|0)%30===0) out.boss = 1; // boss every 30s after 90s at whole seconds
+  return out;
+}
+
+// ====== Upgrade Catalog ======
+const CATALOG = [
+  { id:'double', nameKey:'up_double', descKey:'up_desc_double', apply: s=>{ s.player.double=true; } },
+  { id:'missile', nameKey:'up_missile', descKey:'up_desc_missile', apply: s=>{ s.player.missiles=true; } },
+  { id:'shield', nameKey:'up_shield', descKey:'up_desc_shield', apply: s=>{ s.player.maxShield+=20; s.player.shield = s.player.maxShield; s.player.shieldRegen*=1.3; } },
+  { id:'magnet', nameKey:'up_magnet', descKey:'up_desc_magnet', apply: s=>{ s.player.magnet += 60; } },
+  { id:'drone', nameKey:'up_drone', descKey:'up_desc_drone', apply: s=>{ s.player.drones++; s.drones.push(makeDrone(s.player.drones-1)); } },
+  { id:'overdrive', nameKey:'up_overdrive', descKey:'up_desc_overdrive', apply: s=>{ s.player.overdrive=true; } },
+];
+
+function levelUp(){
+  state.inLevelUp = true; state.paused = true; UI.pauseBtn.textContent='▶';
+  const options = []; const used = new Set();
+  while(options.length<3){
+    const cand = CATALOG[(Math.random()*CATALOG.length)|0];
+    if(!used.has(cand.id)) { used.add(cand.id); options.push(cand); }
+  }
+  UI.choices.innerHTML='';
+  for(const opt of options){
+    const div = document.createElement('div'); div.className='card upgrade-choice';
+    const name = I18N[LANG][opt.nameKey]||opt.id; const desc = I18N[LANG][opt.descKey]||'';
+    div.innerHTML = `<b>${name}</b><div class="muted small">${desc}</div>`;
+    div.onclick=()=>{ opt.apply(state); state.inLevelUp=false; state.paused=false; UI.levelPanel.classList.add('hidden'); UI.pauseBtn.textContent='⏸'; };
+    UI.choices.appendChild(div);
+  }
+  UI.levelPanel.classList.remove('hidden');
+}
+
+// ====== Difficulty/Spawn caps ======
+const SPAWN_INTERVAL = 1200; // ms (was 900)
+function enemyCap(t, diff){
+  // Start low and ramp slowly. Example: t=0 => ~14*diff, t>=260s => ~40*diff
+  return Math.round((14 + Math.min(26, t/10)) * diff);
+}
+function capLeft(){
+  if(!state) return 0;
+  const current = state.enemies.filter(e=>!e.dead).length;
+  return Math.max(0, enemyCap(state.timeSurvived, state.difficulty) - current);
+}
+
+// ====== Main Loop ======
+function gameLoop(){
+  if(!state || !state.running) return;
+  requestAnimationFrame(gameLoop);
+  const t = now();
+  state.dt = clamp(t - (state.t0||t), 0, 50); // ms, clamp to avoid long stalls
+  state.t0 = t;
+  if(state.paused || state.inLevelUp){ draw(); return; }
+  state.timeSurvived += state.dt/1000;
+  update(state.dt/16.6667);
+  draw();
+}
+
+function update(dt){
+  UI.high.textContent = `${I18N[LANG].high}: ${Save.high()}`;
+
+  const p = state.player;
+  // Input & physics
+  const left = keys.has('a')||keys.has('arrowleft');
+  const right= keys.has('d')||keys.has('arrowright');
+  const up   = keys.has('w')||keys.has('arrowup');
+  const down = keys.has('s')||keys.has('arrowdown');
+  const shoot= keys.has(' ');
+  const over = keys.has('e');
+
+  if(left) p.a -= p.turn*dt;
+  if(right) p.a += p.turn*dt;
+  if(up){ p.vx += Math.cos(p.a)*p.thrust*dt; p.vy += Math.sin(p.a)*p.thrust*dt; }
+  if(down){ p.vx *= (0.98); p.vy *= (0.98); }
+  p.vx *= Math.pow(p.friction, dt); p.vy *= Math.pow(p.friction, dt);
+  if(p.overdrive && over){ p.overdriveHeld=true; p.vx *= (1+0.008*dt); p.vy *= (1+0.008*dt); }
+  else p.overdriveHeld=false;
+
+  p.x += p.vx*dt; p.y += p.vy*dt;
+  // wrap
+  if(p.x<0) p.x+=W; if(p.x>W) p.x-=W; if(p.y<0) p.y+=H; if(p.y>H) p.y-=H;
+
+  // Shooting
+  p.fireCd -= state.dt; if(shoot && p.fireCd<=0){
+    const spread = 0.06;
+    state.bullets.push(makeBullet(p.x+Math.cos(p.a)*18, p.y+Math.sin(p.a)*18, p.a));
+    if(p.double) state.bullets.push(makeBullet(p.x+Math.cos(p.a)*18, p.y+Math.sin(p.a)*18, p.a+spread));
+    p.fireCd = p.overdriveHeld? p.fireDelay*0.55 : p.fireDelay;
+  }
+
+  // Drones
+  const timeMs = state.timeSurvived*1000;
+  for(let i=0;i<state.drones.length;i++){
+    const d = state.drones[i]; d.angle += 0.03*dt;
+    const dx = Math.cos(d.angle)* (d.dist + 8*Math.sin(timeMs*0.001+i));
+    const dy = Math.sin(d.angle)* (d.dist + 8*Math.cos(timeMs*0.001+i));
+    d.x = p.x + dx; d.y = p.y + dy;
+    d.fireCd -= state.dt;
+    if(d.fireCd<=0){
+      const target = nearestEnemy(d.x, d.y);
+      if(target){
+        const a = angleTo(d.x,d.y,target.x,target.y);
+        state.bullets.push(makeBullet(d.x,d.y,a,7.5));
+        d.fireCd = p.droneFireDelay;
+      }
+    }
+  }
+
+  // Missiles
+  if(p.missiles){
+    if(!update._missCd) update._missCd=0;
+    update._missCd -= state.dt; if(update._missCd<=0){
+      const target = nearestEnemy(p.x,p.y);
+      if(target) state.missiles.push(makeMissile(p.x, p.y, target));
+      update._missCd = 1600; // ms
+    }
+  }
+  // missile steering
+  for(const m of state.missiles){
+    m.life -= state.dt; if(m.life<=0) { m.dead=true; makeExplosion(m.x,m.y,'#8fd3ff',8); continue; }
+    let target = findEnemyById(m.targetId) || nearestEnemy(m.x,m.y);
+    if(target){
+      const desired = angleTo(m.x,m.y,target.x,target.y);
+      const cur = Math.atan2(m.vy, m.vx);
+      let da = desired - cur; while(da>Math.PI) da-=2*Math.PI; while(da<-Math.PI) da+=2*Math.PI;
+      const newA = cur + clamp(da, -m.turn*dt, m.turn*dt);
+      m.vx = Math.cos(newA)*m.speed; m.vy = Math.sin(newA)*m.speed;
+      m.targetId = target.id;
+    }
+    m.x += m.vx*dt; m.y += m.vy*dt;
+    wrap(m);
+  }
+
+  // Bullets update
+  for(const b of state.bullets){
+    b.life -= state.dt;
+    if(b.life<=0){ b.dead=true; makeExplosion(b.x,b.y,'#e5f2ff',6); continue; }
+    b.x+=b.vx*dt; b.y+=b.vy*dt; wrap(b);
+  }
+
+  // Spawn enemies
+  state.lastSpawn += state.dt; state.lastElite += state.dt; state.lastBoss += state.dt;
+  const sec = state.timeSurvived;
+  if(state.lastSpawn>SPAWN_INTERVAL){
+    const s = spawner(sec, state.difficulty);
+    spawnAsteroids(s.asteroids);
+    if(s.elite && state.lastElite>4000){ spawnAsteroids(1,true,false); state.lastElite=0; }
+    if(s.boss && state.lastBoss>4000){ spawnAsteroids(1,false,true); state.lastBoss=0; }
+    state.lastSpawn=0;
+  }
+
+  // Enemies
+  for(const e of state.enemies){
+    e.a += e.va*dt; e.x += e.vx*dt; e.y += e.vy*dt; wrap(e);
+  }
+
+  // Collisions bullets/enemies
+  for(const e of state.enemies){ if(e.dead) continue;
+    for(const b of state.bullets){ if(b.dead) continue; if(hit(b,e)){ b.dead=true; damageEnemy(e, 10); }
+    }
+    for(const m of state.missiles){ if(m.dead) continue; if(hit(m,e)){ m.dead=true; damageEnemy(e, 28); makeExplosion(e.x,e.y,'#8fd3ff',10);} }
+  }
+
+  // Player collisions
+  for(const e of state.enemies){ if(e.dead) continue; if(circleHit(state.player, e))
+    playerHit(e.boss? 35: e.elite? 18 : 10, e); }
+
+  // XP orbs attraction
+  for(const o of state.xpOrbs){
+    const r = state.player.magnet; const r2=r*r;
+    if(dist2(o.x,o.y,state.player.x,state.player.y) < r2){
+      const a = angleTo(o.x,o.y,state.player.x,state.player.y);
+      o.vx += Math.cos(a)*0.25*dt; o.vy += Math.sin(a)*0.25*dt;
+    }
+    o.x += o.vx*dt; o.y += o.vy*dt; wrap(o);
+    if(circleHit({x:o.x,y:o.y,r:o.r},{x:p.x,y:p.y,r:14})){
+      state.score += o.value; state.xp += o.value; o.dead=true;
+      if(state.xp>=state.nextXp){ state.level++; state.xp -= state.nextXp; state.nextXp = Math.round(state.nextXp*1.35 + 8); levelUp(); }
+    }
+  }
+
+  // Shield regen
+  if(state.player.shieldDown>0) state.player.shieldDown -= state.dt;
+  else state.player.shield = clamp(state.player.shield + state.player.shieldRegen*state.dt*1000, 0, state.player.maxShield);
+
+  // Cleanup
+  state.bullets = state.bullets.filter(x=>!x.dead);
+  state.missiles= state.missiles.filter(x=>!x.dead);
+  state.enemies = state.enemies.filter(x=>!x.dead);
+  state.xpOrbs = state.xpOrbs.filter(x=>!x.dead);
+  state.particles = state.particles.filter(p=> now()-p.born < p.life);
+
+  refreshTopbar();
+}
+
+function playerHit(dmg, source){
+  const p = state.player;
+  if(p.shield>0){
+    const s = Math.min(p.shield, dmg); p.shield -= s; dmg -= s; p.shieldDown = 2000; // stop regen a bit
+  }
+  if(dmg>0){ p.hp -= dmg; makeExplosion(p.x,p.y,'#ff8fa3', 12); if(p.hp<=0) gameOver(); }
+  // knockback a little
+  const a = angleTo(source.x,source.y,p.x,p.y); p.vx += Math.cos(a)*0.7; p.vy += Math.sin(a)*0.7;
+}
+
+function damageEnemy(e, dmg){
+  e.hp -= dmg; if(e.hp<=0){
+    e.dead=true; makeExplosion(e.x,e.y, e.boss? '#ffd166' : e.elite? '#ff6b6b' : '#a0aec0', e.boss? 40: e.elite? 24: 14);
+    // split
+    if(e.type==='asteroid' && e.size>1){
+      const parts = 2 + (Math.random()<0.6?1:0);
+      let left = capLeft();
+      for(let i=0;i<parts && left>0;i++){
+        const a = rand(Math.PI*2);
+        const child = makeAsteroid(e.x+Math.cos(a)*10, e.y+Math.sin(a)*10, e.size-1, false, false);
+        child.vx += Math.cos(a)*rand(0.5,1.2); child.vy += Math.sin(a)*rand(0.5,1.2);
+        state.enemies.push(child); left--;
+      }
+    }
+    // xp
+    const drops = e.boss? 16 : e.elite? 8 : e.size+1;
+    for(let i=0;i<drops;i++){
+      state.xpOrbs.push(makeXp(e.x+rand(-8,8), e.y+rand(-8,8), e.elite? 7: e.boss? 10: 5));
+    }
+  }
+}
+
+function nearestEnemy(x,y){
+  let best=null, bestD=1e9;
+  for(const e of state.enemies){ if(e.dead) continue; const d = dist2(x,y,e.x,e.y); if(d<bestD){best=e; bestD=d;} }
+  return best;
+}
+function findEnemyById(id){ return state.enemies.find(e=>e.id===id && !e.dead) || null; }
+function wrap(o){ if(o.x<0) o.x+=W; if(o.x>W) o.x-=W; if(o.y<0) o.y+=H; if(o.y>H) o.y-=H; }
+function hit(a,b){ const rr=(a.r+b.r); return dist2(a.x,a.y,b.x,b.y) <= rr*rr; }
+function circleHit(a,b){ return hit(a,b); }
+
+function spawnAsteroids(n, elite=false, boss=false){
+  let left = capLeft();
+  if(left<=0) return;
+  const toSpawn = Math.min(n, left);
+  for(let i=0;i<toSpawn;i++){
+    const edge = Math.floor(Math.random()*4);
+    const pad = 30;
+    let x = edge===0? rand(0,W): edge===1? rand(0,W): edge===2? -pad: W+pad;
+    let y = edge===0? -pad: edge===1? H+pad: rand(0,H);
+    const size = boss? 4 : elite? 3 : (Math.random()<0.6? 3: 2);
+    state.enemies.push(makeAsteroid(x,y,size, elite, boss));
+  }
+}
+
+function formatTime(s){ const m=Math.floor(s/60), ss=Math.floor(s%60); return `${String(m).padStart(2,'0')}:${String(ss).padStart(2,'0')}`; }
+function refreshTopbar(){
+  UI.score.textContent = `${I18N[LANG].score||'Score'}: ${state.score}`;
+  UI.level.textContent = `${I18N[LANG].level||'Lv'} ${state.level}`;
+  UI.time.textContent = formatTime(state.timeSurvived);
+  UI.hpBar.style.width = `${(state.player.hp/state.player.maxHp)*100}%`;
+  UI.shieldBar.style.width = `${(state.player.shield/state.player.maxShield)*100}%`;
+  UI.xpBar.style.width = `${(state.xp/state.nextXp)*100}%`;
+}
+function refreshTopbarLabels(){
+  UI.score.textContent = `${I18N[LANG].score||'Score'}: ${state?state.score:0}`;
+  UI.level.textContent = `${I18N[LANG].level||'Lv'} ${state?state.level:1}`;
+  UI.time.textContent = '00:00';
+  UI.high.textContent = `${I18N[LANG].high||'High'}: ${Save.high()}`;
+}
+
+// ====== Drawing ======
+function draw(){
+  ctx.clearRect(0,0,W,H);
+  drawStars();
+  if(!state) return;
+  // Player
+  drawShip(state.player);
+  // Drones
+  for(const d of state.drones){ drawDrone(d); }
+  // Bullets
+  ctx.fillStyle = '#e5f2ff'; for(const b of state.bullets){ circle(b.x,b.y,b.r); }
+  // Missiles
+  ctx.fillStyle = '#b3d1ff'; for(const m of state.missiles){ circle(m.x,m.y,m.r); }
+  // Enemies
+  for(const e of state.enemies){ drawAsteroid(e); }
+  // XP orbs
+  ctx.fillStyle = '#b2f669'; for(const o of state.xpOrbs){ circle(o.x,o.y,o.r); }
+  // Particles
+  for(const p of state.particles){ const k=(now()-p.born)/p.life; ctx.globalAlpha = 1-k; ctx.fillStyle=p.color; circle(p.x,p.y,p.r); ctx.globalAlpha=1; }
+}
+
+const stars = Array.from({length:300}, ()=> ({x:Math.random()*W, y:Math.random()*H, r: Math.random()*1.2, a:Math.random()}));
+function drawStars(){
+  ctx.fillStyle = '#0a0f1e'; ctx.fillRect(0,0,W,H);
+  for(const s of stars){ s.a += 0.02; const tw = 0.5+Math.sin(s.a)*0.5; ctx.globalAlpha = 0.5+tw*0.5; ctx.fillStyle='#cde1ff'; circle(s.x,s.y,s.r); ctx.globalAlpha=1; }
+}
+function circle(x,y,r){ ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill(); }
+function drawShip(p){
+  ctx.save(); ctx.translate(p.x,p.y); ctx.rotate(p.a);
+  // shield glow
+  if(p.shield>0){ ctx.globalAlpha = clamp(p.shield/p.maxShield,0.15,0.6); ctx.fillStyle = '#6ef3ff'; circle(0,0,p.r+6); ctx.globalAlpha=1; }
+  // body
+  ctx.strokeStyle = '#9cc2ff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(16,0); ctx.lineTo(-10,8); ctx.lineTo(-6,0); ctx.lineTo(-10,-8); ctx.closePath(); ctx.stroke();
+  // flame if thrusting
+  if(keys.has('w')||keys.has('arrowup')){ ctx.fillStyle='#ffd166'; ctx.beginPath(); ctx.moveTo(-14,0); ctx.lineTo(-8,4); ctx.lineTo(-8,-4); ctx.closePath(); ctx.fill(); }
+  ctx.restore();
+}
+function drawDrone(d){ ctx.fillStyle='#94d2ff'; circle(d.x,d.y,4); }
+function drawAsteroid(e){
+  ctx.save(); ctx.translate(e.x,e.y); ctx.rotate(e.a);
+  ctx.strokeStyle = e.boss? '#ffd166' : e.elite? '#ff6b6b' : '#a0aec0';
+  ctx.lineWidth = e.boss? 4: e.elite? 3: 2;
+  const r = e.r; ctx.beginPath();
+  for(let i=0;i<8;i++){ const ang = i/8*Math.PI*2; const rr = r* (0.8 + Math.random()*0.3); const x=Math.cos(ang)*rr, y=Math.sin(ang)*rr; if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);} ctx.closePath(); ctx.stroke();
+  // hp bar
+  const w= r*1.6, h=4; ctx.fillStyle='rgba(0,0,0,.4)'; ctx.fillRect(-w/2,-r-12,w,h); ctx.fillStyle= e.elite? '#ff8787' : '#94d82d'; ctx.fillRect(-w/2,-r-12,w*(e.hp/e.maxHp),h);
+  ctx.restore();
+}
+
+// ====== UI events ======
+UI.startBtn.onclick = ()=> startGame();
+UI.restartBtn.onclick = ()=> startGame();
+UI.menuBtn.onclick = ()=> { UI.gameOverPanel.classList.add('hidden'); UI.startPanel.classList.remove('hidden'); };
+UI.pauseBtn.onclick = ()=> togglePause();
+
+// ====== Tests (lightweight) ======
+(function runTests(){
+  const out = [];
+  const log = (ok, name, err)=> out.push(`${ok? 'TEST ✓':'TEST ✗'} ${name}${err? ' — '+err:''}`);
+  try {
+    // No crash before start (state is null)
+    refreshTopbarLabels();
+    log(true, 'No crash before start / i18n+labels safe');
+  } catch(e){ log(false, 'No crash before start / i18n+labels safe', e.message); }
+
+  try {
+    const s1 = spawner(120,1); if(s1.boss!==1) throw new Error('boss should be 1 at t=120');
+    const s2 = spawner(100,1); if(s2.boss!==0) throw new Error('boss should be 0 at t=100');
+    log(true, 'Boss appears at 120s whole-second ticks');
+  } catch(e){ log(false, 'Boss appears at 120s whole-second ticks', e.message); }
+
+  try {
+    const prev = state; state = defaultState();
+    const e = makeAsteroid(100,100,3,false,false); e.hp=1; state.enemies=[e];
+    const rnd = Math.random; Math.random = ()=>0.2; // force 3 parts
+    damageEnemy(e, 999);
+    Math.random = rnd;
+    const children = state.enemies.filter(x=>x.size===2);
+    if(!(children.length===2 || children.length===3)) throw new Error('split should produce 2..3 children');
+    log(true, 'Asteroid splits into 2–3 children');
+    state = prev;
+  } catch(e){ log(false, 'Asteroid splits into 2–3 children', e.message); }
+
+  try {
+    const tmp = defaultState(); tmp.timeSurvived = 0; tmp.difficulty = 1; state = tmp;
+    // Fill to cap and ensure spawns do not exceed it
+    const cap = enemyCap(state.timeSurvived, state.difficulty);
+    for(let i=0;i<cap;i++) state.enemies.push(makeAsteroid(0,0,2));
+    const before = state.enemies.length; spawnAsteroids(5);
+    const after = state.enemies.length; if(after!==before) throw new Error('spawn should respect cap');
+    log(true, 'Enemy cap respected');
+    // Now free 3 slots and request 10 — expect only 3
+    state.enemies.length = cap-3;
+    spawnAsteroids(10);
+    if(state.enemies.length!==cap) throw new Error('wave should clamp to cap');
+    log(true, 'Wave clamped to cap');
+  } catch(e){ log(false, e.message.includes('clamp')?'Wave clamped to cap':'Enemy cap respected', e.message); }
+
+  try {
+    const o = makeXp(0,0,5); const p0 = {x:10,y:0,r:14}; const d0 = dist2(o.x,o.y,p0.x,p0.y);
+    if(!(d0>0)) throw new Error('distance calc');
+    log(true, 'Math helpers basic');
+  } catch(e){ log(false, 'Math helpers basic', e.message); }
+
+  const el = document.getElementById('tests');
+  el.classList.remove('hidden');
+  el.textContent = out.join('\n');
+  // brief toast if any failure
+  if(out.some(l=>l.includes('TEST ✗'))) showToast('Some tests failed — check console');
+})();
+
+// ====== Boot ======
+refreshTopbarLabels();
+
+</script>
+</body>
+</html>

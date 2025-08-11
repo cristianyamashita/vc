@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Three.js Rubik's Cube — up to 20×20×20</title>
+  <style>
+    html, body { height: 100%; margin: 0; overflow: hidden; background:#0e0f12; font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, 'Helvetica Neue', Arial, 'Noto Sans'; }
+    #ui {
+      position: absolute; inset: 12px auto auto 12px; z-index: 10; color: #e7e9ee;
+      background: rgba(18,20,24,.6); backdrop-filter: blur(6px); border: 1px solid rgba(255,255,255,.08);
+      border-radius: 12px; padding: 12px 14px; min-width: 360px; box-shadow: 0 8px 30px rgba(0,0,0,.35);
+    }
+    #ui h1 { font-size: 16px; margin: 0 0 10px; font-weight: 650; letter-spacing:.2px }
+    #ui .row { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 8px; margin: 6px 0; }
+    #ui .row > label { color:#c8cbd3; font-size: 13px; }
+    #ui input[type="number"], select { background:#111318; color:#e7e9ee; border:1px solid #2a2f3a; border-radius:8px; padding:6px 8px; width: 6em; }
+    #ui input[type="range"] { width: 100%; }
+    #ui button { background:#1a68f2; color:white; border:0; padding:7px 10px; border-radius:10px; cursor:pointer; font-weight:600; }
+    #ui button:disabled{ opacity:.5; cursor:not-allowed }
+    #ui .grid { display:grid; grid-template-columns: repeat(3, auto); gap:6px; }
+    #legend { font-size: 12px; color:#9aa0aa; margin-top:8px; line-height:1.35; }
+    #legend code { background:#0c0d12; border:1px solid #23262f; padding:1px 4px; border-radius:6px; color:#cbd5e1 }
+    #status { font-size: 12px; color:#b8bec9; margin-top:6px; min-height: 1.2em; white-space: pre-line; }
+    #help { position: absolute; right: 12px; top: 12px; z-index: 10; color:#c8cbd3; font-size: 13px; background: rgba(18,20,24,.6); border: 1px solid rgba(255,255,255,.08); border-radius: 12px; padding: 10px 12px; max-width: 480px; }
+    #help b { color:#e7e9ee }
+    #testlog { font-size: 12px; color:#cbd5e1; margin-top:6px; max-height: 160px; overflow:auto; background:rgba(0,0,0,.25); border:1px solid rgba(255,255,255,.06); padding:6px 8px; border-radius:8px; }
+    .ok{ color:#7bd88f } .fail{ color:#ff7b7b }
+    canvas { display:block }
+  </style>
+</head>
+<body>
+  <div id="ui">
+    <h1>Rubik's Cube (1–20)</h1>
+    <div class="row">
+      <label for="size">Size (N×N×N, max 20)</label>
+      <input id="size" type="number" min="1" max="20" step="1" value="3" />
+    </div>
+    <div class="row">
+      <label>Layer (index)</label>
+      <div>
+        <input id="layerRange" type="range" min="0" max="2" value="0" />
+        <span id="layerLabel" style="margin:0 8px">0</span>
+        <button id="layerPrev" title="Previous layer">−</button>
+        <button id="layerNext" title="Next layer" style="margin-left:6px">+</button>
+      </div>
+    </div>
+    <div class="row">
+      <label>Axis</label>
+      <div>
+        <label><input type="radio" name="axis" value="X" checked /> X</label>
+        <label style="margin-left:8px"><input type="radio" name="axis" value="Y" /> Y</label>
+        <label style="margin-left:8px"><input type="radio" name="axis" value="Z" /> Z</label>
+      </div>
+    </div>
+    <div class="row">
+      <label>Rotate</label>
+      <div class="grid">
+        <button id="rotCW">⟳ CW</button>
+        <button id="rotCCW">⟲ CCW</button>
+        <button id="resetView">Reset View</button>
+      </div>
+    </div>
+    <div class="row">
+      <label>Scramble</label>
+      <div class="grid">
+        <button id="scrambleBtn">Scramble 30</button>
+        <select id="speed">
+          <option value="350">Speed: Normal</option>
+          <option value="220">Speed: Fast</option>
+          <option value="120">Speed: Turbo</option>
+        </select>
+        <button id="solveBtn">Solve</button>
+      </div>
+    </div>
+    <div class="row">
+      <label>Tests</label>
+      <div class="grid">
+        <button id="runTests">Run Tests</button>
+        <button id="clearTests">Clear</button>
+        <span class="muted"></span>
+      </div>
+    </div>
+    <div id="legend">
+      Colors: <b>+X</b>=Red, <b>-X</b>=Orange, <b>+Y</b>=White, <b>-Y</b>=Yellow, <b>+Z</b>=Green, <b>-Z</b>=Blue<br/>
+      Click a face to select its layer & axis. Right-click for CW, Shift+click for CCW.
+    </div>
+    <div id="status"></div>
+    <div id="testlog" hidden></div>
+  </div>
+    <div id="help">
+    <b>How to use</b><br/>
+    • Drag to orbit, scroll to zoom, right-drag to pan.<br/>
+    • Change <b>Size</b> to rebuild instantly (1–20).<br/>
+      • Rotate via buttons or by clicking a face (right-click = CW, Shift+click = CCW).<br/>
+      • Select inner layers with the slider, −/+ buttons, keys [ and ], or Alt+scroll on the canvas.<br/>
+      • Alt+click a face to keep the current layer while selecting the axis from that face.<br/>
+    • <b>Solve</b> replays the inverse of your moves to return to the initial state.
+    <div style="margin-top:8px;color:#9aa0aa">If Three.js fails to load (network/CSP), see the status bar for offline instructions.</div>
+  </div>
+
+  <!--
+    Robust multi-CDN loader to avoid "THREE is not defined" and ESM import failures.
+    Order: try UMD (globals) from multiple CDNs, then ESM dynamic imports as fallback.
+  -->
+  <script>
+  (async function bootstrap(){
+    const statusEl = document.getElementById('status');
+    function logStatus(msg){ statusEl.textContent = msg; }
+
+    function loadScript(url, {type, timeoutMs=12000}={}){
+      return new Promise((resolve, reject)=>{
+        const s = document.createElement('script');
+        if (type) s.type = type; // e.g., 'module'
+        s.src = url; s.async = true; s.crossOrigin = 'anonymous';
+        const timer = setTimeout(()=>{
+          s.remove();
+          reject(new Error('Timeout loading '+url));
+        }, timeoutMs);
+        s.onload = ()=>{ clearTimeout(timer); resolve(); };
+        s.onerror = ()=>{ clearTimeout(timer); reject(new Error('Failed to load '+url)); };
+        document.head.appendChild(s);
+      });
+    }
+
+    async function tryLoadUMD(){
+      const threeCandidates = [
+        'https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js',
+        'https://unpkg.com/three@0.132.2/build/three.min.js'
+      ];
+      const controlsCandidates = [
+        'https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/controls/OrbitControls.js',
+        'https://unpkg.com/three@0.132.2/examples/js/controls/OrbitControls.js'
+      ];
+      for (const u of threeCandidates){
+        try {
+          logStatus('Loading Three.js (UMD)…');
+          await loadScript(u);
+          if (window.THREE){
+            for (const c of controlsCandidates){
+              try {
+                logStatus('Loading OrbitControls (UMD)…');
+                await loadScript(c);
+                if (window.THREE.OrbitControls) return window.THREE;
+              } catch {}
+            }
+          }
+        } catch {}
+      }
+      return null;
+    }
+
+    async function tryLoadESM(){
+      const threeCandidates = [
+        'https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.module.js',
+        'https://unpkg.com/three@0.132.2/build/three.module.js',
+        'https://esm.sh/three@0.132.2'
+      ];
+      const controlsCandidates = [
+        'https://cdn.jsdelivr.net/npm/three@0.132.2/examples/jsm/controls/OrbitControls.js',
+        'https://unpkg.com/three@0.132.2/examples/jsm/controls/OrbitControls.js',
+        'https://esm.sh/three@0.132.2/examples/jsm/controls/OrbitControls.js'
+      ];
+      for (const t of threeCandidates){
+        try {
+          logStatus('Loading Three.js (ESM)…');
+          const THREE = await import(t);
+          for (const c of controlsCandidates){
+            try {
+              logStatus('Loading OrbitControls (ESM)…');
+              const mod = await import(c);
+              THREE.OrbitControls = mod.OrbitControls;
+              window.THREE = THREE;
+              return THREE;
+            } catch {}
+          }
+        } catch {}
+      }
+      return null;
+    }
+
+    async function ensureThree(){
+      if (window.THREE && window.THREE.OrbitControls) return window.THREE;
+      // 1) Try UMD globals first (broadest CSP compatibility)
+      const umd = await tryLoadUMD();
+      if (umd) return umd;
+      // 2) Fallback to ESM dynamic imports
+      const esm = await tryLoadESM();
+      if (esm) return esm;
+      throw new Error('All Three.js load attempts failed');
+    }
+
+    let THREE;
+    try {
+      THREE = await ensureThree();
+    } catch (err){
+      console.error(err);
+      // IMPORTANT: avoid literal </scr"+"ipt> in strings or comments; HTML would terminate this script block
+      const msg = [
+        'Three.js failed to load. If your environment blocks CDNs, run this file locally and add:',
+        '',
+        '  <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"><\\/script>',
+        '  <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/controls/OrbitControls.js"><\\/script>',
+        '',
+        'Then reload.'
+      ].join('\n');
+      logStatus(msg);
+      return; // Abort bootstrapping if library cannot be loaded
+    }
+
+    // ======= Scene / Renderer / Camera =======
+    let scene, renderer, camera, controls;
+    let raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();  
+
+    let cubeGroup = new THREE.Group(); // holds all cubelets
+    let N = 3; // default size
+    const cubeletSize = 1.0;
+    const gap = 0.04; // space between cubelets
+    const spacing = cubeletSize + gap;
+
+    let isRotating = false; // currently animating a layer
+    let moveQueue = [];     // queued moves to play sequentially
+    let queueActive = false;
+    let inverseHistory = []; // stack of inverse moves for Solve
+
+    const MAT = {}; // palette
+    const materialArrayCache = new Map(); // bitmask -> materials array
+
+    let boxGeom = null; // shared BoxGeometry for all cubelets
+
+    init();
+    buildMaterials();
+    buildCube(N);
+    animate();
+
+    function init(){
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x0e0f12);
+
+      const w = window.innerWidth, h = window.innerHeight;
+      camera = new THREE.PerspectiveCamera(55, w/h, 0.1, 1000);
+      renderer = new THREE.WebGLRenderer({ antialias:true, powerPreference:'high-performance' });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.setSize(w, h);
+      document.body.appendChild(renderer.domElement);
+
+      controls = new THREE.OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+
+      // Lighting
+      const amb = new THREE.AmbientLight(0xffffff, 0.7); scene.add(amb);
+      const dir = new THREE.DirectionalLight(0xffffff, 0.9); dir.position.set(3,4,5); scene.add(dir);
+
+      window.addEventListener('resize', onResize);
+
+      // Mouse interaction
+      renderer.domElement.addEventListener('pointerdown', onPointerDown);
+      renderer.domElement.addEventListener('contextmenu', e => e.preventDefault());
+
+      scene.add(cubeGroup);
+    }
+
+    function onResize(){
+      const w = window.innerWidth, h = window.innerHeight;
+      camera.aspect = w/h; camera.updateProjectionMatrix();
+      renderer.setSize(w, h);
+    }
+
+    function animate(){
+      requestAnimationFrame(animate);
+      controls.update();
+      renderer.render(scene, camera);
+    }
+
+    function buildMaterials(){
+      // Classic Rubik palette
+      const COLORS = {
+        white: 0xFFFFFF,
+        yellow: 0xFFD500,
+        red: 0xC41E3A,
+        orange: 0xFF5800,
+        blue: 0x0051BA,
+        green: 0x009E60,
+        dark: 0x111418
+      };
+
+      function glossy(c){ return new THREE.MeshStandardMaterial({ color:c, roughness: 0.35, metalness: 0.15 }); }
+      MAT.white = glossy(COLORS.white);
+      MAT.yellow = glossy(COLORS.yellow);
+      MAT.red = glossy(COLORS.red);
+      MAT.orange = glossy(COLORS.orange);
+      MAT.blue = glossy(COLORS.blue);
+      MAT.green = glossy(COLORS.green);
+      MAT.dark = new THREE.MeshStandardMaterial({ color: COLORS.dark, roughness: 0.85, metalness: 0.0 });
+    }
+
+    function centerCameraForN(n){
+      const size = n * spacing;
+      const dist = Math.max(6, size * 2.2);
+      camera.position.set(dist, dist * 0.8, dist * 1.2);
+      controls.target.set(0,0,0);
+      controls.update();
+    }
+
+    function clearCube(){
+      materialArrayCache.clear();
+      inverseHistory.length = 0;
+      moveQueue.length = 0; queueActive = false; isRotating = false;
+      // Remove cubelets
+      for (let i = cubeGroup.children.length - 1; i >= 0; i--) {
+        const child = cubeGroup.children[i];
+        cubeGroup.remove(child);
+      }
+    }
+
+    function buildCube(n){
+      clearCube();
+      N = Math.max(1, Math.min(20, (n|0) || 3));
+      document.getElementById('layerRange').max = String(N-1);
+      document.getElementById('layerRange').value = '0';
+      document.getElementById('layerLabel').textContent = '0';
+
+      const half = (N - 1) / 2;
+
+      // Create shared geometry once
+      if (!boxGeom) boxGeom = new THREE.BoxGeometry(cubeletSize, cubeletSize, cubeletSize);
+
+      for (let i = 0; i < N; i++){
+        for (let j = 0; j < N; j++){
+          for (let k = 0; k < N; k++){
+            const mask = ((i===N-1)<<0) | ((i===0)<<1) | ((j===N-1)<<2) | ((j===0)<<3) | ((k===N-1)<<4) | ((k===0)<<5);
+            const mats = materialsFromMask(mask);
+            const mesh = new THREE.Mesh(boxGeom, mats);
+            mesh.userData.i = i; mesh.userData.j = j; mesh.userData.k = k; // integer grid indices
+            const x = (i - half) * spacing;
+            const y = (j - half) * spacing;
+            const z = (k - half) * spacing;
+            mesh.position.set(x, y, z);
+            cubeGroup.add(mesh);
+          }
+        }
+      }
+
+      centerCameraForN(N);
+
+      const approx = N*N*N;
+      logStatus(`Built ${N}×${N}×${N} = ${approx} cubelets` + (N>=17 ? ' — heavy on some GPUs' : ''));
+    }
+
+    function materialsFromMask(mask){
+      // mask bits order: 0:+X, 1:-X, 2:+Y, 3:-Y, 4:+Z, 5:-Z
+      if (materialArrayCache.has(mask)) return materialArrayCache.get(mask);
+      const arr = [
+        (mask & 1) ? MAT.red    : MAT.dark, // +X
+        (mask & 2) ? MAT.orange : MAT.dark, // -X
+        (mask & 4) ? MAT.white  : MAT.dark, // +Y
+        (mask & 8) ? MAT.yellow : MAT.dark, // -Y
+        (mask & 16)? MAT.green  : MAT.dark, // +Z
+        (mask & 32)? MAT.blue   : MAT.dark  // -Z
+      ];
+      materialArrayCache.set(mask, arr);
+      return arr;
+    }
+
+    function easeInOutCubic(t){ return t<0.5 ? 4*t*t*t : 1 - Math.pow(-2*t+2, 3)/2; }
+
+    function enqueueMove(move){
+      moveQueue.push(move);
+      if (!queueActive) processQueue();
+    }
+
+    function processQueue(){
+      if (queueActive) return;
+      queueActive = true;
+      const step = () => {
+        if (isRotating) { requestAnimationFrame(step); return; }
+        const m = moveQueue.shift();
+        if (!m){ queueActive = false; return; }
+        const { axis, layer, dir, duration=Number(document.getElementById('speed').value)||350, record=true } = m;
+        rotateLayer(axis, layer, dir, duration, record, step);
+      };
+      step();
+    }
+
+    function getLayerCubelets(axis, layer){
+      const arr = [];
+      for (const m of cubeGroup.children){
+        if (!m.userData) continue;
+        if ((axis === 'X' && m.userData.i === layer) ||
+            (axis === 'Y' && m.userData.j === layer) ||
+            (axis === 'Z' && m.userData.k === layer)){
+          arr.push(m);
+        }
+      }
+      return arr;
+    }
+
+    function rotateLayer(axis, layer, dir, duration=300, record=true, onDone){
+      if (isRotating) { if(onDone) onDone(); return; }
+      isRotating = true;
+
+      // Select cubelets in this layer
+      const parts = getLayerCubelets(axis, layer);
+      const tempGroup = new THREE.Group();
+      cubeGroup.add(tempGroup);
+      // Attach parts to temp group to rotate together in world space
+      for (const m of parts) tempGroup.attach(m);
+
+      const rad = dir * Math.PI/2;
+      const start = performance.now();
+
+      const tick = () => {
+        const t = Math.min(1, (performance.now()-start)/duration);
+        const a = rad * easeInOutCubic(t);
+        tempGroup.rotation.set(0,0,0);
+        if (axis==='X') tempGroup.rotation.x = a;
+        if (axis==='Y') tempGroup.rotation.y = a;
+        if (axis==='Z') tempGroup.rotation.z = a;
+        if (t<1){ requestAnimationFrame(tick); return; }
+
+        // Snap to exact 90° and detach cubelets back to main group
+        if (axis==='X') tempGroup.rotation.x = rad;
+        if (axis==='Y') tempGroup.rotation.y = rad;
+        if (axis==='Z') tempGroup.rotation.z = rad;
+
+        for (const m of parts) cubeGroup.attach(m);
+        cubeGroup.remove(tempGroup);
+
+        // Update logical indices and snap world positions
+        const half = (N-1)/2;
+        for (const m of parts){
+          const i = m.userData.i, j = m.userData.j, k = m.userData.k;
+          const center = { x: i - half, y: j - half, z: k - half };
+          let nx = center.x, ny = center.y, nz = center.z;
+          if (axis==='X'){
+            // +90 around X: y'=-z, z'=y
+            if (dir===1){ ny = -center.z; nz = center.y; }
+            else        { ny = center.z;  nz = -center.y; }
+          } else if (axis==='Y'){
+            // +90 around Y: x'=z, z'=-x
+            if (dir===1){ nx = center.z;  nz = -center.x; }
+            else        { nx = -center.z; nz = center.x; }
+          } else if (axis==='Z'){
+            // +90 around Z: x'=-y, y'=x
+            if (dir===1){ nx = -center.y; ny = center.x; }
+            else        { nx = center.y;  ny = -center.x; }
+          }
+          const ni = Math.round(nx + half);
+          const nj = Math.round(ny + half);
+          const nk = Math.round(nz + half);
+          m.userData.i = ni; m.userData.j = nj; m.userData.k = nk;
+          m.position.set((ni - half)*spacing, (nj - half)*spacing, (nk - half)*spacing);
+        }
+
+        if (record){ inverseHistory.push({ axis, layer, dir: -dir }); }
+
+        isRotating = false;
+        if (onDone) onDone();
+      };
+      tick();
+    }
+
+    // ======= UI wiring =======
+    document.getElementById('size').addEventListener('change', () => {
+      const val = clamp(parseInt(document.getElementById('size').value||'3',10), 1, 20);
+      buildCube(val);
+    });
+
+    const layerRange = document.getElementById('layerRange');
+    function setLayer(val){
+      const max = parseInt(layerRange.max, 10) || 0;
+      const clamped = clamp(parseInt(String(val||'0'), 10), 0, max);
+      layerRange.value = String(clamped);
+      document.getElementById('layerLabel').textContent = String(clamped);
+    }
+    layerRange.addEventListener('input', () => setLayer(layerRange.value));
+    const layerPrevBtn = document.getElementById('layerPrev');
+    const layerNextBtn = document.getElementById('layerNext');
+    if (layerPrevBtn) layerPrevBtn.addEventListener('click', () => setLayer(parseInt(layerRange.value, 10) - 1));
+    if (layerNextBtn) layerNextBtn.addEventListener('click', () => setLayer(parseInt(layerRange.value, 10) + 1));
+    window.addEventListener('keydown', (e) => {
+      if (e.key === '[') setLayer(parseInt(layerRange.value, 10) - 1);
+      else if (e.key === ']') setLayer(parseInt(layerRange.value, 10) + 1);
+    });
+
+    function currentAxis(){
+      return document.querySelector('input[name="axis"]:checked').value;
+    }
+
+    document.getElementById('rotCW').addEventListener('click', () => {
+      enqueueMove({ axis: currentAxis(), layer: parseInt(layerRange.value,10), dir: +1, record:true });
+    });
+    document.getElementById('rotCCW').addEventListener('click', () => {
+      enqueueMove({ axis: currentAxis(), layer: parseInt(layerRange.value,10), dir: -1, record:true });
+    });
+    document.getElementById('resetView').addEventListener('click', () => centerCameraForN(N));
+
+    document.getElementById('scrambleBtn').addEventListener('click', () => {
+      scramble(30);
+    });
+    document.getElementById('solveBtn').addEventListener('click', () => solve());
+
+    function scramble(count){
+      if (isRotating) return;
+      const moves = [];
+      for (let m=0; m<count; m++){
+        const axis = ['X','Y','Z'][Math.floor(Math.random()*3)];
+        const layer = Math.floor(Math.random()*N);
+        const dir = Math.random() < 0.5 ? 1 : -1;
+        moves.push({ axis, layer, dir, record:true });
+      }
+      moves.forEach(enqueueMove);
+    }
+
+    function solve(){
+      if (isRotating || inverseHistory.length===0) return;
+      const steps = inverseHistory.splice(0, inverseHistory.length).reverse();
+      steps.forEach(m => enqueueMove({ axis: m.axis, layer: m.layer, dir: m.dir, record:false }));
+    }
+
+    function clamp(v, a, b){ return Math.max(a, Math.min(b, v)); }
+
+    // ======= Picking (click to select layer) =======
+    function onPointerDown(e){
+      const rect = renderer.domElement.getBoundingClientRect();
+      mouse.x = ((e.clientX - rect.left)/rect.width) * 2 - 1;
+      mouse.y = -((e.clientY - rect.top)/rect.height) * 2 + 1;
+      raycaster.setFromCamera(mouse, camera);
+      const intersects = raycaster.intersectObjects(cubeGroup.children, false);
+      if (intersects.length === 0) return;
+      const hit = intersects[0].object;
+      const i = hit.userData.i, j = hit.userData.j, k = hit.userData.k;
+
+      // Determine axis from face normal (in world space)
+      const n = intersects[0].face.normal.clone().applyNormalMatrix(new THREE.Matrix3().getNormalMatrix(hit.matrixWorld));
+      const ax = Math.abs(n.x), ay = Math.abs(n.y), az = Math.abs(n.z);
+      let faceAxis = 'X'; let layer = i;
+      if (ay >= ax && ay >= az){ faceAxis = 'Y'; layer = j; }
+      else if (az >= ax && az >= ay){ faceAxis = 'Z'; layer = k; }
+      else { faceAxis = 'X'; layer = i; }
+
+      // Axis selection behavior:
+      // - Regular click: keep current axis, do not change UI radios
+      // - Alt+click: adopt axis from clicked face and update UI radios
+      const selectedAxis = currentAxis();
+      const axisToUse = e.altKey ? faceAxis : selectedAxis;
+      if (e.altKey) document.querySelector(`input[name="axis"][value="${faceAxis}"]`).checked = true;
+
+      const currentLayer = parseInt(layerRange.value, 10);
+      if (e.button === 2){
+        enqueueMove({ axis: axisToUse, layer: currentLayer, dir:+1, record:true });
+      } else if (e.shiftKey){
+        enqueueMove({ axis: axisToUse, layer: currentLayer, dir:-1, record:true });
+      }
+    }
+
+    // Alt + mouse wheel on canvas changes the selected layer
+    renderer.domElement.addEventListener('wheel', (e) => {
+      if (!e.altKey) return;
+      e.preventDefault();
+      const delta = e.deltaY > 0 ? 1 : -1;
+      setLayer(parseInt(layerRange.value, 10) + delta);
+    }, { passive: false });
+
+    // ======= Minimal test harness =======
+    const testlog = document.getElementById('testlog');
+    function logTest(msg, ok){
+      testlog.hidden = false;
+      const div = document.createElement('div');
+      div.innerHTML = (ok? '<span class="ok">TEST ✓</span> ' : '<span class="fail">TEST ✗</span> ') + msg;
+      testlog.appendChild(div);
+      console[(ok?'log':'error')](msg);
+    }
+
+    document.getElementById('clearTests').addEventListener('click', ()=>{ testlog.innerHTML=''; testlog.hidden=true; });
+    document.getElementById('runTests').addEventListener('click', async ()=>{
+      testlog.innerHTML=''; testlog.hidden=false;
+      try {
+        logTest('THREE loaded', !!THREE && !!THREE.Scene && !!THREE.OrbitControls);
+
+        buildCube(1);
+        logTest('Build 1×1×1 has 1 cubelet', cubeGroup.children.length === 1);
+        logTest('LayerRange max for N=1 -> 0', document.getElementById('layerRange').max === '0');
+
+        buildCube(3);
+        logTest('Build 3×3×3 has 27 cubelets', cubeGroup.children.length === 27);
+        logTest('LayerRange max for N=3 -> 2', document.getElementById('layerRange').max === '2');
+
+        // Rotation cycle test on 3×3×3: 4 rotations return to original indices
+        const before = cubeGroup.children.map(m => `${m.userData.i},${m.userData.j},${m.userData.k}`).join('|');
+        enqueueMove({ axis:'X', layer:0, dir:+1, record:false, duration:80 });
+        enqueueMove({ axis:'X', layer:0, dir:+1, record:false, duration:80 });
+        enqueueMove({ axis:'X', layer:0, dir:+1, record:false, duration:80 });
+        enqueueMove({ axis:'X', layer:0, dir:+1, record:false, duration:80 });
+        await waitForIdle();
+        const after = cubeGroup.children.map(m => `${m.userData.i},${m.userData.j},${m.userData.k}`).join('|');
+        logTest('Four quarter-turns restore indices', before === after);
+
+        // Scramble+Solve smoke test (5 moves)
+        buildCube(4);
+        const prevHistory = inverseHistory.length;
+        for (let t=0; t<5; t++) enqueueMove({ axis:['X','Y','Z'][t%3], layer:t%4, dir: (t%2? -1: +1), record:true, duration:60 });
+        await waitForIdle();
+        logTest('Scramble recorded > 0 moves', inverseHistory.length > prevHistory);
+        const histBefore = inverseHistory.length;
+        solve();
+        await waitForIdle();
+        logTest('Solve consumed history', inverseHistory.length === 0 && histBefore>0);
+
+        // Upper bound quick build test (not rotating to keep it lightweight)
+        buildCube(6); // moderate size as sanity check
+        logTest('Build 6×6×6 has 216 cubelets', cubeGroup.children.length === 216);
+
+        // ---- Additional tests (lightweight) ----
+        buildCube(2);
+        logTest('Build 2×2×2 has 8 cubelets', cubeGroup.children.length === 8);
+        enqueueMove({ axis:'Z', layer:1, dir:+1, record:false, duration:60 });
+        await waitForIdle();
+        const inBounds = cubeGroup.children.every(m => m.userData.i>=0 && m.userData.i<2 && m.userData.j>=0 && m.userData.j<2 && m.userData.k>=0 && m.userData.k<2);
+        logTest('Indices remain within bounds after rotation (2×2×2)', inBounds);
+
+        // Solve with empty history should no-op
+        inverseHistory.length = 0;
+        solve();
+        await waitForIdle();
+        logTest('Solve no-ops when history is empty', inverseHistory.length === 0);
+
+        // Small scramble count equals history increase
+        buildCube(3);
+        const base = inverseHistory.length;
+        enqueueMove({ axis:'Y', layer:1, dir:+1, record:true, duration:40 });
+        enqueueMove({ axis:'Z', layer:0, dir:-1, record:true, duration:40 });
+        enqueueMove({ axis:'X', layer:2, dir:+1, record:true, duration:40 });
+        await waitForIdle();
+        logTest('History increased by 3 after three recorded moves', inverseHistory.length === base + 3);
+      } catch (e){
+        logTest('Unhandled test error: '+e.message, false);
+        console.error(e);
+      }
+    });
+
+    function waitForIdle(){
+      return new Promise(res => {
+        const poll = () => {
+          if (!queueActive && !isRotating) return res();
+          requestAnimationFrame(poll);
+        };
+        poll();
+      });
+    }
+
+  })();
+  </script>
+</body>
+</html>

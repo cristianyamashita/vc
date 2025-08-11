@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Spinning Hexagon Physics</title>
+  <!-- p5.js CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.2/p5.min.js"></script>
+  <style>
+    :root{
+      --panel-bg:#11131a; /* dark navy */
+      --panel-fg:#e7e9f1; /* light text */
+      --accent:#4ea1ff;
+      --muted:#1b1e27;
+      --btn:#1e90ff;
+      --btn-text:#fff;
+    }
+    html,body{height:100%; margin:0; background:#0b0d13; color:#ddd; font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Helvetica Neue",Helvetica,Arial,sans-serif}
+    .wrap{display:grid; grid-template-columns:1fr 360px; gap:12px; height:100vh;}
+    #canvas-holder{position:relative; height:100%;}
+    canvas{display:block; width:100% !important; height:100% !important;}
+    .panel{height:100%; overflow:auto; padding:14px 16px; box-sizing:border-box; background:var(--panel-bg); color:var(--panel-fg); border-radius:12px; box-shadow:0 10px 30px rgba(0,0,0,.35);}
+    .panel h2{margin:0 0 8px; font-size:18px; letter-spacing:.2px}
+    .row{display:flex; align-items:center; justify-content:space-between; gap:10px; margin:10px 0}
+    .row label{font-size:12px; opacity:.95}
+    .row input[type="range"]{width:56%}
+    .row input[type="color"]{width:56%; height:28px; border:none; background:var(--muted); border-radius:6px}
+    .row input[type="checkbox"]{transform:scale(1.1)}
+    .row select{width:56%; background:var(--muted); color:var(--panel-fg); border:1px solid #2a2f3a; padding:6px; border-radius:8px}
+    .btns{display:flex; gap:10px; margin-top:8px}
+    button{background:var(--btn); color:var(--btn-text); border:none; padding:10px 14px; border-radius:10px; cursor:pointer; font-weight:600}
+    button.secondary{background:#2a3141}
+    .small{font-size:12px; opacity:.75}
+    .stat{margin-top:8px; font-variant-numeric:tabular-nums}
+    .spacer{height:4px}
+    .note{font-size:11px; color:#9aa3b2}
+    .grid{display:grid; grid-template-columns:1fr auto; gap:10px; align-items:center}
+    .mono{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div id="canvas-holder"></div>
+    <aside class="panel">
+      <h2>Spinning Hexagon Physics</h2>
+
+      <div class="row grid"><label>Number of balls</label><input id="uiCount" type="range" min="1" max="200" value="60"></div>
+      <div class="row grid"><label>Ball size (px)</label><input id="uiRadius" type="range" min="1" max="30" value="8"></div>
+      <div class="row grid"><label>Mass variability</label><input id="uiMassVar" type="checkbox" checked></div>
+
+      <div class="row grid"><label>Wall elasticity</label><input id="uiWallRest" type="range" min="0" max="1" step="0.01" value="0.92"></div>
+      <div class="row grid"><label>Ball elasticity</label><input id="uiBallRest" type="range" min="0" max="1" step="0.01" value="0.92"></div>
+
+      <div class="row grid"><label>Gravity</label><input id="uiGravity" type="range" min="0" max="10" step="0.01" value="0.2"></div>
+      <div class="row grid"><label>Friction</label><input id="uiFriction" type="range" min="0" max="1" step="0.001" value="0.02"></div>
+      <div class="row grid"><label>Air resistance</label><input id="uiAir" type="range" min="0" max="1" step="0.001" value="0.01"></div>
+
+      <div class="row grid"><label>Hex spin speed (rad/s)</label><input id="uiSpin" type="range" min="-5" max="5" step="0.001" value="1.2"></div>
+      <div class="row grid"><label>Initial speed ×</label><input id="uiInitSpeed" type="range" min="0" max="5" step="0.01" value="1.0"></div>
+
+      <div class="row grid"><label>Enable trails</label><input id="uiTrails" type="checkbox"></div>
+      <div class="row grid"><label>Trail length</label><input id="uiTrailLen" type="range" min="0" max="1" step="0.01" value="0.4"></div>
+      <div class="row grid"><label>Hex stroke (px)</label><input id="uiHexStroke" type="range" min="0" max="20" step="1" value="3"></div>
+      <div class="row grid"><label>Background</label><input id="uiBg" type="color" value="#0b0d13"></div>
+      <div class="row grid"><label>Ball color</label><input id="uiBallColor" type="color" value="#3dd5ff"></div>
+
+      <div class="btns">
+        <button id="btnToggle">Pause</button>
+        <button id="btnReset" class="secondary">Reset</button>
+      </div>
+
+      <div class="stat small">FPS: <span id="fps" class="mono">0</span></div>
+      <div class="note">Resize the window freely. Simulation conserves momentum on ball–ball impacts and accounts for the moving hex walls when reflecting velocities.</div>
+    </aside>
+  </div>
+
+<script>
+// --- Utilities ---
+function vec(x=0,y=0){return {x,y}};
+function add(a,b){return {x:a.x+b.x,y:a.y+b.y}};
+function sub(a,b){return {x:a.x-b.x,y:a.y-b.y}};
+function mul(a,s){return {x:a.x*s,y:a.y*s}};
+function dot(a,b){return a.x*b.x+a.y*b.y};
+function len(a){return Math.hypot(a.x,a.y)};
+function norm(a){const L=len(a)||1; return {x:a.x/L,y:a.y/L}};
+function perp(a){return {x:-a.y,y:a.x}}; // 90 deg
+  // Generate vivid random colors using HSV for better distribution
+  function hsvToRgb(h, s, v){
+    const i = Math.floor(h * 6);
+    const f = h * 6 - i;
+    const p = v * (1 - s);
+    const q = v * (1 - f * s);
+    const t = v * (1 - (1 - f) * s);
+    let r=0,g=0,b=0;
+    switch(i % 6){
+      case 0: r=v; g=t; b=p; break;
+      case 1: r=q; g=v; b=p; break;
+      case 2: r=p; g=v; b=t; break;
+      case 3: r=p; g=q; b=v; break;
+      case 4: r=t; g=p; b=v; break;
+      case 5: r=v; g=p; b=q; break;
+    }
+    return [Math.round(r*255), Math.round(g*255), Math.round(b*255)];
+  }
+
+// --- Globals ---
+let sketch = (p)=>{
+  let W=800,H=600; // will fill parent
+  let center; // {x,y}
+  let hexR; // inworld radius (apothem)
+  let balls=[];
+  let running=true;
+  let theta=0; // hex angle
+  let lastMs=0;
+
+  // UI elements
+  const ui = {
+    count: document.getElementById('uiCount'),
+    radius: document.getElementById('uiRadius'),
+    massVar: document.getElementById('uiMassVar'),
+    wallRest: document.getElementById('uiWallRest'),
+    ballRest: document.getElementById('uiBallRest'),
+    gravity: document.getElementById('uiGravity'),
+    friction: document.getElementById('uiFriction'),
+    air: document.getElementById('uiAir'),
+    spin: document.getElementById('uiSpin'),
+    initSpeed: document.getElementById('uiInitSpeed'),
+    trails: document.getElementById('uiTrails'),
+    trailLen: document.getElementById('uiTrailLen'),
+    hexStroke: document.getElementById('uiHexStroke'),
+    bg: document.getElementById('uiBg'),
+    ballColor: document.getElementById('uiBallColor'),
+    fps: document.getElementById('fps'),
+    btnToggle: document.getElementById('btnToggle'),
+    btnReset: document.getElementById('btnReset'),
+  };
+
+  ui.btnToggle.onclick=()=>{running=!running; ui.btnToggle.textContent=running?"Pause":"Start"};
+  ui.btnReset.onclick=()=> resetWorld();
+
+  function read(f){return parseFloat(f.value)}
+
+  class Ball{
+    constructor(x,y,r){
+      this.pos=vec(x,y);
+      const sp= (Math.random()*2-1); // random dir
+      this.vel=vec(sp, -sp);
+      this.r=r;
+      this.mass= (ui.massVar.checked? (0.5+Math.random()*1.5) : 1) * Math.max(1, r*r*0.02);
+      // Assign a bright random color per ball
+      const hue = Math.random();
+      const sat = 0.7 + Math.random()*0.3;
+      const val = 0.85 + Math.random()*0.15;
+      this.color = hsvToRgb(hue, sat, val); // [r,g,b]
+    }
+  }
+
+  function resetWorld(){
+    balls.length=0;
+    const n=parseInt(ui.count.value);
+    const r=parseFloat(ui.radius.value);
+    const speedMul=read(ui.initSpeed);
+    for(let i=0;i<n;i++){
+      // spawn inside hex within 80% radius
+      let angle=Math.random()*Math.PI*2;
+      let rad=(Math.random()*0.6+0.1)*hexR;
+      const px=center.x+Math.cos(angle)*rad;
+      const py=center.y+Math.sin(angle)*rad;
+      const b=new Ball(px,py,r);
+      // random initial velocity
+      const vdir=Math.random()*Math.PI*2;
+      const vmag=(50+Math.random()*150)*speedMul;
+      b.vel=vec(Math.cos(vdir)*vmag, Math.sin(vdir)*vmag);
+      balls.push(b);
+    }
+  }
+
+  function fitCanvas(){
+    const holder = document.getElementById('canvas-holder');
+    W = holder.clientWidth; H = holder.clientHeight;
+    p.resizeCanvas(W,H);
+    center = vec(W/2,H/2);
+    hexR = Math.min(W,H)*0.38; // apothem
+  }
+
+  p.setup=()=>{
+    const holder = document.getElementById('canvas-holder');
+    const c = p.createCanvas(holder.clientWidth, holder.clientHeight);
+    c.parent('canvas-holder');
+    p.pixelDensity(1);
+    center=vec(p.width/2,p.height/2);
+    hexR = Math.min(p.width,p.height)*0.38;
+    resetWorld();
+  };
+
+  p.windowResized=()=>{ fitCanvas(); };
+
+  // Compute hex vertices at angle 'ang'. Returns array of pts.
+  function hexPoints(ang){
+    const pts=[];
+    for(let i=0;i<6;i++){
+      const a = ang + i*Math.PI/3; // 60 deg step
+      // apothem = hexR, circumradius = hexR / cos(30°) = hexR / 0.866025...
+      const Rcirc = hexR / Math.cos(Math.PI/6);
+      pts.push({x:center.x + Math.cos(a)*Rcirc, y:center.y + Math.sin(a)*Rcirc});
+    }
+    return pts;
+  }
+
+  // Compute inward normal for edge (p1->p2) pointing toward center
+  function inwardNormal(p1,p2){
+    const e = sub(p2,p1);
+    let n = norm(perp(e)); // one of two normals
+    // ensure it points inward (towards center)
+    const mid = mul(add(p1,p2),0.5);
+    const toC = sub(center, mid);
+    if (dot(n, toC) < 0) n = mul(n,-1);
+    return n;
+  }
+
+  // Velocity of a point on the rotating hex wall due to angular speed w
+  function wallPointVelocity(point, w){
+    const r = sub(point, center); // vector from center
+    // 2D rigid body: v = w x r. With z-axis w, result is perpendicular in-plane.
+    const perpR = perp(r);
+    return mul(perpR, w);
+  }
+
+  // Ball vs rotating hex walls
+  function collideWalls(b, dt, pts, w){
+    for(let i=0;i<6;i++){
+      const p1 = pts[i];
+      const p2 = pts[(i+1)%6];
+      const edge = sub(p2,p1);
+      const n = inwardNormal(p1,p2);
+
+      // Closest approach of ball center to line segment
+      const ap = sub(b.pos, p1);
+      const t = Math.max(0, Math.min(1, dot(ap, edge) / dot(edge, edge)));
+      const closest = add(p1, mul(edge, t));
+      const toCenter = sub(b.pos, closest);
+      const dist = len(toCenter);
+      const overlap = b.r - dist;
+      if (overlap > 0) {
+        const nrm = dist>1e-6 ? mul(toCenter, 1/dist) : n; // contact normal outward from wall to ball
+        // Position correction: push ball inward along normal
+        b.pos = add(b.pos, mul(nrm, overlap+0.01));
+
+        // Relative velocity at contact
+        const vWall = wallPointVelocity(closest, w);
+        const vRel = sub(b.vel, vWall);
+        // If moving into wall, reflect
+        const vn = dot(vRel, nrm);
+        if (vn < 0){
+          const e = read(ui.wallRest); // restitution
+          const vRelAfter = sub(vRel, mul(nrm, (1+e)*vn));
+          b.vel = add(vRelAfter, vWall);
+        }
+      }
+    }
+  }
+
+  // Ball-ball collisions (elastic with restitution)
+  function collideBalls(dt){
+    const e = read(ui.ballRest);
+    for(let i=0;i<balls.length;i++){
+      for(let j=i+1;j<balls.length;j++){
+        const A=balls[i], B=balls[j];
+        const d = sub(B.pos, A.pos);
+        const dist = len(d);
+        const rad = A.r + B.r;
+        if (dist > 0 && dist < rad){
+          const n = mul(d, 1/dist);
+          // Position correction (Baumgarte style)
+          const overlap = rad - dist;
+          const total = A.mass + B.mass;
+          const pushA = (overlap * (B.mass/total));
+          const pushB = (overlap * (A.mass/total));
+          A.pos = add(A.pos, mul(n, -pushA));
+          B.pos = add(B.pos, mul(n,  pushB));
+
+          // Relative velocity along normal
+          const rel = sub(B.vel, A.vel);
+          const vn = dot(rel, n);
+          if (vn < 0){
+            const jImp = -(1+e) * vn / (1/A.mass + 1/B.mass);
+            const impulse = mul(n, jImp);
+            A.vel = sub(A.vel, mul(impulse, 1/A.mass));
+            B.vel = add(B.vel, mul(impulse, 1/B.mass));
+          }
+        }
+      }
+    }
+  }
+
+  // Integrate forces
+  function step(dt){
+    const g = read(ui.gravity);
+    const friction = read(ui.friction);
+    const air = read(ui.air);
+
+    // Hex rotation
+    const w = read(ui.spin); // rad/s
+    theta += w*dt;
+
+    const pts = hexPoints(theta);
+
+    // Move balls
+    for(const b of balls){
+      // forces
+      const Fg = vec(0, g * b.mass * 60); // scale so slider feels good
+
+      // Air resistance: simple linear drag
+      const Fd = mul(b.vel, -air * b.mass);
+
+      // Friction-like global damping
+      b.vel = mul(b.vel, 1 - Math.min(0.999, friction*dt));
+
+      // Integrate
+      const acc = mul(add(Fg, Fd), 1/b.mass);
+      b.vel = add(b.vel, mul(acc, dt));
+      b.pos = add(b.pos, mul(b.vel, dt));
+
+      // Collide with walls accounting for wall motion
+      collideWalls(b, dt, pts, w);
+    }
+
+    // Ball-ball collisions last
+    collideBalls(dt);
+  }
+
+  // FPS meter
+  let frameCount=0, accum=0, lastFpsUpdate=0;
+  function updateFps(ms){
+    frameCount++; accum += 1; // count frames
+    if(ms - lastFpsUpdate > 300){
+      const fps = Math.round(1000 / Math.max(1, (ms - lastMs)));
+      ui.fps.textContent = String(fps);
+      lastFpsUpdate = ms;
+    }
+  }
+
+  function drawHex(pts){
+    p.noFill();
+    p.stroke(255,255,255,180);
+    p.strokeWeight(parseFloat(ui.hexStroke.value));
+    p.beginShape();
+    for(const q of pts) p.vertex(q.x,q.y);
+    p.endShape(p.CLOSE);
+  }
+
+  function drawBalls(){
+    p.noStroke();
+    for(const b of balls){
+      const [cr,cg,cb] = b.color;
+      p.fill(cr,cg,cb, 230);
+      p.circle(b.pos.x, b.pos.y, b.r*2);
+    }
+  }
+
+  p.draw=()=>{
+    const ms = p.millis();
+    const dt = Math.min(0.033, (ms - lastMs)/1000 || 0.016); // clamp big steps
+    lastMs = ms;
+
+    // Background and trails
+    const useTrails = ui.trails.checked;
+    const bgHex = ui.bg.value;
+    const br = parseInt(bgHex.slice(1,3),16);
+    const bg = parseInt(bgHex.slice(3,5),16);
+    const bb = parseInt(bgHex.slice(5,7),16);
+
+    if(useTrails){
+      // fade according to trail length
+      const alpha = 255 * (1 - parseFloat(ui.trailLen.value));
+      p.fill(br,bg,bb, alpha);
+      p.noStroke();
+      p.rect(0,0,p.width,p.height);
+    }else{
+      p.background(br,bg,bb);
+    }
+
+    if(running){ step(dt); }
+
+    const pts = hexPoints(theta);
+    drawHex(pts);
+    drawBalls();
+
+    updateFps(ms);
+  };
+};
+
+new p5(sketch);
+</script>
+</body>
+</html>

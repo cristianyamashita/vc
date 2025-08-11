@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Boomerang / Chakram</title>
+<style>
+  :root{
+    --bg:#0e0f13;--panel:#171923;--accent:#62d4ff;--accent2:#ffd166;--good:#6ee7a7;--bad:#ff6b6b;--text:#e6e8ef;--muted:#9aa3b2;
+  }
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font:14px/1.4 system-ui, -apple-system, Segoe UI, Roboto, Noto Sans, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji"}
+  #wrap{position:fixed;inset:0;display:grid;grid-template-rows:auto 1fr auto}
+  header{display:flex;gap:.5rem;align-items:center;padding:.5rem .75rem;background:linear-gradient(180deg,#131622,transparent)}
+  header .title{font-weight:700;letter-spacing:.5px}
+  header select, header button{background:var(--panel);color:var(--text);border:1px solid #2a2f43;border-radius:8px;padding:.4rem .6rem}
+  header button{cursor:pointer}
+  #canvasWrap{position:relative}
+  canvas{display:block;width:100%;height:100%;background:radial-gradient(1200px 800px at 50% 40%,#141829 0%,#0e0f13 60%, #0b0c10 100%)}
+  /* HUD */
+  .hud{position:absolute;left:12px;top:12px;right:12px;display:flex;gap:12px;align-items:center;pointer-events:none}
+  .bar{flex:1;background:#1a1f2f;border:1px solid #2b3350;border-radius:10px;overflow:hidden;height:14px;box-shadow:inset 0 0 12px #0a0d18}
+  .bar .fill{height:100%;background:linear-gradient(90deg,var(--good),#3bc6b6);width:50%}
+  .bar.xp .fill{background:linear-gradient(90deg,var(--accent),#7aa9ff)}
+  .hud .stat{min-width:120px;background:rgba(10,12,18,.6);border:1px solid #2a2f43;border-radius:10px;padding:4px 10px;text-align:center}
+  .hud .stat b{font-variant-numeric:tabular-nums}
+
+  /* Overlays */
+  .overlay{position:absolute;inset:0;display:none;place-items:center;background:rgba(0,0,0,.55)}
+  .overlay.show{display:grid}
+  .card{background:var(--panel);border:1px solid #2a2f43;border-radius:16px;box-shadow:0 10px 40px rgba(0,0,0,.4);padding:18px;max-width:940px;width:min(92vw,960px)}
+  .row{display:flex;gap:12px;flex-wrap:wrap}
+  .row > *{flex:1}
+  .btn{background:var(--accent);color:#081018;border:none;border-radius:10px;padding:.7rem 1rem;font-weight:700;cursor:pointer}
+  .btn.secondary{background:#2a2f43;color:var(--text)}
+  .btn:disabled{opacity:.6;cursor:not-allowed}
+
+  /* Upgrade picker */
+  .choices{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;margin-top:12px}
+  .choice{background:#121421;border:1px solid #2a2f43;border-radius:14px;padding:10px;cursor:pointer}
+  .choice:hover{outline:2px solid var(--accent)}
+  .choice h4{margin:4px 0;font-size:16px}
+  .choice p{margin:0;color:var(--muted)}
+
+  footer{display:flex;justify-content:space-between;align-items:center;color:var(--muted);padding:.4rem .75rem;border-top:1px solid #1b2033}
+  .pill{padding:.2rem .5rem;background:#121421;border:1px solid #2a2f43;border-radius:999px}
+
+  .glow{filter:drop-shadow(0 0 6px rgba(98,212,255,.65))}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <header>
+    <div class="title">Boomerang / Chakram</div>
+    <div style="margin-left:auto;display:flex;gap:.5rem;align-items:center">
+      <label for="langSel" id="langLabel">Language</label>
+      <select id="langSel" aria-label="Language">
+        <option value="en">English</option>
+        <option value="pt">Português</option>
+        <option value="ja">日本語</option>
+      </select>
+      <button id="btnStart">Start</button>
+      <button id="btnPause" class="secondary">Pause</button>
+      <span class="pill" id="highscore">Highscore: 0</span>
+    </div>
+  </header>
+
+  <div id="canvasWrap">
+    <canvas id="game"></canvas>
+    <div class="hud" aria-live="polite">
+      <div class="bar hp"><div class="fill" id="hpFill"></div></div>
+      <div class="bar xp"><div class="fill" id="xpFill"></div></div>
+      <div class="stat" id="scoreStat">Score: <b>0</b></div>
+      <div class="stat" id="lvlStat">Lv <b>1</b></div>
+    </div>
+
+    <div id="overlayStart" class="overlay show" role="dialog" aria-modal="true">
+      <div class="card">
+        <h2 id="titleStart">Boomerang / Chakram</h2>
+        <p id="descStart">Periodic shots that go out and return. Control space and timing.</p>
+        <div class="row" style="margin:8px 0 12px">
+          <div>
+            <label for="difficulty" id="labelDifficulty">Difficulty</label>
+            <select id="difficulty">
+              <option value="0.8">Easy</option>
+              <option value="1" selected>Normal</option>
+              <option value="1.3">Hard</option>
+              <option value="1.6">Insane</option>
+            </select>
+          </div>
+          <div>
+            <label for="langSel2" id="labelLanguage">Language</label>
+            <select id="langSel2">
+              <option value="en">English</option>
+              <option value="pt">Português</option>
+              <option value="ja">日本語</option>
+            </select>
+          </div>
+        </div>
+        <div class="row">
+          <button id="startRun" class="btn">Start</button>
+          <button id="howTo" class="btn secondary">How to play</button>
+        </div>
+        <div style="margin-top:10px;color:var(--muted)" id="howToText" hidden>
+          <ul>
+            <li id="ht1">Move with WASD or Arrow Keys. Aim with mouse; boomerangs auto-throw toward the cursor.</li>
+            <li id="ht2">XP orbs are attracted when close. Level up to choose 1 of 3 upgrades.</li>
+            <li id="ht3">Boomerangs pierce/ricochet then return. Elites/Bosses hit harder.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div id="overlayLevel" class="overlay" role="dialog" aria-modal="true">
+      <div class="card">
+        <h3 id="pickUpgrade">Choose an upgrade</h3>
+        <div class="choices" id="choices"></div>
+      </div>
+    </div>
+
+    <div id="overlayGameOver" class="overlay" role="dialog" aria-modal="true">
+      <div class="card">
+        <h2 id="titleGameOver">Game Over</h2>
+        <p id="finalScore">Score: 0</p>
+        <div class="row">
+          <button id="restart" class="btn">Restart</button>
+          <button id="toMenu" class="btn secondary">Menu</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <div id="footerLeft">Spawner driven arena roguelite. Single file HTML/JS.</div>
+    <div id="footerRight">DPR-aware canvas · Pause [P]</div>
+  </footer>
+</div>
+
+<script>
+(()=>{
+'use strict'
+
+/*********************
+ * i18n dictionary
+ *********************/
+const I18N={
+  en:{Language:"Language",Start:"Start",Pause:"Pause",Resume:"Resume",Highscore:"Highscore",Difficulty:"Difficulty",HowTo:"How to play",StartDesc:"Periodic shots that go out and return. Control space and timing.",HT1:"Move with WASD or Arrow Keys. Aim with mouse; boomerangs auto-throw toward the cursor.",HT2:"XP orbs are attracted when close. Level up to choose 1 of 3 upgrades.",HT3:"Boomerangs pierce/ricochet then return. Elites/Bosses hit harder.",ChooseUpgrade:"Choose an upgrade",GameOver:"Game Over",Restart:"Restart",Menu:"Menu",Score:"Score",LevelShort:"Lv",HP:"HP",XP:"XP",Boos:"Boss",Up_booms:"+1 Boomerang",Up_speed:"+20% Boomerang Speed",Up_pierce:"+1 Piercing",Up_ric:"+1 Wall Ricochet",Up_bleed:"Serrated: hits cause Bleed",Up_trail:"Trail deals damage",Up_magnet:"+25% Magnet Radius",Up_playerSpeed:"+10% Move Speed",Up_maxHP:"+1 Max HP"},
+  pt:{Language:"Idioma",Start:"Iniciar",Pause:"Pausar",Resume:"Retomar",Highscore:"Recorde",Difficulty:"Dificuldade",HowTo:"Como jogar",StartDesc:"Disparos periódicos que vão e voltam. Controle espaço e timing.",HT1:"Mova com WASD ou Setas. Mire com o mouse; os bumerangues atiram em direção ao cursor.",HT2:"Orbes de XP são atraídos quando perto. Ao upar, escolha 1 de 3 melhorias.",HT3:"Bumerangues perfuram/ricocheteiam e retornam. Elites/Chefes batem mais forte.",ChooseUpgrade:"Escolha um upgrade",GameOver:"Fim de jogo",Restart:"Reiniciar",Menu:"Menu",Score:"Pontos",LevelShort:"Nv",HP:"HP",XP:"XP",Boos:"Chefe",Up_booms:"+1 Bumerangue",Up_speed:"+20% Velocidade do Bumerangue",Up_pierce:"+1 Perfuração",Up_ric:"+1 Ricochete em Parede",Up_bleed:"Serrilhado: aplica Sangramento",Up_trail:"Rastro causa dano",Up_magnet:"+25% Raio do Ímã",Up_playerSpeed:"+10% Velocidade",Up_maxHP:"+1 Vida Máxima"},
+  ja:{Language:"言語",Start:"開始",Pause:"一時停止",Resume:"再開",Highscore:"ハイスコア",Difficulty:"難易度",HowTo:"遊び方",StartDesc:"定期的に射出し戻ってくる。空間とタイミングを制御。",HT1:"WASD/矢印で移動。マウスで狙う。ブーメランはカーソル方向に自動発射。",HT2:"XPオーブは近づくと吸い寄せられる。レベルアップで3つから1つ選択。",HT3:"ブーメランは貫通/壁バウンド後に帰還。エリート/ボスは強力。",ChooseUpgrade:"アップグレードを選ぶ",GameOver:"ゲームオーバー",Restart:"リスタート",Menu:"メニュー",Score:"スコア",LevelShort:"Lv",HP:"HP",XP:"XP",Boos:"ボス",Up_booms:"+1 ブーメラン",Up_speed:"+20% ブーメラン速度",Up_pierce:"+1 貫通",Up_ric:"+1 壁リコシェ",Up_bleed:"ギザ刃: 出血付与",Up_trail:"残光ダメージ",Up_magnet:"+25% 磁力半径",Up_playerSpeed:"+10% 移動速度",Up_maxHP:"最大HP +1"}
+}
+let lang=localStorage.getItem('bw_lang')||'pt';
+
+/*********************
+ * DOM refs
+ *********************/
+const cvs=document.getElementById('game');
+const hpFill=document.getElementById('hpFill');
+const xpFill=document.getElementById('xpFill');
+const scoreStat=document.getElementById('scoreStat');
+const lvlStat=document.getElementById('lvlStat');
+const overlayStart=document.getElementById('overlayStart');
+const overlayLevel=document.getElementById('overlayLevel');
+const overlayGameOver=document.getElementById('overlayGameOver');
+const choicesEl=document.getElementById('choices');
+const btnStart=document.getElementById('btnStart');
+const btnPause=document.getElementById('btnPause');
+const startRun=document.getElementById('startRun');
+const restart=document.getElementById('restart');
+const toMenu=document.getElementById('toMenu');
+const langSel=document.getElementById('langSel');
+const langSel2=document.getElementById('langSel2');
+const highscoreEl=document.getElementById('highscore');
+const difficultySel=document.getElementById('difficulty');
+const howTo=document.getElementById('howTo');
+const howToText=document.getElementById('howToText');
+
+/*********************
+ * Canvas setup
+ *********************/
+const ctx=cvs.getContext('2d');
+function resize(){
+  const dpr=Math.min(2, window.devicePixelRatio||1);
+  cvs.width=Math.floor(cvs.clientWidth*dpr);
+  cvs.height=Math.floor(cvs.clientHeight*dpr);
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+}
+new ResizeObserver(resize).observe(document.getElementById('canvasWrap'));
+resize();
+
+/*********************
+ * Game state helpers
+ *********************/
+const rng=(min,max)=>min+Math.random()*(max-min);
+const clamp=(v,min,max)=>v<min?min:(v>max?max:v);
+const dist2=(a,b)=>{const dx=a.x-b.x, dy=a.y-b.y; return dx*dx+dy*dy};
+const TAU=Math.PI*2;
+
+const SAVE_KEYS={HIGHSCORE:'bw_highscore', META:'bw_meta'};
+let highscore=parseInt(localStorage.getItem(SAVE_KEYS.HIGHSCORE)||'0');
+
+const meta=(()=>{try{return JSON.parse(localStorage.getItem(SAVE_KEYS.META)||'{}')}catch{return {}}})();
+
+const WORLD={w:1200,h:700,padding:32};
+
+const playerBase={x:WORLD.w/2,y:WORLD.h/2, r:12, speed:2.7*(meta.msMul||1), maxHP:5+(meta.hp||0), hp:5+(meta.hp||0), invuln:0, magnet:150*(meta.magMul||1)};
+
+const boomerangBase={count:1, speed:6, pierce:1, ric:1, cooldown:0.65, bleed:false, trail:false};
+
+const state={
+  running:false, paused:false, t:0, dt:0, last:0,
+  player:JSON.parse(JSON.stringify(playerBase)),
+  booms:JSON.parse(JSON.stringify(boomerangBase)),
+  projectiles:[], enemies:[], xp:[], particles:[],
+  score:0, level:1, curXP:0, nextXP:20, 
+  difficulty:1,
+  input:{up:false,down:false,left:false,right:false,mouse:{x:WORLD.w/2,y:WORLD.h/2,down:false}},
+  pendingLevel:false,
+}
+
+/*********************
+ * Language wiring
+ *********************/
+function applyI18N(){
+  const t=I18N[lang]||I18N.en;
+  document.getElementById('langLabel').textContent=t.Language;
+  btnStart.textContent=t.Start;
+  btnPause.textContent=state.paused? t.Resume : t.Pause;
+  document.getElementById('titleStart').textContent='Boomerang / Chakram';
+  document.getElementById('descStart').textContent=t.StartDesc;
+  document.getElementById('labelDifficulty').textContent=t.Difficulty;
+  document.getElementById('labelLanguage').textContent=t.Language;
+  document.getElementById('startRun').textContent=t.Start;
+  document.getElementById('howTo').textContent=t.HowTo;
+  document.getElementById('ht1').textContent=t.HT1;
+  document.getElementById('ht2').textContent=t.HT2;
+  document.getElementById('ht3').textContent=t.HT3;
+  document.getElementById('pickUpgrade').textContent=t.ChooseUpgrade;
+  document.getElementById('titleGameOver').textContent=t.GameOver;
+  document.getElementById('restart').textContent=t.Restart;
+  document.getElementById('toMenu').textContent=t.Menu;
+  highscoreEl.textContent=`${t.Highscore}: ${highscore}`;
+  scoreStat.firstChild.textContent=t.Score+": ";
+}
+langSel.value=lang; langSel2.value=lang; applyI18N();
+langSel.onchange=()=>{lang=langSel.value; localStorage.setItem('bw_lang',lang); applyI18N()}
+langSel2.onchange=()=>{lang=langSel2.value; langSel.value=lang; localStorage.setItem('bw_lang',lang); applyI18N()}
+
+/*********************
+ * Input
+ *********************/
+const key=(e,d)=>{const k=e.key.toLowerCase();
+  if(k==='w'||k==='arrowup')state.input.up=d;
+  if(k==='s'||k==='arrowdown')state.input.down=d;
+  if(k==='a'||k==='arrowleft')state.input.left=d;
+  if(k==='d'||k==='arrowright')state.input.right=d;
+  if(k==='p'&&d===true) togglePause();
+}
+addEventListener('keydown',e=>{key(e,true)});
+addEventListener('keyup',e=>{key(e,false)});
+addEventListener('mousemove',e=>{
+  const rect=cvs.getBoundingClientRect();
+  state.input.mouse.x=(e.clientX-rect.left);
+  state.input.mouse.y=(e.clientY-rect.top);
+});
+
+/*********************
+ * Entities
+ *********************/
+function spawnEnemy(x,y,opts={}){
+  const elite=!!opts.elite, boss=!!opts.boss;
+  const hpMul = boss?6:(elite?2.5:1);
+  const dmgMul= boss?3:(elite?1.8:1);
+  const speed=rng(0.8,1.4)*(boss?0.9:(elite?1.05:1));
+  return {x,y,r:11+(elite?3:0)+(boss?7:0), hp:Math.ceil((2+state.t*0.01)*hpMul), maxHP:Math.ceil((2+state.t*0.01)*hpMul), speed, vx:0,vy:0, bleed:0, elite, boss, dmg:Math.ceil(1*dmgMul)}
+}
+
+function spawnRingLimited(count, radius, opts, cap){
+  const cx=rng(120, WORLD.w-120), cy=rng(90, WORLD.h-90);
+  for(let i=0;i<count;i++){
+    if(state.enemies.length>=cap) break;
+    const a=i/count*TAU;
+    state.enemies.push(spawnEnemy(cx+Math.cos(a)*radius, cy+Math.sin(a)*radius, opts));
+  }
+}
+
+/*********************
+ * Spawner
+ *********************/
+function enemyCap(diff){
+  if(diff<=0.85) return 45; // Easy
+  if(diff<1.15) return 60;  // Normal
+  if(diff<1.45) return 85;  // Hard
+  return 110;               // Insane
+}
+
+function spawner(t,diff){
+  const cap = enemyCap(diff);
+  const tol = Math.max(0.5*state.dt, 0.012);
+  const isNormal = Math.abs(diff - 1) < 0.02;
+
+  // small wave every ~6s (single trigger using tolerance)
+  if(Math.abs((t % 6)) < tol && state.enemies.length < cap){
+    const base = isNormal ? 1.2 : 2 * diff;
+    const growth = isNormal ? Math.min(4, 0.008 * t) : Math.min(6, 0.015 * t);
+    let count = Math.ceil(base + growth);
+    if(isNormal && t < 15) count = Math.min(count, 2);
+    const radius = rng(180, 260);
+    spawnRingLimited(count, radius, {}, cap);
+  }
+
+  // elites later & sparse
+  if(t > 40 && Math.abs((t % 20)) < tol && state.enemies.length < cap){
+    spawnRingLimited(3, 220, {elite:true}, cap);
+  }
+
+  // boss spawn guarantee: first window at t >= 90, then every 45s
+  // If we're at cap, replace one non-boss enemy to ensure boss appears.
+  if(t >= 90 && Math.abs((t % 45)) < tol){
+    let needBoss = !state.enemies.some(e=>e.boss);
+    if(needBoss){
+      if(state.enemies.length >= cap){
+        const idx = state.enemies.findIndex(e=>!e.boss && !e.elite);
+        if(idx>=0) state.enemies.splice(idx,1); else state.enemies.pop();
+      }
+      state.enemies.push(spawnEnemy(rng(80, WORLD.w-80), rng(80, WORLD.h-80), {boss:true}));
+    }
+  }
+}
+
+/*********************
+ * Boomerangs
+ *********************/
+function throwBoomerang(){
+  const p=state.player; const b=state.booms;
+  const dx=state.input.mouse.x-p.x, dy=state.input.mouse.y-p.y;
+  const ang=Math.atan2(dy,dx);
+  const spread= (b.count>1)? (Math.PI/24) : 0;
+  for(let i=0;i<b.count;i++){
+    const a= ang + (i-(b.count-1)/2)*spread;
+    const vx=Math.cos(a)*b.speed, vy=Math.sin(a)*b.speed;
+    state.projectiles.push({x:p.x+Math.cos(a)*p.r,y:p.y+Math.sin(a)*p.r,vx,vy,r:7, state:'out', life:1.6, pierce:b.pierce, ric:b.ric, bleed:b.bleed, trail:b.trail, owner:{x:p.x,y:p.y}});
+  }
+}
+let throwTimer=0;
+
+/*********************
+ * Upgrade catalog
+ *********************/
+const Upgrades=[
+  {key:'booms', name:()=>I18N[lang].Up_booms, apply:()=>{state.booms.count++;}},
+  {key:'speed', name:()=>I18N[lang].Up_speed, apply:()=>{state.booms.speed*=1.2;}},
+  {key:'pierce', name:()=>I18N[lang].Up_pierce, apply:()=>{state.booms.pierce++;}},
+  {key:'ric', name:()=>I18N[lang].Up_ric, apply:()=>{state.booms.ric++;}},
+  {key:'bleed', name:()=>I18N[lang].Up_bleed, apply:()=>{state.booms.bleed=true;}},
+  {key:'trail', name:()=>I18N[lang].Up_trail, apply:()=>{state.booms.trail=true;}},
+  {key:'magnet', name:()=>I18N[lang].Up_magnet, apply:()=>{state.player.magnet*=1.25;}},
+  {key:'pspeed', name:()=>I18N[lang].Up_playerSpeed, apply:()=>{state.player.speed*=1.1;}},
+  {key:'hp', name:()=>I18N[lang].Up_maxHP, apply:()=>{state.player.maxHP++; state.player.hp++;}},
+];
+
+function levelUp(){
+  state.level++;
+  state.curXP=0; state.nextXP=Math.floor(state.nextXP*1.35+5);
+  // pick 3 unique
+  const pool=[...Upgrades];
+  const picks=[];
+  for(let i=0;i<3 && pool.length;i++){
+    const j=Math.floor(Math.random()*pool.length);
+    picks.push(pool.splice(j,1)[0]);
+  }
+  showUpgradeChoices(picks);
+}
+
+function showUpgradeChoices(picks){
+  overlayLevel.classList.add('show');
+  // pause the game while choosing
+  state.paused = true;
+  btnPause.textContent = I18N[lang].Resume;
+  choicesEl.innerHTML='';
+  picks.forEach(u=>{
+    const div=document.createElement('div');
+    div.className='choice';
+    div.innerHTML=`<h4>${u.name()}</h4><p>${u.key}</p>`;
+    div.onclick=()=>{
+      u.apply();
+      overlayLevel.classList.remove('show');
+      state.pendingLevel=false;
+      state.paused=false;
+      btnPause.textContent = I18N[lang].Pause;
+    };
+    choicesEl.appendChild(div);
+  });
+}
+
+/*********************
+ * Main loop
+ *********************/
+function step(ts){
+  if(!state.running||state.paused){ state.last=ts; requestAnimationFrame(step); return; }
+  if(!state.last) state.last=ts;
+  const dt=Math.min(0.033, (ts-state.last)/1000);
+  state.last=ts; state.dt=dt; state.t+=dt;
+
+  // Spawner (use precise time so interval checks fire once)
+  spawner(state.t, state.difficulty);
+
+  // Player move
+  const p=state.player; let mx=0,my=0;
+  if(state.input.up)my-=1; if(state.input.down)my+=1; if(state.input.left)mx-=1; if(state.input.right)mx+=1;
+  if(mx||my){ const l=Math.hypot(mx,my); mx/=l; my/=l; p.x+=mx*p.speed*3; p.y+=my*p.speed*3; }
+  p.x=clamp(p.x, WORLD.padding, WORLD.w-WORLD.padding); p.y=clamp(p.y, WORLD.padding, WORLD.h-WORLD.padding);
+  if(p.invuln>0)p.invuln-=dt;
+
+  // Throwing cadence (slightly slower in Normal early game)
+  throwTimer-=dt;
+  if(throwTimer<=0){
+    const slowStart = (state.difficulty>=0.99 && state.difficulty<=1.05 && state.t < 15) ? 0.85 : 1;
+    throwBoomerang();
+    throwTimer = boomerangBase.cooldown * slowStart;
+  }
+
+  // Projectiles update
+  const proj=state.projectiles; const enemies=state.enemies;
+  for(let i=proj.length-1;i>=0;i--){
+    const b=proj[i]; b.life-=dt; if(b.life<=0 && b.state==='out'){ b.state='return'; }
+    // return homing with easing
+    if(b.state==='return'){
+      const tx=p.x, ty=p.y; const dx=tx-b.x, dy=ty-b.y; const d=Math.hypot(dx,dy)+1e-6;
+      const ax=dx/d*0.8, ay=dy/d*0.8; // accelerate toward player
+      b.vx+=ax; b.vy+=ay;
+      const sp=Math.hypot(b.vx,b.vy); const maxSp=state.booms.speed*1.5; if(sp>maxSp){ b.vx=b.vx/sp*maxSp; b.vy=b.vy/sp*maxSp; }
+      if(d<12){ proj.splice(i,1); continue; }
+    }
+    b.x+=b.vx; b.y+=b.vy;
+
+    // wall bounce
+    if(b.x<b.r||b.x>WORLD.w-b.r){ b.vx*=-1; if(b.ric>0){b.ric--; } else { b.state='return'; } b.x=clamp(b.x,b.r,WORLD.w-b.r); }
+    if(b.y<b.r||b.y>WORLD.h-b.r){ b.vy*=-1; if(b.ric>0){b.ric--; } else { b.state='return'; } b.y=clamp(b.y,b.r,WORLD.h-b.r); }
+
+    // trail damage
+    if(b.trail && Math.random()<0.4){ state.particles.push({x:b.x,y:b.y,vx:rng(-.2,.2),vy:rng(-.2,.2),life:.25,color:'#7aa9ff',trail:true}); }
+
+    // enemy collisions
+    for(let j=enemies.length-1;j>=0;j--){
+      const e=enemies[j]; const rr=(b.r+e.r); if((e.x-b.x)**2+(e.y-b.y)**2 < rr*rr){
+        const killed=hitEnemy(e, 1);
+        if(b.bleed) e.bleed=Math.max(e.bleed, 1.8); // seconds of bleed
+        if(killed) enemies.splice(j,1);
+        if(b.pierce>0){ b.pierce--; } else { b.state='return'; break; }
+      }
+    }
+  }
+
+  // Enemy update
+  for(let i=enemies.length-1;i>=0;i--){ const e=enemies[i];
+    const dx=p.x-e.x, dy=p.y-e.y, d=Math.hypot(dx,dy)+1e-6;
+    e.vx=dx/d*e.speed*1.4; e.vy=dy/d*e.speed*1.4; e.x+=e.vx; e.y+=e.vy;
+    // bleed
+    if(e.bleed>0){ e.bleed-=dt; if(Math.random()<.25){ state.particles.push({x:e.x,y:e.y,vx:rng(-.5,.5),vy:rng(-.5,.5),life:.2,color:'#ff6b6b'}) } if(Math.random()<.5) { e.hp-=1; if(e.hp<=0){ state.score+= e.elite? 10 : (e.boss? 60: 4); dropXP(e.x,e.y); enemies.splice(i,1); continue; } }
+    }
+    // collide with player
+    const pr=p.r+e.r; if((e.x-p.x)**2+(e.y-p.y)**2<pr*pr){
+      if(p.invuln<=0){ p.hp-=e.dmg; p.invuln=1.2; if(p.hp<=0){ return gameOver(); } }
+      // knockback
+      const nx=(p.x-e.x), ny=(p.y-e.y); const nl=Math.hypot(nx,ny)||1; p.x+=nx/nl*12; p.y+=ny/nl*12;
+    }
+  }
+
+  // XP orbs
+  for(let i=state.xp.length-1;i>=0;i--){
+    const o=state.xp[i];
+    // magnet
+    const d2=dist2(o,p);
+    if(d2 < (p.magnet*p.magnet)){
+      const dx=p.x-o.x, dy=p.y-o.y; const d=Math.hypot(dx,dy)+1e-6; const ax=dx/d*0.6, ay=dy/d*0.6; o.vx+=ax; o.vy+=ay;
+    }
+    o.x+=o.vx; o.y+=o.vy; o.vx*=0.96; o.vy*=0.96;
+    // collect
+    if(d2< (p.r+8)*(p.r+8)){
+      state.curXP+=5; state.xp.splice(i,1);
+      if(state.curXP>=state.nextXP){ state.pendingLevel=true; }
+    }
+  }
+
+  if(state.pendingLevel){ state.pendingLevel=false; levelUp(); }
+
+  // HUD update
+  const t=I18N[lang];
+  hpFill.style.width=`${100*state.player.hp/state.player.maxHP}%`;
+  xpFill.style.width=`${100*state.curXP/Math.max(1,state.nextXP)}%`;
+  scoreStat.innerHTML=`${t.Score}: <b>${state.score}</b>`;
+  lvlStat.innerHTML=`${t.LevelShort} <b>${state.level}</b>`;
+
+  // Render
+  draw();
+  requestAnimationFrame(step);
+}
+
+/*********************
+ * Render
+ *********************/
+function draw(){
+  ctx.clearRect(0,0,cvs.width,cvs.height);
+  // grid
+  ctx.save();
+  ctx.globalAlpha=0.12; ctx.strokeStyle='#2a2f43'; ctx.lineWidth=1; ctx.beginPath();
+  for(let x=0;x<WORLD.w;x+=40){ ctx.moveTo(x,0); ctx.lineTo(x,WORLD.h);} for(let y=0;y<WORLD.h;y+=40){ ctx.moveTo(0,y); ctx.lineTo(WORLD.w,y);} ctx.stroke();
+  ctx.restore();
+
+  // particles
+  for(let i=state.particles.length-1;i>=0;i--){ const p=state.particles[i]; p.life-=state.dt; if(p.life<=0){ state.particles.splice(i,1); continue; } p.x+=p.vx; p.y+=p.vy; ctx.globalAlpha=Math.max(0,p.life*1.2); ctx.fillStyle=p.color; ctx.fillRect(p.x-2,p.y-2,4,4); ctx.globalAlpha=1; }
+
+  // xp orbs
+  ctx.fillStyle='#7aa9ff';
+  state.xp.forEach(o=>{ ctx.beginPath(); ctx.arc(o.x,o.y,o.r,0,TAU); ctx.fill(); });
+
+  // enemies
+  state.enemies.forEach(e=>{
+    ctx.save();
+    if(e.boss){ ctx.shadowColor='#ffd166'; ctx.shadowBlur=20; }
+    else if(e.elite){ ctx.shadowColor='#62d4ff'; ctx.shadowBlur=10; }
+    ctx.fillStyle=e.boss? '#ffd166' : (e.elite?'#62d4ff':'#e74c3c');
+    ctx.beginPath(); ctx.arc(e.x,e.y,e.r,0,TAU); ctx.fill();
+    // hp ring
+    ctx.strokeStyle='#111'; ctx.lineWidth=5; ctx.beginPath(); ctx.arc(e.x,e.y,e.r+4,0,TAU); ctx.stroke();
+    ctx.strokeStyle='#6ee7a7'; ctx.beginPath(); ctx.arc(e.x,e.y,e.r+4,-Math.PI/2,-Math.PI/2+TAU*(e.hp/e.maxHP)); ctx.stroke();
+    ctx.restore();
+  });
+
+  // projectiles
+  state.projectiles.forEach(b=>{
+    ctx.save();
+    ctx.translate(b.x,b.y); const ang=Math.atan2(b.vy,b.vx);
+    ctx.rotate(ang);
+    ctx.fillStyle='#f8fafc';
+    // blade
+    ctx.beginPath(); ctx.moveTo(8,0); ctx.quadraticCurveTo(0,6,-8,0); ctx.quadraticCurveTo(0,-6,8,0); ctx.fill();
+    // glow line
+    ctx.globalAlpha=.6; ctx.strokeStyle='#62d4ff'; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(-6,0); ctx.lineTo(6,0); ctx.stroke(); ctx.globalAlpha=1;
+    ctx.restore();
+  });
+
+  // player
+  const p=state.player; ctx.save();
+  if(p.invuln>0){ ctx.globalAlpha=0.5+0.5*Math.sin(state.t*20) }
+  ctx.fillStyle='#e2e8f0'; ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,TAU); ctx.fill();
+  // direction line
+  ctx.strokeStyle='#62d4ff'; ctx.beginPath(); ctx.moveTo(p.x,p.y); ctx.lineTo(state.input.mouse.x,state.input.mouse.y); ctx.stroke();
+  ctx.restore();
+
+  // bounds
+  ctx.strokeStyle='#2b3350'; ctx.lineWidth=2; ctx.strokeRect(1,1,WORLD.w-2,WORLD.h-2);
+}
+
+/*********************
+ * Game control
+ *********************/
+function reset(){
+  Object.assign(state,{
+    running:true, paused:false, t:0, dt:0, last:0,
+    player:JSON.parse(JSON.stringify(playerBase)),
+    booms:JSON.parse(JSON.stringify(boomerangBase)),
+    projectiles:[], enemies:[], xp:[], particles:[],
+    score:0, level:1, curXP:0, nextXP:20,
+    pendingLevel:false,
+  });
+  throwTimer=0;
+  WORLD.w=cvs.clientWidth; WORLD.h=cvs.clientHeight;
+}
+
+function togglePause(){
+  if(!state.running)return;
+  state.paused=!state.paused; btnPause.textContent=state.paused?I18N[lang].Resume:I18N[lang].Pause;
+  overlayLevel.classList.remove('show');
+}
+
+function gameOver(){
+  state.running=false; overlayGameOver.classList.add('show');
+  const t=I18N[lang];
+  document.getElementById('finalScore').textContent=`${t.Score}: ${state.score}`;
+  if(state.score>highscore){ highscore=state.score; localStorage.setItem(SAVE_KEYS.HIGHSCORE, String(highscore)); }
+  highscoreEl.textContent=`${I18N[lang].Highscore}: ${highscore}`;
+}
+
+/*********************
+ * Combat helpers
+ *********************/
+function hitEnemy(enemy, damage){
+  enemy.hp -= damage;
+  if(enemy.hp <= 0){
+    state.score += enemy.boss ? 60 : (enemy.elite ? 10 : 4);
+    dropXP(enemy.x, enemy.y, enemy.boss ? 8 : enemy.elite ? 3 : 1);
+    return true;
+  }
+  return false;
+}
+
+function dropXP(x, y, count = 1){
+  for(let i=0;i<count;i++){
+    state.xp.push({
+      x: x + rng(-8,8),
+      y: y + rng(-8,8),
+      vx: rng(-1.2,1.2),
+      vy: rng(-1.2,1.2),
+      r: 5
+    });
+  }
+}
+
+/*********************
+ * UI wiring
+ *********************/
+function startGame(){
+  reset();
+  state.difficulty = parseFloat(difficultySel.value) || 1;
+  overlayStart.classList.remove('show');
+  overlayGameOver.classList.remove('show');
+  btnPause.textContent = I18N[lang].Pause;
+  state.last = 0;
+  requestAnimationFrame(step);
+}
+
+btnStart.onclick = startGame;
+startRun.onclick = startGame;
+restart.onclick = startGame;
+btnPause.onclick = togglePause;
+toMenu.onclick = ()=>{
+  state.running = false;
+  state.paused = false;
+  overlayLevel.classList.remove('show');
+  overlayGameOver.classList.remove('show');
+  overlayStart.classList.add('show');
+  btnPause.textContent = I18N[lang].Pause;
+};
+howTo.onclick = ()=>{
+  if(howToText.hasAttribute('hidden')) howToText.removeAttribute('hidden');
+  else howToText.setAttribute('hidden','');
+};
+
+})();
+</script>
+</body>
+</html>
