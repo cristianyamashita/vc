@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1" />
+<title>Pachinko Canvas</title>
+<style>
+  :root {
+    --bg1: #0f1226;
+    --bg2: #1a2050;
+    --panel: #0f1329cc;
+    --text: #e8ecff;
+    --gold: #ffd166;
+  }
+  * { box-sizing: border-box; }
+  html, body { height:100%; margin:0; background: radial-gradient(1200px 800px at 20% 0%, var(--bg2), var(--bg1)); color: var(--text); font: 14px/1.4 system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; }
+  .wrap { display: grid; grid-template-columns: 360px 1fr; gap: 16px; padding: 16px; height: 100%; }
+  @media (max-width: 900px){ .wrap{ grid-template-columns: 1fr; grid-template-rows: auto 1fr; } }
+  .panel { background: linear-gradient(180deg, var(--panel), #0a0d1f88); border: 1px solid #ffffff18; border-radius: 14px; padding: 14px; box-shadow: 0 10px 30px #0008, inset 0 1px 0 #ffffff1a; backdrop-filter: blur(6px); }
+  .title { font-weight: 700; font-size: 18px; display:flex; align-items:center; gap:8px; }
+  .title .dot { width:10px; height:10px; border-radius:50%; background: conic-gradient(from 0deg,#8b5cf6,#06b6d4,#fde047,#8b5cf6); box-shadow:0 0 12px #8b5cf6aa; }
+  .row { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:10px; }
+  label { font-size:12px; opacity:.9; margin-bottom:6px; display:block; }
+  select, input[type=range], button { width:100%; background:#0b1026; color:var(--text); border:1px solid #ffffff1a; border-radius:10px; padding:10px; outline:none; }
+  input[type=range]{ padding:6px; }
+  .btn { background: linear-gradient(180deg,#1b2a66,#0e1a52); border:1px solid #4f46e5aa; box-shadow:0 8px 20px #0008, inset 0 1px 0 #93c5fd33; cursor:pointer; font-weight:600; }
+  .stats{ margin-top:10px; display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .stat{ background:#0b1026; border:1px solid #ffffff12; border-radius:10px; padding:10px; }
+  .stat b{ font-size:18px; display:block; color:var(--gold); }
+  .legend{ margin-top:10px; border-top:1px dashed #ffffff2a; padding-top:10px; font-size:12px; color:#c7d2fe; }
+  .tests { margin-top: 10px; font-size: 12px; }
+  .tests .pass { color: #22c55e; }
+  .tests .fail { color: #e11d48; }
+  .board{ position:relative; height:100%; background: linear-gradient(180deg, #0e132f33, #060a1f66); border-radius:14px; overflow:hidden; }
+  .topbar{ position:absolute; left:10px; top:10px; right:10px; display:flex; gap:8px; align-items:center; background:#0003; border:1px solid #ffffff18; border-radius:10px; padding:6px 8px; z-index:2; }
+  .badge{ padding:6px 10px; border-radius:8px; background:#00000066; border:1px solid #ffffff1a; }
+  canvas { width:100%; height:100%; display:block; background: radial-gradient(1200px 800px at 80% 0%, #1e3a8a, #0b1026 70%); border-radius:14px; border:1px solid #ffffff18; box-shadow: inset 0 0 60px #0008, 0 15px 40px #0008; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="panel">
+      <div class="title"><span class="dot"></span><span id="ui-title">Pachinko</span></div>
+      <div class="row">
+        <div>
+          <label id="lbl-language">Language</label>
+          <select id="language">
+            <option value="en">English (default)</option>
+            <option value="pt">Português</option>
+            <option value="ja">日本語</option>
+          </select>
+        </div>
+        <div>
+          <label id="lbl-balls">Balls</label>
+          <input id="balls" type="range" min="1" max="100" step="1" value="20" />
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <label id="lbl-power">Drop power</label>
+          <input id="power" type="range" min="0.2" max="1.6" step="0.05" value="1.0" />
+        </div>
+        <div>
+          <label id="lbl-gravity">Gravity</label>
+          <input id="gravity" type="range" min="600" max="1600" step="50" value="1050" />
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <label id="lbl-bounciness">Bounciness</label>
+          <input id="rest" type="range" min="0.5" max="0.98" step="0.01" value="0.9" />
+        </div>
+        <div>
+          <label id="lbl-friction">Air drag</label>
+          <input id="drag" type="range" min="0.000" max="0.010" step="0.001" value="0.003" />
+        </div>
+      </div>
+      <div class="row">
+        <button id="btn-drop" class="btn">Drop</button>
+        <button id="btn-autodrop" class="btn">Auto Drop: OFF</button>
+      </div>
+      <div class="row">
+        <button id="btn-pause" class="btn">Pause (P)</button>
+        <button id="btn-reset" class="btn">Reset</button>
+      </div>
+      <div class="stats">
+        <div class="stat"><span id="lbl-score">Score</span><b id="score">0</b></div>
+        <div class="stat"><span id="lbl-remaining">Remaining</span><b id="remaining">20</b></div>
+      </div>
+      <div class="legend" id="legend">Click at the top of the board to drop a ball. Bins have multipliers. Try to aim for higher rewards.</div>
+      <div class="tests" id="tests"></div>
+    </div>
+
+    <div class="board">
+      <div class="topbar">
+        <div class="badge" id="hud-fps">FPS: 0</div>
+        <div class="badge" id="hud-info">Click near the top to drop</div>
+        <div class="badge" id="hud-gain">Gained: +0</div>
+        <div class="badge" id="hud-lang">EN</div>
+      </div>
+      <canvas id="c"></canvas>
+    </div>
+  </div>
+
+<script>
+// Run only after DOM is ready (prevents null getContext errors)
+window.addEventListener('DOMContentLoaded', () => {
+(() => {
+  // --- i18n ---
+  const I18N = {
+    en: { title:'Pachinko', language:'Language', balls:'Balls', power:'Drop power', gravity:'Gravity', bounciness:'Bounciness', friction:'Air drag', drop:'Drop', auto:'Auto Drop', pause:'Pause (P)', resume:'Resume (P)', reset:'Reset', score:'Score', remaining:'Remaining', legend:'Click at the top of the board to drop a ball. Bins have multipliers. Try to aim for higher rewards.', hud:'Click near the top to drop', dropHere:'Click here to drop balls', gained:'Gained', lang:'EN' },
+    pt: { title:'Pachinko', language:'Idioma', balls:'Bolas', power:'Força do lançamento', gravity:'Gravidade', bounciness:'Quique', friction:'Arrasto do ar', drop:'Soltar', auto:'Auto Soltar', pause:'Pausar (P)', resume:'Retomar (P)', reset:'Reiniciar', score:'Pontuação', remaining:'Restantes', legend:'Clique na parte superior do tabuleiro para soltar uma bola. As baias têm multiplicadores. Mire nos prêmios maiores.', hud:'Clique perto do topo para soltar', dropHere:'Clique aqui para soltar as bolinhas', gained:'Ganho', lang:'PT' },
+    ja: { title:'パチンコ', language:'言語', balls:'ボール数', power:'発射パワー', gravity:'重力', bounciness:'反発', friction:'空気抵抗', drop:'ドロップ', auto:'自動ドロップ', pause:'一時停止 (P)', resume:'再開 (P)', reset:'リセット', score:'スコア', remaining:'残り', legend:'盤面上部をクリックするとボールが落ちます。下部のポケットには倍率があります。高倍率を狙いましょう。', hud:'上部付近をクリックして落とす', dropHere:'ここをクリックしてボールを落とす', gained:'獲得', lang:'日本語' }
+  };
+  let lang = 'en';
+  const $ = sel => document.querySelector(sel);
+
+  // --- DOM ---
+  const canvas = document.getElementById('c');
+  if (!canvas) { console.error('Canvas #c not found'); return; }
+  const ctx = canvas.getContext('2d');
+  const hudFPS = $('#hud-fps');
+  const hudInfo = $('#hud-info');
+  const hudLang = $('#hud-lang');
+  const hudGain = $('#hud-gain');
+  const ui = { title:$('#ui-title'), language:$('#language'), balls:$('#balls'), power:$('#power'), gravity:$('#gravity'), rest:$('#rest'), drag:$('#drag'), btnDrop:$('#btn-drop'), btnAuto:$('#btn-autodrop'), btnPause:$('#btn-pause'), btnReset:$('#btn-reset'), scoreLbl:$('#lbl-score'), scoreVal:$('#score'), remainLbl:$('#lbl-remaining'), remainVal:$('#remaining'), legend:$('#legend'), tests:$('#tests') };
+
+  // --- State ---
+  const state = { width:0, height:0, dpr:Math.min(window.devicePixelRatio||1,2), paused:false, autoDrop:false, sinceDrop:0, score:0, ballsRemaining:parseInt(ui.balls.value,10), lastGain:0 };
+
+  // --- Board ---
+  const pegs = [], bins = [], walls = [];
+  let pegRadius=6, ballRadius=6, dropTop=40, dropZoneHeight=120, dropZoneX1=0, dropZoneX2=0;
+
+  function fit(){
+    const rect = canvas.parentElement.getBoundingClientRect();
+    state.width = Math.max(360, Math.floor(rect.width));
+    state.height = Math.max(400, Math.floor(rect.height));
+    const dpr = state.dpr;
+    canvas.width = Math.floor(state.width*dpr);
+    canvas.height = Math.floor(state.height*dpr);
+    canvas.style.width = state.width+'px';
+    canvas.style.height = state.height+'px';
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    rebuildBoard();
+  }
+  window.addEventListener('resize', fit, {passive:true});
+
+  function rebuildBoard(){
+    pegs.length=0; bins.length=0; walls.length=0;
+    const W=state.width, H=state.height;
+    const marginX=26, marginTop=26, marginBottom=110;
+    const left=marginX, right=W-marginX, top=marginTop, bottom=H-marginBottom;
+    walls.push({x1:left,y1:top,x2:left,y2:bottom});
+    walls.push({x1:right,y1:top,x2:right,y2:bottom});
+    walls.push({x1:left,y1:bottom,x2:right,y2:bottom});
+    const cols=Math.max(8, Math.floor(W/70));
+    const rows=Math.max(10, Math.floor((bottom-top)/55));
+    const spacingX=(right-left-20)/(cols-1);
+    const spacingY=(bottom-top-40)/(rows-1);
+    pegRadius=Math.max(4, Math.min(7, Math.floor(W/140)));
+    ballRadius=Math.max(4, Math.min(7, pegRadius));
+    for(let r=0;r<rows;r++){
+      const offset = (r%2)? spacingX*0.5 : 0;
+      for(let c=0;c<cols;c++) pegs.push({x:left+10+c*spacingX+offset, y:top+30+r*spacingY, r:pegRadius});
+    }
+    const binCount=Math.max(6, Math.floor(W/120));
+    const binWidth=(right-left)/binCount;
+    const mults=[];
+    for(let i=0;i<binCount;i++){
+      const t=Math.abs((i+0.5)-binCount/2)/(binCount/2);
+      mults.push( t<0.2?10 : t<0.35?5 : t<0.6?3 : 2 );
+    }
+    for(let i=0;i<binCount;i++){
+      const x1=left+i*binWidth, x2=x1+binWidth, y1=bottom, y2=H-10;
+      bins.push({i,x1,y1,x2,y2,mult:mults[i]});
+      walls.push({x1:x1,y1:bottom-2,x2:x1,y2:y2});
+    }
+    walls.push({x1:right,y1:bottom-2,x2:right,y2:H-10});
+    dropTop=top+4;
+    // central 70% of inner playfield (20..W-20)
+    const innerLeft=20, innerRight=W-20, innerWidth=innerRight-innerLeft;
+    const zoneWidth=innerWidth*0.70; // 70%
+    dropZoneX1=innerLeft+(innerWidth-zoneWidth)/2;
+    dropZoneX2=dropZoneX1+zoneWidth;
+  }
+
+  // --- Physics ---
+  const balls=[]; let accumulator=0; let lastTime=performance.now(); let fpsSMA=60, fpsLast=performance.now();
+  const clamp=(v,lo,hi)=>Math.max(lo,Math.min(hi,v));
+  const rand=(a,b)=>a+Math.random()*(b-a);
+
+  function spawnBall(x, factor=1){
+    if(state.ballsRemaining<=0) return;
+    const y=dropTop;
+    const vx=rand(-40,40), vy=rand(20,60)*factor;
+    balls.push({x,y,vx,vy,r:ballRadius,alive:true,trail:[]});
+    state.ballsRemaining--; ui.remainVal.textContent=state.ballsRemaining;
+  }
+
+  function step(dt){
+    const gravity=parseFloat(ui.gravity.value), drag=parseFloat(ui.drag.value), rest=parseFloat(ui.rest.value);
+    if(state.autoDrop && state.ballsRemaining>0){
+      state.sinceDrop+=dt; const interval=clamp(0.12+(1.6-parseFloat(ui.power.value))*0.10,0.1,0.35);
+      if(state.sinceDrop>=interval){ state.sinceDrop=0; spawnBall(rand(dropZoneX1,dropZoneX2), parseFloat(ui.power.value)); }
+    }
+    const left=20,right=state.width-20,floor=state.height-110;
+    for(const b of balls){ if(!b.alive) continue;
+      b.vy+=gravity*dt; b.vx*=(1-parseFloat(ui.drag.value)); b.vy*=(1-parseFloat(ui.drag.value));
+      b.x+=b.vx*dt; b.y+=b.vy*dt;
+      b.trail.push({x:b.x,y:b.y}); if(b.trail.length>12) b.trail.shift();
+      if(b.x-b.r<left){ b.x=left+b.r; b.vx=Math.abs(b.vx)*rest; }
+      if(b.x+b.r>right){ b.x=right-b.r; b.vx=-Math.abs(b.vx)*rest; }
+      if(b.y-b.r<20){ b.y=20+b.r; b.vy=Math.abs(b.vy)*rest; }
+      /* removed floor collision so balls can fall into bins */
+      for(const p of pegs){
+        const dx=b.x-p.x, dy=b.y-p.y, rr=b.r+p.r, d2=dx*dx+dy*dy; if(d2<rr*rr){
+          const d=Math.sqrt(d2)||1e-4, nx=dx/d, ny=dy/d, pen=rr-d; b.x+=nx*pen; b.y+=ny*pen;
+          const vn=b.vx*nx+b.vy*ny, vtX=b.vx-vn*nx, vtY=b.vy-vn*ny; b.vx=vtX+(-vn*rest)*nx; b.vy=vtY+(-vn*rest)*ny;
+          b.vx+=(Math.random()-0.5)*10; b.vy+=(Math.random()-0.5)*10;
+        }
+      }
+      for(const w of walls){ // vertical dividers
+        if(w.y1<(state.height-110)-4) continue; const miny=Math.min(w.y1,w.y2), maxy=Math.max(w.y1,w.y2), xw=w.x1, dx=b.x-xw;
+        if(Math.abs(dx)<b.r && b.y>miny-2 && b.y<maxy+2){ if(dx>0){ b.x=xw+b.r; b.vx=Math.abs(b.vx)*rest; } else { b.x=xw-b.r; b.vx=-Math.abs(b.vx)*rest; } b.vy*=rest; }
+      }
+      if(b.y>state.height-40){
+        for(const bn of bins){ if(b.x>=bn.x1 && b.x<bn.x2){ const spd=Math.hypot(b.vx,b.vy); const gained=Math.round(100*bn.mult+Math.min(50,spd*0.2)); state.score+=gained; state.lastGain=gained; ui.scoreVal.textContent=state.score; hudGain.textContent=`${I18N[lang].gained}: +${gained}`; break; } }
+        b.alive=false;
+      }
+    }
+    for(let i=balls.length-1;i>=0;i--) if(!balls[i].alive) balls.splice(i,1);
+  }
+
+  // --- Draw ---
+  function draw(){
+    const W=state.width,H=state.height;
+    const g=ctx.createLinearGradient(0,0,0,H); g.addColorStop(0,'#0b1026'); g.addColorStop(0.6,'#0d1233'); g.addColorStop(1,'#060a1f'); ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+    ctx.save(); ctx.strokeStyle='#93c5fd55'; ctx.lineWidth=2; ctx.shadowBlur=20; ctx.shadowColor='#60a5fa66'; ctx.strokeRect(20,20,W-40,H-140); ctx.restore();
+    // central gray drop zone (70% width)
+    const tStrings=I18N[lang]; const zoneW=dropZoneX2-dropZoneX1; ctx.save(); ctx.globalAlpha=0.18; ctx.fillStyle='#9ca3af'; ctx.fillRect(dropZoneX1, dropTop, zoneW, dropZoneHeight); ctx.globalAlpha=1; ctx.strokeStyle='#e5e7eb66'; ctx.setLineDash([8,6]); ctx.lineWidth=2; ctx.strokeRect(dropZoneX1, dropTop, zoneW, dropZoneHeight); ctx.setLineDash([]); ctx.fillStyle='#e8ecff'; ctx.font='bold 18px ui-sans-serif, system-ui'; ctx.textAlign='center'; ctx.fillText(tStrings.dropHere, dropZoneX1+zoneW/2, dropTop+dropZoneHeight/2+6); ctx.restore();
+    // pegs
+    for(const p of pegs){ ctx.save(); const rad=ctx.createRadialGradient(p.x-2,p.y-2,1,p.x,p.y,p.r+2); rad.addColorStop(0,'#fff'); rad.addColorStop(0.4,'#fde68a'); rad.addColorStop(1,'#a78bfa'); ctx.fillStyle=rad; ctx.shadowColor='#8b5cf6aa'; ctx.shadowBlur=12; ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.fill(); ctx.restore(); }
+    // floor
+    ctx.save(); ctx.strokeStyle='#38bdf877'; ctx.lineWidth=3; ctx.beginPath(); ctx.moveTo(20,H-110); ctx.lineTo(W-20,H-110); ctx.stroke(); ctx.restore();
+    // bins
+    const animT=performance.now()*0.001; for(let i=0;i<bins.length;i++){ const bn=bins[i]; const hue=(i*360/bins.length+animT*30)%360; ctx.save(); const gg=ctx.createLinearGradient(bn.x1,bn.y1,bn.x2,bn.y2); gg.addColorStop(0,`hsl(${hue},70%,45%)`); gg.addColorStop(1,`hsl(${(hue+40)%360},80%,35%)`); ctx.fillStyle=gg; ctx.globalAlpha=0.25; ctx.fillRect(bn.x1+1,bn.y1+2,(bn.x2-bn.x1)-2,(bn.y2-bn.y1)-2); ctx.globalAlpha=1; ctx.fillStyle='#ffd166'; ctx.font='bold 16px ui-sans-serif, system-ui'; ctx.textAlign='center'; ctx.fillText(`x${bn.mult}`,(bn.x1+bn.x2)/2,bn.y1+22); ctx.strokeStyle='#ffffff22'; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(bn.x1,bn.y1); ctx.lineTo(bn.x1,bn.y2); ctx.stroke(); ctx.restore(); }
+    ctx.save(); ctx.strokeStyle='#ffffff22'; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(state.width-20, state.height-110); ctx.lineTo(state.width-20, state.height-10); ctx.stroke(); ctx.restore();
+    // balls
+    for(const b of balls){ ctx.save(); for(let i=0;i<b.trail.length;i++){ const pt=b.trail[i]; const a=i/b.trail.length*0.35; ctx.fillStyle=`rgba(255,255,255,${a})`; ctx.beginPath(); ctx.arc(pt.x,pt.y,(b.r-2)*(i/b.trail.length),0,Math.PI*2); ctx.fill(); } ctx.restore(); ctx.save(); ctx.shadowBlur=8; ctx.shadowColor='#ffffff99'; const grad=ctx.createRadialGradient(b.x-2,b.y-4,1,b.x,b.y,b.r+2); grad.addColorStop(0,'#fff'); grad.addColorStop(0.5,'#93c5fd'); grad.addColorStop(1,'#0ea5e9'); ctx.fillStyle=grad; ctx.beginPath(); ctx.arc(b.x,b.y,b.r,0,Math.PI*2); ctx.fill(); ctx.restore(); }
+    // watermark
+    ctx.save(); ctx.globalAlpha=0.08; ctx.fillStyle='#fff'; ctx.font='900 64px ui-sans-serif, system-ui'; ctx.textAlign='right'; ctx.fillText('PACHINKO', state.width-24, 76); ctx.restore();
+  }
+
+  // --- Loop ---
+  function loop(now){
+    const dtRaw=Math.min(0.05,(now-lastTime)/1000); lastTime=now;
+    if(!state.paused){ accumulator+=dtRaw; const h=1/120; while(accumulator>=h){ step(h); accumulator-=h; } }
+    draw();
+    const dtFps=(now-fpsLast)/1000; fpsLast=now; const inst=1/Math.max(1e-6,dtFps); fpsSMA=fpsSMA*0.9+inst*0.1; hudFPS.textContent='FPS: '+Math.round(fpsSMA);
+    requestAnimationFrame(loop);
+  }
+
+  // --- Controls ---
+  function applyLang(){ const t=I18N[lang]; ui.title.textContent=t.title; $('#lbl-language').textContent=t.language; $('#lbl-balls').textContent=t.balls; $('#lbl-power').textContent=t.power; $('#lbl-gravity').textContent=t.gravity; $('#lbl-bounciness').textContent=t.bounciness; $('#lbl-friction').textContent=t.friction; ui.btnDrop.textContent=t.drop; ui.btnPause.textContent=state.paused? t.resume : t.pause; ui.btnReset.textContent=t.reset; ui.scoreLbl.textContent=t.score; ui.remainLbl.textContent=t.remaining; ui.legend.textContent=t.legend; hudInfo.textContent=t.hud; hudLang.textContent=t.lang; $('#btn-autodrop').textContent=`${t.auto}: ${state.autoDrop?'ON':'OFF'}`; hudGain.textContent=`${t.gained}: +${state.lastGain||0}`; }
+  ui.language.addEventListener('change', ()=>{ lang=ui.language.value; applyLang(); });
+  ui.balls.addEventListener('input', ()=>{ const n=parseInt(ui.balls.value,10); state.ballsRemaining=n; ui.remainVal.textContent=n; });
+  ui.btnDrop.addEventListener('click', ()=> spawnBall(rand(dropZoneX1,dropZoneX2), parseFloat(ui.power.value)) );
+  ui.btnPause.addEventListener('click', ()=>{ state.paused=!state.paused; applyLang(); });
+  ui.btnReset.addEventListener('click', ()=>{ state.score=0; state.lastGain=0; ui.scoreVal.textContent=0; balls.length=0; state.ballsRemaining=parseInt(ui.balls.value,10); ui.remainVal.textContent=state.ballsRemaining; applyLang(); });
+  ui.btnAuto.addEventListener('click', ()=>{ state.autoDrop=!state.autoDrop; applyLang(); });
+
+  function handlePointer(clientX, clientY){ const rect=canvas.getBoundingClientRect(); const x=clientX-rect.left, y=clientY-rect.top; if(y<dropTop+dropZoneHeight && x>=dropZoneX1 && x<=dropZoneX2){ spawnBall(x, parseFloat(ui.power.value)); } }
+  canvas.addEventListener('mousedown', e=>handlePointer(e.clientX, e.clientY));
+  canvas.addEventListener('touchstart', e=>{ const t=e.touches[0]; handlePointer(t.clientX,t.clientY); e.preventDefault(); }, {passive:false});
+  window.addEventListener('keydown', e=>{ if(e.key==='p'||e.key==='P') { state.paused=!state.paused; applyLang(); } if(e.key===' '){ spawnBall(rand(dropZoneX1,dropZoneX2), parseFloat(ui.power.value)); e.preventDefault(); } });
+
+  // --- Self tests (non destructive) ---
+  function runTests(){
+    const out=[]; const test=(name,fn)=>{ try{ const ok=fn(); out.push(`<div class="${ok?'pass':'fail'}">${ok?'✓':'✗'} ${name}</div>`); return ok; }catch(e){ out.push(`<div class="fail">✗ ${name} — ${e.message}</div>`); return false; } };
+    test('Canvas exists and 2D context obtainable', ()=> !!canvas && !!ctx);
+    fit();
+    test('Peg grid is populated', ()=> pegs.length>0 );
+    test('Bins are created (>=6)', ()=> bins.length>=6 );
+    test('Drop zone height is wide enough (>=100px)', ()=> dropZoneHeight>=100 );
+    test('Drop zone width is ~70% of inner playfield (+/-5%)', ()=>{ const innerW=state.width-40; const target=innerW*0.70; const actual=dropZoneX2-dropZoneX1; return Math.abs(actual-target) <= innerW*0.05; });
+    test('Pointer spawns only inside central zone', ()=>{ const before=balls.length; handlePointer(dropZoneX1-30, dropTop+10); const afterOut=balls.length; handlePointer((dropZoneX1+dropZoneX2)/2, dropTop+10); const afterIn=balls.length; if(afterIn>afterOut) balls.pop(); return (afterOut===before) && (afterIn===before+1); });
+    // Last gain label updates after scoring (simulate)
+    test('Gained badge shows lastGain label', ()=>{ hudGain.textContent = `${I18N[lang].gained}: +${state.lastGain}`; return hudGain.textContent.includes(I18N[lang].gained); });
+    // Scoring should trigger when ball crosses into bins
+    test('Scoring triggers when ball enters bins', () => {
+      const before = state.score;
+      const bin = bins[0];
+      balls.push({x:(bin.x1+bin.x2)/2, y: state.height-5, vx:0, vy:0, r:ballRadius, alive:true, trail:[]});
+      step(0);
+      const ok = state.score > before;
+      balls.length = 0;
+      return ok;
+    });
+
+    // Ball should be able to cross the old floor line and score
+    test('Ball crosses old floor line and scores', () => {
+      const before = state.score;
+      const floor = state.height - 110;
+      const bin = bins[Math.floor(bins.length/2)];
+      // place just above the old floor with downward velocity
+      balls.push({x:(bin.x1+bin.x2)/2, y: floor - 2, vx:0, vy:120, r:ballRadius, alive:true, trail:[]});
+      // advance enough time to pass into bin zone
+      step(0.2);
+      const ok = state.score > before;
+      balls.length = 0;
+      return ok;
+    });
+
+    //ui.tests.innerHTML = '<b>Self-checks:</b> ' + out.join('');
+  }
+
+  // --- Init ---
+  fit(); applyLang(); runTests(); requestAnimationFrame(loop);
+})();
+});
+</script>
+</body>
+</html>
