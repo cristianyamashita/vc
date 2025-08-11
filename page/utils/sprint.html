@@ -136,7 +136,11 @@
     };
 
     const langSelector = document.getElementById('lang-selector');
-    langSelector.addEventListener('change', (e) => setLanguage(e.target.value));
+    langSelector.addEventListener('change', (e) => {
+      const lang = e.target.value;
+      try { localStorage.setItem('sprint_lang', lang); } catch (_) {}
+      setLanguage(lang);
+    });
 
     function setLanguage(lang) {
       document.querySelectorAll('[data-lang]').forEach(el => {
@@ -539,6 +543,7 @@
       gridResolution = newRes;
       layers.forEach(l => { l.pixels = Array(gridResolution).fill(0).map(() => Array(gridResolution).fill(null)); });
       resizeAndRender();
+      try { localStorage.setItem('sprint_grid', String(newRes)); } catch (_) {}
     });
 
     // Tools
@@ -685,7 +690,21 @@
 
     // Init
     function init() {
-      setLanguage('en');
+      // Restore language
+      const savedLang = (() => { try { return localStorage.getItem('sprint_lang'); } catch (_) { return null; } })();
+      const initialLang = (savedLang && translations[savedLang]) ? savedLang : 'en';
+      langSelector.value = initialLang;
+      setLanguage(initialLang);
+
+      // Restore grid resolution
+      const gridSelect = document.getElementById('grid-resolution');
+      const savedGridStr = (() => { try { return localStorage.getItem('sprint_grid'); } catch (_) { return null; } })();
+      const validGrids = ['16','32','64','128'];
+      if (savedGridStr && validGrids.includes(savedGridStr)) {
+        gridResolution = parseInt(savedGridStr, 10);
+        gridSelect.value = savedGridStr;
+      }
+
       layers = [];
       addLayer();
       resizeAndRender();
