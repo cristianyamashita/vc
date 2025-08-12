@@ -1,35 +1,9 @@
-<!--
-Conversor Web – Roadmap de funcionalidades (100% client-side)
-
-Implementado neste arquivo (v0.1):
-1) Base64: Encode/Decode com suporte a UTF-8 (TextEncoder/TextDecoder) e arquivos (File→Base64 e Base64→Download).
-2) URL Encoding: encodeURI / encodeURIComponent / application/x-www-form-urlencoded (URLSearchParams) + decoders correspondentes.
-3) MD5: Hash ("encode") via CDN crypto-js, com saída hex e base64.
-4) UX: abas, atalhos (Ctrl/Cmd+Enter para executar), botões Copy, Clear, Swap (quando aplicável), persistência simples (LocalStorage), tema claro/escuro, layout responsivo.
-
-Planejado para próximas versões (estrutura já preparada):
-5) SHA-256/384/512 e HMAC (Web Crypto API).
-6) HTML Entities (encode/decode) e normalização Unicode (NFC/NFD/NFKC/NFKD).
-7) JSON utilitários: pretty/compact e validação.
-8) CSV↔JSON (Papa Parse), YAML↔JSON (js-yaml), XML↔JSON (fast-xml-parser).
-9) Compressão: GZIP/Deflate com pako.
-10) JWT viewer: decodificar header/payload, exibir claims formatadas.
-11) Cores: HEX↔RGB↔HSL, seletor de cores.
-12) Datas: Unix epoch ↔ ISO-8601 (UTC/local) com cópia rápida.
-13) UUID v4/v7: gerar e validar.
-14) Regex tester com highlight de matches.
-
-Notas:
-- Tudo roda no navegador; nenhum dado sai da sua máquina.
-- MD5 não é seguro para criptografia; use apenas para checksums/legado.
-- Para textos: a área "Entrada" aceita qualquer Unicode; para Base64 binário utilize o modo Arquivo.
--->
 <!doctype html>
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Conversor Web — Base64, URL, MD5, SHA, HTML, JSON, CSV, YAML, XML (Client-side)</title>
+  <title>Dev Utils</title>
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
   <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
   <!-- MD5 via crypto-js -->
@@ -39,54 +13,127 @@ Notas:
   <!-- YAML via js-yaml -->
   <script src="https://cdn.jsdelivr.net/npm/js-yaml@4.1.0/dist/js-yaml.min.js"></script>
   <!-- XML via fast-xml-parser v4 -->
-  <script src="https://cdn.jsdelivr.net/npm/fast-xml-parser@4.3.5/dist/fast-xml-parser.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/fast-xml-parser@5.2.5/lib/fxp.min.js"></script>
   <style>
-    :root{--bg:#0b0e14;--fg:#e6e6e6;--muted:#9aa4b2;--card:#111520;--accent:#4f46e5;--border:#1e2636;--ok:#059669;--warn:#d97706;--err:#dc2626}
-    [data-theme="light"]{--bg:#f8fafc;--fg:#0f172a;--muted:#475569;--card:#ffffff;--accent:#4338ca;--border:#e2e8f0;--ok:#047857;--warn:#b45309;--err:#b91c1c}
+    /* Color tokens */
+    :root{
+      --bg:#0b0e14; --fg:#e6e6e6; --muted:#9aa4b2; --card:#101521; --border:#1e2636;
+      --accent:#2c5894; --accent-2: color-mix(in oklch, var(--accent), white 15%);
+      --ok:#10b981; --warn:#f59e0b; --err:#ef4444;
+      --ring: color-mix(in oklch, var(--accent), white 35%);
+      --shadow: 0 10px 25px -12px rgba(0,0,0,.35);
+      --radius:.8rem;
+      --surface-1: color-mix(in oklch, var(--card), black 6%);
+      --surface-2: color-mix(in oklch, var(--card), black 12%);
+    }
+    [data-theme="light"]{
+      --bg:#f7fafc; --fg:#0f172a; --muted:#475569; --card:#ffffff; --border:#e5e7eb;
+      --accent:#418ffd; --accent-2: color-mix(in oklch, var(--accent), black 5%);
+      --ok:#16a34a; --warn:#d97706; --err:#dc2626;
+      --ring: color-mix(in oklch, var(--accent), white 30%);
+      --shadow: 0 10px 25px -14px rgba(2,6,23,.25);
+      --surface-1: color-mix(in oklch, var(--card), black 2%);
+      --surface-2: color-mix(in oklch, var(--card), black 6%);
+    }
+
     *{box-sizing:border-box}
     html,body{height:100%}
-    body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.45 system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial}
-    header{position:sticky;top:0;z-index:5;background:var(--card);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:.75rem;padding:.6rem 1rem}
-    header h1{font-size:16px;margin:0;font-weight:600}
+    body{
+      margin:0; background:var(--bg); color:var(--fg);
+      font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial;
+      transition: background .25s ease, color .25s ease;
+    }
+
+    /* Header - translucent bar */
+    header{
+      position:sticky; top:0; z-index:5;
+      background: color-mix(in oklch, var(--card), transparent 20%);
+      -webkit-backdrop-filter: saturate(160%) blur(8px);
+      backdrop-filter: saturate(160%) blur(8px);
+      border-bottom:1px solid var(--border);
+      display:flex; align-items:center; gap:.75rem; padding:.6rem 1rem;
+    }
+    header h1{font-size:16px;margin:0;font-weight:700;letter-spacing:.1px}
     .spacer{flex:1}
-    .btn{border:1px solid var(--border);background:transparent;color:var(--fg);padding:.45rem .7rem;border-radius:.6rem;cursor:pointer}
-    .btn:hover{border-color:var(--muted)}
-    .btn.primary{background:var(--accent);border-color:transparent;color:#fff}
-    .btn.ghost{border-color:transparent}
-    .btn.ok{background:var(--ok);color:#fff;border-color:transparent}
-    .btn.warn{background:var(--warn);color:#fff;border-color:transparent}
-    .btn.err{background:var(--err);color:#fff;border-color:transparent}
+
+    /* Buttons */
+    .btn{
+      appearance:none; border:1px solid var(--border); background:var(--surface-1); color:var(--fg);
+      padding:.5rem .8rem; border-radius:calc(var(--radius) - .2rem); cursor:pointer;
+      transition: border-color .2s ease, background .2s ease, transform .05s ease, box-shadow .2s ease;
+      display:inline-flex; align-items:center; gap:.45rem; font-weight:600;
+    }
+    .btn:hover{border-color: color-mix(in oklch, var(--border), var(--fg) 20%); background:var(--surface-2)}
+    .btn:active{transform: translateY(1px)}
+    .btn:focus-visible{outline:2px solid var(--ring); outline-offset:2px}
+    .btn.primary{
+      background: linear-gradient(180deg, var(--accent-2), var(--accent));
+      border-color: color-mix(in oklch, var(--accent), black 10%);
+      color:#fff; box-shadow: var(--shadow);
+    }
+    .btn.primary:hover{filter:saturate(1.05) brightness(1.02)}
+    .btn.ghost{border-color:transparent; background:transparent}
+    .btn.ok{background:linear-gradient(180deg, color-mix(in oklch, var(--ok), white 12%), var(--ok)); color:#fff; border-color:transparent}
+    .btn.warn{background:linear-gradient(180deg, color-mix(in oklch, var(--warn), white 10%), var(--warn)); color:#fff; border-color:transparent}
+    .btn.err{background:linear-gradient(180deg, color-mix(in oklch, var(--err), white 10%), var(--err)); color:#fff; border-color:transparent}
 
     main{max-width:1100px;margin:1rem auto;padding:0 1rem}
-    .tabs{display:flex;gap:.4rem;flex-wrap:wrap}
-    .tab{padding:.5rem .8rem;border:1px solid var(--border);border-bottom:none;border-radius:.6rem .6rem 0 0;background:var(--card);cursor:pointer}
-    .tab.active{background:linear-gradient(to bottom, var(--card), color-mix(in lch, var(--card), #000 6%));box-shadow:0 2px 0 0 var(--card)}
 
-    .panel{border:1px solid var(--border);border-radius:0 .6rem .6rem .6rem;background:var(--card);padding:1rem;margin-top:-1px}
+    /* Tabs - modern pills */
+    .tabs{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center}
+    .tab{
+      padding:.45rem .9rem; border:1px solid var(--border); border-radius:999px; cursor:pointer;
+      background:var(--surface-1); color: color-mix(in oklch, var(--fg), var(--muted) 20%);
+      transition: background .2s ease, color .2s ease, border-color .2s ease;
+      box-shadow: none;
+    }
+    .tab:hover{background:var(--surface-2); border-color: color-mix(in oklch, var(--border), var(--fg) 20%)}
+    .tab.active{
+      background: linear-gradient(180deg, var(--accent-2), var(--accent)); color:#fff; border-color: transparent;
+      box-shadow: var(--shadow);
+    }
+
+    /* Panels */
+    .panel{
+      border:1px solid var(--border); border-radius:var(--radius); background:var(--card);
+      padding:1rem; margin-top:.6rem; box-shadow: var(--shadow);
+    }
     .row{display:flex;gap:1rem;flex-wrap:wrap}
-    .col{flex:1 1 420px;min-width:290px}
+    .col{flex:1 1 420px; min-width:290px}
     label{display:block;margin:.2rem 0 .3rem .1rem;color:var(--muted);font-size:.85rem}
-    textarea, input[type="text"]{width:100%;padding:.6rem .7rem;border-radius:.6rem;border:1px solid var(--border);background:transparent;color:var(--fg);min-height:150px}
-    textarea[readonly]{opacity:.9}
-    .controls{display:flex;gap:.5rem;flex-wrap:wrap;margin:.5rem 0}
+
+    textarea, input[type="text"], select{
+      width:100%; padding:.65rem .75rem; border-radius:calc(var(--radius) - .2rem);
+      border:1px solid var(--border); background:var(--surface-1); color:var(--fg);
+      transition: border-color .2s ease, background .2s ease, box-shadow .2s ease;
+      min-height:150px;
+    }
+    input[type="text"], select{min-height:unset}
+    textarea[readonly]{opacity:.95}
+    textarea:focus, input[type="text"]:focus, select:focus{outline:none; border-color: var(--ring); box-shadow:0 0 0 3px color-mix(in oklch, var(--ring), transparent 70%)}
+
+    .controls{display:flex;gap:.5rem;flex-wrap:wrap;margin:.6rem 0}
     .subtle{color:var(--muted);font-size:.85rem}
-    .chip{display:inline-flex;align-items:center;gap:.35rem;border:1px solid var(--border);padding:.25rem .5rem;border-radius:999px}
+    .chip{display:inline-flex;align-items:center;gap:.4rem;border:1px solid var(--border);padding:.3rem .6rem;border-radius:999px;background:var(--surface-1)}
     .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1rem}
-    .kbd{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;border:1px solid var(--border);padding:.05rem .35rem;border-radius:.35rem;background:color-mix(in lch, var(--card), #000 10%)}
-    .note{padding:.6rem .8rem;border-left:3px solid var(--warn);background:color-mix(in lch, var(--card), #000 6%);border-radius:.3rem}
-    .mono{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace}
+    .kbd{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono",monospace;border:1px solid var(--border);padding:.05rem .35rem;border-radius:.35rem;background:var(--surface-2)}
+    .note{padding:.7rem .85rem;border-left:3px solid var(--warn);background:var(--surface-2);border-radius:.4rem}
+    .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace}
     .hidden{display:none}
     .switch{display:inline-flex;align-items:center;gap:.4rem}
     .switch input{accent-color:var(--accent)}
     .footer{margin:2rem 0;color:var(--muted);font-size:.9rem}
+
+    @media (prefers-reduced-motion: reduce){
+      *{transition:none!important}
+    }
   </style>
 </head>
 <body>
   <header>
     <h1 id="appTitle">Conversor Web</h1>
-    <span id="tagline" class="subtle">Base64 · URL · MD5 · SHA · HTML · JSON — 100% client-side</span>
     <div class="spacer"></div>
-    <select id="langSelect" style="border:1px solid var(--border);background:transparent;color:var(--fg);padding:.35rem .5rem;border-radius:.6rem;cursor:pointer">
+    <select id="langSelect" style="border:1px solid var(--border);background:transparent;color:var(--fg);padding:.15rem .3rem;font-size:.92em;border-radius:.4rem;cursor:pointer;min-width:unset;max-width:90px">
       <option value="en">English</option>
       <option value="pt">Português</option>
       <option value="ja">日本語</option>
@@ -132,7 +179,7 @@ Notas:
       clearAllBtn: 'Clear',
       shortcut: 'Shortcut',
       runs: 'runs',
-      footerTip: 'Tip: nothing is sent to servers. MD5 is inadequate for security; use SHA‑256/HMAC for integrity/authentication.',
+      footerTip: 'Tip: nothing is sent to servers.',
       copied: 'Copied.',
       confirmClearAll: 'Clear all fields and pairs?',
       errorPrefix: 'Error: ',
@@ -186,7 +233,7 @@ Notas:
       clearAllBtn: 'Limpar',
       shortcut: 'Atalho',
       runs: 'executa',
-      footerTip: 'Dica: nada é enviado a servidores. MD5 é inadequado para segurança; use SHA‑256/HMAC para integridade/autenticação.',
+      footerTip: 'Dica: nada é enviado a servidores.',
       copied: 'Copiado.',
       confirmClearAll: 'Limpar todos os campos e pares?',
       errorPrefix: 'Erro: ',
@@ -239,7 +286,7 @@ Notas:
       clearAllBtn: '全消去',
       shortcut: 'ショートカット',
       runs: '実行',
-      footerTip: 'ヒント: データはサーバーへ送信されません。MD5はセキュリティ用途に不適切です。整合性/認証にはSHA‑256/HMACを使用してください。',
+      footerTip: 'ヒント: データはサーバーへ送信されません。',
       copied: 'コピーしました。',
       confirmClearAll: 'すべてのフィールドとペアをクリアしますか？',
       errorPrefix: 'エラー: ',
@@ -359,6 +406,32 @@ Notas:
   }
   function removeDiacritics(str){
     return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  }
+
+  // Resolve fast-xml-parser global (robust against different UMD names)
+  function resolveFXPGlobal(){
+    const candidates = [
+      window.fxp, window.FXP, window.fastXmlParser, window.FastXMLParser,
+      window['fast-xml-parser'], window.fastxmlparser, window.FastXmlParser
+    ].filter(Boolean);
+    for(const cand of candidates){
+      if(cand && typeof cand.XMLParser === 'function' && typeof cand.XMLBuilder === 'function'){
+        return cand;
+      }
+    }
+    if(typeof window.XMLParser === 'function' && typeof window.XMLBuilder === 'function'){
+      return { XMLParser: window.XMLParser, XMLBuilder: window.XMLBuilder };
+    }
+    // Last resort: scan globals (best-effort)
+    for(const key in window){
+      try{
+        const obj = window[key];
+        if(obj && typeof obj === 'object' && typeof obj.XMLParser === 'function' && typeof obj.XMLBuilder === 'function'){
+          return obj;
+        }
+      }catch(_){/* ignore */}
+    }
+    return null;
   }
 
   // Clipboard helpers
@@ -970,21 +1043,20 @@ Notas:
     `;
     const elIn = $('textarea[name="in"]', root);
     const elOut = $('textarea[name="out"]', root);
-    const FXPO = window.fxp || window.FXP || window['fast-xml-parser'] || {};
-    const XMLParser = FXPO.XMLParser || window.XMLParser;
-    const XMLBuilder = FXPO.XMLBuilder || window.XMLBuilder;
+    const fxp = resolveFXPGlobal();
     const parseOpts = { ignoreAttributes: false, attributeNamePrefix: '@_', allowBooleanAttributes: true };
     const buildOpts = { ignoreAttributes: false, attributeNamePrefix: '@_', format: true, suppressBooleanAttributes: false };
     root.addEventListener('click', (e)=>{
       const a = e.target.closest('[data-action]'); if(!a) return;
       const act = a.dataset.action;
       try{
+        if(!fxp){ throw new Error('fast-xml-parser global not found'); }
         if(act==='xml-to-json'){
-          const parser = new XMLParser(parseOpts);
+          const parser = new fxp.XMLParser(parseOpts);
           const obj = parser.parse(elIn.value);
           elOut.value = JSON.stringify(obj, null, 2);
         } else if(act==='json-to-xml'){
-          const builder = new XMLBuilder(buildOpts);
+          const builder = new fxp.XMLBuilder(buildOpts);
           const obj = JSON.parse(elIn.value);
           elOut.value = builder.build(obj);
         } else if(act==='copy-out'){
