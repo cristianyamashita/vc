@@ -1,0 +1,1056 @@
+<!--
+Conversor Web – Roadmap de funcionalidades (100% client-side)
+
+Implementado neste arquivo (v0.1):
+1) Base64: Encode/Decode com suporte a UTF-8 (TextEncoder/TextDecoder) e arquivos (File→Base64 e Base64→Download).
+2) URL Encoding: encodeURI / encodeURIComponent / application/x-www-form-urlencoded (URLSearchParams) + decoders correspondentes.
+3) MD5: Hash ("encode") via CDN crypto-js, com saída hex e base64.
+4) UX: abas, atalhos (Ctrl/Cmd+Enter para executar), botões Copy, Clear, Swap (quando aplicável), persistência simples (LocalStorage), tema claro/escuro, layout responsivo.
+
+Planejado para próximas versões (estrutura já preparada):
+5) SHA-256/384/512 e HMAC (Web Crypto API).
+6) HTML Entities (encode/decode) e normalização Unicode (NFC/NFD/NFKC/NFKD).
+7) JSON utilitários: pretty/compact e validação.
+8) CSV↔JSON (Papa Parse), YAML↔JSON (js-yaml), XML↔JSON (fast-xml-parser).
+9) Compressão: GZIP/Deflate com pako.
+10) JWT viewer: decodificar header/payload, exibir claims formatadas.
+11) Cores: HEX↔RGB↔HSL, seletor de cores.
+12) Datas: Unix epoch ↔ ISO-8601 (UTC/local) com cópia rápida.
+13) UUID v4/v7: gerar e validar.
+14) Regex tester com highlight de matches.
+
+Notas:
+- Tudo roda no navegador; nenhum dado sai da sua máquina.
+- MD5 não é seguro para criptografia; use apenas para checksums/legado.
+- Para textos: a área "Entrada" aceita qualquer Unicode; para Base64 binário utilize o modo Arquivo.
+-->
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Conversor Web — Base64, URL, MD5, SHA, HTML, JSON, CSV, YAML, XML (Client-side)</title>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+  <!-- MD5 via crypto-js -->
+  <script src="https://cdn.jsdelivr.net/npm/crypto-js@4.2.0/crypto-js.min.js"></script>
+  <!-- CSV via Papa Parse -->
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <!-- YAML via js-yaml -->
+  <script src="https://cdn.jsdelivr.net/npm/js-yaml@4.1.0/dist/js-yaml.min.js"></script>
+  <!-- XML via fast-xml-parser v4 -->
+  <script src="https://cdn.jsdelivr.net/npm/fast-xml-parser@4.3.5/dist/fast-xml-parser.min.js"></script>
+  <style>
+    :root{--bg:#0b0e14;--fg:#e6e6e6;--muted:#9aa4b2;--card:#111520;--accent:#4f46e5;--border:#1e2636;--ok:#059669;--warn:#d97706;--err:#dc2626}
+    [data-theme="light"]{--bg:#f8fafc;--fg:#0f172a;--muted:#475569;--card:#ffffff;--accent:#4338ca;--border:#e2e8f0;--ok:#047857;--warn:#b45309;--err:#b91c1c}
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.45 system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial}
+    header{position:sticky;top:0;z-index:5;background:var(--card);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:.75rem;padding:.6rem 1rem}
+    header h1{font-size:16px;margin:0;font-weight:600}
+    .spacer{flex:1}
+    .btn{border:1px solid var(--border);background:transparent;color:var(--fg);padding:.45rem .7rem;border-radius:.6rem;cursor:pointer}
+    .btn:hover{border-color:var(--muted)}
+    .btn.primary{background:var(--accent);border-color:transparent;color:#fff}
+    .btn.ghost{border-color:transparent}
+    .btn.ok{background:var(--ok);color:#fff;border-color:transparent}
+    .btn.warn{background:var(--warn);color:#fff;border-color:transparent}
+    .btn.err{background:var(--err);color:#fff;border-color:transparent}
+
+    main{max-width:1100px;margin:1rem auto;padding:0 1rem}
+    .tabs{display:flex;gap:.4rem;flex-wrap:wrap}
+    .tab{padding:.5rem .8rem;border:1px solid var(--border);border-bottom:none;border-radius:.6rem .6rem 0 0;background:var(--card);cursor:pointer}
+    .tab.active{background:linear-gradient(to bottom, var(--card), color-mix(in lch, var(--card), #000 6%));box-shadow:0 2px 0 0 var(--card)}
+
+    .panel{border:1px solid var(--border);border-radius:0 .6rem .6rem .6rem;background:var(--card);padding:1rem;margin-top:-1px}
+    .row{display:flex;gap:1rem;flex-wrap:wrap}
+    .col{flex:1 1 420px;min-width:290px}
+    label{display:block;margin:.2rem 0 .3rem .1rem;color:var(--muted);font-size:.85rem}
+    textarea, input[type="text"]{width:100%;padding:.6rem .7rem;border-radius:.6rem;border:1px solid var(--border);background:transparent;color:var(--fg);min-height:150px}
+    textarea[readonly]{opacity:.9}
+    .controls{display:flex;gap:.5rem;flex-wrap:wrap;margin:.5rem 0}
+    .subtle{color:var(--muted);font-size:.85rem}
+    .chip{display:inline-flex;align-items:center;gap:.35rem;border:1px solid var(--border);padding:.25rem .5rem;border-radius:999px}
+    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1rem}
+    .kbd{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;border:1px solid var(--border);padding:.05rem .35rem;border-radius:.35rem;background:color-mix(in lch, var(--card), #000 10%)}
+    .note{padding:.6rem .8rem;border-left:3px solid var(--warn);background:color-mix(in lch, var(--card), #000 6%);border-radius:.3rem}
+    .mono{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace}
+    .hidden{display:none}
+    .switch{display:inline-flex;align-items:center;gap:.4rem}
+    .switch input{accent-color:var(--accent)}
+    .footer{margin:2rem 0;color:var(--muted);font-size:.9rem}
+  </style>
+</head>
+<body>
+  <header>
+    <h1 id="appTitle">Conversor Web</h1>
+    <span id="tagline" class="subtle">Base64 · URL · MD5 · SHA · HTML · JSON — 100% client-side</span>
+    <div class="spacer"></div>
+    <select id="langSelect" style="border:1px solid var(--border);background:transparent;color:var(--fg);padding:.35rem .5rem;border-radius:.6rem;cursor:pointer">
+      <option value="en">English</option>
+      <option value="pt">Português</option>
+      <option value="ja">日本語</option>
+    </select>
+    <button class="btn ghost" id="themeToggle" title="Alternar tema">Tema</button>
+    <button class="btn ghost" id="clearAll" title="Limpar tudo">Limpar</button>
+    <span id="shortcutHint" class="subtle">Atalho: <span class="kbd">Ctrl/Cmd</span>+<span class="kbd">Enter</span> executa</span>
+  </header>
+
+  <main>
+    <nav class="tabs" id="tabs"></nav>
+    <section id="panels"></section>
+
+    <div id="footerTip" class="footer">Dica: nada é enviado a servidores. MD5 é inadequado para segurança; use SHA‑256/HMAC para integridade/autenticação.</div>
+  </main>
+
+<script>
+(() => {
+  // --- Estado e utilidades ---
+  const $ = (sel, el=document) => el.querySelector(sel);
+  const $$ = (sel, el=document) => [...el.querySelectorAll(sel)];
+  const enc = new TextEncoder();
+  const dec = new TextDecoder();
+  const SKEY = 'conv.tabs.v01';
+  const LKEY = 'conv.lang';
+
+  const state = {
+    activeTab: 'base64',
+    theme: localStorage.getItem('conv.theme') || 'dark',
+    lang: localStorage.getItem(LKEY) || 'en',
+  };
+  document.body.dataset.theme = state.theme;
+
+  const setTheme = t => { state.theme = t; document.body.dataset.theme = t; localStorage.setItem('conv.theme', t); };
+
+  // --- i18n ---
+  const I18N = {
+    en: {
+      appTitle: 'Web Converter',
+      docTitle: 'Web Converter — Base64, URL, MD5, SHA, HTML, JSON, CSV, YAML, XML (Client-side)',
+      tagline: 'Base64 · URL · MD5 · SHA · HTML · JSON · CSV · YAML · XML — 100% client-side',
+      themeBtn: 'Theme',
+      clearAllBtn: 'Clear',
+      shortcut: 'Shortcut',
+      runs: 'runs',
+      footerTip: 'Tip: nothing is sent to servers. MD5 is inadequate for security; use SHA‑256/HMAC for integrity/authentication.',
+      copied: 'Copied.',
+      confirmClearAll: 'Clear all fields and pairs?',
+      errorPrefix: 'Error: ',
+      selectFile: 'Select a file.',
+      pasteBase64: 'Paste a Base64.',
+      provideKey: 'Provide a key.',
+
+      tab_base64: 'Base64', tab_url: 'URL', tab_md5: 'MD5', tab_sha: 'SHA/HMAC', tab_html: 'HTML/Unicode', tab_json: 'JSON',
+      tab_csv: 'CSV', tab_yaml: 'YAML', tab_xml: 'XML',
+
+      input: 'Input', output: 'Output', inputText: 'Input (text)',
+      typeTextHere: 'Type your text here...', copyOut: 'Copy output', clear: 'Clear', swap: 'Swap', download: 'Download',
+      fileNamePlaceholder: 'file-name.bin',
+
+      b64Encode: 'Encode → Base64', b64Decode: 'Decode ← Base64',
+      b64Note: 'For UTF‑8 we use TextEncoder/TextDecoder. For binaries use the "File" section below.',
+      fileToBase64: 'File → Base64', generateBase64: 'Generate Base64', copyBase64: 'Copy Base64',
+      base64ToDownload: 'Base64 → File download', pasteBase64Here: 'Paste a Base64 here (data URL or raw)',
+
+      urlInputPH: 'Text or URL component...', encode: 'Encode', decode: 'Decode',
+      encodeURI: 'encodeURI', encodeURIComponent: 'encodeURIComponent', xWwwFormUrlencoded: 'x-www-form-urlencoded',
+      urlNote1: '<b>encodeURI</b> → use for full URL; preserves <span class="mono">:/?#&=</span>.',
+      urlNote2: '<b>encodeURIComponent</b> → use for URL part (query param, path segment).',
+      urlNote3: '<b>x-www-form-urlencoded</b> → uses <span class="mono">URLSearchParams</span> with spaces replaced by <span class="mono">+</span>.',
+      kvToForm: 'Key/Value → x-www-form-urlencoded', key: 'key', value: 'value', addPair: 'Add pair', generateQuery: 'Build query', clearPairs: 'Clear pairs',
+
+      md5Placeholder: 'Text for MD5 hash...', generateMD5: 'Generate MD5', md5Note: 'MD5 is insecure for cryptographic use. Use only for legacy verification.',
+
+      shaPlaceholder: 'Text for SHA/HMAC...', algorithm: 'Algorithm', hmac: 'HMAC', hmacKeyPlaceholder: 'HMAC key (UTF‑8)', shaGenerate: 'Generate',
+      fileToSHA: 'File → SHA', hashFile: 'Hash file', copyHash: 'Copy hash', formatHexBase64: 'Format: hex and Base64',
+
+      htmlPlaceholder: 'Text for Entities/Unicode...', encodeEntities: 'Encode Entities', decodeEntities: 'Decode Entities',
+      normalization: 'Normalization', apply: 'Apply', removeAccents: 'Remove accents',
+      entitiesNote: 'Entities use the DOM for safe conversion; Normalization uses <span class="mono">String.prototype.normalize</span>.',
+
+      jsonInput: 'Input (JSON)', jsonPretty: 'Pretty', jsonCompact: 'Compact', jsonValidate: 'Validate',
+      jsonNote: 'Pretty applies 2-space indentation; Compact removes spaces. In case of error, the message is shown.',
+      jsonValidOK: 'OK: valid JSON',
+
+      csvInput: 'Input (CSV or JSON)', csvToJson: 'CSV → JSON', jsonToCsv: 'JSON → CSV', headerRow: 'Header row', csvNote: 'Uses Papa Parse for CSV.',
+
+      yamlInput: 'Input (YAML or JSON)', yamlToJson: 'YAML → JSON', jsonToYaml: 'JSON → YAML', yamlNote: 'Uses js-yaml for YAML.',
+
+      xmlInput: 'Input (XML or JSON)', xmlToJson: 'XML → JSON', jsonToXml: 'JSON → XML', xmlNote: 'Uses fast-xml-parser for XML.',
+    },
+    pt: {
+      appTitle: 'Conversor Web',
+      docTitle: 'Conversor Web — Base64, URL, MD5, SHA, HTML, JSON, CSV, YAML, XML (Client-side)',
+      tagline: 'Base64 · URL · MD5 · SHA · HTML · JSON · CSV · YAML · XML — 100% client-side',
+      themeBtn: 'Tema',
+      clearAllBtn: 'Limpar',
+      shortcut: 'Atalho',
+      runs: 'executa',
+      footerTip: 'Dica: nada é enviado a servidores. MD5 é inadequado para segurança; use SHA‑256/HMAC para integridade/autenticação.',
+      copied: 'Copiado.',
+      confirmClearAll: 'Limpar todos os campos e pares?',
+      errorPrefix: 'Erro: ',
+      selectFile: 'Selecione um arquivo.',
+      pasteBase64: 'Cole um Base64.',
+
+      tab_base64: 'Base64', tab_url: 'URL', tab_md5: 'MD5', tab_sha: 'SHA/HMAC', tab_html: 'HTML/Unicode', tab_json: 'JSON',
+      tab_csv: 'CSV', tab_yaml: 'YAML', tab_xml: 'XML',
+
+      input: 'Entrada', output: 'Saída', inputText: 'Entrada (texto)',
+      typeTextHere: 'Digite seu texto aqui...', copyOut: 'Copiar saída', clear: 'Limpar', swap: 'Inverter', download: 'Baixar',
+      fileNamePlaceholder: 'nome-do-arquivo.bin',
+
+      b64Encode: 'Encode → Base64', b64Decode: 'Decode ← Base64',
+      b64Note: 'Para UTF‑8, usamos TextEncoder/TextDecoder. Para binários use a aba "Arquivo" abaixo.',
+      fileToBase64: 'Arquivo → Base64', generateBase64: 'Gerar Base64', copyBase64: 'Copiar Base64',
+      base64ToDownload: 'Base64 → Download de arquivo', pasteBase64Here: 'Cole aqui um Base64 (data URL ou puro)',
+
+      urlInputPH: 'Texto ou componente de URL...', encode: 'Encode', decode: 'Decode',
+      encodeURI: 'encodeURI', encodeURIComponent: 'encodeURIComponent', xWwwFormUrlencoded: 'x-www-form-urlencoded',
+      urlNote1: '<b>encodeURI</b> → use para URL inteira; preserva <span class="mono">:/?#&=</span>.',
+      urlNote2: '<b>encodeURIComponent</b> → use para parte da URL (query param, path segment).',
+      urlNote3: '<b>x-www-form-urlencoded</b> → usa <span class="mono">URLSearchParams</span> com substituição de espaço por <span class="mono">+</span>.',
+      kvToForm: 'Key/Value → x-www-form-urlencoded', key: 'chave', value: 'valor', addPair: 'Adicionar par', generateQuery: 'Gerar query', clearPairs: 'Limpar pares',
+
+      md5Placeholder: 'Texto para hash MD5...', generateMD5: 'Gerar MD5', md5Note: 'MD5 é inseguro para uso criptográfico. Utilize apenas para verificação legada.',
+
+      shaPlaceholder: 'Texto para SHA/HMAC...', algorithm: 'Algoritmo', hmac: 'HMAC', hmacKeyPlaceholder: 'Chave HMAC (UTF-8)', shaGenerate: 'Gerar',
+      fileToSHA: 'Arquivo → SHA', hashFile: 'Hash do arquivo', copyHash: 'Copiar hash', formatHexBase64: 'Formato: hex e Base64',
+
+      htmlPlaceholder: 'Texto para Entities/Unicode...', encodeEntities: 'Encode Entities', decodeEntities: 'Decode Entities',
+      normalization: 'Normalização', apply: 'Aplicar', removeAccents: 'Remover acentos',
+      entitiesNote: 'Entities utilizam o DOM para conversão segura; Normalização usa <span class="mono">String.prototype.normalize</span>.',
+
+      jsonInput: 'Entrada (JSON)', jsonPretty: 'Pretty', jsonCompact: 'Compact', jsonValidate: 'Validar',
+      jsonNote: 'Pretty aplica indentação de 2 espaços; Compact remove espaços. Em caso de erro, a mensagem é mostrada.',
+      jsonValidOK: 'OK: JSON válido',
+
+      csvInput: 'Entrada (CSV ou JSON)', csvToJson: 'CSV → JSON', jsonToCsv: 'JSON → CSV', headerRow: 'Linha de cabeçalho', csvNote: 'Usa Papa Parse para CSV.',
+
+      yamlInput: 'Entrada (YAML ou JSON)', yamlToJson: 'YAML → JSON', jsonToYaml: 'JSON → YAML', yamlNote: 'Usa js-yaml para YAML.',
+
+      xmlInput: 'Entrada (XML ou JSON)', xmlToJson: 'XML → JSON', jsonToXml: 'JSON → XML', xmlNote: 'Usa fast-xml-parser para XML.',
+    },
+    ja: {
+      appTitle: 'Webコンバーター',
+      docTitle: 'Webコンバーター — Base64, URL, MD5, SHA, HTML, JSON, CSV, YAML, XML (クライアントサイド)',
+      tagline: 'Base64 · URL · MD5 · SHA · HTML · JSON · CSV · YAML · XML — すべてクライアント側',
+      themeBtn: 'テーマ',
+      clearAllBtn: '全消去',
+      shortcut: 'ショートカット',
+      runs: '実行',
+      footerTip: 'ヒント: データはサーバーへ送信されません。MD5はセキュリティ用途に不適切です。整合性/認証にはSHA‑256/HMACを使用してください。',
+      copied: 'コピーしました。',
+      confirmClearAll: 'すべてのフィールドとペアをクリアしますか？',
+      errorPrefix: 'エラー: ',
+      selectFile: 'ファイルを選択してください。',
+      pasteBase64: 'Base64を貼り付けてください。',
+      provideKey: 'キーを入力してください。',
+
+      tab_base64: 'Base64', tab_url: 'URL', tab_md5: 'MD5', tab_sha: 'SHA/HMAC', tab_html: 'HTML/Unicode', tab_json: 'JSON',
+      tab_csv: 'CSV', tab_yaml: 'YAML', tab_xml: 'XML',
+
+      input: '入力', output: '出力', inputText: '入力（テキスト）',
+      typeTextHere: 'ここにテキストを入力...', copyOut: '出力をコピー', clear: 'クリア', swap: '入れ替え', download: 'ダウンロード',
+      fileNamePlaceholder: 'ファイル名.bin',
+
+      b64Encode: 'エンコード → Base64', b64Decode: 'デコード ← Base64',
+      b64Note: 'UTF‑8にはTextEncoder/TextDecoderを使用。バイナリは下の「ファイル」を使用してください。',
+      fileToBase64: 'ファイル → Base64', generateBase64: 'Base64生成', copyBase64: 'Base64をコピー',
+      base64ToDownload: 'Base64 → ファイルダウンロード', pasteBase64Here: 'Base64（data URL または生）を貼り付け',
+
+      urlInputPH: 'テキストまたはURLコンポーネント...', encode: 'エンコード', decode: 'デコード',
+      encodeURI: 'encodeURI', encodeURIComponent: 'encodeURIComponent', xWwwFormUrlencoded: 'application/x-www-form-urlencoded',
+      urlNote1: '<b>encodeURI</b> → URL全体に使用。<span class="mono">:/?#&=</span> を保持。',
+      urlNote2: '<b>encodeURIComponent</b> → URLの一部（クエリ、パス）に使用。',
+      urlNote3: '<b>x-www-form-urlencoded</b> → <span class="mono">URLSearchParams</span> を使用し、空白は <span class="mono">+</span> に。',
+      kvToForm: 'Key/Value → x-www-form-urlencoded', key: 'キー', value: '値', addPair: 'ペアを追加', generateQuery: 'クエリ生成', clearPairs: 'ペアをクリア',
+
+      md5Placeholder: 'MD5ハッシュ用テキスト...', generateMD5: 'MD5生成', md5Note: 'MD5は暗号用途に不適切。レガシー検証のみで使用。',
+
+      shaPlaceholder: 'SHA/HMAC用テキスト...', algorithm: 'アルゴリズム', hmac: 'HMAC', hmacKeyPlaceholder: 'HMACキー（UTF‑8）', shaGenerate: '生成',
+      fileToSHA: 'ファイル → SHA', hashFile: 'ファイルをハッシュ', copyHash: 'ハッシュをコピー', formatHexBase64: '形式: hex と Base64',
+
+      htmlPlaceholder: 'Entities/Unicode 用テキスト...', encodeEntities: 'Entities エンコード', decodeEntities: 'Entities デコード',
+      normalization: '正規化', apply: '適用', removeAccents: 'アクセント除去',
+      entitiesNote: 'Entities は DOM で安全に変換。正規化は <span class="mono">String.prototype.normalize</span> を使用。',
+
+      jsonInput: '入力（JSON）', jsonPretty: '整形', jsonCompact: '圧縮', jsonValidate: '検証',
+      jsonNote: '整形は2スペースのインデント。圧縮は空白を除去。エラー時はメッセージを表示。',
+      jsonValidOK: 'OK: 有効なJSON',
+
+      csvInput: '入力（CSVまたはJSON）', csvToJson: 'CSV → JSON', jsonToCsv: 'JSON → CSV', headerRow: 'ヘッダー行', csvNote: 'CSV は Papa Parse を使用。',
+
+      yamlInput: '入力（YAMLまたはJSON）', yamlToJson: 'YAML → JSON', jsonToYaml: 'JSON → YAML', yamlNote: 'YAML は js-yaml を使用。',
+
+      xmlInput: '入力（XMLまたはJSON）', xmlToJson: 'XML → JSON', jsonToXml: 'JSON → XML', xmlNote: 'XML は fast-xml-parser を使用。',
+    },
+  };
+  function t(key){
+    return (I18N[state.lang] && I18N[state.lang][key]) || I18N.en[key] || key;
+  }
+  function translateHeader(){
+    const titleEl = document.getElementById('appTitle');
+    const tagEl = document.getElementById('tagline');
+    const themeBtn = document.getElementById('themeToggle');
+    const clearBtn = document.getElementById('clearAll');
+    const shortcut = document.getElementById('shortcutHint');
+    if(titleEl) titleEl.textContent = t('appTitle');
+    if(tagEl) tagEl.innerHTML = t('tagline');
+    if(themeBtn) themeBtn.textContent = t('themeBtn');
+    if(clearBtn) clearBtn.textContent = t('clearAllBtn');
+    if(shortcut) shortcut.innerHTML = `${t('shortcut')}: <span class="kbd">Ctrl/Cmd</span>+<span class="kbd">Enter</span> ${t('runs')}`;
+    document.title = t('docTitle');
+    const footer = document.getElementById('footerTip');
+    if(footer) footer.innerHTML = t('footerTip');
+    const langSel = document.getElementById('langSelect');
+    if(langSel) langSel.value = state.lang;
+    document.documentElement.lang = state.lang === 'pt' ? 'pt-BR' : (state.lang === 'ja' ? 'ja' : 'en');
+  }
+
+  // Persistência leve de texto por aba
+  const textStore = {
+    load: (k) => localStorage.getItem(`conv.text.${k}`) || '',
+    save: (k, v) => localStorage.setItem(`conv.text.${k}`, v ?? '')
+  };
+
+  // Base64 seguro UTF-8
+  function utf8ToBase64(str){
+    const bytes = enc.encode(str);
+    let binary = '';
+    bytes.forEach(b => binary += String.fromCharCode(b));
+    return btoa(binary);
+  }
+  function base64ToUtf8(b64){
+    const bin = atob(b64);
+    const bytes = new Uint8Array([...bin].map(ch => ch.charCodeAt(0)));
+    return dec.decode(bytes);
+  }
+
+  // Bytes helpers
+  function bytesToHex(bytes){
+    return [...bytes].map(b => b.toString(16).padStart(2,'0')).join('');
+  }
+  function bytesToBase64(bytes){
+    let bin = '';
+    bytes.forEach(b => bin += String.fromCharCode(b));
+    return btoa(bin);
+  }
+  async function shaDigest(algo, dataBytes){
+    const buf = await crypto.subtle.digest(algo, dataBytes);
+    return new Uint8Array(buf);
+  }
+  async function hmacSign(algo, keyBytes, dataBytes){
+    const key = await crypto.subtle.importKey('raw', keyBytes, { name:'HMAC', hash:{ name: algo } }, false, ['sign']);
+    const sig = await crypto.subtle.sign('HMAC', key, dataBytes);
+    return new Uint8Array(sig);
+  }
+
+  // HTML entities and normalization helpers
+  function htmlEncode(str){
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+  function htmlDecode(str){
+    const div = document.createElement('div');
+    div.innerHTML = str;
+    return div.textContent || '';
+  }
+  function removeDiacritics(str){
+    return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  }
+
+  // Clipboard helpers
+  async function copy(text){
+    try{ await navigator.clipboard.writeText(text); toast(t('copied')); }
+    catch(e){ console.warn(e); alert(t('errorPrefix') + e.message); }
+  }
+  function toast(msg){
+    // simples: console + título (não usar Notification API aqui)
+    console.log(msg);
+  }
+
+  // Tabs
+  const TABS = [
+    { id:'base64', render: renderBase64 },
+    { id:'url',    render: renderURL    },
+    { id:'md5',    render: renderMD5    },
+    { id:'sha',    render: renderSHA    },
+    { id:'html',   render: renderHTML   },
+    { id:'json',   render: renderJSON   },
+    { id:'csv',    render: renderCSV    },
+    { id:'yaml',   render: renderYAML   },
+    { id:'xml',    render: renderXML    },
+  ];
+  function getTabLabel(id){ return t(`tab_${id}`); }
+  function getTabFromHash(){
+    const h = (location.hash||'').replace(/^#/, '').trim();
+    if(!h) return null;
+    const id = h.split(/[&?=]/)[0];
+    const exists = TABS.some(tb => tb.id === id);
+    return exists ? id : null;
+  }
+
+  function initTabs(){
+    const tabsEl = $('#tabs');
+    const panelsEl = $('#panels');
+    tabsEl.innerHTML = TABS.map(t => `<button class="tab${t.id===state.activeTab?' active':''}" data-tab="${t.id}">${getTabLabel(t.id)}</button>`).join('');
+    panelsEl.innerHTML = '';
+    TABS.forEach(t => {
+      const panel = document.createElement('div');
+      panel.className = 'panel' + (t.id===state.activeTab? '': ' hidden');
+      panel.dataset.panel = t.id;
+      panelsEl.appendChild(panel);
+      t.render(panel);
+      const ta = panel.querySelector('textarea[name="in"]');
+      if(ta){ ta.value = textStore.load(t.id); ta.addEventListener('input', () => textStore.save(t.id, ta.value)); }
+    });
+    tabsEl.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-tab]');
+      if(!b) return;
+      state.activeTab = b.dataset.tab;
+      $$('.tab', tabsEl).forEach(x => x.classList.toggle('active', x===b));
+      $$('.panel', panelsEl).forEach(p => p.classList.toggle('hidden', p.dataset.panel !== state.activeTab));
+      localStorage.setItem(SKEY, state.activeTab);
+      location.hash = '#' + state.activeTab;
+    });
+  }
+
+  // Renderers
+  function renderBase64(root){
+    root.innerHTML = `
+      <div class="row">
+        <div class="col">
+          <label>${t('inputText')}</label>
+          <textarea name="in" placeholder="${t('typeTextHere')}"></textarea>
+          <div class="controls">
+            <button class="btn primary" data-action="b64-enc">${t('b64Encode')}</button>
+            <button class="btn" data-action="b64-dec">${t('b64Decode')}</button>
+            <button class="btn" data-action="swap">${t('swap')}</button>
+            <button class="btn" data-action="copy-out">${t('copyOut')}</button>
+            <button class="btn" data-action="clear">${t('clear')}</button>
+          </div>
+          <div class="note subtle">${t('b64Note')}</div>
+        </div>
+        <div class="col">
+          <label>${t('output')}</label>
+          <textarea name="out" readonly></textarea>
+        </div>
+      </div>
+      <hr style="border: none; border-top: 1px solid var(--border); margin: 1rem 0;" />
+      <div class="grid">
+        <div>
+          <label>${t('fileToBase64')}</label>
+          <input type="file" id="fileIn" />
+          <div class="controls">
+            <button class="btn" data-action="file-enc">${t('generateBase64')}</button>
+            <button class="btn" data-action="copy-fileb64">${t('copyBase64')}</button>
+          </div>
+          <textarea name="fileb64" placeholder="Base64..." readonly></textarea>
+        </div>
+        <div>
+          <label>${t('base64ToDownload')}</label>
+          <textarea name="fileb64in" placeholder="${t('pasteBase64Here')}"></textarea>
+          <div class="controls">
+            <input type="text" id="dlName" placeholder="${t('fileNamePlaceholder')}" />
+            <button class="btn ok" data-action="b64-download">${t('download')}</button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    const elIn = $('textarea[name="in"]', root);
+    const elOut = $('textarea[name="out"]', root);
+    const fileIn = $('#fileIn', root);
+    const fileOut = $('textarea[name="fileb64"]', root);
+    const fileB64In = $('textarea[name="fileb64in"]', root);
+    const dlName = $('#dlName', root);
+
+    root.addEventListener('click', async (e)=>{
+      const a = e.target.closest('[data-action]'); if(!a) return;
+      const act = a.dataset.action;
+      try{
+        if(act==='b64-enc'){
+          elOut.value = utf8ToBase64(elIn.value);
+        } else if(act==='b64-dec'){
+          elOut.value = base64ToUtf8(elIn.value.trim());
+        } else if(act==='swap'){
+          [elIn.value, elOut.value] = [elOut.value, elIn.value];
+          textStore.save('base64', elIn.value);
+        } else if(act==='copy-out'){
+          copy(elOut.value);
+        } else if(act==='clear'){
+          elIn.value = ''; elOut.value = ''; textStore.save('base64', '');
+        } else if(act==='file-enc'){
+          if(!fileIn.files || !fileIn.files[0]) return alert(t('selectFile'));
+          const file = fileIn.files[0];
+          const reader = new FileReader();
+          reader.onload = () => {
+            const b64 = btoa(new Uint8Array(reader.result).reduce((s,b)=>s+String.fromCharCode(b),''));
+            fileOut.value = `data:${file.type||'application/octet-stream'};base64,${b64}`;
+          };
+          reader.readAsArrayBuffer(file);
+        } else if(act==='copy-fileb64'){
+          copy(fileOut.value);
+        } else if(act==='b64-download'){
+          let b64 = fileB64In.value.trim();
+          if(!b64) return alert(t('pasteBase64'));
+          const match = b64.match(/^data:([^;]+);base64,(.+)$/);
+          let mime = 'application/octet-stream';
+          if(match){ mime = match[1]; b64 = match[2]; }
+          const bin = atob(b64);
+          const bytes = new Uint8Array([...bin].map(c=>c.charCodeAt(0)));
+          const blob = new Blob([bytes], {type: mime});
+          const url = URL.createObjectURL(blob);
+          const aEl = document.createElement('a');
+          aEl.href = url; aEl.download = dlName.value || 'arquivo.bin';
+          document.body.appendChild(aEl); aEl.click(); aEl.remove();
+          setTimeout(()=>URL.revokeObjectURL(url), 1000);
+        }
+      }catch(err){ alert(t('errorPrefix') + err.message); }
+    });
+  }
+
+  function renderURL(root){
+    root.innerHTML = `
+      <div class="row">
+        <div class="col">
+          <label>${t('input')}</label>
+          <textarea name="in" placeholder="${t('urlInputPH')}"></textarea>
+          <div class="controls">
+            <div class="chip"><input type="radio" name="umode" value="uri" id="m1" checked><label for="m1">${t('encodeURI')}</label></div>
+            <div class="chip"><input type="radio" name="umode" value="ucomp" id="m2"><label for="m2">${t('encodeURIComponent')}</label></div>
+            <div class="chip"><input type="radio" name="umode" value="form" id="m3"><label for="m3">${t('xWwwFormUrlencoded')}</label></div>
+          </div>
+          <div class="controls">
+            <button class="btn primary" data-action="u-enc">${t('encode')}</button>
+            <button class="btn" data-action="u-dec">${t('decode')}</button>
+            <button class="btn" data-action="copy-out">${t('copyOut')}</button>
+            <button class="btn" data-action="clear">${t('clear')}</button>
+          </div>
+          <div class="note subtle">
+            ${t('urlNote1')}<br>
+            ${t('urlNote2')}<br>
+            ${t('urlNote3')}
+          </div>
+        </div>
+        <div class="col">
+          <label>${t('output')}</label>
+          <textarea name="out" readonly></textarea>
+        </div>
+      </div>
+      <div class="grid" style="margin-top:1rem">
+        <div>
+          <label>${t('kvToForm')}</label>
+          <div class="controls">
+            <input type="text" id="k" placeholder="${t('key')}" style="min-height:unset;">
+            <input type="text" id="v" placeholder="${t('value')}" style="min-height:unset;">
+            <button class="btn" data-action="kv-add">${t('addPair')}</button>
+          </div>
+          <textarea name="kv" placeholder="Pares adicionados (JSON)" readonly></textarea>
+          <div class="controls">
+            <button class="btn" data-action="kv-build">${t('generateQuery')}</button>
+            <button class="btn" data-action="kv-clear">${t('clearPairs')}</button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    const elIn = $('textarea[name="in"]', root);
+    const elOut = $('textarea[name="out"]', root);
+    const elKV = $('textarea[name="kv"]', root);
+    const mode = () => root.querySelector('input[name="umode"]:checked').value;
+
+    let kv = [];
+    function syncKV(){ elKV.value = JSON.stringify(kv, null, 2); }
+
+    root.addEventListener('click', (e)=>{
+      const a = e.target.closest('[data-action]'); if(!a) return;
+      const act = a.dataset.action; try{
+        if(act==='u-enc'){
+          const val = elIn.value;
+          if(mode()==='uri') elOut.value = encodeURI(val);
+          else if(mode()==='ucomp') elOut.value = encodeURIComponent(val);
+          else {
+            const p = new URLSearchParams(); p.append('q', val);
+            elOut.value = p.toString(); // q=... (com + para espaços)
+          }
+        } else if(act==='u-dec'){
+          const val = elIn.value.trim();
+          if(mode()==='uri') elOut.value = decodeURI(val);
+          else if(mode()==='ucomp') elOut.value = decodeURIComponent(val);
+          else {
+            // Tenta decodificar x-www-form-urlencoded
+            const qs = val.startsWith('?') ? val.slice(1) : val;
+            const p = new URLSearchParams(qs);
+            // Se houver apenas 'q', devolve q; senão, lista JSON
+            if(p.has('q') && [...p.keys()].length===1) elOut.value = p.get('q');
+            else {
+              const all = {}; for(const [k,v] of p) { if(all[k]===undefined) all[k]=v; else if(Array.isArray(all[k])) all[k].push(v); else all[k] = [all[k], v]; }
+              elOut.value = JSON.stringify(all, null, 2);
+            }
+          }
+        } else if(act==='copy-out'){
+          copy(elOut.value);
+        } else if(act==='clear'){
+          elIn.value = ''; elOut.value = ''; textStore.save('url', '');
+        } else if(act==='kv-add'){
+          const k = $('#k', root).value; const v = $('#v', root).value; if(!k) return alert(t('provideKey'));
+          kv.push([k,v]); syncKV();
+        } else if(act==='kv-clear'){
+          kv = []; syncKV();
+        } else if(act==='kv-build'){
+          const p = new URLSearchParams(kv);
+          elOut.value = p.toString();
+        }
+      }catch(err){ alert(t('errorPrefix') + err.message); }
+    });
+  }
+
+  function renderMD5(root){
+    root.innerHTML = `
+      <div class="row">
+        <div class="col">
+          <label>${t('input')}</label>
+          <textarea name="in" placeholder="${t('md5Placeholder')}"></textarea>
+          <div class="controls">
+            <button class="btn primary" data-action="md5">${t('generateMD5')}</button>
+            <button class="btn" data-action="copy-out">${t('copyOut')}</button>
+            <button class="btn" data-action="clear">${t('clear')}</button>
+          </div>
+          <div class="note subtle">${t('md5Note')}</div>
+        </div>
+        <div class="col">
+          <label>${t('output')}</label>
+          <textarea name="out" readonly></textarea>
+          <div class="controls">
+            <span class="subtle">${t('formatHexBase64')}</span>
+          </div>
+        </div>
+      </div>
+    `;
+
+    const elIn = $('textarea[name="in"]', root);
+    const elOut = $('textarea[name="out"]', root);
+    root.addEventListener('click', (e)=>{
+      const a = e.target.closest('[data-action]'); if(!a) return;
+      const act = a.dataset.action;
+      try{
+        if(act==='md5'){
+          const wordArray = CryptoJS.enc.Utf8.parse(elIn.value);
+          const hash = CryptoJS.MD5(wordArray);
+          const hex = hash.toString(CryptoJS.enc.Hex);
+          const b64 = hash.toString(CryptoJS.enc.Base64);
+          elOut.value = `hex: ${hex}\nbase64: ${b64}`;
+        } else if(act==='copy-out'){
+          copy(elOut.value);
+        } else if(act==='clear'){
+          elIn.value = ''; elOut.value = ''; textStore.save('md5', '');
+        }
+      }catch(err){ alert(t('errorPrefix') + err.message); }
+    });
+  }
+
+  function renderSHA(root){
+    root.innerHTML = `
+      <div class="row">
+        <div class="col">
+          <label>${t('input')}</label>
+          <textarea name="in" placeholder="${t('shaPlaceholder')}"></textarea>
+          <div class="controls">
+            <div class="chip">
+              <label for="shaAlgo" class="subtle">${t('algorithm')}</label>
+              <select id="shaAlgo" style="min-height:unset;background:transparent;color:var(--fg);border:1px solid var(--border);border-radius:.4rem;padding:.25rem .4rem">
+                <option value="SHA-256" selected>SHA-256</option>
+                <option value="SHA-384">SHA-384</option>
+                <option value="SHA-512">SHA-512</option>
+              </select>
+            </div>
+            <div class="chip switch">
+              <input type="checkbox" id="useHmac">
+              <label for="useHmac">${t('hmac')}</label>
+            </div>
+            <input type="text" id="hmacKey" placeholder="${t('hmacKeyPlaceholder')}" style="min-height:unset;flex:1" disabled>
+          </div>
+          <div class="controls">
+            <button class="btn primary" data-action="sha-go">${t('shaGenerate')}</button>
+            <button class="btn" data-action="copy-out">${t('copyOut')}</button>
+            <button class="btn" data-action="clear">${t('clear')}</button>
+          </div>
+        </div>
+        <div class="col">
+          <label>${t('output')}</label>
+          <textarea name="out" readonly></textarea>
+          <div class="controls"><span class="subtle">${t('formatHexBase64')}</span></div>
+        </div>
+      </div>
+      <hr style="border: none; border-top: 1px solid var(--border); margin: 1rem 0;" />
+      <div class="grid">
+        <div>
+          <label>${t('fileToSHA')}</label>
+          <input type="file" id="shaFileIn" />
+          <div class="controls">
+            <button class="btn" data-action="sha-file">${t('hashFile')}</button>
+            <button class="btn" data-action="copy-filehash">${t('copyHash')}</button>
+          </div>
+          <textarea name="filehash" placeholder="hex / Base64" readonly></textarea>
+        </div>
+      </div>
+    `;
+
+    const elIn = $('textarea[name="in"]', root);
+    const elOut = $('textarea[name="out"]', root);
+    const algoSel = $('#shaAlgo', root);
+    const useHmac = $('#useHmac', root);
+    const hmacKey = $('#hmacKey', root);
+    const fileIn = $('#shaFileIn', root);
+    const fileHash = $('textarea[name="filehash"]', root);
+
+    useHmac.addEventListener('change', ()=>{
+      hmacKey.disabled = !useHmac.checked;
+    });
+
+    root.addEventListener('click', async (e)=>{
+      const a = e.target.closest('[data-action]'); if(!a) return;
+      const act = a.dataset.action;
+      try{
+        if(act==='sha-go'){
+          const algo = algoSel.value;
+          const data = enc.encode(elIn.value);
+          let outBytes;
+          if(useHmac.checked){
+            const keyBytes = enc.encode(hmacKey.value || '');
+            outBytes = await hmacSign(algo, keyBytes, data);
+          } else {
+            outBytes = await shaDigest(algo, data);
+          }
+          const hex = bytesToHex(outBytes);
+          const b64 = bytesToBase64(outBytes);
+          elOut.value = `hex: ${hex}\nbase64: ${b64}`;
+        } else if(act==='copy-out'){
+          copy(elOut.value);
+        } else if(act==='clear'){
+          elIn.value = ''; elOut.value = ''; textStore.save('sha','');
+        } else if(act==='sha-file'){
+          if(!fileIn.files || !fileIn.files[0]) return alert(t('selectFile'));
+          const file = fileIn.files[0];
+          const algo = algoSel.value;
+          const buf = await file.arrayBuffer();
+          const outBytes = await shaDigest(algo, new Uint8Array(buf));
+          const hex = bytesToHex(outBytes);
+          const b64 = bytesToBase64(outBytes);
+          fileHash.value = `hex: ${hex}\nbase64: ${b64}`;
+        } else if(act==='copy-filehash'){
+          copy(fileHash.value);
+        }
+      }catch(err){ alert(t('errorPrefix') + err.message); }
+    });
+  }
+
+  function renderHTML(root){
+    root.innerHTML = `
+      <div class="row">
+        <div class="col">
+          <label>${t('input')}</label>
+          <textarea name="in" placeholder="${t('htmlPlaceholder')}"></textarea>
+          <div class="controls">
+            <button class="btn" data-action="ent-enc">${t('encodeEntities')}</button>
+            <button class="btn" data-action="ent-dec">${t('decodeEntities')}</button>
+            <button class="btn" data-action="swap">${t('swap')}</button>
+            <button class="btn" data-action="copy-out">${t('copyOut')}</button>
+            <button class="btn" data-action="clear">${t('clear')}</button>
+          </div>
+          <div class="controls">
+            <div class="chip"><label class="subtle" for="normSel">${t('normalization')}</label></div>
+            <select id="normSel" style="min-height:unset;background:transparent;color:var(--fg);border:1px solid var(--border);border-radius:.4rem;padding:.25rem .4rem">
+              <option value="NFC" selected>NFC</option>
+              <option value="NFD">NFD</option>
+              <option value="NFKC">NFKC</option>
+              <option value="NFKD">NFKD</option>
+            </select>
+            <button class="btn" data-action="norm-apply">${t('apply')}</button>
+            <button class="btn" data-action="strip">${t('removeAccents')}</button>
+          </div>
+        </div>
+        <div class="col">
+          <label>${t('output')}</label>
+          <textarea name="out" readonly></textarea>
+        </div>
+      </div>
+      <div class="note subtle">${t('entitiesNote')}</div>
+    `;
+
+    const elIn = $('textarea[name="in"]', root);
+    const elOut = $('textarea[name="out"]', root);
+    const normSel = $('#normSel', root);
+
+    root.addEventListener('click', (e)=>{
+      const a = e.target.closest('[data-action]'); if(!a) return;
+      const act = a.dataset.action;
+      try{
+        if(act==='ent-enc'){
+          elOut.value = htmlEncode(elIn.value);
+        } else if(act==='ent-dec'){
+          elOut.value = htmlDecode(elIn.value);
+        } else if(act==='norm-apply'){
+          const form = normSel.value;
+          elOut.value = (elIn.value || '').normalize(form);
+        } else if(act==='strip'){
+          elOut.value = removeDiacritics(elIn.value || '');
+        } else if(act==='swap'){
+          [elIn.value, elOut.value] = [elOut.value, elIn.value];
+          textStore.save('html', elIn.value);
+        } else if(act==='copy-out'){
+          copy(elOut.value);
+        } else if(act==='clear'){
+          elIn.value = ''; elOut.value = ''; textStore.save('html','');
+        }
+      }catch(err){ alert(t('errorPrefix') + err.message); }
+    });
+  }
+
+  function renderJSON(root){
+    root.innerHTML = `
+      <div class="row">
+        <div class="col">
+          <label>${t('jsonInput')}</label>
+          <textarea name="in" placeholder='JSON...'></textarea>
+          <div class="controls">
+            <button class="btn primary" data-action="json-pretty">${t('jsonPretty')}</button>
+            <button class="btn" data-action="json-compact">${t('jsonCompact')}</button>
+            <button class="btn" data-action="json-validate">${t('jsonValidate')}</button>
+            <button class="btn" data-action="copy-out">${t('copyOut')}</button>
+            <button class="btn" data-action="clear">${t('clear')}</button>
+          </div>
+          <div class="note subtle">${t('jsonNote')}</div>
+        </div>
+        <div class="col">
+          <label>${t('output')}</label>
+          <textarea name="out" readonly></textarea>
+        </div>
+      </div>
+    `;
+
+    const elIn = $('textarea[name="in"]', root);
+    const elOut = $('textarea[name="out"]', root);
+
+    root.addEventListener('click', (e)=>{
+      const a = e.target.closest('[data-action]'); if(!a) return;
+      const act = a.dataset.action;
+      try{
+        if(act==='json-pretty'){
+          const obj = JSON.parse(elIn.value);
+          elOut.value = JSON.stringify(obj, null, 2);
+        } else if(act==='json-compact'){
+          const obj = JSON.parse(elIn.value);
+          elOut.value = JSON.stringify(obj);
+        } else if(act==='json-validate'){
+          try{
+            JSON.parse(elIn.value);
+            elOut.value = t('jsonValidOK');
+          } catch(err){
+            elOut.value = t('errorPrefix') + err.message;
+          }
+        } else if(act==='copy-out'){
+          copy(elOut.value);
+        } else if(act==='clear'){
+          elIn.value=''; elOut.value=''; textStore.save('json','');
+        }
+      }catch(err){ alert(t('errorPrefix') + err.message); }
+    });
+  }
+
+  function renderCSV(root){
+    root.innerHTML = `
+      <div class="row">
+        <div class="col">
+          <label>${t('csvInput')}</label>
+          <textarea name="in" placeholder="CSV or JSON..."></textarea>
+          <div class="controls">
+            <div class="chip switch"><input type="checkbox" id="csvHeader" checked><label for="csvHeader">${t('headerRow')}</label></div>
+          </div>
+          <div class="controls">
+            <button class="btn primary" data-action="csv-to-json">${t('csvToJson')}</button>
+            <button class="btn" data-action="json-to-csv">${t('jsonToCsv')}</button>
+            <button class="btn" data-action="copy-out">${t('copyOut')}</button>
+            <button class="btn" data-action="clear">${t('clear')}</button>
+          </div>
+          <div class="note subtle">${t('csvNote')}</div>
+        </div>
+        <div class="col">
+          <label>${t('output')}</label>
+          <textarea name="out" readonly></textarea>
+        </div>
+      </div>
+    `;
+    const elIn = $('textarea[name="in"]', root);
+    const elOut = $('textarea[name="out"]', root);
+    const headerCk = $('#csvHeader', root);
+    root.addEventListener('click', (e)=>{
+      const a = e.target.closest('[data-action]'); if(!a) return;
+      const act = a.dataset.action;
+      try{
+        if(act==='csv-to-json'){
+          const res = Papa.parse(elIn.value, { header: headerCk.checked, skipEmptyLines: 'greedy' });
+          elOut.value = JSON.stringify(res.data, null, 2);
+        } else if(act==='json-to-csv'){
+          const obj = JSON.parse(elIn.value);
+          const data = Array.isArray(obj) ? obj : [obj];
+          elOut.value = Papa.unparse(data);
+        } else if(act==='copy-out'){
+          copy(elOut.value);
+        } else if(act==='clear'){
+          elIn.value=''; elOut.value=''; textStore.save('csv','');
+        }
+      }catch(err){ alert(t('errorPrefix') + err.message); }
+    });
+  }
+
+  function renderYAML(root){
+    root.innerHTML = `
+      <div class="row">
+        <div class="col">
+          <label>${t('yamlInput')}</label>
+          <textarea name="in" placeholder="YAML or JSON..."></textarea>
+          <div class="controls">
+            <button class="btn primary" data-action="yaml-to-json">${t('yamlToJson')}</button>
+            <button class="btn" data-action="json-to-yaml">${t('jsonToYaml')}</button>
+            <button class="btn" data-action="copy-out">${t('copyOut')}</button>
+            <button class="btn" data-action="clear">${t('clear')}</button>
+          </div>
+          <div class="note subtle">${t('yamlNote')}</div>
+        </div>
+        <div class="col">
+          <label>${t('output')}</label>
+          <textarea name="out" readonly></textarea>
+        </div>
+      </div>
+    `;
+    const elIn = $('textarea[name="in"]', root);
+    const elOut = $('textarea[name="out"]', root);
+    root.addEventListener('click', (e)=>{
+      const a = e.target.closest('[data-action]'); if(!a) return;
+      const act = a.dataset.action;
+      try{
+        if(act==='yaml-to-json'){
+          const obj = jsyaml.load(elIn.value);
+          elOut.value = JSON.stringify(obj, null, 2);
+        } else if(act==='json-to-yaml'){
+          const obj = JSON.parse(elIn.value);
+          elOut.value = jsyaml.dump(obj, { lineWidth: 120 });
+        } else if(act==='copy-out'){
+          copy(elOut.value);
+        } else if(act==='clear'){
+          elIn.value=''; elOut.value=''; textStore.save('yaml','');
+        }
+      }catch(err){ alert(t('errorPrefix') + err.message); }
+    });
+  }
+
+  function renderXML(root){
+    root.innerHTML = `
+      <div class="row">
+        <div class="col">
+          <label>${t('xmlInput')}</label>
+          <textarea name="in" placeholder="XML or JSON..."></textarea>
+          <div class="controls">
+            <button class="btn primary" data-action="xml-to-json">${t('xmlToJson')}</button>
+            <button class="btn" data-action="json-to-xml">${t('jsonToXml')}</button>
+            <button class="btn" data-action="copy-out">${t('copyOut')}</button>
+            <button class="btn" data-action="clear">${t('clear')}</button>
+          </div>
+          <div class="note subtle">${t('xmlNote')}</div>
+        </div>
+        <div class="col">
+          <label>${t('output')}</label>
+          <textarea name="out" readonly></textarea>
+        </div>
+      </div>
+    `;
+    const elIn = $('textarea[name="in"]', root);
+    const elOut = $('textarea[name="out"]', root);
+    const FXPO = window.fxp || window.FXP || window['fast-xml-parser'] || {};
+    const XMLParser = FXPO.XMLParser || window.XMLParser;
+    const XMLBuilder = FXPO.XMLBuilder || window.XMLBuilder;
+    const parseOpts = { ignoreAttributes: false, attributeNamePrefix: '@_', allowBooleanAttributes: true };
+    const buildOpts = { ignoreAttributes: false, attributeNamePrefix: '@_', format: true, suppressBooleanAttributes: false };
+    root.addEventListener('click', (e)=>{
+      const a = e.target.closest('[data-action]'); if(!a) return;
+      const act = a.dataset.action;
+      try{
+        if(act==='xml-to-json'){
+          const parser = new XMLParser(parseOpts);
+          const obj = parser.parse(elIn.value);
+          elOut.value = JSON.stringify(obj, null, 2);
+        } else if(act==='json-to-xml'){
+          const builder = new XMLBuilder(buildOpts);
+          const obj = JSON.parse(elIn.value);
+          elOut.value = builder.build(obj);
+        } else if(act==='copy-out'){
+          copy(elOut.value);
+        } else if(act==='clear'){
+          elIn.value=''; elOut.value=''; textStore.save('xml','');
+        }
+      }catch(err){ alert(t('errorPrefix') + err.message); }
+    });
+  }
+
+  // Header actions
+  $('#themeToggle').addEventListener('click', ()=> setTheme(state.theme==='dark'?'light':'dark'));
+  $('#langSelect').addEventListener('change', (e)=>{
+    const val = e.target.value;
+    state.lang = (val==='pt'||val==='ja')? val : 'en';
+    localStorage.setItem(LKEY, state.lang);
+    translateHeader();
+    initTabs();
+  });
+  $('#clearAll').addEventListener('click', ()=>{
+    if(confirm(t('confirmClearAll'))){
+      $$('#panels textarea').forEach(t=> t.readOnly? t.value=t.value : t.value='');
+      localStorage.removeItem('conv.text.base64');
+      localStorage.removeItem('conv.text.url');
+      localStorage.removeItem('conv.text.md5');
+      localStorage.removeItem('conv.text.sha');
+      localStorage.removeItem('conv.text.html');
+      localStorage.removeItem('conv.text.json');
+      localStorage.removeItem('conv.text.csv');
+      localStorage.removeItem('conv.text.yaml');
+      localStorage.removeItem('conv.text.xml');
+    }
+  });
+
+  // Global: executar com Ctrl/Cmd+Enter
+  document.addEventListener('keydown', (e)=>{
+    if((e.ctrlKey||e.metaKey) && e.key==='Enter'){
+      const active = $(`.panel[data-panel="${state.activeTab}"]`);
+      if(!active) return;
+      const primary = active.querySelector('.btn.primary');
+      if(primary) primary.click();
+    }
+  });
+
+  // Inicialização
+  const hashTab = getTabFromHash();
+  state.activeTab = hashTab || localStorage.getItem(SKEY) || 'base64';
+  translateHeader();
+  initTabs();
+  if(!location.hash){
+    if(history.replaceState){ history.replaceState(null, '', '#' + state.activeTab); }
+    else location.hash = '#' + state.activeTab;
+  }
+
+  window.addEventListener('hashchange', ()=>{
+    const id = getTabFromHash();
+    if(!id || id === state.activeTab) return;
+    const tabsEl = $('#tabs');
+    const panelsEl = $('#panels');
+    state.activeTab = id;
+    $$('.tab', tabsEl).forEach(x => x.classList.toggle('active', x.dataset.tab === id));
+    $$('.panel', panelsEl).forEach(p => p.classList.toggle('hidden', p.dataset.panel !== id));
+    localStorage.setItem(SKEY, id);
+  });
+})();
+</script>
+</body>
+</html>
