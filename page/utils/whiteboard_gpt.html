@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Whiteboard — EN • PT • 日本語</title>
+  <!-- Toolbar icons (Font Awesome) – uses your hosted copy so fonts resolve correctly -->
+  <link rel="stylesheet"
+      href="https://cristianyamashita.github.io/vc/page/assets/fontawesome/css/all.min.css"
+      crossorigin="anonymous">
+
+  <style>
+    :root{
+      --sidebar-w:72px;
+      --bg:#0f1220;
+      --panel:#141830;
+      --panel-2:#0c1024;
+      --ink:#e6ebff;
+      --accent:#6ea8ff;
+      --accent-2:#9b6bff;
+      --danger:#ff657a;
+      --ok:#64d2a6;
+      --shadow: 0 8px 30px rgba(0,0,0,.35), 0 2px 10px rgba(0,0,0,.2);
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Helvetica,Arial,"Apple Color Emoji","Segoe UI Emoji"}
+    #app{position:fixed;inset:0;display:flex;}
+
+    /* Sidebar */
+    .sidebar{position:absolute;left:0;top:0;bottom:0;width:var(--sidebar-w);background:linear-gradient(180deg,var(--panel),var(--panel-2));border-right:1px solid rgba(255,255,255,.06);display:flex;flex-direction:column;align-items:center;gap:10px;padding:10px 8px;z-index:10}
+    .logo{width:100%;text-align:center;font-weight:700;letter-spacing:.08em;font-size:12px;color:#b8c7ff;opacity:.75;margin:2px 0 6px}
+    .tool{width:52px;height:52px;border-radius:14px;background:linear-gradient(180deg,#1b2148,#121838);border:1px solid rgba(255,255,255,.08);display:grid;place-items:center;cursor:pointer;transition:.2s;box-shadow:inset 0 1px 0 rgba(255,255,255,.08)}
+    .tool i{font-size:20px}
+    .tool:hover{transform:translateY(-1px);box-shadow:var(--shadow)}
+    .tool.active{outline:2px solid var(--accent);box-shadow:0 0 0 4px rgba(110,168,255,.18), inset 0 1px 0 rgba(255,255,255,.12)}
+    .sep{width:100%;height:1px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.12),transparent);margin:6px 0}
+
+    .col-swatch{width:28px;height:28px;border-radius:8px;border:1px solid rgba(255,255,255,.2);cursor:pointer}
+
+    /* Canvas area */
+    .stage{position:absolute;left:var(--sidebar-w);right:0;top:0;bottom:0;overflow:hidden}
+    #board,#overlay{position:absolute;inset:0}
+    #board{background:white;}
+
+    /* Pretty subtle grid overlay for aesthetics (togglable) */
+    .grid::after{content:"";position:absolute;inset:0;pointer-events:none;background-image:
+      radial-gradient(rgba(0,0,0,.06) 1px, transparent 1px),
+      radial-gradient(rgba(0,0,0,.03) 1px, transparent 1px);
+      background-position: 0 0, 16px 16px; background-size:32px 32px,32px 32px;
+      mix-blend-mode:multiply}
+
+    /* Bottom panel */
+    .panel{position:absolute;left:calc(var(--sidebar-w) + 14px);right:14px;bottom:14px;background:linear-gradient(180deg,#0d1330,#0b112a);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:10px 12px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;box-shadow:var(--shadow)}
+    .group{display:flex;gap:8px;align-items:center;background:rgba(255,255,255,.04);border-radius:12px;padding:8px}
+    .group label{font-size:12px;opacity:.8}
+    .group input[type="range"]{accent-color:var(--accent)}
+
+    .lang{margin-left:auto}
+    select, input, button{color:var(--ink);background:#0f1435;border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:6px 10px}
+    .btn{cursor:pointer}
+    .btn.primary{background:linear-gradient(180deg,#3757ff,#2d4be8);border-color:#4764ff}
+    .btn.warn{background:linear-gradient(180deg,#ff6b7d,#f25367);border-color:#ff7586}
+
+    /* Floating palettes */
+    .floating{position:absolute;background:#0d1330;border:1px solid rgba(255,255,255,.12);border-radius:12px;box-shadow:var(--shadow);padding:10px;z-index:15}
+    .hidden{display:none}
+    .icons-grid{display:grid;grid-template-columns:repeat(5, 36px);gap:8px}
+    .icons-grid button{width:36px;height:36px;border-radius:8px;display:grid;place-items:center;background:#12173a;border:1px solid rgba(255,255,255,.1);cursor:pointer}
+
+    /* Selection marquee */
+    .marquee{position:absolute;border:1px dashed #2d4be8;background:rgba(110,168,255,.15);pointer-events:none}
+
+    /* Tooltip */
+    [data-tip]{position:relative}
+    [data-tip]::after{content:attr(data-tip);position:absolute;left:62px;top:50%;transform:translateY(-50%);white-space:nowrap;background:#0b112a;color:#dfe7ff;padding:6px 8px;border-radius:8px;border:1px solid rgba(255,255,255,.1);opacity:0;pointer-events:none;transition:.15s;box-shadow:var(--shadow);font-size:12px}
+    [data-tip]:hover::after{opacity:1}
+
+    /* Text editor overlay */
+    #textEditor{position:absolute;min-width:140px;min-height:36px;background:rgba(255,255,255,.92);border:2px dashed var(--accent);border-radius:6px;color:#111;padding:4px 6px;outline:none;font: 24px/1.2 "Inter", system-ui, sans-serif;display:none;z-index:50;box-shadow:0 4px 16px rgba(0,0,0,.25)}
+
+    .hide{display:none}
+  </style>
+</head>
+<body>
+  <div id="app">
+    <aside class="sidebar">
+      <div class="logo">WHITEBOARD</div>
+      <button class="tool active" id="tool-pen" data-tool="pen" data-tip="Freehand (Pencil/Brush/Highlighter)"><i class="fa-solid fa-pen"></i></button>
+      <button class="tool" id="tool-eraser" data-tool="eraser" data-tip="Eraser"><i class="fa-solid fa-eraser"></i></button>
+      <div class="sep"></div>
+      <button class="tool" id="tool-line" data-tool="line" data-tip="Line"><i class="fa-solid fa-slash"></i></button>
+      <button class="tool" id="tool-arrow" data-tool="arrow" data-tip="Arrow"><i class="fa-solid fa-arrow-right-long"></i></button>
+      <button class="tool" id="tool-rect" data-tool="rect" data-tip="Rectangle"><i class="fa-regular fa-square"></i></button>
+      <button class="tool" id="tool-ellipse" data-tool="ellipse" data-tip="Ellipse"><i class="fa-regular fa-circle"></i></button>
+      <div class="sep"></div>
+      <button class="tool" id="tool-text" data-tool="text" data-tip="Text"><i class="fa-solid fa-font"></i></button>
+      <button class="tool" id="tool-stamp" data-tool="stamp" data-tip="Icons / Stamps"><i class="fa-regular fa-star"></i></button>
+      <button class="tool" id="tool-select" data-tool="select" data-tip="Select & Move"><i class="fa-regular fa-object-group"></i></button>
+      <div class="sep"></div>
+      <button class="tool" id="btn-undo" data-tip="Undo (Ctrl/Cmd+Z)"><i class="fa-solid fa-arrow-rotate-left"></i></button>
+      <button class="tool" id="btn-redo" data-tip="Redo (Ctrl/Cmd+Y)"><i class="fa-solid fa-arrow-rotate-right"></i></button>
+      <div class="sep"></div>
+      <button class="tool" id="btn-import" data-tip="Import / Upload"><i class="fa-solid fa-file-arrow-up"></i></button>
+      <button class="tool" id="btn-export" data-tip="Export PNG"><i class="fa-solid fa-file-arrow-down"></i></button>
+      <div class="sep"></div>
+      <button class="tool" id="btn-full" data-tip="Fullscreen"><i class="fa-solid fa-expand"></i></button>
+      <button class="tool" id="btn-grid" data-tip="Toggle Grid"><i class="fa-solid fa-border-all"></i></button>
+    </aside>
+
+    <main class="stage" id="stage">
+      <canvas id="board"></canvas>
+      <canvas id="overlay"></canvas>
+      <textarea id="textEditor"></textarea>
+      <div id="marquee" class="marquee hidden"></div>
+    </main>
+
+    <!-- Bottom control panel -->
+    <div class="panel">
+      <div class="group">
+        <label id="labColor">Color</label>
+        <div id="palette" style="display:flex;gap:6px;align-items:center">
+          <div class="col-swatch" data-col="#111111" style="background:#111"></div>
+          <div class="col-swatch" data-col="#ff4757" style="background:#ff4757"></div>
+          <div class="col-swatch" data-col="#ffa502" style="background:#ffa502"></div>
+          <div class="col-swatch" data-col="#2ed573" style="background:#2ed573"></div>
+          <div class="col-swatch" data-col="#1e90ff" style="background:#1e90ff"></div>
+          <div class="col-swatch" data-col="#5352ed" style="background:#5352ed"></div>
+          <div class="col-swatch" data-col="#e84393" style="background:#e84393"></div>
+          <input type="color" id="color" value="#111111" title="Pick color"/>
+        </div>
+      </div>
+      <div class="group">
+        <label id="labSize">Size</label>
+        <input type="range" id="size" min="1" max="60" value="6" />
+      </div>
+      <div class="group">
+        <label id="labAlpha">Opacity</label>
+        <input type="range" id="alpha" min="0.05" max="1" step="0.05" value="1" />
+      </div>
+      <div class="group">
+        <label id="labPen">Pen</label>
+        <select id="penType">
+          <option value="pencil">Pencil</option>
+          <option value="brush">Brush</option>
+          <option value="highlighter">Highlighter</option>
+        </select>
+      </div>
+      <div class="group">
+        <label id="labFill">Fill</label>
+        <select id="fillMode">
+          <option value="stroke">Stroke</option>
+          <option value="fill">Fill</option>
+          <option value="both">Both</option>
+        </select>
+      </div>
+      <div class="group">
+        <label id="labFont">Text Size</label>
+        <input type="range" id="textSize" min="10" max="96" value="28" />
+      </div>
+      <div class="group lang">
+        <label>言語 / Language / Idioma</label>
+        <select id="langSel">
+          <option value="en">English</option>
+          <option value="pt">Português</option>
+          <option value="ja">日本語</option>
+        </select>
+      </div>
+      <div class="group">
+        <label>Tests</label>
+        <button id="btn-tests" class="btn">Run</button>
+      </div>
+    </div>
+
+    <!-- Floating icons picker for stamps -->
+    <div id="iconPicker" class="floating hidden">
+      <div style="margin-bottom:8px;font-size:12px;opacity:.8" id="labIcons">Choose an icon</div>
+      <div class="icons-grid" id="iconsGrid"></div>
+    </div>
+
+    <input class="hide" type="file" id="fileInput" accept="image/png,image/jpeg,image/webp,application/json" />
+  </div>
+
+<script>
+(function(){
+  'use strict';
+  const $ = sel => document.querySelector(sel);
+  const $$ = sel => Array.from(document.querySelectorAll(sel));
+
+  const board = $('#board');
+  const overlay = $('#overlay');
+  const ctx = board.getContext('2d');
+  const octx = overlay.getContext('2d');
+  const stage = $('#stage');
+  const textEditor = $('#textEditor');
+  const marquee = $('#marquee');
+  const fileInput = $('#fileInput');
+
+  const tools = {
+    PEN:'pen', ERASER:'eraser', LINE:'line', ARROW:'arrow', RECT:'rect', ELLIPSE:'ellipse', TEXT:'text', STAMP:'stamp', SELECT:'select'
+  };
+
+  // Minimal translations
+  const T = {
+    en:{
+      Freehand:'Freehand (Pencil/Brush/Highlighter)', Eraser:'Eraser', Line:'Line', Arrow:'Arrow', Rectangle:'Rectangle', Ellipse:'Ellipse', Text:'Text', Icons:'Icons / Stamps', Select:'Select & Move', Undo:'Undo (Ctrl/Cmd+Z)', Redo:'Redo (Ctrl/Cmd+Y)', Import:'Import / Upload', Export:'Export PNG', Full:'Fullscreen', Grid:'Toggle Grid',
+      Color:'Color', Size:'Size', Opacity:'Opacity', Pen:'Pen', Fill:'Fill', Stroke:'Stroke', Both:'Both', TextSize:'Text Size', ChooseIcon:'Choose an icon', PasteHint:'Tip: Paste images directly with Ctrl/Cmd+V',
+      ConfirmClear:'Start a new empty board? This cannot be undone.'
+    },
+    pt:{
+      Freehand:'Desenho livre (Lápis/Pincel/Marca-texto)', Eraser:'Borracha', Line:'Linha', Arrow:'Seta', Rectangle:'Retângulo', Ellipse:'Elipse', Text:'Texto', Icons:'Ícones / Carimbos', Select:'Selecionar & Mover', Undo:'Desfazer (Ctrl/Cmd+Z)', Redo:'Refazer (Ctrl/Cmd+Y)', Import:'Importar / Enviar', Export:'Exportar PNG', Full:'Tela cheia', Grid:'Grade',
+      Color:'Cor', Size:'Tamanho', Opacity:'Opacidade', Pen:'Caneta', Fill:'Preenchimento', Stroke:'Contorno', Both:'Ambos', TextSize:'Tam. Texto', ChooseIcon:'Escolha um ícone', PasteHint:'Dica: Cole imagens com Ctrl/Cmd+V',
+      ConfirmClear:'Começar um quadro vazio? Isto não pode ser desfeito.'
+    },
+    ja:{
+      Freehand:'フリーハンド（鉛筆/ブラシ/マーカー）', Eraser:'消しゴム', Line:'直線', Arrow:'矢印', Rectangle:'四角形', Ellipse:'楕円', Text:'テキスト', Icons:'アイコン / スタンプ', Select:'選択して移動', Undo:'元に戻す (Ctrl/Cmd+Z)', Redo:'やり直し (Ctrl/Cmd+Y)', Import:'インポート / アップロード', Export:'PNG 書き出し', Full:'全画面', Grid:'グリッド',
+      Color:'色', Size:'太さ', Opacity:'不透明度', Pen:'ペン', Fill:'塗り', Stroke:'線のみ', Both:'両方', TextSize:'文字サイズ', ChooseIcon:'アイコンを選択', PasteHint:'ヒント: Ctrl/Cmd+V で画像を貼り付け',
+      ConfirmClear:'新しい空のボードを開始しますか？元に戻せません。'
+    }
+  }
+
+  const state = {
+    tool: tools.PEN,
+    penType: 'pencil',
+    color: '#111111',
+    size: 6,
+    alpha: 1,
+    fillMode: 'stroke',
+    textSize: 28,
+    lang: 'en',
+    drawing:false,
+    startX:0,startY:0,lastX:0,lastY:0,
+    selection:null, // {x,y,w,h, imageData}
+    movingSel:false,
+    dragOffX:0, dragOffY:0,
+    icons: [
+      {name:'star', cls:'fa-star', u:'\uf005'},
+      {name:'heart', cls:'fa-heart', u:'\uf004'},
+      {name:'check', cls:'fa-check', u:'\uf00c'},
+      {name:'xmark', cls:'fa-xmark', u:'\uf00d'},
+      {name:'smile', cls:'fa-face-smile', u:'\uf118'},
+      {name:'thumbs-up', cls:'fa-thumbs-up', u:'\uf164'},
+      {name:'bolt', cls:'fa-bolt', u:'\uf0e7'},
+      {name:'star-of-life', cls:'fa-star-of-life', u:'\uf621'},
+      {name:'paper-plane', cls:'fa-paper-plane', u:'\uf1d8'},
+      {name:'sun', cls:'fa-sun', u:'\uf185'},
+    ],
+    iconGlyph:'',
+    stampX:null, stampY:null // last canvas position where the picker was opened
+  };
+
+  // --- Utilities ---
+  function isImageData(obj){
+    return !!(obj && typeof obj === 'object' && (
+      (typeof ImageData!== 'undefined' && obj instanceof ImageData) ||
+      (obj.data instanceof Uint8ClampedArray && typeof obj.width==='number' && typeof obj.height==='number')
+    ));
+  }
+  function clamp(n,min,max){ return Math.max(min, Math.min(max, n)); }
+
+  // HISTORY (undo/redo) — store ImageData snapshots
+  const history = [];
+  const redoStack = [];
+  const MAX_HIST = 50;
+  function pushHistory(){
+    try{
+      const img = ctx.getImageData(0,0,board.width,board.height);
+      history.push(img);
+      if(history.length>MAX_HIST) history.shift();
+      redoStack.length=0;
+    }catch(e){ console.warn('History push failed', e); }
+  }
+  function undo(){
+    if(history.length>0){
+      const cur = ctx.getImageData(0,0,board.width,board.height);
+      const prev = history.pop();
+      redoStack.push(cur);
+      if(isImageData(prev)) ctx.putImageData(prev,0,0);
+    }
+  }
+  function redo(){
+    if(redoStack.length>0){
+      const cur = ctx.getImageData(0,0,board.width,board.height);
+      const next = redoStack.pop();
+      history.push(cur);
+      if(isImageData(next)) ctx.putImageData(next,0,0);
+    }
+  }
+
+  function resizeCanvas(){
+    const {clientWidth:w, clientHeight:h} = stage;
+    // Preserve content during resize
+    const prev = document.createElement('canvas');
+    prev.width = board.width; prev.height = board.height;
+    prev.getContext('2d').drawImage(board,0,0);
+
+    board.width = overlay.width = w;
+    board.height= overlay.height= h;
+
+    // white background
+    ctx.save();
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0,0,board.width,board.height);
+    ctx.restore();
+    ctx.drawImage(prev,0,0);
+    clearOverlay();
+  }
+
+  function setLang(l){
+    state.lang = l;
+    const tr = T[l];
+    // Update tooltips
+    $('#tool-pen').setAttribute('data-tip', tr.Freehand);
+    $('#tool-eraser').setAttribute('data-tip', tr.Eraser);
+    $('#tool-line').setAttribute('data-tip', tr.Line);
+    $('#tool-arrow').setAttribute('data-tip', tr.Arrow);
+    $('#tool-rect').setAttribute('data-tip', tr.Rectangle);
+    $('#tool-ellipse').setAttribute('data-tip', tr.Ellipse);
+    $('#tool-text').setAttribute('data-tip', tr.Text);
+    $('#tool-stamp').setAttribute('data-tip', tr.Icons);
+    $('#tool-select').setAttribute('data-tip', tr.Select);
+    $('#btn-undo').setAttribute('data-tip', tr.Undo);
+    $('#btn-redo').setAttribute('data-tip', tr.Redo);
+    $('#btn-import').setAttribute('data-tip', tr.Import);
+    $('#btn-export').setAttribute('data-tip', tr.Export);
+    $('#btn-full').setAttribute('data-tip', tr.Full);
+    $('#btn-grid').setAttribute('data-tip', tr.Grid);
+
+    $('#labColor').textContent = tr.Color;
+    $('#labSize').textContent = tr.Size;
+    $('#labAlpha').textContent = tr.Opacity;
+    $('#labPen').textContent = tr.Pen;
+    $('#labFill').textContent = tr.Fill;
+    $('#labFont').textContent = tr.TextSize;
+    $('#labIcons').textContent = tr.ChooseIcon;
+  }
+
+  function pickTool(id){
+    $$('.tool').forEach(b=>b.classList.remove('active'));
+    const btn = document.getElementById('tool-'+id);
+    if(btn) btn.classList.add('active');
+    // If we had a finalized selection (with ImageData), commit it before switching
+    if(state.tool===tools.SELECT && state.selection && isImageData(state.selection.imageData)){
+      endSelection(true);
+    }else{
+      // if selection exists but not finalized, just cancel gracefully
+      if(state.tool===tools.SELECT && state.selection && !isImageData(state.selection.imageData)) endSelection(false);
+    }
+    state.tool = id;
+    hideIconPicker();
+    textEditor.style.display='none';
+  }
+
+  // Drawing helpers
+  function clearOverlay(){
+    octx.clearRect(0,0,overlay.width,overlay.height);
+  }
+
+  function strokeStyle(){
+    ctx.globalAlpha = state.alpha;
+    ctx.lineWidth = state.size;
+    ctx.lineJoin = ctx.lineCap = 'round';
+    ctx.strokeStyle = state.tool===tools.ERASER ? '#ffffff' : state.color;
+    ctx.fillStyle = state.color;
+  }
+
+  function oStrokeStyle(){
+    octx.globalAlpha = 1;
+    octx.lineWidth = state.size;
+    octx.lineJoin = octx.lineCap = 'round';
+    octx.strokeStyle = state.color;
+    octx.setLineDash([8,6]);
+  }
+
+  // Freehand drawing with simple smoothing
+  function drawFreehandPoint(x,y,pressure=0.5){
+    const type = state.penType;
+    let w = state.size;
+    if(type==='brush'){
+      w = state.size * (0.5 + pressure*0.8);
+    }
+    ctx.save();
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.strokeStyle = state.color;
+    ctx.fillStyle = state.color;
+    ctx.globalAlpha = (type==='highlighter') ? 0.35 : state.alpha;
+    ctx.lineWidth = w;
+    ctx.lineCap = ctx.lineJoin = 'round';
+
+    ctx.beginPath();
+    ctx.moveTo(state.lastX, state.lastY);
+    ctx.lineTo(x,y);
+    ctx.stroke();
+    ctx.restore();
+
+    state.lastX = x; state.lastY = y;
+  }
+
+  function drawEraser(x,y){
+    ctx.save();
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = state.size;
+    ctx.lineCap = ctx.lineJoin = 'round';
+    ctx.beginPath(); ctx.moveTo(state.lastX, state.lastY); ctx.lineTo(x,y); ctx.stroke();
+    ctx.restore();
+    state.lastX = x; state.lastY = y;
+  }
+
+  function previewShape(x0,y0,x1,y1,mode){
+    clearOverlay();
+    oStrokeStyle();
+    octx.setLineDash([]);
+    if(mode==='line' || mode==='arrow'){
+      octx.beginPath(); octx.moveTo(x0,y0); octx.lineTo(x1,y1); octx.stroke();
+      if(mode==='arrow') drawArrowHead(octx,x0,y0,x1,y1);
+    }else if(mode==='rect'){
+      const w=x1-x0, h=y1-y0;
+      if(state.fillMode!=='stroke'){
+        octx.globalAlpha=.15; octx.fillStyle=state.color; octx.fillRect(x0,y0,w,h); octx.globalAlpha=1;
+      }
+      octx.strokeRect(x0,y0,w,h);
+    }else if(mode==='ellipse'){
+      octx.beginPath();
+      octx.ellipse((x0+x1)/2,(y0+y1)/2, Math.abs(x1-x0)/2, Math.abs(y1-y0)/2, 0, 0, Math.PI*2);
+      if(state.fillMode!=='stroke'){ octx.globalAlpha=.15; octx.fillStyle=state.color; octx.fill(); octx.globalAlpha=1; }
+      octx.stroke();
+    }
+  }
+
+  function commitShape(x0,y0,x1,y1,mode){
+    strokeStyle();
+    if(mode==='line' || mode==='arrow'){
+      ctx.beginPath(); ctx.moveTo(x0,y0); ctx.lineTo(x1,y1); ctx.stroke();
+      if(mode==='arrow') drawArrowHead(ctx,x0,y0,x1,y1);
+    }else if(mode==='rect'){
+      const w=x1-x0, h=y1-y0;
+      if(state.fillMode==='fill' || state.fillMode==='both') ctx.fillRect(x0,y0,w,h);
+      if(state.fillMode==='stroke' || state.fillMode==='both'){ ctx.strokeRect(x0,y0,w,h); }
+    }else if(mode==='ellipse'){
+      ctx.beginPath();
+      ctx.ellipse((x0+x1)/2,(y0+y1)/2, Math.abs(x1-x0)/2, Math.abs(y1-y0)/2, 0, 0, Math.PI*2);
+      if(state.fillMode==='fill' || state.fillMode==='both') ctx.fill();
+      if(state.fillMode==='stroke' || state.fillMode==='both') ctx.stroke();
+    }
+  }
+
+  function drawArrowHead(c,x0,y0,x1,y1){
+    const ang = Math.atan2(y1-y0,x1-x0);
+    const len = Math.max(10, state.size*2.2);
+    c.save(); c.fillStyle = state.color; c.strokeStyle = state.color;
+    c.beginPath();
+    c.moveTo(x1,y1);
+    c.lineTo(x1 - len*Math.cos(ang - Math.PI/6), y1 - len*Math.sin(ang - Math.PI/6));
+    c.lineTo(x1 - len*Math.cos(ang + Math.PI/6), y1 - len*Math.sin(ang + Math.PI/6));
+    c.closePath();
+    if(state.fillMode==='fill' || state.fillMode==='both') c.fill();
+    c.stroke();
+    c.restore();
+  }
+
+  // Text tool
+  function beginText(x,y){
+    if(textEditor.style.display!=='none'){ commitText(); }
+    textEditor.style.left = x + 'px';
+    textEditor.style.top = y + 'px';
+    textEditor.style.fontSize = state.textSize + 'px';
+    textEditor.style.lineHeight = (state.textSize*1.2) + 'px';
+    textEditor.style.color = state.color;
+    textEditor.value = '';
+    textEditor.style.width = Math.max(140, state.textSize*6) + 'px';
+    textEditor.style.height = Math.max(36, state.textSize*1.6) + 'px';
+    textEditor.style.display = 'block';
+    requestAnimationFrame(()=>{ textEditor.focus({preventScroll:true}); textEditor.setSelectionRange(textEditor.value.length, textEditor.value.length); });
+  }
+  function commitText(){
+    if(textEditor.style.display!=='none'){
+      const x = parseInt(textEditor.style.left,10);
+      const y = parseInt(textEditor.style.top,10) + state.textSize; // baseline
+      ctx.save();
+      ctx.globalAlpha = state.alpha;
+      ctx.fillStyle = state.color;
+      ctx.font = `${state.textSize}px "Inter", system-ui, sans-serif`;
+      const lines = textEditor.value.replace(/\r/g,'').split('\n');
+      lines.forEach((line,i)=>{ if(line) ctx.fillText(line, x, y + i*state.textSize*1.2); });
+      ctx.restore();
+      textEditor.style.display='none';
+      pushHistory();
+    }
+  }
+
+  // Icon (stamp) tool using Font Awesome glyphs
+  const iconPicker = $('#iconPicker');
+  const iconsGrid = $('#iconsGrid');
+  function buildIconGrid(){
+    iconsGrid.innerHTML = '';
+    state.icons.forEach(ic=>{
+      const b = document.createElement('button');
+      b.innerHTML = `<i class="fa-solid ${ic.cls}"></i>`;
+      b.title = ic.name;
+      b.addEventListener('click',()=>{
+        state.iconGlyph = ic.u;
+        // If picker was opened from a canvas click, place immediately at stored position
+        if(typeof state.stampX === 'number' && typeof state.stampY === 'number'){
+          placeStamp(state.stampX, state.stampY);
+        }
+        hideIconPicker();
+      });
+      iconsGrid.appendChild(b);
+    });
+  }
+  function showIconPicker(screenX,screenY, canvasX,canvasY){
+    iconPicker.style.left = (screenX+12)+'px';
+    iconPicker.style.top = (screenY+12)+'px';
+    state.stampX = canvasX; state.stampY = canvasY;
+    iconPicker.classList.remove('hidden');
+  }
+  function hideIconPicker(){ iconPicker.classList.add('hidden'); state.stampX=null; state.stampY=null; }
+
+  async function placeStamp(x,y){
+  try {
+    await Promise.all([
+      document.fonts.load('900 48px "Font Awesome 6 Free"'),
+      document.fonts.load('400 48px "Font Awesome 6 Free"')
+    ]);
+  } catch(_) {}
+
+  const sz = Math.max(22, state.size*6);
+  const families = [
+    `900 ${sz}px "Font Awesome 6 Free"`,
+    `400 ${sz}px "Font Awesome 6 Free"`
+  ];
+
+  ctx.save();
+  ctx.globalAlpha = state.alpha;
+  ctx.fillStyle = state.color;
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'center';
+
+  let drawn = false;
+  for (const fontSpec of families) {
+    ctx.font = fontSpec;
+    const w = ctx.measureText(state.iconGlyph).width;
+    if (w > sz * 0.3) { // glyph seems real, not tofu
+      ctx.fillText(state.iconGlyph, x, y);
+      drawn = true;
+      break;
+    }
+  }
+
+  if (!drawn) {
+    // Fallback: simple heart path so user never sees a tofu box
+    const r = sz * 0.25, off = sz * 0.12;
+    ctx.beginPath();
+    ctx.moveTo(x, y + off);
+    ctx.bezierCurveTo(x - r*2, y - off, x - r*2, y + r*1.6, x, y + r*2.2);
+    ctx.bezierCurveTo(x + r*2, y + r*1.6, x + r*2, y - off, x, y + off);
+    ctx.fill();
+  }
+
+  ctx.restore();
+  pushHistory();
+}
+
+
+  // Selection tool (rectangle, then drag/move)
+  function startSelection(x,y){
+    state.selection = {x,y,w:0,h:0,imageData:null};
+    marquee.classList.remove('hidden');
+    marquee.style.left = x+'px'; marquee.style.top = y+'px'; marquee.style.width='0px'; marquee.style.height='0px';
+  }
+  function updateSelection(x,y){
+    if(!state.selection) return;
+    const sx = Math.min(state.selection.x, x);
+    const sy = Math.min(state.selection.y, y);
+    const ex = Math.max(state.selection.x, x);
+    const ey = Math.max(state.selection.y, y);
+    marquee.style.left = sx+'px'; marquee.style.top = sy+'px';
+    marquee.style.width = (ex-sx)+'px'; marquee.style.height=(ey-sy)+'px';
+  }
+  function finalizeSelection(){
+    if(!state.selection) return;
+    const r = marquee.getBoundingClientRect();
+    const rs = stage.getBoundingClientRect();
+    const x = clamp(Math.round(r.left - rs.left), 0, board.width-1);
+    const y = clamp(Math.round(r.top  - rs.top ), 0, board.height-1);
+    const w = clamp(Math.round(r.width), 1, board.width - x);
+    const h = clamp(Math.round(r.height),1, board.height - y);
+    if(w<=0 || h<=0){
+      marquee.classList.add('hidden');
+      clearOverlay();
+      state.selection=null; state.movingSel=false; return;
+    }
+    let img = null;
+    try{
+      img = ctx.getImageData(x,y,w,h);
+    }catch(err){
+      console.warn('getImageData failed for selection', {x,y,w,h}, err);
+      marquee.classList.add('hidden');
+      clearOverlay();
+      state.selection=null; state.movingSel=false; return;
+    }
+    state.selection = {x,y,w,h,imageData: img};
+    ctx.save(); ctx.fillStyle = '#ffffff'; ctx.fillRect(x,y,w,h); ctx.restore();
+    state.movingSel = true;
+    state.dragOffX = 0; state.dragOffY = 0;
+  }
+  function moveSelectionTo(x,y){
+    clearOverlay();
+    if(!state.selection || !isImageData(state.selection.imageData)) return;
+    octx.putImageData(state.selection.imageData, x, y);
+    marquee.style.left = x+'px'; marquee.style.top = y+'px';
+    marquee.style.width = state.selection.w+'px'; marquee.style.height=state.selection.h+'px';
+  }
+  function endSelection(commit){
+    if(!state.selection){ marquee.classList.add('hidden'); return; }
+    const r = marquee.getBoundingClientRect();
+    const rs = stage.getBoundingClientRect();
+    const x = clamp(Math.round(r.left - rs.left), 0, board.width-1);
+    const y = clamp(Math.round(r.top  - rs.top ), 0, board.height-1);
+    const img = state.selection.imageData;
+    marquee.classList.add('hidden');
+    clearOverlay();
+    if(!isImageData(img)){
+      state.selection=null; state.movingSel=false; return;
+    }
+    if(commit){
+      ctx.putImageData(img, x, y);
+      pushHistory();
+    }else{
+      ctx.putImageData(img, state.selection.x, state.selection.y);
+    }
+    state.selection=null; state.movingSel=false; state.dragOffX=0; state.dragOffY=0;
+  }
+
+  // Import / Export
+  function exportPNG(){
+    const tmp = document.createElement('canvas'); tmp.width=board.width; tmp.height=board.height;
+    const tctx = tmp.getContext('2d');
+    tctx.fillStyle='#ffffff'; tctx.fillRect(0,0,tmp.width,tmp.height);
+    tctx.drawImage(board,0,0);
+    const url = tmp.toDataURL('image/png');
+    const a = document.createElement('a'); a.href=url; a.download='whiteboard.png'; a.click();
+  }
+
+  function importFile(){ fileInput.click(); }
+
+  fileInput.addEventListener('change', e=>{
+    const f = fileInput.files[0]; if(!f) return;
+    const type = f.type;
+    if(type==='application/json'){
+      const reader = new FileReader(); reader.onload = ()=>{
+        try{
+          const obj = JSON.parse(reader.result);
+          if(obj && obj.image){
+            const img = new Image(); img.onload = ()=>{ ctx.drawImage(img,0,0); pushHistory(); }; img.src = obj.image;
+          }
+        }catch(err){ console.error(err); }
+      }; reader.readAsText(f);
+    }else if(type.startsWith('image/')){
+      const img = new Image(); img.onload = ()=>{ ctx.drawImage(img,0,0); pushHistory(); }; img.src = URL.createObjectURL(f);
+    }
+    fileInput.value='';
+  });
+
+  function exportJSON(){
+    const data = { image: board.toDataURL('image/png'), w: board.width, h: board.height };
+    const blob = new Blob([JSON.stringify(data)],{type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href=url; a.download='whiteboard.wbd.json'; a.click();
+  }
+
+  // Paste image from clipboard
+  window.addEventListener('paste', async (e)=>{
+    const items = e.clipboardData && e.clipboardData.items; if(!items) return;
+    for(const it of items){
+      if(it.type && it.type.startsWith('image/')){
+        const blob = it.getAsFile();
+        const img = new Image();
+        img.onload = ()=>{ ctx.drawImage(img, (board.width-img.width)/2, (board.height-img.height)/2); pushHistory(); };
+        img.src = URL.createObjectURL(blob);
+        break;
+      }
+    }
+  });
+
+  // Keyboard shortcuts
+  window.addEventListener('keydown', (e)=>{
+    const z = (e.key==='z' || e.key==='Z');
+    const y = (e.key==='y' || e.key==='Y');
+    if((e.ctrlKey||e.metaKey) && z){ e.preventDefault(); if(e.shiftKey) redo(); else undo(); }
+    else if((e.ctrlKey||e.metaKey) && y){ e.preventDefault(); redo(); }
+    else if(e.key==='Escape'){
+      if(textEditor.style.display!=='none'){ textEditor.style.display='none'; }
+      endSelection(false);
+      clearOverlay();
+    }
+  })
+
+  // UI bindings
+  $$('#tool-pen, #tool-eraser, #tool-line, #tool-arrow, #tool-rect, #tool-ellipse, #tool-text, #tool-stamp, #tool-select').forEach(btn=>{
+    btn.addEventListener('click', ()=> pickTool(btn.dataset.tool));
+  })
+  $('#btn-undo').addEventListener('click', undo);
+  $('#btn-redo').addEventListener('click', redo);
+  $('#btn-export').addEventListener('click', exportPNG);
+  $('#btn-import').addEventListener('click', importFile);
+  $('#btn-full').addEventListener('click', ()=>{ document.documentElement.requestFullscreen?.(); });
+  $('#btn-grid').addEventListener('click', ()=> stage.classList.toggle('grid'));
+  $('#btn-tests').addEventListener('click', runSelfTests);
+
+  $('#color').addEventListener('input', e=>{ state.color = e.target.value; if(textEditor.style.display!=='none'){ textEditor.style.color = state.color; }});
+  $$('#palette .col-swatch').forEach(s=> s.addEventListener('click',()=>{ state.color = s.dataset.col; $('#color').value = state.color; if(textEditor.style.display!=='none'){ textEditor.style.color = state.color; } }));
+  $('#size').addEventListener('input', e=> state.size = +e.target.value);
+  $('#alpha').addEventListener('input', e=> state.alpha = +e.target.value);
+  $('#penType').addEventListener('change', e=> state.penType = e.target.value);
+  $('#fillMode').addEventListener('change', e=> state.fillMode = e.target.value);
+  $('#textSize').addEventListener('input', e=>{ state.textSize = +e.target.value; if(textEditor.style.display!=='none'){ textEditor.style.fontSize = state.textSize + 'px'; textEditor.style.lineHeight = (state.textSize*1.2) + 'px'; } });
+  $('#langSel').addEventListener('change', e=> setLang(e.target.value));
+
+  // Pointer interaction
+  function getPos(ev){
+    const r = board.getBoundingClientRect();
+    return { x: ev.clientX - r.left, y: ev.clientY - r.top, p: (ev.pressure||.5) };
+  }
+
+  overlay.addEventListener('pointerdown', (e)=>{
+    const {x,y,p} = getPos(e);
+    state.drawing = true; state.startX = state.lastX = x; state.startY = state.lastY = y;
+    if(state.tool===tools.TEXT){
+      beginText(x,y);
+      state.drawing=false;
+      e.preventDefault();
+      e.stopPropagation();
+      return; }
+    if(state.tool===tools.STAMP){
+      // open picker at pointer, and remember canvas coords for immediate placement on choose
+      showIconPicker(e.clientX, e.clientY, x, y);
+      state.drawing=false; return; }
+    if(state.tool===tools.SELECT){
+      if(state.selection && isImageData(state.selection.imageData)){
+        const r = marquee.getBoundingClientRect();
+        state.dragOffX = e.clientX - r.left;
+        state.dragOffY = e.clientY - r.top;
+        state.movingSel = true; return;
+      }
+      startSelection(x,y); return;
+    }
+    if(state.tool===tools.PEN || state.tool===tools.ERASER){ pushHistory(); }
+  })
+
+  overlay.addEventListener('pointermove', (e)=>{
+    if(!state.drawing) return;
+    const {x,y,p} = getPos(e);
+    if(state.tool===tools.PEN){ drawFreehandPoint(x,y,p); }
+    else if(state.tool===tools.ERASER){ drawEraser(x,y); }
+    else if([tools.LINE,tools.ARROW,tools.RECT,tools.ELLIPSE].includes(state.tool)){
+      previewShape(state.startX,state.startY,x,y, state.tool);
+    }else if(state.tool===tools.SELECT){
+      if(state.selection && isImageData(state.selection.imageData) && state.movingSel){
+        const rs = stage.getBoundingClientRect();
+        const nx = clamp(Math.round(e.clientX - rs.left - state.dragOffX), 0, board.width - state.selection.w);
+        const ny = clamp(Math.round(e.clientY - rs.top  - state.dragOffY),  0, board.height - state.selection.h);
+        moveSelectionTo(nx, ny);
+      }else{
+        updateSelection(x,y);
+      }
+    }
+  })
+
+  overlay.addEventListener('pointerup', (e)=>{
+    const {x,y} = getPos(e);
+    if(state.tool===tools.PEN || state.tool===tools.ERASER){ state.drawing=false; return; }
+    if([tools.LINE,tools.ARROW,tools.RECT,tools.ELLIPSE].includes(state.tool)){
+      commitShape(state.startX,state.startY,x,y, state.tool);
+      clearOverlay(); pushHistory();
+    }else if(state.tool===tools.SELECT){
+      if(state.selection && isImageData(state.selection.imageData) && state.movingSel){
+        endSelection(true);
+      }else{
+        finalizeSelection();
+      }
+    }
+    state.drawing=false;
+  })
+
+  overlay.addEventListener('pointerleave', ()=>{
+    if(state.tool===tools.SELECT && state.selection && state.movingSel){ endSelection(true); }
+    state.drawing=false;
+  });
+
+  // Click to place stamp
+  overlay.addEventListener('click', (e)=>{
+    if(state.tool===tools.STAMP && iconPicker.classList.contains('hidden')){
+      const {x,y} = getPos(e);
+      placeStamp(x,y);
+    }
+  })
+
+  // Commit text on blur or Enter (ignore IME composition on Enter)
+  textEditor.addEventListener('keydown',(e)=>{
+    if(e.isComposing || e.keyCode===229) return;
+    if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); commitText(); }
+    if(e.key==='Escape'){ e.preventDefault(); textEditor.style.display='none'; }
+  });
+  textEditor.addEventListener('blur', commitText);
+
+  // Initial setup
+  function init(){
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+    ctx.fillStyle = '#fff'; ctx.fillRect(0,0,board.width,board.height);
+    pushHistory();
+    setLang('en');
+    buildIconGrid();
+    console.log('Tip: You can paste images directly with Ctrl/Cmd+V');
+    // Accessibility: spawn editor if typing with Text tool active but no click yet
+    window.addEventListener('keydown', (e)=>{
+      if(state.tool===tools.TEXT && textEditor.style.display==='none' && !e.metaKey && !e.ctrlKey && e.key.length===1){
+        const x = board.width*0.3, y = board.height*0.3;
+        beginText(x,y);
+      }
+    }, true);
+  }
+  init();
+
+  // Context menu to export JSON or clear
+  stage.addEventListener('contextmenu', (e)=>{
+    e.preventDefault();
+    const m = confirm(T[state.lang].ConfirmClear + "\n\nOK = New Board, Cancel = Export JSON");
+    if(m){ ctx.fillStyle='#fff'; ctx.fillRect(0,0,board.width,board.height); pushHistory(); }
+    else{ exportJSON(); }
+  })
+
+  // --- Self tests (non-intrusive) ---
+  function runSelfTests(){
+    const results = [];
+    function test(name, fn){
+      try{ fn(); results.push({name, ok:true}); }
+      catch(err){ console.error('TEST FAIL', name, err); results.push({name, ok:false, err}); }
+    }
+    let snap=null; try{ snap = ctx.getImageData(0,0,board.width,board.height); }catch(_){ snap=null; }
+
+    test('✓ endSelection ignores null imageData', ()=>{
+      state.selection = {x:10,y:10,w:20,h:20,imageData:null};
+      endSelection(true);
+      if(state.selection!==null) throw new Error('selection not cleared');
+    });
+
+    test('✓ moveSelection ignores null imageData', ()=>{
+      state.selection = {x:10,y:10,w:20,h:20,imageData:null};
+      moveSelectionTo(30,30);
+      state.selection=null; clearOverlay();
+    });
+
+    test('✓ endSelection accepts valid ImageData', ()=>{
+      const img = new ImageData(8,8);
+      for(let i=0;i<img.data.length;i+=4){ img.data[i]=255; img.data[i+3]=255; }
+      state.selection = {x:2,y:2,w:8,h:8,imageData:img};
+      marquee.classList.remove('hidden');
+      marquee.style.left = '4px'; marquee.style.top = '4px'; marquee.style.width='8px'; marquee.style.height='8px';
+      endSelection(true);
+    });
+
+    test('✓ drag keeps cursor offset', ()=>{
+      const img = new ImageData(10,10);
+      state.selection = {x:10,y:10,w:10,h:10,imageData:img};
+      state.movingSel = true; state.dragOffX = 3; state.dragOffY = 4;
+      const rs = stage.getBoundingClientRect();
+      const nx = clamp(50 - rs.left - state.dragOffX, 0, board.width - state.selection.w);
+      const ny = clamp(60 - rs.top  - state.dragOffY,  0, board.height - state.selection.h);
+      moveSelectionTo(Math.round(nx), Math.round(ny));
+      state.movingSel=false; clearOverlay(); state.selection=null;
+    });
+
+    test('✓ undo/redo stack stable', ()=>{ pushHistory(); undo(); redo(); });
+
+    test('✓ text editor focuses and writes (single line)', ()=>{
+      beginText(20,20);
+      if(textEditor.style.display==='none') throw new Error('editor not shown');
+      textEditor.value = 'Hello';
+      commitText();
+    });
+
+    test('✓ text editor handles newlines', ()=>{
+      beginText(40,40);
+      textEditor.value = 'Line1\nLine2';
+      commitText();
+    });
+
+    test('✓ placeStamp draws without picker', ()=>{
+      const before = ctx.getImageData(0,0,1,1);
+      state.color = '#000000';
+      placeStamp(60,60);
+      const after = ctx.getImageData(0,0,1,1);
+      if(!isImageData(before) || !isImageData(after)) throw new Error('ImageData not readable');
+    });
+
+    test('✓ icon grid builds expected count', ()=>{
+      buildIconGrid();
+      if(iconsGrid.children.length !== state.icons.length) throw new Error('icon buttons missing');
+    });
+
+    test('✓ picker show/hide updates state', ()=>{
+      showIconPicker(10,10,100,200);
+      if(iconPicker.classList.contains('hidden')) throw new Error('picker not shown');
+      if(state.stampX!==100 || state.stampY!==200) throw new Error('coords not stored');
+      hideIconPicker();
+      if(!iconPicker.classList.contains('hidden')) throw new Error('picker not hidden');
+    });
+
+    if(snap && isImageData(snap)) ctx.putImageData(snap,0,0);
+
+    console.log('Self-tests:', results.map(r=>`${r.ok?'PASS':'FAIL'} ${r.name}`).join(' | '));
+    alert(results.every(r=>r.ok) ? 'All tests passed.' : 'Some tests failed. Check console.');
+  }
+
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,857 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Whiteboard</title>
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        /* Basic Reset and Fullscreen Setup */
+        :root {
+            --primary-bg: #1a1a1a;
+            --secondary-bg: #2c2c2c;
+            --accent-color: #00aaff;
+            --text-color: #f0f0f0;
+            --border-color: #444;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--primary-bg);
+        }
+
+        /* Main container for positioning */
+        #container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Canvas Styling */
+        #whiteboard {
+            display: block;
+            background-color: #ffffff;
+            cursor: crosshair;
+        }
+
+        /* Toolbar Styling */
+        .toolbar {
+            position: fixed;
+            top: 50%;
+            left: 15px;
+            transform: translateY(-50%);
+            background-color: var(--secondary-bg);
+            border-radius: 12px;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border-color);
+            z-index: 1000;
+        }
+
+        .tool-button {
+            background-color: transparent;
+            border: none;
+            color: var(--text-color);
+            font-size: 22px;
+            width: 45px;
+            height: 45px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.2s ease, color 0.2s ease;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .tool-button:hover {
+            background-color: #3a3a3a;
+        }
+
+        .tool-button.active {
+            background-color: var(--accent-color);
+            color: white;
+        }
+
+        .tool-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .tool-separator {
+            height: 1px;
+            background-color: var(--border-color);
+            margin: 5px 0;
+        }
+
+        /* Pop-up Controls Styling */
+        .popup-controls {
+            display: none;
+            position: fixed;
+            left: 75px; /* Position next to the toolbar */
+            top: 50%;
+            transform: translateY(-50%);
+            background-color: var(--secondary-bg);
+            border-radius: 12px;
+            padding: 15px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border-color);
+            z-index: 1001;
+            color: var(--text-color);
+            width: 280px;
+        }
+
+        .popup-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 5px;
+        }
+
+        .popup-header h4 {
+            margin: 0;
+        }
+
+        .close-popup-btn {
+            background: none;
+            border: none;
+            color: var(--text-color);
+            font-size: 18px;
+            cursor: pointer;
+        }
+        
+        .color-palette {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 8px;
+        }
+
+        .color-option {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: transform 0.2s, border-color 0.2s;
+        }
+        
+        .color-option:hover {
+            transform: scale(1.1);
+        }
+
+        .color-option.active {
+            border-color: var(--accent-color);
+            transform: scale(1.1);
+        }
+        
+        .color-picker-input {
+            width: 30px;
+            height: 30px;
+            border: none;
+            padding: 0;
+            background: none;
+            cursor: pointer;
+        }
+
+        .slider-container, .select-container {
+            margin-top: 15px;
+        }
+        
+        .slider-container label, .select-container label {
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .slider-container input[type="range"], .select-container select {
+            width: 100%;
+            cursor: pointer;
+        }
+
+        .select-container select {
+            background-color: #3a3a3a;
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+            padding: 5px;
+            border-radius: 4px;
+        }
+        
+        #shape-options, #pen-options {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        #icon-options {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        /* Language Switcher */
+        .lang-switcher {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background-color: var(--secondary-bg);
+            border-radius: 8px;
+            padding: 5px;
+            z-index: 1000;
+        }
+        .lang-switcher select {
+            background: transparent;
+            color: var(--text-color);
+            border: none;
+            padding: 5px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+        .lang-switcher select option {
+            background: var(--secondary-bg);
+            color: var(--text-color);
+        }
+
+        /* Hidden file input */
+        #import-file {
+            display: none;
+        }
+
+        /* On-canvas text input */
+        #text-input-container {
+            position: absolute;
+            z-index: 1002; /* Ensure it's on top */
+        }
+        #text-input-container textarea {
+            background-color: rgba(255, 255, 255, 0.9);
+            border: 1px dashed var(--accent-color);
+            padding: 5px;
+            outline: none;
+            resize: none;
+            overflow: hidden;
+            white-space: pre;
+        }
+
+    </style>
+</head>
+<body>
+    <div id="container">
+        <canvas id="whiteboard"></canvas>
+        <!-- Text input is now a textarea for multiline support -->
+        <div id="text-input-container" style="display: none;">
+            <textarea id="canvas-text-input" rows="1"></textarea>
+        </div>
+    </div>
+
+    <!-- Main Toolbar -->
+    <div class="toolbar">
+        <button class="tool-button active" id="pen-tool" data-lang-key="pen" title="Pen"><i class="fas fa-pencil-alt"></i></button>
+        <button class="tool-button" id="eraser-tool" data-lang-key="eraser" title="Eraser"><i class="fas fa-eraser"></i></button>
+        <button class="tool-button" id="shape-tool" data-lang-key="shapes" title="Shapes"><i class="fas fa-shapes"></i></button>
+        <button class="tool-button" id="text-tool" data-lang-key="text" title="Text"><i class="fas fa-font"></i></button>
+        <button class="tool-button" id="icon-tool" data-lang-key="icon" title="Icon"><i class="fas fa-icons"></i></button>
+        
+        <div class="tool-separator"></div>
+
+        <button class="tool-button" id="undo-btn" data-lang-key="undo" title="Undo"><i class="fas fa-undo"></i></button>
+        <button class="tool-button" id="redo-btn" data-lang-key="redo" title="Redo"><i class="fas fa-redo"></i></button>
+        <button class="tool-button" id="clear-btn" data-lang-key="clear" title="Clear All"><i class="fas fa-trash"></i></button>
+        
+        <div class="tool-separator"></div>
+
+        <button class="tool-button" id="import-btn" data-lang-key="import" title="Import Image"><i class="fas fa-upload"></i></button>
+        <input type="file" id="import-file" accept="image/*">
+        <button class="tool-button" id="export-btn" data-lang-key="export" title="Export as PNG"><i class="fas fa-download"></i></button>
+    </div>
+
+    <!-- Pop-up Controls for Tools -->
+    <div class="popup-controls" id="pen-controls">
+        <div class="popup-header">
+            <h4 data-lang-key="pen_settings">Pen Settings</h4>
+            <button class="close-popup-btn"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="slider-container">
+            <label for="pen-width" data-lang-key="line_width">Line Width</label>
+            <input type="range" id="pen-width" min="1" max="100" value="5">
+        </div>
+        <div id="pen-options">
+             <button class="tool-button active" data-pen-type="round" title="Round"><i class="fas fa-circle"></i></button>
+             <button class="tool-button" data-pen-type="square" title="Square"><i class="fas fa-square"></i></button>
+        </div>
+        <h4 data-lang-key="color">Color</h4>
+        <div class="color-palette" id="pen-color-palette"></div>
+    </div>
+    
+    <div class="popup-controls" id="eraser-controls">
+        <div class="popup-header">
+            <h4 data-lang-key="eraser_settings">Eraser Settings</h4>
+            <button class="close-popup-btn"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="slider-container">
+            <label for="eraser-width" data-lang-key="eraser_size">Eraser Size</label>
+            <input type="range" id="eraser-width" min="1" max="150" value="20">
+        </div>
+    </div>
+    
+    <div class="popup-controls" id="shape-controls">
+        <div class="popup-header">
+            <h4 data-lang-key="shape_settings">Shape Settings</h4>
+            <button class="close-popup-btn"><i class="fas fa-times"></i></button>
+        </div>
+         <div class="slider-container">
+            <label for="shape-width" data-lang-key="line_width">Line Width</label>
+            <input type="range" id="shape-width" min="1" max="50" value="5">
+        </div>
+        <div id="shape-options">
+            <button class="tool-button active" data-shape="line" title="Line"><i class="fas fa-minus"></i></button>
+            <button class="tool-button" data-shape="rectangle" title="Rectangle"><i class="far fa-square"></i></button>
+            <button class="tool-button" data-shape="circle" title="Circle"><i class="far fa-circle"></i></button>
+        </div>
+    </div>
+
+    <div class="popup-controls" id="text-controls">
+        <div class="popup-header">
+            <h4 data-lang-key="text_settings">Text Settings</h4>
+            <button class="close-popup-btn"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="slider-container">
+            <label for="font-size" data-lang-key="font_size">Font Size</label>
+            <input type="range" id="font-size" min="10" max="200" value="30">
+        </div>
+        <div class="select-container">
+            <label for="font-family" data-lang-key="font_family">Font Family</label>
+            <select id="font-family">
+                <option>Arial</option>
+                <option>Verdana</option>
+                <option>Times New Roman</option>
+                <option>Courier New</option>
+                <option>Georgia</option>
+                <option>Comic Sans MS</option>
+            </select>
+        </div>
+        <h4 data-lang-key="color">Color</h4>
+        <div class="color-palette" id="text-color-palette"></div>
+    </div>
+
+    <div class="popup-controls" id="icon-controls">
+        <div class="popup-header">
+            <h4 data-lang-key="icon_settings">Icon Settings</h4>
+            <button class="close-popup-btn"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="slider-container">
+            <label for="icon-size" data-lang-key="icon_size">Icon Size</label>
+            <input type="range" id="icon-size" min="10" max="200" value="50">
+        </div>
+        <div id="icon-options"></div>
+        <h4 data-lang-key="color">Color</h4>
+        <div class="color-palette" id="icon-color-palette"></div>
+    </div>
+    
+    <!-- Language Switcher -->
+    <div class="lang-switcher">
+        <select id="lang-select">
+            <option value="en">English</option>
+            <option value="ja">日本語</option>
+            <option value="pt">Português</option>
+        </select>
+    </div>
+
+    <script>
+        window.addEventListener('load', () => {
+            // --- DOM Element References ---
+            const canvas = document.getElementById('whiteboard');
+            const ctx = canvas.getContext('2d');
+            const toolbar = document.querySelector('.toolbar');
+            const popups = document.querySelectorAll('.popup-controls');
+            const textInputContainer = document.getElementById('text-input-container');
+            const canvasTextInput = document.getElementById('canvas-text-input');
+
+            // --- State Variables ---
+            let isDrawing = false;
+            let currentTool = 'pen';
+            let penColor = '#000000';
+            let textColor = '#000000';
+            let iconColor = '#000000';
+            
+            let penWidth = 5;
+            let eraserWidth = 20;
+            let shapeWidth = 5;
+
+            let currentPenType = 'round';
+            let currentShape = 'line';
+            let currentFontSize = 30;
+            let currentFontFamily = 'Arial';
+            let currentIcon = { class: 'fa-star', unicode: '\uf005' };
+            let currentIconSize = 50;
+            let startX, startY;
+            let snapshot;
+            
+            let history = [];
+            let historyIndex = -1;
+
+            // --- Language Translations ---
+            const translations = {
+                en: {
+                    pen: 'Pen', eraser: 'Eraser', shapes: 'Shapes', text: 'Text', icon: 'Icons',
+                    undo: 'Undo', redo: 'Redo', clear: 'Clear All', import: 'Import Image', export: 'Export as PNG',
+                    pen_settings: 'Pen Settings', line_width: 'Line Width', color: 'Color',
+                    eraser_settings: 'Eraser Settings', eraser_size: 'Eraser Size',
+                    shape_settings: 'Shape Settings',
+                    text_settings: 'Text Settings', font_size: 'Font Size', font_family: 'Font Family',
+                    icon_settings: 'Icon Settings', icon_size: 'Icon Size',
+                },
+                ja: {
+                    pen: 'ペン', eraser: '消しゴム', shapes: '図形', text: 'テキスト', icon: 'アイコン',
+                    undo: '元に戻す', redo: 'やり直し', clear: 'すべて消去', import: '画像をインポート', export: 'PNGとしてエクスポート',
+                    pen_settings: 'ペンの設定', line_width: '線の太さ', color: '色',
+                    eraser_settings: '消しゴムの設定', eraser_size: '消しゴムのサイズ',
+                    shape_settings: '図形の設定',
+                    text_settings: 'テキスト設定', font_size: 'フォントサイズ', font_family: 'フォントファミリー',
+                    icon_settings: 'アイコン設定', icon_size: 'アイコンサイズ',
+                },
+                pt: {
+                    pen: 'Caneta', eraser: 'Borracha', shapes: 'Formas', text: 'Texto', icon: 'Ícones',
+                    undo: 'Desfazer', redo: 'Refazer', clear: 'Limpar Tudo', import: 'Importar Imagem', export: 'Exportar como PNG',
+                    pen_settings: 'Configurações da Caneta', line_width: 'Largura da Linha', color: 'Cor',
+                    eraser_settings: 'Configurações da Borracha', eraser_size: 'Tamanho da Borracha',
+                    shape_settings: 'Configurações de Formas',
+                    text_settings: 'Configurações de Texto', font_size: 'Tamanho da Fonte', font_family: 'Família da Fonte',
+                    icon_settings: 'Configurações de Ícones', icon_size: 'Tamanho do Ícone',
+                }
+            };
+            let currentLang = 'en';
+
+            // --- Initialization ---
+            function initialize() {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+                ctx.fillStyle = '#FFFFFF';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                createColorPalette(document.getElementById('pen-color-palette'), (color) => penColor = color, penColor);
+                createColorPalette(document.getElementById('text-color-palette'), (color) => textColor = color, textColor);
+                createColorPalette(document.getElementById('icon-color-palette'), (color) => iconColor = color, iconColor);
+                setupIconSelector();
+
+                setLanguage(currentLang);
+                addEventListeners();
+                setActiveTool('pen');
+                saveState();
+            }
+
+            function createColorPalette(container, onColorSelect, initialColor) {
+                const colors = ['#000000', '#FFFFFF', '#FF0000', '#00FF00', '#0000FF', '#FFFF00', '#FF00FF', '#00FFFF', '#FFA500', '#800080', '#808080', '#4CAF50'];
+                container.innerHTML = '';
+                colors.forEach(color => {
+                    const colorOption = document.createElement('div');
+                    colorOption.classList.add('color-option');
+                    colorOption.style.backgroundColor = color;
+                    colorOption.dataset.color = color;
+                    if (color === initialColor) colorOption.classList.add('active');
+                    container.appendChild(colorOption);
+                });
+                const pickerContainer = document.createElement('div');
+                const picker = document.createElement('input');
+                picker.type = 'color';
+                picker.classList.add('color-picker-input');
+                picker.title = 'Custom Color';
+                pickerContainer.appendChild(picker);
+                container.appendChild(pickerContainer);
+
+                container.addEventListener('click', (e) => {
+                    const target = e.target;
+                    if (target.classList.contains('color-option')) {
+                        onColorSelect(target.dataset.color);
+                        container.querySelectorAll('.color-option').forEach(opt => opt.classList.remove('active'));
+                        target.classList.add('active');
+                    }
+                });
+                picker.addEventListener('input', (e) => onColorSelect(e.target.value));
+            }
+            
+            function setupIconSelector() {
+                const iconContainer = document.getElementById('icon-options');
+                const icons = [
+                    { name: 'Star', class: 'fa-star', unicode: '\uf005' },
+                    { name: 'Heart', class: 'fa-heart', unicode: '\uf004' },
+                    { name: 'Check', class: 'fa-check', unicode: '\uf00c' },
+                    { name: 'Times', class: 'fa-times', unicode: '\uf00d' },
+                    { name: 'Flag', class: 'fa-flag', unicode: '\uf024' },
+                    { name: 'Smile', class: 'fa-smile', unicode: '\uf118' },
+                    { name: 'Arrow Right', class: 'fa-arrow-right', unicode: '\uf061' },
+                    { name: 'Lightbulb', class: 'fa-lightbulb', unicode: '\uf0eb' },
+                    { name: 'Comment', class: 'fa-comment', unicode: '\uf075' },
+                    { name: 'Thumbtack', class: 'fa-thumbtack', unicode: '\uf08d' },
+                ];
+                iconContainer.innerHTML = '';
+                icons.forEach((icon, index) => {
+                    const iconButton = document.createElement('button');
+                    iconButton.classList.add('tool-button');
+                    if (index === 0) iconButton.classList.add('active');
+                    iconButton.innerHTML = `<i class="fas ${icon.class}"></i>`;
+                    iconButton.title = icon.name;
+                    iconButton.addEventListener('click', () => {
+                        currentIcon = icon;
+                        iconContainer.querySelectorAll('.tool-button').forEach(btn => btn.classList.remove('active'));
+                        iconButton.classList.add('active');
+                    });
+                    iconContainer.appendChild(iconButton);
+                });
+            }
+
+            // --- Event Listeners ---
+            function addEventListeners() {
+                canvas.addEventListener('mousedown', handleCanvasMouseDown);
+                canvas.addEventListener('mousemove', draw);
+                canvas.addEventListener('mouseup', stopDrawing);
+                canvas.addEventListener('mouseleave', stopDrawing);
+                window.addEventListener('resize', resizeCanvas);
+                toolbar.addEventListener('click', handleToolbarClick);
+                document.getElementById('lang-select').addEventListener('change', (e) => setLanguage(e.target.value));
+                
+                document.getElementById('pen-width').addEventListener('input', (e) => penWidth = e.target.value);
+                document.getElementById('eraser-width').addEventListener('input', (e) => eraserWidth = e.target.value);
+                document.getElementById('shape-width').addEventListener('input', (e) => shapeWidth = e.target.value);
+                document.getElementById('font-size').addEventListener('input', (e) => currentFontSize = e.target.value);
+                document.getElementById('font-family').addEventListener('change', (e) => currentFontFamily = e.target.value);
+                document.getElementById('icon-size').addEventListener('input', (e) => currentIconSize = e.target.value);
+                
+                document.getElementById('pen-controls').addEventListener('click', handlePenControls);
+                document.getElementById('shape-controls').addEventListener('click', handleShapeControls);
+                
+                popups.forEach(p => p.querySelector('.close-popup-btn').addEventListener('click', () => p.style.display = 'none'));
+                
+                window.addEventListener('paste', handlePaste);
+                canvasTextInput.addEventListener('blur', applyText);
+                canvasTextInput.addEventListener('input', autoResizeTextarea);
+                
+                textInputContainer.addEventListener('mousedown', (e) => e.stopPropagation());
+            }
+
+            // --- Drawing Handlers ---
+            function handleCanvasMouseDown(e) {
+                if (currentTool === 'text') {
+                    if (textInputContainer.style.display === 'block') {
+                        applyText();
+                    }
+                    showTextInput(e.offsetX, e.offsetY);
+                    return;
+                }
+                if (currentTool === 'icon') {
+                    drawIcon(e.offsetX, e.offsetY);
+                    return;
+                }
+                isDrawing = true;
+                [startX, startY] = [e.offsetX, e.offsetY];
+                ctx.beginPath();
+                ctx.moveTo(startX, startY);
+                if (currentTool === 'shape') {
+                    snapshot = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                }
+            }
+            
+            function getCurrentWidth() {
+                if (currentTool === 'pen') return penWidth;
+                if (currentTool === 'eraser') return eraserWidth;
+                if (currentTool === 'shape') return shapeWidth;
+                return 5; // Default
+            }
+
+            function draw(e) {
+                if (!isDrawing) return;
+                
+                ctx.strokeStyle = (currentTool === 'eraser') ? '#FFFFFF' : penColor;
+                ctx.lineWidth = getCurrentWidth();
+                
+                if (currentTool === 'pen' || currentTool === 'eraser') {
+                    ctx.lineCap = (currentTool === 'pen') ? currentPenType : 'round';
+                    ctx.lineTo(e.offsetX, e.offsetY);
+                    ctx.stroke();
+                } else if (currentTool === 'shape') {
+                    drawShapePreview(e);
+                }
+            }
+
+            function stopDrawing() {
+                if (!isDrawing) return;
+                isDrawing = false;
+                ctx.closePath();
+                saveState();
+            }
+
+            // --- Tool Logic ---
+            function setActiveTool(tool) {
+                if (textInputContainer.style.display === 'block') {
+                    applyText();
+                }
+
+                const toolButton = document.getElementById(`${tool}-tool`);
+                const toolPopup = document.getElementById(`${tool}-controls`);
+
+                if (toolButton.classList.contains('active')) {
+                    if (toolPopup) {
+                        toolPopup.style.display = toolPopup.style.display === 'block' ? 'none' : 'block';
+                    }
+                    return;
+                }
+                
+                currentTool = tool;
+                toolbar.querySelectorAll('.tool-button').forEach(btn => btn.classList.remove('active'));
+                popups.forEach(p => p.style.display = 'none');
+                
+                toolButton.classList.add('active');
+                if (toolPopup) toolPopup.style.display = 'block';
+
+                canvas.style.cursor = (tool === 'text' || tool === 'icon') ? 'text' : 'crosshair';
+            }
+            
+            function handleToolbarClick(e) {
+                const button = e.target.closest('.tool-button');
+                if (!button || button.disabled) return;
+
+                const id = button.id;
+                switch (id) {
+                    case 'pen-tool': setActiveTool('pen'); break;
+                    case 'eraser-tool': setActiveTool('eraser'); break;
+                    case 'shape-tool': setActiveTool('shape'); break;
+                    case 'text-tool': setActiveTool('text'); break;
+                    case 'icon-tool': setActiveTool('icon'); break;
+                    case 'undo-btn': undo(); break;
+                    case 'redo-btn': redo(); break;
+                    case 'clear-btn': clearCanvas(); break;
+                    case 'import-btn': document.getElementById('import-file').click(); break;
+                    case 'export-btn': exportCanvas(); break;
+                }
+            }
+
+            function handlePenControls(e) {
+                const penTypeBtn = e.target.closest('[data-pen-type]');
+                if (penTypeBtn) {
+                     document.querySelectorAll('[data-pen-type]').forEach(btn => btn.classList.remove('active'));
+                     penTypeBtn.classList.add('active');
+                     currentPenType = penTypeBtn.dataset.penType;
+                }
+            }
+            
+            function handleShapeControls(e) {
+                const shapeBtn = e.target.closest('[data-shape]');
+                if (shapeBtn) {
+                     document.querySelectorAll('[data-shape]').forEach(btn => btn.classList.remove('active'));
+                     shapeBtn.classList.add('active');
+                     currentShape = shapeBtn.dataset.shape;
+                }
+            }
+
+            // --- Shape Drawing ---
+            function drawShapePreview(e) {
+                if (!snapshot) return;
+                ctx.putImageData(snapshot, 0, 0);
+                ctx.beginPath();
+                ctx.strokeStyle = penColor;
+                ctx.lineWidth = getCurrentWidth();
+                switch (currentShape) {
+                    case 'line':
+                        ctx.moveTo(startX, startY);
+                        ctx.lineTo(e.offsetX, e.offsetY);
+                        break;
+                    case 'rectangle':
+                        ctx.strokeRect(startX, startY, e.offsetX - startX, e.offsetY - startY);
+                        break;
+                    case 'circle':
+                        const radius = Math.sqrt(Math.pow(e.offsetX - startX, 2) + Math.pow(e.offsetY - startY, 2));
+                        ctx.arc(startX, startY, radius, 0, 2 * Math.PI);
+                        break;
+                }
+                ctx.stroke();
+            }
+
+            // --- Text Tool ---
+            function showTextInput(x, y) {
+                textInputContainer.style.left = `${x}px`;
+                textInputContainer.style.top = `${y}px`;
+                textInputContainer.style.display = 'block';
+                
+                canvasTextInput.style.font = `${currentFontSize}px ${currentFontFamily}`;
+                canvasTextInput.style.color = textColor;
+                canvasTextInput.style.lineHeight = `${currentFontSize * 1.2}px`;
+                canvasTextInput.value = '';
+                autoResizeTextarea();
+                
+                setTimeout(() => {
+                    canvasTextInput.focus();
+                }, 0);
+            }
+            
+            function autoResizeTextarea() {
+                canvasTextInput.style.height = 'auto';
+                canvasTextInput.style.width = 'auto';
+                canvasTextInput.style.height = `${canvasTextInput.scrollHeight}px`;
+                canvasTextInput.style.width = `${canvasTextInput.scrollWidth}px`;
+            }
+
+            function applyText() {
+                if (textInputContainer.style.display === 'none') return;
+
+                const textLines = canvasTextInput.value.split('\n');
+                if (textLines.length > 0 && canvasTextInput.value.trim() !== '') {
+                    const x = parseInt(textInputContainer.style.left, 10);
+                    const y = parseInt(textInputContainer.style.top, 10);
+                    
+                    ctx.font = `${currentFontSize}px ${currentFontFamily}`;
+                    ctx.fillStyle = textColor;
+                    ctx.textAlign = 'left';
+                    ctx.textBaseline = 'top';
+                    
+                    const lineHeight = currentFontSize * 1.2;
+                    textLines.forEach((line, index) => {
+                        ctx.fillText(line, x, y + (index * lineHeight));
+                    });
+                    
+                    saveState();
+                }
+                textInputContainer.style.display = 'none';
+                canvasTextInput.value = '';
+            }
+
+            // --- Icon Tool ---
+            function drawIcon(x, y) {
+                ctx.font = `900 ${currentIconSize}px "Font Awesome 6 Free"`;
+                ctx.fillStyle = iconColor;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(currentIcon.unicode, x, y);
+                saveState();
+            }
+
+            // --- History (Undo/Redo) ---
+            function saveState() {
+                if (canvas.width === 0 || canvas.height === 0) {
+                    return;
+                }
+                if (historyIndex < history.length - 1) {
+                    history.splice(historyIndex + 1);
+                }
+                history.push(ctx.getImageData(0, 0, canvas.width, canvas.height));
+                historyIndex++;
+                updateUndoRedoButtons();
+            }
+
+            function undo() {
+                if (historyIndex > 0) {
+                    historyIndex--;
+                    ctx.putImageData(history[historyIndex], 0, 0);
+                    updateUndoRedoButtons();
+                }
+            }
+
+            function redo() {
+                if (historyIndex < history.length - 1) {
+                    historyIndex++;
+                    ctx.putImageData(history[historyIndex], 0, 0);
+                    updateUndoRedoButtons();
+                }
+            }
+
+            function updateUndoRedoButtons() {
+                document.getElementById('undo-btn').disabled = historyIndex <= 0;
+                document.getElementById('redo-btn').disabled = historyIndex >= history.length - 1;
+            }
+
+            // --- Canvas Management ---
+            function clearCanvas() {
+                ctx.fillStyle = '#FFFFFF';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                saveState();
+            }
+            
+            function resizeCanvas() {
+                if (canvas.width === 0 || canvas.height === 0) {
+                    canvas.width = window.innerWidth;
+                    canvas.height = window.innerHeight;
+                    return;
+                }
+                const currentDrawing = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+                ctx.putImageData(currentDrawing, 0, 0);
+            }
+
+            // --- Import / Export / Paste ---
+            function exportCanvas() {
+                const link = document.createElement('a');
+                link.download = 'whiteboard.png';
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+            }
+
+            document.getElementById('import-file').addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        ctx.drawImage(img, 0, 0);
+                        saveState();
+                    };
+                    img.src = event.target.result;
+                };
+                reader.readAsDataURL(file);
+            });
+
+            function handlePaste(e) {
+                const items = e.clipboardData.items;
+                for (let i = 0; i < items.length; i++) {
+                    if (items[i].type.indexOf('image') !== -1) {
+                        const blob = items[i].getAsFile();
+                        const reader = new FileReader();
+                        reader.onload = (event) => {
+                            const img = new Image();
+                            img.onload = () => {
+                                ctx.drawImage(img, 0, 0);
+                                saveState();
+                            };
+                            img.src = event.target.result;
+                        };
+                        reader.readAsDataURL(blob);
+                        e.preventDefault();
+                        break;
+                    }
+                }
+            }
+
+            // --- Language Switcher ---
+            function setLanguage(lang) {
+                currentLang = lang;
+                document.querySelectorAll('[data-lang-key]').forEach(elem => {
+                    const key = elem.dataset.langKey;
+                    if (translations[lang] && translations[lang][key]) {
+                        if (elem.title) {
+                           elem.title = translations[lang][key];
+                        } else {
+                           elem.textContent = translations[lang][key];
+                        }
+                    }
+                });
+            }
+
+            // --- Start the application ---
+            initialize();
+        });
+    </script>
+
+</body>
+</html>

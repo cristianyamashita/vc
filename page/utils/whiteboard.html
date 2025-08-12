@@ -59,10 +59,11 @@
     .app {
       display: grid;
       grid-template-columns: var(--toolbar-width) 1fr 320px;
-      grid-template-rows: 42px 1fr;
+      grid-template-rows: 42px 1fr 36px;
       grid-template-areas:
         "toolbar topbar topbar"
-        "toolbar stage sidebar";
+        "toolbar stage sidebar"
+        "toolbar bottombar bottombar";
       height: 100vh;
       width: 100vw;
     }
@@ -102,6 +103,19 @@
       border-bottom: 1px solid rgba(255,255,255,0.08);
     }
 
+    .bottombar {
+      grid-area: bottombar;
+      background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.04));
+      border-top: 1px solid rgba(255,255,255,0.08);
+      display: flex; align-items: center; gap: 8px; padding: 6px 10px; overflow-x: auto;
+    }
+    .tab {
+      display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px; border-radius: 8px;
+      background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); color: var(--text); cursor: pointer;
+    }
+    .tab.active { outline: 2px solid var(--accent); background: rgba(124,140,255,0.16); }
+    .tab .close { background: transparent; border: none; color: inherit; cursor: pointer; }
+
     .sidebar {
       grid-area: sidebar;
       background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02));
@@ -114,11 +128,13 @@
       grid-area: stage;
       position: relative;
       background: radial-gradient(1200px 800px at 90% 110%, rgba(124,140,255,0.08), transparent 60%), transparent;
+      overflow: hidden;
     }
-    body.theme-light .stage { background: #ffffff; }
+    #viewport { position: absolute; inset: 0; transform-origin: 0 0; }
     canvas#grid { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
     canvas#board { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
     canvas#overlay { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+    body.theme-light .stage { background: #ffffff; }
 
     .floating-input {
       position: absolute; z-index: 20; background: transparent; color: var(--text);
@@ -188,6 +204,12 @@
       <div class="tool-btn tooltip" data-tool="triangle" data-title="Triangle">
         <i class="fa-solid fa-caret-up"></i>
       </div>
+      <div class="tool-btn tooltip" data-tool="polygon" data-title="Polygon">
+        <i class="fa-solid fa-draw-polygon"></i>
+      </div>
+      <div class="tool-btn tooltip" data-tool="star" data-title="Star">
+        <i class="fa-solid fa-star"></i>
+      </div>
       <div class="tool-btn tooltip" data-tool="eyedropper" data-title="Eyedropper">
         <i class="fa-solid fa-eye-dropper"></i>
       </div>
@@ -197,6 +219,9 @@
       </div>
       <div class="tool-btn tooltip" data-tool="icon" data-title="Icons">
         <i class="fa-solid fa-icons"></i>
+      </div>
+      <div class="tool-btn tooltip" data-tool="hand" data-title="Hand/Pan">
+        <i class="fa-solid fa-arrows-up-down-left-right"></i>
       </div>
       <div class="tool-btn tooltip" data-tool="select" data-title="Select/Move">
         <i class="fa-regular fa-object-group"></i>
@@ -221,29 +246,31 @@
     </aside>
 
     <main class="stage" id="stage">
-      <canvas id="grid"></canvas>
-      <canvas id="board"></canvas>
-      <canvas id="overlay"></canvas>
-      <div id="selectionBox" class="selection-rect hidden">
-        <div class="handle nw" data-dir="nw"></div>
-        <div class="handle ne" data-dir="ne"></div>
-        <div class="handle sw" data-dir="sw"></div>
-        <div class="handle se" data-dir="se"></div>
-        <div class="handle rot" data-dir="rot"></div>
-      </div>
-      <div id="iconPicker" class="icon-picker hidden">
-        <button data-ic="fa-star" title="star"><i class="fa-solid fa-star"></i></button>
-        <button data-ic="fa-heart" title="heart"><i class="fa-solid fa-heart"></i></button>
-        <button data-ic="fa-check" title="check"><i class="fa-solid fa-check"></i></button>
-        <button data-ic="fa-bolt" title="bolt"><i class="fa-solid fa-bolt"></i></button>
-        <button data-ic="fa-face-smile" title="smile"><i class="fa-regular fa-face-smile"></i></button>
-        <button data-ic="fa-circle" title="circle"><i class="fa-regular fa-circle"></i></button>
-        <button data-ic="fa-square" title="square"><i class="fa-regular fa-square"></i></button>
-        <button data-ic="fa-triangle-exclamation" title="warn"><i class="fa-solid fa-triangle-exclamation"></i></button>
-        <button data-ic="fa-mug-hot" title="mug"><i class="fa-solid fa-mug-hot"></i></button>
-        <button data-ic="fa-paper-plane" title="plane"><i class="fa-regular fa-paper-plane"></i></button>
-        <button data-ic="fa-lightbulb" title="bulb"><i class="fa-regular fa-lightbulb"></i></button>
-        <button data-ic="fa-arrow-right" title="arrow"><i class="fa-solid fa-arrow-right"></i></button>
+      <div id="viewport">
+        <canvas id="grid"></canvas>
+        <canvas id="board"></canvas>
+        <canvas id="overlay"></canvas>
+        <div id="selectionBox" class="selection-rect hidden">
+          <div class="handle nw" data-dir="nw"></div>
+          <div class="handle ne" data-dir="ne"></div>
+          <div class="handle sw" data-dir="sw"></div>
+          <div class="handle se" data-dir="se"></div>
+          <div class="handle rot" data-dir="rot"></div>
+        </div>
+        <div id="iconPicker" class="icon-picker hidden">
+          <button data-ic="fa-star" title="star"><i class="fa-solid fa-star"></i></button>
+          <button data-ic="fa-heart" title="heart"><i class="fa-solid fa-heart"></i></button>
+          <button data-ic="fa-check" title="check"><i class="fa-solid fa-check"></i></button>
+          <button data-ic="fa-bolt" title="bolt"><i class="fa-solid fa-bolt"></i></button>
+          <button data-ic="fa-face-smile" title="smile"><i class="fa-regular fa-face-smile"></i></button>
+          <button data-ic="fa-circle" title="circle"><i class="fa-regular fa-circle"></i></button>
+          <button data-ic="fa-square" title="square"><i class="fa-regular fa-square"></i></button>
+          <button data-ic="fa-triangle-exclamation" title="warn"><i class="fa-solid fa-triangle-exclamation"></i></button>
+          <button data-ic="fa-mug-hot" title="mug"><i class="fa-solid fa-mug-hot"></i></button>
+          <button data-ic="fa-paper-plane" title="plane"><i class="fa-regular fa-paper-plane"></i></button>
+          <button data-ic="fa-lightbulb" title="bulb"><i class="fa-regular fa-lightbulb"></i></button>
+          <button data-ic="fa-arrow-right" title="arrow"><i class="fa-solid fa-arrow-right"></i></button>
+        </div>
       </div>
     </main>
 
@@ -255,10 +282,21 @@
           <option value="light">Light</option>
         </select>
       </div>
+      <div class="group" id="gridGroupTop">
+        <label id="lblGrid">Grid</label>
+        <input type="checkbox" id="gridToggle" />
+        <label id="lblGridType">Grid</label>
+        <select id="gridType"><option value="lines">Lines</option><option value="dots">Dots</option></select>
+        <label id="lblGridSize">Size</label>
+        <input type="range" id="gridSize" min="8" max="64" value="24" />
+      </div>
       <div class="group" id="autosaveGroup">
         <label id="lblAutosave">Autosave</label>
         <input type="checkbox" id="autosaveToggle" />
         <button id="saveNowBtn">Save now</button>
+      </div>
+      <div class="group" id="clearGroup">
+        <button id="clearBtn">Clear</button>
       </div>
       <div class="group" id="langGroup">
         <label>Lang</label>
@@ -336,40 +374,53 @@
         <label id="lblItalic">Italic</label>
         <input type="checkbox" id="textItalic" />
       </div>
-      <div class="group" id="gridGroup">
-        <label id="lblGrid">Grid</label>
-        <input type="checkbox" id="gridToggle" />
-        <label id="lblGridType">Grid Type</label>
-        <select id="gridType"><option value="lines">Lines</option><option value="dots">Dots</option></select>
-        <label id="lblGridSize">Grid Size</label>
-        <input type="range" id="gridSize" min="8" max="64" value="24" />
-      </div>
       <div class="hint" id="status">Ready</div>
+      <div class="group" id="polygonOpts">
+        <label id="lblSides">Sides</label>
+        <input type="range" id="polySides" min="3" max="12" value="5" />
+      </div>
+      <div class="group" id="starOpts">
+        <label id="lblPoints">Points</label>
+        <input type="range" id="starPoints" min="3" max="12" value="5" />
+        <label id="lblInner">Inner</label>
+        <input type="range" id="starInner" min="0.2" max="0.9" step="0.05" value="0.5" />
+      </div>
+      <div class="group" id="viewGroup">
+        <label>Zoom</label>
+        <button id="zoomOutBtn">-</button>
+        <input type="range" id="zoom" min="0.25" max="4" step="0.05" value="1" />
+        <button id="zoomInBtn">+</button>
+        <button id="zoomResetBtn">Reset</button>
+      </div>
     </aside>
+    <footer class="bottombar" id="tabsBar">
+      <div id="tabs" style="display:flex;gap:6px;align-items:center"></div>
+      <button id="addTabBtn" style="margin-left:auto">＋</button>
+    </footer>
   </div>
 
   <script>
     // i18n strings (EN, JA, PT)
     const STRINGS = {
       en: {
-        Pen: 'Pen', Marker: 'Marker', Eraser: 'Eraser', Line: 'Line', Rectangle: 'Rectangle', Ellipse: 'Ellipse', Triangle: 'Triangle', Eyedropper: 'Eyedropper',
+        Pen: 'Pen', Marker: 'Marker', Eraser: 'Eraser', Line: 'Line', Rectangle: 'Rectangle', Ellipse: 'Ellipse', Triangle: 'Triangle', Polygon: 'Polygon', Star: 'Star', Eyedropper: 'Eyedropper', Hand: 'Hand',
         Text: 'Text', Icons: 'Icons', SelectMove: 'Select/Move', Undo: 'Undo', Redo: 'Redo', Import: 'Import', Export: 'Export', Fullscreen: 'Fullscreen',
         Color: 'Color', Size: 'Size', Fill: 'Fill', Opacity: 'Opacity', Font: 'Font', Arrowheads: 'Arrowheads', Radius: 'Radius', Recent: 'Recent',
-        Smooth: 'Smooth', Grid: 'Grid', GridSize: 'Grid Size', Align: 'Align', Bold: 'Bold', Italic: 'Italic', GridType: 'Grid Type',
+        Smooth: 'Smooth', Grid: 'Grid', GridSize: 'Grid Size', Align: 'Align', Bold: 'Bold', Italic: 'Italic', GridType: 'Grid Type', Sides: 'Sides', Points: 'Points', Inner: 'Inner',
         Theme: 'Theme', Dark: 'Dark', Light: 'Light', Autosave: 'Autosave', SaveNow: 'Save now', ArrowSize: 'Arrow Size', Dashed: 'Dashed', Dash: 'Dash'
       },
       ja: {
-        Pen: 'ペン', Marker: 'マーカー', Eraser: '消しゴム', Line: '直線', Rectangle: '四角形', Ellipse: '楕円', Triangle: '三角形', Eyedropper: 'スポイト',
+        Pen: 'ペン', Marker: 'マーカー', Eraser: '消しゴム', Line: '直線', Rectangle: '四角形', Ellipse: '楕円', Triangle: '三角形', Polygon: '多角形', Star: '星', Eyedropper: 'スポイト', Hand: 'ハンド',
         Text: 'テキスト', Icons: 'アイコン', SelectMove: '選択/移動', Undo: '元に戻す', Redo: 'やり直し', Import: 'インポート', Export: 'エクスポート', Fullscreen: '全画面',
         Color: '色', Size: 'サイズ', Fill: '塗り', Opacity: '不透明度', Font: 'フォント', Arrowheads: '矢じり', Radius: '角丸', Recent: '最近',
-        Smooth: 'スムージング', Grid: 'グリッド', GridSize: 'グリッドサイズ', Align: '配置', Bold: '太字', Italic: '斜体', GridType: 'グリッドタイプ',
+        Smooth: 'スムージング', Grid: 'グリッド', GridSize: 'グリッドサイズ', Align: '配置', Bold: '太字', Italic: '斜体', GridType: 'グリッドタイプ', Sides: '辺数', Points: '点数', Inner: '内側',
         Theme: 'テーマ', Dark: 'ダーク', Light: 'ライト', Autosave: '自動保存', SaveNow: '今すぐ保存', ArrowSize: '矢じりサイズ', Dashed: '破線', Dash: 'ダッシュ'
       },
       pt: {
-        Pen: 'Caneta', Marker: 'Marcador', Eraser: 'Borracha', Line: 'Linha', Rectangle: 'Retângulo', Ellipse: 'Elipse', Triangle: 'Triângulo', Eyedropper: 'Conta-gotas',
+        Pen: 'Caneta', Marker: 'Marcador', Eraser: 'Borracha', Line: 'Linha', Rectangle: 'Retângulo', Ellipse: 'Elipse', Triangle: 'Triângulo', Polygon: 'Polígono', Star: 'Estrela', Eyedropper: 'Conta-gotas', Hand: 'Mão',
         Text: 'Texto', Icons: 'Ícones', SelectMove: 'Selecionar/Mover', Undo: 'Desfazer', Redo: 'Refazer', Import: 'Importar', Export: 'Exportar', Fullscreen: 'Tela cheia',
-        Color: 'Cor', Size: 'Tamanho', Fill: 'Preenchimento', Opacidade: 'Opacidade', Font: 'Fonte', Arrowheads: 'Pontas de seta', Radius: 'Raio', Recent: 'Recentes',
-        Smooth: 'Suavizar', Grid: 'Grade', GridSize: 'Tamanho da grade', Alinhar: 'Alinhar', Bold: 'Negrito', Italic: 'Itálico', GridType: 'Tipo de grade',
+        Color: 'Cor', Size: 'Tamanho', Fill: 'Preenchimento', Opacity: 'Opacidade', Font: 'Fonte', Arrowheads: 'Pontas de seta', Radius: 'Raio', Recent: 'Recentes',
+        Smooth: 'Suavizar', Grid: 'Grade', GridSize: 'Tamanho da grade', Alinhar: 'Alinhar', Bold: 'Negrito', Italic: 'Itálico', GridType: 'Tipo de grade', Sides: 'Lados', Points: 'Pontos', Inner: 'Interno',
         Theme: 'Tema', Dark: 'Escuro', Light: 'Claro', Autosave: 'Auto salvar', SaveNow: 'Salvar agora', ArrowSize: 'Tam. seta', Dashed: 'Tracejado', Dash: 'Traço'
       }
     };
@@ -381,6 +432,7 @@
     const board = qs('#board');
     const overlay = qs('#overlay');
     const stage = qs('#stage');
+    const viewport = qs('#viewport');
     const toolbar = qs('#toolbar');
     const selectionBox = qs('#selectionBox');
     const iconPicker = qs('#iconPicker');
@@ -409,6 +461,11 @@
     const arrowSizeEl = qs('#arrowSize');
     const dashToggle = qs('#dashToggle');
     const dashLenEl = qs('#dashLen');
+    // Polygon/Star and Zoom controls
+    const polySidesInput = qs('#polySides');
+    const starPointsInput = qs('#starPoints');
+    const starInnerInput = qs('#starInner');
+    const zoomInput = qs('#zoom');
 
     const undoBtn = qs('#undoBtn');
     const redoBtn = qs('#redoBtn');
@@ -416,9 +473,35 @@
     const exportBtn = qs('#exportBtn');
     const fullscreenBtn = qs('#fullscreenBtn');
     const fileInput = qs('#fileInput');
+    const clearBtn = qs('#clearBtn');
+    const tabsBar = qs('#tabsBar');
+    const tabsEl = qs('#tabs');
+    const addTabBtn = qs('#addTabBtn');
 
     const PREF_THEME_KEY = 'whiteboard_pref_theme';
     const PREF_LANG_KEY = 'whiteboard_pref_lang';
+    const PREF_AUTOSAVE_KEY = 'whiteboard_pref_autosave';
+    const PREF_SIZE_KEY = 'whiteboard_pref_size';
+    const PREF_COLOR_KEY = 'whiteboard_pref_color';
+    const PREF_OPACITY_KEY = 'whiteboard_pref_opacity';
+    const PREF_SMOOTH_KEY = 'whiteboard_pref_smooth';
+    const PREF_GRID_KEY = 'whiteboard_pref_grid';
+    const PREF_GRID_TYPE_KEY = 'whiteboard_pref_grid_type';
+    const PREF_GRID_SIZE_KEY = 'whiteboard_pref_grid_size';
+    const PREF_FONT_KEY = 'whiteboard_pref_font';
+    const PREF_ALIGN_KEY = 'whiteboard_pref_align';
+    const PREF_BOLD_KEY = 'whiteboard_pref_bold';
+    const PREF_ITALIC_KEY = 'whiteboard_pref_italic';
+    const PREF_FILL_KEY = 'whiteboard_pref_fill';
+    const PREF_RADIUS_KEY = 'whiteboard_pref_radius';
+    const PREF_ARROWHEADS_KEY = 'whiteboard_pref_arrowheads';
+    const PREF_ARROW_SIZE_KEY = 'whiteboard_pref_arrow_size';
+    const PREF_DASH_KEY = 'whiteboard_pref_dash';
+    const PREF_DASH_LEN_KEY = 'whiteboard_pref_dash_len';
+    const PREF_RECENT_COLORS_KEY = 'whiteboard_recent_colors';
+    const PREF_ZOOM_KEY = 'whiteboard_pref_zoom';
+    const TABS_META_KEY = 'whiteboard_tabs_meta';
+    const TAB_PREFIX = 'whiteboard_tab_';
     let savedLang = localStorage.getItem(PREF_LANG_KEY);
     let lang = savedLang || ((navigator.language || 'en').startsWith('ja') ? 'ja' : (navigator.language || 'en').startsWith('pt') ? 'pt' : 'en');
     langEl.value = lang;
@@ -434,6 +517,11 @@
     let startX = 0, startY = 0;
     let lastX = 0, lastY = 0;
     let dpr = Math.max(1, window.devicePixelRatio || 1);
+    let viewScale = 1;
+    let viewOffsetX = 0;
+    let viewOffsetY = 0;
+    let tabs = [];
+    let activeTabId = null;
 
     let history = [];
     let future = [];
@@ -546,17 +634,18 @@
     function updateOptionVisibility() {
       const isBrush = tool === 'pen' || tool === 'marker' || tool === 'eraser';
       const isLine = tool === 'line';
-      const isShape = tool === 'rect' || tool === 'ellipse' || tool === 'triangle';
+      const isShape = tool === 'rect' || tool === 'ellipse' || tool === 'triangle' || tool === 'polygon' || tool === 'star';
       const isText = tool === 'text';
       const isIcon = tool === 'icon';
       const isSelect = tool === 'select';
       const isDropper = tool === 'eyedropper';
+      const isHand = tool === 'hand';
 
-      const showColorish = (isBrush && tool !== 'eraser') || isLine || isShape || isText || isIcon;
+      const showColorish = (isBrush && tool !== 'eraser') || isLine || isShape || isText || isIcon || isHand;
       show(qs('#colorGroup'), showColorish);
       show(qs('#opacityGroup'), showColorish);
       show(qs('#recentGroup'), showColorish);
-      show(qs('#sizeGroup'), !isSelect && !isDropper);
+      show(qs('#sizeGroup'), !isSelect && !isDropper && !isHand);
       show(qs('#lineOpts'), isLine);
       show(qs('#shapeOpts'), isShape);
       // Only show radius when rect tool
@@ -564,14 +653,13 @@
       if (lblR && rEl) { lblR.style.display = rEl.style.display = (tool === 'rect') ? '' : 'none'; }
       show(qs('#drawOpts'), tool === 'pen' || tool === 'marker');
       show(qs('#textOpts'), isText);
-      // Always show grid/theme/autosave/lang
-      show(qs('#gridGroup'), true);
+      // Always show grid/theme/autosave/lang (grid now in topbar)
     }
 
     function getPos(evt) {
-      const rect = board.getBoundingClientRect();
-      const x = (evt.clientX - rect.left);
-      const y = (evt.clientY - rect.top);
+      const rect = stage.getBoundingClientRect();
+      const x = (evt.clientX - rect.left - viewOffsetX) / viewScale;
+      const y = (evt.clientY - rect.top - viewOffsetY) / viewScale;
       return { x, y };
     }
 
@@ -664,6 +752,7 @@
       octx.lineWidth = Math.max(1, parseInt(sizeEl.value, 10));
       octx.strokeStyle = colorEl.value;
       octx.globalAlpha = parseFloat(opacityEl.value || '1');
+      applyDash(octx);
       octx.beginPath();
       octx.moveTo(p1.x, p1.y);
       octx.lineTo(p2.x, p2.y);
@@ -675,6 +764,54 @@
         octx.fill();
         octx.globalAlpha = parseFloat(opacityEl.value || '1');
       }
+      octx.stroke();
+      octx.restore();
+    }
+
+    function shapePreviewPolygon(x0, y0, x1, y1) {
+      clearOverlay();
+      const cx = (x0 + x1) / 2; const cy = (y0 + y1) / 2;
+      const rx = Math.abs(x1 - x0) / 2; const ry = Math.abs(y1 - y0) / 2;
+      const n = parseInt(polySidesInput.value, 10);
+      octx.save();
+      octx.lineWidth = Math.max(1, parseInt(sizeEl.value, 10));
+      octx.strokeStyle = colorEl.value;
+      octx.globalAlpha = parseFloat(opacityEl.value || '1');
+      applyDash(octx);
+      octx.beginPath();
+      for (let i=0;i<n;i++) {
+        const a = -Math.PI/2 + i * (2*Math.PI/n);
+        const x = cx + rx * Math.cos(a);
+        const y = cy + ry * Math.sin(a);
+        if (i===0) octx.moveTo(x,y); else octx.lineTo(x,y);
+      }
+      octx.closePath();
+      if (fillToggle.checked) { octx.fillStyle = colorEl.value; octx.fill(); }
+      octx.stroke();
+      octx.restore();
+    }
+
+    function shapePreviewStar(x0, y0, x1, y1) {
+      clearOverlay();
+      const cx = (x0 + x1) / 2; const cy = (y0 + y1) / 2;
+      const R = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0)) / 2;
+      const n = parseInt(starPointsInput.value, 10);
+      const inner = parseFloat(starInnerInput.value || '0.5') * R;
+      octx.save();
+      octx.lineWidth = Math.max(1, parseInt(sizeEl.value, 10));
+      octx.strokeStyle = colorEl.value;
+      octx.globalAlpha = parseFloat(opacityEl.value || '1');
+      applyDash(octx);
+      octx.beginPath();
+      for (let i = 0; i < 2*n; i++) {
+        const r = i % 2 === 0 ? R : inner;
+        const a = -Math.PI/2 + i * (Math.PI / n);
+        const x = cx + r * Math.cos(a);
+        const y = cy + r * Math.sin(a);
+        if (i===0) octx.moveTo(x,y); else octx.lineTo(x,y);
+      }
+      octx.closePath();
+      if (fillToggle.checked) { octx.fillStyle = colorEl.value; octx.fill(); }
       octx.stroke();
       octx.restore();
     }
@@ -788,6 +925,7 @@
       ctx.lineWidth = Math.max(1, parseInt(sizeEl.value, 10));
       ctx.strokeStyle = colorEl.value;
       ctx.globalAlpha = parseFloat(opacityEl.value || '1');
+      applyDash(ctx);
       ctx.beginPath();
       ctx.moveTo(p1.x, p1.y);
       ctx.lineTo(p2.x, p2.y);
@@ -799,6 +937,54 @@
         ctx.fill();
         ctx.globalAlpha = parseFloat(opacityEl.value || '1');
       }
+      ctx.stroke();
+      ctx.restore();
+      clearOverlay(); pushHistory();
+    }
+
+    function commitPolygon(x0, y0, x1, y1) {
+      const cx = (x0 + x1) / 2; const cy = (y0 + y1) / 2;
+      const rx = Math.abs(x1 - x0) / 2; const ry = Math.abs(y1 - y0) / 2;
+      const n = parseInt(polySidesInput.value, 10);
+      ctx.save();
+      ctx.lineWidth = Math.max(1, parseInt(sizeEl.value, 10));
+      ctx.strokeStyle = colorEl.value;
+      ctx.globalAlpha = parseFloat(opacityEl.value || '1');
+      applyDash(ctx);
+      ctx.beginPath();
+      for (let i=0;i<n;i++) {
+        const a = -Math.PI/2 + i * (2*Math.PI/n);
+        const x = cx + rx * Math.cos(a);
+        const y = cy + ry * Math.sin(a);
+        if (i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+      }
+      ctx.closePath();
+      if (fillToggle.checked) { ctx.fillStyle = colorEl.value; ctx.fill(); }
+      ctx.stroke();
+      ctx.restore();
+      clearOverlay(); pushHistory();
+    }
+
+    function commitStar(x0, y0, x1, y1) {
+      const cx = (x0 + x1) / 2; const cy = (y0 + y1) / 2;
+      const R = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0)) / 2;
+      const n = parseInt(starPointsInput.value, 10);
+      const inner = parseFloat(starInnerInput.value || '0.5') * R;
+      ctx.save();
+      ctx.lineWidth = Math.max(1, parseInt(sizeEl.value, 10));
+      ctx.strokeStyle = colorEl.value;
+      ctx.globalAlpha = parseFloat(opacityEl.value || '1');
+      applyDash(ctx);
+      ctx.beginPath();
+      for (let i = 0; i < 2*n; i++) {
+        const r = i % 2 === 0 ? R : inner;
+        const a = -Math.PI/2 + i * (Math.PI / n);
+        const x = cx + r * Math.cos(a);
+        const y = cy + r * Math.sin(a);
+        if (i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+      }
+      ctx.closePath();
+      if (fillToggle.checked) { ctx.fillStyle = colorEl.value; ctx.fill(); }
       ctx.stroke();
       ctx.restore();
       clearOverlay(); pushHistory();
@@ -837,6 +1023,8 @@
         beginSelection(x, y);
       } else if (tool === 'eyedropper') {
         pickColorAt(x, y);
+      } else if (tool === 'hand') {
+        drawing = true; startX = x; startY = y;
       }
     }
 
@@ -863,6 +1051,10 @@
         shapePreviewEllipse(startX, startY, x, y);
       } else if (tool === 'triangle') {
         shapePreviewTriangle(startX, startY, x, y);
+      } else if (tool === 'polygon') {
+        shapePreviewPolygon(startX, startY, x, y);
+      } else if (tool === 'star') {
+        shapePreviewStar(startX, startY, x, y);
       } else if (tool === 'select' && selection?.moving) {
         moveSelection(x, y);
       } else if (tool === 'select' && selection && !selection.moving && !selection.resizing) {
@@ -871,6 +1063,13 @@
         resizeSelection(x, y);
       } else if (tool === 'select' && selection?.rotating) {
         updateRotation(x, y);
+      } else if (tool === 'hand') {
+        const dx = (evt.movementX || (x - startX)) * 1; 
+        const dy = (evt.movementY || (y - startY)) * 1;
+        viewOffsetX += dx; viewOffsetY += dy;
+        startX = x; startY = y;
+        constrainViewport();
+        updateViewportTransform();
       }
     }
 
@@ -910,12 +1109,19 @@
         commitEllipse(startX, startY, x, y);
       } else if (tool === 'triangle') {
         commitTriangle(startX, startY, x, y);
+      } else if (tool === 'polygon') {
+        commitPolygon(startX, startY, x, y);
+      } else if (tool === 'star') {
+        commitStar(startX, startY, x, y);
       } else if (tool === 'select' && selection && !selection.moving && !selection.resizing && !selection.rotating) {
         finalizeSelectionBox();
       } else if (tool === 'select' && selection && selection.resizing) {
         finalizeSelectionResize();
       } else if (tool === 'select' && selection && selection.rotating) {
         finalizeSelectionRotate();
+      } else if (tool === 'hand') {
+        constrainViewport();
+        updateViewportTransform();
       }
     }
 
@@ -1234,6 +1440,7 @@
       recentColors.unshift(h);
       if (recentColors.length > 6) recentColors.pop();
       renderRecentColors();
+      try { localStorage.setItem(PREF_RECENT_COLORS_KEY, JSON.stringify(recentColors)); } catch {}
     }
     function renderRecentColors() {
       recentColorsEl.innerHTML = '';
@@ -1246,21 +1453,44 @@
         recentColorsEl.appendChild(btn);
       });
     }
+    function loadRecentColors() {
+      try {
+        const s = localStorage.getItem(PREF_RECENT_COLORS_KEY);
+        if (s) {
+          const arr = JSON.parse(s);
+          if (Array.isArray(arr)) {
+            recentColors.splice(0, recentColors.length, ...arr);
+            renderRecentColors();
+          }
+        }
+      } catch {}
+    }
 
     // Swatches and controls
     qsa('#sw1,#sw2,#sw3,#sw4,#sw5,#sw6').forEach(sw => sw.addEventListener('click', () => {
       const rgb = window.getComputedStyle(sw).backgroundColor;
       const hex = rgb.startsWith('#') ? rgb : rgbToHex(rgb);
       colorEl.value = hex; addRecentColor(hex);
+      try { localStorage.setItem(PREF_COLOR_KEY, hex); } catch {}
     }));
-    sizeEl.addEventListener('input', () => sizeVal.textContent = sizeEl.value);
-    colorEl.addEventListener('change', () => addRecentColor(colorEl.value));
-    gridToggle.addEventListener('change', drawGrid);
-    gridSizeEl.addEventListener('input', drawGrid);
-    gridTypeEl.addEventListener('change', drawGrid);
-    dashToggle.addEventListener('change', () => {});
-    dashLenEl.addEventListener('input', () => {});
-    arrowSizeEl.addEventListener('input', () => {});
+    sizeEl.addEventListener('input', () => { sizeVal.textContent = sizeEl.value; try { localStorage.setItem(PREF_SIZE_KEY, sizeEl.value); } catch {} });
+    colorEl.addEventListener('change', () => { addRecentColor(colorEl.value); try { localStorage.setItem(PREF_COLOR_KEY, colorEl.value); } catch {} });
+    opacityEl.addEventListener('input', () => { try { localStorage.setItem(PREF_OPACITY_KEY, opacityEl.value); } catch {} });
+    gridToggle.addEventListener('change', () => { try { localStorage.setItem(PREF_GRID_KEY, gridToggle.checked ? '1' : '0'); } catch {}; drawGrid(); });
+    gridSizeEl.addEventListener('input', () => { try { localStorage.setItem(PREF_GRID_SIZE_KEY, gridSizeEl.value); } catch {}; drawGrid(); });
+    gridTypeEl.addEventListener('change', () => { try { localStorage.setItem(PREF_GRID_TYPE_KEY, gridTypeEl.value); } catch {}; drawGrid(); });
+    dashToggle.addEventListener('change', () => { try { localStorage.setItem(PREF_DASH_KEY, dashToggle.checked ? '1' : '0'); } catch {} });
+    dashLenEl.addEventListener('input', () => { try { localStorage.setItem(PREF_DASH_LEN_KEY, dashLenEl.value); } catch {} });
+    arrowSizeEl.addEventListener('input', () => { try { localStorage.setItem(PREF_ARROW_SIZE_KEY, arrowSizeEl.value); } catch {} });
+    arrowheadsToggle.addEventListener('change', () => { try { localStorage.setItem(PREF_ARROWHEADS_KEY, arrowheadsToggle.checked ? '1' : '0'); } catch {} });
+    fillToggle.addEventListener('change', () => { try { localStorage.setItem(PREF_FILL_KEY, fillToggle.checked ? '1' : '0'); } catch {} });
+    cornerRadiusEl.addEventListener('input', () => { try { localStorage.setItem(PREF_RADIUS_KEY, cornerRadiusEl.value); } catch {} });
+    smoothingToggle.addEventListener('change', () => { try { localStorage.setItem(PREF_SMOOTH_KEY, smoothingToggle.checked ? '1' : '0'); } catch {} });
+    fontFamilyEl.addEventListener('change', () => { try { localStorage.setItem(PREF_FONT_KEY, fontFamilyEl.value); } catch {} });
+    textAlignEl.addEventListener('change', () => { try { localStorage.setItem(PREF_ALIGN_KEY, textAlignEl.value); } catch {} });
+    textBoldEl.addEventListener('change', () => { try { localStorage.setItem(PREF_BOLD_KEY, textBoldEl.checked ? '1' : '0'); } catch {} });
+    textItalicEl.addEventListener('change', () => { try { localStorage.setItem(PREF_ITALIC_KEY, textItalicEl.checked ? '1' : '0'); } catch {} });
+    autosaveToggle.addEventListener('change', () => { try { localStorage.setItem(PREF_AUTOSAVE_KEY, autosaveToggle.checked ? '1' : '0'); } catch {} });
 
     // Theme
     const DARK_DEFAULT = '#4de2cf';
@@ -1279,15 +1509,25 @@
       try {
         const data = board.toDataURL('image/png');
         localStorage.setItem('whiteboard_autosave', data);
+        if (activeTabId) {
+          localStorage.setItem(TAB_PREFIX + activeTabId, data);
+        }
         statusEl.textContent = 'Saved';
       } catch {}
     }
     function loadFromStorage() {
-      const data = localStorage.getItem('whiteboard_autosave');
+      const data = activeTabId ? localStorage.getItem(TAB_PREFIX + activeTabId) : localStorage.getItem('whiteboard_autosave');
       if (!data) return;
       const img = new Image(); img.onload = () => { ctx.drawImage(img, 0, 0, board.width, board.height); pushHistory(); }; img.src = data;
     }
     saveNowBtn.addEventListener('click', () => { saveToStorage(); });
+
+    // Clear all
+    clearBtn.addEventListener('click', () => {
+      ctx.clearRect(0, 0, board.width, board.height);
+      pushHistory();
+      if (activeTabId) localStorage.removeItem(TAB_PREFIX + activeTabId);
+    });
 
     // Import/export
     function drawImageOnBoard(img, x=0, y=0, scale=1) {
@@ -1324,22 +1564,70 @@
       }
     });
 
-    // Clipboard paste
+    // Clipboard paste (images, files, URLs, and text)
     window.addEventListener('paste', async (e) => {
-      const items = e.clipboardData?.items || [];
-      for (const it of items) {
-        if (it.type?.startsWith('image/')) {
-          const file = it.getAsFile();
-          if (!file) continue;
-          const url = URL.createObjectURL(file);
-          const img = new Image(); img.onload = () => { drawImageOnBoard(img, 20, 20, 1); URL.revokeObjectURL(url); };
-          img.src = url;
-          return;
+      const cd = e.clipboardData;
+      if (!cd) return;
+
+      // 1) Image files via clipboardData.files
+      if (cd.files && cd.files.length) {
+        for (const file of cd.files) {
+          if (file.type && file.type.startsWith('image/')) {
+            const url = URL.createObjectURL(file);
+            const img = new Image();
+            img.onload = () => { drawImageOnBoard(img, 20, 20, 1); URL.revokeObjectURL(url); };
+            img.src = url; return;
+          }
         }
       }
-      // If text and text tool active, create text input with pasted content
-      const text = e.clipboardData?.getData('text');
-      if (text && tool === 'text') {
+
+      // 2) Image items via clipboardData.items
+      const items = cd.items || [];
+      for (const it of items) {
+        if (it.type && it.type.startsWith('image/')) {
+          const file = it.getAsFile();
+          if (file) {
+            const url = URL.createObjectURL(file);
+            const img = new Image();
+            img.onload = () => { drawImageOnBoard(img, 20, 20, 1); URL.revokeObjectURL(url); };
+            img.src = url; return;
+          }
+        }
+      }
+
+      // 3) URL that points to an image
+      const possibleUrl = cd.getData('text/uri-list') || cd.getData('text/plain');
+      if (possibleUrl && /^https?:\/\/.+\.(png|jpe?g|gif|webp|bmp)(\?.*)?$/i.test(possibleUrl.trim())) {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => { drawImageOnBoard(img, 20, 20, 1); };
+        img.src = possibleUrl.trim();
+        return;
+      }
+
+      // 4) HTML with <img>
+      const html = cd.getData('text/html');
+      if (html) {
+        const m = html.match(/<img[^>]+src=["']([^"']+)["']/i);
+        if (m && m[1]) {
+          const imgUrl = m[1];
+          const img = new Image();
+          img.crossOrigin = 'anonymous';
+          img.onload = () => { drawImageOnBoard(img, 20, 20, 1); };
+          img.src = imgUrl; return;
+        }
+        // data URL fallback
+        const dm = html.match(/src=["'](data:image\/[^"']+)["']/i);
+        if (dm && dm[1]) {
+          const img = new Image();
+          img.onload = () => { drawImageOnBoard(img, 20, 20, 1); };
+          img.src = dm[1]; return;
+        }
+      }
+
+      // 5) Plain text: create text element regardless of active tool
+      const text = cd.getData('text');
+      if (text) {
         const rect = stage.getBoundingClientRect();
         createTextInput(rect.width/2 - 40, rect.height/2 - 12);
         const el = qs('.floating-input');
@@ -1347,7 +1635,27 @@
           el.innerText = text;
           setTimeout(() => el.focus(), 0);
         }
+        return;
       }
+
+      // 6) Fallback: async clipboard read (secure contexts only)
+      try {
+        if (navigator.clipboard && navigator.clipboard.read) {
+          const items2 = await navigator.clipboard.read();
+          for (const item of items2) {
+            const types = item.types || [];
+            const imgType = types.find(t => t.startsWith('image/'));
+            if (imgType) {
+              const blob = await item.getType(imgType);
+              const url = URL.createObjectURL(blob);
+              const img = new Image();
+              img.onload = () => { drawImageOnBoard(img, 20, 20, 1); URL.revokeObjectURL(url); };
+              img.src = url; return;
+            }
+          }
+        }
+      } catch {}
+      statusEl.textContent = 'Nothing to paste (no image/text found)';
     });
 
     // Fullscreen
@@ -1428,9 +1736,12 @@
       qsa('.tool-btn[data-tool="rect"]').forEach(b => { b.setAttribute('data-title', S.Rectangle); b.setAttribute('aria-label', S.Rectangle); });
       qsa('.tool-btn[data-tool="ellipse"]').forEach(b => { b.setAttribute('data-title', S.Ellipse); b.setAttribute('aria-label', S.Ellipse); });
       qsa('.tool-btn[data-tool="triangle"]').forEach(b => { b.setAttribute('data-title', S.Triangle); b.setAttribute('aria-label', S.Triangle); });
+      qsa('.tool-btn[data-tool="polygon"]').forEach(b => { b.setAttribute('data-title', S.Polygon); b.setAttribute('aria-label', S.Polygon); });
+      qsa('.tool-btn[data-tool="star"]').forEach(b => { b.setAttribute('data-title', S.Star); b.setAttribute('aria-label', S.Star); });
       qsa('.tool-btn[data-tool="eyedropper"]').forEach(b => { b.setAttribute('data-title', S.Eyedropper); b.setAttribute('aria-label', S.Eyedropper); });
       qsa('.tool-btn[data-tool="text"]').forEach(b => { b.setAttribute('data-title', S.Text); b.setAttribute('aria-label', S.Text); });
       qsa('.tool-btn[data-tool="icon"]').forEach(b => { b.setAttribute('data-title', S.Icons); b.setAttribute('aria-label', S.Icons); });
+      qsa('.tool-btn[data-tool="hand"]').forEach(b => { b.setAttribute('data-title', S.Hand); b.setAttribute('aria-label', S.Hand); });
       qsa('.tool-btn[data-tool="select"]').forEach(b => { b.setAttribute('data-title', S.SelectMove); b.setAttribute('aria-label', S.SelectMove); });
       undoBtn.setAttribute('data-title', S.Undo); undoBtn.setAttribute('aria-label', S.Undo);
       redoBtn.setAttribute('data-title', S.Redo); redoBtn.setAttribute('aria-label', S.Redo);
@@ -1460,6 +1771,9 @@
       qs('#theme').options[0].text = S.Dark; qs('#theme').options[1].text = S.Light;
       qs('#lblAutosave').textContent = S.Autosave;
       qs('#saveNowBtn').textContent = S.SaveNow;
+      qs('#lblSides').textContent = S.Sides;
+      qs('#lblPoints').textContent = S.Points;
+      qs('#lblInner').textContent = S.Inner;
     }
 
     langEl.addEventListener('change', () => { lang = langEl.value; applyLang(); try { localStorage.setItem(PREF_LANG_KEY, lang); } catch {} });
@@ -1495,6 +1809,141 @@
     // Attempt to load autosave
     loadFromStorage();
     updateOptionVisibility();
+
+    // Apply saved control prefs
+    try {
+      const vSize = localStorage.getItem(PREF_SIZE_KEY); if (vSize) { sizeEl.value = vSize; sizeVal.textContent = vSize; }
+      const vColor = localStorage.getItem(PREF_COLOR_KEY); if (vColor) { colorEl.value = vColor; addRecentColor(vColor); }
+      const vOpac = localStorage.getItem(PREF_OPACITY_KEY); if (vOpac) { opacityEl.value = vOpac; }
+      const vSmooth = localStorage.getItem(PREF_SMOOTH_KEY); if (vSmooth) { smoothingToggle.checked = vSmooth === '1'; }
+      const vGrid = localStorage.getItem(PREF_GRID_KEY); if (vGrid) { gridToggle.checked = vGrid === '1'; }
+      const vGridType = localStorage.getItem(PREF_GRID_TYPE_KEY); if (vGridType) { gridTypeEl.value = vGridType; }
+      const vGridSize = localStorage.getItem(PREF_GRID_SIZE_KEY); if (vGridSize) { gridSizeEl.value = vGridSize; }
+      const vFont = localStorage.getItem(PREF_FONT_KEY); if (vFont) { fontFamilyEl.value = vFont; }
+      const vAlign = localStorage.getItem(PREF_ALIGN_KEY); if (vAlign) { textAlignEl.value = vAlign; }
+      const vBold = localStorage.getItem(PREF_BOLD_KEY); if (vBold) { textBoldEl.checked = vBold === '1'; }
+      const vItalic = localStorage.getItem(PREF_ITALIC_KEY); if (vItalic) { textItalicEl.checked = vItalic === '1'; }
+      const vFill = localStorage.getItem(PREF_FILL_KEY); if (vFill) { fillToggle.checked = vFill === '1'; }
+      const vRadius = localStorage.getItem(PREF_RADIUS_KEY); if (vRadius) { cornerRadiusEl.value = vRadius; }
+      const vArr = localStorage.getItem(PREF_ARROWHEADS_KEY); if (vArr) { arrowheadsToggle.checked = vArr === '1'; }
+      const vArrSz = localStorage.getItem(PREF_ARROW_SIZE_KEY); if (vArrSz) { arrowSizeEl.value = vArrSz; }
+      const vDash = localStorage.getItem(PREF_DASH_KEY); if (vDash) { dashToggle.checked = vDash === '1'; }
+      const vDashLen = localStorage.getItem(PREF_DASH_LEN_KEY); if (vDashLen) { dashLenEl.value = vDashLen; }
+      const vAutosave = localStorage.getItem(PREF_AUTOSAVE_KEY); if (vAutosave) { autosaveToggle.checked = vAutosave === '1'; }
+      loadRecentColors();
+      drawGrid();
+    } catch {}
+
+    // Viewport zoom controls
+    function applyZoom(z) {
+      viewScale = Math.max(0.25, Math.min(4, z));
+      if (zoomInput) zoomInput.value = String(viewScale);
+      constrainViewport(true);
+      updateViewportTransform();
+      try { localStorage.setItem(PREF_ZOOM_KEY, String(viewScale)); } catch {}
+    }
+    qs('#zoomInBtn').addEventListener('click', () => applyZoom(viewScale + 0.1));
+    qs('#zoomOutBtn').addEventListener('click', () => applyZoom(viewScale - 0.1));
+    qs('#zoomResetBtn').addEventListener('click', () => { viewOffsetX = 0; viewOffsetY = 0; applyZoom(1); });
+    if (zoomInput) zoomInput.addEventListener('input', () => applyZoom(parseFloat(zoomInput.value)));
+    stage.addEventListener('wheel', (e) => {
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault();
+        const rect = stage.getBoundingClientRect();
+        const px = (e.clientX - rect.left - viewOffsetX) / viewScale;
+        const py = (e.clientY - rect.top - viewOffsetY) / viewScale;
+        const old = viewScale;
+        const delta = -Math.sign(e.deltaY) * 0.1;
+        const next = Math.max(0.25, Math.min(4, old + delta));
+        const scale = next / old;
+        viewOffsetX = viewOffsetX - px * (scale - 1) * viewScale;
+        viewOffsetY = viewOffsetY - py * (scale - 1) * viewScale;
+        applyZoom(next);
+      }
+    }, { passive: false });
+
+    // Load saved zoom
+    try { const zv = parseFloat(localStorage.getItem(PREF_ZOOM_KEY) || '1'); if (!Number.isNaN(zv)) applyZoom(zv); else applyZoom(1); } catch { applyZoom(1); }
+
+    function updateViewportTransform() {
+      viewport.style.transform = `translate(${Math.round(viewOffsetX)}px, ${Math.round(viewOffsetY)}px) scale(${viewScale})`;
+    }
+
+    function constrainViewport(recenter=false) {
+      const rect = stage.getBoundingClientRect();
+      const contentW = rect.width * viewScale;
+      const contentH = rect.height * viewScale;
+      const minX = -contentW + 50; // keep some margin
+      const minY = -contentH + 50;
+      const maxX = rect.width - 50;
+      const maxY = rect.height - 50;
+      if (recenter) {
+        viewOffsetX = Math.min(Math.max(viewOffsetX, minX), maxX);
+        viewOffsetY = Math.min(Math.max(viewOffsetY, minY), maxY);
+      } else {
+        viewOffsetX = Math.min(Math.max(viewOffsetX, minX), maxX);
+        viewOffsetY = Math.min(Math.max(viewOffsetY, minY), maxY);
+      }
+    }
+
+    // Tabs management
+    function renderTabs() {
+      tabsEl.innerHTML = '';
+      tabs.forEach(t => {
+        const el = document.createElement('div'); el.className = 'tab' + (t.id === activeTabId ? ' active' : ''); el.dataset.id = t.id;
+        el.innerHTML = `<span>${t.name}</span><button class="close" title="Close">×</button>`;
+        el.addEventListener('click', (e) => {
+          if (e.target.classList.contains('close')) { closeTab(t.id); e.stopPropagation(); return; }
+          switchTab(t.id);
+        });
+        tabsEl.appendChild(el);
+      });
+    }
+    function persistTabs() {
+      try { localStorage.setItem(TABS_META_KEY, JSON.stringify({ activeId: activeTabId, tabs })); } catch {}
+    }
+    function newTabName() {
+      let idx = tabs.length + 1; let name = `Tab ${idx}`;
+      const names = new Set(tabs.map(t => t.name));
+      while (names.has(name)) { idx += 1; name = `Tab ${idx}`; }
+      return name;
+    }
+    function addTab(loadExisting=false, id=null, name=null) {
+      const tabId = id || (Date.now().toString(36) + Math.random().toString(36).slice(2,6));
+      const tabName = name || newTabName();
+      tabs.push({ id: tabId, name: tabName });
+      switchTab(tabId, loadExisting);
+      renderTabs(); persistTabs();
+    }
+    function closeTab(id) {
+      const idx = tabs.findIndex(t => t.id === id); if (idx === -1) return;
+      tabs.splice(idx, 1);
+      localStorage.removeItem(TAB_PREFIX + id);
+      if (activeTabId === id) {
+        activeTabId = tabs[0]?.id || null;
+        ctx.clearRect(0, 0, board.width, board.height);
+        if (activeTabId) loadFromStorage();
+      }
+      renderTabs(); persistTabs();
+    }
+    function switchTab(id, loadExisting=true) {
+      activeTabId = id;
+      ctx.clearRect(0, 0, board.width, board.height);
+      if (loadExisting) loadFromStorage();
+      renderTabs(); persistTabs();
+    }
+    addTabBtn.addEventListener('click', () => addTab(false));
+    function restoreTabs() {
+      try {
+        const m = JSON.parse(localStorage.getItem(TABS_META_KEY) || '{}');
+        if (Array.isArray(m.tabs) && m.tabs.length) {
+          tabs = m.tabs; activeTabId = m.activeId || tabs[0].id; renderTabs(); switchTab(activeTabId, true);
+        } else {
+          addTab(false);
+        }
+      } catch { addTab(false); }
+    }
+    restoreTabs();
 
   </script>
 </body>
