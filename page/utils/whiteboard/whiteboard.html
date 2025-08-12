@@ -228,10 +228,13 @@
       <div class="group" id="textOpts" hidden>
         <label id="lblFont">Font</label>
         <select id="fontFamily">
-          <option value="16px/1.2 system-ui">System</option>
-          <option value="bold 24px/1.2 system-ui">Bold</option>
-          <option value="24px/1.2 \"Noto Sans JP\", system-ui">日本語</option>
-          <option value="24px/1.2 \"Font Awesome 6 Free\"">Font Awesome</option>
+          <option value="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif">System UI</option>
+          <option value="Arial, Helvetica, sans-serif">Arial</option>
+          <option value="Times New Roman, Times, serif">Times New Roman</option>
+          <option value="Georgia, serif">Georgia</option>
+          <option value="Helvetica, Arial, sans-serif">Helvetica</option>
+          <option value="Courier New, Courier, monospace">Courier New</option>
+          <option value="&quot;Noto Sans JP&quot;, system-ui, sans-serif">日本語 (Noto Sans JP)</option>
         </select>
       </div>
       <div class="group lang-select">
@@ -389,7 +392,7 @@
       qsa('.tool-btn', toolbar).forEach(b => b.classList.remove('active'));
       const btn = qsa('.tool-btn', toolbar).find(b => b.dataset.tool === tool);
       if (btn) btn.classList.add('active');
-      qs('#shapeOpts').hidden = !(tool === 'rect' || tool === 'ellipse' || tool === 'line');
+      qs('#shapeOpts').hidden = !(tool === 'rect' || tool === 'ellipse' || tool === 'line' || tool === 'text' || tool === 'icon');
       qs('#textOpts').hidden = !(tool === 'text' || tool === 'icon');
       iconPicker.classList.toggle('hidden', tool !== 'icon');
       if (tool !== 'select') hideSelectionBox();
@@ -583,7 +586,8 @@
       input.contentEditable = 'true';
       input.style.left = x + 'px';
       input.style.top = y + 'px';
-      input.style.font = fontFamilyEl.value;
+      const textPx = parseInt(sizeEl.value, 10);
+      input.style.font = `${textPx}px/1.2 ${fontFamilyEl.value}`;
       stage.appendChild(input);
       setTimeout(() => {
         input.focus();
@@ -600,8 +604,9 @@
         const ox = rect.left - stageRect.left; const oy = rect.top - stageRect.top;
         if (text) {
           ctx.save();
-          ctx.fillStyle = colorEl.value; ctx.globalAlpha = 1;
-          ctx.font = fontFamilyEl.value;
+          ctx.fillStyle = colorEl.value; ctx.globalAlpha = parseFloat(opacityEl.value || '1');
+          const textPx2 = parseInt(sizeEl.value, 10);
+          ctx.font = `${textPx2}px ${fontFamilyEl.value}`;
           ctx.textBaseline = 'top';
           text.split('\n').forEach((line, idx) => {
             ctx.fillText(line, ox, oy + idx * 24);
@@ -653,7 +658,7 @@
         document.fonts.load(`${weight} ${px}px ${families[1]}`)
       ]).then(() => {
         ctx.save();
-        ctx.fillStyle = colorEl.value; ctx.globalAlpha = 1;
+        ctx.fillStyle = colorEl.value; ctx.globalAlpha = parseFloat(opacityEl.value || '1');
         // Prefer FA7, fallback FA6 using font-family list
         ctx.font = `${weight} ${px}px ${families.join(', ')}`;
         ctx.textBaseline = 'middle'; ctx.textAlign = 'center';
