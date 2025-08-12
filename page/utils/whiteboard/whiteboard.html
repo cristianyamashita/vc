@@ -1,0 +1,939 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Whiteboard</title>
+  <link rel="stylesheet" href="../../assets/fontawesome/css/all.min.css" />
+  <style>
+    /* Ensure local Font Awesome webfonts are available to canvas */
+ 
+    /* Aliases for FA7 family names to local fonts */
+    @font-face {
+      font-family: 'Font Awesome 7 Free';
+      font-style: normal;
+      font-weight: 900;
+      src: url('../../assets/fontawesome/webfonts/fa-solid-900.woff2') format('woff2');
+      font-display: swap;
+    }
+    @font-face {
+      font-family: 'Font Awesome 7 Free';
+      font-style: normal;
+      font-weight: 400;
+      src: url('../../assets/fontawesome/webfonts/fa-regular-400.woff2') format('woff2');
+      font-display: swap;
+    }
+    @font-face {
+      font-family: 'Font Awesome 7 Brands';
+      font-style: normal;
+      font-weight: 400;
+      src: url('../../assets/fontawesome/webfonts/fa-brands-400.woff2') format('woff2');
+      font-display: swap;
+    }
+    :root {
+      --bg: #0f1220;
+      --panel: #161a2e;
+      --panel-2: #1e2342;
+      --text: #e8ecff;
+      --muted: #9aa4c7;
+      --accent: #7c8cff;
+      --accent-2: #4de2cf;
+      --danger: #ff6b6b;
+      --tool-size: 44px;
+      --toolbar-width: 64px;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      background: radial-gradient(1200px 800px at 10% -10%, #1b1f3b 0%, #0f1220 60%), #0f1220;
+      color: var(--text);
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      overflow: hidden;
+      user-select: none;
+    }
+    .app {
+      display: grid;
+      grid-template-columns: var(--toolbar-width) 1fr;
+      grid-template-rows: 48px 1fr;
+      grid-template-areas:
+        "toolbar topbar"
+        "toolbar stage";
+      height: 100vh;
+      width: 100vw;
+    }
+    .toolbar {
+      grid-area: toolbar;
+      background: linear-gradient(180deg, var(--panel) 0%, var(--panel-2) 100%);
+      border-right: 1px solid rgba(255,255,255,0.08);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 8px 6px;
+      gap: 8px;
+    }
+    .tool-btn {
+      width: var(--tool-size);
+      height: var(--tool-size);
+      border-radius: 12px;
+      background: rgba(255,255,255,0.04);
+      display: grid; place-items: center;
+      color: var(--text);
+      cursor: pointer;
+      border: 1px solid rgba(255,255,255,0.06);
+      transition: 120ms ease;
+    }
+    .tool-btn:hover { background: rgba(255,255,255,0.08); }
+    .tool-btn.active { outline: 2px solid var(--accent); background: rgba(124,140,255,0.16); }
+    .tool-divider { height: 1px; width: 100%; background: rgba(255,255,255,0.08); margin: 6px 0; }
+
+    .topbar {
+      grid-area: topbar;
+      background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02));
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      display: flex; align-items: center; gap: 12px;
+      padding: 8px 12px;
+    }
+    .group {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: rgba(0,0,0,0.25);
+      padding: 6px 10px; border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+    .group label { color: var(--muted); font-size: 12px; }
+    .group input[type="color"] { width: 32px; height: 24px; border: none; background: transparent; padding: 0; }
+    .group input[type="range"] { width: 140px; }
+    .group select, .group button, .group input[type="number"], .group input[type="text"] {
+      background: rgba(255,255,255,0.06);
+      color: var(--text);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 8px; padding: 6px 8px;
+    }
+    .stage {
+      grid-area: stage;
+      position: relative;
+      background: radial-gradient(1200px 800px at 90% 110%, rgba(124,140,255,0.08), transparent 60%), transparent;
+    }
+    canvas#board { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+    canvas#overlay { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+
+    .floating-input {
+      position: absolute; z-index: 20; background: transparent; color: var(--text);
+      border: 1px dashed var(--accent);
+      min-width: 80px; min-height: 28px; padding: 4px 6px; outline: none;
+      font: 24px/1.2 "Helvetica Neue", Arial, sans-serif;
+      user-select: text; pointer-events: auto; caret-color: var(--text);
+      background: rgba(0,0,0,0.25);
+      white-space: pre-wrap;
+    }
+
+    .lang-select { margin-left: auto; }
+
+    .hint { color: var(--muted); font-size: 12px; }
+
+    .hidden { display: none !important; }
+
+    .tooltip { position: relative; }
+    .tooltip[data-title]::after {
+      content: attr(data-title);
+      position: absolute; left: calc(100% + 8px); top: 50%; transform: translateY(-50%);
+      background: rgba(0,0,0,0.72); color: white; padding: 6px 8px; border-radius: 6px; font-size: 12px;
+      white-space: nowrap; opacity: 0; pointer-events: none; transition: 120ms ease; border: 1px solid rgba(255,255,255,0.12);
+    }
+    .tooltip:hover::after { opacity: 1; }
+
+    .icon-picker {
+      position: absolute; left: calc(var(--toolbar-width) + 12px); top: 72px;
+      background: var(--panel-2); border: 1px solid rgba(255,255,255,0.12); border-radius: 10px;
+      padding: 8px; display: grid; grid-template-columns: repeat(6, 36px); gap: 8px; z-index: 15;
+    }
+    .icon-picker button { width: 36px; height: 36px; border-radius: 8px; display: grid; place-items: center; cursor: pointer; }
+
+    .selection-rect { position: absolute; border: 1px dashed #fff; box-shadow: 0 0 0 1px rgba(124,140,255,0.6) inset; pointer-events: none; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="toolbar" id="toolbar">
+      <div class="tool-btn tooltip active" data-tool="pen" data-title="Pen">
+        <i class="fa-solid fa-pen"></i>
+      </div>
+      <div class="tool-btn tooltip" data-tool="marker" data-title="Marker">
+        <i class="fa-solid fa-highlighter"></i>
+      </div>
+      <div class="tool-btn tooltip" data-tool="eraser" data-title="Eraser">
+        <i class="fa-solid fa-eraser"></i>
+      </div>
+      <div class="tool-divider"></div>
+      <div class="tool-btn tooltip" data-tool="line" data-title="Line">
+        <i class="fa-solid fa-slash"></i>
+      </div>
+      <div class="tool-btn tooltip" data-tool="rect" data-title="Rectangle">
+        <i class="fa-regular fa-square"></i>
+      </div>
+      <div class="tool-btn tooltip" data-tool="ellipse" data-title="Ellipse">
+        <i class="fa-regular fa-circle"></i>
+      </div>
+      <div class="tool-divider"></div>
+      <div class="tool-btn tooltip" data-tool="text" data-title="Text">
+        <i class="fa-solid fa-font"></i>
+      </div>
+      <div class="tool-btn tooltip" data-tool="icon" data-title="Icons">
+        <i class="fa-solid fa-icons"></i>
+      </div>
+      <div class="tool-btn tooltip" data-tool="select" data-title="Select/Move">
+        <i class="fa-regular fa-object-group"></i>
+      </div>
+      <div class="tool-divider"></div>
+      <div class="tool-btn tooltip" id="undoBtn" data-title="Undo">
+        <i class="fa-solid fa-rotate-left"></i>
+      </div>
+      <div class="tool-btn tooltip" id="redoBtn" data-title="Redo">
+        <i class="fa-solid fa-rotate-right"></i>
+      </div>
+      <div class="tool-btn tooltip" id="importBtn" data-title="Import">
+        <i class="fa-solid fa-upload"></i>
+      </div>
+      <div class="tool-btn tooltip" id="exportBtn" data-title="Export">
+        <i class="fa-solid fa-download"></i>
+      </div>
+      <div class="tool-btn tooltip" id="fullscreenBtn" data-title="Fullscreen">
+        <i class="fa-solid fa-maximize"></i>
+      </div>
+      <input type="file" id="fileInput" accept="image/*" class="hidden" />
+    </aside>
+
+    <header class="topbar">
+      <div class="group">
+        <label id="lblColor">Color</label>
+        <input type="color" id="color" value="#4de2cf" />
+        <button id="sw1" style="background:#ff6b6b" aria-label="Red"></button>
+        <button id="sw2" style="background:#ffd166" aria-label="Yellow"></button>
+        <button id="sw3" style="background:#06d6a0" aria-label="Green"></button>
+        <button id="sw4" style="background:#7c8cff" aria-label="Blue"></button>
+        <button id="sw5" style="background:#ffffff" aria-label="White"></button>
+        <button id="sw6" style="background:#000000" aria-label="Black"></button>
+      </div>
+      <div class="group">
+        <label id="lblSize">Size</label>
+        <input type="range" id="size" min="1" max="80" value="8" />
+        <span id="sizeVal" class="hint">8</span>
+      </div>
+      <div class="group" id="shapeOpts" hidden>
+        <label id="lblFill">Fill</label>
+        <input type="checkbox" id="fillToggle" />
+        <label id="lblOpacity">Opacity</label>
+        <input type="range" id="opacity" min="0" max="1" value="1" step="0.05" />
+      </div>
+      <div class="group" id="textOpts" hidden>
+        <label id="lblFont">Font</label>
+        <select id="fontFamily">
+          <option value="16px/1.2 system-ui">System</option>
+          <option value="bold 24px/1.2 system-ui">Bold</option>
+          <option value="24px/1.2 \"Noto Sans JP\", system-ui">日本語</option>
+          <option value="24px/1.2 \"Font Awesome 6 Free\"">Font Awesome</option>
+        </select>
+      </div>
+      <div class="group lang-select">
+        <label>Lang</label>
+        <select id="lang">
+          <option value="en">English</option>
+          <option value="ja">日本語</option>
+          <option value="pt">Português</option>
+        </select>
+      </div>
+    </header>
+
+    <main class="stage" id="stage">
+      <canvas id="board"></canvas>
+      <canvas id="overlay"></canvas>
+      <div id="selectionBox" class="selection-rect hidden"></div>
+      <div id="iconPicker" class="icon-picker hidden">
+        <button data-ic="fa-star" title="star"><i class="fa-solid fa-star"></i></button>
+        <button data-ic="fa-heart" title="heart"><i class="fa-solid fa-heart"></i></button>
+        <button data-ic="fa-check" title="check"><i class="fa-solid fa-check"></i></button>
+        <button data-ic="fa-bolt" title="bolt"><i class="fa-solid fa-bolt"></i></button>
+        <button data-ic="fa-face-smile" title="smile"><i class="fa-regular fa-face-smile"></i></button>
+        <button data-ic="fa-circle" title="circle"><i class="fa-regular fa-circle"></i></button>
+        <button data-ic="fa-square" title="square"><i class="fa-regular fa-square"></i></button>
+        <button data-ic="fa-triangle-exclamation" title="warn"><i class="fa-solid fa-triangle-exclamation"></i></button>
+        <button data-ic="fa-mug-hot" title="mug"><i class="fa-solid fa-mug-hot"></i></button>
+        <button data-ic="fa-paper-plane" title="plane"><i class="fa-regular fa-paper-plane"></i></button>
+        <button data-ic="fa-lightbulb" title="bulb"><i class="fa-regular fa-lightbulb"></i></button>
+        <button data-ic="fa-arrow-right" title="arrow"><i class="fa-solid fa-arrow-right"></i></button>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    // i18n strings (EN, JA, PT)
+    const STRINGS = {
+      en: {
+        Pen: 'Pen', Marker: 'Marker', Eraser: 'Eraser', Line: 'Line', Rectangle: 'Rectangle', Ellipse: 'Ellipse',
+        Text: 'Text', Icons: 'Icons', SelectMove: 'Select/Move', Undo: 'Undo', Redo: 'Redo', Import: 'Import', Export: 'Export', Fullscreen: 'Fullscreen',
+        Color: 'Color', Size: 'Size', Fill: 'Fill', Opacity: 'Opacity', Font: 'Font'
+      },
+      ja: {
+        Pen: 'ペン', Marker: 'マーカー', Eraser: '消しゴム', Line: '直線', Rectangle: '四角形', Ellipse: '楕円',
+        Text: 'テキスト', Icons: 'アイコン', SelectMove: '選択/移動', Undo: '元に戻す', Redo: 'やり直し', Import: 'インポート', Export: 'エクスポート', Fullscreen: '全画面',
+        Color: '色', Size: 'サイズ', Fill: '塗り', Opacity: '不透明度', Font: 'フォント'
+      },
+      pt: {
+        Pen: 'Caneta', Marker: 'Marcador', Eraser: 'Borracha', Line: 'Linha', Rectangle: 'Retângulo', Ellipse: 'Elipse',
+        Text: 'Texto', Icons: 'Ícones', SelectMove: 'Selecionar/Mover', Undo: 'Desfazer', Redo: 'Refazer', Import: 'Importar', Export: 'Exportar', Fullscreen: 'Tela cheia',
+        Color: 'Cor', Size: 'Tamanho', Fill: 'Preenchimento', Opacidade: 'Opacidade', Font: 'Fonte'
+      }
+    };
+
+    const qs = (sel, el=document)=>el.querySelector(sel);
+    const qsa = (sel, el=document)=>Array.from(el.querySelectorAll(sel));
+
+    const board = qs('#board');
+    const overlay = qs('#overlay');
+    const stage = qs('#stage');
+    const toolbar = qs('#toolbar');
+    const selectionBox = qs('#selectionBox');
+    const iconPicker = qs('#iconPicker');
+
+    const colorEl = qs('#color');
+    const sizeEl = qs('#size');
+    const sizeVal = qs('#sizeVal');
+    const fillToggle = qs('#fillToggle');
+    const opacityEl = qs('#opacity');
+    const fontFamilyEl = qs('#fontFamily');
+    const langEl = qs('#lang');
+
+    const undoBtn = qs('#undoBtn');
+    const redoBtn = qs('#redoBtn');
+    const importBtn = qs('#importBtn');
+    const exportBtn = qs('#exportBtn');
+    const fullscreenBtn = qs('#fullscreenBtn');
+    const fileInput = qs('#fileInput');
+
+    let lang = (navigator.language || 'en').startsWith('ja') ? 'ja' : (navigator.language || 'en').startsWith('pt') ? 'pt' : 'en';
+    langEl.value = lang;
+
+    // Canvas contexts
+    const ctx = board.getContext('2d');
+    const octx = overlay.getContext('2d');
+
+    // State
+    let tool = 'pen';
+    let drawing = false;
+    let startX = 0, startY = 0;
+    let lastX = 0, lastY = 0;
+    let dpr = Math.max(1, window.devicePixelRatio || 1);
+
+    let history = [];
+    let future = [];
+    const HISTORY_LIMIT = 30;
+
+    // Selection floating buffer
+    let selection = null; // { x,y,w,h, image, offsetX, offsetY, moving }
+
+    function setCanvasSize() {
+      const rect = stage.getBoundingClientRect();
+      [board, overlay].forEach(c => {
+        c.width = Math.floor(rect.width * dpr);
+        c.height = Math.floor(rect.height * dpr);
+        c.style.width = rect.width + 'px';
+        c.style.height = rect.height + 'px';
+      });
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      octx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      redraw();
+    }
+
+    function pushHistory() {
+      try {
+        const snapshot = ctx.getImageData(0, 0, board.width, board.height);
+        history.push(snapshot);
+        if (history.length > HISTORY_LIMIT) history.shift();
+        future = [];
+        updateUndoRedoButtons();
+      } catch (e) { /* ignore if too large */ }
+    }
+
+    function undo() {
+      if (!history.length) return;
+      const current = ctx.getImageData(0, 0, board.width, board.height);
+      future.push(current);
+      const prev = history.pop();
+      ctx.putImageData(prev, 0, 0);
+      updateUndoRedoButtons();
+      redraw();
+    }
+    function redo() {
+      if (!future.length) return;
+      const current = ctx.getImageData(0, 0, board.width, board.height);
+      history.push(current);
+      const next = future.pop();
+      ctx.putImageData(next, 0, 0);
+      updateUndoRedoButtons();
+      redraw();
+    }
+    function updateUndoRedoButtons() {
+      undoBtn.style.opacity = history.length ? 1 : 0.5;
+      redoBtn.style.opacity = future.length ? 1 : 0.5;
+    }
+
+    function clearOverlay() { octx.clearRect(0, 0, overlay.width, overlay.height); }
+
+    function redraw() {
+      clearOverlay();
+      if (selection) drawSelectionOverlay();
+    }
+
+    function setTool(newTool) {
+      tool = newTool;
+      qsa('.tool-btn', toolbar).forEach(b => b.classList.remove('active'));
+      const btn = qsa('.tool-btn', toolbar).find(b => b.dataset.tool === tool);
+      if (btn) btn.classList.add('active');
+      qs('#shapeOpts').hidden = !(tool === 'rect' || tool === 'ellipse' || tool === 'line');
+      qs('#textOpts').hidden = !(tool === 'text' || tool === 'icon');
+      iconPicker.classList.toggle('hidden', tool !== 'icon');
+      if (tool !== 'select') hideSelectionBox();
+    }
+
+    function getPos(evt) {
+      const rect = board.getBoundingClientRect();
+      const x = (evt.clientX - rect.left);
+      const y = (evt.clientY - rect.top);
+      return { x, y };
+    }
+
+    function linePreview(x0, y0, x1, y1) {
+      clearOverlay();
+      octx.save();
+      octx.lineCap = 'round';
+      octx.lineJoin = 'round';
+      octx.strokeStyle = colorEl.value;
+      octx.globalAlpha = parseFloat(opacityEl.value || '1');
+      octx.lineWidth = parseInt(sizeEl.value, 10);
+      octx.beginPath();
+      octx.moveTo(x0, y0);
+      octx.lineTo(x1, y1);
+      octx.stroke();
+      octx.restore();
+    }
+
+    function shapePreviewRect(x0, y0, x1, y1) {
+      clearOverlay();
+      const w = x1 - x0, h = y1 - y0;
+      octx.save();
+      octx.lineWidth = Math.max(1, parseInt(sizeEl.value, 10));
+      octx.strokeStyle = colorEl.value;
+      octx.globalAlpha = parseFloat(opacityEl.value || '1');
+      if (fillToggle.checked) {
+        octx.fillStyle = colorEl.value;
+        octx.globalAlpha = Math.min(1, parseFloat(opacityEl.value || '1') * 0.35);
+        octx.fillRect(x0, y0, w, h);
+        octx.globalAlpha = parseFloat(opacityEl.value || '1');
+      }
+      octx.strokeRect(x0, y0, w, h);
+      octx.restore();
+    }
+
+    function shapePreviewEllipse(x0, y0, x1, y1) {
+      clearOverlay();
+      const cx = (x0 + x1) / 2; const cy = (y0 + y1) / 2;
+      const rx = Math.abs(x1 - x0) / 2; const ry = Math.abs(y1 - y0) / 2;
+      octx.save();
+      octx.lineWidth = Math.max(1, parseInt(sizeEl.value, 10));
+      octx.strokeStyle = colorEl.value;
+      octx.globalAlpha = parseFloat(opacityEl.value || '1');
+      octx.beginPath();
+      octx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+      if (fillToggle.checked) {
+        octx.fillStyle = colorEl.value;
+        octx.globalAlpha = Math.min(1, parseFloat(opacityEl.value || '1') * 0.35);
+        octx.fill();
+        octx.globalAlpha = parseFloat(opacityEl.value || '1');
+      }
+      octx.stroke();
+      octx.restore();
+    }
+
+    function commitLine(x0, y0, x1, y1) {
+      ctx.save();
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.strokeStyle = colorEl.value;
+      ctx.globalAlpha = parseFloat(opacityEl.value || '1');
+      ctx.lineWidth = parseInt(sizeEl.value, 10);
+      ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
+      ctx.restore();
+      clearOverlay(); pushHistory();
+    }
+
+    function commitRect(x0, y0, x1, y1) {
+      const w = x1 - x0, h = y1 - y0;
+      ctx.save();
+      ctx.lineWidth = Math.max(1, parseInt(sizeEl.value, 10));
+      ctx.strokeStyle = colorEl.value;
+      ctx.globalAlpha = parseFloat(opacityEl.value || '1');
+      if (fillToggle.checked) {
+        ctx.fillStyle = colorEl.value;
+        ctx.globalAlpha = Math.min(1, parseFloat(opacityEl.value || '1') * 0.35);
+        ctx.fillRect(x0, y0, w, h);
+        ctx.globalAlpha = parseFloat(opacityEl.value || '1');
+      }
+      ctx.strokeRect(x0, y0, w, h);
+      ctx.restore();
+      clearOverlay(); pushHistory();
+    }
+
+    function commitEllipse(x0, y0, x1, y1) {
+      const cx = (x0 + x1) / 2; const cy = (y0 + y1) / 2;
+      const rx = Math.abs(x1 - x0) / 2; const ry = Math.abs(y1 - y0) / 2;
+      ctx.save();
+      ctx.lineWidth = Math.max(1, parseInt(sizeEl.value, 10));
+      ctx.strokeStyle = colorEl.value;
+      ctx.globalAlpha = parseFloat(opacityEl.value || '1');
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+      if (fillToggle.checked) {
+        ctx.fillStyle = colorEl.value;
+        ctx.globalAlpha = Math.min(1, parseFloat(opacityEl.value || '1') * 0.35);
+        ctx.fill();
+        ctx.globalAlpha = parseFloat(opacityEl.value || '1');
+      }
+      ctx.stroke();
+      ctx.restore();
+      clearOverlay(); pushHistory();
+    }
+
+    function beginStroke(x, y) {
+      startX = lastX = x; startY = lastY = y;
+      if (tool === 'pen' || tool === 'marker' || tool === 'eraser') {
+        drawing = true;
+        ctx.save();
+        ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+        ctx.lineWidth = parseInt(sizeEl.value, 10);
+        if (tool === 'eraser') {
+          ctx.globalCompositeOperation = 'destination-out';
+          ctx.strokeStyle = 'rgba(0,0,0,1)';
+          ctx.globalAlpha = 1;
+        } else if (tool === 'marker') {
+          ctx.globalCompositeOperation = 'source-over';
+          ctx.strokeStyle = colorEl.value; ctx.globalAlpha = 0.25;
+        } else { // pen
+          ctx.globalCompositeOperation = 'source-over';
+          ctx.strokeStyle = colorEl.value; ctx.globalAlpha = 1;
+        }
+        ctx.beginPath(); ctx.moveTo(x, y);
+      } else if (tool === 'line' || tool === 'rect' || tool === 'ellipse') {
+        drawing = true; // previews will render until mouseup
+      } else if (tool === 'text') {
+        // handled by click event to ensure position is precise and focus works
+      } else if (tool === 'icon') {
+        // wait for icon click then place at x,y
+        iconPlaceAt = { x, y };
+      } else if (tool === 'select') {
+        drawing = true;
+        beginSelection(x, y);
+      }
+    }
+
+    function moveStroke(x, y, evt) {
+      if (!drawing) return;
+      if (tool === 'pen' || tool === 'marker' || tool === 'eraser') {
+        ctx.lineTo(x, y); ctx.stroke();
+        lastX = x; lastY = y;
+      } else if (tool === 'line') {
+        const constraint = evt.shiftKey;
+        let dx = x - startX, dy = y - startY;
+        if (constraint) {
+          const angle = Math.atan2(dy, dx);
+          const snap = Math.round(angle / (Math.PI/4)) * (Math.PI/4);
+          const len = Math.hypot(dx, dy);
+          dx = Math.cos(snap) * len; dy = Math.sin(snap) * len;
+          x = startX + dx; y = startY + dy;
+        }
+        linePreview(startX, startY, x, y);
+      } else if (tool === 'rect') {
+        shapePreviewRect(startX, startY, x, y);
+      } else if (tool === 'ellipse') {
+        shapePreviewEllipse(startX, startY, x, y);
+      } else if (tool === 'select' && selection?.moving) {
+        moveSelection(x, y);
+      } else if (tool === 'select' && selection && !selection.moving) {
+        updateSelectionBox(startX, startY, x, y);
+      }
+    }
+
+    function endStroke(x, y, evt) {
+      if (!drawing) return; drawing = false;
+      if (tool === 'pen' || tool === 'marker' || tool === 'eraser') {
+        ctx.closePath(); ctx.restore(); pushHistory();
+      } else if (tool === 'line') {
+        commitLine(startX, startY, x, y);
+      } else if (tool === 'rect') {
+        commitRect(startX, startY, x, y);
+      } else if (tool === 'ellipse') {
+        commitEllipse(startX, startY, x, y);
+      } else if (tool === 'select' && selection && !selection.moving) {
+        finalizeSelectionBox();
+      }
+    }
+
+    function createTextInput(x, y) {
+      const input = document.createElement('div');
+      input.className = 'floating-input';
+      input.contentEditable = 'true';
+      input.style.left = x + 'px';
+      input.style.top = y + 'px';
+      input.style.font = fontFamilyEl.value;
+      stage.appendChild(input);
+      setTimeout(() => {
+        input.focus();
+        const sel = window.getSelection();
+        const range = document.createRange();
+        range.selectNodeContents(input);
+        range.collapse(false);
+        sel.removeAllRanges(); sel.addRange(range);
+      }, 0);
+      const finish = () => {
+        const text = input.innerText.trim();
+        const rect = input.getBoundingClientRect();
+        const stageRect = stage.getBoundingClientRect();
+        const ox = rect.left - stageRect.left; const oy = rect.top - stageRect.top;
+        if (text) {
+          ctx.save();
+          ctx.fillStyle = colorEl.value; ctx.globalAlpha = 1;
+          ctx.font = fontFamilyEl.value;
+          ctx.textBaseline = 'top';
+          text.split('\n').forEach((line, idx) => {
+            ctx.fillText(line, ox, oy + idx * 24);
+          });
+          ctx.restore(); pushHistory();
+        }
+        input.remove();
+      };
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); finish(); }
+        if (e.key === 'Escape') { e.preventDefault(); input.remove(); }
+      });
+      input.addEventListener('blur', finish);
+      return input;
+    }
+
+    // Icon placement
+    let iconPlaceAt = null;
+    const ICON_CODE_MAP = {
+      'fa-star': 0xf005,
+      'fa-heart': 0xf004,
+      'fa-check': 0xf00c,
+      'fa-bolt': 0xf0e7,
+      'fa-face-smile': 0xf118,
+      'fa-circle': 0xf111,
+      'fa-square': 0xf0c8,
+      'fa-triangle-exclamation': 0xf071,
+      'fa-mug-hot': 0xf7b6,
+      'fa-paper-plane': 0xf1d8,
+      'fa-lightbulb': 0xf0eb,
+      'fa-arrow-right': 0xf061
+    };
+
+    iconPicker.addEventListener('click', (e) => {
+      const btn = e.target.closest('button'); if (!btn) return;
+      const ic = btn.dataset.ic;
+      const iEl = btn.querySelector('i') || e.target.closest('i');
+      if (!iconPlaceAt) return;
+      const isBrands = iEl?.classList.contains('fa-brands');
+      const isRegular = iEl?.classList.contains('fa-regular');
+      const weight = isBrands ? 400 : (isRegular ? 400 : 900);
+      const px = Math.max(16, parseInt(sizeEl.value, 10) * 4);
+      const families = isBrands
+        ? ['"Font Awesome 7 Brands"', '"Font Awesome 6 Brands"']
+        : ['"Font Awesome 7 Free"', '"Font Awesome 6 Free"'];
+      const glyph = String.fromCodePoint(ICON_CODE_MAP[ic] || 0xf111);
+      Promise.all([
+        document.fonts.load(`${weight} ${px}px ${families[0]}`),
+        document.fonts.load(`${weight} ${px}px ${families[1]}`)
+      ]).then(() => {
+        ctx.save();
+        ctx.fillStyle = colorEl.value; ctx.globalAlpha = 1;
+        // Prefer FA7, fallback FA6 using font-family list
+        ctx.font = `${weight} ${px}px ${families.join(', ')}`;
+        ctx.textBaseline = 'middle'; ctx.textAlign = 'center';
+        const { x, y } = iconPlaceAt;
+        ctx.fillText(glyph, x, y);
+        ctx.restore(); pushHistory();
+        iconPlaceAt = null;
+      });
+    });
+
+    // Selection
+    function beginSelection(x, y) {
+      selection = { x, y, w: 0, h: 0, image: null, moving: false };
+      showSelectionBox(x, y, 0, 0);
+    }
+    function updateSelectionBox(x0, y0, x1, y1) {
+      showSelectionBox(Math.min(x0, x1), Math.min(y0, y1), Math.abs(x1-x0), Math.abs(y1-y0));
+    }
+    function showSelectionBox(x, y, w, h) {
+      selectionBox.classList.remove('hidden');
+      selectionBox.style.left = x + 'px';
+      selectionBox.style.top = y + 'px';
+      selectionBox.style.width = w + 'px';
+      selectionBox.style.height = h + 'px';
+    }
+    function hideSelectionBox() { selectionBox.classList.add('hidden'); }
+
+    function finalizeSelectionBox() {
+      const rect = selectionBox.getBoundingClientRect();
+      const stageRect = stage.getBoundingClientRect();
+      const x = Math.round(rect.left - stageRect.left);
+      const y = Math.round(rect.top - stageRect.top);
+      const w = Math.round(rect.width);
+      const h = Math.round(rect.height);
+      if (w < 2 || h < 2) { selection = null; hideSelectionBox(); return; }
+      const img = ctx.getImageData(x * dpr, y * dpr, w * dpr, h * dpr);
+      // clear original area
+      ctx.clearRect(x, y, w, h);
+      selection = { x, y, w, h, image: img, moving: true, offsetX: 0, offsetY: 0 };
+      drawSelectionOverlay();
+    }
+
+    function drawSelectionOverlay() {
+      clearOverlay();
+      if (!selection || !selection.image) return;
+      octx.putImageData(selection.image, (selection.x + (selection.offsetX||0)) * dpr, (selection.y + (selection.offsetY||0)) * dpr);
+      // also update visible box position
+      selectionBox.classList.remove('hidden');
+      selectionBox.style.left = (selection.x + (selection.offsetX||0)) + 'px';
+      selectionBox.style.top = (selection.y + (selection.offsetY||0)) + 'px';
+      selectionBox.style.width = selection.w + 'px';
+      selectionBox.style.height = selection.h + 'px';
+    }
+
+    function moveSelection(mx, my) {
+      selection.offsetX = mx - startX;
+      selection.offsetY = my - startY;
+      drawSelectionOverlay();
+    }
+
+    function commitSelectionMove() {
+      if (!selection || !selection.image) return;
+      const nx = Math.round(selection.x + (selection.offsetX||0));
+      const ny = Math.round(selection.y + (selection.offsetY||0));
+      ctx.putImageData(selection.image, nx * dpr, ny * dpr);
+      selection = null; hideSelectionBox(); clearOverlay(); pushHistory();
+    }
+
+    // Events
+    function pointerDown(e) {
+      const p = getPos(e);
+      if (tool === 'select' && selection && selection.moving) {
+        // start dragging existing selection
+        drawing = true; startX = p.x; startY = p.y;
+      } else {
+        beginStroke(p.x, p.y);
+      }
+    }
+    function pointerMove(e) {
+      const p = getPos(e);
+      if (tool === 'select' && selection && selection.moving && drawing) {
+        moveSelection(p.x, p.y);
+      } else {
+        moveStroke(p.x, p.y, e);
+      }
+    }
+    function pointerUp(e) {
+      const p = getPos(e);
+      if (tool === 'select' && selection && selection.moving && drawing) {
+        drawing = false; commitSelectionMove();
+      } else {
+        endStroke(p.x, p.y, e);
+      }
+    }
+
+    // Attach listeners to the board canvas (overlay ignores pointer events)
+    board.addEventListener('pointerdown', pointerDown);
+    board.addEventListener('pointermove', pointerMove);
+    window.addEventListener('pointerup', pointerUp);
+
+    // For text tool, create the editor on precise click location
+    board.addEventListener('click', (e) => {
+      if (tool !== 'text') return;
+      const p = getPos(e);
+      createTextInput(p.x, p.y);
+      e.stopPropagation();
+    });
+
+    // Prevent default gestures for smoother drawing
+    ['touchstart','touchmove','gesturestart'].forEach(ev => {
+      window.addEventListener(ev, e => e.preventDefault(), { passive: false });
+    });
+
+    // Toolbar clicks
+    toolbar.addEventListener('click', (e) => {
+      const btn = e.target.closest('.tool-btn'); if (!btn) return;
+      if (btn.id === 'undoBtn') return undo();
+      if (btn.id === 'redoBtn') return redo();
+      if (btn.id === 'importBtn') { fileInput.click(); return; }
+      if (btn.id === 'exportBtn') { doExport(); return; }
+      if (btn.id === 'fullscreenBtn') { toggleFullscreen(); return; }
+      if (btn.dataset.tool) setTool(btn.dataset.tool);
+    });
+
+    // Hex conversion helper for swatches
+    function rgbToHex(rgb) {
+      const m = rgb.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/i);
+      if (!m) return '#000000';
+      const r = Number(m[1]).toString(16).padStart(2,'0');
+      const g = Number(m[2]).toString(16).padStart(2,'0');
+      const b = Number(m[3]).toString(16).padStart(2,'0');
+      return `#${r}${g}${b}`;
+    }
+
+    // Swatches
+    qsa('#sw1,#sw2,#sw3,#sw4,#sw5,#sw6').forEach(sw => sw.addEventListener('click', () => {
+      const rgb = window.getComputedStyle(sw).backgroundColor;
+      colorEl.value = rgb.startsWith('#') ? rgb : rgbToHex(rgb);
+    }));
+    sizeEl.addEventListener('input', () => sizeVal.textContent = sizeEl.value);
+
+    // Import/export
+    function drawImageOnBoard(img, x=0, y=0, scale=1) {
+      const w = img.width / dpr * scale; const h = img.height / dpr * scale;
+      ctx.drawImage(img, x, y, w, h); pushHistory();
+    }
+
+    fileInput.addEventListener('change', async () => {
+      const file = fileInput.files[0]; if (!file) return;
+      const url = URL.createObjectURL(file);
+      const img = new Image(); img.onload = () => { drawImageOnBoard(img, 0, 0, 1); URL.revokeObjectURL(url); };
+      img.src = url;
+      fileInput.value = '';
+    });
+
+    function doExport() {
+      const wantJPEG = false; // could add UI toggle
+      const data = board.toDataURL(wantJPEG ? 'image/jpeg' : 'image/png');
+      const a = document.createElement('a');
+      const ts = new Date().toISOString().replace(/[:.]/g,'-');
+      a.download = `whiteboard-${ts}.${wantJPEG ? 'jpg' : 'png'}`;
+      a.href = data; a.click();
+    }
+
+    // Drag & drop
+    stage.addEventListener('dragover', e => { e.preventDefault(); });
+    stage.addEventListener('drop', e => {
+      e.preventDefault();
+      const file = e.dataTransfer.files && e.dataTransfer.files[0];
+      if (file && file.type.startsWith('image/')) {
+        const url = URL.createObjectURL(file);
+        const img = new Image(); img.onload = () => { drawImageOnBoard(img, 0, 0, 1); URL.revokeObjectURL(url); };
+        img.src = url;
+      }
+    });
+
+    // Clipboard paste
+    window.addEventListener('paste', async (e) => {
+      const items = e.clipboardData?.items || [];
+      for (const it of items) {
+        if (it.type?.startsWith('image/')) {
+          const file = it.getAsFile();
+          if (!file) continue;
+          const url = URL.createObjectURL(file);
+          const img = new Image(); img.onload = () => { drawImageOnBoard(img, 20, 20, 1); URL.revokeObjectURL(url); };
+          img.src = url;
+          return;
+        }
+      }
+      // If text and text tool active, create text input with pasted content
+      const text = e.clipboardData?.getData('text');
+      if (text && tool === 'text') {
+        const rect = stage.getBoundingClientRect();
+        createTextInput(rect.width/2 - 40, rect.height/2 - 12);
+        const el = qs('.floating-input');
+        if (el) {
+          el.innerText = text;
+          setTimeout(() => el.focus(), 0);
+        }
+      }
+    });
+
+    // Fullscreen
+    function toggleFullscreen() {
+      if (!document.fullscreenElement) stage.requestFullscreen?.(); else document.exitFullscreen?.();
+    }
+
+    // Keyboard shortcuts
+    window.addEventListener('keydown', (e) => {
+      const active = document.activeElement;
+      if (active && active.classList && active.classList.contains('floating-input')) {
+        // Let typing go to the editor; editor handles Enter/Escape itself
+        return;
+      }
+      const mod = e.metaKey || e.ctrlKey;
+      if (mod && e.key.toLowerCase() === 'z') { e.preventDefault(); if (e.shiftKey) redo(); else undo(); return; }
+
+      if (!mod) {
+        const k = e.key.toLowerCase();
+        if (k === 'b') setTool('pen');
+        if (k === 'e') setTool('eraser');
+        if (k === 'v') setTool('select');
+        if (k === 't') setTool('text');
+        if (k === 'l') setTool('line');
+        if (k === 'r') setTool('rect');
+        if (k === 'o') setTool('ellipse');
+        if (k === 'i') setTool('icon');
+        if (k === '[') sizeEl.value = Math.max(1, parseInt(sizeEl.value,10)-1), sizeVal.textContent = sizeEl.value;
+        if (k === ']') sizeEl.value = Math.min(80, parseInt(sizeEl.value,10)+1), sizeVal.textContent = sizeEl.value;
+        if (k === 'escape' || k === 'esc') { selection = null; hideSelectionBox(); clearOverlay(); }
+        if (k === 'delete' || k === 'backspace') {
+          if (selection && selection.image) { selection = null; hideSelectionBox(); clearOverlay(); pushHistory(); }
+        }
+      }
+    });
+
+    // Language application
+    function applyLang() {
+      const S = STRINGS[lang];
+      // Toolbar tooltips
+      qsa('.tool-btn[data-tool="pen"]').forEach(b => b.setAttribute('data-title', S.Pen));
+      qsa('.tool-btn[data-tool="marker"]').forEach(b => b.setAttribute('data-title', S.Marker));
+      qsa('.tool-btn[data-tool="eraser"]').forEach(b => b.setAttribute('data-title', S.Eraser));
+      qsa('.tool-btn[data-tool="line"]').forEach(b => b.setAttribute('data-title', S.Line));
+      qsa('.tool-btn[data-tool="rect"]').forEach(b => b.setAttribute('data-title', S.Rectangle));
+      qsa('.tool-btn[data-tool="ellipse"]').forEach(b => b.setAttribute('data-title', S.Ellipse));
+      qsa('.tool-btn[data-tool="text"]').forEach(b => b.setAttribute('data-title', S.Text));
+      qsa('.tool-btn[data-tool="icon"]').forEach(b => b.setAttribute('data-title', S.Icons));
+      qsa('.tool-btn[data-tool="select"]').forEach(b => b.setAttribute('data-title', S.SelectMove));
+      undoBtn.setAttribute('data-title', S.Undo);
+      redoBtn.setAttribute('data-title', S.Redo);
+      importBtn.setAttribute('data-title', S.Import);
+      exportBtn.setAttribute('data-title', S.Export);
+      fullscreenBtn.setAttribute('data-title', S.Fullscreen);
+      // Labels
+      qs('#lblColor').textContent = S.Color;
+      qs('#lblSize').textContent = S.Size;
+      qs('#lblFill').textContent = S.Fill;
+      qs('#lblOpacity').textContent = S.Opacity;
+      qs('#lblFont').textContent = S.Font;
+    }
+
+    langEl.addEventListener('change', () => { lang = langEl.value; applyLang(); });
+
+    // Resize handling
+    window.addEventListener('resize', setCanvasSize);
+
+    // Init
+    setCanvasSize();
+    pushHistory();
+    setTool('pen');
+    applyLang();
+    // Preload Font Awesome faces for better reliability
+    document.fonts.load('900 48px "Font Awesome 7 Free"');
+    document.fonts.load('400 48px "Font Awesome 7 Free"');
+    document.fonts.load('400 48px "Font Awesome 7 Brands"');
+    document.fonts.load('900 48px "Font Awesome 6 Free"');
+    document.fonts.load('400 48px "Font Awesome 6 Free"');
+    document.fonts.load('400 48px "Font Awesome 6 Brands"');
+
+  </script>
+</body>
+</html>
