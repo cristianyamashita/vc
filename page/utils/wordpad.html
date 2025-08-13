@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>WordPad Clone</title>
+  <link rel="stylesheet" href="../assets/fontawesome/css/all.min.css" />
+  <style>
+    :root {
+      --bg: #0f1218;
+      --panel: #151a22;
+      --panel-2: #1b2230;
+      --text: #e6edf3;
+      --muted: #9fb0c1;
+      --accent: #4aa3ff;
+      --border: #273244;
+      --danger: #ff5d5d;
+      --ok: #4caf50;
+      --yellow: #f5c542;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica Neue, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      color: var(--text);
+      background: var(--bg);
+    }
+
+    .app { display: grid; grid-template-rows: auto 1fr auto; height: 100%; width: 100%; }
+
+    .toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 8px 12px; background: var(--panel); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 20; }
+    .toolbar .group { display: inline-flex; align-items: center; gap: 6px; padding: 6px; background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px; }
+    .spacer { flex: 1; }
+    .btn, .select, .input, .color { height: 34px; background: #0e1420; color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 0 10px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; user-select: none; }
+    .btn[aria-pressed="true"] { outline: 2px solid var(--accent); }
+    .btn:hover { background: #0b101a; }
+    .btn i { font-size: 14px; }
+    .input { cursor: text; background: #0c111b; }
+    .input[type="text"] { width: 220px; }
+    .select { background: #0c111b; }
+    .color { padding: 0 4px; width: 44px; }
+
+    .editor-wrap { display: grid; grid-template-columns: minmax(0, 1fr); padding: 16px; height: 100%; }
+    #editor { background: #0e1420; border: 1px solid var(--border); border-radius: 10px; padding: 24px; min-height: calc(100vh - 160px); line-height: 1.6; outline: none; overflow: auto; }
+    #editor:focus { box-shadow: 0 0 0 2px rgba(74,163,255,0.35); }
+    #editor p { margin: 0 0 10px; }
+
+    .statusbar { display: flex; gap: 12px; align-items: center; padding: 6px 12px; font-size: 12px; color: var(--muted); background: var(--panel); border-top: 1px solid var(--border); }
+    .tabbar { display: flex; align-items: center; gap: 6px; overflow-x: auto; max-width: 60vw; padding: 2px 0; }
+    .tab { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border: 1px solid var(--border); border-radius: 999px; background: var(--panel-2); color: var(--text); cursor: pointer; white-space: nowrap; font-size: 12px; }
+    .tab.active { outline: 2px solid var(--accent); }
+    .tab .name { max-width: 160px; overflow: hidden; text-overflow: ellipsis; }
+    .tab.add { background: transparent; border-style: dashed; }
+
+    dialog.modal { border: 1px solid var(--border); border-radius: 10px; background: var(--panel); color: var(--text); padding: 0; max-width: 720px; width: 92vw; }
+    .modal header, .modal footer { padding: 12px 14px; border-bottom: 1px solid var(--border); }
+    .modal footer { border-top: 1px solid var(--border); border-bottom: none; display: flex; gap: 8px; justify-content: flex-end; }
+    .modal .content { padding: 14px; max-height: 65vh; overflow: auto; }
+    .list { display: grid; gap: 8px; }
+    .row { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; padding: 10px; background: #0e1420; border: 1px solid var(--border); border-radius: 8px; }
+    .row .name { font-weight: 600; }
+    .row .meta { color: var(--muted); font-size: 12px; }
+    .kbd { background: #0e1420; border: 1px solid var(--border); border-radius: 4px; padding: 2px 6px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 12px; }
+    .hint { color: var(--muted); }
+    details.help { margin: 10px 0; }
+    details.help summary { cursor: pointer; }
+
+    html[data-theme="light"] {
+      --bg: #f7f8fb; --panel: #ffffff; --panel-2: #f0f3f9; --text: #0e1320; --muted: #5a6475; --accent: #0b66ff; --border: #d8dee9; --danger: #c62828; --ok: #2e7d32; --yellow: #b8860b;
+    }
+    html[data-theme="light"] .btn, html[data-theme="light"] .select, html[data-theme="light"] .input, html[data-theme="light"] .color { background: #f5f7fb; color: var(--text); border-color: var(--border); }
+    html[data-theme="light"] .btn:hover { background: #ebeff6; }
+    html[data-theme="light"] #editor { background: #ffffff; border-color: var(--border); }
+    html[data-theme="light"] .row { background: #f9fbff; border-color: var(--border); }
+    html[data-theme="light"] .kbd { background: #f9fbff; border-color: var(--border); }
+  </style>
+  <script src="https://unpkg.com/mammoth/mammoth.browser.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html-docx-js/0.4.1/html-docx.js"></script>
+  <script defer src="./wordpad.js"></script>
+</head>
+<body>
+  <div class="app">
+    <div class="toolbar" role="toolbar" aria-label="Editor toolbar">
+      <div class="group" aria-label="File">
+        <input id="docTitle" class="input" type="text" aria-label="Document name" />
+        <button id="btnNew" class="btn" title="New (Ctrl/Cmd+N)"><i class="fas fa-file"></i><span data-i18n="new"></span></button>
+        <button id="btnOpen" class="btn" title="Open (Ctrl/Cmd+O)"><i class="fas fa-folder-open"></i><span data-i18n="open"></span></button>
+        <button id="btnSave" class="btn" title="Save (Ctrl/Cmd+S)"><i class="fas fa-save"></i><span data-i18n="save"></span></button>
+        <button id="btnSaveAs" class="btn" title="Save As"><i class="fas fa-copy"></i><span data-i18n="saveAs"></span></button>
+        <input id="fileInput" type="file" hidden accept=".txt,.docx,.html,.htm" />
+        <button id="btnImport" class="btn" title="Import (.txt, .docx, .html)"><i class="fas fa-file-import"></i><span data-i18n="import"></span></button>
+        <button id="btnExport" class="btn" title="Export (.txt, .docx, .html)"><i class="fas fa-file-export"></i><span data-i18n="export"></span></button>
+      </div>
+
+      <div class="group" aria-label="Formatting">
+        <button class="btn" data-cmd="bold" title="Bold (Ctrl/Cmd+B)" aria-pressed="false"><i class="fas fa-bold"></i></button>
+        <button class="btn" data-cmd="italic" title="Italic (Ctrl/Cmd+I)" aria-pressed="false"><i class="fas fa-italic"></i></button>
+        <button class="btn" data-cmd="underline" title="Underline (Ctrl/Cmd+U)" aria-pressed="false"><i class="fas fa-underline"></i></button>
+        <select id="fontSize" class="select" title="Font Size" aria-label="Font Size">
+          <option value="" disabled selected data-i18n="fontSize"></option>
+          <option value="12">12</option>
+          <option value="14">14</option>
+          <option value="16">16</option>
+          <option value="18">18</option>
+          <option value="24">24</option>
+          <option value="32">32</option>
+          <option value="48">48</option>
+        </select>
+        <input id="foreColor" class="color" type="color" value="#ffffff" title="Text color" aria-label="Text color" />
+      </div>
+
+      <div class="group" aria-label="Paragraph">
+        <button class="btn" data-cmd="justifyLeft" title="Align Left"><i class="fas fa-align-left"></i></button>
+        <button class="btn" data-cmd="justifyCenter" title="Align Center"><i class="fas fa-align-center"></i></button>
+        <button class="btn" data-cmd="justifyRight" title="Align Right"><i class="fas fa-align-right"></i></button>
+        <button class="btn" data-cmd="justifyFull" title="Justify"><i class="fas fa-align-justify"></i></button>
+        <button class="btn" data-cmd="insertUnorderedList" title="Bulleted List"><i class="fas fa-list-ul"></i></button>
+        <button class="btn" data-cmd="insertOrderedList" title="Numbered List"><i class="fas fa-list-ol"></i></button>
+        <button class="btn" data-cmd="outdent" title="Outdent"><i class="fas fa-outdent"></i></button>
+        <button class="btn" data-cmd="indent" title="Indent"><i class="fas fa-indent"></i></button>
+      </div>
+
+      <div class="group" aria-label="Editing">
+        <button id="btnUndo" class="btn" title="Undo (Ctrl/Cmd+Z)"><i class="fas fa-undo"></i></button>
+        <button id="btnRedo" class="btn" title="Redo (Ctrl/Cmd+Y)"><i class="fas fa-redo"></i></button>
+        <button id="btnFind" class="btn" title="Find/Replace (Ctrl/Cmd+F)"><i class="fas fa-search"></i><span data-i18n="findReplace"></span></button>
+      </div>
+
+      <div class="spacer"></div>
+
+      <div class="group" aria-label="Language and help">
+        <button id="btnTheme" class="btn" title="Theme"><i id="themeIcon" class="fas"></i><span data-i18n="theme"></span></button>
+        <select id="lang" class="select" aria-label="Language">
+          <option value="en">EN</option>
+          <option value="pt">PT</option>
+          <option value="ja">日本語</option>
+        </select>
+        <button id="btnHelp" class="btn" title="Help"><i class="fas fa-question-circle"></i><span data-i18n="help"></span></button>
+      </div>
+    </div>
+
+    <div class="editor-wrap">
+      <div id="editor" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Document editor"></div>
+      <details class="help" style="display: none;">
+        <summary><strong data-i18n="about"></strong></summary>
+        <div class="hint" id="aboutText"></div>
+      </details>
+    </div>
+
+    <div class="statusbar">
+      <div class="tabbar" id="tabbar"></div>
+      <div id="statusDoc"></div>
+      <div id="statusSaved"></div>
+      <div class="spacer"></div>
+      <div class="hint"><span data-i18n="shortcuts"></span> <span class="kbd">Ctrl/Cmd+B</span>, <span class="kbd">I</span>, <span class="kbd">U</span>, <span class="kbd">S</span>, <span class="kbd">F</span>, <span class="kbd">O</span></div>
+    </div>
+  </div>
+
+  <dialog id="openModal" class="modal" aria-label="Open recent">
+    <header><strong data-i18n="openRecent"></strong></header>
+    <div class="content">
+      <div class="list" id="recentList"></div>
+    </div>
+    <footer>
+      <button class="btn" id="btnOpenClose"><span data-i18n="close"></span></button>
+    </footer>
+  </dialog>
+
+  <dialog id="exportModal" class="modal" aria-label="Export">
+    <header><strong data-i18n="export"></strong></header>
+    <div class="content">
+      <div class="list">
+        <button class="btn" id="exportTxt">TXT</button>
+        <button class="btn" id="exportHtml">HTML</button>
+        <button class="btn" id="exportDocx">DOCX</button>
+      </div>
+      <div class="hint" data-i18n="exportHint"></div>
+    </div>
+    <footer>
+      <button class="btn" id="btnExportClose"><span data-i18n="close"></span></button>
+    </footer>
+  </dialog>
+
+  <dialog id="findModal" class="modal" aria-label="Find and replace">
+    <header><strong data-i18n="findReplace"></strong></header>
+    <div class="content">
+      <div style="display:grid;grid-template-columns:120px 1fr auto;gap:10px;align-items:center;">
+        <label for="findInput" data-i18n="find"></label>
+        <input id="findInput" class="input" type="text" />
+        <button id="btnFindNext" class="btn"><span data-i18n="next"></span></button>
+
+        <label for="replaceInput" data-i18n="replace"></label>
+        <input id="replaceInput" class="input" type="text" />
+        <button id="btnReplace" class="btn"><span data-i18n="replace"></span></button>
+
+        <span></span>
+        <div style="display:flex;gap:10px;align-items:center;">
+          <label><input type="checkbox" id="matchCase" /> <span data-i18n="matchCase"></span></label>
+          <label><input type="checkbox" id="wholeWord" /> <span data-i18n="wholeWord"></span></label>
+        </div>
+        <button id="btnReplaceAll" class="btn"><span data-i18n="replaceAll"></span></button>
+      </div>
+    </div>
+    <footer>
+      <button class="btn" id="btnFindClose"><span data-i18n="close"></span></button>
+    </footer>
+  </dialog>
+</body>
+</html>
+

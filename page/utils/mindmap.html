@@ -1,0 +1,767 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Mind Map</title>
+  <link rel="stylesheet" href="../assets/fontawesome/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+  <script src="https://cdn.jsdelivr.net/npm/idb-keyval@6/dist/idb-keyval.iife.min.js"></script>
+  <style>
+    :root{
+      --bg:#0b0e14; --fg:#e6e6e6; --muted:#9aa4b2; --card:#101521; --border:#1e2636;
+      --accent:#2c5894; --accent-2: color-mix(in oklch, var(--accent), white 15%);
+      --ok:#10b981; --warn:#f59e0b; --err:#ef4444; --ring: color-mix(in oklch, var(--accent), white 35%);
+      --shadow: 0 14px 36px -18px rgba(0,0,0,.55); --radius:.9rem;
+      --surface-1: color-mix(in oklch, var(--card), black 6%);
+      --surface-2: color-mix(in oklch, var(--card), black 12%);
+      --node:#1b2438; --node-border:#2a3450; --edge:#2a3858;
+    }
+    [data-theme="light"]{
+      --bg:#f7fafc; --fg:#0f172a; --muted:#475569; --card:#ffffff; --border:#e5e7eb;
+      --accent:#418ffd; --accent-2: color-mix(in oklch, var(--accent), black 5%);
+      --ok:#16a34a; --warn:#d97706; --err:#dc2626;
+      --ring: color-mix(in oklch, var(--accent), white 30%);
+      --shadow: 0 10px 25px -14px rgba(2,6,23,.25);
+      --surface-1: color-mix(in oklch, var(--card), black 2%);
+      --surface-2: color-mix(in oklch, var(--card), black 6%);
+      --node:#ffffff; --node-border:#e5e7eb; --edge:#d4dbe7;
+    }
+
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial}
+
+    header{position:sticky;top:0;z-index:5;background: color-mix(in oklch, var(--card), transparent 18%);-webkit-backdrop-filter:saturate(160%) blur(8px);backdrop-filter:saturate(160%) blur(8px);border-bottom:1px solid var(--border)}
+    .bar{max-width:none;width:100%;margin:0;padding:.6rem 1rem;display:flex;align-items:center;gap:.6rem;flex-wrap:wrap}
+    .title{font-weight:800;letter-spacing:.2px}
+    .spacer{flex:1}
+    .btn{appearance:none;border:1px solid var(--border);background:var(--surface-1);color:var(--fg);padding:.5rem .75rem;border-radius:calc(var(--radius) - .25rem);cursor:pointer;display:inline-flex;align-items:center;gap:.45rem;font-weight:650}
+    .btn:hover{border-color: color-mix(in oklch, var(--border), var(--fg) 20%); background:var(--surface-2)}
+    .btn.primary{background: linear-gradient(180deg, var(--accent-2), var(--accent)); color:#fff; border-color: color-mix(in oklch, var(--accent), black 10%); box-shadow: var(--shadow)}
+    .select{padding:.5rem .6rem;border-radius:calc(var(--radius) - .25rem);border:1px solid var(--border);background:var(--surface-1);color:var(--fg)}
+    .select:focus{outline:2px solid var(--ring); outline-offset:2px}
+    .input{padding:.45rem .55rem;border-radius:calc(var(--radius) - .25rem);border:1px solid var(--border);background:var(--surface-1);color:var(--fg)}
+
+    main{max-width:none;margin:0;padding:0 0 .6rem 0;display:grid;gap:.6rem}
+    .panel{border:1px solid var(--border);border-radius:var(--radius);background:var(--card);box-shadow:var(--shadow);padding:.6rem;margin:0 .6rem}
+
+    .row{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap}
+    .muted{color:var(--muted)}
+
+    .canvas-wrap{position:relative;height:calc(100vh - 120px);min-height:420px;border-radius:.8rem;border:1px solid var(--border);background:var(--surface-1);overflow:hidden}
+    svg{width:100%;height:100%;display:block}
+    canvas.ink{position:absolute; inset:0; width:100%; height:100%; display:block; pointer-events:none}
+    canvas.ink.active{ pointer-events:auto; cursor: crosshair }
+
+    .node rect{fill:var(--node);stroke:var(--node-border);stroke-width:1.2px;rx:8;ry:8}
+    .node text{font-weight:700;fill:var(--fg)}
+    .node .icon{fill:var(--muted);font-size:12px}
+    [data-theme="light"] .node.selected rect{filter: drop-shadow(0 12px 28px rgba(0,0,0,.38)) brightness(1.03)}
+    [data-theme="dark"]  .node.selected rect{filter: drop-shadow(0 12px 28px rgba(255,255,255,.28)) brightness(1.08)}
+    .node.collapsed rect{stroke-dasharray:4 3}
+    .node{ cursor: pointer }
+    .node.draggable{ cursor: grab }
+    .node.dragging{ cursor: grabbing }
+    [data-theme="light"] .node.match rect{ filter: drop-shadow(0 10px 24px color-mix(in oklch, var(--accent), black 35%)) }
+    [data-theme="dark"]  .node.match rect{ filter: drop-shadow(0 10px 24px color-mix(in oklch, var(--accent), white 45%)) }
+
+    .edge path{fill:none;stroke:var(--edge);stroke-width:1.4px}
+
+    .floating{position:absolute;inset:auto 10px 10px auto;display:flex;gap:.4rem;flex-wrap:wrap}
+    .floating.tl{inset:10px auto auto 10px}
+    .tools{display:flex;gap:.4rem;align-items:center;background: color-mix(in oklch, var(--card), transparent 15%);border:1px solid var(--border);padding:.35rem .45rem;border-radius:.6rem;backdrop-filter: blur(6px);}
+    .btn.toggle.on{ background: var(--surface-2); border-color: var(--ring); box-shadow: var(--shadow) }
+    .dot{width:18px;height:18px;border-radius:50%;border:1px solid var(--border);cursor:pointer}
+    .dot.sel{outline:2px solid var(--ring);outline-offset:2px}
+    .range{width:120px}
+
+    .kbd{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; border:1px solid var(--border); padding:.05rem .35rem; border-radius:.35rem; background:var(--surface-2)}
+    .toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:#0b1324;border:1px solid #1f2a3f;padding:.5rem .7rem;border-radius:.6rem;box-shadow:var(--shadow);display:none;align-items:center;gap:.45rem;color:#cfe2ff}
+    .toast.show{display:inline-flex}
+
+    /* Bottom shortcuts bar */
+    .shortcuts{position:sticky; bottom:0; z-index:4; background: color-mix(in oklch, var(--card), transparent 20%); border-top:1px solid var(--border); padding:.35rem .6rem; display:flex; gap:.45rem; align-items:center; color:var(--muted)}
+
+    /* Modal */
+    .modal{ position:fixed; inset:0; display:none; place-items:center; background: rgba(0,0,0,.35); z-index:50 }
+    .modal.show{ display:grid }
+    .modal .box{ background:var(--card); border:1px solid var(--border); border-radius:.8rem; padding:1rem; min-width:280px; box-shadow: var(--shadow) }
+    .grid-btns{ display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:.5rem; margin-top:.6rem }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="bar">
+      <div class="title" data-i18n="title">Mind Map</div>
+      <button id="btnNew" class="btn primary"><i class="fa-solid fa-plus"></i><span data-i18n="new">New</span></button>
+      <button id="btnAddChild" class="btn"><i class="fa-solid fa-sitemap"></i><span data-i18n="addChild">Add Child</span></button>
+      <button id="btnAddSibling" class="btn"><i class="fa-solid fa-diagram-project"></i><span data-i18n="addSibling">Add Sibling</span></button>
+      <button id="btnDelete" class="btn"><i class="fa-solid fa-trash"></i><span data-i18n="delete">Delete</span></button>
+      <button id="btnEdit" class="btn"><i class="fa-solid fa-pen-to-square"></i><span data-i18n="edit">Edit</span></button>
+      <div class="spacer"></div>
+      <label class="row">
+        <span class="muted" data-i18n="layout">Layout</span>
+        <select id="layout" class="select">
+          <option value="free" data-i18n="free">Free</option>
+          <option value="tree-h" data-i18n="treeh">Tree H</option>
+          <option value="tree-v" data-i18n="treev">Tree V</option>
+          <option value="radial" data-i18n="radial">Radial</option>
+        </select>
+      </label>
+      <label class="row">
+        <span class="muted" data-i18n="theme">Theme</span>
+        <select id="theme" class="select">
+          <option value="dark" data-i18n="dark">Dark</option>
+          <option value="light" data-i18n="light">Light</option>
+        </select>
+      </label>
+      <select id="lang" class="select">
+        <option value="en">English</option>
+        <option value="pt">Português</option>
+        <option value="ja">日本語</option>
+      </select>
+    </div>
+  </header>
+
+  <main>
+    <section class="panel">
+      <div class="row"></div>
+      <div class="canvas-wrap">
+        <svg id="svg">
+          <defs>
+            <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto-start-reverse">
+              <path d="M0,0 L12,6 L0,12 z" fill="var(--edge)"></path>
+            </marker>
+          </defs>
+          <g id="viewport">
+            <g class="edges"></g>
+            <g class="nodes"></g>
+          </g>
+        </svg>
+        <canvas id="ink" class="ink"></canvas>
+        <div class="floating tl">
+          <div class="tools">
+            <button id="toolPen" class="btn toggle"><i class="fa-solid fa-pen"></i></button>
+            <button id="toolEraser" class="btn toggle"><i class="fa-solid fa-eraser"></i></button>
+            <input id="inkSize" type="range" class="range" min="2" max="28" value="6" />
+            <button id="colorBtn" class="btn" style="cursor:default" disabled><i class="fa-solid fa-droplet" style="margin-right:.3rem"></i><span id="colorSwatch" class="dot" style="pointer-events:none"></span></button>
+          </div>
+        </div>
+        
+      </div>
+    </section>
+    <div class="shortcuts">
+      <button id="bFit" class="btn"><i class="fa-solid fa-expand"></i><span data-i18n="fit">Fit</span></button>
+      <button id="btnExport" class="btn"><i class="fa-solid fa-arrow-up-from-bracket"></i><span data-i18n="export">Export</span></button>
+      <span class="muted">·</span>
+      <input id="search" class="input" placeholder="Search…" style="min-width:220px" />
+      <button id="btnSearchClear" class="btn"><i class="fa-solid fa-xmark"></i></button>
+      <span class="muted">·</span>
+      <button id="bCollapse" class="btn"><i class="fa-solid fa-minimize"></i><span data-i18n="collapse">Collapse</span></button>
+      <button id="bExpand" class="btn"><i class="fa-solid fa-maximize"></i><span data-i18n="expand">Expand</span></button>
+      <span class="muted">·</span>
+      <span class="kbd">Enter</span> = <span data-i18n="k_enter">Sibling</span>,
+      <span class="kbd">Tab</span> = <span data-i18n="k_tab">Child</span>,
+      <span class="kbd">Cmd/Ctrl+E</span> = <span data-i18n="k_edit">Edit</span>,
+      <span class="kbd">Del</span> = <span data-i18n="k_delete">Delete</span>,
+      <span class="kbd">Cmd/Ctrl+F</span> = Search
+    </div>
+    <div id="exportModal" class="modal" aria-hidden="true">
+      <div class="box">
+        <div style="font-weight:700">Export</div>
+        <div class="grid-btns">
+          <button id="mExpJSON" class="btn"><i class="fa-solid fa-file-arrow-down"></i> JSON</button>
+          <button id="mImpJSON" class="btn"><i class="fa-solid fa-file-arrow-up"></i> Import JSON</button>
+          <button id="mExpSVG" class="btn"><i class="fa-regular fa-image"></i> SVG</button>
+          <button id="mExpPNG" class="btn"><i class="fa-regular fa-file"></i> PNG</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <div class="toast" id="toast"><i class="fa-solid fa-circle-info"></i><span id="toastMsg"></span></div>
+
+  <script>
+    const T = {
+      en: {
+        title:'Mind Map', new:'New', addChild:'Add Child', addSibling:'Add Sibling', delete:'Delete', edit:'Edit',
+        layout:'Layout', free:'Free', treeh:'Tree H', treev:'Tree V', radial:'Radial',
+        theme:'Theme', dark:'Dark', light:'Light', fit:'Fit', expJSON:'Export JSON', impJSON:'Import JSON', expSVG:'Export SVG', expPNG:'Export PNG',
+        k_enter:'Sibling', k_tab:'Child', k_edit:'Edit', k_delete:'Delete', collapse:'Collapse', expand:'Expand',
+        promptText:'Node text', errNoSel:'Select a node first', errNoSibling:'Root has no sibling', imported:'Imported', saved:'Saved',
+        confirmNew:'Start a new map? This will discard the current map.',
+        searchPH:'Search…'
+      },
+      pt: {
+        title:'Mapa Mental', new:'Novo', addChild:'Add Filho', addSibling:'Add Irmão', delete:'Excluir', edit:'Editar',
+        layout:'Layout', free:'Livre', treeh:'Árvore H', treev:'Árvore V', radial:'Radial',
+        theme:'Tema', dark:'Escuro', light:'Claro', fit:'Ajustar', expJSON:'Exportar JSON', impJSON:'Importar JSON', expSVG:'Exportar SVG', expPNG:'Exportar PNG',
+        k_enter:'Irmão', k_tab:'Filho', k_edit:'Editar', k_delete:'Excluir', collapse:'Recolher', expand:'Expandir',
+        promptText:'Texto do nó', errNoSel:'Selecione um nó', errNoSibling:'Raiz não tem irmão', imported:'Importado', saved:'Salvo',
+        confirmNew:'Criar um novo mapa? Isso vai descartar o atual.',
+        searchPH:'Buscar…'
+      },
+      ja: {
+        title:'マインドマップ', new:'新規', addChild:'子を追加', addSibling:'兄弟を追加', delete:'削除', edit:'編集',
+        layout:'レイアウト', free:'フリー', treeh:'ツリーH', treev:'ツリーV', radial:'ラジアル',
+        theme:'テーマ', dark:'ダーク', light:'ライト', fit:'フィット', expJSON:'JSON書出し', impJSON:'JSON読込', expSVG:'SVG書出し', expPNG:'PNG書出し',
+        k_enter:'兄弟', k_tab:'子', k_edit:'編集', k_delete:'削除', collapse:'折り畳む', expand:'展開',
+        promptText:'ノードのテキスト', errNoSel:'ノードを選択してください', errNoSibling:'ルートに兄弟はありません', imported:'読み込み済み', saved:'保存済み',
+        confirmNew:'新しいマップを作成しますか？現在のマップは破棄されます。',
+        searchPH:'検索…'
+      }
+    };
+
+    const els = {
+      svg: document.getElementById('svg'),
+      vp: document.getElementById('viewport'),
+      gEdges: document.querySelector('.edges'),
+      gNodes: document.querySelector('.nodes'),
+      btnNew: document.getElementById('btnNew'),
+      btnAddChild: document.getElementById('btnAddChild'),
+      btnAddSibling: document.getElementById('btnAddSibling'),
+      btnDelete: document.getElementById('btnDelete'),
+      btnEdit: document.getElementById('btnEdit'),
+      btnZoomFit: document.getElementById('btnZoomFit'),
+      btnExport: document.getElementById('btnExport'),
+      btnCollapse: document.getElementById('btnCollapse'),
+      btnExpand: document.getElementById('btnExpand'),
+      bCollapse: document.getElementById('bCollapse'),
+      bExpand: document.getElementById('bExpand'),
+      layout: document.getElementById('layout'),
+      search: document.getElementById('search'),
+      btnSearchClear: document.getElementById('btnSearchClear'),
+      bFit: document.getElementById('bFit'),
+      modal: document.getElementById('exportModal'),
+      mExpJSON: document.getElementById('mExpJSON'),
+      mImpJSON: document.getElementById('mImpJSON'),
+      mExpSVG: document.getElementById('mExpSVG'),
+      mExpPNG: document.getElementById('mExpPNG'),
+      inkCanvas: document.getElementById('ink'),
+      toolPen: document.getElementById('toolPen'),
+      toolEraser: document.getElementById('toolEraser'),
+      inkSize: document.getElementById('inkSize'),
+      cBlack: document.getElementById('cBlack'),
+      cBlue: document.getElementById('cBlue'),
+      cRed: document.getElementById('cRed'),
+      cGreen: document.getElementById('cGreen'),
+      colorBtn: document.getElementById('colorBtn'),
+      colorSwatch: document.getElementById('colorSwatch'),
+      colorPicker: document.getElementById('colorPicker'),
+      lang: document.getElementById('lang'),
+      theme: document.getElementById('theme'),
+      toast: document.getElementById('toast'),
+      toastMsg: document.getElementById('toastMsg')
+    };
+
+    const LS = { theme:'mindmap.v1.theme', lang:'mindmap.v1.lang', last:'mindmap.v1.last', layout:'mindmap.v1.layout', freepos:(id)=>`mindmap.v1.freepos.${id}` };
+    const PAD_X = 22, PAD_Y = 12, LINE_H = 20;
+    const MIN_W = 180, MIN_H = 48, MAX_W = 720;
+    const ARC_PAD = 24;              // extra spacing along arc to avoid touching
+    const RING_GAP = 120;            // minimal gap between radial rings
+    let measureEl = null;
+
+    function ensureMeasureEl(){
+      if(!measureEl){
+        measureEl = d3.select(els.svg).append('text')
+          .attr('opacity', 0)
+          .style('font-weight','700')
+          .node();
+      }
+    }
+
+    function textWidth(str){
+      ensureMeasureEl();
+      measureEl.textContent = str || '';
+      return (measureEl.getComputedTextLength && measureEl.getComputedTextLength()) || (str ? str.length*8 : 0);
+    }
+
+    function wrapLines(text, maxContentW){
+      const words = (text||'').split(/\s+/).filter(Boolean);
+      if(words.length===0) return [''];
+      const lines = [];
+      let cur = words[0];
+      for(let i=1;i<words.length;i++){
+        const test = cur + ' ' + words[i];
+        if(textWidth(test) <= maxContentW){ cur = test; }
+        else { lines.push(cur); cur = words[i]; }
+      }
+      lines.push(cur);
+      // handle single long word: hard-break by characters
+      const out=[];
+      for(const line of lines){
+        if(textWidth(line) <= maxContentW){ out.push(line); continue; }
+        let s='';
+        for(const ch of line){
+          if(textWidth(s+ch) > maxContentW){ out.push(s); s=ch; } else { s+=ch; }
+        }
+        if(s) out.push(s);
+      }
+      return out;
+    }
+
+    function ensureNodeSize(n){
+      const txt = n.text || '';
+      const singleW = textWidth(txt);
+      if(singleW + PAD_X*2 <= MAX_W){
+        n.w = Math.max(MIN_W, singleW + PAD_X*2);
+        n.lines = [txt];
+      } else {
+        const maxContentW = MAX_W - PAD_X*2;
+        n.lines = wrapLines(txt, maxContentW);
+        const widest = Math.max(...n.lines.map(l=>textWidth(l)), 0);
+        n.w = Math.max(MIN_W, Math.min(MAX_W, widest + PAD_X*2));
+      }
+      const contentH = PAD_Y*2 + LINE_H * Math.max(1, n.lines.length);
+      n.h = Math.max(MIN_H, contentH);
+      return n;
+    }
+
+    const rndId = (p='n') => p + Math.random().toString(36).slice(2,9);
+    const now = () => Date.now();
+
+    let state = {
+      map: null,
+      selection: null,
+      history: [],
+      redo: [],
+      zoom: d3.zoomIdentity
+    };
+
+    function t(k){ const lang = els.lang.value||'en'; return (T[lang] && T[lang][k]) || T.en[k] || k; }
+    function applyI18n(){ document.querySelectorAll('[data-i18n]').forEach(el=>{ el.textContent = t(el.getAttribute('data-i18n')); }); document.title=t('title'); }
+    function applySearchPlaceholder(){ if(els.search){ els.search.placeholder = t('searchPH') || 'Search…'; } }
+    function toast(msg){ els.toastMsg.textContent = msg; els.toast.classList.add('show'); setTimeout(()=>els.toast.classList.remove('show'), 1400); }
+
+    function sampleMap(){
+      return {
+        id: 'map_'+(Math.random()*1e6|0), title: 'My Map', layout: 'tree-h', style: { theme: els.theme.value || 'dark', edge:'curve' },
+        rootId: 'n1',
+        nodes: {
+          n1: { id:'n1', text:'Center', color:'#2b90d9', icon:'fa-star', x:0, y:0, collapsed:false },
+          n2: { id:'n2', text:'Idea A', color:'#86efac', x:140, y:-40 },
+          n3: { id:'n3', text:'Idea B', color:'#f472b6', x:140, y:60 }
+        },
+        edges: [['n1','n2'], ['n1','n3']],
+        meta: { createdAt: now(), updatedAt: now(), version: 1 }
+      };
+    }
+
+    // Storage (idb-keyval if available, else localStorage)
+    const store = (()=>{
+      const hasIDB = typeof idbKeyval !== 'undefined';
+      const KEY = 'mindmap.v1.maps';
+      async function list(){
+        if(hasIDB){ return (await idbKeyval.get(KEY)) || {}; }
+        return JSON.parse(localStorage.getItem(KEY)||'{}');
+      }
+      async function save(map){
+        const maps = await list(); maps[map.id] = map; if(hasIDB){ await idbKeyval.set(KEY, maps); } else { localStorage.setItem(KEY, JSON.stringify(maps)); }
+        localStorage.setItem(LS.last, map.id);
+      }
+      async function get(id){ const maps = await list(); return maps[id] || null; }
+      async function del(id){ const maps = await list(); delete maps[id]; if(typeof idbKeyval!=='undefined'){ await idbKeyval.set(KEY, maps);} else { localStorage.setItem(KEY, JSON.stringify(maps)); } }
+      async function latest(){ const maps = await list(); const id = localStorage.getItem(LS.last); return (id && maps[id]) ? maps[id] : Object.values(maps)[0] || null; }
+      return { list, save, get, del, latest };
+    })();
+
+    // Autosave (debounced)
+    let saveTimer = null;
+    function scheduleSave(){
+      if(saveTimer) clearTimeout(saveTimer);
+      saveTimer = setTimeout(saveNow, 800);
+    }
+    async function saveNow(){
+      try{
+        if(!state?.map) return;
+        state.map.meta = state.map.meta || {};
+        state.map.meta.updatedAt = now();
+        await store.save(state.map);
+        // Also mirror to localStorage: layout and free positions
+        try{ localStorage.setItem(LS.layout, state.map.layout || 'tree-h'); }catch(e){}
+        if(state.map.layout==='free'){
+          const pos = {};
+          Object.values(state.map.nodes).forEach(n=>{ pos[n.id] = { x: n.x||0, y: n.y||0 }; });
+          try{ localStorage.setItem(LS.freepos(state.map.id), JSON.stringify(pos)); }catch(e){}
+        }
+      }catch(e){ /* ignore */ }
+    }
+
+    // History
+    function pushHistory(){ state.history.push(JSON.stringify(state.map)); if(state.history.length>100) state.history.shift(); state.redo.length=0; scheduleSave(); }
+    function undo(){ if(state.history.length===0) return; state.redo.push(JSON.stringify(state.map)); const prev = state.history.pop(); state.map = JSON.parse(prev); render(); scheduleSave(); }
+    function redo(){ if(state.redo.length===0) return; state.history.push(JSON.stringify(state.map)); const next = state.redo.pop(); state.map = JSON.parse(next); render(); scheduleSave(); }
+
+    // Commands
+    function setSelection(id){ state.selection = id; render(); }
+
+    function rectsOverlap(ax, ay, aw, ah, bx, by, bw, bh){
+      const ax1 = ax - aw/2, ax2 = ax + aw/2, ay1 = ay - ah/2, ay2 = ay + ah/2;
+      const bx1 = bx - bw/2, bx2 = bx + bw/2, by1 = by - bh/2, by2 = by + bh/2;
+      return !(ax2 < bx1 || ax1 > bx2 || ay2 < by1 || ay1 > by2);
+    }
+    function findFreeSpotNear(parentNode, newNode){
+      ensureNodeSize(parentNode); ensureNodeSize(newNode);
+      const GAP = 40;
+      const dx = (parentNode.w/2 + newNode.w/2 + GAP);
+      const dy = (parentNode.h/2 + newNode.h/2 + GAP);
+      const candidates = [
+        [ dx, 0 ], [ dx,  dy*0.6 ], [ dx, -dy*0.6 ],
+        [ 0,  dy ], [ 0, -dy ],
+        [ -dx, 0 ], [ -dx,  dy*0.6 ], [ -dx, -dy*0.6 ],
+        [ 2*dx, 0 ], [ 0, 2*dy ], [ -2*dx, 0 ], [ 0, -2*dy ]
+      ];
+      const others = Object.values(state.map.nodes);
+      for(const [ox, oy] of candidates){
+        const px = (parentNode.x||0) + ox;
+        const py = (parentNode.y||0) + oy;
+        let ok = true;
+        for(const m of others){
+          if(!m || m.id===parentNode.id) continue; ensureNodeSize(m);
+          if(rectsOverlap(px, py, newNode.w, newNode.h, m.x||0, m.y||0, m.w, m.h)){ ok=false; break; }
+        }
+        if(ok) return { x:px, y:py };
+      }
+      // fallback: to the right of parent
+      return { x:(parentNode.x||0) + dx, y:(parentNode.y||0) };
+    }
+    function addChild(){ const pid = state.selection || state.map.rootId; const id = rndId(); const node = { id, text:'Node', color:'#93c5fd', x:0, y:0 };
+      if(state.map.layout==='free'){
+        const parent = state.map.nodes[pid];
+        const pos = findFreeSpotNear(parent, node);
+        node.x = pos.x; node.y = pos.y;
+      }
+      state.map.nodes[id] = node; state.map.edges.push([pid, id]); pushHistory(); layoutAndRender(); }
+    function addSibling(){ const id = state.selection; if(!id){ toast(t('errNoSel')); return; } if(id===state.map.rootId){ toast(t('errNoSibling')); return; }
+      const parent = parentOf(id); if(!parent){ toast(t('errNoSibling')); return; } state.selection = parent; addChild(); }
+    function deleteNode(){ const id = state.selection; if(!id){ toast(t('errNoSel')); return; } if(id===state.map.rootId) return;
+      // remove subtree
+      const toDelete = collectSubtree(id); toDelete.forEach(nid=> delete state.map.nodes[nid]);
+      state.map.edges = state.map.edges.filter(([a,b])=> a!==id && b!==id && !toDelete.has(a) && !toDelete.has(b));
+      state.selection = null; pushHistory(); render(); }
+    function editNode(){ const id = state.selection; if(!id){ toast(t('errNoSel')); return; } const n=state.map.nodes[id];
+      const v = prompt(t('promptText'), n.text||''); if(v!=null){ n.text = v.trim()||n.text; pushHistory(); render(); }
+    }
+    function toggleCollapse(all=false, expand=false){ const id = state.selection||state.map.rootId; const n=state.map.nodes[id]; if(!n) return; n.collapsed = all? expand? false : true : !n.collapsed; pushHistory(); layoutAndRender(); }
+
+    function clearAutoOffsets(){ Object.values(state.map.nodes).forEach(n=>{ n.ox = 0; n.oy = 0; }); }
+    function setLayout(mode){
+      state.map.layout = mode;
+      if(mode !== 'free') clearAutoOffsets();
+      pushHistory();
+      layoutAndRender();
+      // persist layout immediately
+      try{ localStorage.setItem(LS.layout, state.map.layout); }catch(e){}
+    }
+
+    function parentOf(id){ const e = state.map.edges.find(([a,b])=> b===id); return e ? e[0] : null; }
+    function childrenOf(id){ return state.map.edges.filter(([a,b])=> a===id).map(e=>e[1]); }
+
+    function collectSubtree(id){ const set = new Set([id]); const stack=[id]; while(stack.length){ const cur=stack.pop(); childrenOf(cur).forEach(ch=>{ if(!set.has(ch)){ set.add(ch); stack.push(ch); }}); } return set; }
+
+    // Layout
+    function sizeForLayout(){
+      const r = els.svg.getBoundingClientRect();
+      return { w: Math.max(1, r.width), h: Math.max(1, r.height) };
+    }
+    function layoutAndRender(){ if(state.map.layout==='free'){ render(); return; }
+      const root = buildHierarchy(); if(!root) { render(); return; }
+      const size = sizeForLayout();
+      if(state.map.layout==='tree-h' || state.map.layout==='tree-v'){
+        // Prevent nodes overlapping by using separation and wider node sizes
+        const sep = (a,b)=> (a.parent===b.parent ? 1.2 : 1.8);
+        const sizeH = { row: 70, col: 260 };
+        const sizeV = { row: 220, col: 200 };
+        const tree = d3.tree()
+          .nodeSize(state.map.layout==='tree-h' ? [sizeH.row, sizeH.col] : [sizeV.row, sizeV.col])
+          .separation(sep);
+        const hierarchy = tree(root);
+        hierarchy.each(d=>{
+          const n = state.map.nodes[d.data.id];
+          let bx, by;
+          if(state.map.layout==='tree-h'){
+            // Horizontal orientation: depth grows along X (right), breadth along Y (down)
+            bx = d.y; by = d.x;
+          } else {
+            // Vertical orientation: depth grows along Y (down), breadth along X (right)
+            bx = d.x; by = d.y;
+          }
+          n.x = bx + (n.ox||0);
+          n.y = by + (n.oy||0);
+        });
+      } else if(state.map.layout==='radial'){
+        const baseRadius = Math.min(size.w,size.h)/2 - 240;
+        const cluster = d3.cluster().size([2*Math.PI, baseRadius]).separation((a,b)=> (a.parent===b.parent ? 1.9 : 2.7));
+        const hierarchy = cluster(root);
+
+        const byDepth = new Map();
+        const nodesByDepth = new Map();
+        hierarchy.each(d=>{
+          if(d.depth===0){
+            const n0 = state.map.nodes[d.data.id];
+            n0.x = (n0.ox||0); n0.y = (n0.oy||0);
+            return;
+          }
+          byDepth.set(d.depth, d.y);
+          const arr = nodesByDepth.get(d.depth) || [];
+          arr.push(d);
+          nodesByDepth.set(d.depth, arr);
+        });
+
+        const depths = Array.from(nodesByDepth.keys()).sort((a,b)=>a-b);
+        let prevR = 0;
+        for(const depth of depths){
+          const arr = nodesByDepth.get(depth);
+          const baseR = Math.max(byDepth.get(depth)||0, prevR + RING_GAP);
+          // compute min angular gap
+          const angles = arr.map(d=>{ let a=d.x; if(a<0) a+=2*Math.PI; if(a>=2*Math.PI) a-=2*Math.PI; return a; }).sort((a,b)=>a-b);
+          let minDelta = 2*Math.PI;
+          for(let i=0;i<angles.length;i++){
+            const a = angles[i]; const b = angles[(i+1)%angles.length];
+            const delta = (i===angles.length-1) ? (b + 2*Math.PI - a) : (b - a);
+            if(delta < minDelta) minDelta = delta;
+          }
+          const requiredArc = (Math.max(...arr.map(d=> (ensureNodeSize(state.map.nodes[d.data.id]).w)), MIN_W)) + ARC_PAD;
+          const neededR = requiredArc / Math.max(minDelta, 1e-3);
+          const rPrime = Math.max(baseR, neededR, prevR + RING_GAP);
+          // assign
+          arr.forEach(d=>{
+            const n = state.map.nodes[d.data.id];
+            const bx = rPrime * Math.cos(d.x);
+            const by = rPrime * Math.sin(d.x);
+            n.x = bx + (n.ox||0);
+            n.y = by + (n.oy||0);
+          });
+          prevR = rPrime;
+        }
+      }
+      render();
+    }
+
+    function buildHierarchy(){
+      const nmap = state.map.nodes; const rootId = state.map.rootId;
+      function build(id){ const node = { id, children: [] }; if(nmap[id]?.collapsed){ return node; } childrenOf(id).forEach(ch=> node.children.push(build(ch))); return node; }
+      try{ return d3.hierarchy(build(rootId)); } catch(e){ console.warn(e); return null; }
+    }
+
+    // Render
+    const zoomBehavior = d3.zoom().scaleExtent([0.2, 2.5]).on('zoom', (ev)=>{
+      state.zoom = ev.transform; d3.select(els.vp).attr('transform', state.zoom);
+    });
+    d3.select(els.svg).call(zoomBehavior);
+    // prevent click-through on background to clear selection unintentionally
+    d3.select(els.svg).on('click', ()=> setSelection(null));
+
+    function render(){
+      // edges
+      const edges = Object.values(state.map.edges);
+      const nmap = state.map.nodes;
+      const selE = d3.select(els.gEdges).selectAll('g.edge').data(edges, d=>d[0]+"->"+d[1]);
+      const eEnter = selE.enter().append('g').attr('class','edge');
+      eEnter.append('path');
+      selE.merge(eEnter).select('path').attr('d', ([a,b])=>{
+        const s=nmap[a], t=nmap[b]; if(!s||!t) return '';
+        const sx=s.x, sy=s.y, tx=t.x, ty=t.y;
+        if(state.map.layout==='tree-v'){
+          // Orthogonal elbow for vertical layout
+          const mid = (sy + ty)/2;
+          return `M ${sx},${sy} L ${sx},${mid} L ${tx},${mid} L ${tx},${ty}`;
+        } else if(state.map.layout==='tree-h'){
+          // Horizontal elbows
+          const mid = (sx + tx)/2;
+          return `M ${sx},${sy} L ${mid},${sy} L ${mid},${ty} L ${tx},${ty}`;
+        } else {
+          // Smooth curve (free/radial)
+          const c = 0.6; const dx = (tx-sx)*c; const dy = (ty-sy)*c;
+          return `M ${sx},${sy} C ${sx+dx},${sy} ${tx-dx},${ty} ${tx},${ty}`;
+        }
+      }).attr('marker-end','url(#arrow)');
+      selE.exit().remove();
+
+      // nodes
+      const nodes = Object.values(nmap).map(n=>ensureNodeSize(n));
+      const selN = d3.select(els.gNodes).selectAll('g.node').data(nodes, n=>n.id);
+      const nEnter = selN.enter().append('g').attr('class','node draggable').on('mousedown',()=>{}).call(d3.drag().on('drag', dragged).on('start', dragStart).on('end', dragEnd));
+      nEnter.append('rect').attr('rx', 16).attr('ry', 16).on('dblclick', (event, d)=>{ event.stopPropagation(); setSelection(d.id); editNode(); });
+      nEnter.append('text').attr('text-anchor','middle');
+      selN.merge(nEnter)
+        .attr('transform', d=>`translate(${d.x||0},${d.y||0})`)
+        .classed('selected', d=>d.id===state.selection)
+        .classed('collapsed', d=>!!d.collapsed)
+        .classed('draggable', d=>state.map.layout==='free')
+        .each(function(d){
+          const g = d3.select(this);
+          g.select('rect')
+            .attr('width', d.w)
+            .attr('height', d.h)
+            .attr('x', -d.w/2)
+            .attr('y', -d.h/2)
+            .attr('fill', d.color||'var(--node)');
+          const t = g.select('text');
+          t.selectAll('tspan').remove();
+          const lines = d.lines && d.lines.length ? d.lines : [d.text||''];
+          lines.forEach((ln, i)=>{
+            t.append('tspan').attr('x', 0).attr('dy', i===0 ? '.35em' : LINE_H).text(ln);
+          });
+          const offset = (lines.length-1) * LINE_H / 2;
+          t.attr('y', -offset);
+          // search match highlight
+          const q = (els.search && els.search.value || '').trim().toLowerCase();
+          const match = q && (d.text||'').toLowerCase().includes(q);
+          g.classed('match', !!match);
+        });
+      selN.on('click', function(event, d){ event.stopPropagation(); setSelection(d.id); });
+      selN.exit().remove();
+    }
+
+    function dragStart(event, d){ d3.select(this).classed('dragging', true).raise(); setSelection(d.id); }
+    function dragged(event, d){
+      if(state.map.layout==='free'){
+        d.x += event.dx; d.y += event.dy;
+        // save free position in localStorage mirror for quick restore
+        try{
+          const key = LS.freepos(state.map.id);
+          const raw = localStorage.getItem(key);
+          const pos = raw ? JSON.parse(raw) : {};
+          pos[d.id] = { x: d.x||0, y: d.y||0 };
+          localStorage.setItem(key, JSON.stringify(pos));
+        }catch(e){}
+      } else {
+        d.ox = (d.ox||0) + event.dx;
+        d.oy = (d.oy||0) + event.dy;
+      }
+      render();
+    }
+    function dragEnd(event, d){ d3.select(this).classed('dragging', false); pushHistory(); }
+
+    function zoomToFit(){
+      const bbox = els.vp.getBBox(); const svgRect = els.svg.getBoundingClientRect();
+      const scale = Math.min(svgRect.width / (bbox.width+120), svgRect.height / (bbox.height+120));
+      const t = d3.zoomIdentity.translate(svgRect.width/2 - (bbox.x+bbox.width/2)*scale, svgRect.height/2 - (bbox.y+bbox.height/2)*scale).scale(scale);
+      d3.select(els.svg).transition().duration(350).call(zoomBehavior.transform, t);
+    }
+
+    // Ink (pen/eraser) layer
+    const ink = {
+      active: false,
+      mode: 'pen', // 'pen' | 'eraser'
+      color: '#0f172a', size: 6,
+      points: [],
+      ctx: null
+    };
+    function setupInk(){
+      const cnv = els.inkCanvas; if(!cnv) return; const ctx = cnv.getContext('2d'); ink.ctx = ctx;
+      const resize = ()=>{ const r = els.svg.getBoundingClientRect(); cnv.width = r.width; cnv.height = r.height; };
+      new ResizeObserver(resize).observe(els.svg); resize();
+
+      let drawing = false;
+      const pos = (e)=>{
+        const rect = cnv.getBoundingClientRect();
+        return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+      };
+      cnv.addEventListener('pointerdown', (e)=>{ if(!ink.active) return; drawing = true; cnv.setPointerCapture(e.pointerId); const p = pos(e); ink.points=[p]; drawStroke(); });
+      cnv.addEventListener('pointermove', (e)=>{ if(!ink.active||!drawing) return; ink.points.push(pos(e)); drawStroke(); });
+      cnv.addEventListener('pointerup', ()=>{ drawing=false; ink.points=[]; scheduleSave(); });
+
+      // tools
+      const toggleTool = (btn, mode)=>{
+        btn?.addEventListener('click', ()=>{
+          const isOn = btn.classList.toggle('on');
+          if(isOn){
+            if(mode==='pen'){ els.toolEraser?.classList.remove('on'); }
+            if(mode==='eraser'){ els.toolPen?.classList.remove('on'); }
+            ink.mode = mode; ink.active = true; cnv.classList.add('active');
+          } else {
+            ink.active = false; cnv.classList.remove('active');
+          }
+        });
+      };
+      toggleTool(els.toolPen, 'pen'); toggleTool(els.toolEraser, 'eraser');
+      els.inkSize?.addEventListener('input', ()=>{ ink.size = parseInt(els.inkSize.value,10)||6; });
+
+      // Unified color picker
+      const setColor = (hex)=>{ ink.color = hex; if(els.colorSwatch) els.colorSwatch.style.background = hex; };
+      setColor('#4de2cf');
+    }
+    function drawStroke(){ const ctx=ink.ctx; if(!ctx||ink.points.length<2) return; ctx.lineCap='round'; ctx.lineJoin='round'; ctx.lineWidth=ink.size; if(ink.mode==='pen'){ ctx.globalCompositeOperation='source-over'; ctx.strokeStyle=ink.color; } else { ctx.globalCompositeOperation='destination-out'; ctx.strokeStyle='rgba(0,0,0,1)'; } ctx.beginPath(); const pts=ink.points; ctx.moveTo(pts[pts.length-2].x, pts[pts.length-2].y); ctx.lineTo(pts[pts.length-1].x, pts[pts.length-1].y); ctx.stroke(); }
+
+    // Export/Import
+    function download(name, data, type='application/json'){ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([data],{type})); a.download=name; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),500); }
+    function exportJSON(){ download(`${state.map.title||'map'}.json`, JSON.stringify(state.map, null, 2)); }
+    function exportSVG(){ const svgText = new XMLSerializer().serializeToString(els.svg); download(`${state.map.title||'map'}.svg`, svgText, 'image/svg+xml'); }
+    function exportPNG(){ const svgText = new XMLSerializer().serializeToString(els.svg); const img=new Image(); const blob = new Blob([svgText],{type:'image/svg+xml;charset=utf-8'}); const url=URL.createObjectURL(blob);
+      img.onload = ()=>{ const cnv=document.createElement('canvas'); const r=els.svg.getBoundingClientRect(); cnv.width=r.width*2; cnv.height=r.height*2; const c=cnv.getContext('2d'); c.scale(2,2); c.drawImage(img,0,0); URL.revokeObjectURL(url); cnv.toBlob(b=>download(`${state.map.title||'map'}.png`, b, 'image/png')); };
+      img.src=url; }
+    function importJSON(){ const inp=document.createElement('input'); inp.type='file'; inp.accept='application/json'; inp.onchange= async ()=>{
+        const f=inp.files&&inp.files[0]; if(!f) return; const txt=await f.text(); const map=JSON.parse(txt); state.map=map; pushHistory(); layoutAndRender(); toast(t('imported')); await store.save(state.map);
+      }; inp.click(); }
+
+    // Events
+    els.btnNew.addEventListener('click', async ()=>{
+      if(!confirm(t('confirmNew'))) return;
+      state.map = sampleMap(); state.selection = state.map.rootId; state.history.length=0; pushHistory(); layoutAndRender(); await store.save(state.map); toast(t('saved'));
+    });
+    els.btnAddChild.addEventListener('click', ()=> { addChild(); scheduleSave(); });
+    els.btnAddSibling.addEventListener('click', ()=> { addSibling(); scheduleSave(); });
+    els.btnDelete.addEventListener('click', ()=> { deleteNode(); scheduleSave(); });
+    els.btnEdit.addEventListener('click', ()=> { editNode(); scheduleSave(); });
+    els.btnZoomFit?.addEventListener('click', ()=> zoomToFit());
+    els.bFit?.addEventListener('click', ()=> zoomToFit());
+    // Export modal wiring
+    if(els.btnExport){ els.btnExport.addEventListener('click', ()=> els.modal.classList.add('show')); }
+    if(els.modal){ els.modal.addEventListener('click', (e)=> { if(e.target===els.modal) els.modal.classList.remove('show'); }); }
+    if(els.mExpJSON){ els.mExpJSON.addEventListener('click', ()=>{ exportJSON(); els.modal.classList.remove('show'); }); }
+    if(els.mImpJSON){ els.mImpJSON.addEventListener('click', ()=>{ importJSON(); els.modal.classList.remove('show'); }); }
+    if(els.mExpSVG){ els.mExpSVG.addEventListener('click', ()=>{ exportSVG(); els.modal.classList.remove('show'); }); }
+    if(els.mExpPNG){ els.mExpPNG.addEventListener('click', ()=>{ exportPNG(); els.modal.classList.remove('show'); }); }
+    const doCollapse = ()=> toggleCollapse(false,false);
+    const doExpand = ()=> toggleCollapse(true,true);
+    els.btnCollapse?.addEventListener('click', doCollapse);
+    els.btnExpand?.addEventListener('click', doExpand);
+    els.bCollapse?.addEventListener('click', doCollapse);
+    els.bExpand?.addEventListener('click', doExpand);
+
+    els.layout.addEventListener('change', ()=> { setLayout(els.layout.value); scheduleSave(); });
+    els.theme.addEventListener('change', ()=>{ localStorage.setItem(LS.theme, els.theme.value); applyTheme(els.theme.value); });
+    els.lang.addEventListener('change', ()=>{ localStorage.setItem(LS.lang, els.lang.value); applyI18n(); });
+    if(els.search){ els.search.addEventListener('input', ()=> render()); }
+    if(els.btnSearchClear){ els.btnSearchClear.addEventListener('click', ()=>{ els.search.value=''; render(); }); }
+
+    window.addEventListener('keydown', (e)=>{
+      if(e.key==='Enter'){ addSibling(); }
+      else if(e.key==='Tab'){ e.preventDefault(); addChild(); }
+      else if((e.metaKey||e.ctrlKey) && e.key.toLowerCase()==='e'){ e.preventDefault(); editNode(); }
+      else if((e.metaKey||e.ctrlKey) && e.key.toLowerCase()==='f'){ e.preventDefault(); els.search?.focus(); els.search?.select(); }
+      else if(e.key==='Delete' || e.key==='Backspace'){ if(document.activeElement===document.body){ e.preventDefault(); deleteNode(); } }
+      else if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='z' && !e.shiftKey){ e.preventDefault(); undo(); }
+      else if(((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='y') || ((e.ctrlKey||e.metaKey) && e.shiftKey && e.key.toLowerCase()==='z')){ e.preventDefault(); redo(); }
+    });
+
+    function applyTheme(theme){ document.documentElement.setAttribute('data-theme', theme==='light' ? 'light' : 'dark'); }
+
+    async function boot(){
+      const theme = localStorage.getItem(LS.theme) || 'dark'; els.theme.value = theme; applyTheme(theme);
+      const lang = localStorage.getItem(LS.lang) || 'en'; els.lang.value = lang; applyI18n(); applySearchPlaceholder();
+      state.map = await store.latest() || sampleMap();
+      // Restore preferred layout
+      const persistedLayout = localStorage.getItem(LS.layout);
+      state.map.layout = persistedLayout || state.map.layout || 'free';
+      els.layout.value = state.map.layout;
+      // If free, restore positions if available
+      if(state.map.layout==='free'){
+        try{
+          const raw = localStorage.getItem(LS.freepos(state.map.id));
+          const pos = raw ? JSON.parse(raw) : null;
+          if(pos){ Object.values(state.map.nodes).forEach(n=>{ const p=pos[n.id]; if(p){ n.x=p.x; n.y=p.y; } }); }
+        }catch(e){}
+      }
+      state.selection = state.map.rootId; layoutAndRender();
+      setTimeout(zoomToFit, 50);
+      setupInk();
+    }
+
+    boot();
+  </script>
+</body>
+</html>

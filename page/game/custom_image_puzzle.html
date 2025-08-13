@@ -1,0 +1,689 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Custom Image Puzzle</title>
+  <link rel="stylesheet" href="../assets/fontawesome/css/all.min.css">
+  <style>
+    :root{
+      --bg:#0b0e14; --fg:#e6e6e6; --muted:#9aa4b2; --card:#101521; --border:#1e2636;
+      --accent:#2c5894; --accent-2: color-mix(in oklch, var(--accent), white 15%);
+      --ok:#10b981; --warn:#f59e0b; --err:#ef4444; --ring: color-mix(in oklch, var(--accent), white 35%);
+      --shadow: 0 14px 36px -18px rgba(0,0,0,.55); --radius:.9rem;
+      --surface-1: color-mix(in oklch, var(--card), black 6%);
+      --surface-2: color-mix(in oklch, var(--card), black 12%);
+      --grid-gap:.6rem;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0; background:var(--bg); color:var(--fg);
+      font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial;
+    }
+    header{
+      position:sticky; top:0; z-index:5;
+      background: color-mix(in oklch, var(--card), transparent 18%);
+      -webkit-backdrop-filter: saturate(160%) blur(8px);
+      backdrop-filter: saturate(160%) blur(8px);
+      border-bottom:1px solid var(--border);
+    }
+    .bar{
+      max-width:1100px; margin:0 auto; padding:.6rem 1rem; display:flex; align-items:center; gap:.6rem; flex-wrap:wrap;
+    }
+    .title{font-weight:800; letter-spacing:.2px; margin-right:.5rem}
+    .spacer{flex:1}
+    .btn{
+      appearance:none; border:1px solid var(--border); background:var(--surface-1); color:var(--fg);
+      padding:.5rem .75rem; border-radius:calc(var(--radius) - .25rem); cursor:pointer;
+      display:inline-flex; align-items:center; gap:.45rem; font-weight:650;
+    }
+    .btn:hover{border-color: color-mix(in oklch, var(--border), var(--fg) 20%); background:var(--surface-2)}
+    .btn:focus-visible{outline:2px solid var(--ring); outline-offset:2px}
+    .btn.primary{background: linear-gradient(180deg, var(--accent-2), var(--accent)); color:#fff; border-color: color-mix(in oklch, var(--accent), black 10%); box-shadow: var(--shadow)}
+    .btn.ok{background:linear-gradient(180deg, color-mix(in oklch, var(--ok), white 12%), var(--ok)); color:#fff; border-color:transparent}
+    .btn.warn{background:linear-gradient(180deg, color-mix(in oklch, var(--warn), white 10%), var(--warn)); color:#fff; border-color:transparent}
+    .select, .input{
+      padding:.5rem .6rem; border-radius:calc(var(--radius) - .25rem); border:1px solid var(--border);
+      background:var(--surface-1); color:var(--fg);
+    }
+    .select:focus, .input:focus{outline:2px solid var(--ring); outline-offset:2px}
+    .hint{color:var(--muted); font-size:.9rem}
+
+    main{max-width:1100px; margin:1rem auto; padding:0 1rem 1rem; display:grid; grid-template-columns:1fr; gap:var(--grid-gap)}
+    .layout{display:grid; grid-template-columns:1fr; gap:var(--grid-gap)}
+    @media(min-width:980px){ .layout{grid-template-columns: 1.1fr .9fr} }
+
+    .panel{
+      border:1px solid var(--border); border-radius:var(--radius); background:var(--card); box-shadow: var(--shadow);
+      padding:.8rem; position:relative;
+    }
+    .stage{
+      display:grid; place-items:center; min-height:320px; position:relative;
+      border:1px dashed transparent; transition: border-color .2s ease, background .2s ease;
+    }
+    .stage.drag{ border-color: color-mix(in oklch, var(--accent), white 24%); background: color-mix(in oklch, var(--card), var(--accent) 8%); }
+
+    canvas{ display:block; width:min(96vw, 720px); height:min(96vw, 720px); max-width:100%; aspect-ratio:1 / 1; border-radius:.6rem; background:#0c121c; }
+
+    .preview{
+      position:absolute; left:.8rem; top:.8rem; border:1px solid var(--border); border-radius:.4rem; overflow:hidden; background:#000; box-shadow: var(--shadow);
+      width:140px; height:140px; display:none;
+    }
+    .preview.on{ display:block }
+
+    .stats{ display:flex; gap:.6rem; align-items:center; flex-wrap:wrap; margin-top:.6rem }
+    .stat{ background:var(--surface-1); border:1px solid var(--border); border-radius:.5rem; padding:.35rem .55rem; color: color-mix(in oklch, var(--fg), var(--muted) 20%); }
+
+    .controls{ display:flex; align-items:center; gap:.5rem; flex-wrap:wrap }
+    .file{ position:relative; overflow:hidden }
+    .file input{ position:absolute; inset:0; opacity:0; cursor:pointer }
+
+    .legend{ color:var(--muted); font-size:.9rem; margin-bottom:.5rem }
+    .row{ display:flex; gap:.6rem; flex-wrap:wrap; align-items:center }
+
+    .overlay-msg{
+      position:absolute; inset:auto 0 0 0; display:flex; justify-content:center; pointer-events:none;
+      padding:.6rem; background: linear-gradient(180deg, transparent, rgba(0,0,0,.55)); border-radius: 0 0 .8rem .8rem;
+    }
+    .badge{ display:inline-flex; gap:.35rem; align-items:center; background:#0b1324b3; border:1px solid #1f2a3f; color:#cfe2ff; padding:.25rem .55rem; border-radius:.45rem; backdrop-filter: blur(2px) }
+
+    .sr{ position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="bar">
+      <div class="title" data-i18n="title">Custom Image Puzzle</div>
+      <div class="controls">
+        <label class="file btn">
+          <i class="fa-solid fa-image"></i>
+          <span data-i18n="upload">Upload</span>
+          <input id="fileInput" type="file" accept="image/*">
+        </label>
+        <div class="row">
+          <label class="sr" for="grid">Grid</label>
+          <select id="grid" class="select">
+            <option value="3">3×3</option>
+            <option value="4">4×4</option>
+            <option value="5">5×5</option>
+            <option value="6">6×6</option>
+            <option value="7">7×7</option>
+            <option value="8">8×8</option>
+          </select>
+        </div>
+        <button id="btnShuffle" class="btn primary"><i class="fa-solid fa-shuffle"></i><span data-i18n="shuffle">Shuffle</span></button>
+        <button id="btnRestart" class="btn warn"><i class="fa-solid fa-rotate-left"></i><span data-i18n="restart">Restart</span></button>
+        <button id="btnPreview" class="btn"><i class="fa-regular fa-eye"></i><span data-i18n="preview">Preview</span></button>
+      </div>
+      <div class="spacer"></div>
+      <div class="row">
+        <label class="sr" for="lang">Language</label>
+        <select id="lang" class="select">
+          <option value="en">English</option>
+          <option value="pt">Português</option>
+          <option value="ja">日本語</option>
+        </select>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div class="layout">
+      <section class="panel">
+        <div class="legend" data-i18n="legend">Drop an image here or use Upload. Click or tap adjacent tiles to slide.</div>
+        <div id="stage" class="stage">
+          <canvas id="board" width="600" height="600"></canvas>
+          <canvas id="thumb" class="preview" width="280" height="280" aria-hidden="true"></canvas>
+          <div class="overlay-msg" id="overlay" hidden>
+            <span class="badge"><i class="fa-solid fa-trophy"></i><span data-i18n="solved">Solved!</span></span>
+          </div>
+        </div>
+        <div class="stats">
+          <div class="stat"><i class="fa-regular fa-clock"></i> <span data-i18n="time">Time</span>: <span id="time">00:00</span></div>
+          <div class="stat"><i class="fa-solid fa-arrows-left-right-to-line"></i> <span data-i18n="moves">Moves</span>: <span id="moves">0</span></div>
+          <div class="stat"><i class="fa-solid fa-ranking-star"></i> <span data-i18n="best">Best</span>: <span id="best">—</span></div>
+        </div>
+      </section>
+
+      <aside class="panel">
+        <h3 style="margin:.2rem 0 .6rem 0">Tips</h3>
+        <ul style="margin:.2rem 0 .6rem 1.2rem; line-height:1.4">
+          <li data-i18n="tip_drag">Drag & drop an image onto the board.</li>
+          <li data-i18n="tip_mobile">On mobile, tap a tile next to the empty space to move it.</li>
+          <li data-i18n="tip_preview">Use Preview to see the completed image.</li>
+          <li data-i18n="tip_grid">Change the grid to increase difficulty (3×3 to 8×8).</li>
+        </ul>
+        <div class="hint" data-i18n="persist">Your last puzzle, language, and best scores are saved locally.</div>
+      </aside>
+    </div>
+  </main>
+
+  <script>
+    const i18n = {
+      en: {
+        title: 'Custom Image Puzzle', upload: 'Upload', shuffle: 'Shuffle', restart: 'Restart', preview: 'Preview',
+        legend: 'Drop an image here or use Upload. Click or tap adjacent tiles to slide.',
+        time: 'Time', moves: 'Moves', best: 'Best', solved: 'Solved!',
+        tip_drag: 'Drag & drop an image onto the board.',
+        tip_mobile: 'On mobile, tap a tile next to the empty space to move it.',
+        tip_preview: 'Use Preview to see the completed image.',
+        tip_grid: 'Change the grid to increase difficulty (3×3 to 8×8).',
+        persist: 'Your last puzzle, language, and best scores are saved locally.'
+      },
+      pt: {
+        title: 'Quebra-Cabeça com Imagem', upload: 'Enviar', shuffle: 'Embaralhar', restart: 'Reiniciar', preview: 'Prévia',
+        legend: 'Solte uma imagem aqui ou use Enviar. Clique/toque em peças adjacentes para mover.',
+        time: 'Tempo', moves: 'Movimentos', best: 'Recorde', solved: 'Concluído!',
+        tip_drag: 'Arraste e solte uma imagem sobre o tabuleiro.',
+        tip_mobile: 'No celular, toque em uma peça ao lado do espaço vazio para movê-la.',
+        tip_preview: 'Use Prévia para ver a imagem completa.',
+        tip_grid: 'Mude a grade para aumentar a dificuldade (3×3 a 8×8).',
+        persist: 'Seu último jogo, idioma e recordes ficam salvos localmente.'
+      },
+      ja: {
+        title: 'カスタム画像パズル', upload: 'アップロード', shuffle: 'シャッフル', restart: 'リセット', preview: 'プレビュー',
+        legend: '画像をここにドロップするかアップロードを使用。隣のピースをタップ/クリックしてスライド。',
+        time: '時間', moves: '手数', best: 'ベスト', solved: '完成！',
+        tip_drag: 'ボードに画像をドラッグ＆ドロップしてください。',
+        tip_mobile: 'モバイルでは空白の隣のピースをタップして移動します。',
+        tip_preview: 'プレビューで完成画像を確認できます。',
+        tip_grid: 'グリッドを変えて難易度を上げましょう（3×3〜8×8）。',
+        persist: '最後のパズル、言語、ベストはローカルに保存されます。'
+      }
+    };
+
+    const els = {
+      canvas: document.getElementById('board'),
+      thumb: document.getElementById('thumb'),
+      stage: document.getElementById('stage'),
+      overlay: document.getElementById('overlay'),
+      file: document.getElementById('fileInput'),
+      grid: document.getElementById('grid'),
+      lang: document.getElementById('lang'),
+      time: document.getElementById('time'),
+      moves: document.getElementById('moves'),
+      best: document.getElementById('best'),
+      btnShuffle: document.getElementById('btnShuffle'),
+      btnRestart: document.getElementById('btnRestart'),
+      btnPreview: document.getElementById('btnPreview')
+    };
+
+    const ctx = els.canvas.getContext('2d');
+    const ctxThumb = els.thumb.getContext('2d');
+
+    const LS = {
+      lang: 'puzzle.v1.lang',
+      save: 'puzzle.v1.save',
+      best: (grid) => `puzzle.v1.best.${grid}`
+    };
+
+    let state = {
+      grid: 3,
+      board: [], // indexes 0..grid*grid-1, empty at last index
+      empty: 0,
+      imgCanvas: null, // oriented source canvas
+      imgW: 0,
+      imgH: 0,
+      running: false,
+      moves: 0,
+      startMs: 0,
+      elapsedMs: 0,
+      lastTick: 0,
+      previewOn: false,
+      solved: false
+    };
+
+    function t(key){
+      const lang = els.lang.value || 'en';
+      return (i18n[lang] && i18n[lang][key]) || i18n.en[key] || key;
+    }
+
+    function applyI18n(){
+      document.querySelectorAll('[data-i18n]').forEach(el => {
+        const k = el.getAttribute('data-i18n');
+        el.textContent = t(k);
+      });
+      document.title = t('title');
+    }
+
+    function formatTime(ms){
+      const total = Math.floor(ms/1000);
+      const mm = String(Math.floor(total/60)).padStart(2,'0');
+      const ss = String(total%60).padStart(2,'0');
+      return `${mm}:${ss}`;
+    }
+
+    function updateHUD(){
+      els.moves.textContent = String(state.moves);
+      els.time.textContent = formatTime(state.elapsedMs + (state.running ? (performance.now()-state.startMs) : 0));
+      const key = LS.best(state.grid);
+      const best = JSON.parse(localStorage.getItem(key) || 'null');
+      els.best.textContent = best ? `${formatTime(best.ms)} / ${best.moves}` : '—';
+    }
+
+    function tick(){
+      if(state.running){
+        draw();
+        updateHUD();
+        requestAnimationFrame(tick);
+      }
+    }
+
+    function resizeCanvas(){
+      const dpr = Math.max(1, Math.min(2.5, window.devicePixelRatio || 1));
+      const rect = els.stage.getBoundingClientRect();
+      const size = Math.floor(Math.min(rect.width - 16, window.innerHeight * 0.7));
+      const W = Math.max(280, Math.min(820, size));
+      els.canvas.style.width = W+'px';
+      els.canvas.style.height = W+'px';
+      els.canvas.width = Math.floor(W * dpr);
+      els.canvas.height = Math.floor(W * dpr);
+      draw();
+    }
+
+    function draw(){
+      const { grid, board, imgCanvas } = state;
+      const W = els.canvas.width, H = els.canvas.height;
+      ctx.clearRect(0,0,W,H);
+      ctx.fillStyle = '#0c121c';
+      ctx.fillRect(0,0,W,H);
+      if(!imgCanvas){
+        // Placeholder grid
+        ctx.strokeStyle = '#1f2a3f'; ctx.lineWidth = Math.max(1, W/600);
+        const step = W / grid;
+        for(let i=1;i<grid;i++){
+          ctx.beginPath(); ctx.moveTo(i*step,0); ctx.lineTo(i*step,H); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(0,i*step); ctx.lineTo(W,i*step); ctx.stroke();
+        }
+        return;
+      }
+      const src = imgCanvas;
+      const tileSrcW = src.width / grid;
+      const tileSrcH = src.height / grid;
+      const tileDstW = W / grid;
+      const tileDstH = H / grid;
+
+      // Draw tiles
+      for(let i=0;i<board.length;i++){
+        const v = board[i];
+        const r = Math.floor(i / grid), c = i % grid;
+        const dx = Math.round(c * tileDstW), dy = Math.round(r * tileDstH);
+        if(v === state.empty){
+          // Empty tile
+          ctx.fillStyle = '#0b1324';
+          ctx.fillRect(dx, dy, Math.ceil(tileDstW), Math.ceil(tileDstH));
+          // subtle hatch
+          ctx.strokeStyle = '#18243a'; ctx.lineWidth = 1;
+          for(let k=0;k<10;k++){
+            ctx.beginPath();
+            const off = k * (tileDstW/10);
+            ctx.moveTo(dx+off, dy);
+            ctx.lineTo(dx, dy+off);
+            ctx.stroke();
+          }
+          continue;
+        }
+        const sr = Math.floor(v / grid), sc = v % grid;
+        const sx = Math.round(sc * tileSrcW), sy = Math.round(sr * tileSrcH);
+        ctx.drawImage(src, sx, sy, Math.ceil(tileSrcW), Math.ceil(tileSrcH), dx, dy, Math.ceil(tileDstW), Math.ceil(tileDstH));
+      }
+
+      // Thumb preview
+      const showPreview = state.previewOn && imgCanvas;
+      els.thumb.classList.toggle('on', !!showPreview);
+      if(showPreview){
+        const tw = els.thumb.width, th = els.thumb.height;
+        ctxThumb.clearRect(0,0,tw,th);
+        const scale = Math.min(tw/imgCanvas.width, th/imgCanvas.height);
+        const iw = imgCanvas.width * scale;
+        const ih = imgCanvas.height * scale;
+        const ox = (tw - iw)/2; const oy = (th - ih)/2;
+        ctxThumb.drawImage(imgCanvas, 0,0,imgCanvas.width,imgCanvas.height, ox,oy,iw,ih);
+      }
+
+      // Solved overlay
+      els.overlay.hidden = !state.solved;
+    }
+
+    function solvedBoard(grid){
+      const total = grid*grid;
+      const board = Array.from({length: total}, (_,i)=>i);
+      return board;
+    }
+
+    function isSolved(){
+      const { board } = state;
+      for(let i=0;i<board.length;i++) if(board[i] !== i) return false;
+      return true;
+    }
+
+    function neighborsOf(idx){
+      const { grid } = state;
+      const r = Math.floor(idx / grid), c = idx % grid;
+      const out = [];
+      if(r>0) out.push(idx-grid);
+      if(r<grid-1) out.push(idx+grid);
+      if(c>0) out.push(idx-1);
+      if(c<grid-1) out.push(idx+1);
+      return out;
+    }
+
+    function moveIfAdjacent(idx){
+      const emptyIdx = state.board.indexOf(state.empty);
+      if(neighborsOf(emptyIdx).includes(idx)){
+        const b = state.board;
+        const tmp = b[idx]; b[idx] = b[emptyIdx]; b[emptyIdx] = tmp;
+        state.moves += 1;
+        if(isSolved()){ onSolved(); }
+        persist();
+        draw();
+        return true;
+      }
+      return false;
+    }
+
+    function onSolved(){
+      state.solved = true;
+      state.running = false;
+      const totalMs = state.elapsedMs + (state.startMs ? (performance.now()-state.startMs) : 0);
+      state.elapsedMs = totalMs;
+      const key = LS.best(state.grid);
+      const best = JSON.parse(localStorage.getItem(key) || 'null');
+      if(!best || totalMs < best.ms || (totalMs === best.ms && state.moves < best.moves)){
+        localStorage.setItem(key, JSON.stringify({ ms: totalMs, moves: state.moves }));
+      }
+      updateHUD();
+    }
+
+    function scramble(steps = 200){
+      // Start from solved to guarantee solvable state; perform random valid moves
+      state.board = solvedBoard(state.grid);
+      state.empty = state.board[state.board.length-1];
+      let emptyIdx = state.board.length-1;
+      let last = -1;
+      for(let i=0;i<steps;i++){
+        const nbs = neighborsOf(emptyIdx).filter(id => id !== last);
+        const pick = nbs[Math.floor(Math.random()*nbs.length)];
+        const tmp = state.board[pick];
+        state.board[pick] = state.board[emptyIdx];
+        state.board[emptyIdx] = tmp;
+        last = emptyIdx;
+        emptyIdx = pick;
+      }
+      state.moves = 0;
+      state.solved = isSolved();
+      state.elapsedMs = 0;
+      state.startMs = performance.now();
+      state.running = true;
+      requestAnimationFrame(tick);
+      persist();
+      draw();
+    }
+
+    function restartSolved(){
+      state.board = solvedBoard(state.grid);
+      state.empty = state.board[state.board.length-1];
+      state.moves = 0;
+      state.solved = true;
+      state.running = false;
+      state.elapsedMs = 0;
+      state.startMs = 0;
+      persist();
+      draw();
+    }
+
+    function persist(){
+      try{
+        const save = {
+          grid: state.grid,
+          board: state.board,
+          empty: state.empty,
+          img: state.imgCanvas ? state.imgCanvas.toDataURL('image/jpeg', .85) : null,
+          moves: state.moves,
+          elapsedMs: state.elapsedMs + (state.running ? (performance.now()-state.startMs) : 0),
+          solved: state.solved,
+          previewOn: state.previewOn
+        };
+        localStorage.setItem(LS.save, JSON.stringify(save));
+      }catch(err){ console.warn('persist failed', err); }
+    }
+
+    function restore(){
+      const lang = localStorage.getItem(LS.lang);
+      if(lang){ els.lang.value = lang; }
+      applyI18n();
+
+      const raw = localStorage.getItem(LS.save);
+      if(!raw){
+        // default empty state
+        state.grid = parseInt(els.grid.value, 10);
+        state.board = solvedBoard(state.grid);
+        state.empty = state.board[state.board.length-1];
+        draw(); updateHUD(); return;
+      }
+      try{
+        const save = JSON.parse(raw);
+        els.grid.value = String(save.grid || 3);
+        state.grid = save.grid || 3;
+        state.board = Array.isArray(save.board) ? save.board : solvedBoard(state.grid);
+        state.empty = typeof save.empty === 'number' ? save.empty : (state.grid*state.grid-1);
+        state.moves = save.moves || 0;
+        state.elapsedMs = save.elapsedMs || 0;
+        state.solved = !!save.solved;
+        state.previewOn = !!save.previewOn;
+        togglePreview(state.previewOn);
+        if(save.img){
+          const img = new Image();
+          img.onload = () => {
+            const cnv = document.createElement('canvas');
+            const MAX = 1024;
+            const scale = Math.min(1, MAX/Math.max(img.width,img.height));
+            cnv.width = Math.round(img.width*scale);
+            cnv.height = Math.round(img.height*scale);
+            const c2 = cnv.getContext('2d');
+            c2.drawImage(img, 0,0,cnv.width,cnv.height);
+            state.imgCanvas = cnv;
+            draw();
+          };
+          img.src = save.img;
+        }
+        draw(); updateHUD();
+      }catch(e){
+        console.warn('restore failed', e);
+        state.grid = parseInt(els.grid.value, 10);
+        state.board = solvedBoard(state.grid);
+        state.empty = state.board[state.board.length-1];
+        draw(); updateHUD();
+      }
+    }
+
+    function loadImageFile(file){
+      if(!file) return;
+      const reader = new FileReader();
+      reader.onload = async (ev) => {
+        const buf = ev.target.result;
+        const orientation = getJPEGOrientation(buf) || 1;
+        const blob = new Blob([buf]);
+        const url = URL.createObjectURL(blob);
+        const img = new Image();
+        img.onload = () => {
+          const oriented = orientAndScale(img, orientation);
+          state.imgCanvas = oriented;
+          URL.revokeObjectURL(url);
+          // Initialize board if first time
+          state.board = solvedBoard(state.grid);
+          state.empty = state.board[state.board.length-1];
+          state.moves = 0; state.elapsedMs = 0; state.solved = true; state.running = false;
+          persist();
+          draw(); updateHUD();
+        };
+        img.onerror = () => {
+          URL.revokeObjectURL(url);
+          alert('Image load failed.');
+        }
+        img.src = url;
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    function orientAndScale(img, orientation){
+      const MAX = 1024; // keep localStorage small and draw fast
+      let w = img.naturalWidth; let h = img.naturalHeight;
+      let swap = orientation >=5 && orientation <=8;
+      const scale = Math.min(1, MAX / Math.max(w,h));
+      w = Math.round(w*scale); h = Math.round(h*scale);
+      const cw = swap ? h : w;
+      const ch = swap ? w : h;
+      const cnv = document.createElement('canvas');
+      cnv.width = cw; cnv.height = ch;
+      const c = cnv.getContext('2d');
+      // Apply orientation transforms
+      switch(orientation){
+        case 2: // horizontal flip
+          c.translate(cw,0); c.scale(-1,1); break;
+        case 3: // 180
+          c.translate(cw,ch); c.rotate(Math.PI); break;
+        case 4: // vertical flip
+          c.translate(0,ch); c.scale(1,-1); break;
+        case 5: // transpose
+          c.rotate(.5*Math.PI); c.scale(1,-1); c.translate(0,-h); break;
+        case 6: // rotate 90 CW
+          c.rotate(.5*Math.PI); c.translate(0,-h); break;
+        case 7: // transverse
+          c.rotate(.5*Math.PI); c.scale(-1,1); c.translate(-w,-h); break;
+        case 8: // rotate 270
+          c.rotate(-.5*Math.PI); c.translate(-w,0); break;
+        default: break;
+      }
+      c.drawImage(img, 0,0,w,h);
+      return cnv;
+    }
+
+    function getJPEGOrientation(arrayBuffer){
+      // Minimal EXIF parser for Orientation (0x0112)
+      const view = new DataView(arrayBuffer);
+      if(view.getUint16(0,false) !== 0xFFD8) return 1; // not JPEG
+      let offset = 2;
+      const length = view.byteLength;
+      while(offset < length){
+        const marker = view.getUint16(offset, false); offset += 2;
+        if(marker === 0xFFE1){ // APP1 EXIF
+          const exifLength = view.getUint16(offset, false); offset += 2;
+          // Check EXIF header
+          if(view.getUint32(offset, false) !== 0x45786966){ break; } // 'Exif'
+          offset += 6; // skip "Exif\0\0"
+          const tiffOffset = offset;
+          const little = (view.getUint16(tiffOffset, false) === 0x4949);
+          const getShort = (o) => view.getUint16(o, little);
+          const getLong = (o) => view.getUint32(o, little);
+          if(getShort(tiffOffset+2) !== 0x002A) break;
+          let ifd = tiffOffset + getLong(tiffOffset+4);
+          const entries = getShort(ifd);
+          for(let i=0;i<entries;i++){
+            const entry = ifd + 2 + i*12;
+            const tag = getShort(entry);
+            if(tag === 0x0112){
+              const type = getShort(entry+2);
+              const num = getLong(entry+4);
+              if(type === 3 && num === 1){
+                const val = getShort(entry+8);
+                return val;
+              }
+            }
+          }
+          break;
+        } else if((marker & 0xFF00) !== 0xFF00) {
+          break;
+        } else {
+          offset += view.getUint16(offset, false);
+        }
+      }
+      return 1;
+    }
+
+    function togglePreview(on){
+      state.previewOn = on;
+      draw();
+      persist();
+      els.btnPreview.classList.toggle('ok', !!on);
+      const icon = els.btnPreview.querySelector('i');
+      if(icon){ icon.className = on ? 'fa-solid fa-eye' : 'fa-regular fa-eye'; }
+    }
+
+    // Event wiring
+    els.file.addEventListener('change', (e)=>{
+      const f = e.target.files && e.target.files[0];
+      if(f){ loadImageFile(f); }
+      e.target.value = '';
+    });
+
+    ['dragenter','dragover'].forEach(ev=>{
+      els.stage.addEventListener(ev, (e)=>{ e.preventDefault(); els.stage.classList.add('drag'); });
+    });
+    ['dragleave','drop'].forEach(ev=>{
+      els.stage.addEventListener(ev, (e)=>{ e.preventDefault(); els.stage.classList.remove('drag'); });
+    });
+    els.stage.addEventListener('drop', (e)=>{
+      const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+      if(f) loadImageFile(f);
+    });
+
+    function canvasPosToIndex(clientX, clientY){
+      const rect = els.canvas.getBoundingClientRect();
+      const x = (clientX - rect.left) * (els.canvas.width/rect.width);
+      const y = (clientY - rect.top) * (els.canvas.height/rect.height);
+      const { grid } = state;
+      const c = Math.max(0, Math.min(grid-1, Math.floor(x / (els.canvas.width/grid))));
+      const r = Math.max(0, Math.min(grid-1, Math.floor(y / (els.canvas.height/grid))));
+      return r*grid + c;
+    }
+
+    let pointerDown = false;
+    els.canvas.addEventListener('pointerdown', (e)=>{ pointerDown = true; });
+    els.canvas.addEventListener('pointerup', (e)=>{
+      if(!pointerDown) return; pointerDown = false;
+      const idx = canvasPosToIndex(e.clientX, e.clientY);
+      moveIfAdjacent(idx);
+    });
+    els.canvas.addEventListener('click', (e)=>{
+      const idx = canvasPosToIndex(e.clientX, e.clientY);
+      moveIfAdjacent(idx);
+    });
+
+    els.grid.addEventListener('change', ()=>{
+      state.grid = parseInt(els.grid.value, 10);
+      // Rebuild solved board but keep current image
+      state.board = solvedBoard(state.grid);
+      state.empty = state.board[state.board.length-1];
+      state.moves = 0; state.elapsedMs = 0; state.startMs = 0; state.running = false; state.solved = true;
+      persist(); draw(); updateHUD();
+    });
+
+    els.btnShuffle.addEventListener('click', ()=>{
+      const steps = 180 + (state.grid*state.grid*4);
+      scramble(steps);
+      updateHUD();
+    });
+
+    els.btnRestart.addEventListener('click', ()=>{
+      restartSolved(); updateHUD();
+    });
+
+    els.btnPreview.addEventListener('click', ()=>{
+      togglePreview(!state.previewOn);
+    });
+
+    els.lang.addEventListener('change', ()=>{
+      localStorage.setItem(LS.lang, els.lang.value);
+      applyI18n();
+    });
+
+    window.addEventListener('resize', resizeCanvas);
+
+    // Boot
+    restore();
+    resizeCanvas();
+  </script>
+</body>
+</html>
