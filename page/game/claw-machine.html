@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Claw Machine</title>
+    <style>
+        body {
+            background-color: #f0f0f0;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            font-family: 'Comic Sans MS', 'Chalkduster', 'cursive';
+        }
+        #game-container {
+            border: 5px solid #ff69b4;
+            border-radius: 20px;
+            box-shadow: 0 0 20px rgba(255, 105, 180, 0.5);
+            position: relative;
+            overflow: hidden;
+        }
+        canvas {
+            display: block;
+            background: linear-gradient(to bottom, #87ceeb, #f0f8ff);
+        }
+        #ui-overlay {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            right: 15px;
+            display: flex;
+            justify-content: space-between;
+            color: #fff;
+            font-size: 24px;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px #000;
+        }
+        #lang-switcher {
+            position: absolute;
+            bottom: 15px;
+            right: 15px;
+        }
+        #lang-switcher button {
+            background-color: #ff69b4;
+            color: white;
+            border: 2px solid white;
+            border-radius: 10px;
+            padding: 5px 10px;
+            cursor: pointer;
+            font-family: inherit;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <canvas id="gameCanvas" width="800" height="600"></canvas>
+        <div id="ui-overlay">
+            <div id="credits"></div>
+            <div id="timer"></div>
+            <div id="score"></div>
+        </div>
+        <div id="lang-switcher">
+            <button onclick="setLanguage('en')">EN</button>
+            <button onclick="setLanguage('pt')">PT</button>
+            <button onclick="setLanguage('ja')">JA</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // --- Constants and State ---
+        const canvasWidth = canvas.width;
+        const canvasHeight = canvas.height;
+        const prizeZoneY = 450;
+        const prizeSize = 40;
+        const floorY = prizeZoneY + prizeSize;
+        const chuteX = 70;
+
+        let score = 0, credits = 10, timeLimit = 60, timerId;
+        let currentLang = 'en';
+        const keys = {};
+
+        const dictionary = {
+            en: { credits: "Credits", timer: "Time", score: "Score", instructions: "Use Left/Right arrows to move. Press Down arrow to drop the claw." },
+            pt: { credits: "Créditos", timer: "Tempo", score: "Pontos", instructions: "Use as setas Esquerda/Direita para mover. Pressione a seta para Baixo para soltar a garra." },
+            ja: { credits: "クレジット", timer: "時間", score: "スコア", instructions: "左右の矢印キーで移動します。下矢印キーでクローを落とします。" }
+        };
+
+        // --- Game Objects ---
+        const claw = {
+            x: canvasWidth / 2, y: 60, width: 50, speed: 4,
+            pincerAngle: Math.PI / 4, // 45 degrees
+            state: 'IDLE', // IDLE, MOVING, DROPPING, CLOSING, RISING, TRANSPORTING, OPENING, RETURNING
+        };
+
+        let grabbedPrize = null;
+
+        const prizeData = [
+            { color: '#1e90ff', score: 5 },   // blue
+            { color: '#2ed573', score: 10 },  // green
+            { color: '#ffa502', score: 20 },  // orange
+            { color: '#ff4757', score: 40 },  // red
+            { color: '#a55eea', score: 50 }   // purple
+        ];
+        const prizes = [];
+        function generatePrizes() {
+            if (prizes.length > 10) return; // Don't over-generate
+            const numToGenerate = 15 - prizes.length;
+            for (let i = 0; i < numToGenerate; i++) {
+                const data = prizeData[Math.floor(Math.random() * prizeData.length)];
+                prizes.push({
+                    x: 150 + Math.random() * (canvasWidth - 250),
+                    y: prizeZoneY + Math.random() * 40,
+                    width: prizeSize, height: prizeSize,
+                    color: data.color,
+                    score: data.score,
+                    rotation: Math.random() * Math.PI * 2,
+                    isFalling: false,
+                    fallSpeed: 0,
+                });
+            }
+        }
+
+        // --- Game Loop ---
+        function gameLoop() {
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        // --- Update Functions ---
+        function update() {
+            handleInput();
+            updateClawState();
+            updatePrizes();
+        }
+
+        function handleInput() {
+            if (claw.state === 'IDLE' || claw.state === 'MOVING') {
+                if (keys['ArrowLeft'] && claw.x > claw.width / 2) {
+                    claw.x -= claw.speed;
+                    claw.state = 'MOVING';
+                } else if (keys['ArrowRight'] && claw.x < canvasWidth - claw.width / 2) {
+                    claw.x += claw.speed;
+                    claw.state = 'MOVING';
+                } else if (keys['ArrowDown'] && credits > 0) {
+                    claw.state = 'DROPPING';
+                    credits--;
+                    startTimer();
+                } else {
+                    if(claw.state === 'MOVING') claw.state = 'IDLE';
+                }
+            }
+        }
+
+        function updateClawState() {
+            switch(claw.state) {
+                case 'DROPPING':
+                    claw.y += claw.speed * 2;
+                    if (claw.y >= prizeZoneY - 20) {
+                        claw.state = 'CLOSING';
+                    }
+                    break;
+                case 'CLOSING':
+                    claw.pincerAngle -= 0.05;
+                    if (claw.pincerAngle <= 0) {
+                        claw.pincerAngle = 0;
+                        prizes.forEach(p => {
+                            const dist = Math.hypot(p.x - claw.x, p.y - claw.y);
+                            if (!grabbedPrize && dist < prizeSize) {
+                                if (Math.random() < 0.6) {
+                                    grabbedPrize = p;
+                                }
+                            }
+                        });
+                        claw.state = 'RISING';
+                    }
+                    break;
+                case 'RISING':
+                    claw.y -= claw.speed;
+                    if (grabbedPrize) {
+                        grabbedPrize.x = claw.x;
+                        grabbedPrize.y = claw.y + 40;
+                    }
+                    if (claw.y <= 60) {
+                        claw.y = 60;
+                        claw.state = 'TRANSPORTING';
+                    }
+                    break;
+                case 'TRANSPORTING':
+                    if (claw.x > chuteX) {
+                        claw.x -= claw.speed * 1.5;
+                        if (grabbedPrize) {
+                            grabbedPrize.x = claw.x;
+                        }
+                    } else {
+                        claw.x = chuteX;
+                        claw.state = 'OPENING';
+                    }
+                    break;
+                case 'OPENING':
+                     claw.pincerAngle += 0.05;
+                     if (claw.pincerAngle >= Math.PI / 4) {
+                         claw.pincerAngle = Math.PI / 4;
+                         if (grabbedPrize) {
+                             grabbedPrize.isFalling = true;
+                             grabbedPrize.fallSpeed = 1;
+                             grabbedPrize = null;
+                         }
+                         claw.state = 'RETURNING';
+                     }
+                    break;
+                case 'RETURNING':
+                    if (claw.x < canvasWidth / 2) {
+                        claw.x += claw.speed * 1.5;
+                    } else {
+                        claw.x = canvasWidth / 2;
+                        claw.state = 'IDLE';
+                    }
+                    break;
+            }
+        }
+
+        function updatePrizes() {
+            for (let i = prizes.length - 1; i >= 0; i--) {
+                const p = prizes[i];
+                if (p.isFalling) {
+                    p.fallSpeed += 0.2;
+                    p.y += p.fallSpeed;
+                    if (p.x < chuteX) {
+                        if (p.y > canvasHeight) {
+                            score += p.score;
+                            prizes.splice(i, 1);
+                            if (prizes.length < 10) {
+                                generatePrizes();
+                            }
+                        }
+                    } else {
+                        if (p.y >= prizeZoneY + Math.random() * 40) {
+                            p.y = prizeZoneY + Math.random() * 20;
+                            p.isFalling = false;
+                            p.fallSpeed = 0;
+                        }
+                    }
+                }
+            }
+        }
+
+        // --- Draw Functions ---
+        function draw() {
+            ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+            drawBackground();
+            drawRail();
+            drawPrizes();
+            drawClaw();
+            drawUI();
+        }
+
+        function drawBackground() {
+            ctx.fillStyle = '#d2b48c';
+            ctx.fillRect(0, floorY, canvasWidth, canvasHeight - floorY);
+            ctx.fillStyle = '#a0522d';
+            ctx.fillRect(chuteX, floorY, 40, canvasHeight - floorY);
+            ctx.fillStyle = '#3b2e1e';
+            ctx.fillRect(0, floorY, chuteX, canvasHeight - floorY);
+        }
+
+        function drawRail() {
+            ctx.fillStyle = '#bdc3c7';
+            ctx.fillRect(0, 40, canvasWidth, 20);
+            ctx.fillStyle = '#95a5a6';
+            ctx.fillRect(claw.x - 25, 40, 50, 20);
+        }
+
+        function drawClaw() {
+            ctx.save();
+            ctx.translate(claw.x, claw.y);
+            ctx.fillStyle = '#34495e';
+            ctx.fillRect(-1, 0, 2, -claw.y + 40);
+            ctx.fillStyle = '#7f8c8d';
+            ctx.fillRect(-10, 0, 20, 40);
+            ctx.rotate(claw.pincerAngle);
+            ctx.fillStyle = '#e67e22';
+            ctx.fillRect(-5, 35, 10, 50);
+            ctx.beginPath();
+            ctx.moveTo(-5, 85); ctx.lineTo(5, 85); ctx.lineTo(0, 95);
+            ctx.fill();
+            ctx.rotate(-2 * claw.pincerAngle);
+            ctx.fillStyle = '#e67e22';
+            ctx.fillRect(-5, 35, 10, 50);
+            ctx.beginPath();
+            ctx.moveTo(-5, 85); ctx.lineTo(5, 85); ctx.lineTo(0, 95);
+            ctx.fill();
+            ctx.restore();
+        }
+
+        function drawPrizes() {
+            prizes.forEach(p => {
+                ctx.save();
+                ctx.translate(p.x, p.y);
+                ctx.rotate(p.rotation);
+                ctx.fillStyle = p.color;
+                ctx.fillRect(-p.width/2, -p.height/2, p.width, p.height);
+                ctx.fillStyle = 'rgba(255,255,255,0.3)';
+                ctx.fillRect(-p.width/2, -p.height/2, p.width, p.height/3);
+                ctx.rotate(-p.rotation);
+                ctx.fillStyle = 'white';
+                ctx.font = 'bold 16px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(p.score, 0, 0);
+                ctx.restore();
+            });
+        }
+
+        function drawUI() {
+            document.getElementById('credits').innerText = `${dictionary[currentLang].credits}: ${credits}`;
+            document.getElementById('timer').innerText = `${dictionary[currentLang].timer}: ${timeLimit}`;
+            document.getElementById('score').innerText = `${dictionary[currentLang].score}: ${score}`;
+            if (claw.state === 'IDLE' || claw.state === 'MOVING') {
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                ctx.font = '20px "Comic Sans MS"';
+                ctx.textAlign = 'center';
+                ctx.fillText(dictionary[currentLang].instructions, canvasWidth / 2, canvasHeight - 50);
+            }
+        }
+
+        // --- Utility Functions ---
+        function setLanguage(lang) {
+            currentLang = lang;
+        }
+
+        function startTimer() {
+            if (timerId) clearInterval(timerId);
+            timeLimit = 60;
+            const timerElement = document.getElementById('timer');
+            timerId = setInterval(() => {
+                timeLimit--;
+                if (timeLimit < 0) {
+                    timeLimit = 0;
+                    clearInterval(timerId);
+                    if (claw.state !== 'IDLE' && claw.state !== 'MOVING') {
+                        claw.state = 'TRANSPORTING';
+                    }
+                }
+                timerElement.innerText = `${dictionary[currentLang].timer}: ${timeLimit}`;
+            }, 1000);
+        }
+
+        // --- Event Listeners ---
+        window.addEventListener('keydown', (e) => { keys[e.key] = true; });
+        window.addEventListener('keyup', (e) => { keys[e.key] = false; });
+
+        // --- Initialization ---
+        const dpr = window.devicePixelRatio || 1;
+        if (dpr > 1) {
+            canvas.style.width = canvasWidth + 'px';
+            canvas.style.height = canvasHeight + 'px';
+            canvas.width = canvasWidth * dpr;
+            canvas.height = canvasHeight * dpr;
+            ctx.scale(dpr, dpr);
+        }
+        generatePrizes();
+        setLanguage('en');
+        gameLoop();
+
+    </script>
+</body>
+</html>
