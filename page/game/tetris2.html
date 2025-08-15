@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Tetris</title>
+    <style>
+        :root {
+            --bg-1: #0b0f14;
+            --bg-2: #0a0f1a;
+            --card: #0f1623cc;
+            --ink: #dbe7ff;
+            --muted: #92a3ba;
+            --border: #1f2a3f;
+            --accent: #4ea1ff;
+        }
+        body {
+            font-family: 'Noto Sans JP', system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, 'Helvetica Neue', Arial, 'Noto Sans';
+            background-color: var(--bg-1);
+            color: var(--ink);
+            margin: 0;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+        #game-container {
+            flex-grow: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        canvas {
+            display: block;
+        }
+        #sidebar {
+            width: 280px;
+            background-color: var(--bg-2);
+            border-left: 1px solid var(--border);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .panel {
+            background-color: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 15px;
+        }
+        h2 {
+            font-size: 18px;
+            margin-top: 0;
+            margin-bottom: 10px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 10px;
+        }
+        .info {
+            display: flex;
+            justify-content: space-between;
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+        #next-piece-container {
+            width: 100%;
+            height: 120px;
+            background-color: var(--bg-1);
+            border-radius: 8px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .controls, .settings {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        button {
+            background-color: var(--accent);
+            color: white;
+            border: none;
+            padding: 10px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.2s;
+        }
+        button:hover {
+            background-color: #6faaff;
+        }
+        .lang-selector {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+        }
+        .lang-selector a {
+            color: var(--muted);
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 600;
+            padding: 4px 8px;
+            border-radius: 8px;
+            border: 1px solid transparent;
+        }
+        .lang-selector a:hover {
+            border-color: var(--border);
+        }
+        .lang-selector a.active {
+            color: var(--accent);
+        }
+        @media (max-width: 768px) {
+            body {
+                flex-direction: column;
+            }
+            #sidebar {
+                width: 100%;
+                height: auto;
+                border-left: none;
+                border-top: 1px solid var(--border);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <canvas id="game-canvas"></canvas>
+    </div>
+    <div id="sidebar">
+        <div class="panel">
+            <h2 data-i18n="title">3D Tetris</h2>
+            <div class="lang-selector">
+                <a href="#" data-lang="en" class="active">EN</a>
+                <a href="#" data-lang="ja">JA</a>
+                <a href="#" data-lang="pt">PT</a>
+            </div>
+        </div>
+        <div class="panel">
+            <h2 data-i18n="stats">Stats</h2>
+            <div class="info">
+                <span data-i18n="score">Score</span>
+                <span id="score">0</span>
+            </div>
+            <div class="info">
+                <span data-i18n="level">Level</span>
+                <span id="level">1</span>
+            </div>
+            <div class="info">
+                <span data-i18n="lines">Lines</span>
+                <span id="lines">0</span>
+            </div>
+        </div>
+        <div class="panel">
+            <h2 data-i18n="next">Next</h2>
+            <div id="next-piece-container"></div>
+        </div>
+        <div class="panel controls">
+            <h2 data-i18n="controls">Controls</h2>
+            <button id="start-btn" data-i18n="start">Start Game</button>
+            <p style="font-size: 12px; text-align: center; color: var(--muted);" data-i18n="controls_desc">Use arrow keys to move and rotate. Down arrow for soft drop, space for hard drop.</p>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+    <script>
+        const translations = {
+            en: {
+                title: "3D Tetris",
+                stats: "Stats",
+                score: "Score",
+                level: "Level",
+                lines: "Lines",
+                next: "Next",
+                controls: "Controls",
+                start: "Start Game",
+                pause: "Pause",
+                resume: "Resume",
+                gameOver: "Game Over",
+                restart: "Restart",
+                controls_desc: "Use arrow keys to move and rotate. Down arrow for soft drop, space for hard drop."
+            },
+            ja: {
+                title: "3Dテトリス",
+                stats: "統計",
+                score: "スコア",
+                level: "レベル",
+                lines: "ライン",
+                next: "次",
+                controls: "操作",
+                start: "ゲーム開始",
+                pause: "一時停止",
+                resume: "再開",
+                gameOver: "ゲームオーバー",
+                restart: "リスタート",
+                controls_desc: "矢印キーで移動と回転。下矢印でソフトドロップ、スペースでハードドロップ。"
+            },
+            pt: {
+                title: "Tetris 3D",
+                stats: "Estatísticas",
+                score: "Pontuação",
+                level: "Nível",
+                lines: "Linhas",
+                next: "Próximo",
+                controls: "Controles",
+                start: "Iniciar Jogo",
+                pause: "Pausar",
+                resume: "Continuar",
+                gameOver: "Fim de Jogo",
+                restart: "Reiniciar",
+                controls_desc: "Use as setas para mover e girar. Seta para baixo para queda suave, espaço para queda rápida."
+            }
+        };
+
+        const setLanguage = (lang) => {
+            document.querySelectorAll('[data-i18n]').forEach(element => {
+                const key = element.getAttribute('data-i18n');
+                if (translations[lang] && translations[lang][key]) {
+                    element.innerHTML = translations[lang][key];
+                } else {
+                    element.innerHTML = translations['en'][key];
+                }
+            });
+            document.documentElement.lang = lang;
+            localStorage.setItem('language', lang);
+
+            document.querySelectorAll('.lang-selector a').forEach(a => {
+                a.classList.remove('active');
+                if (a.getAttribute('data-lang') === lang) {
+                    a.classList.add('active');
+                }
+            });
+        };
+
+        document.addEventListener('DOMContentLoaded', () => {
+            // Language setup
+            const langSelector = document.querySelector('.lang-selector');
+            langSelector.addEventListener('click', (event) => {
+                event.preventDefault();
+                const lang = event.target.getAttribute('data-lang');
+                if (lang) {
+                    setLanguage(lang);
+                }
+            });
+
+            const savedLang = localStorage.getItem('language');
+            const browserLang = navigator.language.split('-')[0];
+            const initialLang = savedLang || (translations[browserLang] ? browserLang : 'en');
+            setLanguage(initialLang);
+
+            // Game setup
+            const gameContainer = document.getElementById('game-container');
+            const canvas = document.getElementById('game-canvas');
+
+            // Scene setup
+            const scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0b0f14);
+
+            const camera = new THREE.PerspectiveCamera(75, gameContainer.clientWidth / gameContainer.clientHeight, 0.1, 1000);
+            camera.position.set(0, 8, 22);
+            camera.lookAt(0, 0, 0);
+
+            const renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
+            renderer.setSize(gameContainer.clientWidth, gameContainer.clientHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+
+            // Lighting
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+            scene.add(ambientLight);
+
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(5, 10, 7.5);
+            scene.add(directionalLight);
+
+            // Game Board
+            const boardWidth = 10;
+            const boardHeight = 20;
+            const gridHelper = new THREE.GridHelper(boardWidth, boardWidth);
+            gridHelper.position.y = -0.5;
+            scene.add(gridHelper);
+
+            const boardBox = new THREE.Box3().setFromCenterAndSize(
+                new THREE.Vector3(0, boardHeight / 2 - 0.5, 0),
+                new THREE.Vector3(boardWidth, boardHeight, 1)
+            );
+            const boxHelper = new THREE.Box3Helper(boardBox, 0x555555);
+            scene.add(boxHelper);
+
+            // Tetrominoes
+            const TETROMINOES = {
+                'I': { shape: [[1, 1, 1, 1]], color: 0x00ffff },
+                'J': { shape: [[1, 0, 0], [1, 1, 1]], color: 0x0000ff },
+                'L': { shape: [[0, 0, 1], [1, 1, 1]], color: 0xffa500 },
+                'O': { shape: [[1, 1], [1, 1]], color: 0xffff00 },
+                'S': { shape: [[0, 1, 1], [1, 1, 0]], color: 0x00ff00 },
+                'T': { shape: [[0, 1, 0], [1, 1, 1]], color: 0x800080 },
+                'Z': { shape: [[1, 1, 0], [0, 1, 1]], color: 0xff0000 }
+            };
+
+            function createTetromino(type) {
+                const tetrominoData = TETROMINOES[type];
+                const group = new THREE.Group();
+                const shape = tetrominoData.shape;
+                const color = tetrominoData.color;
+
+                const geometry = new THREE.BoxGeometry(1, 1, 1);
+                const material = new THREE.MeshStandardMaterial({ color: color });
+
+                for (let y = 0; y < shape.length; y++) {
+                    for (let x = 0; x < shape[y].length; x++) {
+                        if (shape[y][x]) {
+                            const cube = new THREE.Mesh(geometry, material);
+                            cube.position.set(x, -y, 0);
+                            group.add(cube);
+                        }
+                    }
+                }
+
+                // Center the piece
+                const box = new THREE.Box3().setFromObject(group);
+                const center = new THREE.Vector3();
+                box.getCenter(center);
+                group.children.forEach(child => {
+                    child.position.sub(center);
+                });
+
+                group.position.set(boardWidth / 2, boardHeight - 2, 0);
+                return group;
+            }
+
+            // Game state
+            let gameState = {
+                score: 0,
+                level: 1,
+                lines: 0,
+                gameover: false,
+                paused: true,
+                board: Array(boardHeight).fill(0).map(() => Array(boardWidth).fill(0)),
+                currentPiece: null,
+                nextPieceType: null,
+                lastFallTime: 0,
+                fallInterval: 1000 // ms
+            };
+
+            function spawnNewPiece() {
+                if (gameState.currentPiece) {
+                    scene.remove(gameState.currentPiece);
+                }
+
+                const pieceTypes = Object.keys(TETROMINOES);
+                const type = gameState.nextPieceType || pieceTypes[Math.floor(Math.random() * pieceTypes.length)];
+                gameState.currentPiece = createTetromino(type);
+                scene.add(gameState.currentPiece);
+
+                gameState.nextPieceType = pieceTypes[Math.floor(Math.random() * pieceTypes.length)];
+                // TODO: Update next piece display
+
+                if (checkCollision()) {
+                    gameState.gameover = true;
+                    // TODO: Display game over message
+                    console.log("Game Over");
+                }
+            }
+
+            function onWindowResize() {
+                if (!gameContainer || !renderer) return;
+                const rect = gameContainer.getBoundingClientRect();
+                camera.aspect = rect.width / rect.height;
+                camera.updateProjectionMatrix();
+                renderer.setSize(gameContainer.clientWidth, gameContainer.clientHeight);
+            }
+            window.addEventListener('resize', onWindowResize);
+
+            // Game Loop
+            function animate(time) {
+                requestAnimationFrame(animate);
+
+                if (!gameState.paused && !gameState.gameover) {
+                    const deltaTime = time - gameState.lastFallTime;
+                    if (deltaTime > gameState.fallInterval) {
+                        gameState.lastFallTime = time;
+                        if (gameState.currentPiece) {
+                            gameState.currentPiece.position.y -= 1;
+                            if (checkCollision()) {
+                                gameState.currentPiece.position.y += 1;
+                                lockPiece();
+                                spawnNewPiece();
+                            }
+                        }
+                    }
+                }
+
+                renderer.render(scene, camera);
+            }
+
+            function checkCollision() {
+                const piece = gameState.currentPiece;
+                const board = gameState.board;
+                const pos = piece.position;
+
+                for (const child of piece.children) {
+                    const worldPos = new THREE.Vector3();
+                    child.getWorldPosition(worldPos);
+
+                    const x = Math.round(worldPos.x);
+                    const y = Math.round(worldPos.y);
+
+                    if (x < 0 || x >= boardWidth || y < 0 || y >= boardHeight || (board[y] && board[y][x])) {
+                        return true;
+                    }
+                }
+                return false;
+            }
+
+            function lockPiece() {
+                const piece = gameState.currentPiece;
+                const board = gameState.board;
+                const pos = piece.position;
+
+                for (const child of piece.children) {
+                    const worldPos = new THREE.Vector3();
+                    child.getWorldPosition(worldPos);
+                    const x = Math.round(worldPos.x);
+                    const y = Math.round(worldPos.y);
+
+                    if (y >= 0 && y < boardHeight) {
+                         board[y][x] = { mesh: child.clone() };
+                    }
+                }
+
+                gameState.currentPiece.children.forEach(child => scene.remove(child));
+                scene.remove(gameState.currentPiece);
+
+                clearLines();
+                drawBoard();
+            }
+
+            const landedCubes = new THREE.Group();
+            scene.add(landedCubes);
+
+            function drawBoard() {
+                landedCubes.children.forEach(child => landedCubes.remove(child));
+                const board = gameState.board;
+                for (let y = 0; y < board.length; y++) {
+                    for (let x = 0; x < board[y].length; x++) {
+                        if (board[y][x]) {
+                            const cube = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial({ color: board[y][x].mesh.material.color.getHex() }));
+                            cube.position.set(x, y, 0);
+                            landedCubes.add(cube);
+                        }
+                    }
+                }
+            }
+
+            function clearLines() {
+                let linesCleared = 0;
+                for (let y = 0; y < boardHeight; y++) {
+                    if (gameState.board[y].every(cell => cell !== 0)) {
+                        linesCleared++;
+                        gameState.board.splice(y, 1);
+                        gameState.board.push(Array(boardWidth).fill(0));
+                    }
+                }
+
+                if (linesCleared > 0) {
+                    gameState.lines += linesCleared;
+                    gameState.score += [40, 100, 300, 1200][linesCleared - 1] * gameState.level;
+                    gameState.level = Math.floor(gameState.lines / 10) + 1;
+
+                    document.getElementById('score').textContent = gameState.score;
+                    document.getElementById('lines').textContent = gameState.lines;
+                    document.getElementById('level').textContent = gameState.level;
+                }
+            }
+
+            // Keyboard Controls
+            document.addEventListener('keydown', (event) => {
+                if (gameState.paused || gameState.gameover || !gameState.currentPiece) return;
+
+                switch (event.key) {
+                    case 'ArrowLeft':
+                        gameState.currentPiece.position.x -= 1;
+                        if (checkCollision()) gameState.currentPiece.position.x += 1;
+                        break;
+                    case 'ArrowRight':
+                        gameState.currentPiece.position.x += 1;
+                        if (checkCollision()) gameState.currentPiece.position.x -= 1;
+                        break;
+                    case 'ArrowDown':
+                        gameState.currentPiece.position.y -= 1;
+                        if (checkCollision()) {
+                            gameState.currentPiece.position.y += 1;
+                            lockPiece();
+                            spawnNewPiece();
+                        }
+                        break;
+                    case 'ArrowUp': // Rotate
+                        gameState.currentPiece.rotation.z += Math.PI / 2;
+                        if (checkCollision()) gameState.currentPiece.rotation.z -= Math.PI / 2;
+                        break;
+                    case ' ': // Hard drop
+                        while (!checkCollision()) {
+                            gameState.currentPiece.position.y -= 1;
+                        }
+                        gameState.currentPiece.position.y += 1;
+                        lockPiece();
+                        spawnNewPiece();
+                        break;
+                }
+            });
+
+            const startBtn = document.getElementById('start-btn');
+            startBtn.addEventListener('click', startGame);
+
+            function startGame() {
+                gameState.score = 0;
+                gameState.level = 1;
+                gameState.lines = 0;
+                gameState.gameover = false;
+                gameState.paused = false;
+                gameState.board = Array(boardHeight).fill(0).map(() => Array(boardWidth).fill(0));
+
+                landedCubes.children.forEach(c => landedCubes.remove(c));
+                if(gameState.currentPiece) scene.remove(gameState.currentPiece);
+
+                document.getElementById('score').textContent = '0';
+                document.getElementById('level').textContent = '1';
+                document.getElementById('lines').textContent = '0';
+
+                spawnNewPiece();
+                startBtn.textContent = translations[document.documentElement.lang].restart;
+            }
+
+            // Next piece preview
+            const nextPieceContainer = document.getElementById('next-piece-container');
+            const nextScene = new THREE.Scene();
+            nextScene.background = new THREE.Color(0x0b0f14);
+            const nextCamera = new THREE.PerspectiveCamera(75, nextPieceContainer.clientWidth / nextPieceContainer.clientHeight, 0.1, 1000);
+            nextCamera.position.set(0, 0, 4);
+            const nextRenderer = new THREE.WebGLRenderer({ antialias: true });
+            nextRenderer.setSize(nextPieceContainer.clientWidth, nextPieceContainer.clientHeight);
+            nextPieceContainer.appendChild(nextRenderer.domElement);
+            nextScene.add(new THREE.AmbientLight(0xffffff, 0.8));
+            nextScene.add(new THREE.DirectionalLight(0xffffff, 0.5).position.set(5, 10, 7.5));
+            let nextPieceMesh = null;
+
+            function updateNextPiecePreview() {
+                if (nextPieceMesh) {
+                    nextScene.remove(nextPieceMesh);
+                }
+                if (gameState.nextPieceType) {
+                    nextPieceMesh = createTetromino(gameState.nextPieceType);
+                    nextPieceMesh.position.set(0, 0, 0);
+                    nextScene.add(nextPieceMesh);
+                }
+            }
+
+            const originalSpawn = spawnNewPiece;
+            spawnNewPiece = function() {
+                originalSpawn.apply(this, arguments);
+                updateNextPiecePreview();
+            }
+
+            const oldAnimate = animate;
+            animate = function(time) {
+                oldAnimate.apply(this, [time]);
+                nextRenderer.render(nextScene, nextCamera);
+            }
+
+            animate(0);
+        });
+    </script>
+</body>
+</html>
