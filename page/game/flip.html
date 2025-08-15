@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flip Board Game</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #0f0f23 0%, #1a1a2e 50%, #16213e 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+        }
+
+        .container {
+            text-align: center;
+            padding: 20px;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .controls-top {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            max-width: 600px;
+            margin-bottom: 20px;
+        }
+
+        .language-selector {
+            display: flex;
+            gap: 10px;
+        }
+
+        .lang-btn {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            font-size: 0.9rem;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+            backdrop-filter: blur(10px);
+        }
+
+        .lang-btn.active {
+            background: rgba(255, 255, 255, 0.4);
+            font-weight: bold;
+        }
+
+        .lang-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .game-info {
+            display: flex;
+            justify-content: space-around;
+            width: 100%;
+            max-width: 500px;
+            margin: 20px 0;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+        }
+
+        .score, .timer {
+            font-size: 1.2rem;
+            font-weight: bold;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(4, 80px);
+            grid-template-rows: repeat(4, 80px);
+            gap: 10px;
+            margin: 20px auto;
+            perspective: 1000px;
+        }
+
+        .card {
+            position: relative;
+            width: 80px;
+            height: 80px;
+            cursor: pointer;
+            transform-style: preserve-3d;
+            transition: transform 0.6s;
+        }
+
+        .card.flipped {
+            transform: rotateY(180deg);
+        }
+
+        .card-face {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 10px;
+            font-size: 2rem;
+            font-weight: bold;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .card-front {
+            background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+            color: white;
+            transform: rotateY(180deg);
+        }
+
+        .card-back {
+            background: linear-gradient(45deg, #4ecdc4, #44a08d);
+            color: white;
+        }
+
+        .controls {
+            margin-top: 30px;
+        }
+
+        button {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 1rem;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s;
+            backdrop-filter: blur(10px);
+            margin: 0 10px;
+            font-weight: bold;
+        }
+
+        button:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .message {
+            margin-top: 20px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            min-height: 30px;
+        }
+
+        .win-message {
+            color: #00ff00;
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        @media (max-width: 500px) {
+            .grid {
+                grid-template-columns: repeat(3, 70px);
+                grid-template-rows: repeat(3, 70px);
+                gap: 8px;
+            }
+            
+            .card {
+                width: 70px;
+                height: 70px;
+            }
+            
+            h1 {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="controls-top">
+            <div class="language-selector">
+                <button class="lang-btn active" data-lang="en">English</button>
+                <button class="lang-btn" data-lang="pt">Português</button>
+                <button class="lang-btn" data-lang="ja">日本語</button>
+            </div>
+        </div>
+        
+        <h1 id="game-title">Flip Board Game</h1>
+        
+        <div class="game-info">
+            <div class="score">Score: <span id="score">0</span></div>
+            <div class="timer">Time: <span id="timer">60</span>s</div>
+        </div>
+        
+        <div class="grid" id="grid"></div>
+        
+        <div class="message" id="message"></div>
+        
+        <div class="controls">
+            <button id="startBtn">Start Game</button>
+            <button id="resetBtn">Reset</button>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const grid = document.getElementById('grid');
+            let scoreElement = document.getElementById('score');
+            let timerElement = document.getElementById('timer');
+            const messageElement = document.getElementById('message');
+            const startBtn = document.getElementById('startBtn');
+            const resetBtn = document.getElementById('resetBtn');
+            const gameTitle = document.getElementById('game-title');
+            const langButtons = document.querySelectorAll('.lang-btn');
+            
+            // Textos em diferentes idiomas
+            const translations = {
+                en: {
+                    title: 'Flip Board Game',
+                    score: 'Score',
+                    time: 'Time',
+                    start: 'Start Game',
+                    reset: 'Reset',
+                    win: 'Congratulations! You won with',
+                    points: 'points!',
+                    timeUp: 'Time is up! Final score:',
+                    bonus: 'Time bonus'
+                },
+                pt: {
+                    title: 'Jogo de Flip Board',
+                    score: 'Pontos',
+                    time: 'Tempo',
+                    start: 'Iniciar Jogo',
+                    reset: 'Reiniciar',
+                    win: 'Parabéns! Você venceu com',
+                    points: 'pontos!',
+                    timeUp: 'Tempo esgotado! Pontuação final:',
+                    bonus: 'Bônus de tempo'
+                },
+                ja: {
+                    title: 'フリップボードゲーム',
+                    score: 'スコア',
+                    time: '時間',
+                    start: 'ゲーム開始',
+                    reset: 'リセット',
+                    win: 'おめでとう！',
+                    points: 'ポイントで勝利！',
+                    timeUp: '時間切れ！最終スコア：',
+                    bonus: 'タイムボーナス'
+                }
+            };
+
+            let currentLang = 'en';
+            let cards = [];
+            let score = 0;
+            let timer = 60;
+            let timerInterval;
+            let flippedCards = [];
+            let canFlip = false;
+            let matchedPairs = 0;
+            const totalPairs = 8;
+
+            // Ícones para as cartas
+            const icons = ['🍎', '🍌', '🍒', '🍓', '🍇', '🍊', '🍋', '🍉'];
+            
+            // Função para atualizar o idioma
+            function updateLanguage(lang) {
+                currentLang = lang;
+                const t = translations[lang];
+                
+                gameTitle.textContent = t.title;
+                startBtn.textContent = t.start;
+                resetBtn.textContent = t.reset;
+                
+                // Update the labels without recreating the span elements
+                const scoreLabel = document.querySelector('.game-info .score');
+                const timerLabel = document.querySelector('.game-info .timer');
+                
+                if (scoreLabel) {
+                    scoreLabel.innerHTML = `${t.score}: <span id="score">${score}</span>`;
+                }
+                if (timerLabel) {
+                    timerLabel.innerHTML = `${t.time}: <span id="timer">${timer}</span>`;
+                }
+                
+                // Re-get the element references after updating HTML
+                scoreElement = document.getElementById('score');
+                timerElement = document.getElementById('timer');
+            }
+            
+            // Função para criar o tabuleiro
+            function createBoard() {
+                grid.innerHTML = '';
+                cards = [];
+                flippedCards = [];
+                matchedPairs = 0;
+                
+                // Criar pares de cartas
+                const cardValues = [...icons, ...icons];
+                
+                // Embaralhar as cartas
+                for (let i = cardValues.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [cardValues[i], cardValues[j]] = [cardValues[j], cardValues[i]];
+                }
+                
+                // Criar elementos HTML para cada carta
+                cardValues.forEach((value, index) => {
+                    const card = document.createElement('div');
+                    card.classList.add('card');
+                    card.dataset.value = value;
+                    card.dataset.index = index;
+                    
+                    const cardFront = document.createElement('div');
+                    cardFront.classList.add('card-face', 'card-front');
+                    cardFront.textContent = value;
+                    
+                    const cardBack = document.createElement('div');
+                    cardBack.classList.add('card-face', 'card-back');
+                    cardBack.textContent = '?';
+                    
+                    card.appendChild(cardBack);
+                    card.appendChild(cardFront);
+                    
+                    card.addEventListener('click', flipCard);
+                    
+                    grid.appendChild(card);
+                    cards.push(card);
+                });
+            }
+            
+            // Função para virar a carta
+            function flipCard() {
+                if (!canFlip) return;
+                if (this.classList.contains('flipped')) return;
+                if (flippedCards.length === 2) return;
+                
+                this.classList.add('flipped');
+                flippedCards.push(this);
+                
+                if (flippedCards.length === 2) {
+                    checkForMatch();
+                }
+            }
+            
+            // Função para verificar se as cartas combinam
+            function checkForMatch() {
+                canFlip = false;
+                const [firstCard, secondCard] = flippedCards;
+                const t = translations[currentLang];
+                
+                if (firstCard.dataset.value === secondCard.dataset.value) {
+                    // Cartas combinam
+                    score += 10;
+                    matchedPairs++;
+                    scoreElement.textContent = score;
+                    
+                    // Manter as cartas viradas
+                    firstCard.removeEventListener('click', flipCard);
+                    secondCard.removeEventListener('click', flipCard);
+                    
+                    // Verificar se o jogador venceu
+                    if (matchedPairs === totalPairs) {
+                        endGame(true);
+                    } else {
+                        setTimeout(() => {
+                            flippedCards = [];
+                            canFlip = true;
+                        }, 500);
+                    }
+                } else {
+                    // Cartas não combinam
+                    score = Math.max(0, score - 1);
+                    scoreElement.textContent = score;
+                    
+                    setTimeout(() => {
+                        firstCard.classList.remove('flipped');
+                        secondCard.classList.remove('flipped');
+                        flippedCards = [];
+                        canFlip = true;
+                    }, 1000);
+                }
+            }
+            
+            // Função para iniciar o jogo
+            function startGame() {
+                const t = translations[currentLang];
+                score = 0;
+                timer = 60;
+                canFlip = true;
+                messageElement.textContent = '';
+                messageElement.className = 'message';
+                scoreElement.textContent = score;
+                timerElement.textContent = timer;
+                
+                // Hide the start button when game starts
+                startBtn.style.display = 'none';
+                
+                createBoard();
+                
+                // Iniciar o temporizador
+                clearInterval(timerInterval);
+                timerInterval = setInterval(() => {
+                    timer--;
+                    console.log('Timer update:', timer, 'Element:', timerElement);
+                    if (timerElement) {
+                        timerElement.textContent = timer;
+                    }
+                    
+                    if (timer <= 0) {
+                        endGame(false);
+                    }
+                }, 1000);
+            }
+            
+            // Função para finalizar o jogo
+            function endGame(isWin) {
+                clearInterval(timerInterval);
+                canFlip = false;
+                const t = translations[currentLang];
+                
+                // Show the start button again when game ends
+                startBtn.style.display = 'inline-block';
+                
+                if (isWin) {
+                    messageElement.textContent = `${t.win} ${score} ${t.points}`;
+                    messageElement.classList.add('win-message');
+                    // Bônus de tempo
+                    const timeBonus = timer * 2;
+                    score += timeBonus;
+                    scoreElement.textContent = score;
+                } else {
+                    messageElement.textContent = `${t.timeUp} ${score}`;
+                }
+            }
+            
+            // Event listeners para os botões de idioma
+            langButtons.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    langButtons.forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    updateLanguage(btn.dataset.lang);
+                });
+            });
+            
+            // Event listeners para os botões do jogo
+            startBtn.addEventListener('click', startGame);
+            resetBtn.addEventListener('click', () => {
+                clearInterval(timerInterval);
+                messageElement.textContent = '';
+                messageElement.className = 'message';
+                // Show the start button again when resetting
+                startBtn.style.display = 'inline-block';
+                // Reset the game state without starting
+                score = 0;
+                timer = 60;
+                canFlip = false;
+                scoreElement.textContent = score;
+                timerElement.textContent = timer;
+                createBoard();
+            });
+            
+            // Inicializar o jogo com inglês
+            updateLanguage('en');
+            createBoard();
+        });
+    </script>
+</body>
+</html>

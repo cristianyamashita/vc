@@ -1,3 +1,4 @@
+
 <!doctype html>
 <html lang="en">
 <head>
@@ -135,7 +136,7 @@
         <div id="stage" class="stage">
           <canvas id="board" width="600" height="600"></canvas>
           <canvas id="thumb" class="preview" width="280" height="280" aria-hidden="true"></canvas>
-          <div class="overlay-msg" id="overlay" hidden>
+          <div class="overlay-msg" id="overlay" style="display:none;">
             <span class="badge"><i class="fa-solid fa-trophy"></i><span data-i18n="solved">Solved!</span></span>
           </div>
         </div>
@@ -343,7 +344,7 @@
       }
 
       // Solved overlay
-      els.overlay.hidden = !state.solved;
+      els.overlay.style.display = state.solved ? 'block' : 'none';
     }
 
     function solvedBoard(grid){
@@ -460,6 +461,7 @@
         state.grid = parseInt(els.grid.value, 10);
         state.board = solvedBoard(state.grid);
         state.empty = state.board[state.board.length-1];
+        state.solved = false;
         draw(); updateHUD(); return;
       }
       try{
@@ -470,7 +472,7 @@
         state.empty = typeof save.empty === 'number' ? save.empty : (state.grid*state.grid-1);
         state.moves = save.moves || 0;
         state.elapsedMs = save.elapsedMs || 0;
-        state.solved = !!save.solved;
+        state.solved = false; // Always start unsolved
         state.previewOn = !!save.previewOn;
         togglePreview(state.previewOn);
         if(save.img){
@@ -494,6 +496,7 @@
         state.grid = parseInt(els.grid.value, 10);
         state.board = solvedBoard(state.grid);
         state.empty = state.board[state.board.length-1];
+        state.solved = false;
         draw(); updateHUD();
       }
     }
@@ -514,7 +517,7 @@
           // Initialize board if first time
           state.board = solvedBoard(state.grid);
           state.empty = state.board[state.board.length-1];
-          state.moves = 0; state.elapsedMs = 0; state.solved = true; state.running = false;
+          state.moves = 0; state.elapsedMs = 0; state.solved = false; state.running = false;
           persist();
           draw(); updateHUD();
         };
@@ -656,7 +659,7 @@
       // Rebuild solved board but keep current image
       state.board = solvedBoard(state.grid);
       state.empty = state.board[state.board.length-1];
-      state.moves = 0; state.elapsedMs = 0; state.startMs = 0; state.running = false; state.solved = true;
+      state.moves = 0; state.elapsedMs = 0; state.startMs = 0; state.running = false; state.solved = false;
       persist(); draw(); updateHUD();
     });
 
