@@ -188,7 +188,12 @@
       provideKey: 'Provide a key.',
 
       tab_base64: 'Base64', tab_url: 'URL', tab_md5: 'MD5', tab_sha: 'SHA/HMAC', tab_html: 'HTML/Unicode', tab_json: 'JSON',
-      tab_csv: 'CSV', tab_yaml: 'YAML', tab_xml: 'XML',
+      tab_csv: 'CSV', tab_yaml: 'YAML', tab_xml: 'XML', tab_http_digest: 'HTTP Digest',
+
+      httpDigestTitle: 'HA1/HA1b Generator (HTTP Digest Auth)',
+      username: 'Username',
+      realm: 'Realm',
+      password: 'Password',
 
       input: 'Input', output: 'Output', inputText: 'Input (text)',
       typeTextHere: 'Type your text here...', copyOut: 'Copy output', clear: 'Clear', swap: 'Swap', download: 'Download',
@@ -241,7 +246,12 @@
       pasteBase64: 'Cole um Base64.',
 
       tab_base64: 'Base64', tab_url: 'URL', tab_md5: 'MD5', tab_sha: 'SHA/HMAC', tab_html: 'HTML/Unicode', tab_json: 'JSON',
-      tab_csv: 'CSV', tab_yaml: 'YAML', tab_xml: 'XML',
+      tab_csv: 'CSV', tab_yaml: 'YAML', tab_xml: 'XML', tab_http_digest: 'HTTP Digest',
+
+      httpDigestTitle: 'Gerador HA1/HA1b (HTTP Digest Auth)',
+      username: 'Usuário',
+      realm: 'Realm',
+      password: 'Senha',
 
       input: 'Entrada', output: 'Saída', inputText: 'Entrada (texto)',
       typeTextHere: 'Digite seu texto aqui...', copyOut: 'Copiar saída', clear: 'Limpar', swap: 'Inverter', download: 'Baixar',
@@ -295,7 +305,12 @@
       provideKey: 'キーを入力してください。',
 
       tab_base64: 'Base64', tab_url: 'URL', tab_md5: 'MD5', tab_sha: 'SHA/HMAC', tab_html: 'HTML/Unicode', tab_json: 'JSON',
-      tab_csv: 'CSV', tab_yaml: 'YAML', tab_xml: 'XML',
+      tab_csv: 'CSV', tab_yaml: 'YAML', tab_xml: 'XML', tab_http_digest: 'HTTPダイジェスト',
+
+      httpDigestTitle: 'HA1/HA1bジェネレーター (HTTP Digest Auth)',
+      username: 'ユーザー名',
+      realm: 'レルム',
+      password: 'パスワード',
 
       input: '入力', output: '出力', inputText: '入力（テキスト）',
       typeTextHere: 'ここにテキストを入力...', copyOut: '出力をコピー', clear: 'クリア', swap: '入れ替え', download: 'ダウンロード',
@@ -449,6 +464,7 @@
     { id:'base64', render: renderBase64 },
     { id:'url',    render: renderURL    },
     { id:'md5',    render: renderMD5    },
+    { id:'http_digest', render: renderHTTPDigest },
     { id:'sha',    render: renderSHA    },
     { id:'html',   render: renderHTML   },
     { id:'json',   render: renderJSON   },
@@ -720,6 +736,84 @@
           copy(elOut.value);
         } else if(act==='clear'){
           elIn.value = ''; elOut.value = ''; textStore.save('md5', '');
+        }
+      }catch(err){ alert(t('errorPrefix') + err.message); }
+    });
+  }
+
+  function renderHTTPDigest(root){
+    root.innerHTML = `
+      <h3>${t('httpDigestTitle')}</h3>
+      <div class="row">
+        <div class="col">
+          <label for="http-user">${t('username')}</label>
+          <input type="text" id="http-user" name="user" style="min-height:unset">
+          <label for="http-realm" style="margin-top:1rem">${t('realm')}</label>
+          <input type="text" id="http-realm" name="realm" style="min-height:unset">
+          <label for="http-pass" style="margin-top:1rem">${t('password')}</label>
+          <input type="password" id="http-pass" name="pass" style="min-height:unset">
+          <div class="controls">
+            <button class="btn primary" data-action="gen">${t('shaGenerate')}</button>
+            <button class="btn" data-action="copy-out">${t('copyOut')}</button>
+            <button class="btn" data-action="clear">${t('clear')}</button>
+          </div>
+        </div>
+        <div class="col">
+          <label>${t('output')}</label>
+          <textarea name="out" readonly></textarea>
+        </div>
+      </div>
+    `;
+
+    const elUser = $('#http-user', root);
+    const elRealm = $('#http-realm', root);
+    const elPass = $('#http-pass', root);
+    const elOut = $('textarea[name="out"]', root);
+
+    // Load persisted data
+    const saved = textStore.load('http_digest');
+    if (saved) {
+      try {
+        const data = JSON.parse(saved);
+        elUser.value = data.user || '';
+        elRealm.value = data.realm || '';
+        elPass.value = data.pass || '';
+      } catch(e) { /* ignore malformed data */ }
+    }
+
+    // Persist data on input
+    const persist = () => {
+      const data = { user: elUser.value, realm: elRealm.value, pass: elPass.value };
+      textStore.save('http_digest', JSON.stringify(data));
+    };
+    elUser.addEventListener('input', persist);
+    elRealm.addEventListener('input', persist);
+    elPass.addEventListener('input', persist);
+
+    root.addEventListener('click', (e)=>{
+      const a = e.target.closest('[data-action]'); if(!a) return;
+      const act = a.dataset.action;
+      try{
+        if(act==='gen'){
+          const user = elUser.value;
+          const realm = elRealm.value;
+          const pass = elPass.value;
+
+          const ha1Str = `${user}:${realm}:${pass}`;
+          const ha1bStr = `${user}@${realm}:${realm}:${pass}`;
+
+          const ha1 = CryptoJS.MD5(CryptoJS.enc.Utf8.parse(ha1Str)).toString(CryptoJS.enc.Hex);
+          const ha1b = CryptoJS.MD5(CryptoJS.enc.Utf8.parse(ha1bStr)).toString(CryptoJS.enc.Hex);
+
+          elOut.value = `HA1: ${ha1}\nHA1b: ${ha1b}`;
+        } else if(act==='copy-out'){
+          copy(elOut.value);
+        } else if(act==='clear'){
+          elUser.value = '';
+          elRealm.value = '';
+          elPass.value = '';
+          elOut.value = '';
+          persist();
         }
       }catch(err){ alert(t('errorPrefix') + err.message); }
     });
@@ -1083,6 +1177,7 @@
       localStorage.removeItem('conv.text.base64');
       localStorage.removeItem('conv.text.url');
       localStorage.removeItem('conv.text.md5');
+      localStorage.removeItem('conv.text.http_digest');
       localStorage.removeItem('conv.text.sha');
       localStorage.removeItem('conv.text.html');
       localStorage.removeItem('conv.text.json');
