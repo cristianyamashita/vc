@@ -42,8 +42,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const taskList = document.getElementById('task-list');
     const completedList = document.getElementById('completed-list');
 
-    let currentLanguage = localStorage.getItem('todo_lang') || 'en';
-    let currentTheme = localStorage.getItem('todo_theme') || 'dark';
+    let currentLanguage = localStorage.getItem('app_lang') || 'en';
+    let currentTheme = localStorage.getItem('app_theme') || 'dark';
     let tasks = JSON.parse(localStorage.getItem('todo_tasks')) || { todo: [], completed: [] };
 
     const applyI18n = () => {
@@ -200,7 +200,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     langSwitcher.addEventListener('change', (e) => {
         currentLanguage = e.target.value;
-        localStorage.setItem('todo_lang', currentLanguage);
+        localStorage.setItem('app_lang', currentLanguage);
         applyI18n();
         renderTasks(); // Re-render tasks to update button titles
     });
