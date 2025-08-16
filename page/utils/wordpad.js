@@ -39,7 +39,7 @@ const findModal = $('#findModal');
 const aboutText = $('#aboutText');
 const toolbar = document.querySelector('.toolbar');
 
-let currentLanguage = localStorage.getItem('wordpad_lang') || 'pt';
+let currentLanguage = localStorage.getItem('app_lang') || 'pt';
 $('#lang').value = currentLanguage;
 
 function applyI18n() {
@@ -55,7 +55,7 @@ function applyI18n() {
 
 $('#lang').addEventListener('change', (e) => {
   currentLanguage = e.target.value;
-  localStorage.setItem('wordpad_lang', currentLanguage);
+  localStorage.setItem('app_lang', currentLanguage);
   applyI18n();
 });
 
@@ -63,7 +63,7 @@ applyI18n();
 
 const STORAGE_KEY = 'wordpad_docs_v1'; // legacy localStorage migration
 const AUTOSAVE_KEY = 'wordpad_autosave_v1';
-const THEME_KEY = 'wordpad_theme';
+const THEME_KEY = 'app_theme';
 const IDB_NAME = 'wordpad_db_v1';
 const IDB_STORE = 'documents';
 let documents = loadDocuments();
