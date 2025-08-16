@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Laser Mirrors — v3.1 (top/bottom reflect)</title>
+<style>
+  :root{
+    --bg0:#0b1020; --bg1:#0e1a35; --panel:#11182b; --panel2:#0c1324; --text:#e6ecff;
+    --accent:#6aa1ff; --accent2:#6ff3c1; --warn:#ff7a7a; --ok:#8aff6f; --muted:#94a3b8;
+    --glow:0 0 24px rgba(120,180,255,.45), 0 0 60px rgba(110,240,200,.25);
+  }
+  html, body { height:100%; background: radial-gradient(1200px 600px at 15% 10%, #16233f, var(--bg0)), linear-gradient(180deg, var(--bg1), #060a16); color:var(--text); font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Hiragino Kaku Gothic ProN", Meiryo, "Noto Sans", Arial, sans-serif; }
+  *{ box-sizing: border-box; }
+  #app { display:grid; grid-template-columns: 320px 1fr; gap:14px; height:100%; padding:14px; }
+  @media (max-width: 1100px) { #app{ grid-template-columns: 1fr; grid-template-rows: auto 1fr; } }
+
+  .panel { background: linear-gradient(180deg, var(--panel), var(--panel2)); border:1px solid #1e293b; border-radius:16px; box-shadow: 0 10px 30px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.03); }
+  #ui { padding:14px 14px 10px; display:flex; flex-direction:column; gap:12px; }
+  .heading { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+  .app-title { font-weight:700; letter-spacing:.3px; }
+  .badge { font-size:12px; color:#cbd5e1; padding:4px 8px; background:#0b1328; border:1px solid #1e293b; border-radius:10px; }
+
+  .row { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .row > label { font-size:12px; color:#9fb2d0; width:110px; }
+  .row .grow { flex: 1 1 auto; }
+
+  select, button, .chip { background:#0b1328; color:var(--text); border:1px solid #1e293b; border-radius:12px; padding:8px 10px; font-weight:600; letter-spacing:.2px; box-shadow:inset 0 1px 0 rgba(255,255,255,.03); }
+  button:hover, .chip:hover, select:hover { border-color:#2a3b56; }
+  button:active, .chip:active { transform: translateY(1px); }
+  button.primary { background: linear-gradient(180deg, #0f254a, #0b1630); border-color:#28406b; box-shadow: var(--glow); }
+  button.ghost { background:transparent; border-color:#22314d; }
+
+  .colors { display:flex; gap:6px; flex-wrap:wrap; }
+  .color { width:26px; height:26px; border-radius:50%; border:2px solid #0b1328; outline:1px solid #1e293b; cursor:pointer; box-shadow:inset 0 0 12px rgba(255,255,255,.25), 0 0 18px rgba(255,255,255,.07); }
+  .color.sel { outline-color:#97c0ff; box-shadow: 0 0 0 2px rgba(100,180,255,.25), inset 0 0 12px rgba(255,255,255,.35); }
+
+  #canvasWrap { position:relative; }
+  canvas { width:100%; height:100%; display:block; border-radius:16px; }
+
+  /* HUD container should NOT eat clicks, only overlay when visible */
+  #hud { position:absolute; inset:0; pointer-events:none; }
+  .overlay { position:absolute; inset:0; display:none; align-items:center; justify-content:center; pointer-events:none; }
+  .overlay.show { display:flex; pointer-events:auto; }
+
+  .floating { position:absolute; top:10px; left:50%; transform:translateX(-50%); background:rgba(6,10,22,.65); border:1px solid #1e293b; color:#dbeafe; padding:8px 12px; border-radius:10px; backdrop-filter: blur(6px); font-size:13px; pointer-events:none; }
+  .toast { position:absolute; bottom:12px; left:12px; background:rgba(10,16,32,.7); border:1px solid #1e293b; border-radius:12px; padding:10px 12px; pointer-events:none; color:#cde1ff; }
+  .popup { background: linear-gradient(180deg, #0e1c39, #0a1426); border:1px solid #2a3b56; padding:20px 22px; border-radius:14px; text-align:center; width:min(520px, 92%); box-shadow: var(--glow); }
+  .popup h2 { margin:0; font-size:26px; letter-spacing:.3px; }
+  .popup p { color:#cbd5e1; }
+
+  .kbd { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; background:#0b1328; border:1px solid #203251; padding:1px 6px; border-radius:6px; font-size:12px; }
+  .gridToggle { margin-left:auto; }
+  .spacer { height:8px; border-top:1px dashed #203251; opacity:.7; }
+  .hint { font-size:12px; color:#9fb2d0; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="ui" class="panel">
+    <div class="heading">
+      <div class="app-title">⚡ Laser Mirrors</div>
+      <div class="badge" id="stageBadge">Stage 1 / 8</div>
+    </div>
+
+    <div class="row">
+      <label id="lblLang">Language</label>
+      <select id="langSel" class="grow">
+        <option value="en" selected>English</option>
+        <option value="pt">Português</option>
+        <option value="ja">日本語</option>
+      </select>
+    </div>
+
+    <div class="row">
+      <label id="lblColor">Laser color</label>
+      <div class="colors grow" id="colors"></div>
+    </div>
+
+    <div class="row">
+      <label id="lblControls">Controls</label>
+      <div class="grow hint" id="controlsText"></div>
+    </div>
+
+    <div class="row">
+      <label id="lblActions">Actions</label>
+      <div class="row grow">
+        <button id="btnReset" class="ghost">Reset</button>
+        <button id="btnAngles" class="ghost">Reset Angles</button>
+        <button id="btnPrev" class="ghost">◀︎</button>
+        <button id="btnNext" class="primary">Next ▶︎</button>
+        <label class="gridToggle row" style="gap:6px; align-items:center;">
+          <input type="checkbox" id="chkGrid" /> <span id="lblGrid">Show grid</span>
+        </label>
+      </div>
+    </div>
+
+    <div class="spacer"></div>
+
+    <div class="row">
+      <label id="lblHow">How to play</label>
+      <div class="hint grow" id="howText"></div>
+    </div>
+
+    <div class="row">
+      <label id="lblTip">Tip</label>
+      <div class="hint grow" id="tipText"></div>
+    </div>
+
+    <div class="row">
+      <label>About</label>
+      <div class="hint grow">Mirrors rotate in 45° steps; shooter clamped ±45°. <strong>Top & bottom walls reflect</strong>; left/right walls absorb to avoid infinite loops. Click mirror for +45°, right‑click for −45°.</div>
+    </div>
+  </div>
+
+  <div id="canvasWrap" class="panel">
+    <canvas id="game" width="1280" height="720"></canvas>
+    <div id="hud">
+      <div class="floating" id="floatingMsg"></div>
+      <div class="overlay" id="overlay">
+        <div class="popup">
+          <h2 id="ovTitle">Stage Clear!</h2>
+          <p id="ovMsg">Beautiful bounce! Ready for the next one?</p>
+          <div class="row" style="justify-content:center; gap:10px; margin-top:12px;">
+            <button id="btnContinue" class="primary">Next Stage</button>
+            <button id="btnRetry" class="ghost">Retry</button>
+          </div>
+        </div>
+      </div>
+      <div class="toast" id="toast">Tip: Click a mirror to rotate 45°. Right‑click rotates the other way.</div>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  const i18n = {
+    en: {
+      Language: 'Language', 'Laser color': 'Laser color', Controls: 'Controls', Actions: 'Actions', 'Show grid': 'Show grid', 'How to play': 'How to play', Tip: 'Tip', Reset: 'Reset', 'Reset Angles': 'Reset Angles', Next: 'Next', Prev: 'Prev', 'Stage Clear!': 'Stage Clear!', 'Beautiful bounce! Ready for the next one?': 'Beautiful bounce! Ready for the next one?', 'Next Stage': 'Next Stage', Retry: 'Retry',
+      ControlsText: 'Rotate shooter: ←/→ (A/D). Select mirror: click. Rotate mirror: click (+45°) / right‑click (−45°). Hold <span class="kbd">G</span> to show beam guide. <span class="kbd">R</span> resets.',
+      HowText: 'Aim the laser to hit the glowing target. Rotate mirrors in 45° steps so the beam reflects around obstacles. Shooter is limited to ±45°.',
+      TipText: 'Plan from the target backwards — imagine the last reflection needed.'
+    },
+    pt: {
+      Language: 'Idioma', 'Laser color': 'Cor do laser', Controls: 'Controles', Actions: 'Ações', 'Show grid': 'Mostrar grade', 'How to play': 'Como jogar', Tip: 'Dica', Reset: 'Reiniciar', 'Reset Angles': 'Zerar ângulos', Next: 'Próximo', Prev: 'Anterior', 'Stage Clear!': 'Fase Concluída!', 'Beautiful bounce! Ready for the next one?': 'Bela reflexão! Pronto para a próxima?', 'Next Stage': 'Próxima Fase', Retry: 'Tentar novamente',
+      ControlsText: 'Girar lançador: ←/→ (A/D). Selecionar espelho: clique. Girar espelho: clique (+45°) / clique direito (−45°). Segure <span class="kbd">G</span> para guia. <span class="kbd">R</span> reinicia.',
+      HowText: 'Faça o laser atingir o alvo brilhante. Gire espelhos em passos de 45° para refletir o feixe contornando obstáculos. O lançador limita-se a ±45°.',
+      TipText: 'Planeje do alvo para trás — imagine a última reflexão necessária.'
+    },
+    ja: {
+      Language: '言語', 'Laser color': 'レーザーの色', Controls: '操作', Actions: 'アクション', 'Show grid': 'グリッドを表示', 'How to play': '遊び方', Tip: 'ヒント', Reset: 'リセット', 'Reset Angles': '角度を初期化', Next: '次へ', Prev: '前へ', 'Stage Clear!': 'ステージクリア！', 'Beautiful bounce! Ready for the next one?': '見事な反射！ 次のステージに進みますか？', 'Next Stage': '次のステージ', Retry: 'やり直す',
+      ControlsText: '発射台を回転: ←/→（A/D）。鏡を選択: クリック。鏡を回転: クリック（+45°）/ 右クリック（−45°）。<span class="kbd">G</span>でガイド。<span class="kbd">R</span>でリセット。',
+      HowText: 'レーザーを反射させて光るターゲットに当てましょう。鏡は45°刻みで回転。発射台は±45°の範囲です。',
+      TipText: '最後の反射を想像して、ターゲットから逆算しましょう。'
+    }
+  };
+
+  const COLORS = [
+    { name:'Red', c:'#ff3b3b' }, { name:'Green', c:'#52ff8a' }, { name:'Blue', c:'#5fb8ff' }, { name:'Violet', c:'#c084fc' }, { name:'Cyan', c:'#67e8f9' }, { name:'Amber', c:'#fbbf24' }
+  ];
+
+  const TAU=Math.PI*2; const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+  const len=v=>Math.hypot(v.x,v.y); const norm=v=>{const l=len(v)||1;return {x:v.x/l,y:v.y/l}};
+  const add=(a,b)=>({x:a.x+b.x,y:a.y+b.y}); const sub=(a,b)=>({x:a.x-b.x,y:a.y-b.y}); const mul=(v,s)=>({x:v.x*s,y:v.y*s});
+  const dot=(a,b)=>a.x*b.x+a.y*b.y; const perp=v=>({x:-v.y,y:v.x});
+  const deg2rad=d=>d*Math.PI/180; const rad2deg=r=>r*180/Math.PI; const rot=(v,a)=>({x:v.x*Math.cos(a)-v.y*Math.sin(a),y:v.x*Math.sin(a)+v.y*Math.cos(a)});
+
+  function raySegIntersect(ro, rd, a, b) {
+    const r=rd; const s=sub(b,a); const rxs=r.x*s.y - r.y*s.x; if (Math.abs(rxs)<1e-8) return null;
+    const qmp=sub(a,ro); const t=(qmp.x*s.y - qmp.y*s.x)/rxs; const u=(qmp.x*r.y - qmp.y*r.x)/rxs;
+    if (t>=1e-5 && u>=-1e-6 && u<=1+1e-6) return {t,u,p:add(ro,mul(r,t))}; return null;
+  }
+  function rayCircleIntersect(ro, rd, c, r){ const m=sub(ro,c); const b=dot(m,rd); const cval=dot(m,m)-r*r; const disc=b*b-cval; if(disc<0) return null; const sd=Math.sqrt(disc); let t=-b-sd; if(t<1e-5){t=-b+sd; if(t<1e-5) return null;} return {t,p:add(ro,mul(rd,t))}; }
+  function reflect(rd, a, b){ const s=norm(sub(b,a)); const n=norm(perp(s)); const r=sub(rd, mul(n,2*dot(rd,n))); return norm(r); }
+
+  // Solvable layouts (unchanged)
+  const LEVELS=[
+    { emitter:{x:.08,y:.75,angle:0}, target:{x:.88,y:.35,r:.020}, mirrors:[{x:.35,y:.75,len:.16,angle:45},{x:.35,y:.35,len:.16,angle:135}], blocks:[{x:.56,y:.50,w:.12,h:.18}] },
+    { emitter:{x:.08,y:.25,angle:0}, target:{x:.88,y:.75,r:.020}, mirrors:[{x:.35,y:.25,len:.16,angle:135},{x:.35,y:.75,len:.16,angle:45}], blocks:[{x:.56,y:.32,w:.12,h:.18}] },
+    { emitter:{x:.08,y:.60,angle:0}, target:{x:.90,y:.30,r:.018}, mirrors:[{x:.32,y:.60,len:.14,angle:45},{x:.32,y:.30,len:.14,angle:135}], blocks:[{x:.50,y:.10,w:.06,h:.16},{x:.50,y:.40,w:.06,h:.50}] },
+    { emitter:{x:.10,y:.82,angle:0}, target:{x:.90,y:.22,r:.018}, mirrors:[{x:.36,y:.82,len:.13,angle:45},{x:.36,y:.22,len:.13,angle:135}], blocks:[{x:.70,y:.12,w:.10,h:.30}] },
+    { emitter:{x:.10,y:.82,angle:0}, target:{x:.60,y:.20,r:.016}, mirrors:[{x:.30,y:.82,len:.12,angle:45},{x:.30,y:.50,len:.12,angle:135},{x:.60,y:.50,len:.12,angle:45}], blocks:[{x:.42,y:.62,w:.12,h:.10},{x:.76,y:.36,w:.10,h:.22}] },
+    { emitter:{x:.10,y:.40,angle:0}, target:{x:.68,y:.12,r:.016}, mirrors:[{x:.28,y:.40,len:.12,angle:45},{x:.28,y:.24,len:.12,angle:135},{x:.68,y:.24,len:.12,angle:45}], blocks:[{x:.48,y:.48,w:.10,h:.18},{x:.80,y:.44,w:.08,h:.18}] },
+    { emitter:{x:.10,y:.70,angle:0}, target:{x:.72,y:.18,r:.015}, mirrors:[{x:.26,y:.70,len:.10,angle:45},{x:.26,y:.38,len:.10,angle:135},{x:.72,y:.38,len:.10,angle:45}], blocks:[{x:.50,y:.12,w:.04,h:.80}] },
+    { emitter:{x:.08,y:.78,angle:0}, target:{x:.64,y:.18,r:.014}, mirrors:[{x:.26,y:.78,len:.12,angle:45},{x:.26,y:.42,len:.12,angle:135},{x:.64,y:.42,len:.12,angle:45}], blocks:[{x:.38,y:.24,w:.10,h:.22},{x:.54,y:.56,w:.06,h:.22},{x:.78,y:.30,w:.08,h:.20}] }
+  ];
+
+  const canvas=document.getElementById('game'); const ctx=canvas.getContext('2d');
+  let W=canvas.width, H=canvas.height;
+  const hud={ stageBadge:document.getElementById('stageBadge'), overlay:document.getElementById('overlay') };
+  const ui={
+    langSel:document.getElementById('langSel'), colors:document.getElementById('colors'), btnReset:document.getElementById('btnReset'), btnAngles:document.getElementById('btnAngles'), btnPrev:document.getElementById('btnPrev'), btnNext:document.getElementById('btnNext'), btnContinue:document.getElementById('btnContinue'), btnRetry:document.getElementById('btnRetry'), chkGrid:document.getElementById('chkGrid'),
+    labels:{ lblLang:document.getElementById('lblLang'), lblColor:document.getElementById('lblColor'), lblControls:document.getElementById('lblControls'), lblActions:document.getElementById('lblActions'), lblGrid:document.getElementById('lblGrid'), lblHow:document.getElementById('lblHow'), lblTip:document.getElementById('lblTip'), controlsText:document.getElementById('controlsText'), howText:document.getElementById('howText'), tipText:document.getElementById('tipText') }
+  };
+
+  function setLang(lang){ const L=i18n[lang]||i18n.en; ui.labels.lblLang.textContent=L['Language']; ui.labels.lblColor.textContent=L['Laser color']; ui.labels.lblControls.textContent=L['Controls']; ui.labels.lblActions.textContent=L['Actions']; ui.labels.lblGrid.textContent=L['Show grid']; ui.labels.lblHow.textContent=L['How to play']; ui.labels.lblTip.textContent=L['Tip']; ui.labels.controlsText.innerHTML=L['ControlsText']; ui.labels.howText.textContent=L['HowText']; ui.labels.tipText.textContent=L['TipText']; ui.btnReset.textContent=L['Reset']; ui.btnAngles.textContent=L['Reset Angles']; ui.btnNext.textContent=L['Next']+' ▶︎'; ui.btnPrev.textContent='◀︎ '+L['Prev']; document.getElementById('ovTitle').textContent=L['Stage Clear!']; document.getElementById('ovMsg').textContent=L['Beautiful bounce! Ready for the next one?']; ui.btnContinue.textContent=L['Next Stage']; ui.btnRetry.textContent=L['Retry']; }
+  document.getElementById('langSel').addEventListener('change',()=>setLang(document.getElementById('langSel').value)); setLang('en');
+
+  let laserColor=COLORS[0].c; COLORS.forEach((c,i)=>{ const el=document.createElement('div'); el.className='color'+(i===0?' sel':''); el.style.background=c.c; el.title=c.name; el.addEventListener('click',()=>{ laserColor=c.c; Array.from(ui.colors.children).forEach(x=>x.classList.remove('sel')); el.classList.add('sel'); }); ui.colors.appendChild(el); });
+
+  function N2P(n){ return {x:n.x*W, y:n.y*H}; }
+  function makeLevel(lv){ const e={ p:N2P(lv.emitter), a:deg2rad(clamp(lv.emitter.angle,-45,45)) }; const tgt={ p:N2P(lv.target), r:lv.target.r*Math.min(W,H) }; const mirrors=lv.mirrors.map(m=>({ p:N2P(m), len:m.len*Math.min(W,H), a:deg2rad(m.angle), a0:deg2rad(m.angle) })); const blocks=lv.blocks.map(b=>({ x:b.x*W, y:b.y*H, w:b.w*W, h:b.h*H })); return { emitter:e, target:tgt, mirrors, blocks } }
+
+  let stageIndex=0; let stage=makeLevel(LEVELS[stageIndex]); let keys=new Set(); let showGrid=false; let guideHeld=false; let selectedMirror=-1; let particles=[]; let justCleared=false;
+  function updateBadge(){ hud.stageBadge.textContent=`Stage ${stageIndex+1} / ${LEVELS.length}`; } updateBadge();
+
+  function resize(){ const wrap=document.getElementById('canvasWrap'); const rect=wrap.getBoundingClientRect(); const aspect=16/9; let w=rect.width-2, h=rect.height-2; if(w/h>aspect) w=h*aspect; else h=w/aspect; canvas.style.width=w+'px'; canvas.style.height=h+'px'; const dpr=Math.min(window.devicePixelRatio||1,2); W=Math.round(w*dpr); H=Math.round(h*dpr); canvas.width=W; canvas.height=H; stage=makeLevel(LEVELS[stageIndex]); }
+  window.addEventListener('resize',resize); resize();
+
+  function rectEdges(r){ const a={x:r.x,y:r.y}, b={x:r.x+r.w,y:r.y}, c={x:r.x+r.w,y:r.y+r.h}, d={x:r.x,y:r.y+r.h}; return [[a,b],[b,c],[c,d],[d,a]]; }
+  function mirrorEnds(m){ const dir={x:Math.cos(m.a), y:Math.sin(m.a)}; const half=mul(dir, m.len/2); return [sub(m.p,half), add(m.p,half)]; }
+  function worldSegments(){
+    const segs=[];
+    // Walls — top & bottom reflect; left & right absorb
+    const topA={x:0,y:0}, topB={x:W,y:0};
+    const botA={x:0,y:H}, botB={x:W,y:H};
+    segs.push({type:'mirror', a:topA, b:topB});
+    segs.push({type:'mirror', a:botA, b:botB});
+
+    const leftA={x:0,y:0}, leftB={x:0,y:H};
+    const rightA={x:W,y:0}, rightB={x:W,y:H};
+    segs.push({type:'block', a:leftA, b:leftB});
+    segs.push({type:'block', a:rightA, b:rightB});
+
+    // Blocks — absorb
+    stage.blocks.forEach(r=> rectEdges(r).forEach(s=>segs.push({type:'block', a:s[0], b:s[1]})));
+    // Mirrors — reflect
+    stage.mirrors.forEach((m,mi)=>{ const [A,B]=mirrorEnds(m); segs.push({type:'mirror', a:A, b:B, mi}); });
+    return segs;
+  }
+
+  function castRay(){
+    const maxBounces=24; const path=[]; let ro={x:stage.emitter.p.x, y:stage.emitter.p.y}; let rd=norm({x:Math.cos(stage.emitter.a), y:Math.sin(stage.emitter.a)}); const segs=worldSegments();
+    for(let b=0;b<maxBounces;b++){
+      let nearest=null; for(const s of segs){ const hit=raySegIntersect(ro, rd, s.a, s.b); if(!hit) continue; if(!nearest||hit.t<nearest.t){ nearest={...hit, s}; } }
+      const thit=rayCircleIntersect(ro, rd, stage.target.p, stage.target.r); if(thit && (!nearest||thit.t<nearest.t-1e-4)){ const p2=thit.p; path.push({a:ro,b:p2}); path.hitTarget=true; path.endPoint=p2; return path; }
+      if(!nearest){ const p2=add(ro, mul(rd, 5000)); path.push({a:ro,b:p2}); path.hitTarget=false; path.endPoint=p2; return path; }
+      const p2=nearest.p; path.push({a:ro,b:p2}); spawnHit(p2);
+      if(nearest.s.type==='mirror'){ rd=reflect(rd, nearest.s.a, nearest.s.b); ro=add(p2, mul(rd, 1e-4)); continue; }
+      if(nearest.s.type==='block'){ path.hitTarget=false; path.endPoint=p2; return path; }
+    }
+    path.hitTarget=false; path.endPoint=ro; return path;
+  }
+
+  function spawnHit(p){ for(let i=0;i<6;i++){ particles.push({ p:{x:p.x,y:p.y}, v:rot({x:(Math.random()*1.2+0.2),y:0}, Math.random()*TAU), life:0.4+Math.random()*0.4 }); } }
+  function stepParticles(dt){ particles=particles.filter(pt=> (pt.life-=dt)>0); for(const pt of particles){ pt.p=add(pt.p, mul(pt.v, dt*120)); pt.v.y+=6*dt; } }
+  function drawParticles(){
+    const c = laserColor;
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.shadowColor = c; ctx.shadowBlur = 14;
+    for(const pt of particles){ const a = clamp(pt.life/0.6, 0, 1); ctx.globalAlpha = a; ctx.fillStyle = c; ctx.beginPath(); ctx.arc(pt.p.x, pt.p.y, 2.2, 0, TAU); ctx.fill(); }
+    ctx.restore();
+  }
+
+  function draw(){ ctx.clearRect(0,0,W,H); const g=ctx.createLinearGradient(0,0,0,H); g.addColorStop(0,'#081126'); g.addColorStop(1,'#050a18'); ctx.fillStyle=g; ctx.fillRect(0,0,W,H); if(showGrid) drawGrid(); drawTarget(); for(const r of stage.blocks) drawBlock(r); stage.mirrors.forEach((m,mi)=> drawMirror(m, mi===selectedMirror)); drawEmitter(); const path=castRay(); drawBeam(path); drawParticles(); if(path.hitTarget) drawTargetSplash(path.endPoint); if(path.hitTarget && !justCleared){ justCleared=true; setTimeout(()=> showOverlay(true), 300); } }
+  function drawGrid(){ ctx.save(); ctx.globalAlpha=.15; ctx.strokeStyle='#1c2944'; ctx.lineWidth=1; const step=Math.round(Math.min(W,H)/20); ctx.beginPath(); for(let x=0;x<=W;x+=step){ ctx.moveTo(x,0); ctx.lineTo(x,H);} for(let y=0;y<=H;y+=step){ ctx.moveTo(0,y); ctx.lineTo(W,y);} ctx.stroke(); ctx.restore(); }
+  function drawBlock(r){ ctx.save(); const grd=ctx.createLinearGradient(r.x,r.y,r.x,r.y+r.h); grd.addColorStop(0,'#1b2640'); grd.addColorStop(1,'#0d1428'); ctx.fillStyle=grd; ctx.strokeStyle='#203251'; ctx.lineWidth=2; ctx.beginPath(); ctx.roundRect(r.x,r.y,r.w,r.h,10); ctx.fill(); ctx.stroke(); ctx.restore(); }
+  function drawMirror(m,selected){ const [A,B]=mirrorEnds(m); const mid=m.p; ctx.save(); ctx.fillStyle='#0c1326'; ctx.strokeStyle=selected?'#9ed0ff':'#2a3b56'; ctx.lineWidth=selected?3:2; ctx.beginPath(); ctx.arc(mid.x,mid.y,12,0,TAU); ctx.fill(); ctx.stroke(); ctx.strokeStyle='#1e2c49'; ctx.lineWidth=3; ctx.beginPath(); ctx.moveTo(mid.x,mid.y); ctx.lineTo(B.x,B.y); ctx.stroke(); ctx.globalCompositeOperation='lighter'; ctx.shadowColor='#9dd6ff'; ctx.shadowBlur=16; ctx.strokeStyle='#bfe4ff'; ctx.lineWidth=5; ctx.beginPath(); ctx.moveTo(A.x,A.y); ctx.lineTo(B.x,B.y); ctx.stroke(); ctx.restore(); }
+  function drawEmitter(){ const p=stage.emitter.p, a=stage.emitter.a; const dir={x:Math.cos(a),y:Math.sin(a)}; const tip=add(p, mul(dir,28)); ctx.save(); ctx.fillStyle='#0c1326'; ctx.strokeStyle='#2a3b56'; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(p.x,p.y,14,0,TAU); ctx.fill(); ctx.stroke(); ctx.strokeStyle='#6aa1ff'; ctx.lineWidth=6; ctx.lineCap='round'; ctx.beginPath(); ctx.moveTo(p.x,p.y); ctx.lineTo(tip.x,tip.y); ctx.stroke(); ctx.globalAlpha=.2; ctx.lineWidth=3; ctx.strokeStyle='#3d557f'; ctx.beginPath(); ctx.arc(p.x,p.y,34,Math.PI/18,-Math.PI/18,true); ctx.stroke(); ctx.restore(); }
+  function drawBeam(path){ if(!path||!path.length) return; ctx.save(); ctx.globalCompositeOperation='lighter'; ctx.shadowColor=laserColor; ctx.shadowBlur=22; ctx.lineWidth=3.5; ctx.lineCap='round'; if(guideHeld){ ctx.globalAlpha=.18; for(const seg of path){ ctx.strokeStyle=laserColor; ctx.beginPath(); ctx.moveTo(seg.a.x,seg.a.y); ctx.lineTo(seg.b.x,seg.b.y); ctx.stroke(); } } ctx.globalAlpha=.96; for(const seg of path){ const grad=ctx.createLinearGradient(seg.a.x,seg.a.y,seg.b.x,seg.b.y); grad.addColorStop(0,'#ffffff'); grad.addColorStop(1,laserColor); ctx.strokeStyle=grad; ctx.beginPath(); ctx.moveTo(seg.a.x,seg.a.y); ctx.lineTo(seg.b.x,seg.b.y); ctx.stroke(); } ctx.fillStyle=laserColor; ctx.globalAlpha=.8; ctx.beginPath(); ctx.arc(path.endPoint.x,path.endPoint.y,3.5,0,TAU); ctx.fill(); ctx.restore(); }
+  function drawTarget(){ const t=stage.target; ctx.save(); ctx.globalCompositeOperation='lighter'; const glow=ctx.createRadialGradient(t.p.x,t.p.y,1,t.p.x,t.p.y,t.r*3.5); glow.addColorStop(0,'rgba(160,240,200,.9)'); glow.addColorStop(1,'rgba(80,180,255,0)'); ctx.fillStyle=glow; ctx.beginPath(); ctx.arc(t.p.x,t.p.y,t.r*3.5,0,TAU); ctx.fill(); ctx.globalCompositeOperation='source-over'; const ring=ctx.createRadialGradient(t.p.x,t.p.y,t.r*0.2,t.p.x,t.p.y,t.r); ring.addColorStop(0,'#b9ffe0'); ring.addColorStop(1,'#47ffb0'); ctx.lineWidth=4; ctx.strokeStyle=ring; ctx.beginPath(); ctx.arc(t.p.x,t.p.y,t.r,0,TAU); ctx.stroke(); ctx.restore(); }
+  function drawTargetSplash(p){ const t=(performance.now()/1000)%1; const r=12+Math.sin(t*TAU)*4; ctx.save(); ctx.globalCompositeOperation='lighter'; ctx.globalAlpha=.6; ctx.strokeStyle='#aaffee'; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(p.x,p.y,r,0,TAU); ctx.stroke(); ctx.restore(); }
+
+  // Input
+  window.addEventListener('keydown',(e)=>{ if(['ArrowLeft','ArrowRight','a','d','A','D','g','G','r','R',' '].includes(e.key)) e.preventDefault(); keys.add(e.key); if(e.key==='r'||e.key==='R') resetStage(false); if(e.key==='g'||e.key==='G') guideHeld=true; if((e.key===' '||e.key==='Enter')&&hud.overlay.classList.contains('show')) { proceedNext(); } });
+  window.addEventListener('keyup',(e)=>{ keys.delete(e.key); if(e.key==='g'||e.key==='G') guideHeld=false; });
+  canvas.addEventListener('contextmenu', e=> e.preventDefault());
+  function onCanvasClick(evt){ const rect=canvas.getBoundingClientRect(); const mx=(evt.clientX-rect.left)*(W/rect.width); const my=(evt.clientY-rect.top)*(H/rect.height); let pick=-1; let best=22; stage.mirrors.forEach((m,mi)=>{ const [A,B]=mirrorEnds(m); const dist=pointSegDist({x:mx,y:my},A,B); if(dist<best){ best=dist; pick=mi; } }); if(pick>=0 && best<24){ selectedMirror=pick; rotateMirror(pick, (evt.button===2||evt.ctrlKey||evt.metaKey)? -45 : +45); }
+  }
+  canvas.addEventListener('mousedown', onCanvasClick);
+  canvas.addEventListener('pointerdown', onCanvasClick);
+
+  function pointSegDist(p,a,b){ const ab=sub(b,a); const t=clamp(dot(sub(p,a),ab)/Math.max(1e-6,dot(ab,ab)),0,1); const proj=add(a,mul(ab,t)); return Math.hypot(p.x-proj.x,p.y-proj.y); }
+  function rotateMirror(i,deg){ const m=stage.mirrors[i]; const cur=rad2deg(m.a); let nxt=cur+deg; nxt=Math.round(nxt/45)*45; nxt=((nxt%180)+180)%180; m.a=deg2rad(nxt); }
+
+  // UI
+  ui.btnReset.addEventListener('click',()=>resetStage(true));
+  ui.btnAngles.addEventListener('click',()=>{ stage.mirrors.forEach(m=> m.a=m.a0); });
+  ui.btnPrev.addEventListener('click',()=>changeStage(-1));
+  ui.btnNext.addEventListener('click',()=>proceedNext());
+  ui.btnContinue.addEventListener('click',()=>proceedNext());
+  ui.btnRetry.addEventListener('click',()=>{ showOverlay(false); resetStage(true); });
+  ui.chkGrid?.addEventListener('change',()=> showGrid=document.getElementById('chkGrid').checked);
+
+  function proceedNext(){ justCleared=false; showOverlay(false); changeStage(+1); }
+  function resetStage(hard){ if(hard){ stage=makeLevel(LEVELS[stageIndex]); } else { stage.emitter.a=deg2rad(LEVELS[stageIndex].emitter.angle); } justCleared=false; showOverlay(false); }
+  function changeStage(delta){ stageIndex=(stageIndex+delta+LEVELS.length)%LEVELS.length; stage=makeLevel(LEVELS[stageIndex]); updateBadge(); justCleared=false; showOverlay(false); }
+  function showOverlay(v){ hud.overlay.classList.toggle('show', v); }
+
+  // --- Dev tests (console) ---
+  (function devTests(){
+    function assert(name, cond){ if(!cond){ console.warn('[TEST FAIL]', name); } else { console.log('%c[TEST PASS]','color:#7fffa1', name); } }
+    const vecEq=(A,B)=> Math.abs(A.x-B.x)<1e-4 && Math.abs(A.y-B.y)<1e-4;
+
+    // Top reflects: up→down
+    const rTop=reflect({x:0,y:-1},{x:0,y:0},{x:10,y:0});
+    assert('reflect top wall', vecEq(rTop,{x:0,y:1}));
+
+    // Bottom reflects: down→up
+    const rBot=reflect({x:0,y:1},{x:0,y:10},{x:10,y:10});
+    assert('reflect bottom wall', vecEq(rBot,{x:0,y:-1}));
+
+    // worldSegments: check wall types
+    const segs=worldSegments();
+    const hasTop=segs.some(s=>s.type==='mirror' && s.a.y===0 && s.b.y===0);
+    const hasBottom=segs.some(s=>s.type==='mirror' && s.a.y===H && s.b.y===H);
+    const hasRightBlock=segs.some(s=>s.type==='block' && s.a.x===W && s.b.x===W);
+    const hasLeftBlock=segs.some(s=>s.type==='block' && s.a.x===0 && s.b.x===0);
+    assert('top wall is mirror', hasTop);
+    assert('bottom wall is mirror', hasBottom);
+    assert('right wall is block', hasRightBlock);
+    assert('left wall is block', hasLeftBlock);
+
+    // drawParticles exists
+    assert('drawParticles defined', typeof drawParticles==='function');
+  })();
+
+  // Loop
+  let last=performance.now();
+  function loop(now){ const dt=Math.min(0.033,(now-last)/1000); last=now; if(keys.has('ArrowLeft')||keys.has('a')||keys.has('A')) stage.emitter.a-=deg2rad(60*dt); if(keys.has('ArrowRight')||keys.has('d')||keys.has('D')) stage.emitter.a+=deg2rad(60*dt); stage.emitter.a=clamp(stage.emitter.a, deg2rad(-45), deg2rad(45)); stepParticles(dt); draw(); requestAnimationFrame(loop); }
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

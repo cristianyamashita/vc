@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Pac‑Man Clone — HTML/CSS/JS</title>
+  <style>
+    :root{ --yellow:#ffe600; --wall:#1b4dff; }
+    html,body{margin:0;background:#000;color:var(--yellow);font-family:system-ui,Segoe UI,Roboto,sans-serif;text-align:center}
+    #hud{display:flex;gap:16px;justify-content:center;align-items:center;color:var(--yellow);margin:10px 0;font-weight:700;flex-wrap:wrap}
+    #hud button, #settings select, #settings label{background:#0a0a0a;border:1px solid #222;color:#ddd;border-radius:8px;padding:6px 10px;cursor:pointer}
+    #hud button:hover, #settings select:hover{filter:brightness(1.15)}
+    #settings{display:flex;gap:8px;justify-content:center;align-items:center;flex-wrap:wrap;margin:6px 0 10px}
+    #settings label{display:flex;gap:6px;align-items:center;cursor:pointer}
+    canvas{background:#000;display:block;margin:6px auto;border-radius:12px;box-shadow:0 10px 40px rgba(0,0,0,.7), inset 0 0 0 2px #0b0b0b;image-rendering:pixelated}
+    .hint{color:#cfd2ff;font-size:13px;margin:6px 0 12px}
+  </style>
+</head>
+<body>
+  <h1 style="font-size:20px;margin:8px 0 0">Pac‑Man Clone</h1>
+  <div id="hud">
+    <span id="scoreLabel">Score:</span> <span id="score">0</span>
+    <span id="livesLabel" style="margin-left:12px">Lives:</span> <span id="lives">3</span>
+    <span id="levelLabel" style="margin-left:12px">Level:</span> <span id="level">1</span>
+    <button id="btnPause">Pause</button>
+    <button id="btnReset">Reset</button>
+  </div>
+  <div id="settings">
+    <label><span id="langLabel">Language</span>
+      <select id="langSel">
+        <option value="en" selected>EN</option>
+        <option value="pt">PT</option>
+        <option value="ja">JP</option>
+      </select>
+    </label>
+    <label><span id="diffLabel">Difficulty</span>
+      <select id="diffSel">
+        <option value="easy">Easy</option>
+        <option value="normal" selected>Normal</option>
+        <option value="hard">Hard</option>
+      </select>
+    </label>
+    <label><span id="ctrlLabel">Controls</span>
+      <select id="ctrlSel">
+        <option value="arrows" selected>Arrows</option>
+        <option value="wasd">WASD</option>
+        <option value="both">Both</option>
+      </select>
+    </label>
+    <label><input type="checkbox" id="soundChk" checked /><span id="soundLabel">Sound</span></label>
+  </div>
+  <canvas id="game" width="448" height="496" aria-label="Pac-Man"></canvas>
+  <p class="hint" id="hintText">Use Arrow keys • P = Pause • R = Reset</p>
+
+<script>
+(function(){
+  // ======= I18N =======
+  const I18N = {
+    en: {
+      score: 'Score:', lives: 'Lives:', level: 'Level:', pause: 'Pause', reset: 'Reset',
+      language: 'Language', difficulty: 'Difficulty', controls: 'Controls', sound: 'Sound',
+      hint_arrows: 'Use Arrow keys • P = Pause • R = Reset',
+      hint_wasd: 'Use WASD • P = Pause • R = Reset',
+      diff_easy: 'Easy', diff_normal: 'Normal', diff_hard: 'Hard',
+      ctrl_arrows: 'Arrows', ctrl_wasd: 'WASD', ctrl_both: 'Both'
+    },
+    pt: {
+      score: 'Pontuação:', lives: 'Vidas:', level: 'Nível:', pause: 'Pausar', reset: 'Reiniciar',
+      language: 'Idioma', difficulty: 'Dificuldade', controls: 'Controles', sound: 'Som',
+      hint_arrows: 'Use as setas • P = Pausar • R = Reiniciar',
+      hint_wasd: 'Use WASD • P = Pausar • R = Reiniciar',
+      diff_easy: 'Fácil', diff_normal: 'Normal', diff_hard: 'Difícil',
+      ctrl_arrows: 'Setas', ctrl_wasd: 'WASD', ctrl_both: 'Ambos'
+    },
+    ja: {
+      score: 'スコア:', lives: '残機:', level: 'レベル:', pause: '一時停止', reset: 'リセット',
+      language: '言語', difficulty: '難易度', controls: '操作', sound: 'サウンド',
+      hint_arrows: '矢印キー • P=一時停止 • R=リセット',
+      hint_wasd: 'WASD キー • P=一時停止 • R=リセット',
+      diff_easy: 'かんたん', diff_normal: 'ふつう', diff_hard: 'むずかしい',
+      ctrl_arrows: '矢印', ctrl_wasd: 'WASD', ctrl_both: '両方'
+    }
+  };
+  let settings = { lang: 'en', difficulty: 'normal', controls: 'arrows', sound: true };
+  function t(k){ return (I18N[settings.lang]||I18N.en)[k] || k; }
+
+  // ======= MAPA =======
+  const TILE=16;
+  const MAP=[
+    "############################",
+    "#............##............#",
+    "#.####.#####.##.#####.####.#",
+    "#o####.#####.##.#####.####o#",
+    "#.####.#####.##.#####.####.#",
+    "#..........................#",
+    "#.####.##.########.##.####.#",
+    "#.####.##.########.##.####.#",
+    "#......##....##....##......#",
+    "######.##### ## #####.######",
+    "######.##### ## #####.######",
+    "######.##          ##.######",
+    "######.## ###--### ##.######",
+    "      .   # GGGG #   .      ",
+    "######.## #BRPkCy# ##.######",
+    "######.## # GGGG # ##.######",
+    "######.## ###--### ##.######",
+    "######.##          ##.######",
+    "######.## ######## ##.######",
+    "######.## ######## ##.######",
+    "#............##............#",
+    "#.####.#####.##.#####.####.#",
+    "#o..##................##..o#",
+    "###.##.##.########.##.##.###",
+    "#......##....##....##......#",
+    "#.##########.##.##########.#",
+    "#..........................#",
+    "#.####.#####.##.#####.####.#",
+    "#...##................##...#",
+    "###.##.########--###########",
+    "############################",
+  ];
+  const ROWS=MAP.length, COLS=MAP[0].length;
+  const WIDTH=COLS*TILE, HEIGHT=ROWS*TILE;
+
+  // ======= CANVAS & HUD =======
+  const canvas=document.getElementById('game');
+  const ctx=canvas.getContext('2d');
+  canvas.width=WIDTH; canvas.height=HEIGHT;
+  const $score=document.getElementById('score');
+  const $lives=document.getElementById('lives');
+  const $level=document.getElementById('level');
+  const $pause=document.getElementById('btnPause');
+  const $reset=document.getElementById('btnReset');
+  const $scoreLabel=document.getElementById('scoreLabel');
+  const $livesLabel=document.getElementById('livesLabel');
+  const $levelLabel=document.getElementById('levelLabel');
+  const $hint=document.getElementById('hintText');
+  const $langSel=document.getElementById('langSel');
+  const $diffSel=document.getElementById('diffSel');
+  const $ctrlSel=document.getElementById('ctrlSel');
+  const $soundChk=document.getElementById('soundChk');
+  const $langLabel=document.getElementById('langLabel');
+  const $diffLabel=document.getElementById('diffLabel');
+  const $ctrlLabel=document.getElementById('ctrlLabel');
+  const $soundLabel=document.getElementById('soundLabel');
+
+  // ======= ESTADO =======
+  let map=[], dotsRemaining=0, score=0, lives=3, level=1, paused=false, over=false;
+
+  // ======= UTILS =======
+  const DIRS={NONE:{x:0,y:0},LEFT:{x:-1,y:0},RIGHT:{x:1,y:0},UP:{x:0,y:-1},DOWN:{x:0,y:1}};
+  const OPP=(d)=> d===DIRS.LEFT?DIRS.RIGHT:d===DIRS.RIGHT?DIRS.LEFT:d===DIRS.UP?DIRS.DOWN:d===DIRS.DOWN?DIRS.UP:DIRS.NONE;
+  const tileX=(px)=>Math.floor((px+8)/TILE); const tileY=(py)=>Math.floor((py+8)/TILE);
+  const atCenter=(px,py)=> Math.abs(((px+8)%TILE)-8)<0.5 && Math.abs(((py+8)%TILE)-8)<0.5; // tolerância 0.5px
+  function cellAt(tx,ty){ return (map[ty] && map[ty][tx]) || '#'; }
+  function isWalkable(c,isGhost){ if(c==='#') return false; if(!isGhost && c==='-') return false; return true; }
+
+  function cloneLevel(){
+    map = MAP.map(r=>r.split("")); dotsRemaining=0;
+    for(let y=0;y<ROWS;y++) for(let x=0;x<COLS;x++) if(map[y][x]==='.'||map[y][x]==='o') dotsRemaining++;
+  }
+
+  // ======= ÁUDIO (MIDI‑like com WebAudio) =======
+  let actx=null; function ensureAudio(){ if(!settings.sound) return; if(!actx){ actx = new (window.AudioContext||window.webkitAudioContext)(); } }
+  function tone(freq=440, dur=0.08, type='square', gain=0.04){ if(!settings.sound) return; ensureAudio(); const o=actx.createOscillator(); const g=actx.createGain(); o.type=type; o.frequency.value=freq; g.gain.value=gain; o.connect(g).connect(actx.destination); o.start(); o.stop(actx.currentTime+dur); }
+  function seq(notes){ if(!settings.sound) return; ensureAudio(); let t=actx.currentTime; notes.forEach(([f,d=0.08,g=0.05])=>{ const o=actx.createOscillator(); const gn=actx.createGain(); o.type='square'; o.frequency.value=f; gn.gain.value=g; o.connect(gn).connect(actx.destination); o.start(t); o.stop(t+d); t+=d; }); }
+  const SFX={
+    chomp:()=>tone(420,0.05,'square',0.03),
+    chompPower:()=>tone(700,0.07,'square',0.05),
+    eatGhost:()=>seq([[880,0.06,0.06],[988,0.06,0.06],[1174,0.1,0.06]]),
+    die:()=>seq([[196,0.15,0.06],[147,0.18,0.05],[110,0.22,0.05]]),
+    powerStart:()=>seq([[659,0.08,0.06],[784,0.1,0.06]]),
+  };
+
+  // Distância (px) até a próxima borda de tile
+  function distToBoundary(px, py, dir){
+    const offX = (px % TILE + TILE) % TILE; // 0..15
+    const offY = (py % TILE + TILE) % TILE;
+    if (dir.x<0) return offX; if (dir.x>0) return TILE - offX;
+    if (dir.y<0) return offY; if (dir.y>0) return TILE - offY; return 0;
+  }
+  // Avança por bordas; não atravessa paredes
+  function advanceGrid(e, dt, isGhost){
+    let remaining = e.speed * dt;
+    while (remaining > 0){
+      if (e.dir===DIRS.NONE) break;
+      const tx = tileX(e.x), ty = tileY(e.y);
+      const ahead = cellAt(tx+e.dir.x, ty+e.dir.y);
+      const can = isWalkable(ahead, isGhost);
+      const boundary = distToBoundary(e.x, e.y, e.dir);
+      const step = Math.min(remaining, Math.max(0, boundary));
+      e.x += e.dir.x * step; e.y += e.dir.y * step; remaining -= step;
+      if (boundary === 0){ if (!can){ e.x = Math.round(e.x / TILE) * TILE; e.y = Math.round(e.y / TILE) * TILE; e.dir = DIRS.NONE; break; } else { e.x += e.dir.x * 1; e.y += e.dir.y * 1; } }
+      if (e.x < -8) e.x = WIDTH-8; if (e.x > WIDTH-8) e.x = -8; if (e.y < 0) { e.y = 0; e.dir = DIRS.NONE; } if (e.y > HEIGHT - TILE){ e.y = HEIGHT - TILE; e.dir = DIRS.NONE; }
+    }
+  }
+
+  // ======= ENTIDADES =======
+  class Entity{ constructor(x,y,speed){ this.x=x; this.y=y; this.speed=speed; this.dir=DIRS.LEFT; this.next=DIRS.LEFT; } tx(){ return tileX(this.x); } ty(){ return tileY(this.y); } }
+  class Pacman extends Entity{ constructor(x,y,s){ super(x,y,s); }
+    update(dt){ const tx0=this.tx(), ty0=this.ty(); if (atCenter(this.x,this.y) || this.dir===DIRS.NONE){ if (isWalkable(cellAt(tx0+this.next.x,ty0+this.next.y), false)) this.dir=this.next; if (!isWalkable(cellAt(tx0+this.dir.x,ty0+this.dir.y), false)) this.dir = DIRS.NONE; }
+      advanceGrid(this, dt, false); if (this.dir===DIRS.NONE){ const tx=this.tx(), ty=this.ty(); if (isWalkable(cellAt(tx+this.next.x,ty+this.next.y), false)) this.dir=this.next; }
+      const tx=this.tx(), ty=this.ty(); const c=cellAt(tx,ty); if(c==='.') { map[ty][tx]=' '; score+=10; dotsRemaining--; SFX.chomp(); updateHUD(); } else if(c==='o'){ map[ty][tx]=' '; score+=50; dotsRemaining--; frightened(); SFX.chompPower(); SFX.powerStart(); updateHUD(); }
+    }
+    draw(){ const angle=this.dir===DIRS.LEFT?Math.PI:this.dir===DIRS.RIGHT?0:this.dir===DIRS.UP?-Math.PI/2:Math.PI/2; const open=0.35*Math.PI; ctx.save(); ctx.translate(this.x+8,this.y+8); ctx.beginPath(); ctx.moveTo(0,0); ctx.arc(0,0,8, angle+open, angle-open, true); ctx.fillStyle='#ffe600'; ctx.fill(); ctx.restore(); }
+  }
+  const GHOST_STATE={CHASE:1,FRIGHT:2,EATEN:3};
+  class Ghost extends Entity{ constructor(x,y,color,name,s){ super(x,y,s); this.color=color; this.name=name; this.state=GHOST_STATE.CHASE; this.ft=0; }
+    setFright(){ if(this.state!==GHOST_STATE.EATEN){ this.state=GHOST_STATE.FRIGHT; this.ft=DIFFS[settings.difficulty].frightMs; this.speed=DIFFS[settings.difficulty].ghostFrightSpeed; this.dir=OPP(this.dir);} }
+    update(dt){ const tx0=this.tx(), ty0=this.ty(); if (this.dir===DIRS.NONE || atCenter(this.x,this.y)){ const opts=[DIRS.LEFT,DIRS.RIGHT,DIRS.UP,DIRS.DOWN].filter(d=>isWalkable(cellAt(tx0+d.x,ty0+d.y), true) && d!==OPP(this.dir)); let target; if(this.state===GHOST_STATE.EATEN) target={x:14,y:14}; else if(this.state===GHOST_STATE.FRIGHT) target={x:(Math.random()*COLS)|0, y:(Math.random()*ROWS)|0}; else target=targetFor(this.name); if(opts.length){ this.dir = chooseDir(opts,target,this); } }
+      if(this.state===GHOST_STATE.FRIGHT){ this.ft-=dt*1000; if(this.ft<=0){ this.state=GHOST_STATE.CHASE; this.speed=DIFFS[settings.difficulty].ghostSpeed; } }
+      advanceGrid(this, dt, true);
+    }
+    draw(){ ctx.save(); ctx.translate(this.x+8,this.y+8); const col=this.state===GHOST_STATE.FRIGHT?'#1e90ff':this.color; ctx.fillStyle=col; ctx.beginPath(); ctx.moveTo(-8,6); ctx.quadraticCurveTo(-8,-8,0,-8); ctx.quadraticCurveTo(8,-8,8,6); ctx.lineTo(6,8); ctx.lineTo(3,6); ctx.lineTo(0,8); ctx.lineTo(-3,6); ctx.lineTo(-6,8); ctx.closePath(); ctx.fill(); ctx.restore(); }
+  }
+
+  function chooseDir(options,target,e){ let best=options[0], score=Infinity; const gx=e.tx(), gy=e.ty(); for(const d of options){ const cand={x:gx+d.x,y:gy+d.y}; const s=Math.abs(cand.x-target.x)+Math.abs(cand.y-target.y); if(s<score){ score=s; best=d; } } return best; }
+  function targetFor(name){ const ptx=pac.tx(), pty=pac.ty(); const ahead={x:ptx+pac.dir.x*4, y:pty+pac.dir.y*4}; switch(name){ case 'blinky':return {x:ptx,y:pty}; case 'pinky':return ahead; case 'inky':return {x:ptx+pac.dir.x*6, y:pty+pac.dir.y*6}; case 'clyde':return (Math.abs(ptx-ghosts[3].tx())+Math.abs(pty-ghosts[3].ty())<8)?{x:1,y:ROWS-2}:{x:ptx,y:pty}; default:return {x:ptx,y:pty}; } }
+  function frightened(){ ghosts.forEach(g=>g.setFright()); }
+
+  // ======= RENDER =======
+  function drawMaze(){ for(let y=0;y<ROWS;y++){ for(let x=0;x<COLS;x++){ const c=map[y][x], px=x*TILE, py=y*TILE; if(c==='#'){ ctx.fillStyle='#001745'; ctx.fillRect(px,py,TILE,TILE); ctx.strokeStyle='#1b4dff'; ctx.lineWidth=2; ctx.strokeRect(px+2,py+2,TILE-4,TILE-4); } else if(c==='.') { ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(px+8,py+8,2,0,Math.PI*2); ctx.fill(); } else if(c==='o'){ ctx.fillStyle='#ffb8ff'; ctx.beginPath(); ctx.arc(px+8,py+8,4,0,Math.PI*2); ctx.fill(); } else if(c==='-'){ ctx.fillStyle='#5a5a9a'; ctx.fillRect(px,py,TILE,TILE/3); } } } }
+  function draw(){ ctx.clearRect(0,0,WIDTH,HEIGHT); drawMaze(); pac.draw(); ghosts.forEach(g=>g.draw()); if(over){ overlay('GAME OVER','#ff4d4d'); } }
+  function overlay(text,color){ ctx.save(); ctx.fillStyle=color; ctx.font='bold 24px system-ui, sans-serif'; ctx.textAlign='center'; ctx.fillText(text, WIDTH/2, HEIGHT/2+4); ctx.restore(); }
+
+  // ======= DIFICULDADE =======
+  const DIFFS = {
+    easy:   { lives: 5, pacSpeed: 90, ghostSpeed: 70, ghostFrightSpeed: 55, frightMs: 7000 },
+    normal: { lives: 3, pacSpeed: 95, ghostSpeed: 75, ghostFrightSpeed: 60, frightMs: 6000 },
+    hard:   { lives: 2, pacSpeed:100, ghostSpeed: 85, ghostFrightSpeed: 65, frightMs: 4500 },
+  };
+
+  // ======= GAME FLOW =======
+  function updateHUD(){ if($score) $score.textContent=String(score); if($lives) $lives.textContent=String(lives); if($level) $level.textContent=String(level); }
+  function safeSpawn(){ const prefer={x:14,y:23}; const isWalk=(x,y)=> isWalkable(cellAt(x,y),false); if(isWalk(prefer.x,prefer.y)) return prefer; for(let r=0;r<8;r++) for(let dy=-r;dy<=r;dy++) for(let dx=-r;dx<=r;dx++){ const x=prefer.x+dx, y=prefer.y+dy; if(isWalk(x,y)) return {x,y}; } return {x:1,y:1}; }
+
+  let pac, ghosts;
+  function init(){ cloneLevel(); over=false; level=1; score=0; lives=DIFFS[settings.difficulty].lives; applyLanguage(); applyHint(); updateHUD(); const s=safeSpawn(); pac=new Pacman(s.x*TILE,s.y*TILE, DIFFS[settings.difficulty].pacSpeed); ghosts=[ new Ghost(13*TILE,14*TILE,'#ff3c28','blinky',DIFFS[settings.difficulty].ghostSpeed), new Ghost(14*TILE,14*TILE,'#ffc0cb','pinky',DIFFS[settings.difficulty].ghostSpeed), new Ghost(12*TILE,14*TILE,'#00ffff','inky',DIFFS[settings.difficulty].ghostSpeed), new Ghost(15*TILE,14*TILE,'#ffb852','clyde',DIFFS[settings.difficulty].ghostSpeed) ]; draw(); }
+
+  function nextLevel(){ level++; cloneLevel(); const s=safeSpawn(); pac.x=s.x*TILE; pac.y=s.y*TILE; pac.dir=DIRS.LEFT; pac.next=DIRS.LEFT; pac.speed=DIFFS[settings.difficulty].pacSpeed+Math.min(20, level*2); ghosts.forEach(g=> g.speed = DIFFS[settings.difficulty].ghostSpeed + Math.min(20, level*2)); updateHUD(); }
+
+  function step(dt){ if(paused||over){ draw(); return; }
+    pac.update(dt); ghosts.forEach(g=>g.update(dt));
+    for(const g of ghosts){ const d=Math.hypot((pac.x+8)-(g.x+8),(pac.y+8)-(g.y+8)); if(d<12){ if(g.state===GHOST_STATE.FRIGHT){ g.state=GHOST_STATE.EATEN; g.speed=DIFFS[settings.difficulty].ghostSpeed+15; score+=200; SFX.eatGhost(); updateHUD(); } else if(g.state!==GHOST_STATE.EATEN){ lives--; SFX.die(); updateHUD(); if(lives<0){ over=true; } else { const s=safeSpawn(); pac.x=s.x*TILE; pac.y=s.y*TILE; pac.dir=DIRS.LEFT; pac.next=DIRS.LEFT; } } } }
+    if(dotsRemaining<=0){ nextLevel(); }
+    draw();
+  }
+
+  // ======= INPUT =======
+  function acceptKey(k){ if(settings.controls==='both') return true; if(settings.controls==='arrows') return ['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','p','P','r','R'].includes(k); if(settings.controls==='wasd') return ['a','A','d','D','w','W','s','S','p','P','r','R'].includes(k); return true; }
+  window.addEventListener('keydown',e=>{
+    if(!acceptKey(e.key)) return;
+    const k=e.key; if(k==='ArrowLeft'||k==='a'||k==='A') pac.next=DIRS.LEFT; else if(k==='ArrowRight'||k==='d'||k==='D') pac.next=DIRS.RIGHT; else if(k==='ArrowUp'||k==='w'||k==='W') pac.next=DIRS.UP; else if(k==='ArrowDown'||k==='s'||k==='S') pac.next=DIRS.DOWN; else if(k==='p'||k==='P'){ paused=!paused; } else if(k==='r'||k==='R'){ init(); }
+  });
+  if($pause) $pause.onclick=()=> paused=!paused;
+  if($reset) $reset.onclick=()=>{ init(); };
+
+  // ======= LOOP =======
+  let last=0; function loop(ts){ if(!last) last=ts; const dt=Math.min(0.05,(ts-last)/1000); last=ts; step(dt); requestAnimationFrame(loop); }
+
+  // ======= UI: idioma/controles/dificuldade/som =======
+  function applyLanguage(){ $scoreLabel.textContent=t('score'); $livesLabel.textContent=t('lives'); $levelLabel.textContent=t('level'); $pause.textContent=t('pause'); $reset.textContent=t('reset'); $langLabel.textContent=t('language'); $diffLabel.textContent=t('difficulty'); $ctrlLabel.textContent=t('controls'); $soundLabel.textContent=t('sound'); }
+  function applyHint(){ $hint.textContent = (settings.controls==='wasd')? t('hint_wasd'): t('hint_arrows');
+    // também renomeia opções visíveis
+    $diffSel.options[0].text = t('diff_easy'); $diffSel.options[1].text = t('diff_normal'); $diffSel.options[2].text = t('diff_hard');
+    $ctrlSel.options[0].text = t('ctrl_arrows'); $ctrlSel.options[1].text = t('ctrl_wasd'); $ctrlSel.options[2].text = t('ctrl_both');
+  }
+  $langSel.onchange = ()=>{ settings.lang = $langSel.value; applyLanguage(); applyHint(); };
+  $diffSel.onchange = ()=>{ settings.difficulty = $diffSel.value; init(); };
+  $ctrlSel.onchange = ()=>{ settings.controls = $ctrlSel.value; applyHint(); };
+  $soundChk.onchange = ()=>{ settings.sound = $soundChk.checked; if(settings.sound) ensureAudio(); };
+
+  // start (default EN, arrows, normal)
+  applyLanguage(); applyHint();
+  init();
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
