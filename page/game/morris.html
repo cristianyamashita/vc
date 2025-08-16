@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Trilha / Nine Men's Morris — vs Computer</title>
+<style>
+  :root{ --bg:#0f172a; --panel:#111827; --ink:#e5e7eb; --muted:#9ca3af; --accent:#22c55e; --blue:#2563eb; --yellow:#d97706; --line:#1f2937 }
+  *{box-sizing:border-box}
+  body{ margin:0; background:linear-gradient(180deg,#0b1024,#0a0f1f 60%); color:var(--ink);
+        font:14px/1.4 system-ui,-apple-system,Segoe UI,Roboto,Helvetica Neue,Arial,Noto Sans; display:grid; place-items:center; min-height:100svh; padding:24px }
+  .wrap{display:grid; gap:18px; grid-template-columns: 1fr; width:min(980px,100%)}
+  @media (min-width:980px){ .wrap{ grid-template-columns: 640px 1fr; align-items:start }}
+  .card{background:rgba(17,24,39,.8); backdrop-filter:saturate(1.2) blur(6px); border:1px solid #111827; border-radius:16px; padding:16px; box-shadow:0 10px 30px rgba(0,0,0,.35)}
+  h1{font-size:20px; margin:0 0 6px}
+  .sub{color:var(--muted); margin-bottom:6px}
+  .board{width:100%; aspect-ratio:1/1; border-radius:14px; overflow:hidden}
+  svg{display:block; width:100%; height:auto; background:linear-gradient(180deg,#0e172a,#0b1222)}
+  .edge{stroke:#2c3446; stroke-width:8; stroke-linecap:round}
+  .pt{cursor:pointer}
+  .pt circle{ stroke:#0b1222; stroke-width:3 }
+  .pt.empty circle{ fill:#0e1526 }
+  .pt.B circle{ fill:var(--blue) }
+  .pt.Y circle{ fill:var(--yellow) }
+  .pt.select circle{ filter:drop-shadow(0 0 6px rgba(34,197,94,.7)); stroke:var(--accent); stroke-width:4 }
+  .pt.hint circle{ fill:#0e1526; stroke:var(--accent); stroke-dasharray:3 3; stroke-width:4 }
+  .pt.removable circle{ stroke:#ef4444; stroke-width:4 }
+  .row{display:flex; align-items:center; gap:10px; flex-wrap:wrap}
+  .badge{display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border-radius:999px; background:#0b1222; border:1px solid #1f2937}
+  .dot{width:10px; height:10px; border-radius:50%}
+  .blue{background:var(--blue)} .yellow{background:var(--yellow)}
+  .counts{display:flex; gap:10px; flex-wrap:wrap}
+  .counts span{display:inline-flex; gap:6px; align-items:center; background:#0b1222; border:1px solid #1f2937; border-radius:8px; padding:6px 8px}
+  .status{padding:12px; border:1px dashed #334155; border-radius:10px; background:#0b1222}
+  .status strong{color:#e2e8f0}
+  button,select,label{appearance:none; border:none; padding:10px 14px; border-radius:10px; background:#0b1222; color:var(--ink); border:1px solid #1f2937}
+  button{cursor:pointer}
+  button:hover{border-color:#334155}
+  button.primary{background:linear-gradient(180deg,#1e293b,#1b2540); border-color:#334155}
+  details{margin-top:6px}
+  ul.help{margin:0; padding-left:18px; color:var(--muted)}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>Trilha / Nine Men's Morris</h1>
+      <div class="sub">Play vs computer or 2‑player hot‑seat. Phases: placing → moving → flying.</div>
+      <div id="board" class="board"><!-- SVG injected by JS --></div>
+    </div>
+
+    <div class="card">
+      <div class="row" style="gap:8px 12px">
+        <div class="badge"><span class="dot blue"></span> Blue</div>
+        <div class="badge"><span class="dot yellow"></span> Yellow</div>
+        <button id="newBtn" class="primary">New game</button>
+        <label style="display:flex; align-items:center; gap:8px">
+          <input id="aiToggle" type="checkbox" checked style="accent-color:#22c55e; width:18px; height:18px"> vs Computer
+        </label>
+        <label style="display:flex; align-items:center; gap:8px">
+          You play
+          <select id="humanSide">
+            <option value="B" selected>Blue</option>
+            <option value="Y">Yellow</option>
+          </select>
+        </label>
+        <label style="display:flex; align-items:center; gap:8px">
+          AI level
+          <select id="aiLevel">
+            <option value="0">Random</option>
+            <option value="1" selected>Basic (win/block)</option>
+          </select>
+        </label>
+      </div>
+      <div class="counts" id="counts"></div>
+      <div class="status" id="status"></div>
+      <details>
+        <summary>How to play (quick)</summary>
+        <ul class="help">
+          <li><strong>Placing</strong>: Tap an empty point to place a piece. Making a line of 3 (a <em>mill</em>) lets you remove one opponent piece (not from a mill if others exist).</li>
+          <li><strong>Moving</strong>: After all pieces are placed, select one of your pieces then a highlighted adjacent point.</li>
+          <li><strong>Flying</strong>: With 3 pieces left, you may move to <em>any</em> empty point.</li>
+          <li><strong>Win</strong>: Opponent has only 2 pieces or no legal moves.</li>
+        </ul>
+      </details>
+    </div>
+  </div>
+
+<script>
+(function(){
+  // ==== Geometry ====
+  const size=640, pad=36, grid=6, step=(size-pad*2)/grid;
+  const P=[[0,0],[3,0],[6,0],[6,3],[6,6],[3,6],[0,6],[0,3],[1,1],[3,1],[5,1],[5,3],[5,5],[3,5],[1,5],[1,3],[2,2],[3,2],[4,2],[4,3],[4,4],[3,4],[2,4],[2,3]].map(([x,y])=>[pad+x*step,pad+y*step]);
+  const segments=[[0,1],[1,2],[2,3],[3,4],[4,5],[5,6],[6,7],[7,0],[8,9],[9,10],[10,11],[11,12],[12,13],[13,14],[14,15],[15,8],[16,17],[17,18],[18,19],[19,20],[20,21],[21,22],[22,23],[23,16],[1,9],[9,17],[3,11],[11,19],[5,13],[13,21],[7,15],[15,23]];
+  const ADJ={0:[1,7],1:[0,2,9],2:[1,3],3:[2,4,11],4:[3,5],5:[4,6,13],6:[5,7],7:[0,6,15],8:[9,15],9:[1,8,10,17],10:[9,11],11:[3,10,12,19],12:[11,13],13:[5,12,14,21],14:[13,15],15:[7,8,14,23],16:[17,23],17:[9,16,18],18:[17,19],19:[11,18,20],20:[19,21],21:[13,20,22],22:[21,23],23:[15,16,22]};
+  const MILLS=[[0,1,2],[2,3,4],[4,5,6],[6,7,0],[8,9,10],[10,11,12],[12,13,14],[14,15,8],[16,17,18],[18,19,20],[20,21,22],[22,23,16],[1,9,17],[3,11,19],[5,13,21],[7,15,23]];
+
+  // ==== State ====
+  let state; const boardEl=document.getElementById('board'); const countsEl=document.getElementById('counts'); const statusEl=document.getElementById('status');
+  const aiToggle=document.getElementById('aiToggle'); const humanSideSel=document.getElementById('humanSide'); const aiLevelSel=document.getElementById('aiLevel');
+
+  function newGame(){
+    state={ board:Array(24).fill(null), toMove:'B', placing:{B:9,Y:9}, mustRemove:false, selected:null,
+            ai:{enabled:aiToggle.checked, human:humanSideSel.value, level:+aiLevelSel.value} };
+    renderAll(); setStatus("Blue to place a piece."); maybeAITurn();
+  }
+  document.getElementById('newBtn').addEventListener('click', newGame);
+  aiToggle.addEventListener('change',()=>{ state&& (state.ai.enabled=aiToggle.checked); });
+  humanSideSel.addEventListener('change',()=>{ state&& (state.ai.human=humanSideSel.value); });
+  aiLevelSel.addEventListener('change',()=>{ state&& (state.ai.level=+aiLevelSel.value); });
+
+  // ==== SVG ====
+  const svgNS='http://www.w3.org/2000/svg'; const svg=document.createElementNS(svgNS,'svg'); svg.setAttribute('viewBox',`0 0 ${size} ${size}`);
+  for(const [a,b] of segments){ const l=document.createElementNS(svgNS,'line'); l.setAttribute('x1',P[a][0]); l.setAttribute('y1',P[a][1]); l.setAttribute('x2',P[b][0]); l.setAttribute('y2',P[b][1]); l.setAttribute('class','edge'); svg.appendChild(l); }
+  const pointGs=[]; P.forEach((pt,i)=>{ const g=document.createElementNS(svgNS,'g'); g.dataset.index=i; g.setAttribute('class','pt empty'); const c=document.createElementNS(svgNS,'circle'); c.setAttribute('cx',pt[0]); c.setAttribute('cy',pt[1]); c.setAttribute('r',16); g.appendChild(c); svg.appendChild(g); pointGs.push(g); });
+  boardEl.appendChild(svg);
+
+  // ==== Helpers ====
+  const opp=p=>p==='B'?'Y':'B';
+  const countPieces=p=>state.board.filter(x=>x===p).length;
+  const emptyIndices=()=>state.board.map((v,i)=>v?null:i).filter(v=>v!==null);
+  const inMill=(idx,p=state.board[idx])=>MILLS.some(m=>m.includes(idx)&&m.every(i=>state.board[i]===p));
+  const formedMillNow=(idx,p)=>MILLS.some(m=>m.includes(idx)&&m.every(i=>(i===idx?p:state.board[i])===p));
+  function legalTargets(from,p){ if(countPieces(p)===3) return emptyIndices(); return ADJ[from].filter(t=>state.board[t]===null); }
+  function playerHasMoves(p){ const pc=countPieces(p); if(pc===3){return emptyIndices().length>0;} for(let i=0;i<24;i++) if(state.board[i]===p){ if(legalTargets(i,p).length) return true; } return false; }
+  function removableList(v){ const all=[]; for(let i=0;i<24;i++) if(state.board[i]===v) all.push(i); const nonMill=all.filter(i=>!inMill(i,v)); return nonMill.length?nonMill:all; }
+  function potentialMillEmptiesFor(p){ // all empty points that currently complete a mill for p
+    const res=new Set();
+    for(const m of MILLS){ const vals=m.map(i=>state.board[i]); const empties=m.filter(i=>state.board[i]===null); const owned=vals.filter(v=>v===p).length; if(empties.length===1 && owned===2) res.add(empties[0]); }
+    return [...res];
+  }
+
+  // ==== Interaction ====
+  svg.addEventListener('click', ev=>{ const g=ev.target.closest('.pt'); if(!g) return; const i=+g.dataset.index; humanAct(i); });
+
+  function humanAct(i){ if(isAITurn()) return; const turn=state.toMove; if(state.mustRemove){ const victims=removableList(opp(turn)); if(state.board[i]===opp(turn) && victims.includes(i)){ state.board[i]=null; state.mustRemove=false; state.selected=null; if(countPieces(opp(turn))<=2){ return endGame(`${colorName(turn)} wins (opponent has only two pieces).`);} state.toMove=opp(state.toMove); finalizePhaseIfNeeded(); renderAll(); setStatus(`${colorName(state.toMove)} to ${phaseNameAction()}.`); maybeAITurn(); } return; }
+    if(isPlacingPhase()){ if(state.board[i]!==null) return; state.board[i]=turn; state.placing[turn]--; if(formedMillNow(i,turn)){ state.mustRemove=true; renderAll(); highlightRemovables(opp(turn)); setStatus(`${colorName(turn)} formed a mill. Remove one ${colorName(opp(turn))} piece.`); return; } state.toMove=opp(state.toMove); finalizePhaseIfNeeded(); renderAll(); setStatus(`${colorName(state.toMove)} to ${phaseNameAction()}.`); maybeAITurn(); return; }
+    if(state.selected===null){ if(state.board[i]!==turn) return; state.selected=i; renderAll(); hintTargets(legalTargets(i,turn)); setStatus(`Move selected piece: choose a highlighted point.`); return; } else { if(i===state.selected){ state.selected=null; renderAll(); setStatus(`${colorName(turn)} to ${phaseNameAction()}.`); return; } const from=state.selected; const targets=legalTargets(from,turn); if(targets.includes(i)){ state.board[from]=null; state.board[i]=turn; state.selected=null; if(formedMillNow(i,turn)){ state.mustRemove=true; renderAll(); highlightRemovables(opp(turn)); setStatus(`${colorName(turn)} formed a mill. Remove one ${colorName(opp(turn))} piece.`); return; } state.toMove=opp(state.toMove); renderAll(); if(countPieces(state.toMove)>3 && !playerHasMoves(state.toMove)){ return endGame(`${colorName(opp(state.toMove))} wins (opponent has no legal moves).`);} setStatus(`${colorName(state.toMove)} to ${phaseNameAction()}.`); maybeAITurn(); } return; }
+  }
+
+  function finalizePhaseIfNeeded(){ if(!isPlacingPhase()){ if(countPieces(state.toMove)>3 && !playerHasMoves(state.toMove)){ endGame(`${colorName(opp(state.toMove))} wins (opponent has no legal moves).`); } } }
+  function isPlacingPhase(){ return state.placing.B>0 || state.placing.Y>0 }
+  function phaseNameAction(){ return isPlacingPhase()? 'place a piece' : (countPieces(state.toMove)===3? 'fly' : 'move') }
+  function colorName(p){ return p==='B'?'Blue':'Yellow' }
+
+  // ==== Rendering ====
+  function renderAll(){ pointGs.forEach((g,i)=>{ g.classList.remove('B','Y','empty','select','hint','removable'); const v=state.board[i]; g.classList.add(v? v : 'empty'); if(state.selected===i) g.classList.add('select'); });
+    const info=[`<span><span class="dot blue"></span> on board: <strong>${countPieces('B')}</strong></span>`,`<span><span class="dot blue"></span> to place: <strong>${state.placing.B}</strong></span>`,`<span><span class="dot yellow"></span> on board: <strong>${countPieces('Y')}</strong></span>`,`<span><span class="dot yellow"></span> to place: <strong>${state.placing.Y}</strong></span>`].join(''); countsEl.innerHTML=info; }
+  function setStatus(msg){ statusEl.innerHTML=`<strong>Turn:</strong> ${colorName(state.toMove)} · <strong>Action:</strong> ${phaseNameAction()}<br>${msg}` }
+  function hintTargets(arr){ arr.forEach(i=>pointGs[i].classList.add('hint')) }
+  function highlightRemovables(player){ removableList(player).forEach(i=>pointGs[i].classList.add('removable')) }
+  function endGame(message){ renderAll(); statusEl.innerHTML = `<strong>Game over.</strong> ${message}`; svg.style.pointerEvents='none'; }
+
+  // ==== AI ====
+  function isAITurn(){ return state.ai.enabled && state.toMove!==state.ai.human }
+  function maybeAITurn(){ if(!isAITurn() || state.mustRemove) return; // capture handled separately
+    setTimeout(()=>{ aiMove(); }, 450); }
+
+  function aiMove(){ const me=state.toMove; const enemy=opp(me);
+    // PLACING
+    if(isPlacingPhase()){
+      const empties=emptyIndices();
+      let candidates=[];
+      if(state.ai.level>=1){ // 1) winning placement
+        candidates = empties.filter(i=>formedMillNow(i,me));
+        if(!candidates.length){ // 2) block enemy immediate mill
+          const enemyWins = potentialMillEmptiesFor(enemy);
+          candidates = empties.filter(i=>enemyWins.includes(i));
+        }
+      }
+      if(!candidates.length) candidates = empties;
+      const i = pick(candidates);
+      state.board[i]=me; state.placing[me]--; renderAll();
+      if(formedMillNow(i,me)){ state.mustRemove=true; highlightRemovables(enemy); setStatus(`Computer formed a mill and will remove a ${colorName(enemy)} piece.`); setTimeout(()=>aiCapture(enemy), 400); return; }
+      state.toMove=enemy; finalizePhaseIfNeeded(); renderAll(); setStatus(`${colorName(state.toMove)} to ${phaseNameAction()}.`); return;
+    }
+    // MOVING / FLYING
+    const moves=allLegalMovesFor(me);
+    if(!moves.length){ return endGame(`${colorName(enemy)} wins (computer has no moves).`); }
+    let chosen=null;
+    if(state.ai.level>=1){ // 1) make a mill
+      chosen = moves.find(({to})=>formedMillNow(to,me));
+      if(!chosen){ // 2) block enemy immediate mill by occupying its empty
+        const blocks = potentialMillEmptiesFor(enemy);
+        chosen = moves.find(({to})=>blocks.includes(to));
+      }
+    }
+    if(!chosen) chosen = pick(moves);
+    // play it
+    state.board[chosen.from]=null; state.board[chosen.to]=me; renderAll();
+    if(formedMillNow(chosen.to,me)){ state.mustRemove=true; highlightRemovables(enemy); setStatus(`Computer formed a mill and will remove a ${colorName(enemy)} piece.`); setTimeout(()=>aiCapture(enemy), 400); return; }
+    state.toMove=enemy; renderAll(); if(countPieces(state.toMove)>3 && !playerHasMoves(state.toMove)){ return endGame(`Computer wins (opponent has no legal moves).`);} setStatus(`${colorName(state.toMove)} to ${phaseNameAction()}.`);
+  }
+
+  function aiCapture(victim){ const list=removableList(victim); const pickIdx=pick(list); state.board[pickIdx]=null; state.mustRemove=false; renderAll(); if(countPieces(victim)<=2){ return endGame(`Computer wins (opponent has only two pieces).`);} state.toMove=opp(state.toMove); setStatus(`${colorName(state.toMove)} to ${phaseNameAction()}.`); }
+
+  function allLegalMovesFor(p){ const res=[]; const flying=(countPieces(p)===3); if(flying){ const empties=emptyIndices(); for(let i=0;i<24;i++) if(state.board[i]===p){ for(const t of empties) res.push({from:i,to:t}); } } else { for(let i=0;i<24;i++) if(state.board[i]===p){ for(const t of ADJ[i]) if(state.board[t]===null) res.push({from:i,to:t}); } } return res; }
+  const rnd = n => Math.floor(Math.random()*n); const pick = arr => Array.isArray(arr)? arr[rnd(arr.length)] : arr;
+
+  // ==== Boot ====
+  newGame();
+})();
+</script>
+</body>
+</html>
