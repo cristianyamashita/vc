@@ -79,6 +79,39 @@
         background-color: var(--accent-color);
         border-color: var(--accent-color);
     }
+
+    .task-actions {
+        margin-left: auto;
+        display: flex;
+        gap: 0.5rem;
+    }
+    .task-actions button {
+        background: none;
+        border: none;
+        color: var(--text-color);
+        opacity: 0.7;
+        transition: opacity 0.2s;
+    }
+    .task-actions button:hover {
+        opacity: 1;
+    }
+    .accordion-button {
+      background-color: var(--card-bg-color);
+      color: var(--text-color);
+    }
+    .accordion-button:not(.collapsed) {
+        box-shadow: none;
+    }
+    .accordion-button:focus {
+        box-shadow: none;
+        border-color: var(--border-color);
+    }
+    .accordion-body {
+        padding: 0;
+    }
+    .accordion-header {
+      border-bottom: 1px solid var(--border-color);
+    }
   </style>
 </head>
 <body>
@@ -100,10 +133,10 @@
   </nav>
 
   <div class="container-fluid">
-    <div class="row">
-      <!-- To-Do List -->
-      <div class="col-md-6 mb-4">
-        <div class="card h-100">
+    <div class="row justify-content-center">
+      <div class="col-md-8">
+        <!-- To-Do List -->
+        <div class="card mb-4">
           <div class="card-header">
             <h4 data-i18n="todoTitle">To-Do</h4>
           </div>
@@ -117,19 +150,25 @@
             </ul>
           </div>
         </div>
-      </div>
 
-      <!-- Completed Tasks -->
-      <div class="col-md-6 mb-4">
-        <div class="card h-100">
-          <div class="card-header">
-            <h4 data-i18n="completedTitle">Completed</h4>
-          </div>
-          <div class="card-body">
-            <ul id="completed-list" class="list-group">
-              <!-- Completed tasks will be rendered here -->
-            </ul>
-          </div>
+        <!-- Completed Tasks -->
+        <div class="accordion" id="completed-accordion">
+            <div class="card">
+                <div class="accordion-header" id="headingOne">
+                    <h2 class="mb-0">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne" aria-expanded="false" aria-controls="collapseOne">
+                            <span data-i18n="completedTitle">Completed</span>
+                        </button>
+                    </h2>
+                </div>
+                <div id="collapseOne" class="accordion-collapse collapse" aria-labelledby="headingOne" data-bs-parent="#completed-accordion">
+                    <div class="accordion-body">
+                        <ul id="completed-list" class="list-group list-group-flush">
+                            <!-- Completed tasks will be rendered here -->
+                        </ul>
+                    </div>
+                </div>
+            </div>
         </div>
       </div>
     </div>
