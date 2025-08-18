@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title data-i18n="title">Tic-Tac-Toe</title>
+  <style>
+    :root {
+      --bg-color: #1a202c;
+      --text-color: #e2e8f0;
+      --border-color: #4a5568;
+      --cell-bg: #2d3748;
+      --cell-hover-bg: #4a5568;
+      --x-color: #f56565;
+      --o-color: #48bb78;
+      --button-bg: #4a5568;
+      --button-text: #e2e8f0;
+      --button-hover-bg: #2d3748;
+    }
+
+    body.light-theme {
+      --bg-color: #f7fafc;
+      --text-color: #2d3748;
+      --border-color: #cbd5e0;
+      --cell-bg: #e2e8f0;
+      --cell-hover-bg: #cbd5e0;
+      --x-color: #c53030;
+      --o-color: #2f855a;
+      --button-bg: #e2e8f0;
+      --button-text: #2d3748;
+      --button-hover-bg: #cbd5e0;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+      text-align: center;
+    }
+
+    .game-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+      width: 90vw;
+      max-width: 450px;
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      width: 100%;
+    }
+
+    .selectors {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .lang-selector a {
+      color: var(--text-color);
+      text-decoration: none;
+      padding: 5px 10px;
+      border: 1px solid var(--border-color);
+      border-radius: 5px;
+    }
+
+    .lang-selector a.active {
+      background-color: var(--button-bg);
+      color: var(--button-text);
+    }
+
+    #theme-toggle-btn {
+      background: none;
+      border: 1px solid var(--border-color);
+      color: var(--text-color);
+      cursor: pointer;
+      border-radius: 5px;
+      padding: 5px 10px;
+    }
+
+    .board {
+      display: grid;
+      grid-template-columns: repeat(3, 100px);
+      grid-template-rows: repeat(3, 100px);
+      gap: 10px;
+    }
+
+    .cell {
+      width: 100px;
+      height: 100px;
+      background-color: var(--cell-bg);
+      border: 2px solid var(--border-color);
+      border-radius: 10px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 3rem;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+
+    .cell:hover {
+      background-color: var(--cell-hover-bg);
+    }
+
+    .cell.x {
+      color: var(--x-color);
+    }
+
+    .cell.o {
+      color: var(--o-color);
+    }
+
+    .status {
+      font-size: 1.5rem;
+      min-height: 1.5em;
+    }
+
+    #new-game-btn {
+      padding: 10px 20px;
+      font-size: 1rem;
+      border: none;
+      border-radius: 5px;
+      background-color: var(--button-bg);
+      color: var(--button-text);
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+
+    #new-game-btn:hover {
+      background-color: var(--button-hover-bg);
+    }
+
+    .controls {
+      display: flex;
+      gap: 20px;
+      align-items: center;
+    }
+
+    .difficulty-selector {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    #difficulty {
+      padding: 5px;
+      border-radius: 5px;
+      border: 1px solid var(--border-color);
+      background-color: var(--cell-bg);
+      color: var(--text-color);
+    }
+  </style>
+</head>
+<body>
+  <div class="game-container">
+    <div class="header">
+      <h1 data-i18n="title">Tic-Tac-Toe</h1>
+      <div class="selectors">
+        <div class="lang-selector">
+          <a href="#" data-lang="en" class="active">EN</a>
+          <a href="#" data-lang="ja">JA</a>
+          <a href="#" data-lang="pt">PT</a>
+        </div>
+        <button id="theme-toggle-btn">◑</button>
+      </div>
+    </div>
+    <div id="board" class="board">
+      <div class="cell" data-cell></div>
+      <div class="cell" data-cell></div>
+      <div class="cell" data-cell></div>
+      <div class="cell" data-cell></div>
+      <div class="cell" data-cell></div>
+      <div class="cell" data-cell></div>
+      <div class="cell" data-cell></div>
+      <div class="cell" data-cell></div>
+      <div class="cell" data-cell></div>
+    </div>
+    <div id="status" class="status"></div>
+    <div class="controls">
+      <button id="new-game-btn" data-i18n="newGame">New Game</button>
+      <div class="difficulty-selector">
+        <label for="difficulty" data-i18n="difficulty">Difficulty:</label>
+        <select id="difficulty">
+          <option value="easy" data-i18n="easy">Easy</option>
+          <option value="medium" data-i18n="medium">Medium</option>
+          <option value="hard" selected data-i18n="hard">Hard</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const board = document.getElementById('board');
+      const cells = document.querySelectorAll('[data-cell]');
+      const statusDisplay = document.getElementById('status');
+      const newGameBtn = document.getElementById('new-game-btn');
+      const themeToggleBtn = document.getElementById('theme-toggle-btn');
+      const langSelector = document.querySelector('.lang-selector');
+      const difficultySelector = document.getElementById('difficulty');
+
+      const PLAYER_X = 'x';
+      const PLAYER_O = 'o';
+      const WINNING_COMBINATIONS = [
+        [0, 1, 2], [3, 4, 5], [6, 7, 8], // rows
+        [0, 3, 6], [1, 4, 7], [2, 5, 8], // columns
+        [0, 4, 8], [2, 4, 6]             // diagonals
+      ];
+
+      let currentPlayer;
+      let gameActive;
+      let boardState;
+
+      const translations = {
+        en: {
+          title: "Tic-Tac-Toe",
+          newGame: "New Game",
+          playerXTurn: "Player X's Turn",
+          playerOTurn: "Player O's Turn",
+          playerXWins: "Player X Wins!",
+          playerOWins: "Player O Wins!",
+          draw: "It's a Draw!",
+          difficulty: "Difficulty",
+          easy: "Easy",
+          medium: "Medium",
+          hard: "Hard",
+        },
+        ja: {
+          title: "三目並べ",
+          newGame: "新しいゲーム",
+          playerXTurn: "Xの番",
+          playerOTurn: "Oの番",
+          playerXWins: "Xの勝ち！",
+          playerOWins: "Oの勝ち！",
+          draw: "引き分け！",
+          difficulty: "難易度",
+          easy: "簡単",
+          medium: "普通",
+          hard: "難しい",
+        },
+        pt: {
+          title: "Jogo da Velha",
+          newGame: "Novo Jogo",
+          playerXTurn: "Vez do Jogador X",
+          playerOTurn: "Vez do Jogador O",
+          playerXWins: "Jogador X Venceu!",
+          playerOWins: "Jogador O Venceu!",
+          draw: "Empate!",
+          difficulty: "Dificuldade",
+          easy: "Fácil",
+          medium: "Médio",
+          hard: "Difícil",
+        }
+      };
+
+      function setLanguage(lang) {
+        document.querySelectorAll('[data-i18n]').forEach(element => {
+          const key = element.getAttribute('data-i18n');
+          if (translations[lang] && translations[lang][key]) {
+            element.innerHTML = translations[lang][key];
+          }
+        });
+        document.documentElement.lang = lang;
+        localStorage.setItem('app_lang', lang);
+        updateStatus();
+
+        document.querySelectorAll('.lang-selector a').forEach(a => {
+          a.classList.remove('active');
+          if (a.getAttribute('data-lang') === lang) {
+            a.classList.add('active');
+          }
+        });
+      }
+
+      function startGame() {
+        currentPlayer = PLAYER_X;
+        gameActive = true;
+        boardState = Array(9).fill(null);
+        cells.forEach(cell => {
+          cell.classList.remove(PLAYER_X);
+          cell.classList.remove(PLAYER_O);
+          cell.textContent = '';
+        });
+        updateStatus();
+      }
+
+      function updateStatus() {
+        const lang = localStorage.getItem('app_lang') || 'en';
+        if (!gameActive) return;
+
+        if (currentPlayer === PLAYER_X) {
+          statusDisplay.textContent = translations[lang].playerXTurn;
+        } else {
+          statusDisplay.textContent = translations[lang].playerOTurn;
+        }
+      }
+
+      function handleCellClick(e) {
+        const cell = e.target;
+        const cellIndex = Array.from(cells).indexOf(cell);
+
+        if (boardState[cellIndex] || !gameActive) {
+          return;
+        }
+
+        placeMark(cell, cellIndex);
+
+        if (checkWin(currentPlayer)) {
+          endGame(false);
+        } else if (isDraw()) {
+          endGame(true);
+        } else {
+          swapPlayer();
+          updateStatus();
+          // AI's turn
+          setTimeout(aiMove, 500);
+        }
+      }
+
+      function placeMark(cell, index) {
+        boardState[index] = currentPlayer;
+        cell.classList.add(currentPlayer);
+        cell.textContent = currentPlayer.toUpperCase();
+      }
+
+      function swapPlayer() {
+        currentPlayer = currentPlayer === PLAYER_X ? PLAYER_O : PLAYER_X;
+      }
+
+      function checkWin(player) {
+        return WINNING_COMBINATIONS.some(combination => {
+          return combination.every(index => {
+            return boardState[index] === player;
+          });
+        });
+      }
+
+      function isDraw() {
+        return boardState.every(cell => cell !== null);
+      }
+
+      function endGame(draw) {
+        gameActive = false;
+        const lang = localStorage.getItem('app_lang') || 'en';
+        if (draw) {
+          statusDisplay.textContent = translations[lang].draw;
+        } else {
+          statusDisplay.textContent = currentPlayer === PLAYER_X ? translations[lang].playerXWins : translations[lang].playerOWins;
+        }
+      }
+
+      function aiMove() {
+        if (!gameActive) return;
+
+        const difficulty = difficultySelector.value;
+        let cellIndex;
+
+        if (difficulty === 'easy') {
+          cellIndex = getRandomMove();
+        } else if (difficulty === 'medium') {
+          // 50% chance to make a random move
+          if (Math.random() < 0.5) {
+            cellIndex = getRandomMove();
+          } else {
+            cellIndex = getBestMove();
+          }
+        } else { // hard
+          cellIndex = getBestMove();
+        }
+
+        const cell = cells[cellIndex];
+        placeMark(cell, cellIndex);
+
+        if (checkWin(currentPlayer)) {
+          endGame(false);
+        } else if (isDraw()) {
+          endGame(true);
+        } else {
+          swapPlayer();
+          updateStatus();
+        }
+      }
+
+      function getRandomMove() {
+        let availableCells = [];
+        boardState.forEach((val, index) => {
+          if (val === null) availableCells.push(index);
+        });
+        const randomIndex = Math.floor(Math.random() * availableCells.length);
+        return availableCells[randomIndex];
+      }
+
+      function getBestMove() {
+        return minimax(boardState, PLAYER_O).index;
+      }
+
+      function minimax(newBoard, player) {
+        let availSpots = newBoard.map((val, idx) => val === null ? idx : null).filter(val => val !== null);
+
+        if (checkWinInternal(newBoard, PLAYER_X)) {
+          return { score: -10 };
+        } else if (checkWinInternal(newBoard, PLAYER_O)) {
+          return { score: 10 };
+        } else if (availSpots.length === 0) {
+          return { score: 0 };
+        }
+
+        let moves = [];
+        for (let i = 0; i < availSpots.length; i++) {
+          let move = {};
+          move.index = availSpots[i];
+          newBoard[availSpots[i]] = player;
+
+          if (player === PLAYER_O) {
+            let result = minimax(newBoard, PLAYER_X);
+            move.score = result.score;
+          } else {
+            let result = minimax(newBoard, PLAYER_O);
+            move.score = result.score;
+          }
+
+          newBoard[availSpots[i]] = null;
+          moves.push(move);
+        }
+
+        let bestMove;
+        if (player === PLAYER_O) {
+          let bestScore = -10000;
+          for (let i = 0; i < moves.length; i++) {
+            if (moves[i].score > bestScore) {
+              bestScore = moves[i].score;
+              bestMove = i;
+            }
+          }
+        } else {
+          let bestScore = 10000;
+          for (let i = 0; i < moves.length; i++) {
+            if (moves[i].score < bestScore) {
+              bestScore = moves[i].score;
+              bestMove = i;
+            }
+          }
+        }
+        return moves[bestMove];
+      }
+
+      function checkWinInternal(board, player) {
+        return WINNING_COMBINATIONS.some(combination => {
+          return combination.every(index => {
+            return board[index] === player;
+          });
+        });
+      }
+
+      // Theme and Language setup
+      themeToggleBtn.addEventListener('click', () => {
+        document.body.classList.toggle('light-theme');
+        localStorage.setItem('app_theme', document.body.classList.contains('light-theme') ? 'light' : 'dark');
+      });
+
+      langSelector.addEventListener('click', (event) => {
+        event.preventDefault();
+        const lang = event.target.getAttribute('data-lang');
+        if (lang) {
+          setLanguage(lang);
+        }
+      });
+
+      // Load saved theme and language
+      const savedTheme = localStorage.getItem('app_theme');
+      if (savedTheme === 'light') {
+        document.body.classList.add('light-theme');
+      }
+
+      const savedLang = localStorage.getItem('app_lang') || 'en';
+      setLanguage(savedLang);
+
+      newGameBtn.addEventListener('click', startGame);
+      cells.forEach(cell => cell.addEventListener('click', handleCellClick));
+
+      startGame();
+    });
+  </script>
+</body>
+</html>
