@@ -222,10 +222,17 @@ class Checkers {
     }
 
     _findJumpPaths(startRow, startCol, board, isKing, color) {
+        if (isKing) {
+            return this._findKingJumpPaths(startRow, startCol, board, color);
+        }
+
         let paths = [];
-        const directions = isKing ? [[-1, -1], [-1, 1], [1, -1], [1, 1]] : (color === 'w' ? [[1, -1], [1, 1]] : [[-1, -1], [-1, 1]]);
+        const directions = [[-1, -1], [-1, 1], [1, -1], [1, 1]];
 
         for (const [dr, dc] of directions) {
+            if(color === 'w' && dr < 0) continue;
+            if(color === 'b' && dr > 0) continue;
+
             const middleRow = startRow + dr;
             const middleCol = startCol + dc;
             const destRow = startRow + dr * 2;
@@ -233,31 +240,68 @@ class Checkers {
 
             if (this.isValidSquare(destRow, destCol) && board[destRow][destCol] === 0) {
                 const middlePiece = board[middleRow][middleCol];
-                if (middlePiece !== 0) {
-                    const middleColor = (middlePiece === 1 || middlePiece === 3) ? 'w' : 'b';
-                    if (middleColor !== color) {
-                        const newBoard = JSON.parse(JSON.stringify(board));
-                        const movedPiece = newBoard[startRow][startCol];
-                        newBoard[destRow][destCol] = movedPiece;
-                        newBoard[startRow][startCol] = 0;
-                        newBoard[middleRow][middleCol] = 0;
+                if (middlePiece !== 0 && ((middlePiece === 1 || middlePiece === 3) ? 'w' : 'b') !== color) {
+                    const newBoard = JSON.parse(JSON.stringify(board));
+                    const movedPiece = newBoard[startRow][startCol];
+                    newBoard[destRow][destCol] = movedPiece;
+                    newBoard[startRow][startCol] = 0;
+                    newBoard[middleRow][middleCol] = 0;
 
-                        const promoted = !isKing && ((destRow === 7 && movedPiece === 1) || (destRow === 0 && movedPiece === 2));
+                    const promoted = (destRow === 7 && movedPiece === 1) || (destRow === 0 && movedPiece === 2);
+                    const move = { from: [startRow, startCol], to: [destRow, destCol], captured: [middleRow, middleCol] };
 
-                        const move = { from: [startRow, startCol], to: [destRow, destCol], captured: [middleRow, middleCol] };
-                        const newPath = [move];
-
-                        if (promoted) {
-                            paths.push(newPath);
-                        } else {
-                            const nextPaths = this._findJumpPaths(destRow, destCol, newBoard, isKing, color);
-                            if (nextPaths.length > 0) {
-                                for (const path of nextPaths) {
-                                    paths.push([...newPath, ...path]);
-                                }
-                            } else {
-                                paths.push(newPath);
+                    if (promoted) {
+                        paths.push([move]);
+                    } else {
+                        const nextPaths = this._findJumpPaths(destRow, destCol, newBoard, false, color);
+                        if (nextPaths.length > 0) {
+                            for (const path of nextPaths) {
+                                paths.push([move, ...path]);
                             }
+                        } else {
+                            paths.push([move]);
+                        }
+                    }
+                }
+            }
+        }
+        return paths;
+    }
+
+    _findKingJumpPaths(startRow, startCol, board, color) {
+        let paths = [];
+        const directions = [[-1, -1], [-1, 1], [1, -1], [1, 1]];
+
+        for (const [dr, dc] of directions) {
+            let opponentPos = null;
+
+            for (let i = 1; i < 8; i++) {
+                const checkRow = startRow + dr * i;
+                const checkCol = startCol + dc * i;
+
+                if (!this.isValidSquare(checkRow, checkCol)) break;
+
+                const piece = board[checkRow][checkCol];
+                if (piece !== 0) {
+                    if (((piece === 1 || piece === 3) ? 'w' : 'b') === color) break;
+                    if (opponentPos) break;
+                    opponentPos = [checkRow, checkCol];
+                } else {
+                    if (opponentPos) {
+                        const newBoard = JSON.parse(JSON.stringify(board));
+                        newBoard[checkRow][checkCol] = newBoard[startRow][startCol];
+                        newBoard[startRow][startCol] = 0;
+                        newBoard[opponentPos[0]][opponentPos[1]] = 0;
+
+                        const move = { from: [startRow, startCol], to: [checkRow, checkCol], captured: opponentPos };
+                        const nextPaths = this._findKingJumpPaths(checkRow, checkCol, newBoard, color);
+
+                        if (nextPaths.length > 0) {
+                            for (const path of nextPaths) {
+                                paths.push([move, ...path]);
+                            }
+                        } else {
+                            paths.push([move]);
                         }
                     }
                 }
@@ -391,7 +435,13 @@ class Checkers {
         }
 
         if (jumpSequences.length > 0) {
-            return jumpSequences;
+            let maxLength = 0;
+            jumpSequences.forEach(seq => {
+                if (seq.length > maxLength) {
+                    maxLength = seq.length;
+                }
+            });
+            return jumpSequences.filter(seq => seq.length === maxLength);
         }
 
         for (let r = 0; r < 8; r++) {
