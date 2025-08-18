@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Space Invaders</title>
+<style>
+  :root {
+    --bg-1: #0b0f14;
+    --bg-2: #0a0f1a;
+    --card: #0f1623cc;
+    --ink: #dbe7ff;
+    --muted: #92a3ba;
+    --border: #1f2a3f;
+    --accent: #4ea1ff;
+    --accent-2: #86efac;
+    --shadow: 0 18px 60px rgba(0,0,0,.40);
+    --gradient-color-1: #101826;
+    --gradient-color-2: #0f1628;
+    --hero-bg-1: #0f1726cc;
+    --hero-bg-2: #0d1422cc;
+    --chip-bg: #0e1524;
+    --nav-link-bg: #0d1422;
+    --nav-link-hover-border: #2a3b5a;
+    --desc-color: #c2d2ee;
+    --btn-primary-color: #0a0f18;
+    --btn-ghost-bg: #1a2234;
+    --btn-ghost-border: #2a3450;
+    --tag-bg: #0c1422;
+    --tag-color: #a0b6d6;
+  }
+  body.light-theme {
+    --bg-1: #ffffff;
+    --bg-2: #f0f2f5;
+    --card: #ffffff;
+    --ink: #000000;
+    --muted: #65676b;
+    --border: #dcdfe6;
+    --accent: #1877f2;
+    --accent-2: #31a24c;
+    --shadow: 0 18px 60px rgba(0,0,0,.12);
+    --gradient-color-1: #e0e2e5;
+    --gradient-color-2: #d0d2d5;
+    --hero-bg-1: #f0f2f5cc;
+    --hero-bg-2: #e0e2e5cc;
+    --chip-bg: #e9eaeb;
+    --nav-link-bg: #e9eaeb;
+    --nav-link-hover-border: #c0c2c5;
+    --desc-color: #333;
+    --btn-primary-color: #ffffff;
+    --btn-ghost-bg: #e4e6eb;
+    --btn-ghost-border: #ced0d4;
+    --tag-bg: #e4e6eb;
+    --tag-color: #333;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    height: 100%;
+    margin: 0;
+    background-color: var(--bg-1);
+    color: var(--ink);
+    font-family: 'Noto Sans JP', system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, 'Helvetica Neue', Arial, 'Noto Sans';
+    overflow: hidden;
+  }
+  .wrap {
+    display: grid;
+    grid-template-columns: 1fr 280px;
+    height: 100%;
+  }
+  #game-canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+    background-color: #000;
+  }
+  aside {
+    background: linear-gradient(180deg, var(--bg-1), var(--bg-2));
+    border-left: 1px solid var(--border);
+    padding: 18px;
+    overflow-y: auto;
+  }
+  h1 {
+    font-size: 24px;
+    margin: 0 0 16px;
+    letter-spacing: .3px;
+    font-weight: 700;
+  }
+  .section {
+    margin-bottom: 20px;
+    padding: 12px;
+    border-radius: 12px;
+    background: var(--card);
+    border: 1px solid var(--border);
+  }
+  .row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+  .label {
+    font-weight: 600;
+  }
+  #score, #level, #lives {
+    font-size: 18px;
+  }
+  .btn {
+    cursor: pointer;
+    padding: 10px 16px;
+    border-radius: 8px;
+    border: 1px solid var(--btn-ghost-border);
+    background: var(--btn-ghost-bg);
+    color: var(--ink);
+    font-weight: 600;
+  }
+  .btn:hover {
+    border-color: var(--nav-link-hover-border);
+  }
+  .lang-selector {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  .lang-selector a {
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 4px 8px;
+    border-radius: 8px;
+    border: 1px solid transparent;
+  }
+  .lang-selector a:hover {
+    border-color: var(--border);
+  }
+  .lang-selector a.active {
+    color: var(--accent);
+  }
+  #theme-toggle-btn {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--ink);
+    cursor: pointer;
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-size: 16px;
+  }
+  .controls-title {
+      font-weight: bold;
+      margin-bottom: 10px;
+  }
+  .controls-text {
+      font-size: 14px;
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <canvas id="game-canvas"></canvas>
+    <aside>
+      <div class="row">
+        <h1 data-i18n="title">Space Invaders</h1>
+        <button id="theme-toggle-btn">◑</button>
+      </div>
+      <div class="lang-selector">
+        <a href="#" data-lang="en" class="active">EN</a>
+        <a href="#" data-lang="ja">JA</a>
+        <a href="#" data-lang="pt">PT</a>
+      </div>
+      <div class="section">
+        <div class="row">
+          <span class="label" data-i18n="score">Score:</span>
+          <span id="score">0</span>
+        </div>
+        <div class="row">
+          <span class="label" data-i18n="level">Level:</span>
+          <span id="level">1</span>
+        </div>
+        <div class="row">
+          <span class="label" data-i18n="lives">Lives:</span>
+          <span id="lives">3</span>
+        </div>
+        <div class="row">
+          <span class="label" data-i18n="shields">Shields:</span>
+          <span id="shields">0</span>
+        </div>
+      </div>
+      <div class="section">
+        <button class="btn" id="start-btn" data-i18n="start">Start Game</button>
+        <button class="btn" id="reset-btn" data-i18n="reset" style="display: none;">Reset Game</button>
+      </div>
+      <div class="section">
+          <div class="controls-title" data-i18n="controlsTitle">Controls</div>
+          <div class="controls-text" data-i18n="controlsText">
+              Use Left/Right arrow keys to move and Spacebar to shoot.
+          </div>
+      </div>
+    </aside>
+  </div>
+  <script>
+    const canvas = document.getElementById('game-canvas');
+    const ctx = canvas.getContext('2d');
+    const scoreEl = document.getElementById('score');
+    const levelEl = document.getElementById('level');
+    const livesEl = document.getElementById('lives');
+    const shieldsEl = document.getElementById('shields');
+    const startBtn = document.getElementById('start-btn');
+    const resetBtn = document.getElementById('reset-btn');
+
+    let animationFrameId;
+    let gameRunning = false;
+
+    // Game variables
+    let player;
+    let enemies = [];
+    let bullets = [];
+    let enemyBullets = [];
+    let powerUps = [];
+    let score = 0;
+    let level = 1;
+    let lives = 3;
+    let wave = 1;
+    let enemyDirection = 1;
+
+    const playerWidth = 50;
+    const playerHeight = 30;
+    const enemyWidth = 40;
+    const enemyHeight = 30;
+    const bulletWidth = 5;
+    const bulletHeight = 15;
+    const powerUpSize = 20;
+
+    function resizeCanvas() {
+        canvas.width = canvas.clientWidth;
+        canvas.height = canvas.clientHeight;
+    }
+
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    class Player {
+        constructor() {
+            this.width = playerWidth;
+            this.height = playerHeight;
+            this.x = canvas.width / 2 - this.width / 2;
+            this.y = canvas.height - this.height - 20;
+            this.speed = 5;
+            this.dx = 0;
+            this.weaponLevel = 1;
+            this.shields = 0;
+        }
+
+        draw() {
+            ctx.fillStyle = 'lime';
+            ctx.fillRect(this.x, this.y, this.width, this.height);
+        }
+
+        update() {
+            this.x += this.dx;
+
+            // Wall detection
+            if (this.x < 0) {
+                this.x = 0;
+            }
+            if (this.x + this.width > canvas.width) {
+                this.x = canvas.width - this.width;
+            }
+        }
+
+        moveRight() {
+            this.dx = this.speed;
+        }
+
+        moveLeft() {
+            this.dx = -this.speed;
+        }
+
+        stop() {
+            this.dx = 0;
+        }
+
+        shoot() {
+            const weapon = this.getWeapon();
+            for (const shot of weapon.shots) {
+                bullets.push(new Bullet(this.x + this.width / 2 + shot.offsetX, this.y, shot.speedY));
+            }
+        }
+
+        getWeapon() {
+            switch (this.weaponLevel) {
+                case 1:
+                    return { shots: [{ offsetX: 0, speedY: -8 }] };
+                case 2:
+                    return { shots: [{ offsetX: -10, speedY: -8 }, { offsetX: 10, speedY: -8 }] };
+                case 3:
+                    return { shots: [{ offsetX: -15, speedY: -8 }, { offsetX: 0, speedY: -8 }, { offsetX: 15, speedY: -8 }] };
+                default:
+                    return { shots: [{ offsetX: -20, speedY: -8 }, { offsetX: -5, speedY: -8 }, { offsetX: 5, speedY: -8 }, { offsetX: 20, speedY: -8 }] };
+            }
+        }
+    }
+
+    class Bullet {
+        constructor(x, y, speedY) {
+            this.x = x;
+            this.y = y;
+            this.width = bulletWidth;
+            this.height = bulletHeight;
+            this.speedY = speedY;
+        }
+
+        draw() {
+            ctx.fillStyle = 'yellow';
+            ctx.fillRect(this.x, this.y, this.width, this.height);
+        }
+
+        update() {
+            this.y += this.speedY;
+        }
+    }
+
+    class Enemy {
+        constructor(x, y) {
+            this.x = x;
+            this.y = y;
+            this.width = enemyWidth;
+            this.height = enemyHeight;
+        }
+
+        draw() {
+            ctx.fillStyle = 'red';
+            ctx.fillRect(this.x, this.y, this.width, this.height);
+        }
+    }
+
+    class PowerUp {
+        constructor(x, y, type) {
+            this.x = x;
+            this.y = y;
+            this.size = powerUpSize;
+            this.speedY = 2;
+            this.type = type; // 'weapon' or 'shield'
+        }
+
+        draw() {
+            ctx.fillStyle = this.type === 'weapon' ? 'cyan' : 'gold';
+            ctx.fillRect(this.x, this.y, this.size, this.size);
+        }
+
+        update() {
+            this.y += this.speedY;
+        }
+    }
+
+    function createEnemies() {
+        enemies = [];
+        const enemyRows = 3 + wave;
+        const enemyCols = 8;
+        const enemySpacing = 15;
+        const startX = (canvas.width - (enemyCols * (enemyWidth + enemySpacing))) / 2;
+        for (let row = 0; row < enemyRows; row++) {
+            for (let col = 0; col < enemyCols; col++) {
+                const x = startX + col * (enemyWidth + enemySpacing);
+                const y = 50 + row * (enemyHeight + enemySpacing);
+                enemies.push(new Enemy(x, y));
+            }
+        }
+    }
+
+    function updateGame() {
+        if (!gameRunning) return;
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        player.update();
+        player.draw();
+
+        // Update and draw bullets
+        bullets.forEach((bullet, index) => {
+            bullet.update();
+            bullet.draw();
+            if (bullet.y < 0) {
+                bullets.splice(index, 1);
+            }
+        });
+
+        // Update and draw enemy bullets
+        enemyBullets.forEach((bullet, index) => {
+            bullet.update();
+            bullet.draw();
+            if (bullet.y > canvas.height) {
+                enemyBullets.splice(index, 1);
+            }
+        });
+
+        // Update and draw power-ups
+        powerUps.forEach((powerUp, index) => {
+            powerUp.update();
+            powerUp.draw();
+            if (powerUp.y > canvas.height) {
+                powerUps.splice(index, 1);
+            }
+        });
+
+        let enemySpeed = 0.5 + (level * 0.1);
+        let moveDown = false;
+
+        enemies.forEach(enemy => {
+            enemy.x += enemySpeed * enemyDirection;
+            if (enemy.x + enemy.width > canvas.width || enemy.x < 0) {
+                moveDown = true;
+            }
+        });
+
+        if (moveDown) {
+            enemyDirection *= -1;
+            enemies.forEach(enemy => {
+                enemy.y += enemyHeight / 2;
+            });
+        }
+
+        enemies.forEach(enemy => {
+            enemy.draw();
+            if (enemy.y + enemy.height > player.y) {
+                gameOver();
+            }
+        });
+
+
+        // Collision detection
+        handleCollisions();
+
+        // Enemy shooting
+        if (Math.random() < 0.01 * level) {
+            const randomEnemy = enemies[Math.floor(Math.random() * enemies.length)];
+            if (randomEnemy) {
+                enemyBullets.push(new Bullet(randomEnemy.x + randomEnemy.width / 2, randomEnemy.y + randomEnemy.height, 5));
+            }
+        }
+
+        // Next level
+        if (enemies.length === 0) {
+            level++;
+            wave++;
+            levelEl.textContent = level;
+            createEnemies();
+        }
+
+        animationFrameId = requestAnimationFrame(updateGame);
+    }
+
+    function handleCollisions() {
+        // Player bullets with enemies
+        bullets.forEach((bullet, bulletIndex) => {
+            enemies.forEach((enemy, enemyIndex) => {
+                if (
+                    bullet.x < enemy.x + enemy.width &&
+                    bullet.x + bullet.width > enemy.x &&
+                    bullet.y < enemy.y + enemy.height &&
+                    bullet.y + bullet.height > enemy.y
+                ) {
+                    // Hit
+                    bullets.splice(bulletIndex, 1);
+                    enemies.splice(enemyIndex, 1);
+                    score += 10;
+                    scoreEl.textContent = score;
+
+                    // Drop power-up
+                    if (Math.random() < 0.15) { // Increased drop rate slightly
+                        const type = Math.random() < 0.5 ? 'weapon' : 'shield';
+                        powerUps.push(new PowerUp(enemy.x, enemy.y, type));
+                    }
+                }
+            });
+        });
+
+        // Enemy bullets with player
+        enemyBullets.forEach((bullet, bulletIndex) => {
+            if (
+                bullet.x < player.x + player.width &&
+                bullet.x + bullet.width > player.x &&
+                bullet.y < player.y + player.height &&
+                bullet.y + bullet.height > player.y
+            ) {
+                enemyBullets.splice(bulletIndex, 1);
+                handlePlayerHit();
+            }
+        });
+
+        // Player with power-ups
+        powerUps.forEach((powerUp, powerUpIndex) => {
+            if (
+                powerUp.x < player.x + player.width &&
+                powerUp.x + powerUp.size > player.x &&
+                powerUp.y < player.y + player.height &&
+                powerUp.y + powerUp.size > player.y
+            ) {
+                powerUps.splice(powerUpIndex, 1);
+                if (powerUp.type === 'weapon' && player.weaponLevel < 4) {
+                    player.weaponLevel++;
+                } else if (powerUp.type === 'shield' && player.shields < 3) {
+                    player.shields++;
+                    shieldsEl.textContent = player.shields;
+                }
+            }
+        });
+
+        // Player with enemies
+        enemies.forEach((enemy, enemyIndex) => {
+            if (
+                player.x < enemy.x + enemy.width &&
+                player.x + player.width > enemy.x &&
+                player.y < enemy.y + enemy.height &&
+                player.y + player.height > enemy.y
+            ) {
+                enemies.splice(enemyIndex, 1);
+                handlePlayerHit();
+            }
+        });
+    }
+
+    function handlePlayerHit() {
+        if (player.shields > 0) {
+            player.shields--;
+            shieldsEl.textContent = player.shields;
+            return;
+        }
+
+        lives--;
+        livesEl.textContent = lives;
+        if (lives <= 0) {
+            gameOver();
+        } else {
+            // Reset player position
+            player.x = canvas.width / 2 - player.width / 2;
+            player.y = canvas.height - player.height - 20;
+            player.weaponLevel = 1;
+        }
+    }
+
+    function gameOver() {
+        gameRunning = false;
+        cancelAnimationFrame(animationFrameId);
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = 'white';
+        ctx.font = '48px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('Game Over', canvas.width / 2, canvas.height / 2);
+        startBtn.style.display = 'none';
+        resetBtn.style.display = 'block';
+    }
+
+    function startGame() {
+        if (gameRunning) return;
+        gameRunning = true;
+        player = new Player();
+        createEnemies();
+        score = 0;
+        level = 1;
+        lives = 3;
+        wave = 1;
+        enemyDirection = 1;
+        scoreEl.textContent = score;
+        levelEl.textContent = level;
+        livesEl.textContent = lives;
+        shieldsEl.textContent = 0;
+        startBtn.style.display = 'none';
+        resetBtn.style.display = 'block';
+        updateGame();
+    }
+
+    function resetGame() {
+        gameRunning = false;
+        cancelAnimationFrame(animationFrameId);
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        startBtn.style.display = 'block';
+        resetBtn.style.display = 'none';
+        scoreEl.textContent = 0;
+        levelEl.textContent = 1;
+        livesEl.textContent = 3;
+        shieldsEl.textContent = 0;
+        enemyDirection = 1;
+    }
+
+    startBtn.addEventListener('click', startGame);
+    resetBtn.addEventListener('click', resetGame);
+
+    // Keyboard controls
+    document.addEventListener('keydown', (e) => {
+        if (!gameRunning) return;
+        if (e.code === 'ArrowRight') {
+            player.moveRight();
+        } else if (e.code === 'ArrowLeft') {
+            player.moveLeft();
+        } else if (e.code === 'Space') {
+            player.shoot();
+        }
+    });
+
+    document.addEventListener('keyup', (e) => {
+        if (!gameRunning) return;
+        if (e.code === 'ArrowRight' || e.code === 'ArrowLeft') {
+            player.stop();
+        }
+    });
+
+    // Theme and Language
+    const translations = {
+      en: {
+        title: "Space Invaders",
+        score: "Score:",
+        level: "Level:",
+        lives: "Lives:",
+        shields: "Shields:",
+        start: "Start Game",
+        reset: "Reset Game",
+        controlsTitle: "Controls",
+        controlsText: "Use Left/Right arrow keys to move and Spacebar to shoot."
+      },
+      ja: {
+        title: "スペースインベーダー",
+        score: "スコア:",
+        level: "レベル:",
+        lives: "ライフ:",
+        shields: "シールド:",
+        start: "ゲーム開始",
+        reset: "リセット",
+        controlsTitle: "操作",
+        controlsText: "左右の矢印キーで移動、スペースバーで射撃。"
+      },
+      pt: {
+        title: "Space Invaders",
+        score: "Pontuação:",
+        level: "Nível:",
+        lives: "Vidas:",
+        shields: "Escudos:",
+        start: "Começar Jogo",
+        reset: "Reiniciar Jogo",
+        controlsTitle: "Controles",
+        controlsText: "Use as setas Esquerda/Direita para mover e a Barra de espaço para atirar."
+      }
+    };
+
+    const setLanguage = (lang) => {
+      document.querySelectorAll('[data-i18n]').forEach(element => {
+        const key = element.getAttribute('data-i18n');
+        if (translations[lang] && translations[lang][key]) {
+          element.innerHTML = translations[lang][key];
+        } else {
+          element.innerHTML = translations['en'][key];
+        }
+      });
+      document.documentElement.lang = lang;
+      localStorage.setItem('app_lang', lang);
+
+      document.querySelectorAll('.lang-selector a').forEach(a => {
+        a.classList.remove('active');
+        if (a.getAttribute('data-lang') === lang) {
+          a.classList.add('active');
+        }
+      });
+    };
+
+    document.querySelector('.lang-selector').addEventListener('click', (event) => {
+      event.preventDefault();
+      const lang = event.target.getAttribute('data-lang');
+      if (lang) {
+        setLanguage(lang);
+      }
+    });
+
+    document.getElementById('theme-toggle-btn').addEventListener('click', () => {
+        document.body.classList.toggle('light-theme');
+        localStorage.setItem('app_theme', document.body.classList.contains('light-theme') ? 'light' : 'dark');
+    });
+
+    // Load saved theme and language
+    const savedTheme = localStorage.getItem('app_theme');
+    if (savedTheme === 'light') {
+        document.body.classList.add('light-theme');
+    }
+
+    const savedLang = localStorage.getItem('app_lang');
+    const browserLang = navigator.language.split('-')[0];
+    const initialLang = savedLang || (translations[browserLang] ? browserLang : 'en');
+    setLanguage(initialLang);
+
+  </script>
+</body>
+</html>
