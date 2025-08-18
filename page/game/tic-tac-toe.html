@@ -48,13 +48,15 @@
       flex-direction: column;
       align-items: center;
       gap: 20px;
+      width: 90vw;
+      max-width: 450px;
     }
 
     .header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      width: 320px;
+      width: 100%;
     }
 
     .selectors {
@@ -137,6 +139,26 @@
     #new-game-btn:hover {
       background-color: var(--button-hover-bg);
     }
+
+    .controls {
+      display: flex;
+      gap: 20px;
+      align-items: center;
+    }
+
+    .difficulty-selector {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    #difficulty {
+      padding: 5px;
+      border-radius: 5px;
+      border: 1px solid var(--border-color);
+      background-color: var(--cell-bg);
+      color: var(--text-color);
+    }
   </style>
 </head>
 <body>
@@ -164,7 +186,17 @@
       <div class="cell" data-cell></div>
     </div>
     <div id="status" class="status"></div>
-    <button id="new-game-btn" data-i18n="newGame">New Game</button>
+    <div class="controls">
+      <button id="new-game-btn" data-i18n="newGame">New Game</button>
+      <div class="difficulty-selector">
+        <label for="difficulty" data-i18n="difficulty">Difficulty:</label>
+        <select id="difficulty">
+          <option value="easy" data-i18n="easy">Easy</option>
+          <option value="medium" data-i18n="medium">Medium</option>
+          <option value="hard" selected data-i18n="hard">Hard</option>
+        </select>
+      </div>
+    </div>
   </div>
 
   <script>
@@ -175,6 +207,7 @@
       const newGameBtn = document.getElementById('new-game-btn');
       const themeToggleBtn = document.getElementById('theme-toggle-btn');
       const langSelector = document.querySelector('.lang-selector');
+      const difficultySelector = document.getElementById('difficulty');
 
       const PLAYER_X = 'x';
       const PLAYER_O = 'o';
@@ -197,6 +230,10 @@
           playerXWins: "Player X Wins!",
           playerOWins: "Player O Wins!",
           draw: "It's a Draw!",
+          difficulty: "Difficulty",
+          easy: "Easy",
+          medium: "Medium",
+          hard: "Hard",
         },
         ja: {
           title: "三目並べ",
@@ -206,6 +243,10 @@
           playerXWins: "Xの勝ち！",
           playerOWins: "Oの勝ち！",
           draw: "引き分け！",
+          difficulty: "難易度",
+          easy: "簡単",
+          medium: "普通",
+          hard: "難しい",
         },
         pt: {
           title: "Jogo da Velha",
@@ -215,6 +256,10 @@
           playerXWins: "Jogador X Venceu!",
           playerOWins: "Jogador O Venceu!",
           draw: "Empate!",
+          difficulty: "Dificuldade",
+          easy: "Fácil",
+          medium: "Médio",
+          hard: "Difícil",
         }
       };
 
@@ -317,16 +362,23 @@
       function aiMove() {
         if (!gameActive) return;
 
-        // Simple AI: find the first available spot
-        let availableCells = [];
-        boardState.forEach((val, index) => {
-            if(val === null) availableCells.push(index);
-        });
+        const difficulty = difficultySelector.value;
+        let cellIndex;
 
-        const randomIndex = Math.floor(Math.random() * availableCells.length);
-        const cellIndex = availableCells[randomIndex];
+        if (difficulty === 'easy') {
+          cellIndex = getRandomMove();
+        } else if (difficulty === 'medium') {
+          // 50% chance to make a random move
+          if (Math.random() < 0.5) {
+            cellIndex = getRandomMove();
+          } else {
+            cellIndex = getBestMove();
+          }
+        } else { // hard
+          cellIndex = getBestMove();
+        }
+
         const cell = cells[cellIndex];
-
         placeMark(cell, cellIndex);
 
         if (checkWin(currentPlayer)) {
@@ -337,6 +389,77 @@
           swapPlayer();
           updateStatus();
         }
+      }
+
+      function getRandomMove() {
+        let availableCells = [];
+        boardState.forEach((val, index) => {
+          if (val === null) availableCells.push(index);
+        });
+        const randomIndex = Math.floor(Math.random() * availableCells.length);
+        return availableCells[randomIndex];
+      }
+
+      function getBestMove() {
+        return minimax(boardState, PLAYER_O).index;
+      }
+
+      function minimax(newBoard, player) {
+        let availSpots = newBoard.map((val, idx) => val === null ? idx : null).filter(val => val !== null);
+
+        if (checkWinInternal(newBoard, PLAYER_X)) {
+          return { score: -10 };
+        } else if (checkWinInternal(newBoard, PLAYER_O)) {
+          return { score: 10 };
+        } else if (availSpots.length === 0) {
+          return { score: 0 };
+        }
+
+        let moves = [];
+        for (let i = 0; i < availSpots.length; i++) {
+          let move = {};
+          move.index = availSpots[i];
+          newBoard[availSpots[i]] = player;
+
+          if (player === PLAYER_O) {
+            let result = minimax(newBoard, PLAYER_X);
+            move.score = result.score;
+          } else {
+            let result = minimax(newBoard, PLAYER_O);
+            move.score = result.score;
+          }
+
+          newBoard[availSpots[i]] = null;
+          moves.push(move);
+        }
+
+        let bestMove;
+        if (player === PLAYER_O) {
+          let bestScore = -10000;
+          for (let i = 0; i < moves.length; i++) {
+            if (moves[i].score > bestScore) {
+              bestScore = moves[i].score;
+              bestMove = i;
+            }
+          }
+        } else {
+          let bestScore = 10000;
+          for (let i = 0; i < moves.length; i++) {
+            if (moves[i].score < bestScore) {
+              bestScore = moves[i].score;
+              bestMove = i;
+            }
+          }
+        }
+        return moves[bestMove];
+      }
+
+      function checkWinInternal(board, player) {
+        return WINNING_COMBINATIONS.some(combination => {
+          return combination.every(index => {
+            return board[index] === player;
+          });
+        });
       }
 
       // Theme and Language setup
