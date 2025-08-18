@@ -159,6 +159,7 @@
       border: 2px solid #004d00;
     }
     .bet-option {
+      position: relative;
       background-color: var(--chip-bg);
       border: 1px solid var(--border);
       color: var(--ink);
@@ -168,6 +169,23 @@
       border-radius: 5px;
       font-weight: bold;
       min-width: 40px;
+    }
+    .chip-on-board {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 25px;
+        height: 25px;
+        border-radius: 50%;
+        background-color: rgba(255, 255, 255, 0.8);
+        color: black;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        font-size: 12px;
+        border: 1px solid black;
+        pointer-events: none;
     }
     .bet-option:hover {
       background-color: var(--accent);
@@ -402,6 +420,8 @@ document.getElementById('theme-toggle-btn').addEventListener('click', () => {
 
 // Game Logic
 const wheelCanvas = document.getElementById('wheel');
+wheelCanvas.width = 300;
+wheelCanvas.height = 300;
 const ctx = wheelCanvas.getContext('2d');
 const spinButton = document.getElementById('spin-button');
 const clearButton = document.getElementById('clear-button');
@@ -509,17 +529,25 @@ function selectChip(e) {
 
 function placeBet(e) {
     if (isSpinning) return;
-    const betType = e.target.dataset.bet;
-    if (!betType) return;
+    const betOption = e.target.closest('.bet-option');
+    if (!betOption) return;
+    const betType = betOption.dataset.bet;
 
     if (playerBalance >= selectedChip) {
         playerBalance -= selectedChip;
         totalBet += selectedChip;
         currentBets[betType] = (currentBets[betType] || 0) + selectedChip;
         updateUI();
-        console.log(`Bet ${selectedChip} on ${betType}. Current bets:`, currentBets);
+
+        let chipOnBoard = betOption.querySelector('.chip-on-board');
+        if (!chipOnBoard) {
+            chipOnBoard = document.createElement('div');
+            chipOnBoard.className = 'chip-on-board';
+            betOption.appendChild(chipOnBoard);
+        }
+        chipOnBoard.textContent = currentBets[betType];
     } else {
-        messageDiv.textContent = "Not enough balance!";
+        messageDiv.textContent = translations[currentLang].notEnoughBalance;
     }
 }
 
@@ -590,6 +618,11 @@ function calculateWinnings(winningNumber) {
     totalBet = 0;
     currentBets = {};
     updateUI();
+
+    setTimeout(() => {
+        document.querySelectorAll('.chip-on-board').forEach(chip => chip.remove());
+        messageDiv.textContent = translations[currentLang].placeYourBets;
+    }, 3000);
 }
 
 function clearBets() {
@@ -599,6 +632,7 @@ function clearBets() {
     currentBets = {};
     updateUI();
     messageDiv.textContent = translations[currentLang].placeYourBets;
+    document.querySelectorAll('.chip-on-board').forEach(chip => chip.remove());
 }
 
 // Initial setup
