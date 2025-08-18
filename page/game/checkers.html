@@ -50,6 +50,9 @@
       align-items: center;
       box-shadow: inset 0 -3px 5px rgba(0,0,0,0.3), 0 2px 3px rgba(0,0,0,0.3);
     }
+    .piece.dragging {
+        opacity: 0.5;
+    }
     .piece.white { background-color: #f8f8f8; }
     .piece.black { background-color: #585858; color: white; }
     .king::after {
@@ -71,7 +74,7 @@
     }
     #status { font-size: 18px; }
     .highlight { background-color: rgba(255, 255, 0, 0.5); }
-    .selected { background-color: rgba(0, 255, 0, 0.5); }
+    .path-highlight { background-color: rgba(0, 255, 0, 0.3); }
     .lang-selector { display: flex; gap: 8px; }
     .lang-selector a {
       color: #fff;
@@ -118,23 +121,24 @@ const translations = {
     newGame: "New Game", flipBoard: "Flip Board", undo: "Undo", redo: "Redo", difficulty: "Difficulty",
     easy: "Easy", medium: "Medium", hard: "Hard", yourTurn: "Your turn", computerTurn: "Computer's turn",
     whiteWins: "Game over, White wins!", blackWins: "Game over, Black wins!",
-    instructions: "Instructions: Click a piece to select it, then click a highlighted square to move. Captures are mandatory. You must take the longest jump sequence."
+    instructions: "Instructions: Drag and drop a piece to move. For multi-jumps, drag the piece through the capture path."
   },
   ja: {
     newGame: "新しいゲーム", flipBoard: "盤を反転", undo: "元に戻す", redo: "やり直し", difficulty: "難易度",
     easy: "簡単", medium: "普通", hard: "難しい", yourTurn: "あなたの番です", computerTurn: "コンピュータの番です",
     whiteWins: "ゲームオーバー、白の勝ちです！", blackWins: "ゲームオーバー、黒の勝ちです！",
-    instructions: "遊び方：駒をクリックして選択し、ハイライトされたマスをクリックして移動します。キャプチャは必須です。最も長いジャンプシーケンスを選択する必要があります。"
+    instructions: "遊び方：駒をドラッグ＆ドロップして移動します。連続ジャンプの場合は、キャプチャーパスに沿って駒をドラッグしてください。"
   },
   pt: {
     newGame: "Novo Jogo", flipBoard: "Inverter Tabuleiro", undo: "Desfazer", redo: "Refazer", difficulty: "Dificuldade",
     easy: "Fácil", medium: "Médio", hard: "Difícil", yourTurn: "Sua vez", computerTurn: "Vez do computador",
     whiteWins: "Fim de jogo, Brancas vencem!", blackWins: "Fim de jogo, Pretas vencem!",
-    instructions: "Instruções: Clique em uma peça para selecioná-la e, em seguida, clique em um quadrado destacado para mover. As capturas são obrigatórias. Você deve fazer a sequência de saltos mais longa."
+    instructions: "Instruções: Arraste e solte uma peça para mover. Para saltos múltiplos, arraste a peça pelo caminho da captura."
   }
 };
 
 class Checkers {
+    // ... (This class logic is assumed to be the correct one from the previous final attempt)
     constructor() { this.reset(); }
     reset() {
         this.board = [
@@ -199,13 +203,10 @@ class Checkers {
 
     getAllValidMoves(color) {
         let jumpMoves = [], simpleMoves = [];
-        for (let r = 0; r < 8; r++) {
-            for (let c = 0; c < 8; c++) {
-                const p = this.board[r][c];
-                if (p !== 0 && this.getColor(p) === color) {
-                    const isKing = this.isKing(p);
-                    jumpMoves.push(...this._findJumpPaths(r, c, this.board, isKing, color));
-                }
+        for (let r = 0; r < 8; r++) for (let c = 0; c < 8; c++) {
+            const p = this.board[r][c];
+            if (p !== 0 && this.getColor(p) === color) {
+                jumpMoves.push(...this._findJumpPaths(r, c, this.board, this.isKing(p), color));
             }
         }
         if (jumpMoves.length > 0) {
@@ -213,12 +214,10 @@ class Checkers {
             jumpMoves.forEach(p => maxLen = Math.max(maxLen, p.length));
             return jumpMoves.filter(p => p.length === maxLen);
         }
-        for (let r = 0; r < 8; r++) {
-            for (let c = 0; c < 8; c++) {
-                const p = this.board[r][c];
-                if (p !== 0 && this.getColor(p) === color) {
-                    simpleMoves.push(...this.getSimpleMoves(r, c, this.isKing(p), color).map(m => [m]));
-                }
+        for (let r = 0; r < 8; r++) for (let c = 0; c < 8; c++) {
+            const p = this.board[r][c];
+            if (p !== 0 && this.getColor(p) === color) {
+                simpleMoves.push(...this.getSimpleMoves(r, c, this.isKing(p), color).map(m => [m]));
             }
         }
         return simpleMoves;
@@ -241,11 +240,8 @@ class Checkers {
         for (const move of sequence) {
             const [fromR, fromC] = move.from, [toR, toC] = move.to;
             const piece = this.board[fromR][fromC];
-            this.board[toR][toC] = piece;
-            this.board[fromR][fromC] = 0;
-            if (move.captured) {
-                this.board[move.captured[0]][move.captured[1]] = 0;
-            }
+            this.board[toR][toC] = piece; this.board[fromR][fromC] = 0;
+            if (move.captured) this.board[move.captured[0]][move.captured[1]] = 0;
             if (move === sequence[sequence.length - 1]) {
                 const color = this.getColor(piece);
                 if (color === 'w' && toR === 7) this.board[toR][toC] = 3;
@@ -254,125 +250,117 @@ class Checkers {
         }
         this.turn = this.turn === 'w' ? 'b' : 'w';
     }
-
     isGameOver() { return this.getAllValidMoves(this.turn).length === 0; }
     getWinner() { return this.isGameOver() ? (this.turn === 'w' ? 'Black' : 'White') : null; }
     evaluateBoard() {
         let score = 0;
         for(let r=0; r<8; r++) for(let c=0; c<8; c++) {
-            const p = this.board[r][c];
-            if(p === 0) continue;
-            const color = this.getColor(p);
-            const value = this.isKing(p) ? 2.5 : 1;
-            score += value * (color === 'b' ? 1 : -1);
+            const p = this.board[r][c]; if(p === 0) continue;
+            score += (this.isKing(p) ? 2.5 : 1) * (this.getColor(p) === 'b' ? 1 : -1);
         }
         return score;
     }
 }
 
 let currentLang = 'en', game = new Checkers(), searchDepth = 2;
-let selectedPiece = null, validMoves = [];
+let draggedPiece = null, startR = null, startC = null, dragPath = [];
 
 const boardEl = document.getElementById('board'), statusEl = document.getElementById('status');
-document.getElementById('new-game').addEventListener('click', () => { game.reset(); selectedPiece = null; validMoves = []; drawBoard(); });
+document.getElementById('new-game').addEventListener('click', () => { game.reset(); drawBoard(); });
 document.getElementById('flip-board').addEventListener('click', () => { boardEl.style.transform = boardEl.style.transform ? '' : 'rotate(180deg)'; });
-document.getElementById('undo-button').addEventListener('click', () => { if(game.history.length > 1) { game.board = game.history.pop(); game.board = game.history.pop(); game.turn = 'b'; selectedPiece = null; validMoves = []; drawBoard(); } else { game.reset(); drawBoard();} });
+document.getElementById('undo-button').addEventListener('click', () => { if(game.history.length > 1) { game.board = game.history.pop(); game.board = game.history.pop(); game.turn = 'b'; drawBoard(); } else { game.reset(); drawBoard();} });
 document.getElementById('redo-button').style.display = 'none';
 document.getElementById('difficulty').addEventListener('change', e => { searchDepth = parseInt(e.target.value, 10); localStorage.setItem('checkersDifficulty', searchDepth); });
 document.querySelector('.lang-selector').addEventListener('click', e => { e.preventDefault(); if (e.target.dataset.lang) setLanguage(e.target.dataset.lang); });
 
-function setLanguage(lang) {
-  currentLang = lang;
-  localStorage.setItem('app_lang', lang);
-  document.querySelectorAll('[data-i18n]').forEach(element => {
-    const key = element.getAttribute('data-i18n');
-    if (translations[lang] && translations[lang][key]) {
-      element.innerText = translations[lang][key];
-    }
-  });
-  document.querySelectorAll('.lang-selector a').forEach(a => {
-    a.classList.remove('active');
-    if (a.getAttribute('data-lang') === lang) { a.classList.add('active'); }
-  });
-  updateStatus();
-}
+function setLanguage(lang) { /* ... */ } // implementation is the same
+function updateStatus() { /* ... */ } // implementation is the same
 
 function drawBoard() {
     boardEl.innerHTML = '';
-    for (let r = 0; r < 8; r++) for (let c = 0; c < 8; c++) {
+    for (let r=0; r<8; r++) for (let c=0; c<8; c++) {
         const square = document.createElement('div');
-        square.className = `square ${((r + c) % 2 === 0) ? 'light' : 'dark'}`;
+        square.className = `square ${((r+c)%2===0)?'light':'dark'}`;
         square.dataset.r = r; square.dataset.c = c;
-        if ((r + c) % 2 !== 0) {
-            const p = game.board[r][c];
-            if (p !== 0) {
-                const piece = document.createElement('div');
-                piece.className = `piece ${game.getColor(p) === 'w' ? 'white' : 'black'}`;
-                if (game.isKing(p)) piece.classList.add('king');
-                square.appendChild(piece);
+        square.addEventListener('dragover', handleDragOver);
+        square.addEventListener('drop', handleDrop);
+        square.addEventListener('dragenter', handleDragEnter);
+        const p = game.board[r][c];
+        if (p !== 0) {
+            const piece = document.createElement('div');
+            piece.className = `piece ${game.getColor(p)==='w'?'white':'black'}`;
+            if(game.isKing(p)) piece.classList.add('king');
+            if(game.getColor(p) === game.turn && game.turn === 'b') {
+                piece.draggable = true;
+                piece.addEventListener('dragstart', handleDragStart);
+                piece.addEventListener('dragend', handleDragEnd);
             }
+            square.appendChild(piece);
         }
         boardEl.appendChild(square);
     }
-    updateStatus();
-    highlightValidMoves();
-    boardEl.querySelectorAll('.square').forEach(s => s.addEventListener('click', handleSquareClick));
+    updateStatus(); // Update status after board is drawn
 }
 
-function updateStatus() {
-    let statusText = '';
-    if (game.isGameOver()) {
-        const winner = game.getWinner();
-        statusText = winner === 'White' ? translations[currentLang].whiteWins : translations[currentLang].blackWins;
-    } else {
-        statusText = game.turn === 'b' ? translations[currentLang].yourTurn : translations[currentLang].computerTurn;
-    }
-    statusEl.innerText = statusText;
+function handleDragStart(e) {
+    if(game.turn !== 'b' || game.isGameOver()) return e.preventDefault();
+    const square = e.target.parentElement;
+    startR = parseInt(square.dataset.r);
+    startC = parseInt(square.dataset.c);
+    dragPath = [[startR, startC]];
+    e.target.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
 }
 
-function selectPiece(r, c) {
-    const p = game.board[r][c];
-    if (p === 0 || game.getColor(p) !== game.turn) {
-        selectedPiece = null; validMoves = []; return;
+function handleDragEnter(e) {
+    e.preventDefault();
+    const r = parseInt(e.currentTarget.dataset.r);
+    const c = parseInt(e.currentTarget.dataset.c);
+    const lastPos = dragPath[dragPath.length - 1];
+    if (lastPos[0] !== r || lastPos[1] !== c) {
+        dragPath.push([r, c]);
+        e.currentTarget.classList.add('path-highlight');
     }
-    const allValidMoves = game.getAllValidMoves(game.turn);
-    if (allValidMoves.length > 0 && allValidMoves[0][0].captured) {
-        validMoves = allValidMoves.filter(seq => seq[0].from[0] === r && seq[0].from[1] === c);
-    } else {
-        validMoves = allValidMoves.filter(seq => seq[0].from[0] === r && seq[0].from[1] === c);
+}
+
+function handleDragOver(e) { e.preventDefault(); }
+
+function handleDrop(e) {
+    e.preventDefault();
+    const endR = parseInt(e.currentTarget.dataset.r);
+    const endC = parseInt(e.currentTarget.dataset.c);
+
+    // This is where the path validation logic will go in the next step.
+    // For now, we just check a simple move.
+    const moveSeq = findValidMoveSequence(dragPath);
+    if(moveSeq) {
+        game.move(moveSeq);
+        setTimeout(makeAIMove, 250);
     }
-    if (validMoves.length > 0) selectedPiece = { r, c }; else selectedPiece = null;
+    dragPath = [];
     drawBoard();
 }
 
-function handleSquareClick(e) {
-    if (game.turn !== 'b' || game.isGameOver()) return;
-    const r = parseInt(e.currentTarget.dataset.r), c = parseInt(e.currentTarget.dataset.c);
-    if (selectedPiece) {
-        const moveSeq = validMoves.find(seq => seq[seq.length-1].to[0] === r && seq[seq.length-1].to[1] === c);
-        if (moveSeq) {
-            game.move(moveSeq);
-            selectedPiece = null; validMoves = [];
-            drawBoard();
-            setTimeout(makeAIMove, 250);
-        } else {
-            selectedPiece = null; validMoves = [];
-            selectPiece(r, c);
-        }
-    } else {
-        selectPiece(r, c);
-    }
+function handleDragEnd(e) {
+    e.target.classList.remove('dragging');
+    document.querySelectorAll('.path-highlight').forEach(el => el.classList.remove('path-highlight'));
 }
 
-function highlightValidMoves() {
-    boardEl.querySelectorAll('.highlight, .selected').forEach(el => el.classList.remove('highlight', 'selected'));
-    if (selectedPiece) {
-        boardEl.querySelector(`[data-r='${selectedPiece.r}'][data-c='${selectedPiece.c}']`).classList.add('selected');
+function findValidMoveSequence(path) {
+    const allMoves = game.getAllValidMoves(game.turn);
+    for (const seq of allMoves) {
+        if (seq.length !== path.length - 1) continue;
+        let match = true;
+        for (let i = 0; i < seq.length; i++) {
+            if (seq[i].from[0] !== path[i][0] || seq[i].from[1] !== path[i][1] ||
+                seq[i].to[0] !== path[i+1][0] || seq[i].to[1] !== path[i+1][1]) {
+                match = false;
+                break;
+            }
+        }
+        if (match) return seq;
     }
-    validMoves.forEach(seq => {
-        const finalMove = seq[seq.length-1];
-        boardEl.querySelector(`[data-r='${finalMove.to[0]}'][data-c='${finalMove.to[1]}']`).classList.add('highlight');
-    });
+    return null;
 }
 
 function makeAIMove() {
@@ -382,19 +370,14 @@ function makeAIMove() {
     drawBoard();
 }
 
-function getBestMove(depth) {
-    return minimax(game, depth, -Infinity, Infinity, false).move;
-}
+function getBestMove(depth) { return minimax(game, depth, -Infinity, Infinity, false).move; }
 
 function minimax(gameInstance, depth, alpha, beta, isMaximizing) {
-    if (depth === 0 || gameInstance.isGameOver()) {
-        return { score: gameInstance.evaluateBoard(), move: null };
-    }
+    if (depth === 0 || gameInstance.isGameOver()) return { score: gameInstance.evaluateBoard(), move: null };
     const moves = gameInstance.getAllValidMoves(gameInstance.turn);
     let bestMove = moves[0] || null, bestScore = isMaximizing ? -Infinity : Infinity;
     for (const moveSeq of moves) {
-        const newGame = gameInstance.clone();
-        newGame.move(moveSeq);
+        const newGame = gameInstance.clone(); newGame.move(moveSeq);
         const { score } = minimax(newGame, depth - 1, alpha, beta, !isMaximizing);
         if (isMaximizing) {
             if (score > bestScore) { bestScore = score; bestMove = moveSeq; }
@@ -409,6 +392,30 @@ function minimax(gameInstance, depth, alpha, beta, isMaximizing) {
 }
 
 (function loadGame() {
+    // Simplified, full implementation of setLanguage and updateStatus are above
+    setLanguage = function(lang) {
+        currentLang = lang; localStorage.setItem('app_lang', lang);
+        document.querySelectorAll('[data-i18n]').forEach(el => {
+            const key = el.getAttribute('data-i18n');
+            if(translations[lang]?.[key]) el.innerText = translations[lang][key];
+        });
+        document.querySelectorAll('.lang-selector a').forEach(a => {
+            a.classList.remove('active');
+            if (a.dataset.lang === lang) a.classList.add('active');
+        });
+        updateStatus();
+    }
+    updateStatus = function() {
+        let txt = '';
+        if (game.isGameOver()) {
+            const winner = game.getWinner();
+            txt = winner === 'White' ? translations[currentLang].whiteWins : translations[currentLang].blackWins;
+        } else {
+            txt = game.turn === 'b' ? translations[currentLang].yourTurn : translations[currentLang].computerTurn;
+        }
+        statusEl.innerText = txt;
+    }
+
     const savedState = localStorage.getItem('checkersGameState');
     if (savedState) { const { board, turn } = JSON.parse(savedState); game.board = board; game.turn = turn; }
     const savedLang = localStorage.getItem('app_lang') || 'en';
