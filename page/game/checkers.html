@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Checkers vs Computer</title>
+  <style>
+    :root {
+      --bg-1: #0b0f14; --bg-2: #0a0f1a; --card: #0f1623cc; --ink: #dbe7ff;
+      --muted: #92a3ba; --border: #1f2a3f; --accent: #4ea1ff;
+    }
+    body.light-theme {
+      --bg-1: #ffffff; --bg-2: #f0f2f5; --card: #ffffff; --ink: #000000;
+      --muted: #65676b; --border: #dcdfe6; --accent: #1877f2;
+    }
+    body {
+      font-family: sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      background-color: var(--bg-1);
+      color: var(--ink);
+    }
+    .game-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      align-items: flex-start;
+    }
+    .board-container {
+      display: grid;
+      grid-template-columns: repeat(8, 1fr);
+      width: 80vmin;
+      max-width: 600px;
+      border: 5px solid var(--border);
+    }
+    .square {
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    .square.light {
+      background-color: #e3c196;
+    }
+    .square.dark {
+      background-color: #8b4513;
+    }
+    body.light-theme .square.light {
+        background-color: #f0d9b5;
+    }
+    body.light-theme .square.dark {
+        background-color: #b58863;
+    }
+    .piece {
+      width: 80%;
+      height: 80%;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      box-shadow: inset 0 -3px 5px rgba(0,0,0,0.3), 0 2px 3px rgba(0,0,0,0.3);
+    }
+    .piece.dragging {
+        opacity: 0.5;
+    }
+    .piece.white { background-color: #f8f8f8; }
+    .piece.black { background-color: #585858; color: white; }
+    .king::after {
+      content: '★';
+      font-size: 5vmin;
+      color: gold;
+      text-shadow: 0 0 3px black;
+    }
+    .controls {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      width: 250px;
+    }
+    button, select {
+      padding: 10px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    #status { font-size: 18px; }
+    .highlight { background-color: rgba(255, 255, 0, 0.5); }
+    .path-highlight { background-color: rgba(0, 255, 0, 0.3); }
+    .lang-selector { display: flex; gap: 8px; }
+    .lang-selector a {
+      color: #000000;
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 4px 8px;
+      border-radius: 8px;
+      border: 1px solid transparent;
+    }
+    .lang-selector a:hover { border-color: #fff; }
+    .lang-selector a.active { color: #4ea1ff; }
+  </style>
+</head>
+<body>
+  <div class="game-container">
+    <div id="board" class="board-container"></div>
+    <div class="controls">
+      <div class="lang-selector">
+        <a href="#" data-lang="en" class="active">EN</a>
+        <a href="#" data-lang="ja">JA</a>
+        <a href="#" data-lang="pt">PT</a>
+      </div>
+      <button id="new-game" data-i18n="newGame">New Game</button>
+      <button id="flip-board" data-i18n="flipBoard">Flip Board</button>
+      <button id="undo-button" data-i18n="undo">Undo</button>
+      <button id="redo-button" data-i18n="redo">Redo</button>
+      <div>
+        <label for="difficulty" data-i18n="difficulty">Difficulty:</label>
+        <select id="difficulty">
+          <option value="1" data-i18n="easy">Easy</option>
+          <option value="2" selected data-i18n="medium">Medium</option>
+          <option value="3" data-i18n="hard">Hard</option>
+        </select>
+      </div>
+      <div id="status"></div>
+      <div id="instructions" data-i18n="instructions" style="font-size: 13px; color: #aaa; margin-top: 15px; line-height: 1.4;"></div>
+    </div>
+  </div>
+
+<script>
+const translations = {
+  en: {
+    newGame: "New Game", flipBoard: "Flip Board", undo: "Undo", redo: "Redo", difficulty: "Difficulty",
+    easy: "Easy", medium: "Medium", hard: "Hard", yourTurn: "Your turn", computerTurn: "Computer's turn",
+    whiteWins: "Game over, White wins!", blackWins: "Game over, Black wins!",
+    instructions: "Instructions: Drag and drop a piece to move. For multi-jumps, drag the piece through the capture path."
+  },
+  ja: {
+    newGame: "新しいゲーム", flipBoard: "盤を反転", undo: "元に戻す", redo: "やり直し", difficulty: "難易度",
+    easy: "簡単", medium: "普通", hard: "難しい", yourTurn: "あなたの番です", computerTurn: "コンピュータの番です",
+    whiteWins: "ゲームオーバー、白の勝ちです！", blackWins: "ゲームオーバー、黒の勝ちです！",
+    instructions: "遊び方：駒をドラッグ＆ドロップして移動します。連続ジャンプの場合は、キャプチャーパスに沿って駒をドラッグしてください。"
+  },
+  pt: {
+    newGame: "Novo Jogo", flipBoard: "Inverter Tabuleiro", undo: "Desfazer", redo: "Refazer", difficulty: "Dificuldade",
+    easy: "Fácil", medium: "Médio", hard: "Difícil", yourTurn: "Sua vez", computerTurn: "Vez do computador",
+    whiteWins: "Fim de jogo, Brancas vencem!", blackWins: "Fim de jogo, Pretas vencem!",
+    instructions: "Instruções: Arraste e solte uma peça para mover. Para saltos múltiplos, arraste a peça pelo caminho da captura."
+  }
+};
+
+class Checkers {
+    // ... (This class logic is assumed to be the correct one from the previous final attempt)
+    constructor() { this.reset(); }
+    reset() {
+        this.board = [
+            [0, 1, 0, 1, 0, 1, 0, 1],[1, 0, 1, 0, 1, 0, 1, 0],[0, 1, 0, 1, 0, 1, 0, 1],
+            [0, 0, 0, 0, 0, 0, 0, 0],[0, 0, 0, 0, 0, 0, 0, 0],
+            [2, 0, 2, 0, 2, 0, 2, 0],[0, 2, 0, 2, 0, 2, 0, 2],[2, 0, 2, 0, 2, 0, 2, 0]
+        ];
+        this.turn = 'b'; this.history = [];
+    }
+    clone() {
+        const newGame = new Checkers();
+        newGame.board = JSON.parse(JSON.stringify(this.board));
+        newGame.turn = this.turn; return newGame;
+    }
+    isValid(r, c) { return r >= 0 && r < 8 && c >= 0 && c < 8; }
+    getColor(p) { return p === 0 ? null : (p < 3 ? (p === 1 ? 'w' : 'b') : (p === 3 ? 'w' : 'b')); }
+    isKing(p) { return p > 2; }
+
+    _findJumpPaths(r, c, board, isKing, color) {
+        let paths = [];
+        const dirs = [[-1,-1],[-1,1],[1,-1],[1,1]];
+        for (const [dr, dc] of dirs) {
+            if (!isKing && (color === 'w' ? dr < 0 : dr > 0)) continue;
+            let opponentPos = null, landingSquares = [];
+            for (let i = 1; i < 8; i++) {
+                const curR = r + dr * i, curC = c + dc * i;
+                if (!this.isValid(curR, curC)) break;
+                const p = board[curR][curC];
+                if (p !== 0) {
+                    if (this.getColor(p) === color) break;
+                    if (opponentPos) break;
+                    opponentPos = [curR, curC];
+                } else {
+                    if (opponentPos) landingSquares.push([curR, curC]);
+                    if (!isKing) break;
+                }
+            }
+            if (opponentPos && landingSquares.length > 0) {
+                for (const [landR, landC] of landingSquares) {
+                    const newBoard = JSON.parse(JSON.stringify(board));
+                    newBoard[landR][landC] = newBoard[r][c];
+                    newBoard[r][c] = 0;
+                    newBoard[opponentPos[0]][opponentPos[1]] = 0;
+                    const pieceAtLanding = newBoard[landR][landC];
+                    const promoted = !isKing && (this.getColor(pieceAtLanding) === 'w' ? landR === 7 : landR === 0);
+                    const move = {from:[r,c], to:[landR,landC], captured:opponentPos};
+                    if (promoted) {
+                        paths.push([move]);
+                    } else {
+                        const nextPaths = this._findJumpPaths(landR, landC, newBoard, isKing, color);
+                        if (nextPaths.length > 0) {
+                            nextPaths.forEach(path => paths.push([move, ...path]));
+                        } else {
+                            paths.push([move]);
+                        }
+                    }
+                }
+            }
+        }
+        return paths;
+    }
+
+    getAllValidMoves(color) {
+        let jumpMoves = [], simpleMoves = [];
+        for (let r = 0; r < 8; r++) for (let c = 0; c < 8; c++) {
+            const p = this.board[r][c];
+            if (p !== 0 && this.getColor(p) === color) {
+                jumpMoves.push(...this._findJumpPaths(r, c, this.board, this.isKing(p), color));
+            }
+        }
+        if (jumpMoves.length > 0) {
+            let maxLen = 0;
+            jumpMoves.forEach(p => maxLen = Math.max(maxLen, p.length));
+            return jumpMoves.filter(p => p.length === maxLen);
+        }
+        for (let r = 0; r < 8; r++) for (let c = 0; c < 8; c++) {
+            const p = this.board[r][c];
+            if (p !== 0 && this.getColor(p) === color) {
+                simpleMoves.push(...this.getSimpleMoves(r, c, this.isKing(p), color).map(m => [m]));
+            }
+        }
+        return simpleMoves;
+    }
+
+    getSimpleMoves(r, c, isKing, color) {
+        let moves = [];
+        const dirs = isKing ? [[-1,-1],[-1,1],[1,-1],[1,1]] : (color === 'w' ? [[1,-1],[1,1]] : [[-1,-1],[-1,1]]);
+        for (const [dr, dc] of dirs) {
+            const destR = r + dr, destC = c + dc;
+            if (this.isValid(destR, destC) && this.board[destR][destC] === 0) {
+                moves.push({ from: [r, c], to: [destR, destC] });
+            }
+        }
+        return moves;
+    }
+
+    move(sequence) {
+        this.history.push(JSON.parse(JSON.stringify(this.board)));
+        for (const move of sequence) {
+            const [fromR, fromC] = move.from, [toR, toC] = move.to;
+            const piece = this.board[fromR][fromC];
+            this.board[toR][toC] = piece; this.board[fromR][fromC] = 0;
+            if (move.captured) this.board[move.captured[0]][move.captured[1]] = 0;
+            if (move === sequence[sequence.length - 1]) {
+                const color = this.getColor(piece);
+                if (color === 'w' && toR === 7) this.board[toR][toC] = 3;
+                if (color === 'b' && toR === 0) this.board[toR][toC] = 4;
+            }
+        }
+        this.turn = this.turn === 'w' ? 'b' : 'w';
+    }
+    isGameOver() { return this.getAllValidMoves(this.turn).length === 0; }
+    getWinner() { return this.isGameOver() ? (this.turn === 'w' ? 'Black' : 'White') : null; }
+    evaluateBoard() {
+        let score = 0;
+        for(let r=0; r<8; r++) for(let c=0; c<8; c++) {
+            const p = this.board[r][c]; if(p === 0) continue;
+            score += (this.isKing(p) ? 2.5 : 1) * (this.getColor(p) === 'b' ? 1 : -1);
+        }
+        return score;
+    }
+}
+
+let currentLang = 'en', game = new Checkers(), searchDepth = 2;
+let draggedPiece = null, startR = null, startC = null, dragPath = [];
+
+const boardEl = document.getElementById('board'), statusEl = document.getElementById('status');
+document.getElementById('new-game').addEventListener('click', () => { 
+    game.reset(); 
+    game.history = [];
+    localStorage.removeItem('checkersGameState');
+    boardEl.style.transform = ''; // Reset board orientation
+    drawBoard(); 
+});
+document.getElementById('flip-board').addEventListener('click', () => { boardEl.style.transform = boardEl.style.transform ? '' : 'rotate(180deg)'; });
+document.getElementById('undo-button').addEventListener('click', () => { 
+    if(game.history.length > 1) { 
+        game.board = game.history.pop(); 
+        game.board = game.history.pop(); 
+        game.turn = 'b'; 
+        saveGameState();
+        drawBoard(); 
+    } else { 
+        game.reset(); 
+        saveGameState();
+        drawBoard();
+    } 
+});
+document.getElementById('redo-button').style.display = 'none';
+document.getElementById('difficulty').addEventListener('change', e => { searchDepth = parseInt(e.target.value, 10); localStorage.setItem('checkersDifficulty', searchDepth); });
+document.querySelector('.lang-selector').addEventListener('click', e => { e.preventDefault(); if (e.target.dataset.lang) setLanguage(e.target.dataset.lang); });
+
+function setLanguage(lang) {
+    currentLang = lang; 
+    localStorage.setItem('app_lang', lang);
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        if(translations[lang]?.[key]) el.innerText = translations[lang][key];
+    });
+    document.querySelectorAll('.lang-selector a').forEach(a => {
+        a.classList.remove('active');
+        if (a.dataset.lang === lang) a.classList.add('active');
+    });
+    updateStatus();
+}
+function updateStatus() {
+    let txt = '';
+    if (game.isGameOver()) {
+        const winner = game.getWinner();
+        txt = winner === 'White' ? translations[currentLang].whiteWins : translations[currentLang].blackWins;
+    } else {
+        txt = game.turn === 'b' ? translations[currentLang].yourTurn : translations[currentLang].computerTurn;
+    }
+    statusEl.innerText = txt;
+}
+
+function saveGameState() {
+    localStorage.setItem('checkersGameState', JSON.stringify({
+        board: game.board,
+        turn: game.turn,
+        history: game.history
+    }));
+}
+
+function drawBoard() {
+    boardEl.innerHTML = '';
+    for (let r=0; r<8; r++) for (let c=0; c<8; c++) {
+        const square = document.createElement('div');
+        square.className = `square ${((r+c)%2===0)?'light':'dark'}`;
+        square.dataset.r = r; square.dataset.c = c;
+        square.addEventListener('dragover', handleDragOver);
+        square.addEventListener('drop', handleDrop);
+        square.addEventListener('dragenter', handleDragEnter);
+        const p = game.board[r][c];
+        if (p !== 0) {
+            const piece = document.createElement('div');
+            piece.className = `piece ${game.getColor(p)==='w'?'white':'black'}`;
+            if(game.isKing(p)) piece.classList.add('king');
+            if(game.getColor(p) === game.turn && game.turn === 'b') {
+                piece.draggable = true;
+                piece.addEventListener('dragstart', handleDragStart);
+                piece.addEventListener('dragend', handleDragEnd);
+            }
+            square.appendChild(piece);
+        }
+        boardEl.appendChild(square);
+    }
+    updateStatus(); // Update status after board is drawn
+}
+
+function handleDragStart(e) {
+    if(game.turn !== 'b' || game.isGameOver()) return e.preventDefault();
+    const square = e.target.parentElement;
+    startR = parseInt(square.dataset.r);
+    startC = parseInt(square.dataset.c);
+    dragPath = [[startR, startC]];
+    e.target.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+}
+
+function handleDragEnter(e) {
+    e.preventDefault();
+    const r = parseInt(e.currentTarget.dataset.r);
+    const c = parseInt(e.currentTarget.dataset.c);
+    const lastPos = dragPath[dragPath.length - 1];
+    if (lastPos[0] !== r || lastPos[1] !== c) {
+        dragPath.push([r, c]);
+        e.currentTarget.classList.add('path-highlight');
+    }
+}
+
+function handleDragOver(e) { e.preventDefault(); }
+
+function handleDrop(e) {
+    e.preventDefault();
+    const endR = parseInt(e.currentTarget.dataset.r);
+    const endC = parseInt(e.currentTarget.dataset.c);
+
+    // This is where the path validation logic will go in the next step.
+    // For now, we just check a simple move.
+    const moveSeq = findValidMoveSequence(dragPath);
+    if(moveSeq) {
+        game.move(moveSeq);
+        saveGameState();
+        setTimeout(makeAIMove, 250);
+    }
+    dragPath = [];
+    drawBoard();
+}
+
+function handleDragEnd(e) {
+    e.target.classList.remove('dragging');
+    document.querySelectorAll('.path-highlight').forEach(el => el.classList.remove('path-highlight'));
+}
+
+function findValidMoveSequence(path) {
+    if (path.length < 2) return null;
+    const allMoves = game.getAllValidMoves(game.turn);
+    const startPos = path[0];
+    const endPos = path[path.length - 1];
+
+    // Find a valid move sequence that connects the start and end points.
+    return allMoves.find(seq =>
+        seq[0].from[0] === startPos[0] &&
+        seq[0].from[1] === startPos[1] &&
+        seq[seq.length - 1].to[0] === endPos[0] &&
+        seq[seq.length - 1].to[1] === endPos[1]
+    );
+}
+
+function makeAIMove() {
+    if (game.isGameOver()) return;
+    const bestMoveSeq = getBestMove(searchDepth);
+    if (bestMoveSeq) {
+        game.move(bestMoveSeq);
+        saveGameState();
+    }
+    drawBoard();
+}
+
+function getBestMove(depth) { return minimax(game, depth, -Infinity, Infinity, false).move; }
+
+function minimax(gameInstance, depth, alpha, beta, isMaximizing) {
+    if (depth === 0 || gameInstance.isGameOver()) return { score: gameInstance.evaluateBoard(), move: null };
+    const moves = gameInstance.getAllValidMoves(gameInstance.turn);
+    let bestMove = moves[0] || null, bestScore = isMaximizing ? -Infinity : Infinity;
+    for (const moveSeq of moves) {
+        const newGame = gameInstance.clone(); newGame.move(moveSeq);
+        const { score } = minimax(newGame, depth - 1, alpha, beta, !isMaximizing);
+        if (isMaximizing) {
+            if (score > bestScore) { bestScore = score; bestMove = moveSeq; }
+            alpha = Math.max(alpha, bestScore);
+        } else {
+            if (score < bestScore) { bestScore = score; bestMove = moveSeq; }
+            beta = Math.min(beta, bestScore);
+        }
+        if (beta <= alpha) break;
+    }
+    return { score: bestScore, move: bestMove };
+}
+
+(function loadGame() {
+    // Theme setup
+    const body = document.body;
+    const savedTheme = localStorage.getItem('app_theme');
+    if (savedTheme === 'light') {
+        body.classList.add('light-theme');
+    }
+
+    // Language and status functions are already defined above
+
+    const savedState = localStorage.getItem('checkersGameState');
+    if (savedState) { 
+        const { board, turn, history } = JSON.parse(savedState); 
+        game.board = board; 
+        game.turn = turn; 
+        if (history) game.history = history;
+    }
+    const savedLang = localStorage.getItem('app_lang') || 'en';
+    setLanguage(savedLang);
+    const savedDifficulty = localStorage.getItem('checkersDifficulty') || '2';
+    document.getElementById('difficulty').value = savedDifficulty;
+    searchDepth = parseInt(savedDifficulty, 10);
+    drawBoard();
+})();
+</script>
+</body>
+</html>
