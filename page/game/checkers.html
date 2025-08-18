@@ -78,6 +78,9 @@
     .highlight {
       background-color: rgba(255, 255, 0, 0.5);
     }
+    .selected {
+        background-color: rgba(0, 255, 0, 0.5);
+    }
     .lang-selector {
       display: flex;
       gap: 8px;
@@ -125,6 +128,7 @@
         </select>
       </div>
       <div id="status"></div>
+      <div id="instructions" data-i18n="instructions" style="font-size: 13px; color: #aaa; margin-top: 15px; max-width: 250px; line-height: 1.4;"></div>
     </div>
   </div>
 
@@ -144,6 +148,7 @@ const translations = {
     whiteWins: "Game over, White wins!",
     blackWins: "Game over, Black wins!",
     draw: "Game over, it's a draw!",
+    instructions: "Instructions: Click a piece to select it, then click a highlighted square to move. Captures are mandatory. You can chain multiple jumps in one turn."
   },
   ja: {
     newGame: "新しいゲーム",
@@ -159,6 +164,7 @@ const translations = {
     whiteWins: "ゲームオーバー、白の勝ちです！",
     blackWins: "ゲームオーバー、黒の勝ちです！",
     draw: "ゲームオーバー、引き分けです！",
+    instructions: "遊び方：駒をクリックして選択し、ハイライトされたマスをクリックして移動します。キャプチャは必須です。1ターンに複数のジャンプを連鎖させることができます。"
   },
   pt: {
     newGame: "Novo Jogo",
@@ -174,6 +180,7 @@ const translations = {
     whiteWins: "Fim de jogo, Brancas vencem!",
     blackWins: "Fim de jogo, Pretas vencem!",
     draw: "Fim de jogo, empate!",
+    instructions: "Instruções: Clique em uma peça para selecioná-la e, em seguida, clique em um quadrado destacado para mover. As capturas são obrigatórias. Você pode encadear vários saltos em um único turno."
   }
 };
 
@@ -209,66 +216,81 @@ class Checkers {
     }
 
     getValidMoves(row, col) {
-        const piece = this.board[row][col];
-        if (piece === 0) return [];
-
-        const isKing = piece > 2;
-        const color = (piece === 1 || piece === 3) ? 'w' : 'b';
-
-        let jumpMoves = this.getJumpMoves(row, col, isKing, color);
-
-        if (jumpMoves.length > 0) {
-            // In checkers, if a jump is available, it must be taken.
-            return jumpMoves;
-        }
-
-        return this.getSimpleMoves(row, col, isKing, color);
+        const allMoves = this.getAllValidMoves(this.turn);
+        const pieceMoves = allMoves.filter(seq => seq[0].from[0] === row && seq[0].from[1] === col);
+        return pieceMoves;
     }
 
-    _getRecursiveJumps(r, c, isKing, color) {
-        let allPaths = [];
-        let queue = [[{ from: [r, c], to: [r,c], captured: null, board: this.board }]];
-
-        // This is a simplified jump logic. A full implementation would require a more complex graph traversal.
-        // For now, we only check for single jumps.
-        const firstJumps = this.getJumpMoves(r, c, isKing, color);
-        return firstJumps;
-    }
-
-    getJumpMoves(row, col, isKing, color) {
-        let jumps = [];
-        const opponentColor = color === 'w' ? 'b' : 'w';
+    _findJumpPaths(startRow, startCol, board, isKing, color) {
+        let paths = [];
         const directions = isKing ? [[-1, -1], [-1, 1], [1, -1], [1, 1]] : (color === 'w' ? [[1, -1], [1, 1]] : [[-1, -1], [-1, 1]]);
 
         for (const [dr, dc] of directions) {
-            const middleRow = row + dr;
-            const middleCol = col + dc;
-            const destRow = row + dr * 2;
-            const destCol = col + dc * 2;
+            const middleRow = startRow + dr;
+            const middleCol = startCol + dc;
+            const destRow = startRow + dr * 2;
+            const destCol = startCol + dc * 2;
 
-            if (this.isValidSquare(destRow, destCol) && this.board[destRow][destCol] === 0) {
-                const middlePiece = this.board[middleRow][middleCol];
+            if (this.isValidSquare(destRow, destCol) && board[destRow][destCol] === 0) {
+                const middlePiece = board[middleRow][middleCol];
                 if (middlePiece !== 0) {
                     const middleColor = (middlePiece === 1 || middlePiece === 3) ? 'w' : 'b';
-                    if (middleColor === opponentColor) {
-                        jumps.push({ from: [row, col], to: [destRow, destCol], captured: [middleRow, middleCol] });
+                    if (middleColor !== color) {
+                        const newBoard = JSON.parse(JSON.stringify(board));
+                        const movedPiece = newBoard[startRow][startCol];
+                        newBoard[destRow][destCol] = movedPiece;
+                        newBoard[startRow][startCol] = 0;
+                        newBoard[middleRow][middleCol] = 0;
+
+                        const promoted = !isKing && ((destRow === 7 && movedPiece === 1) || (destRow === 0 && movedPiece === 2));
+
+                        const move = { from: [startRow, startCol], to: [destRow, destCol], captured: [middleRow, middleCol] };
+                        const newPath = [move];
+
+                        if (promoted) {
+                            paths.push(newPath);
+                        } else {
+                            const nextPaths = this._findJumpPaths(destRow, destCol, newBoard, isKing, color);
+                            if (nextPaths.length > 0) {
+                                for (const path of nextPaths) {
+                                    paths.push([...newPath, ...path]);
+                                }
+                            } else {
+                                paths.push(newPath);
+                            }
+                        }
                     }
                 }
             }
         }
-        return jumps;
+        return paths;
     }
+
 
     getSimpleMoves(row, col, isKing, color) {
         let moves = [];
         const directions = isKing ? [[-1, -1], [-1, 1], [1, -1], [1, 1]] : (color === 'w' ? [[1, -1], [1, 1]] : [[-1, -1], [-1, 1]]);
 
-        for (const [dr, dc] of directions) {
-            const destRow = row + dr;
-            const destCol = col + dc;
+        if (isKing) {
+            for (const [dr, dc] of directions) {
+                for (let i = 1; i < 8; i++) {
+                    const destRow = row + dr * i;
+                    const destCol = col + dc * i;
 
-            if (this.isValidSquare(destRow, destCol) && this.board[destRow][destCol] === 0) {
-                moves.push({ from: [row, col], to: [destRow, destCol], captured: null });
+                    if (!this.isValidSquare(destRow, destCol) || this.board[destRow][destCol] !== 0) {
+                        break;
+                    }
+                    moves.push({ from: [row, col], to: [destRow, destCol], captured: null });
+                }
+            }
+        } else {
+            for (const [dr, dc] of directions) {
+                const destRow = row + dr;
+                const destCol = col + dc;
+
+                if (this.isValidSquare(destRow, destCol) && this.board[destRow][destCol] === 0) {
+                    moves.push({ from: [row, col], to: [destRow, destCol], captured: null });
+                }
             }
         }
         return moves;
@@ -278,24 +300,28 @@ class Checkers {
         return row >= 0 && row < 8 && col >= 0 && col < 8;
     }
 
-    move(move) {
-        const { from, to, captured } = move;
-        const [fromRow, fromCol] = from;
-        const [toRow, toCol] = to;
-
+    move(moveSequence) {
         this.history.push(JSON.parse(JSON.stringify(this.board)));
 
-        const piece = this.board[fromRow][fromCol];
-        this.board[toRow][toCol] = piece;
-        this.board[fromRow][fromCol] = 0;
+        for(const move of moveSequence) {
+            const { from, to, captured } = move;
+            const [fromRow, fromCol] = from;
+            const [toRow, toCol] = to;
 
-        if (captured) {
-            const [capRow, capCol] = captured;
-            this.board[capRow][capCol] = 0;
+            const piece = this.board[fromRow][fromCol];
+            this.board[toRow][toCol] = piece;
+            this.board[fromRow][fromCol] = 0;
+
+            if (captured) {
+                const [capRow, capCol] = captured;
+                this.board[capRow][capCol] = 0;
+            }
+
+            if (move === moveSequence[moveSequence.length-1]) {
+               if (toRow === 7 && this.board[toRow][toCol] === 1) this.board[toRow][toCol] = 3;
+               if (toRow === 0 && this.board[toRow][toCol] === 2) this.board[toRow][toCol] = 4;
+            }
         }
-
-        if (toRow === 7 && piece === 1) this.board[toRow][toCol] = 3; // White king
-        if (toRow === 0 && piece === 2) this.board[toRow][toCol] = 4; // Black king
 
         this.turn = (this.turn === 'w') ? 'b' : 'w';
     }
@@ -346,31 +372,48 @@ class Checkers {
 
     getAllValidMoves(color) {
         let allMoves = [];
-        let jumpMoves = [];
+        let jumpSequences = [];
+
         for (let r = 0; r < 8; r++) {
             for (let c = 0; c < 8; c++) {
                 const piece = this.board[r][c];
                 if (piece !== 0) {
                     const pieceColor = (piece === 1 || piece === 3) ? 'w' : 'b';
                     if (pieceColor === color) {
-                        const moves = this.getValidMoves(r, c);
-                        if (moves.length > 0) {
-                           if (moves[0].captured) {
-                             jumpMoves.push(...moves);
-                           } else {
-                             allMoves.push(...moves);
-                           }
+                        const isKing = piece > 2;
+                        const jumps = this._findJumpPaths(r, c, this.board, isKing, color);
+                        if (jumps.length > 0) {
+                            jumpSequences.push(...jumps);
                         }
                     }
                 }
             }
         }
-        return jumpMoves.length > 0 ? jumpMoves : allMoves;
+
+        if (jumpSequences.length > 0) {
+            return jumpSequences;
+        }
+
+        for (let r = 0; r < 8; r++) {
+            for (let c = 0; c < 8; c++) {
+                const piece = this.board[r][c];
+                if (piece !== 0) {
+                    const pieceColor = (piece === 1 || piece === 3) ? 'w' : 'b';
+                    if (pieceColor === color) {
+                        const isKing = piece > 2;
+                        const simpleMoves = this.getSimpleMoves(r, c, isKing, color);
+                        if (simpleMoves.length > 0) {
+                            allMoves.push(...simpleMoves.map(m => [m]));
+                        }
+                    }
+                }
+            }
+        }
+        return allMoves;
     }
 
     evaluateBoard() {
         let score = 0;
-        // Black is player (positive), White is AI (negative)
         score += this.countPieces('b') - this.countPieces('w');
         score += (this.countKing('b') * 1.5) - (this.countKing('w') * 1.5)
         return score;
@@ -481,15 +524,15 @@ function addSquareClickListeners() {
 }
 
 function handleSquareClick(e) {
-    if (game.turn !== 'b' || game.isGameOver()) return; // Player is black
+    if (game.turn !== 'b' || game.isGameOver()) return;
     const square = e.currentTarget;
     const row = parseInt(square.dataset.row, 10);
     const col = parseInt(square.dataset.col, 10);
 
     if (selectedPiece) {
-        const move = validMoves.find(m => m.to[0] === row && m.to[1] === col);
-        if (move) {
-            game.move(move);
+        const moveSequence = validMoves.find(seq => seq[seq.length-1].to[0] === row && seq[seq.length-1].to[1] === col);
+        if (moveSequence) {
+            game.move(moveSequence);
             selectedPiece = null;
             validMoves = [];
             clearHighlights();
@@ -498,9 +541,11 @@ function handleSquareClick(e) {
         } else {
             clearHighlights();
             const piece = game.board[row][col];
-            const pieceColor = (piece === 1 || piece === 3) ? 'w' : 'b';
-            if (piece !== 0 && pieceColor === game.turn) {
-                selectPiece(row, col);
+            if (piece !== 0) {
+                const pieceColor = (piece === 1 || piece === 3) ? 'w' : 'b';
+                if (pieceColor === game.turn) {
+                    selectPiece(row, col);
+                }
             } else {
                selectedPiece = null;
                validMoves = [];
@@ -520,10 +565,6 @@ function handleSquareClick(e) {
 function selectPiece(row, col) {
     selectedPiece = { row, col };
     validMoves = game.getValidMoves(row, col);
-    if (validMoves.length > 0 && validMoves[0].captured) {
-        const allJumps = game.getAllValidMoves(game.turn);
-        validMoves = allJumps.filter(m => m.from[0] === row && m.from[1] === col);
-    }
     highlightValidMoves();
 }
 
@@ -536,8 +577,9 @@ function highlightValidMoves() {
     if(selectedPiece){
       document.querySelector(`[data-row='${selectedPiece.row}'][data-col='${selectedPiece.col}']`).classList.add('selected');
     }
-    validMoves.forEach(move => {
-        const [toRow, toCol] = move.to;
+    validMoves.forEach(seq => {
+        const finalMove = seq[seq.length - 1];
+        const [toRow, toCol] = finalMove.to;
         document.querySelector(`[data-row='${toRow}'][data-col='${toCol}']`).classList.add('highlight');
     });
 }
@@ -552,7 +594,7 @@ function makeAIMove() {
 }
 
 function getBestMove(depth) {
-    const result = minimax(game, depth, -Infinity, Infinity, false); // AI is white, minimizing player
+    const result = minimax(game, depth, -Infinity, Infinity, false);
     return result.bestMove;
 }
 
@@ -561,29 +603,29 @@ function minimax(gameInstance, depth, alpha, beta, isMaximizingPlayer) {
         return { score: gameInstance.evaluateBoard(), bestMove: null };
     }
 
-    const moves = gameInstance.getAllValidMoves(isMaximizingPlayer ? 'b' : 'w');
-    if (moves.length === 0) {
+    const moveSequences = gameInstance.getAllValidMoves(isMaximizingPlayer ? 'b' : 'w');
+    if (moveSequences.length === 0) {
         return { score: gameInstance.evaluateBoard(), bestMove: null };
     }
 
-    let bestMove = moves[0];
+    let bestMoveSequence = moveSequences[0];
     let bestScore = isMaximizingPlayer ? -Infinity : Infinity;
 
-    for (const move of moves) {
+    for (const sequence of moveSequences) {
         const newGame = gameInstance.clone();
-        newGame.move(move);
+        newGame.move(sequence);
         const result = minimax(newGame, depth - 1, alpha, beta, !isMaximizingPlayer);
 
         if (isMaximizingPlayer) {
             if (result.score > bestScore) {
                 bestScore = result.score;
-                bestMove = move;
+                bestMoveSequence = sequence;
             }
             alpha = Math.max(alpha, bestScore);
         } else {
             if (result.score < bestScore) {
                 bestScore = result.score;
-                bestMove = move;
+                bestMoveSequence = sequence;
             }
             beta = Math.min(beta, bestScore);
         }
@@ -592,8 +634,9 @@ function minimax(gameInstance, depth, alpha, beta, isMaximizingPlayer) {
             break;
         }
     }
-    return { score: bestScore, bestMove: bestMove };
+    return { score: bestScore, bestMove: bestMoveSequence };
 }
+
 
 function saveGameState() {
     localStorage.setItem('checkersGameState', JSON.stringify({ board: game.board, turn: game.turn }));
@@ -619,12 +662,12 @@ newGameButton.addEventListener('click', () => {
 });
 
 undoButton.addEventListener('click', () => {
-    game.undo(); // AI move
-    game.undo(); // Player move
+    game.undo();
+    game.undo();
     drawBoard();
 });
 
-redoButton.style.display = 'none'; // Redo is complex with AI.
+redoButton.style.display = 'none';
 
 flipBoardButton.addEventListener('click', () => {
     boardElement.style.transform = boardElement.style.transform === 'rotate(180deg)' ? '' : 'rotate(180deg)';
