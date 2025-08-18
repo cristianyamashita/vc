@@ -180,6 +180,10 @@
           <span class="label" data-i18n="lives">Lives:</span>
           <span id="lives">3</span>
         </div>
+        <div class="row">
+          <span class="label" data-i18n="shields">Shields:</span>
+          <span id="shields">0</span>
+        </div>
       </div>
       <div class="section">
         <button class="btn" id="start-btn" data-i18n="start">Start Game</button>
@@ -199,6 +203,7 @@
     const scoreEl = document.getElementById('score');
     const levelEl = document.getElementById('level');
     const livesEl = document.getElementById('lives');
+    const shieldsEl = document.getElementById('shields');
     const startBtn = document.getElementById('start-btn');
     const resetBtn = document.getElementById('reset-btn');
 
@@ -242,6 +247,7 @@
             this.speed = 5;
             this.dx = 0;
             this.weaponLevel = 1;
+            this.shields = 0;
         }
 
         draw() {
@@ -328,15 +334,16 @@
     }
 
     class PowerUp {
-        constructor(x, y) {
+        constructor(x, y, type) {
             this.x = x;
             this.y = y;
             this.size = powerUpSize;
             this.speedY = 2;
+            this.type = type; // 'weapon' or 'shield'
         }
 
         draw() {
-            ctx.fillStyle = 'cyan';
+            ctx.fillStyle = this.type === 'weapon' ? 'cyan' : 'gold';
             ctx.fillRect(this.x, this.y, this.size, this.size);
         }
 
@@ -424,7 +431,7 @@
         handleCollisions();
 
         // Enemy shooting
-        if (Math.random() < 0.02 * level) {
+        if (Math.random() < 0.01 * level) {
             const randomEnemy = enemies[Math.floor(Math.random() * enemies.length)];
             if (randomEnemy) {
                 enemyBullets.push(new Bullet(randomEnemy.x + randomEnemy.width / 2, randomEnemy.y + randomEnemy.height, 5));
@@ -459,8 +466,9 @@
                     scoreEl.textContent = score;
 
                     // Drop power-up
-                    if (Math.random() < 0.1) {
-                        powerUps.push(new PowerUp(enemy.x, enemy.y));
+                    if (Math.random() < 0.15) { // Increased drop rate slightly
+                        const type = Math.random() < 0.5 ? 'weapon' : 'shield';
+                        powerUps.push(new PowerUp(enemy.x, enemy.y, type));
                     }
                 }
             });
@@ -488,8 +496,11 @@
                 powerUp.y + powerUp.size > player.y
             ) {
                 powerUps.splice(powerUpIndex, 1);
-                if (player.weaponLevel < 4) {
+                if (powerUp.type === 'weapon' && player.weaponLevel < 4) {
                     player.weaponLevel++;
+                } else if (powerUp.type === 'shield' && player.shields < 3) {
+                    player.shields++;
+                    shieldsEl.textContent = player.shields;
                 }
             }
         });
@@ -509,6 +520,12 @@
     }
 
     function handlePlayerHit() {
+        if (player.shields > 0) {
+            player.shields--;
+            shieldsEl.textContent = player.shields;
+            return;
+        }
+
         lives--;
         livesEl.textContent = lives;
         if (lives <= 0) {
@@ -547,6 +564,7 @@
         scoreEl.textContent = score;
         levelEl.textContent = level;
         livesEl.textContent = lives;
+        shieldsEl.textContent = 0;
         startBtn.style.display = 'none';
         resetBtn.style.display = 'block';
         updateGame();
@@ -561,6 +579,7 @@
         scoreEl.textContent = 0;
         levelEl.textContent = 1;
         livesEl.textContent = 3;
+        shieldsEl.textContent = 0;
         enemyDirection = 1;
     }
 
@@ -593,6 +612,7 @@
         score: "Score:",
         level: "Level:",
         lives: "Lives:",
+        shields: "Shields:",
         start: "Start Game",
         reset: "Reset Game",
         controlsTitle: "Controls",
@@ -603,6 +623,7 @@
         score: "スコア:",
         level: "レベル:",
         lives: "ライフ:",
+        shields: "シールド:",
         start: "ゲーム開始",
         reset: "リセット",
         controlsTitle: "操作",
@@ -613,6 +634,7 @@
         score: "Pontuação:",
         level: "Nível:",
         lives: "Vidas:",
+        shields: "Escudos:",
         start: "Começar Jogo",
         reset: "Reiniciar Jogo",
         controlsTitle: "Controles",
