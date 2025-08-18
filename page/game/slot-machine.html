@@ -338,15 +338,14 @@ const maxCharge = 100;
 function createReelContent(reel) {
     reel.innerHTML = '';
     const fragment = document.createDocumentFragment();
-    // Create a much longer strip of symbols to ensure seamless looping effect
-    for (let i = 0; i < 50; i++) {
-        const shuffledSymbols = [...symbols].sort(() => Math.random() - 0.5);
-        const symbol = shuffledSymbols[i % shuffledSymbols.length];
+    // Create a long, deterministic strip of symbols for a reliable spin effect
+    const reelSymbols = [...symbols, ...symbols, ...symbols, ...symbols, ...symbols];
+    reelSymbols.forEach(symbol => {
         const icon = document.createElement('i');
         icon.className = `fas ${symbol}`;
         icon.style.color = colorMap[symbol];
         fragment.appendChild(icon);
-    }
+    });
     reel.appendChild(fragment);
 }
 
@@ -370,20 +369,11 @@ function spin(charge) {
         reel.offsetHeight;
 
         const targetSymbolIndex = Math.floor(Math.random() * symbols.length);
-        const targetSymbol = symbols[targetSymbolIndex];
+        results.push(symbols[targetSymbolIndex]);
 
-        // Find the first instance of the target symbol in the reel to land on
-        let landingPosition = -1;
-        for(let i = 0; i < reel.children.length; i++) {
-            if(reel.children[i].classList.contains(targetSymbol.replace('fa-',''))) {
-                landingPosition = i;
-                break;
-            }
-        }
-        results.push(targetSymbol.replace('fa-',''));
-
-        // We need to land on a symbol far down the reel to give the illusion of spinning
-        const targetPosition = -((landingPosition + symbols.length * (3+index)) * 100);
+        // Land on the symbol in the 3rd repetition of the symbols array for a good spin effect
+        const landingPosition = targetSymbolIndex + (symbols.length * (3 + index));
+        const targetPosition = -(landingPosition * 100);
 
         const spinDuration = 2.5 + (charge / maxCharge) * 3; // Max 3 extra seconds
 
@@ -409,7 +399,7 @@ function checkWinnings(results) {
     const [res1, res2, res3] = results;
 
     if (res1 === res2 && res2 === res3) {
-        const symbol = `fa-${res1}`;
+        const symbol = res1;
         const prize = payout[symbol];
         coinCount += prize;
         coinCountSpan.textContent = coinCount;
