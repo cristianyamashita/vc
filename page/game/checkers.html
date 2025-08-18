@@ -91,7 +91,7 @@
     .path-highlight { background-color: rgba(0, 255, 0, 0.3); }
     .lang-selector { display: flex; gap: 8px; }
     .lang-selector a {
-      color: #fff;
+      color: #000000;
       text-decoration: none;
       font-size: 13px;
       font-weight: 600;
@@ -280,15 +280,62 @@ let currentLang = 'en', game = new Checkers(), searchDepth = 2;
 let draggedPiece = null, startR = null, startC = null, dragPath = [];
 
 const boardEl = document.getElementById('board'), statusEl = document.getElementById('status');
-document.getElementById('new-game').addEventListener('click', () => { game.reset(); drawBoard(); });
+document.getElementById('new-game').addEventListener('click', () => { 
+    game.reset(); 
+    game.history = [];
+    localStorage.removeItem('checkersGameState');
+    boardEl.style.transform = ''; // Reset board orientation
+    drawBoard(); 
+});
 document.getElementById('flip-board').addEventListener('click', () => { boardEl.style.transform = boardEl.style.transform ? '' : 'rotate(180deg)'; });
-document.getElementById('undo-button').addEventListener('click', () => { if(game.history.length > 1) { game.board = game.history.pop(); game.board = game.history.pop(); game.turn = 'b'; drawBoard(); } else { game.reset(); drawBoard();} });
+document.getElementById('undo-button').addEventListener('click', () => { 
+    if(game.history.length > 1) { 
+        game.board = game.history.pop(); 
+        game.board = game.history.pop(); 
+        game.turn = 'b'; 
+        saveGameState();
+        drawBoard(); 
+    } else { 
+        game.reset(); 
+        saveGameState();
+        drawBoard();
+    } 
+});
 document.getElementById('redo-button').style.display = 'none';
 document.getElementById('difficulty').addEventListener('change', e => { searchDepth = parseInt(e.target.value, 10); localStorage.setItem('checkersDifficulty', searchDepth); });
 document.querySelector('.lang-selector').addEventListener('click', e => { e.preventDefault(); if (e.target.dataset.lang) setLanguage(e.target.dataset.lang); });
 
-function setLanguage(lang) { /* ... */ } // implementation is the same
-function updateStatus() { /* ... */ } // implementation is the same
+function setLanguage(lang) {
+    currentLang = lang; 
+    localStorage.setItem('app_lang', lang);
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        if(translations[lang]?.[key]) el.innerText = translations[lang][key];
+    });
+    document.querySelectorAll('.lang-selector a').forEach(a => {
+        a.classList.remove('active');
+        if (a.dataset.lang === lang) a.classList.add('active');
+    });
+    updateStatus();
+}
+function updateStatus() {
+    let txt = '';
+    if (game.isGameOver()) {
+        const winner = game.getWinner();
+        txt = winner === 'White' ? translations[currentLang].whiteWins : translations[currentLang].blackWins;
+    } else {
+        txt = game.turn === 'b' ? translations[currentLang].yourTurn : translations[currentLang].computerTurn;
+    }
+    statusEl.innerText = txt;
+}
+
+function saveGameState() {
+    localStorage.setItem('checkersGameState', JSON.stringify({
+        board: game.board,
+        turn: game.turn,
+        history: game.history
+    }));
+}
 
 function drawBoard() {
     boardEl.innerHTML = '';
@@ -349,6 +396,7 @@ function handleDrop(e) {
     const moveSeq = findValidMoveSequence(dragPath);
     if(moveSeq) {
         game.move(moveSeq);
+        saveGameState();
         setTimeout(makeAIMove, 250);
     }
     dragPath = [];
@@ -378,7 +426,10 @@ function findValidMoveSequence(path) {
 function makeAIMove() {
     if (game.isGameOver()) return;
     const bestMoveSeq = getBestMove(searchDepth);
-    if (bestMoveSeq) game.move(bestMoveSeq);
+    if (bestMoveSeq) {
+        game.move(bestMoveSeq);
+        saveGameState();
+    }
     drawBoard();
 }
 
@@ -411,32 +462,15 @@ function minimax(gameInstance, depth, alpha, beta, isMaximizing) {
         body.classList.add('light-theme');
     }
 
-    // Simplified, full implementation of setLanguage and updateStatus are above
-    setLanguage = function(lang) {
-        currentLang = lang; localStorage.setItem('app_lang', lang);
-        document.querySelectorAll('[data-i18n]').forEach(el => {
-            const key = el.getAttribute('data-i18n');
-            if(translations[lang]?.[key]) el.innerText = translations[lang][key];
-        });
-        document.querySelectorAll('.lang-selector a').forEach(a => {
-            a.classList.remove('active');
-            if (a.dataset.lang === lang) a.classList.add('active');
-        });
-        updateStatus();
-    }
-    updateStatus = function() {
-        let txt = '';
-        if (game.isGameOver()) {
-            const winner = game.getWinner();
-            txt = winner === 'White' ? translations[currentLang].whiteWins : translations[currentLang].blackWins;
-        } else {
-            txt = game.turn === 'b' ? translations[currentLang].yourTurn : translations[currentLang].computerTurn;
-        }
-        statusEl.innerText = txt;
-    }
+    // Language and status functions are already defined above
 
     const savedState = localStorage.getItem('checkersGameState');
-    if (savedState) { const { board, turn } = JSON.parse(savedState); game.board = board; game.turn = turn; }
+    if (savedState) { 
+        const { board, turn, history } = JSON.parse(savedState); 
+        game.board = board; 
+        game.turn = turn; 
+        if (history) game.history = history;
+    }
     const savedLang = localStorage.getItem('app_lang') || 'en';
     setLanguage(savedLang);
     const savedDifficulty = localStorage.getItem('checkersDifficulty') || '2';
