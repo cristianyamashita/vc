@@ -5,14 +5,22 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Checkers vs Computer</title>
   <style>
+    :root {
+      --bg-1: #0b0f14; --bg-2: #0a0f1a; --card: #0f1623cc; --ink: #dbe7ff;
+      --muted: #92a3ba; --border: #1f2a3f; --accent: #4ea1ff;
+    }
+    body.light-theme {
+      --bg-1: #ffffff; --bg-2: #f0f2f5; --card: #ffffff; --ink: #000000;
+      --muted: #65676b; --border: #dcdfe6; --accent: #1877f2;
+    }
     body {
       font-family: sans-serif;
       display: flex;
       justify-content: center;
       align-items: center;
       min-height: 100vh;
-      background-color: #333;
-      color: #fff;
+      background-color: var(--bg-1);
+      color: var(--ink);
     }
     .game-container {
       display: flex;
@@ -25,7 +33,7 @@
       grid-template-columns: repeat(8, 1fr);
       width: 80vmin;
       max-width: 600px;
-      border: 5px solid #555;
+      border: 5px solid var(--border);
     }
     .square {
       width: 100%;
@@ -35,10 +43,16 @@
       align-items: center;
     }
     .square.light {
-      background-color: #f0d9b5;
+      background-color: #e3c196;
     }
     .square.dark {
-      background-color: #b58863;
+      background-color: #8b4513;
+    }
+    body.light-theme .square.light {
+        background-color: #f0d9b5;
+    }
+    body.light-theme .square.dark {
+        background-color: #b58863;
     }
     .piece {
       width: 80%;
@@ -347,20 +361,18 @@ function handleDragEnd(e) {
 }
 
 function findValidMoveSequence(path) {
+    if (path.length < 2) return null;
     const allMoves = game.getAllValidMoves(game.turn);
-    for (const seq of allMoves) {
-        if (seq.length !== path.length - 1) continue;
-        let match = true;
-        for (let i = 0; i < seq.length; i++) {
-            if (seq[i].from[0] !== path[i][0] || seq[i].from[1] !== path[i][1] ||
-                seq[i].to[0] !== path[i+1][0] || seq[i].to[1] !== path[i+1][1]) {
-                match = false;
-                break;
-            }
-        }
-        if (match) return seq;
-    }
-    return null;
+    const startPos = path[0];
+    const endPos = path[path.length - 1];
+
+    // Find a valid move sequence that connects the start and end points.
+    return allMoves.find(seq =>
+        seq[0].from[0] === startPos[0] &&
+        seq[0].from[1] === startPos[1] &&
+        seq[seq.length - 1].to[0] === endPos[0] &&
+        seq[seq.length - 1].to[1] === endPos[1]
+    );
 }
 
 function makeAIMove() {
@@ -392,6 +404,13 @@ function minimax(gameInstance, depth, alpha, beta, isMaximizing) {
 }
 
 (function loadGame() {
+    // Theme setup
+    const body = document.body;
+    const savedTheme = localStorage.getItem('app_theme');
+    if (savedTheme === 'light') {
+        body.classList.add('light-theme');
+    }
+
     // Simplified, full implementation of setLanguage and updateStatus are above
     setLanguage = function(lang) {
         currentLang = lang; localStorage.setItem('app_lang', lang);
