@@ -516,7 +516,7 @@
     let drawing = false;
     let startX = 0, startY = 0;
     let lastX = 0, lastY = 0;
-    let dpr = Math.max(1, window.devicePixelRatio || 1);
+    let dpr = 1;
     let viewScale = 1;
     let viewOffsetX = 0;
     let viewOffsetY = 0;
@@ -535,6 +535,7 @@
     const recentColors = [];
 
     function setCanvasSize() {
+      dpr = Math.max(1, window.devicePixelRatio || 1);
       const rect = stage.getBoundingClientRect();
       [grid, board, overlay].forEach(c => {
         c.width = Math.floor(rect.width * dpr);
@@ -1273,9 +1274,9 @@
       const cx = (selection.x + dx) + w/2;
       const cy = (selection.y + dy) + h/2;
       octx.save();
-      octx.translate(cx * dpr, cy * dpr);
+      octx.translate(cx, cy);
       octx.rotate(angle);
-      octx.drawImage(selection.canvas, -w/2 * dpr, -h/2 * dpr, w * dpr, h * dpr);
+      octx.drawImage(selection.canvas, -w/2, -h/2, w, h);
       octx.restore();
       // update box
       selectionBox.classList.remove('hidden');
@@ -1299,9 +1300,9 @@
       const h = Math.max(1, Math.round(selection.h + (selection.resizeH||0)));
       const angle = selection.rotation || 0;
       ctx.save();
-      ctx.translate((nx + w/2) * dpr, (ny + h/2) * dpr);
+      ctx.translate(nx + w/2, ny + h/2);
       ctx.rotate(angle);
-      ctx.drawImage(selection.canvas, -w/2 * dpr, -h/2 * dpr, w * dpr, h * dpr);
+      ctx.drawImage(selection.canvas, -w/2, -h/2, w, h);
       ctx.restore();
       selection = null; hideSelectionBox(); clearOverlay(); pushHistory();
     }
@@ -1341,7 +1342,7 @@
       const ny = Math.round(selection.y + (selection.offsetY||0));
       const nw = Math.max(1, Math.round(selection.w + (selection.resizeW||0)));
       const nh = Math.max(1, Math.round(selection.h + (selection.resizeH||0)));
-      ctx.drawImage(selection.canvas, 0, 0, selection.canvas.width, selection.canvas.height, nx * dpr, ny * dpr, nw * dpr, nh * dpr);
+      ctx.drawImage(selection.canvas, 0, 0, selection.canvas.width, selection.canvas.height, nx, ny, nw, nh);
       selection = null; hideSelectionBox(); clearOverlay(); pushHistory();
     }
     function updateRotation(x, y) {
@@ -1375,11 +1376,7 @@
     }
     function pointerMove(e) {
       const p = getPos(e);
-      if (tool === 'select' && selection && selection.moving && drawing) {
-        moveSelection(p.x, p.y);
-      } else {
-        moveStroke(p.x, p.y, e);
-      }
+      moveStroke(p.x, p.y, e);
     }
     function pointerUp(e) {
       const p = getPos(e);
@@ -1518,7 +1515,7 @@
     function loadFromStorage() {
       const data = activeTabId ? localStorage.getItem(TAB_PREFIX + activeTabId) : localStorage.getItem('whiteboard_autosave');
       if (!data) return;
-      const img = new Image(); img.onload = () => { ctx.drawImage(img, 0, 0, board.width, board.height); pushHistory(); }; img.src = data;
+      const img = new Image(); img.onload = () => { ctx.drawImage(img, 0, 0, board.width / dpr, board.height / dpr); pushHistory(); }; img.src = data;
     }
     saveNowBtn.addEventListener('click', () => { saveToStorage(); });
 
