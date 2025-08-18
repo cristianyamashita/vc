@@ -445,6 +445,7 @@ let currentBets = {};
 let selectedChip = 1;
 let isSpinning = false;
 let currentRotation = 0;
+let rotationCount = 0;
 
 function drawWheel() {
     const numSegments = numbers.length;
@@ -559,11 +560,12 @@ function spinWheel() {
     clearButton.disabled = true;
     messageDiv.textContent = translations[currentLang].spinning;
 
+    rotationCount++;
     const randomIndex = Math.floor(Math.random() * numbers.length);
     const winningNumber = numbers[randomIndex];
     const segmentAngle = 360 / numbers.length;
     const randomOffset = Math.random() * segmentAngle - (segmentAngle / 2);
-    const targetAngle = 360 * 10 - (randomIndex * segmentAngle) - randomOffset;
+    const targetAngle = 360 * 10 * rotationCount - (randomIndex * segmentAngle) - randomOffset;
 
     wheel.style.transition = 'transform 4s cubic-bezier(0.25, 0.1, 0.25, 1)';
     wheel.style.transform = `rotate(${targetAngle}deg)`;
