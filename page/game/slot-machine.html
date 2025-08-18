@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Slot Machine</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <style>
+    :root {
+      --bg-1: #0b0f14;
+      --bg-2: #0a0f1a;
+      --card: #0f1623cc;
+      --ink: #dbe7ff;
+      --muted: #92a3ba;
+      --border: #1f2a3f;
+      --accent: #4ea1ff;
+      --accent-2: #86efac;
+      --shadow: 0 18px 60px rgba(0,0,0,.40);
+      --gradient-color-1: #101826;
+      --gradient-color-2: #0f1628;
+      --hero-bg-1: #0f1726cc;
+      --hero-bg-2: #0d1422cc;
+      --chip-bg: #0e1524;
+      --nav-link-bg: #0d1422;
+      --nav-link-hover-border: #2a3b5a;
+      --desc-color: #c2d2ee;
+      --btn-primary-color: #0a0f18;
+      --btn-ghost-bg: #1a2234;
+      --btn-ghost-border: #2a3450;
+      --tag-bg: #0c1422;
+      --tag-color: #a0b6d6;
+    }
+    body.light-theme {
+      --bg-1: #ffffff;
+      --bg-2: #f0f2f5;
+      --card: #ffffff;
+      --ink: #000000;
+      --muted: #65676b;
+      --border: #dcdfe6;
+      --accent: #1877f2;
+      --accent-2: #31a24c;
+      --shadow: 0 18px 60px rgba(0,0,0,.12);
+      --gradient-color-1: #e0e2e5;
+      --gradient-color-2: #d0d2d5;
+      --hero-bg-1: #f0f2f5cc;
+      --hero-bg-2: #e0e2e5cc;
+      --chip-bg: #e9eaeb;
+      --nav-link-bg: #e9eaeb;
+      --nav-link-hover-border: #c0c2c5;
+      --desc-color: #333;
+      --btn-primary-color: #ffffff;
+      --btn-ghost-bg: #e4e6eb;
+      --btn-ghost-border: #ced0d4;
+      --tag-bg: #e4e6eb;
+      --tag-color: #333;
+    }
+    body {
+      font-family: 'Noto Sans JP', system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, 'Helvetica Neue', Arial, 'Noto Sans';
+      background-color: var(--bg-2);
+      color: var(--ink);
+      margin: 0;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .game-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+      width: 100%;
+      max-width: 800px;
+    }
+    .top-bar {
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    .lang-selector {
+      display: flex;
+      gap: 8px;
+    }
+    .lang-selector a {
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 4px 8px;
+      border-radius: 8px;
+      border: 1px solid transparent;
+    }
+    .lang-selector a:hover {
+      border-color: var(--border);
+    }
+    .lang-selector a.active {
+      color: var(--accent);
+    }
+    #theme-toggle-btn {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--ink);
+      cursor: pointer;
+      border-radius: 8px;
+      padding: 4px 8px;
+      font-size: 13px;
+    }
+    h1 {
+      color: var(--accent);
+      margin: 0;
+      text-align: center;
+    }
+    .slot-machine {
+        background: var(--card);
+        border: 2px solid var(--border);
+        border-radius: 20px;
+        padding: 20px;
+        box-shadow: var(--shadow);
+    }
+    .reels {
+        display: flex;
+        justify-content: center;
+        gap: 10px;
+        margin-bottom: 20px;
+        background: var(--bg-1);
+        padding: 15px;
+        border-radius: 10px;
+        border: 1px solid var(--border);
+    }
+    .reel {
+        width: 100px;
+        height: 100px;
+        background: var(--bg-2);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        overflow: hidden;
+        position: relative;
+    }
+    .reel-inner {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        transition: top 1s ease-in-out;
+    }
+    .reel i {
+        font-size: 60px;
+        text-align: center;
+        line-height: 100px;
+        width: 100px;
+        height: 100px;
+        display: block;
+    }
+    .controls {
+        text-align: center;
+    }
+    #spin-button {
+      padding: 15px 30px;
+      font-size: 20px;
+      cursor: pointer;
+      border-radius: 10px;
+      border: none;
+      background: linear-gradient(180deg, var(--accent), #2f6bff);
+      color: var(--btn-primary-color);
+      font-weight: bold;
+      margin-bottom: 20px;
+    }
+    #spin-button:disabled {
+        background: var(--muted);
+        cursor: not-allowed;
+    }
+    .info {
+        display: flex;
+        justify-content: space-around;
+        font-size: 18px;
+    }
+    #message {
+        margin-top: 20px;
+        font-size: 1.2em;
+        font-weight: bold;
+        text-align: center;
+        min-height: 30px;
+    }
+  </style>
+</head>
+<body>
+  <div class="game-container">
+    <div class="top-bar">
+        <h1 data-i18n="title">Slot Machine</h1>
+        <div style="display: flex; align-items: center; gap: 15px;">
+            <div class="lang-selector">
+                <a href="#" data-lang="en" class="active">EN</a>
+                <a href="#" data-lang="ja">JA</a>
+                <a href="#" data-lang="pt">PT</a>
+            </div>
+            <button id="theme-toggle-btn">◑</button>
+        </div>
+    </div>
+
+    <div class="slot-machine">
+        <div class="reels">
+            <div class="reel" id="reel1"><div class="reel-inner"></div></div>
+            <div class="reel" id="reel2"><div class="reel-inner"></div></div>
+            <div class="reel" id="reel3"><div class="reel-inner"></div></div>
+        </div>
+
+        <div class="controls">
+            <button id="spin-button" data-i18n="spin">Spin</button>
+            <div class="info">
+                <div>
+                    <span data-i18n="coins">Coins</span>: <span id="coin-count">100</span>
+                </div>
+            </div>
+        </div>
+         <div id="message" data-i18n="welcome">Good luck!</div>
+    </div>
+  </div>
+
+<script>
+const translations = {
+  en: {
+    title: "Slot Machine",
+    spin: "Spin",
+    coins: "Coins",
+    welcome: "Good luck!",
+    spinning: "Spinning...",
+    win: "You Win!",
+    lose: "Try Again",
+    gameOver: "Game Over! No more coins."
+  },
+  ja: {
+    title: "スロットマシン",
+    spin: "スピン",
+    coins: "コイン",
+    welcome: "頑張ってね！",
+    spinning: "回転中...",
+    win: "勝ち！",
+    lose: "もう一度",
+    gameOver: "ゲームオーバー！コインがありません。"
+  },
+  pt: {
+    title: "Caça-Níqueis",
+    spin: "Girar",
+    coins: "Moedas",
+    welcome: "Boa sorte!",
+    spinning: "Girando...",
+    win: "Você Ganhou!",
+    lose: "Tente Novamente",
+    gameOver: "Fim de Jogo! Sem mais moedas."
+  }
+};
+
+let currentLang = 'en';
+
+function setLanguage(lang) {
+  currentLang = lang;
+  localStorage.setItem('app_lang', lang);
+  document.querySelectorAll('[data-i18n]').forEach(element => {
+    const key = element.getAttribute('data-i18n');
+    if (translations[lang] && translations[lang][key]) {
+      element.innerText = translations[lang][key];
+    }
+  });
+  document.querySelectorAll('.lang-selector a').forEach(a => {
+    a.classList.remove('active');
+    if (a.getAttribute('data-lang') === lang) {
+      a.classList.add('active');
+    }
+  });
+}
+
+function loadSavedState() {
+  const savedLang = localStorage.getItem('app_lang') || 'en';
+  setLanguage(savedLang);
+
+  const savedTheme = localStorage.getItem('app_theme');
+  if (savedTheme === 'light') {
+    document.body.classList.add('light-theme');
+  }
+}
+
+document.querySelector('.lang-selector').addEventListener('click', (event) => {
+  event.preventDefault();
+  const lang = event.target.getAttribute('data-lang');
+  if (lang) {
+    setLanguage(lang);
+  }
+});
+
+document.getElementById('theme-toggle-btn').addEventListener('click', () => {
+    document.body.classList.toggle('light-theme');
+    localStorage.setItem('app_theme', document.body.classList.contains('light-theme') ? 'light' : 'dark');
+});
+
+// Game Logic
+const reel1 = document.getElementById('reel1').querySelector('.reel-inner');
+const reel2 = document.getElementById('reel2').querySelector('.reel-inner');
+const reel3 = document.getElementById('reel3').querySelector('.reel-inner');
+const spinButton = document.getElementById('spin-button');
+const coinCountSpan = document.getElementById('coin-count');
+const messageDiv = document.getElementById('message');
+
+const symbols = [
+    'fa-star', 'fa-heart', 'fa-clover', 'fa-bell', 'fa-gem', 'fa-lemon', 'fa-horse-shoe'
+];
+const payout = {
+    'fa-star': 50,
+    'fa-heart': 20,
+    'fa-clover': 15,
+    'fa-bell': 10,
+    'fa-gem': 8,
+    'fa-lemon': 5,
+    'fa-horse-shoe': 2
+};
+
+
+let coinCount = 100;
+let isSpinning = false;
+
+function createReelContent(reel) {
+    reel.innerHTML = '';
+    const fragment = document.createDocumentFragment();
+    for (let i = 0; i < 20; i++) { // Create a long strip of symbols
+        const icon = document.createElement('i');
+        icon.className = `fas ${symbols[i % symbols.length]}`;
+        fragment.appendChild(icon);
+    }
+    reel.appendChild(fragment);
+}
+
+function spin() {
+    if (isSpinning || coinCount <= 0) return;
+
+    isSpinning = true;
+    spinButton.disabled = true;
+    coinCount--;
+    coinCountSpan.textContent = coinCount;
+    messageDiv.textContent = translations[currentLang].spinning;
+
+    const reels = [reel1, reel2, reel3];
+    const results = [];
+
+    reels.forEach((reel, index) => {
+        const targetSymbolIndex = Math.floor(Math.random() * symbols.length);
+        results.push(reel.children[targetSymbolIndex].className);
+        const targetPosition = -(targetSymbolIndex * 100); // 100px height per symbol
+
+        // Add some randomness to the spin duration and delay
+        setTimeout(() => {
+            reel.style.transition = `top ${2 + index * 0.5}s cubic-bezier(0.25, 0.1, 0.25, 1)`;
+            reel.style.top = `${targetPosition}px`;
+        }, index * 200);
+    });
+
+    setTimeout(() => {
+        checkWinnings(results);
+        isSpinning = false;
+        if (coinCount > 0) {
+           spinButton.disabled = false;
+        }
+    }, 3500);
+}
+
+function checkWinnings(results) {
+    const [res1, res2, res3] = results.map(r => r.split(' ')[1]);
+
+    if (res1 === res2 && res2 === res3) {
+        const symbol = res1;
+        const prize = payout[symbol];
+        coinCount += prize;
+        coinCountSpan.textContent = coinCount;
+        messageDiv.textContent = `${translations[currentLang].win} +${prize}`;
+    } else {
+        messageDiv.textContent = translations[currentLang].lose;
+    }
+
+    if (coinCount <= 0) {
+        messageDiv.textContent = translations[currentLang].gameOver;
+        spinButton.disabled = true;
+    }
+}
+
+function init() {
+    loadSavedState();
+    createReelContent(reel1);
+    createReelContent(reel2);
+    createReelContent(reel3);
+    // Clone for seamless loop illusion (not perfect but ok for this)
+    reel1.appendChild(reel1.cloneNode(true));
+    reel2.appendChild(reel2.cloneNode(true));
+    reel3.appendChild(reel3.cloneNode(true));
+
+    coinCountSpan.textContent = coinCount;
+    spinButton.addEventListener('click', spin);
+}
+
+init();
+
+</script>
+</body>
+</html>
