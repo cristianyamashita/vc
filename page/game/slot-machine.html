@@ -334,6 +334,7 @@ let isSpinning = false;
 let chargeInterval;
 let spinCharge = 0;
 const maxCharge = 100;
+let spinCountSinceLastWin = 0;
 
 function createReelContent(reel) {
     reel.innerHTML = '';
@@ -355,11 +356,20 @@ function spin(charge) {
     isSpinning = true;
     spinButton.disabled = true;
     coinCount--;
+    spinCountSinceLastWin++;
     coinCountSpan.textContent = coinCount;
     messageDiv.textContent = translations[currentLang].spinning;
 
     const reels = [reel1, reel2, reel3];
     const results = [];
+
+    let forceWin = spinCountSinceLastWin >= 33;
+    let forcedWinSymbolIndex = -1;
+    if (forceWin) {
+        // Pick a random symbol to be the winner, excluding the top prize to make it not too obvious
+        forcedWinSymbolIndex = 1 + Math.floor(Math.random() * (symbols.length - 1));
+        spinCountSinceLastWin = 0; // Reset counter
+    }
 
     reels.forEach((reel, index) => {
         // Reset animation
@@ -368,7 +378,7 @@ function spin(charge) {
         // Force reflow
         reel.offsetHeight;
 
-        const targetSymbolIndex = Math.floor(Math.random() * symbols.length);
+        const targetSymbolIndex = forceWin ? forcedWinSymbolIndex : Math.floor(Math.random() * symbols.length);
         results.push(symbols[targetSymbolIndex]);
 
         // Land on the symbol in a later repetition of the symbols array for a good spin effect
@@ -402,6 +412,7 @@ function checkWinnings(results) {
         const symbol = res1;
         const prize = payout[symbol];
         coinCount += prize;
+        spinCountSinceLastWin = 0; // Reset counter on win
         coinCountSpan.textContent = coinCount;
         messageDiv.textContent = `${translations[currentLang].win} +${prize}`;
     } else {
