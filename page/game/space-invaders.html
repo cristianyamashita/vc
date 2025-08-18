@@ -215,6 +215,7 @@
     let level = 1;
     let lives = 3;
     let wave = 1;
+    let enemyDirection = 1;
 
     const playerWidth = 50;
     const playerHeight = 30;
@@ -394,26 +395,28 @@
             }
         });
 
-        let enemySpeed = 1 + (level * 0.2);
+        let enemySpeed = 0.5 + (level * 0.1);
         let moveDown = false;
 
         enemies.forEach(enemy => {
-            enemy.x += enemySpeed;
+            enemy.x += enemySpeed * enemyDirection;
             if (enemy.x + enemy.width > canvas.width || enemy.x < 0) {
                 moveDown = true;
             }
         });
 
         if (moveDown) {
+            enemyDirection *= -1;
             enemies.forEach(enemy => {
-                enemy.x -= enemySpeed; // Move back
-                enemy.y += enemyHeight;
-                enemySpeed *= -1; // Change direction
+                enemy.y += enemyHeight / 2;
             });
         }
 
         enemies.forEach(enemy => {
             enemy.draw();
+            if (enemy.y + enemy.height > player.y) {
+                gameOver();
+            }
         });
 
 
@@ -540,6 +543,7 @@
         level = 1;
         lives = 3;
         wave = 1;
+        enemyDirection = 1;
         scoreEl.textContent = score;
         levelEl.textContent = level;
         livesEl.textContent = lives;
@@ -557,6 +561,7 @@
         scoreEl.textContent = 0;
         levelEl.textContent = 1;
         livesEl.textContent = 3;
+        enemyDirection = 1;
     }
 
     startBtn.addEventListener('click', startGame);
