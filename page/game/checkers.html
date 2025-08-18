@@ -18,6 +18,7 @@
       display: flex;
       flex-wrap: wrap;
       gap: 20px;
+      align-items: flex-start;
     }
     .board-container {
       display: grid;
@@ -49,15 +50,10 @@
       align-items: center;
       box-shadow: inset 0 -3px 5px rgba(0,0,0,0.3), 0 2px 3px rgba(0,0,0,0.3);
     }
-    .piece.white {
-      background-color: #f8f8f8;
-    }
-    .piece.black {
-      background-color: #585858;
-      color: white;
-    }
+    .piece.white { background-color: #f8f8f8; }
+    .piece.black { background-color: #585858; color: white; }
     .king::after {
-      content: '★'; /* Star for king */
+      content: '★';
       font-size: 5vmin;
       color: gold;
       text-shadow: 0 0 3px black;
@@ -66,25 +62,17 @@
       display: flex;
       flex-direction: column;
       gap: 10px;
+      width: 250px;
     }
     button, select {
       padding: 10px;
       font-size: 16px;
       cursor: pointer;
     }
-    #status {
-      font-size: 18px;
-    }
-    .highlight {
-      background-color: rgba(255, 255, 0, 0.5);
-    }
-    .selected {
-        background-color: rgba(0, 255, 0, 0.5);
-    }
-    .lang-selector {
-      display: flex;
-      gap: 8px;
-    }
+    #status { font-size: 18px; }
+    .highlight { background-color: rgba(255, 255, 0, 0.5); }
+    .selected { background-color: rgba(0, 255, 0, 0.5); }
+    .lang-selector { display: flex; gap: 8px; }
     .lang-selector a {
       color: #fff;
       text-decoration: none;
@@ -94,16 +82,8 @@
       border-radius: 8px;
       border: 1px solid transparent;
     }
-    .lang-selector a:hover {
-      border-color: #fff;
-    }
-    .lang-selector a.active {
-      color: #4ea1ff;
-    }
-    textarea {
-      width: 100%;
-      height: 100px;
-    }
+    .lang-selector a:hover { border-color: #fff; }
+    .lang-selector a.active { color: #4ea1ff; }
   </style>
 </head>
 <body>
@@ -128,136 +108,85 @@
         </select>
       </div>
       <div id="status"></div>
-      <div id="instructions" data-i18n="instructions" style="font-size: 13px; color: #aaa; margin-top: 15px; max-width: 250px; line-height: 1.4;"></div>
+      <div id="instructions" data-i18n="instructions" style="font-size: 13px; color: #aaa; margin-top: 15px; line-height: 1.4;"></div>
     </div>
   </div>
 
 <script>
 const translations = {
   en: {
-    newGame: "New Game",
-    flipBoard: "Flip Board",
-    undo: "Undo",
-    redo: "Redo",
-    difficulty: "Difficulty",
-    easy: "Easy",
-    medium: "Medium",
-    hard: "Hard",
-    yourTurn: "Your turn",
-    computerTurn: "Computer's turn",
-    whiteWins: "Game over, White wins!",
-    blackWins: "Game over, Black wins!",
-    draw: "Game over, it's a draw!",
-    instructions: "Instructions: Click a piece to select it, then click a highlighted square to move. Captures are mandatory. You can chain multiple jumps in one turn."
+    newGame: "New Game", flipBoard: "Flip Board", undo: "Undo", redo: "Redo", difficulty: "Difficulty",
+    easy: "Easy", medium: "Medium", hard: "Hard", yourTurn: "Your turn", computerTurn: "Computer's turn",
+    whiteWins: "Game over, White wins!", blackWins: "Game over, Black wins!",
+    instructions: "Instructions: Click a piece to select it, then click a highlighted square to move. Captures are mandatory. You must take the longest jump sequence."
   },
   ja: {
-    newGame: "新しいゲーム",
-    flipBoard: "盤を反転",
-    undo: "元に戻す",
-    redo: "やり直し",
-    difficulty: "難易度",
-    easy: "簡単",
-    medium: "普通",
-    hard: "難しい",
-    yourTurn: "あなたの番です",
-    computerTurn: "コンピュータの番です",
-    whiteWins: "ゲームオーバー、白の勝ちです！",
-    blackWins: "ゲームオーバー、黒の勝ちです！",
-    draw: "ゲームオーバー、引き分けです！",
-    instructions: "遊び方：駒をクリックして選択し、ハイライトされたマスをクリックして移動します。キャプチャは必須です。1ターンに複数のジャンプを連鎖させることができます。"
+    newGame: "新しいゲーム", flipBoard: "盤を反転", undo: "元に戻す", redo: "やり直し", difficulty: "難易度",
+    easy: "簡単", medium: "普通", hard: "難しい", yourTurn: "あなたの番です", computerTurn: "コンピュータの番です",
+    whiteWins: "ゲームオーバー、白の勝ちです！", blackWins: "ゲームオーバー、黒の勝ちです！",
+    instructions: "遊び方：駒をクリックして選択し、ハイライトされたマスをクリックして移動します。キャプチャは必須です。最も長いジャンプシーケンスを選択する必要があります。"
   },
   pt: {
-    newGame: "Novo Jogo",
-    flipBoard: "Inverter Tabuleiro",
-    undo: "Desfazer",
-    redo: "Refazer",
-    difficulty: "Dificuldade",
-    easy: "Fácil",
-    medium: "Médio",
-    hard: "Difícil",
-    yourTurn: "Sua vez",
-    computerTurn: "Vez do computador",
-    whiteWins: "Fim de jogo, Brancas vencem!",
-    blackWins: "Fim de jogo, Pretas vencem!",
-    draw: "Fim de jogo, empate!",
-    instructions: "Instruções: Clique em uma peça para selecioná-la e, em seguida, clique em um quadrado destacado para mover. As capturas são obrigatórias. Você pode encadear vários saltos em um único turno."
+    newGame: "Novo Jogo", flipBoard: "Inverter Tabuleiro", undo: "Desfazer", redo: "Refazer", difficulty: "Dificuldade",
+    easy: "Fácil", medium: "Médio", hard: "Difícil", yourTurn: "Sua vez", computerTurn: "Vez do computador",
+    whiteWins: "Fim de jogo, Brancas vencem!", blackWins: "Fim de jogo, Pretas vencem!",
+    instructions: "Instruções: Clique em uma peça para selecioná-la e, em seguida, clique em um quadrado destacado para mover. As capturas são obrigatórias. Você deve fazer a sequência de saltos mais longa."
   }
 };
 
 class Checkers {
-    constructor() {
-        this.board = [];
-        this.turn = 'b'; // black (player) starts
-        this.history = [];
-        this.reset();
-    }
-
+    constructor() { this.reset(); }
     reset() {
-        // 1: white piece, 2: black piece, 3: white king, 4: black king
         this.board = [
-            [0, 1, 0, 1, 0, 1, 0, 1],
-            [1, 0, 1, 0, 1, 0, 1, 0],
-            [0, 1, 0, 1, 0, 1, 0, 1],
-            [0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0],
-            [2, 0, 2, 0, 2, 0, 2, 0],
-            [0, 2, 0, 2, 0, 2, 0, 2],
-            [2, 0, 2, 0, 2, 0, 2, 0]
+            [0, 1, 0, 1, 0, 1, 0, 1],[1, 0, 1, 0, 1, 0, 1, 0],[0, 1, 0, 1, 0, 1, 0, 1],
+            [0, 0, 0, 0, 0, 0, 0, 0],[0, 0, 0, 0, 0, 0, 0, 0],
+            [2, 0, 2, 0, 2, 0, 2, 0],[0, 2, 0, 2, 0, 2, 0, 2],[2, 0, 2, 0, 2, 0, 2, 0]
         ];
-        this.turn = 'b'; // Black always starts
-        this.history = [];
+        this.turn = 'b'; this.history = [];
     }
-
     clone() {
         const newGame = new Checkers();
         newGame.board = JSON.parse(JSON.stringify(this.board));
-        newGame.turn = this.turn;
-        return newGame;
+        newGame.turn = this.turn; return newGame;
     }
+    isValid(r, c) { return r >= 0 && r < 8 && c >= 0 && c < 8; }
+    getColor(p) { return p === 0 ? null : (p < 3 ? (p === 1 ? 'w' : 'b') : (p === 3 ? 'w' : 'b')); }
+    isKing(p) { return p > 2; }
 
-    getValidMoves(row, col) {
-        const allMoves = this.getAllValidMoves(this.turn);
-        const pieceMoves = allMoves.filter(seq => seq[0].from[0] === row && seq[0].from[1] === col);
-        return pieceMoves;
-    }
-
-    _findJumpPaths(startRow, startCol, board, isKing, color) {
-        if (isKing) {
-            return this._findKingJumpPaths(startRow, startCol, board, color);
-        }
-
+    _findJumpPaths(r, c, board, isKing, color) {
         let paths = [];
-        const directions = [[-1, -1], [-1, 1], [1, -1], [1, 1]];
-
-        for (const [dr, dc] of directions) {
-            if(color === 'w' && dr < 0) continue;
-            if(color === 'b' && dr > 0) continue;
-
-            const middleRow = startRow + dr;
-            const middleCol = startCol + dc;
-            const destRow = startRow + dr * 2;
-            const destCol = startCol + dc * 2;
-
-            if (this.isValidSquare(destRow, destCol) && board[destRow][destCol] === 0) {
-                const middlePiece = board[middleRow][middleCol];
-                if (middlePiece !== 0 && ((middlePiece === 1 || middlePiece === 3) ? 'w' : 'b') !== color) {
+        const dirs = [[-1,-1],[-1,1],[1,-1],[1,1]];
+        for (const [dr, dc] of dirs) {
+            if (!isKing && (color === 'w' ? dr < 0 : dr > 0)) continue;
+            let opponentPos = null, landingSquares = [];
+            for (let i = 1; i < 8; i++) {
+                const curR = r + dr * i, curC = c + dc * i;
+                if (!this.isValid(curR, curC)) break;
+                const p = board[curR][curC];
+                if (p !== 0) {
+                    if (this.getColor(p) === color) break;
+                    if (opponentPos) break;
+                    opponentPos = [curR, curC];
+                } else {
+                    if (opponentPos) landingSquares.push([curR, curC]);
+                    if (!isKing) break;
+                }
+            }
+            if (opponentPos && landingSquares.length > 0) {
+                for (const [landR, landC] of landingSquares) {
                     const newBoard = JSON.parse(JSON.stringify(board));
-                    const movedPiece = newBoard[startRow][startCol];
-                    newBoard[destRow][destCol] = movedPiece;
-                    newBoard[startRow][startCol] = 0;
-                    newBoard[middleRow][middleCol] = 0;
-
-                    const promoted = (destRow === 7 && movedPiece === 1) || (destRow === 0 && movedPiece === 2);
-                    const move = { from: [startRow, startCol], to: [destRow, destCol], captured: [middleRow, middleCol] };
-
+                    newBoard[landR][landC] = newBoard[r][c];
+                    newBoard[r][c] = 0;
+                    newBoard[opponentPos[0]][opponentPos[1]] = 0;
+                    const pieceAtLanding = newBoard[landR][landC];
+                    const promoted = !isKing && (this.getColor(pieceAtLanding) === 'w' ? landR === 7 : landR === 0);
+                    const move = {from:[r,c], to:[landR,landC], captured:opponentPos};
                     if (promoted) {
                         paths.push([move]);
                     } else {
-                        const nextPaths = this._findJumpPaths(destRow, destCol, newBoard, false, color);
+                        const nextPaths = this._findJumpPaths(landR, landC, newBoard, isKing, color);
                         if (nextPaths.length > 0) {
-                            for (const path of nextPaths) {
-                                paths.push([move, ...path]);
-                            }
+                            nextPaths.forEach(path => paths.push([move, ...path]));
                         } else {
                             paths.push([move]);
                         }
@@ -268,221 +197,89 @@ class Checkers {
         return paths;
     }
 
-    _findKingJumpPaths(startRow, startCol, board, color) {
-        let paths = [];
-        const directions = [[-1, -1], [-1, 1], [1, -1], [1, 1]];
-
-        for (const [dr, dc] of directions) {
-            let opponentPos = null;
-
-            for (let i = 1; i < 8; i++) {
-                const checkRow = startRow + dr * i;
-                const checkCol = startCol + dc * i;
-
-                if (!this.isValidSquare(checkRow, checkCol)) break;
-
-                const piece = board[checkRow][checkCol];
-                if (piece !== 0) {
-                    if (((piece === 1 || piece === 3) ? 'w' : 'b') === color) break;
-                    if (opponentPos) break;
-                    opponentPos = [checkRow, checkCol];
-                } else {
-                    if (opponentPos) {
-                        const newBoard = JSON.parse(JSON.stringify(board));
-                        newBoard[checkRow][checkCol] = newBoard[startRow][startCol];
-                        newBoard[startRow][startCol] = 0;
-                        newBoard[opponentPos[0]][opponentPos[1]] = 0;
-
-                        const move = { from: [startRow, startCol], to: [checkRow, checkCol], captured: opponentPos };
-                        const nextPaths = this._findKingJumpPaths(checkRow, checkCol, newBoard, color);
-
-                        if (nextPaths.length > 0) {
-                            for (const path of nextPaths) {
-                                paths.push([move, ...path]);
-                            }
-                        } else {
-                            paths.push([move]);
-                        }
-                    }
+    getAllValidMoves(color) {
+        let jumpMoves = [], simpleMoves = [];
+        for (let r = 0; r < 8; r++) {
+            for (let c = 0; c < 8; c++) {
+                const p = this.board[r][c];
+                if (p !== 0 && this.getColor(p) === color) {
+                    const isKing = this.isKing(p);
+                    jumpMoves.push(...this._findJumpPaths(r, c, this.board, isKing, color));
                 }
             }
         }
-        return paths;
+        if (jumpMoves.length > 0) {
+            let maxLen = 0;
+            jumpMoves.forEach(p => maxLen = Math.max(maxLen, p.length));
+            return jumpMoves.filter(p => p.length === maxLen);
+        }
+        for (let r = 0; r < 8; r++) {
+            for (let c = 0; c < 8; c++) {
+                const p = this.board[r][c];
+                if (p !== 0 && this.getColor(p) === color) {
+                    simpleMoves.push(...this.getSimpleMoves(r, c, this.isKing(p), color).map(m => [m]));
+                }
+            }
+        }
+        return simpleMoves;
     }
 
-
-    getSimpleMoves(row, col, isKing, color) {
+    getSimpleMoves(r, c, isKing, color) {
         let moves = [];
-        const directions = isKing ? [[-1, -1], [-1, 1], [1, -1], [1, 1]] : (color === 'w' ? [[1, -1], [1, 1]] : [[-1, -1], [-1, 1]]);
-
-        if (isKing) {
-            for (const [dr, dc] of directions) {
-                for (let i = 1; i < 8; i++) {
-                    const destRow = row + dr * i;
-                    const destCol = col + dc * i;
-
-                    if (!this.isValidSquare(destRow, destCol) || this.board[destRow][destCol] !== 0) {
-                        break;
-                    }
-                    moves.push({ from: [row, col], to: [destRow, destCol], captured: null });
-                }
-            }
-        } else {
-            for (const [dr, dc] of directions) {
-                const destRow = row + dr;
-                const destCol = col + dc;
-
-                if (this.isValidSquare(destRow, destCol) && this.board[destRow][destCol] === 0) {
-                    moves.push({ from: [row, col], to: [destRow, destCol], captured: null });
-                }
+        const dirs = isKing ? [[-1,-1],[-1,1],[1,-1],[1,1]] : (color === 'w' ? [[1,-1],[1,1]] : [[-1,-1],[-1,1]]);
+        for (const [dr, dc] of dirs) {
+            const destR = r + dr, destC = c + dc;
+            if (this.isValid(destR, destC) && this.board[destR][destC] === 0) {
+                moves.push({ from: [r, c], to: [destR, destC] });
             }
         }
         return moves;
     }
 
-    isValidSquare(row, col) {
-        return row >= 0 && row < 8 && col >= 0 && col < 8;
-    }
-
-    move(moveSequence) {
+    move(sequence) {
         this.history.push(JSON.parse(JSON.stringify(this.board)));
-
-        for(const move of moveSequence) {
-            const { from, to, captured } = move;
-            const [fromRow, fromCol] = from;
-            const [toRow, toCol] = to;
-
-            const piece = this.board[fromRow][fromCol];
-            this.board[toRow][toCol] = piece;
-            this.board[fromRow][fromCol] = 0;
-
-            if (captured) {
-                const [capRow, capCol] = captured;
-                this.board[capRow][capCol] = 0;
+        for (const move of sequence) {
+            const [fromR, fromC] = move.from, [toR, toC] = move.to;
+            const piece = this.board[fromR][fromC];
+            this.board[toR][toC] = piece;
+            this.board[fromR][fromC] = 0;
+            if (move.captured) {
+                this.board[move.captured[0]][move.captured[1]] = 0;
             }
-
-            if (move === moveSequence[moveSequence.length-1]) {
-               if (toRow === 7 && this.board[toRow][toCol] === 1) this.board[toRow][toCol] = 3;
-               if (toRow === 0 && this.board[toRow][toCol] === 2) this.board[toRow][toCol] = 4;
+            if (move === sequence[sequence.length - 1]) {
+                const color = this.getColor(piece);
+                if (color === 'w' && toR === 7) this.board[toR][toC] = 3;
+                if (color === 'b' && toR === 0) this.board[toR][toC] = 4;
             }
         }
-
-        this.turn = (this.turn === 'w') ? 'b' : 'w';
+        this.turn = this.turn === 'w' ? 'b' : 'w';
     }
 
-    undo() {
-        if (this.history.length > 0) {
-            this.board = this.history.pop();
-            this.turn = (this.turn === 'w') ? 'b' : 'w';
-            return true;
-        }
-        return false;
-    }
-
-    isGameOver() {
-        return this.getWinner() !== null;
-    }
-
-    getWinner() {
-        const moves = this.getAllValidMoves(this.turn);
-        if (moves.length === 0) {
-            return this.turn === 'w' ? 'Black' : 'White';
-        }
-
-        const whitePieces = this.countPieces('w');
-        const blackPieces = this.countPieces('b');
-
-        if (whitePieces === 0) return 'Black';
-        if (blackPieces === 0) return 'White';
-
-        return null;
-    }
-
-    countPieces(color) {
-        let count = 0;
-        for (let r = 0; r < 8; r++) {
-            for (let c = 0; c < 8; c++) {
-                const piece = this.board[r][c];
-                if (piece !== 0) {
-                    const pieceColor = (piece === 1 || piece === 3) ? 'w' : 'b';
-                    if (pieceColor === color) {
-                        count++;
-                    }
-                }
-            }
-        }
-        return count;
-    }
-
-    getAllValidMoves(color) {
-        let allMoves = [];
-        let jumpSequences = [];
-
-        for (let r = 0; r < 8; r++) {
-            for (let c = 0; c < 8; c++) {
-                const piece = this.board[r][c];
-                if (piece !== 0) {
-                    const pieceColor = (piece === 1 || piece === 3) ? 'w' : 'b';
-                    if (pieceColor === color) {
-                        const isKing = piece > 2;
-                        const jumps = this._findJumpPaths(r, c, this.board, isKing, color);
-                        if (jumps.length > 0) {
-                            jumpSequences.push(...jumps);
-                        }
-                    }
-                }
-            }
-        }
-
-        if (jumpSequences.length > 0) {
-            let maxLength = 0;
-            jumpSequences.forEach(seq => {
-                if (seq.length > maxLength) {
-                    maxLength = seq.length;
-                }
-            });
-            return jumpSequences.filter(seq => seq.length === maxLength);
-        }
-
-        for (let r = 0; r < 8; r++) {
-            for (let c = 0; c < 8; c++) {
-                const piece = this.board[r][c];
-                if (piece !== 0) {
-                    const pieceColor = (piece === 1 || piece === 3) ? 'w' : 'b';
-                    if (pieceColor === color) {
-                        const isKing = piece > 2;
-                        const simpleMoves = this.getSimpleMoves(r, c, isKing, color);
-                        if (simpleMoves.length > 0) {
-                            allMoves.push(...simpleMoves.map(m => [m]));
-                        }
-                    }
-                }
-            }
-        }
-        return allMoves;
-    }
-
+    isGameOver() { return this.getAllValidMoves(this.turn).length === 0; }
+    getWinner() { return this.isGameOver() ? (this.turn === 'w' ? 'Black' : 'White') : null; }
     evaluateBoard() {
         let score = 0;
-        score += this.countPieces('b') - this.countPieces('w');
-        score += (this.countKing('b') * 1.5) - (this.countKing('w') * 1.5)
-        return score;
-    }
-
-    countKing(color) {
-        let count = 0;
-        for (let r = 0; r < 8; r++) {
-            for (let c = 0; c < 8; c++) {
-                const piece = this.board[r][c];
-                if(color === 'w' && piece === 3) count++;
-                if(color === 'b' && piece === 4) count++;
-            }
+        for(let r=0; r<8; r++) for(let c=0; c<8; c++) {
+            const p = this.board[r][c];
+            if(p === 0) continue;
+            const color = this.getColor(p);
+            const value = this.isKing(p) ? 2.5 : 1;
+            score += value * (color === 'b' ? 1 : -1);
         }
-        return count;
+        return score;
     }
 }
 
-let currentLang = 'en';
+let currentLang = 'en', game = new Checkers(), searchDepth = 2;
+let selectedPiece = null, validMoves = [];
+
+const boardEl = document.getElementById('board'), statusEl = document.getElementById('status');
+document.getElementById('new-game').addEventListener('click', () => { game.reset(); selectedPiece = null; validMoves = []; drawBoard(); });
+document.getElementById('flip-board').addEventListener('click', () => { boardEl.style.transform = boardEl.style.transform ? '' : 'rotate(180deg)'; });
+document.getElementById('undo-button').addEventListener('click', () => { if(game.history.length > 1) { game.board = game.history.pop(); game.board = game.history.pop(); game.turn = 'b'; selectedPiece = null; validMoves = []; drawBoard(); } else { game.reset(); drawBoard();} });
+document.getElementById('redo-button').style.display = 'none';
+document.getElementById('difficulty').addEventListener('change', e => { searchDepth = parseInt(e.target.value, 10); localStorage.setItem('checkersDifficulty', searchDepth); });
+document.querySelector('.lang-selector').addEventListener('click', e => { e.preventDefault(); if (e.target.dataset.lang) setLanguage(e.target.dataset.lang); });
 
 function setLanguage(lang) {
   currentLang = lang;
@@ -495,253 +292,132 @@ function setLanguage(lang) {
   });
   document.querySelectorAll('.lang-selector a').forEach(a => {
     a.classList.remove('active');
-    if (a.getAttribute('data-lang') === lang) {
-      a.classList.add('active');
-    }
+    if (a.getAttribute('data-lang') === lang) { a.classList.add('active'); }
   });
   updateStatus();
 }
 
-const game = new Checkers();
-const boardElement = document.getElementById('board');
-const statusElement = document.getElementById('status');
-const newGameButton = document.getElementById('new-game');
-const flipBoardButton = document.getElementById('flip-board');
-const difficultySelector = document.getElementById('difficulty');
-const undoButton = document.getElementById('undo-button');
-const redoButton = document.getElementById('redo-button');
-
-let searchDepth = 3;
-let selectedPiece = null;
-let validMoves = [];
-
 function drawBoard() {
-    boardElement.innerHTML = '';
-    const isFlipped = boardElement.style.transform === 'rotate(180deg)';
-
-    const rowRange = Array.from({length: 8}, (_, i) => isFlipped ? 7 - i : i);
-    const colRange = Array.from({length: 8}, (_, i) => isFlipped ? 7 - i : i);
-
-    for (const i of rowRange) {
-        for (const j of colRange) {
-            const square = document.createElement('div');
-            square.className = `square ${((i + j) % 2 === 0) ? 'light' : 'dark'}`;
-            square.dataset.row = i;
-            square.dataset.col = j;
-
-            if ((i + j) % 2 !== 0) {
-                const piece = game.board[i][j];
-                if (piece !== 0) {
-                    const pieceElement = document.createElement('div');
-                    const color = (piece === 1 || piece === 3) ? 'white' : 'black';
-                    pieceElement.className = `piece ${color}`;
-                    if (piece > 2) {
-                        pieceElement.classList.add('king');
-                    }
-                    square.appendChild(pieceElement);
-                }
+    boardEl.innerHTML = '';
+    for (let r = 0; r < 8; r++) for (let c = 0; c < 8; c++) {
+        const square = document.createElement('div');
+        square.className = `square ${((r + c) % 2 === 0) ? 'light' : 'dark'}`;
+        square.dataset.r = r; square.dataset.c = c;
+        if ((r + c) % 2 !== 0) {
+            const p = game.board[r][c];
+            if (p !== 0) {
+                const piece = document.createElement('div');
+                piece.className = `piece ${game.getColor(p) === 'w' ? 'white' : 'black'}`;
+                if (game.isKing(p)) piece.classList.add('king');
+                square.appendChild(piece);
             }
-            boardElement.appendChild(square);
         }
+        boardEl.appendChild(square);
     }
-
-    addSquareClickListeners();
     updateStatus();
-    saveGameState();
+    highlightValidMoves();
+    boardEl.querySelectorAll('.square').forEach(s => s.addEventListener('click', handleSquareClick));
 }
 
 function updateStatus() {
     let statusText = '';
     if (game.isGameOver()) {
         const winner = game.getWinner();
-        if (winner === 'White') {
-            statusText = translations[currentLang].whiteWins;
-        } else if (winner === 'Black') {
-            statusText = translations[currentLang].blackWins;
-        } else {
-            statusText = translations[currentLang].draw;
-        }
+        statusText = winner === 'White' ? translations[currentLang].whiteWins : translations[currentLang].blackWins;
     } else {
         statusText = game.turn === 'b' ? translations[currentLang].yourTurn : translations[currentLang].computerTurn;
     }
-    statusElement.innerText = statusText;
+    statusEl.innerText = statusText;
 }
 
-function addSquareClickListeners() {
-    document.querySelectorAll('.square').forEach(square => {
-        square.addEventListener('click', handleSquareClick);
-    });
+function selectPiece(r, c) {
+    const p = game.board[r][c];
+    if (p === 0 || game.getColor(p) !== game.turn) {
+        selectedPiece = null; validMoves = []; return;
+    }
+    const allValidMoves = game.getAllValidMoves(game.turn);
+    if (allValidMoves.length > 0 && allValidMoves[0][0].captured) {
+        validMoves = allValidMoves.filter(seq => seq[0].from[0] === r && seq[0].from[1] === c);
+    } else {
+        validMoves = allValidMoves.filter(seq => seq[0].from[0] === r && seq[0].from[1] === c);
+    }
+    if (validMoves.length > 0) selectedPiece = { r, c }; else selectedPiece = null;
+    drawBoard();
 }
 
 function handleSquareClick(e) {
     if (game.turn !== 'b' || game.isGameOver()) return;
-    const square = e.currentTarget;
-    const row = parseInt(square.dataset.row, 10);
-    const col = parseInt(square.dataset.col, 10);
-
+    const r = parseInt(e.currentTarget.dataset.r), c = parseInt(e.currentTarget.dataset.c);
     if (selectedPiece) {
-        const moveSequence = validMoves.find(seq => seq[seq.length-1].to[0] === row && seq[seq.length-1].to[1] === col);
-        if (moveSequence) {
-            game.move(moveSequence);
-            selectedPiece = null;
-            validMoves = [];
-            clearHighlights();
+        const moveSeq = validMoves.find(seq => seq[seq.length-1].to[0] === r && seq[seq.length-1].to[1] === c);
+        if (moveSeq) {
+            game.move(moveSeq);
+            selectedPiece = null; validMoves = [];
             drawBoard();
             setTimeout(makeAIMove, 250);
         } else {
-            clearHighlights();
-            const piece = game.board[row][col];
-            if (piece !== 0) {
-                const pieceColor = (piece === 1 || piece === 3) ? 'w' : 'b';
-                if (pieceColor === game.turn) {
-                    selectPiece(row, col);
-                }
-            } else {
-               selectedPiece = null;
-               validMoves = [];
-            }
+            selectedPiece = null; validMoves = [];
+            selectPiece(r, c);
         }
     } else {
-        const piece = game.board[row][col];
-        if (piece !== 0) {
-            const pieceColor = (piece === 1 || piece === 3) ? 'w' : 'b';
-            if (pieceColor === game.turn) {
-                selectPiece(row, col);
-            }
-        }
+        selectPiece(r, c);
     }
-}
-
-function selectPiece(row, col) {
-    selectedPiece = { row, col };
-    validMoves = game.getValidMoves(row, col);
-    highlightValidMoves();
-}
-
-function clearHighlights() {
-    document.querySelectorAll('.highlight, .selected').forEach(el => el.classList.remove('highlight', 'selected'));
 }
 
 function highlightValidMoves() {
-    clearHighlights();
-    if(selectedPiece){
-      document.querySelector(`[data-row='${selectedPiece.row}'][data-col='${selectedPiece.col}']`).classList.add('selected');
+    boardEl.querySelectorAll('.highlight, .selected').forEach(el => el.classList.remove('highlight', 'selected'));
+    if (selectedPiece) {
+        boardEl.querySelector(`[data-r='${selectedPiece.r}'][data-c='${selectedPiece.c}']`).classList.add('selected');
     }
     validMoves.forEach(seq => {
-        const finalMove = seq[seq.length - 1];
-        const [toRow, toCol] = finalMove.to;
-        document.querySelector(`[data-row='${toRow}'][data-col='${toCol}']`).classList.add('highlight');
+        const finalMove = seq[seq.length-1];
+        boardEl.querySelector(`[data-r='${finalMove.to[0]}'][data-c='${finalMove.to[1]}']`).classList.add('highlight');
     });
 }
 
 function makeAIMove() {
     if (game.isGameOver()) return;
-    const bestMove = getBestMove(searchDepth);
-    if (bestMove) {
-        game.move(bestMove);
-    }
+    const bestMoveSeq = getBestMove(searchDepth);
+    if (bestMoveSeq) game.move(bestMoveSeq);
     drawBoard();
 }
 
 function getBestMove(depth) {
-    const result = minimax(game, depth, -Infinity, Infinity, false);
-    return result.bestMove;
+    return minimax(game, depth, -Infinity, Infinity, false).move;
 }
 
-function minimax(gameInstance, depth, alpha, beta, isMaximizingPlayer) {
+function minimax(gameInstance, depth, alpha, beta, isMaximizing) {
     if (depth === 0 || gameInstance.isGameOver()) {
-        return { score: gameInstance.evaluateBoard(), bestMove: null };
+        return { score: gameInstance.evaluateBoard(), move: null };
     }
-
-    const moveSequences = gameInstance.getAllValidMoves(isMaximizingPlayer ? 'b' : 'w');
-    if (moveSequences.length === 0) {
-        return { score: gameInstance.evaluateBoard(), bestMove: null };
-    }
-
-    let bestMoveSequence = moveSequences[0];
-    let bestScore = isMaximizingPlayer ? -Infinity : Infinity;
-
-    for (const sequence of moveSequences) {
+    const moves = gameInstance.getAllValidMoves(gameInstance.turn);
+    let bestMove = moves[0] || null, bestScore = isMaximizing ? -Infinity : Infinity;
+    for (const moveSeq of moves) {
         const newGame = gameInstance.clone();
-        newGame.move(sequence);
-        const result = minimax(newGame, depth - 1, alpha, beta, !isMaximizingPlayer);
-
-        if (isMaximizingPlayer) {
-            if (result.score > bestScore) {
-                bestScore = result.score;
-                bestMoveSequence = sequence;
-            }
+        newGame.move(moveSeq);
+        const { score } = minimax(newGame, depth - 1, alpha, beta, !isMaximizing);
+        if (isMaximizing) {
+            if (score > bestScore) { bestScore = score; bestMove = moveSeq; }
             alpha = Math.max(alpha, bestScore);
         } else {
-            if (result.score < bestScore) {
-                bestScore = result.score;
-                bestMoveSequence = sequence;
-            }
+            if (score < bestScore) { bestScore = score; bestMove = moveSeq; }
             beta = Math.min(beta, bestScore);
         }
-
-        if (beta <= alpha) {
-            break;
-        }
+        if (beta <= alpha) break;
     }
-    return { score: bestScore, bestMove: bestMoveSequence };
+    return { score: bestScore, move: bestMove };
 }
 
-
-function saveGameState() {
-    localStorage.setItem('checkersGameState', JSON.stringify({ board: game.board, turn: game.turn }));
-}
-
-function loadGameState() {
+(function loadGame() {
     const savedState = localStorage.getItem('checkersGameState');
-    if (savedState) {
-        const { board, turn } = JSON.parse(savedState);
-        game.board = board;
-        game.turn = turn;
-    }
+    if (savedState) { const { board, turn } = JSON.parse(savedState); game.board = board; game.turn = turn; }
     const savedLang = localStorage.getItem('app_lang') || 'en';
     setLanguage(savedLang);
-    const savedDifficulty = localStorage.getItem('checkersDifficulty') || '3';
+    const savedDifficulty = localStorage.getItem('checkersDifficulty') || '2';
+    document.getElementById('difficulty').value = savedDifficulty;
     searchDepth = parseInt(savedDifficulty, 10);
-    difficultySelector.value = {1: '1', 3: '2', 5: '3'}[searchDepth] || '2';
-}
-
-newGameButton.addEventListener('click', () => {
-    game.reset();
     drawBoard();
-});
-
-undoButton.addEventListener('click', () => {
-    game.undo();
-    game.undo();
-    drawBoard();
-});
-
-redoButton.style.display = 'none';
-
-flipBoardButton.addEventListener('click', () => {
-    boardElement.style.transform = boardElement.style.transform === 'rotate(180deg)' ? '' : 'rotate(180deg)';
-    drawBoard();
-});
-
-difficultySelector.addEventListener('change', (e) => {
-    const difficulty = e.target.value;
-    if (difficulty === '1') searchDepth = 1;
-    if (difficulty === '2') searchDepth = 3;
-    if (difficulty === '3') searchDepth = 5;
-    localStorage.setItem('checkersDifficulty', searchDepth);
-});
-
-document.querySelector('.lang-selector').addEventListener('click', (event) => {
-  event.preventDefault();
-  const lang = event.target.getAttribute('data-lang');
-  if (lang) {
-    setLanguage(lang);
-  }
-});
-
-loadGameState();
-drawBoard();
+})();
 </script>
 </body>
 </html>
