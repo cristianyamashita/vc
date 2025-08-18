@@ -303,9 +303,11 @@ const coinCountSpan = document.getElementById('coin-count');
 const messageDiv = document.getElementById('message');
 
 const symbols = [
-    'fa-star', 'fa-heart', 'fa-clover', 'fa-bell', 'fa-gem', 'fa-lemon', 'fa-horse-shoe'
+    'fa-star', 'fa-heart', 'fa-clover', 'fa-bell', 'fa-gem', 'fa-lemon', 'fa-horse-shoe', 'fa-trophy'
 ];
+
 const payout = {
+    'fa-trophy': 777,
     'fa-star': 50,
     'fa-heart': 20,
     'fa-clover': 15,
@@ -315,22 +317,40 @@ const payout = {
     'fa-horse-shoe': 2
 };
 
+const colorMap = {
+    'fa-trophy': '#ffd700', // Gold
+    'fa-star': '#ffc107',   // Amber
+    'fa-heart': '#dc3545',  // Red
+    'fa-clover': '#28a745', // Green
+    'fa-bell': '#6f42c1',   // Purple
+    'fa-gem': '#007bff',    // Blue
+    'fa-lemon': '#ffeb3b',  // Yellow
+    'fa-horse-shoe': '#6c757d' // Grey
+};
+
 
 let coinCount = 100;
 let isSpinning = false;
+let chargeInterval;
+let spinCharge = 0;
+const maxCharge = 100;
 
 function createReelContent(reel) {
     reel.innerHTML = '';
     const fragment = document.createDocumentFragment();
-    for (let i = 0; i < 20; i++) { // Create a long strip of symbols
+    // Create a much longer strip of symbols to ensure seamless looping effect
+    for (let i = 0; i < 50; i++) {
+        const shuffledSymbols = [...symbols].sort(() => Math.random() - 0.5);
+        const symbol = shuffledSymbols[i % shuffledSymbols.length];
         const icon = document.createElement('i');
-        icon.className = `fas ${symbols[i % symbols.length]}`;
+        icon.className = `fas ${symbol}`;
+        icon.style.color = colorMap[symbol];
         fragment.appendChild(icon);
     }
     reel.appendChild(fragment);
 }
 
-function spin() {
+function spin(charge) {
     if (isSpinning || coinCount <= 0) return;
 
     isSpinning = true;
@@ -343,16 +363,38 @@ function spin() {
     const results = [];
 
     reels.forEach((reel, index) => {
+        // Reset animation
+        reel.style.transition = 'none';
+        reel.style.top = '0';
+        // Force reflow
+        reel.offsetHeight;
+
         const targetSymbolIndex = Math.floor(Math.random() * symbols.length);
-        results.push(reel.children[targetSymbolIndex].className);
-        const targetPosition = -(targetSymbolIndex * 100); // 100px height per symbol
+        const targetSymbol = symbols[targetSymbolIndex];
+
+        // Find the first instance of the target symbol in the reel to land on
+        let landingPosition = -1;
+        for(let i = 0; i < reel.children.length; i++) {
+            if(reel.children[i].classList.contains(targetSymbol.replace('fa-',''))) {
+                landingPosition = i;
+                break;
+            }
+        }
+        results.push(targetSymbol.replace('fa-',''));
+
+        // We need to land on a symbol far down the reel to give the illusion of spinning
+        const targetPosition = -((landingPosition + symbols.length * (3+index)) * 100);
+
+        const spinDuration = 2.5 + (charge / maxCharge) * 3; // Max 3 extra seconds
 
         // Add some randomness to the spin duration and delay
         setTimeout(() => {
-            reel.style.transition = `top ${2 + index * 0.5}s cubic-bezier(0.25, 0.1, 0.25, 1)`;
+            reel.style.transition = `top ${spinDuration + index * 0.6}s cubic-bezier(.44,-0.2,.54,1.24)`;
             reel.style.top = `${targetPosition}px`;
         }, index * 200);
     });
+
+    const totalDuration = (2.5 + (charge / maxCharge) * 3 + 2 * 0.6) * 1000 + 400;
 
     setTimeout(() => {
         checkWinnings(results);
@@ -360,14 +402,14 @@ function spin() {
         if (coinCount > 0) {
            spinButton.disabled = false;
         }
-    }, 3500);
+    }, totalDuration);
 }
 
 function checkWinnings(results) {
-    const [res1, res2, res3] = results.map(r => r.split(' ')[1]);
+    const [res1, res2, res3] = results;
 
     if (res1 === res2 && res2 === res3) {
-        const symbol = res1;
+        const symbol = `fa-${res1}`;
         const prize = payout[symbol];
         coinCount += prize;
         coinCountSpan.textContent = coinCount;
@@ -382,18 +424,40 @@ function checkWinnings(results) {
     }
 }
 
+function startCharge() {
+    if (isSpinning || coinCount <= 0) return;
+    spinCharge = 0;
+    clearInterval(chargeInterval);
+    chargeInterval = setInterval(() => {
+        if (spinCharge < maxCharge) {
+            spinCharge++;
+            const chargePercentage = (spinCharge / maxCharge) * 100;
+            spinButton.style.background = `linear-gradient(to right, var(--accent) ${chargePercentage}%, var(--btn-ghost-bg) ${chargePercentage}%)`;
+        }
+    }, 20);
+}
+
+function releaseCharge() {
+    clearInterval(chargeInterval);
+    spin(spinCharge);
+    spinCharge = 0;
+    spinButton.style.background = `linear-gradient(180deg, var(--accent), #2f6bff)`;
+}
+
 function init() {
     loadSavedState();
     createReelContent(reel1);
     createReelContent(reel2);
     createReelContent(reel3);
-    // Clone for seamless loop illusion (not perfect but ok for this)
-    reel1.appendChild(reel1.cloneNode(true));
-    reel2.appendChild(reel2.cloneNode(true));
-    reel3.appendChild(reel3.cloneNode(true));
 
     coinCountSpan.textContent = coinCount;
-    spinButton.addEventListener('click', spin);
+    spinButton.addEventListener('mousedown', startCharge);
+    spinButton.addEventListener('mouseup', releaseCharge);
+    spinButton.addEventListener('mouseleave', () => {
+        if(chargeInterval) {
+            releaseCharge();
+        }
+    });
 }
 
 init();
