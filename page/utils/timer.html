@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title data-i18n="title">Clock & Timer</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/fontawesome/css/all.min.css">
+  <style>
+    :root {
+      --bg-color: #1a1a1a;
+      --text-color: #f0f0f0;
+      --card-bg-color: #2a2a2a;
+      --border-color: #444;
+      --accent-color: #0d6efd;
+      --green: #198754;
+      --yellow: #ffc107;
+      --red: #dc3545;
+    }
+
+    html[data-theme="light"] {
+      --bg-color: #f8f9fa;
+      --text-color: #212529;
+      --card-bg-color: #fff;
+      --border-color: #dee2e6;
+      --accent-color: #0d6efd;
+      --green: #198754;
+      --yellow: #ffc107;
+      --red: #dc3545;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      margin: 0;
+    }
+
+    .container-fluid {
+      padding-top: 20px;
+      padding-bottom: 20px;
+      flex: 1;
+    }
+
+    .card {
+      background-color: var(--card-bg-color);
+      border-color: var(--border-color);
+    }
+
+    .card-header {
+      border-bottom-color: var(--border-color);
+    }
+
+    .nav.nav-tabs .nav-link {
+        color: var(--text-color);
+        color: var(--text-color);
+    }
+
+    .nav.nav-tabs .nav-link.active {
+        background-color: var(--card-bg-color);
+        border-color: var(--border-color) var(--border-color) var(--card-bg-color);
+        color: var(--text-color);
+    }
+
+    .navbar-brand {
+      color: var(--text-color);
+    }
+
+    .display {
+        font-size: 3.5rem;
+        font-weight: bold;
+        text-align: center;
+        margin: 20px 0;
+        font-family: 'Courier New', Courier, monospace;
+        color: var(--text-color);
+    }
+
+    .form-control, .form-select {
+      background-color: var(--card-bg-color);
+      color: var(--text-color);
+      border-color: var(--border-color);
+    }
+
+    .form-control:focus, .form-select:focus {
+      background-color: var(--card-bg-color);
+      color: var(--text-color);
+      border-color: var(--accent-color);
+      box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+    }
+
+    #countdown-days::placeholder,
+    #countdown-hours::placeholder,
+    #countdown-minutes::placeholder,
+    #countdown-seconds::placeholder {
+      color: var(--text-color);
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+
+  <nav class="navbar navbar-expand-lg" style="background-color: var(--card-bg-color); border-bottom: 1px solid var(--border-color);">
+    <div class="container-fluid">
+      <a class="navbar-brand" href="#" data-i18n="title">Clock & Timer</a>
+      <div class="d-flex ms-auto">
+        <select id="lang-switcher" class="form-select form-select-sm me-2" style="width: auto;">
+          <option value="en">English</option>
+          <option value="pt">Português</option>
+          <option value="ja">日本語</option>
+        </select>
+        <button id="theme-switcher" class="btn btn-sm btn-outline-secondary">
+          <i class="fas fa-moon"></i>
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container-fluid">
+    <div class="row justify-content-center">
+      <div class="col-md-8 col-lg-6">
+        <div class="card">
+            <div class="card-header">
+                <ul class="nav nav-tabs card-header-tabs" id="myTab" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="stopwatch-tab" data-bs-toggle="tab" data-bs-target="#stopwatch" type="button" role="tab" aria-controls="stopwatch" aria-selected="true" data-i18n="stopwatch">Stopwatch</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="countdown-tab" data-bs-toggle="tab" data-bs-target="#countdown" type="button" role="tab" aria-controls="countdown" aria-selected="false" data-i18n="countdown">Countdown</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="clock-tab" data-bs-toggle="tab" data-bs-target="#clock" type="button" role="tab" aria-controls="clock" aria-selected="false" data-i18n="clock">Clock</button>
+                    </li>
+                </ul>
+            </div>
+            <div class="card-body">
+                <div class="tab-content" id="myTabContent">
+                    <!-- Stopwatch -->
+                    <div class="tab-pane fade show active" id="stopwatch" role="tabpanel" aria-labelledby="stopwatch-tab">
+                        <div class="display" id="stopwatch-display">00:00:00.000</div>
+                        <div class="text-center">
+                            <button class="btn btn-lg btn-success" id="stopwatch-start" data-i18n="start">Start</button>
+                            <button class="btn btn-lg btn-danger" id="stopwatch-stop" data-i18n="stop">Stop</button>
+                            <button class="btn btn-lg btn-warning" id="stopwatch-reset" data-i18n="reset">Reset</button>
+                        </div>
+                    </div>
+                    <!-- Countdown -->
+                    <div class="tab-pane fade" id="countdown" role="tabpanel" aria-labelledby="countdown-tab">
+                        <div class="display" id="countdown-display">00:00:00</div>
+                        <div class="input-group mb-3">
+                            <input type="number" id="countdown-days" class="form-control" placeholder="Days" data-i18n-placeholder="days">
+                            <input type="number" id="countdown-hours" class="form-control" placeholder="Hours" data-i18n-placeholder="hours">
+                            <input type="number" id="countdown-minutes" class="form-control" placeholder="Minutes" data-i18n-placeholder="minutes">
+                            <input type="number" id="countdown-seconds" class="form-control" placeholder="Seconds" data-i18n-placeholder="seconds">
+                        </div>
+                        <div class="text-center">
+                            <button class="btn btn-lg btn-success" id="countdown-start" data-i18n="start">Start</button>
+                            <button class="btn btn-lg btn-danger" id="countdown-stop" data-i18n="stop">Stop</button>
+                            <button class="btn btn-lg btn-warning" id="countdown-reset" data-i18n="reset">Reset</button>
+                        </div>
+                    </div>
+                    <!-- Clock -->
+                    <div class="tab-pane fade" id="clock" role="tabpanel" aria-labelledby="clock-tab">
+                        <div class="display" id="clock-display">00:00:00</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const i18n = {
+        en: {
+          title: "Clock & Timer",
+          stopwatch: "Stopwatch",
+          countdown: "Countdown",
+          clock: "Clock",
+          start: "Start",
+          stop: "Stop",
+          reset: "Reset",
+          days: "Days",
+          hours: "Hours",
+          minutes: "Minutes",
+          seconds: "Seconds",
+        },
+        pt: {
+          title: "Relógio & Cronômetro",
+          stopwatch: "Cronômetro",
+          countdown: "Contagem Regressiva",
+          clock: "Relógio",
+          start: "Iniciar",
+          stop: "Parar",
+          reset: "Zerar",
+          days: "Dias",
+          hours: "Horas",
+          minutes: "Minutos",
+          seconds: "Segundos",
+        },
+        ja: {
+          title: "時計とタイマー",
+          stopwatch: "ストップウォッチ",
+          countdown: "カウントダウン",
+          clock: "時計",
+          start: "スタート",
+          stop: "ストップ",
+          reset: "リセット",
+          days: "日",
+          hours: "時間",
+          minutes: "分",
+          seconds: "秒",
+        }
+      };
+
+      // --- Elements ---
+      const langSwitcher = document.getElementById('lang-switcher');
+      const themeSwitcher = document.getElementById('theme-switcher');
+
+      // Stopwatch
+      const stopwatchDisplay = document.getElementById('stopwatch-display');
+      const stopwatchStartBtn = document.getElementById('stopwatch-start');
+      const stopwatchStopBtn = document.getElementById('stopwatch-stop');
+      const stopwatchResetBtn = document.getElementById('stopwatch-reset');
+
+      // Countdown
+      const countdownDisplay = document.getElementById('countdown-display');
+      const countdownDaysInput = document.getElementById('countdown-days');
+      const countdownHoursInput = document.getElementById('countdown-hours');
+      const countdownMinutesInput = document.getElementById('countdown-minutes');
+      const countdownSecondsInput = document.getElementById('countdown-seconds');
+      const countdownStartBtn = document.getElementById('countdown-start');
+      const countdownStopBtn = document.getElementById('countdown-stop');
+      const countdownResetBtn = document.getElementById('countdown-reset');
+
+      // Clock
+      const clockDisplay = document.getElementById('clock-display');
+
+      // --- State ---
+      let currentLanguage = localStorage.getItem('app_lang') || 'en';
+      let currentTheme = localStorage.getItem('app_theme') || 'dark';
+
+      // Stopwatch state
+      let stopwatchInterval;
+      let stopwatchStartTime;
+      let stopwatchElapsedTime = 0;
+
+      // Countdown state
+      let countdownInterval;
+      let countdownTotalSeconds = 0;
+
+      // --- I18n & Theme ---
+      const applyI18n = () => {
+        const lang = i18n[currentLanguage] || i18n.en;
+        document.querySelectorAll('[data-i18n]').forEach(el => {
+          const key = el.getAttribute('data-i18n');
+          if (lang[key]) el.innerText = lang[key];
+        });
+        document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+          const key = el.getAttribute('data-i18n-placeholder');
+          if (lang[key]) el.placeholder = lang[key];
+        });
+        document.title = lang.title;
+      };
+
+      const applyTheme = (theme) => {
+        document.documentElement.setAttribute('data-theme', theme);
+        const icon = themeSwitcher.querySelector('i');
+        icon.className = theme === 'light' ? 'fas fa-moon' : 'fas fa-sun';
+        localStorage.setItem('app_theme', theme);
+      };
+
+      // --- Clock ---
+      const updateClock = () => {
+        const now = new Date();
+        const hours = String(now.getHours()).padStart(2, '0');
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        const seconds = String(now.getSeconds()).padStart(2, '0');
+        clockDisplay.textContent = `${hours}:${minutes}:${seconds}`;
+      };
+
+      // --- Stopwatch ---
+      const formatStopwatchTime = (time) => {
+        const date = new Date(time);
+        const minutes = String(date.getUTCMinutes()).padStart(2, '0');
+        const seconds = String(date.getUTCSeconds()).padStart(2, '0');
+        const milliseconds = String(date.getUTCMilliseconds()).padStart(3, '0');
+        return `${minutes}:${seconds}:${milliseconds}`;
+      };
+
+      const startStopwatch = () => {
+        stopwatchStartTime = Date.now() - stopwatchElapsedTime;
+        stopwatchInterval = setInterval(() => {
+          stopwatchElapsedTime = Date.now() - stopwatchStartTime;
+          stopwatchDisplay.textContent = formatStopwatchTime(stopwatchElapsedTime);
+        }, 10);
+        stopwatchStartBtn.disabled = true;
+        stopwatchStopBtn.disabled = false;
+      };
+
+      const stopStopwatch = () => {
+        clearInterval(stopwatchInterval);
+        stopwatchStartBtn.disabled = false;
+        stopwatchStopBtn.disabled = true;
+      };
+
+      const resetStopwatch = () => {
+        clearInterval(stopwatchInterval);
+        stopwatchElapsedTime = 0;
+        stopwatchDisplay.textContent = formatStopwatchTime(0);
+        stopwatchStartBtn.disabled = false;
+        stopwatchStopBtn.disabled = true;
+      };
+
+      // --- Countdown ---
+        const formatCountdownTime = (totalSeconds) => {
+            if (totalSeconds < 0) totalSeconds = 0;
+            const days = Math.floor(totalSeconds / (3600 * 24));
+            const hours = Math.floor((totalSeconds % (3600 * 24)) / 3600);
+            const minutes = Math.floor((totalSeconds % 3600) / 60);
+            const seconds = totalSeconds % 60;
+
+            let format = '';
+            if (days > 0) {
+              format += `${String(days).padStart(2, '0')}:`;
+            }
+            format += `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+            return format;
+        };
+
+      const startCountdown = () => {
+        const days = parseInt(countdownDaysInput.value) || 0;
+        const hours = parseInt(countdownHoursInput.value) || 0;
+        const minutes = parseInt(countdownMinutesInput.value) || 0;
+        const seconds = parseInt(countdownSecondsInput.value) || 0;
+        countdownTotalSeconds = (days * 86400) + (hours * 3600) + (minutes * 60) + seconds;
+
+        if (countdownTotalSeconds <= 0) return;
+
+        clearInterval(countdownInterval);
+        countdownDisplay.textContent = formatCountdownTime(countdownTotalSeconds);
+
+        countdownInterval = setInterval(() => {
+          countdownTotalSeconds--;
+          countdownDisplay.textContent = formatCountdownTime(countdownTotalSeconds);
+          if (countdownTotalSeconds <= 0) {
+            clearInterval(countdownInterval);
+            alert('Countdown finished!');
+            resetCountdown();
+          }
+        }, 1000);
+
+        countdownStartBtn.disabled = true;
+        countdownStopBtn.disabled = false;
+      };
+
+      const stopCountdown = () => {
+          clearInterval(countdownInterval);
+          countdownStartBtn.disabled = false;
+          countdownStopBtn.disabled = true;
+      };
+
+      const resetCountdown = () => {
+        clearInterval(countdownInterval);
+        countdownTotalSeconds = 0;
+        countdownDisplay.textContent = formatCountdownTime(0);
+        countdownDaysInput.value = '';
+        countdownHoursInput.value = '';
+        countdownMinutesInput.value = '';
+        countdownSecondsInput.value = '';
+        countdownStartBtn.disabled = false;
+        countdownStopBtn.disabled = true;
+      };
+
+      // --- Event Listeners ---
+      langSwitcher.addEventListener('change', (e) => {
+        currentLanguage = e.target.value;
+        localStorage.setItem('app_lang', currentLanguage);
+        applyI18n();
+      });
+
+      themeSwitcher.addEventListener('click', () => {
+        currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
+        applyTheme(currentTheme);
+      });
+
+      stopwatchStartBtn.addEventListener('click', startStopwatch);
+      stopwatchStopBtn.addEventListener('click', stopStopwatch);
+      stopwatchResetBtn.addEventListener('click', resetStopwatch);
+
+      countdownStartBtn.addEventListener('click', startCountdown);
+      countdownStopBtn.addEventListener('click', stopCountdown);
+      countdownResetBtn.addEventListener('click', resetCountdown);
+
+      // --- Initial Setup ---
+      langSwitcher.value = currentLanguage;
+      applyI18n();
+      applyTheme(currentTheme);
+      setInterval(updateClock, 1000);
+      updateClock(); // Initial call
+      stopwatchStopBtn.disabled = true;
+      countdownStopBtn.disabled = true;
+    });
+  </script>
+</body>
+</html>
