@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Missile Command</title>
+    <style>
+        :root {
+            --bg-1: #ffffff;
+            --bg-2: #f0f2f5;
+            --card: #ffffff;
+            --ink: #000000;
+            --muted: #65676b;
+            --border: #dcdfe6;
+            --accent: #1877f2;
+            --btn-primary-color: #ffffff;
+            --btn-ghost-bg: #e4e6eb;
+            --btn-ghost-border: #ced0d4;
+        }
+
+        body.dark-theme {
+            --bg-1: #0b0f14;
+            --bg-2: #0a0f1a;
+            --card: #0f1623cc;
+            --ink: #dbe7ff;
+            --muted: #92a3ba;
+            --border: #1f2a3f;
+            --accent: #4ea1ff;
+            --btn-primary-color: #0a0f18;
+            --btn-ghost-bg: #1a2234;
+            --btn-ghost-border: #2a3450;
+        }
+
+        body {
+            font-family: 'Noto Sans JP', system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, 'Helvetica Neue', Arial, 'Noto Sans';
+            background-color: var(--bg-2);
+            color: var(--ink);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0;
+            height: 100vh;
+        }
+
+        #game-container {
+            position: relative;
+            border: 2px solid var(--border);
+            box-shadow: 0 18px 60px rgba(0,0,0,.40);
+        }
+
+        canvas {
+            display: block;
+            background-color: var(--bg-1);
+        }
+
+        #ui-container {
+            padding: 10px;
+            background-color: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 5px;
+            margin-top: 10px;
+            width: 800px;
+            box-sizing: border-box;
+        }
+
+        .lang-selector {
+            margin-bottom: 10px;
+        }
+
+        .lang-selector a {
+            color: var(--muted);
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 600;
+            padding: 4px 8px;
+            border-radius: 8px;
+            border: 1px solid transparent;
+        }
+
+        .lang-selector a:hover {
+            border-color: var(--border);
+        }
+
+        .lang-selector a.active {
+            color: var(--accent);
+        }
+
+        #theme-toggle-btn {
+            cursor: pointer;
+            padding: 5px 10px;
+            border-radius: 5px;
+            border: 1px solid var(--btn-ghost-border);
+            background-color: var(--btn-ghost-bg);
+            color: var(--ink);
+        }
+
+        #theme-toggle-btn:hover {
+            background-color: var(--btn-ghost-bg);
+            border-color: var(--accent);
+        }
+    </style>
+</head>
+<body>
+    <div id="ui-container">
+        <div class="lang-selector">
+            <a href="#" data-lang="en" class="active">EN</a>
+            <a href="#" data-lang="ja">JA</a>
+            <a href="#" data-lang="pt">PT</a>
+        </div>
+        <button id="theme-toggle-btn" data-i18n="toggleTheme">Toggle Theme</button>
+        <h1 data-i18n="title">Missile Command</h1>
+        <p>
+            <span data-i18n="cityXP">City XP</span>: <span id="city-xp">1000</span> |
+            <span data-i18n="shields">Shields</span>: <span id="shields">0</span>
+        </p>
+    </div>
+    <div id="game-container">
+        <canvas id="gameCanvas" width="800" height="600"></canvas>
+    </div>
+
+    <script>
+        const translations = {
+            en: {
+                title: "Missile Command",
+                cityXP: "City XP",
+                shields: "Shields",
+                toggleTheme: "Toggle Theme",
+                gameOver: "Game Over"
+            },
+            ja: {
+                title: "ミサイルコマンド",
+                cityXP: "都市XP",
+                shields: "シールド",
+                toggleTheme: "テーマを切り替え",
+                gameOver: "ゲームオーバー"
+            },
+            pt: {
+                title: "Comando de Mísseis",
+                cityXP: "XP da Cidade",
+                shields: "Escudos",
+                toggleTheme: "Alternar Tema",
+                gameOver: "Fim de Jogo"
+            }
+        };
+
+        function setLanguage(lang) {
+            currentLang = lang;
+            localStorage.setItem('app_lang', lang);
+            document.querySelectorAll('[data-i18n]').forEach(element => {
+                const key = element.getAttribute('data-i18n');
+                if (translations[lang] && translations[lang][key]) {
+                    element.innerText = translations[lang][key];
+                }
+            });
+            document.querySelectorAll('.lang-selector a').forEach(a => {
+                a.classList.remove('active');
+                if (a.getAttribute('data-lang') === lang) {
+                    a.classList.add('active');
+                }
+            });
+        }
+
+        document.querySelector('.lang-selector').addEventListener('click', (event) => {
+            event.preventDefault();
+            const lang = event.target.getAttribute('data-lang');
+            if (lang) {
+                setLanguage(lang);
+            }
+        });
+
+        const themeToggleButton = document.getElementById('theme-toggle-btn');
+        const body = document.body;
+
+        themeToggleButton.addEventListener('click', () => {
+            body.classList.toggle('dark-theme');
+        });
+
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const cityXpSpan = document.getElementById('city-xp');
+        const shieldsSpan = document.getElementById('shields');
+
+        let city = {
+            xp: 1000,
+            buildings: [],
+            shields: 0
+        };
+
+        const cannon = {
+            x: canvas.width / 2,
+            y: canvas.height - 30,
+            width: 50,
+            height: 30
+        };
+
+        let enemyMissiles = [];
+        let friendlyMissiles = [];
+        let explosions = [];
+        let shieldPowerUps = [];
+        let screenFlash = 0;
+
+        function createBuildings() {
+            const buildingWidth = 50;
+            const buildingMaxHeight = 150;
+            const buildingMinHeight = 50;
+            const gap = 20;
+            const totalBuildingWidth = (buildingWidth + gap) * 6 - gap;
+            let currentX = (canvas.width - totalBuildingWidth) / 2;
+
+            for (let i = 0; i < 6; i++) {
+                const height = Math.random() * (buildingMaxHeight - buildingMinHeight) + buildingMinHeight;
+                city.buildings.push({
+                    x: currentX,
+                    y: canvas.height - height,
+                    width: buildingWidth,
+                    originalHeight: height,
+                    currentHeight: height
+                });
+                currentX += buildingWidth + gap;
+            }
+        }
+
+        function drawCity() {
+            city.buildings.forEach(building => {
+                if (building.currentHeight > 0) {
+                    ctx.fillStyle = 'gray';
+                    ctx.fillRect(building.x, canvas.height - building.currentHeight, building.width, building.currentHeight);
+                }
+            });
+        }
+
+        function drawCannon() {
+            ctx.fillStyle = 'green';
+            ctx.fillRect(cannon.x - cannon.width / 2, cannon.y - cannon.height, cannon.width, cannon.height);
+        }
+
+        function drawEnemyMissiles() {
+            enemyMissiles.forEach(missile => {
+                ctx.fillStyle = 'red';
+                ctx.fillRect(missile.x - 2, missile.y - 6, 4, 12);
+            });
+        }
+
+        function updateEnemyMissiles() {
+            enemyMissiles.forEach((missile, index) => {
+                const dx = missile.targetX - missile.x;
+                const dy = missile.targetY - missile.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+
+                if (dist < missile.speed) {
+                    // Explode on impact
+                    explosions.push({ x: missile.targetX, y: missile.targetY, radius: 30, currentRadius: 0 });
+                    enemyMissiles.splice(index, 1);
+
+                    // Check for building collision
+                    city.buildings.forEach(building => {
+                        if (building.currentHeight > 0 &&
+                            missile.targetX > building.x && missile.targetX < building.x + building.width &&
+                            missile.targetY >= (canvas.height - building.currentHeight)) {
+                            if (city.shields > 0) {
+                                city.shields--;
+                            } else {
+                                building.currentHeight -= 20;
+                                if (building.currentHeight < 0) building.currentHeight = 0;
+                                city.xp -= 10;
+                                screenFlash = 1;
+                            }
+                        }
+                    });
+                } else {
+                    missile.x += (dx / dist) * missile.speed;
+                    missile.y += (dy / dist) * missile.speed;
+                }
+            });
+        }
+
+        function spawnEnemyMissile() {
+            const x = Math.random() * canvas.width;
+            const availableBuildings = city.buildings.filter(b => b.currentHeight > 0);
+            if (availableBuildings.length === 0) return;
+
+            const targetBuilding = availableBuildings[Math.floor(Math.random() * availableBuildings.length)];
+            const targetX = targetBuilding.x + targetBuilding.width / 2;
+            const targetY = canvas.height - targetBuilding.currentHeight;
+
+            enemyMissiles.push({
+                x: x,
+                y: 0,
+                targetX: targetX,
+                targetY: targetY,
+                speed: 1
+            });
+        }
+
+        function drawExplosions() {
+            explosions.forEach(explosion => {
+                ctx.beginPath();
+                ctx.arc(explosion.x, explosion.y, explosion.currentRadius, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(255, 165, 0, ${1 - explosion.currentRadius / explosion.radius})`;
+                ctx.fill();
+            });
+        }
+
+        function updateExplosions() {
+            explosions.forEach((explosion, index) => {
+                explosion.currentRadius += 1;
+                if (explosion.currentRadius >= explosion.radius) {
+                    explosions.splice(index, 1);
+                }
+            });
+        }
+
+        function drawFriendlyMissiles() {
+            friendlyMissiles.forEach(missile => {
+                ctx.beginPath();
+                ctx.moveTo(missile.x, missile.y);
+                ctx.lineTo(missile.startX, missile.startY);
+                ctx.strokeStyle = 'cyan';
+                ctx.stroke();
+            });
+        }
+
+        function updateFriendlyMissiles() {
+            friendlyMissiles.forEach((missile, index) => {
+                const dx = missile.targetX - missile.x;
+                const dy = missile.targetY - missile.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+
+                if (dist < missile.speed) {
+                    explosions.push({ x: missile.targetX, y: missile.targetY, radius: 50, currentRadius: 0 });
+                    friendlyMissiles.splice(index, 1);
+                } else {
+                    missile.x += (dx / dist) * missile.speed;
+                    missile.y += (dy / dist) * missile.speed;
+                }
+            });
+        }
+
+        function checkExplosionCollisions() {
+            explosions.forEach(explosion => {
+                enemyMissiles.forEach((missile, missileIndex) => {
+                    const dx = missile.x - explosion.x;
+                    const dy = missile.y - explosion.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+
+                    if (dist < explosion.currentRadius) {
+                        enemyMissiles.splice(missileIndex, 1);
+                        city.xp += 10; // Bonus for destroying missile
+                    }
+                });
+
+                shieldPowerUps.forEach((powerUp, powerUpIndex) => {
+                    const dx = powerUp.x - explosion.x;
+                    const dy = powerUp.y - explosion.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+
+                    if (dist < explosion.currentRadius) {
+                        shieldPowerUps.splice(powerUpIndex, 1);
+                        if (city.shields < 3) {
+                            city.shields++;
+                        }
+                    }
+                });
+            });
+        }
+
+        function spawnShieldPowerUp() {
+            if (shieldPowerUps.length > 0) return; // Only one power-up at a time
+
+            const x = Math.random() * canvas.width;
+            shieldPowerUps.push({
+                x: x,
+                y: 0,
+                speed: 0.5
+            });
+        }
+
+        function drawShieldPowerUps() {
+            shieldPowerUps.forEach(powerUp => {
+                ctx.fillStyle = 'blue';
+                ctx.fillRect(powerUp.x - 5, powerUp.y - 5, 10, 10);
+            });
+        }
+
+        function updateShieldPowerUps() {
+            shieldPowerUps.forEach((powerUp, index) => {
+                powerUp.y += powerUp.speed;
+                if (powerUp.y > canvas.height) {
+                    shieldPowerUps.splice(index, 1);
+                }
+            });
+        }
+
+        function regenerateCity() {
+            if (city.xp < 1000) {
+                city.xp += 0.1;
+            }
+
+            city.buildings.forEach(building => {
+                if (building.currentHeight < building.originalHeight) {
+                    building.currentHeight += 0.05;
+                }
+            });
+        }
+
+        function gameLoop(now) {
+            if (!lastEnemySpawn) {
+                lastEnemySpawn = now;
+            }
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            if (now - lastEnemySpawn > enemySpawnRate) {
+                spawnEnemyMissile();
+                lastEnemySpawn = now;
+                if (enemySpawnRate > 500) { // Minimum spawn rate of 0.5s
+                    enemySpawnRate -= 50; // Increase spawn rate
+                }
+            }
+
+            if (screenFlash > 0) {
+                ctx.fillStyle = `rgba(255, 0, 0, ${screenFlash * 0.5})`;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                screenFlash -= 0.05;
+            }
+
+            drawCity();
+            drawCannon();
+            drawEnemyMissiles();
+            drawFriendlyMissiles();
+            drawExplosions();
+            drawShieldPowerUps();
+
+            updateEnemyMissiles();
+            updateFriendlyMissiles();
+            updateExplosions();
+            updateShieldPowerUps();
+            checkExplosionCollisions();
+            regenerateCity();
+
+            cityXpSpan.textContent = Math.floor(city.xp);
+            shieldsSpan.textContent = city.shields;
+
+            if (city.xp <= 0) {
+                alert(translations[currentLang].gameOver);
+                return;
+            }
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        let currentLang = 'en';
+        let mousePos = { x: 0, y: 0 };
+
+        function fireFriendlyMissile(targetX, targetY) {
+            friendlyMissiles.push({
+                x: cannon.x,
+                y: cannon.y - cannon.height,
+                startX: cannon.x,
+                startY: cannon.y - cannon.height,
+                targetX: targetX,
+                targetY: targetY,
+                speed: 10
+            });
+        }
+
+        canvas.addEventListener('mousemove', (event) => {
+            const rect = canvas.getBoundingClientRect();
+            mousePos.x = event.clientX - rect.left;
+            mousePos.y = event.clientY - rect.top;
+        });
+
+        canvas.addEventListener('click', (event) => {
+            fireFriendlyMissile(mousePos.x, mousePos.y);
+        });
+
+        window.addEventListener('keydown', (event) => {
+            if (event.code === 'Space') {
+                fireFriendlyMissile(mousePos.x, mousePos.y);
+            }
+        });
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const savedLang = localStorage.getItem('app_lang');
+            const browserLang = navigator.language.split('-')[0];
+            const initialLang = savedLang || (translations[browserLang] ? browserLang : 'en');
+            setLanguage(initialLang);
+
+            const savedTheme = localStorage.getItem('app_theme');
+            if (savedTheme === 'light') {
+                body.classList.remove('dark-theme');
+            } else {
+                body.classList.add('dark-theme');
+            }
+        });
+
+        let enemySpawnRate = 3000;
+        let lastEnemySpawn = 0;
+
+        createBuildings();
+        setInterval(spawnShieldPowerUp, 10000); // Spawn a shield power-up every 10 seconds
+        gameLoop();
+
+    </script>
+</body>
+</html>
