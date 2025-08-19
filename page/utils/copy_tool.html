@@ -4,24 +4,73 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Copy page</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
+        :root {
+            --bg-color: #1a1a1a;
+            --text-color: #ffffff;
+            --btn-bg: #333333;
+            --btn-text-color: #ffffff;
+            --border-color: #444444;
+            --input-bg: #222222;
+            --input-text-color: #ffffff;
+            --modal-bg: #2d2d2d;
+            --modal-header-bg: #333333;
+            --slider-bg: #ccc;
+            --slider-checked-bg: #2196F3;
+            --copied-bg: #28a745;
+            --delete-color: #dc3545;
+            --delete-hover-color: #c82333;
+            --add-button-border: #6c757d;
+            --add-button-hover-border: #007bff;
+        }
+
+        body.light-theme {
+            --bg-color: #ffffff;
+            --text-color: #000000;
+            --btn-bg: #f8f9fa;
+            --btn-text-color: #000000;
+            --border-color: #dee2e6;
+            --input-bg: #ffffff;
+            --input-text-color: #000000;
+            --modal-bg: #ffffff;
+            --modal-header-bg: #f8f9fa;
+            --copied-bg: #28a745;
+            --delete-color: #dc3545;
+            --delete-hover-color: #c82333;
+            --add-button-border: #6c757d;
+            --add-button-hover-border: #007bff;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            transition: background-color 0.3s, color 0.3s;
+            font-family: 'Noto Sans JP', sans-serif;
+        }
+
         .copy-button {
             transition: all 0.3s ease;
             margin: 5px;
+            background-color: var(--btn-bg);
+            color: var(--btn-text-color);
+            border: 1px solid var(--border-color);
         }
         
         .copy-button.copied {
-            background-color: #28a745 !important;
-            border-color: #28a745 !important;
+            background-color: var(--copied-bg) !important;
+            border-color: var(--copied-bg) !important;
             color: white !important;
         }
         
         .add-button {
             background: none;
-            border: 2px dashed #6c757d;
-            color: #6c757d;
+            border: 2px dashed var(--add-button-border);
+            color: var(--add-button-border);
             border-radius: 50%;
             width: 40px;
             height: 40px;
@@ -34,14 +83,14 @@
         }
         
         .add-button:hover {
-            border-color: #007bff;
-            color: #007bff;
+            border-color: var(--add-button-hover-border);
+            color: var(--add-button-hover-border);
         }
         
         .delete-button {
             background: none;
             border: none;
-            color: #dc3545;
+            color: var(--delete-color);
             cursor: pointer;
             font-size: 18px;
             padding: 0;
@@ -50,7 +99,7 @@
         }
         
         .delete-button:hover {
-            color: #c82333;
+            color: var(--delete-hover-color);
             transform: scale(1.1);
         }
         
@@ -61,12 +110,56 @@
             margin-bottom: 10px;
         }
         
-        .modal-backdrop {
-            z-index: 1040;
+        .modal-content {
+            background-color: var(--modal-bg);
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+        }
+
+        .modal-header {
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .modal-footer {
+            border-top: 1px solid var(--border-color);
+        }
+
+        .form-control, .form-select {
+            background-color: var(--input-bg);
+            color: var(--input-text-color);
+            border: 1px solid var(--border-color);
+        }
+
+        .form-control:focus, .form-select:focus {
+            background-color: var(--input-bg);
+            color: var(--input-text-color);
+            border-color: var(--add-button-hover-border);
+            box-shadow: 0 0 0 0.25rem rgba(0, 123, 255, 0.25);
+        }
+
+        .form-control::placeholder {
+            color: var(--text-color);
+            opacity: 0.5;
+        }
+
+        .input-group-text {
+            background-color: var(--input-bg);
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+        }
+
+        .btn-outline-secondary {
+            color: var(--text-color);
+            border-color: var(--border-color);
+        }
+
+        .btn-outline-secondary:hover {
+            background-color: var(--border-color);
+            color: var(--text-color);
         }
         
-        .modal {
-            z-index: 1050;
+        .btn-close {
+            filter: var(--text-color) == #ffffff ? invert(1) grayscale(100%) brightness(200%) : none;
         }
         
         .edit-mode-off .add-button,
@@ -88,7 +181,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            margin-bottom: 20px;
+            margin-bottom: 0;
         }
         
         .header-controls {
@@ -121,7 +214,7 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background-color: #ccc;
+            background-color: var(--slider-bg);
             transition: .4s;
             border-radius: 34px;
         }
@@ -139,18 +232,28 @@
         }
         
         input:checked + .slider {
-            background-color: #2196F3;
+            background-color: var(--slider-checked-bg);
         }
         
         input:checked + .slider:before {
             transform: translateX(26px);
+        }
+
+        .lang-selector a {
+            color: var(--text-color);
+            text-decoration: none;
+            padding: 5px;
+            border-radius: 3px;
+        }
+        .lang-selector a.active {
+            font-weight: bold;
         }
     </style>
 </head>
 <body>
     <div class="container mt-4">
         <div class="d-flex justify-content-between align-items-center mb-4">
-            <h1>Copy page</h1>
+            <h1 data-i18n="title">Copy page</h1>
             
             <!-- Header Controls -->
             <div class="header-controls">
@@ -166,18 +269,18 @@
                     <span class="input-group-text">
                         <i class="fas fa-search"></i>
                     </span>
-                    <input type="text" class="form-control" id="filterInput" placeholder="Filter buttons..." aria-label="Filter buttons">
+                    <input type="text" class="form-control" id="filterInput" placeholder="Filter buttons..." aria-label="Filter buttons" data-i18n-placeholder="filterPlaceholder">
                 </div>
                 
                 <!-- Export/Import Buttons -->
                 <div id="importExportContainer" class="d-flex align-items-center me-3">
-                    <button id="exportButton" class="btn btn-outline-secondary me-2">Export</button>
-                    <button id="importButton" class="btn btn-outline-secondary">Import</button>
+                    <button id="exportButton" class="btn btn-outline-secondary me-2" data-i18n="exportButton">Export</button>
+                    <button id="importButton" class="btn btn-outline-secondary" data-i18n="importButton">Import</button>
                 </div>
 
                 <!-- Drag Mode Toggle -->
                 <div id="dragModeContainer" class="toggle-container me-3">
-                    <label class="form-check-label me-3" for="dragModeToggle">
+                    <label class="form-check-label me-3" for="dragModeToggle" data-i18n="dragMode">
                         Drag
                     </label>
                     <label class="toggle-switch">
@@ -187,14 +290,24 @@
                 </div>
 
                 <!-- Edit Mode Toggle -->
-                <div class="toggle-container">
-                    <label class="form-check-label me-3" for="editModeToggle">
+                <div class="toggle-container me-3">
+                    <label class="form-check-label me-3" for="editModeToggle" data-i18n="editMode">
                         Edit
                     </label>
                     <label class="toggle-switch">
                         <input type="checkbox" id="editModeToggle" checked>
                         <span class="slider"></span>
                     </label>
+                </div>
+
+                <!-- Theme and Language Controls -->
+                <div class="theme-selector me-2">
+                    <button id="theme-toggle-btn" class="btn btn-outline-secondary">◑</button>
+                </div>
+                <div class="lang-selector">
+                    <a href="#" data-lang="en" class="active">EN</a>
+                    <a href="#" data-lang="ja">JA</a>
+                    <a href="#" data-lang="pt">PT</a>
                 </div>
             </div>
         </div>
@@ -308,6 +421,121 @@
         let workspaces = [];
         let currentWorkspaceId = 'default';
         let buttons = [];
+        let currentLang = 'en';
+
+        const translations = {
+            en: {
+                title: "Copy Page",
+                filterPlaceholder: "Filter buttons...",
+                exportButton: "Export",
+                importButton: "Import",
+                dragMode: "Drag",
+                editMode: "Edit",
+                importModalTitle: "Import Buttons",
+                importModalBody: "Paste your JSON data below or upload a file. This will replace your current buttons.",
+                importModalFile: "Or upload a file:",
+                cancelButton: "Cancel",
+                importNowButton: "Import Now",
+                addButtonModalTitle: "Add New Button",
+                buttonTextLabel: "Button Text:",
+                buttonTextPlaceholder: "Enter button text",
+                addToLabel: "Add to:",
+                newRowLabel: "New row",
+                existingRowLabel: "Existing row (select below)",
+                selectRowLabel: "Select row:",
+                addButton: "Add Button",
+                deleteModalTitle: "Confirm Delete",
+                deleteModalBody: "Are you sure you want to delete this button?",
+                deleteButton: "Delete",
+                addWorkspaceTitle: "Add Workspace",
+                deleteWorkspaceTitle: "Delete Workspace",
+                addNewButtonTitle: "Add new button",
+                addButtonToRowTitle: "Add button to this row",
+                alert_enterButtonText: "Please enter button text",
+                alert_selectRow: "Please select a row",
+                alert_cannotDeleteLastWorkspace: "You cannot delete the last workspace.",
+                confirm_deleteWorkspace: (name) => `Are you sure you want to delete the "${name}" workspace? This action cannot be undone.`,
+                alert_noDataToImport: "No data to import.",
+                confirm_replaceButtons: "Are you sure you want to replace all current buttons with the imported ones?",
+                error_invalidJson: (msg) => `Invalid JSON structure. Expected an array of objects with id, text, and rowId. Error: ${msg}`,
+                alert_importSuccess: "Buttons imported successfully!",
+                error_importFailed: (msg) => `Failed to import buttons. Please check the JSON data and try again.\nError: ${msg}`,
+            },
+            ja: {
+                title: "コピーページ",
+                filterPlaceholder: "ボタンをフィルター...",
+                exportButton: "エクスポート",
+                importButton: "インポート",
+                dragMode: "ドラッグ",
+                editMode: "編集",
+                importModalTitle: "ボタンをインポート",
+                importModalBody: "JSONデータを以下に貼り付けるか、ファイルをアップロードしてください。これにより、現在のボタンが置き換えられます。",
+                importModalFile: "またはファイルをアップロード:",
+                cancelButton: "キャンセル",
+                importNowButton: "今すぐインポート",
+                addButtonModalTitle: "新しいボタンを追加",
+                buttonTextLabel: "ボタンのテキスト:",
+                buttonTextPlaceholder: "ボタンのテキストを入力",
+                addToLabel: "追加先:",
+                newRowLabel: "新しい行",
+                existingRowLabel: "既存の行（以下から選択）",
+                selectRowLabel: "行を選択:",
+                addButton: "ボタンを追加",
+                deleteModalTitle: "削除の確認",
+                deleteModalBody: "このボタンを本当に削除しますか？",
+                deleteButton: "削除",
+                addWorkspaceTitle: "ワークスペースを追加",
+                deleteWorkspaceTitle: "ワークスペースを削除",
+                addNewButtonTitle: "新しいボタンを追加",
+                addButtonToRowTitle: "この行にボタンを追加",
+                alert_enterButtonText: "ボタンのテキストを入力してください",
+                alert_selectRow: "行を選択してください",
+                alert_cannotDeleteLastWorkspace: "最後のワークスペースは削除できません。",
+                confirm_deleteWorkspace: (name) => `本当に「${name}」ワークスペースを削除しますか？この操作は元に戻せません。`,
+                alert_noDataToImport: "インポートするデータがありません。",
+                confirm_replaceButtons: "本当に現在のすべてのボタンをインポートしたもので置き換えますか？",
+                error_invalidJson: (msg) => `無効なJSON構造です。id、text、rowIdを持つオブジェクトの配列が必要です。エラー: ${msg}`,
+                alert_importSuccess: "ボタンが正常にインポートされました！",
+                error_importFailed: (msg) => `ボタンのインポートに失敗しました。JSONデータを確認して、もう一度お試しください。\nエラー: ${msg}`,
+            },
+            pt: {
+                title: "Página de Cópia",
+                filterPlaceholder: "Filtrar botões...",
+                exportButton: "Exportar",
+                importButton: "Importar",
+                dragMode: "Arrastar",
+                editMode: "Editar",
+                importModalTitle: "Importar Botões",
+                importModalBody: "Cole seus dados JSON abaixo ou carregue um arquivo. Isso substituirá seus botões atuais.",
+                importModalFile: "Ou carregue um arquivo:",
+                cancelButton: "Cancelar",
+                importNowButton: "Importar Agora",
+                addButtonModalTitle: "Adicionar Novo Botão",
+                buttonTextLabel: "Texto do Botão:",
+                buttonTextPlaceholder: "Digite o texto do botão",
+                addToLabel: "Adicionar a:",
+                newRowLabel: "Nova linha",
+                existingRowLabel: "Linha existente (selecione abaixo)",
+                selectRowLabel: "Selecione a linha:",
+                addButton: "Adicionar Botão",
+                deleteModalTitle: "Confirmar Exclusão",
+                deleteModalBody: "Tem certeza de que deseja excluir este botão?",
+                deleteButton: "Excluir",
+                addWorkspaceTitle: "Adicionar Espaço de Trabalho",
+                deleteWorkspaceTitle: "Excluir Espaço de Trabalho",
+                addNewButtonTitle: "Adicionar novo botão",
+                addButtonToRowTitle: "Adicionar botão a esta linha",
+                alert_enterButtonText: "Por favor, insira o texto do botão",
+                alert_selectRow: "Por favor, selecione uma linha",
+                alert_cannotDeleteLastWorkspace: "Você não pode excluir o último espaço de trabalho.",
+                confirm_deleteWorkspace: (name) => `Tem certeza de que deseja excluir o espaço de trabalho "${name}"? Esta ação não pode ser desfeita.`,
+                alert_noDataToImport: "Nenhum dado para importar.",
+                confirm_replaceButtons: "Tem certeza de que deseja substituir todos os botões atuais pelos importados?",
+                error_invalidJson: (msg) => `Estrutura JSON inválida. Esperado um array de objetos com id, text e rowId. Erro: ${msg}`,
+                alert_importSuccess: "Botões importados com sucesso!",
+                error_importFailed: (msg) => `Falha ao importar botões. Verifique os dados JSON e tente novamente.\nErro: ${msg}`,
+            }
+        };
 
         // Initialize the page
         document.addEventListener('DOMContentLoaded', function() {
@@ -318,13 +546,16 @@
 
             loadWorkspaces();
             initializeCurrentWorkspace();
-            updateTitle();
+
             loadState();
             loadButtons();
             renderButtons();
             renderWorkspaceControls();
             updateModes();
             setupEventListeners();
+            initTheme();
+            initLang();
+            updateTitle();
         });
 
         function setupEventListeners() {
@@ -370,6 +601,18 @@
             document.getElementById('addWorkspaceButton').addEventListener('click', addWorkspace);
             document.getElementById('deleteWorkspaceButton').addEventListener('click', deleteWorkspace);
             window.addEventListener('hashchange', onHashChange, false);
+
+            // Theme toggle
+            document.getElementById('theme-toggle-btn').addEventListener('click', toggleTheme);
+
+            // Language selector
+            document.querySelector('.lang-selector').addEventListener('click', (event) => {
+                event.preventDefault();
+                const lang = event.target.getAttribute('data-lang');
+                if (lang) {
+                    setLanguage(lang);
+                }
+            });
         }
 
         function loadState() {
@@ -387,6 +630,53 @@
             }
             document.getElementById('dragModeToggle').checked = dragMode;
         }
+
+        function initTheme() {
+            const savedTheme = localStorage.getItem('copy_tool_theme') || 'dark';
+            if (savedTheme === 'light') {
+                document.body.classList.add('light-theme');
+            }
+        }
+
+        function toggleTheme() {
+            document.body.classList.toggle('light-theme');
+            const theme = document.body.classList.contains('light-theme') ? 'light' : 'dark';
+            localStorage.setItem('copy_tool_theme', theme);
+        }
+
+        function setLanguage(lang) {
+            currentLang = lang;
+            document.documentElement.lang = lang;
+            localStorage.setItem('copy_tool_lang', lang);
+
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                el.textContent = translations[lang][key] || translations.en[key];
+            });
+
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+                const key = el.getAttribute('data-i18n-placeholder');
+                el.placeholder = translations[lang][key] || translations.en[key];
+            });
+
+            document.querySelectorAll('[data-i18n-title]').forEach(el => {
+                const key = el.getAttribute('data-i18n-title');
+                el.title = translations[lang][key] || translations.en[key];
+            });
+
+            document.querySelectorAll('.lang-selector a').forEach(a => {
+                a.classList.toggle('active', a.getAttribute('data-lang') === lang);
+            });
+            updateTitle();
+        }
+
+        function initLang() {
+            const savedLang = localStorage.getItem('copy_tool_lang');
+            const browserLang = navigator.language.split('-')[0];
+            const initialLang = savedLang || (translations[browserLang] ? browserLang : 'en');
+            setLanguage(initialLang);
+        }
+
 
         function loadWorkspaces() {
             const savedWorkspaces = localStorage.getItem('workspaces');
@@ -450,7 +740,7 @@
         }
 
         function addWorkspace() {
-            const name = prompt('Enter a name for the new workspace:');
+            const name = prompt(translations[currentLang].addWorkspaceTitle);
             if (name && name.trim()) {
                 const newWorkspace = {
                     id: 'ws_' + Date.now(),
@@ -467,12 +757,12 @@
 
         function deleteWorkspace() {
             if (workspaces.length <= 1) {
-                alert('You cannot delete the last workspace.');
+                alert(translations[currentLang].alert_cannotDeleteLastWorkspace);
                 return;
             }
 
             const currentWorkspace = workspaces.find(ws => ws.id === currentWorkspaceId);
-            if (confirm(`Are you sure you want to delete the "${currentWorkspace.name}" workspace? This action cannot be undone.`)) {
+            if (confirm(translations[currentLang].confirm_deleteWorkspace(currentWorkspace.name))) {
                 localStorage.removeItem(currentWorkspaceId);
                 workspaces = workspaces.filter(ws => ws.id !== currentWorkspaceId);
                 localStorage.setItem('workspaces', JSON.stringify(workspaces));
@@ -611,7 +901,7 @@
             addButton.className = 'add-button';
             addButton.innerHTML = '<i class="fas fa-plus"></i>';
             addButton.onclick = () => showAddModal(rowId);
-            addButton.title = 'Add button to this row';
+            addButton.title = translations[currentLang].addButtonToRowTitle;
             return addButton;
         }
 
@@ -691,7 +981,7 @@
         function addButton() {
             const text = document.getElementById('buttonText').value.trim();
             if (!text) {
-                alert('Please enter button text');
+                alert(translations[currentLang].alert_enterButtonText);
                 return;
             }
 
@@ -703,7 +993,7 @@
             } else {
                 rowId = document.getElementById('rowSelect').value;
                 if (!rowId) {
-                    alert('Please select a row');
+                    alert(translations[currentLang].alert_selectRow);
                     return;
                 }
             }
@@ -770,11 +1060,11 @@
         function importButtons() {
             const jsonText = document.getElementById('importData').value;
             if (!jsonText.trim()) {
-                alert('No data to import.');
+                alert(translations[currentLang].alert_noDataToImport);
                 return;
             }
 
-            if (!confirm('Are you sure you want to replace all current buttons with the imported ones?')) {
+            if (!confirm(translations[currentLang].confirm_replaceButtons)) {
                 return;
             }
 
@@ -783,7 +1073,7 @@
                 
                 // Basic validation
                 if (!Array.isArray(importedButtons) || (importedButtons.length > 0 && !importedButtons.every(b => b.id && b.text && b.rowId))) {
-                    throw new Error('Invalid JSON structure. Expected an array of objects with id, text, and rowId.');
+                    throw new Error(translations[currentLang].error_invalidJson(''));
                 }
 
                 buttons = importedButtons;
@@ -792,15 +1082,15 @@
                 importModal.hide();
                 document.getElementById('importData').value = '';
                 document.getElementById('importFile').value = ''; // Reset file input
-                alert('Buttons imported successfully!');
+                alert(translations[currentLang].alert_importSuccess);
             } catch (error) {
-                alert('Failed to import buttons. Please check the JSON data and try again.\nError: ' + error.message);
+                alert(translations[currentLang].error_importFailed(error.message));
             }
         }
 
         function updateTitle() {
             const workspace = workspaces.find(ws => ws.id === currentWorkspaceId);
-            const baseTitle = 'Copy Page';
+            const baseTitle = translations[currentLang].title;
             if (workspace) {
                 document.title = `${workspace.name} - ${baseTitle}`;
             } else {
