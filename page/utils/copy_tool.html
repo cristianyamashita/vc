@@ -87,19 +87,32 @@
             color: var(--add-button-hover-border);
         }
         
-        .delete-button {
+        .delete-button, .edit-button {
             background: none;
             border: none;
-            color: var(--delete-color);
             cursor: pointer;
             font-size: 18px;
             padding: 0;
             margin-left: 5px;
             transition: all 0.3s ease;
         }
+
+        .delete-button {
+            color: var(--delete-color);
+        }
+
+        .edit-button {
+            color: #28a745; /* A shade of green */
+            margin-left: 8px;
+        }
         
         .delete-button:hover {
             color: var(--delete-hover-color);
+            transform: scale(1.1);
+        }
+
+        .edit-button:hover {
+            color: #218838; /* A darker green */
             transform: scale(1.1);
         }
         
@@ -163,7 +176,8 @@
         }
         
         .edit-mode-off .add-button,
-        .edit-mode-off .delete-button {
+        .edit-mode-off .delete-button,
+        .edit-mode-off .edit-button {
             display: none !important;
         }
         
@@ -385,7 +399,7 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="button" class="btn btn-primary" onclick="addButton()">Add Button</button>
+                    <button type="button" class="btn btn-primary" onclick="saveButtonChanges()">Add Button</button>
                 </div>
             </div>
         </div>
@@ -413,6 +427,7 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         let deleteButtonId = null;
+        let editingButtonId = null;
         let addButtonModal;
         let deleteConfirmModal;
         let importModal;
@@ -884,12 +899,20 @@
                 copyBtn.onclick = () => copyToClipboard(button.text, copyBtn);
             }
 
+            const editBtn = document.createElement('button');
+            editBtn.className = 'edit-button';
+            editBtn.innerHTML = '<i class="fas fa-edit"></i>';
+            editBtn.onclick = () => showAddModal(button.id);
+            editBtn.title = 'Edit Button';
+
             const deleteBtn = document.createElement('button');
             deleteBtn.className = 'delete-button';
             deleteBtn.innerHTML = '<i class="fas fa-times"></i>';
             deleteBtn.onclick = () => showDeleteModal(button.id);
+            deleteBtn.title = 'Delete Button';
 
             buttonDiv.appendChild(copyBtn);
+            buttonDiv.appendChild(editBtn);
             buttonDiv.appendChild(deleteBtn);
 
             return buttonDiv;
@@ -934,19 +957,50 @@
             }
         }
 
-        // Show add button modal
-        function showAddModal(specificRowId = null) {
-            if (specificRowId) {
-                document.getElementById('existingRow').checked = true;
-                document.getElementById('rowSelection').style.display = 'block';
-                populateRowSelect();
-                document.getElementById('rowSelect').value = specificRowId;
-            } else {
-                document.getElementById('newRow').checked = true;
-                document.getElementById('rowSelection').style.display = 'none';
+        // Show add/edit button modal
+        function showAddModal(id = null) {
+            const modalTitle = document.getElementById('addButtonModalLabel');
+            const buttonText = document.getElementById('buttonText');
+            const newRowRadio = document.getElementById('newRow');
+            const existingRowRadio = document.getElementById('existingRow');
+            const rowSelection = document.getElementById('rowSelection');
+            const rowSelect = document.getElementById('rowSelect');
+            const saveButton = document.querySelector('#addButtonModal .btn-primary');
+
+            if (id) { // Editing an existing button
+                 // Check if it's a button ID or a row ID
+                const buttonToEdit = buttons.find(b => b.id === id);
+                if(buttonToEdit) { // It's a button ID for editing
+                    editingButtonId = id;
+                    modalTitle.textContent = 'Edit Button';
+                    saveButton.textContent = 'Update Button';
+                    buttonText.value = buttonToEdit.text;
+
+                    existingRowRadio.checked = true;
+                    rowSelection.style.display = 'block';
+                    populateRowSelect();
+                    rowSelect.value = buttonToEdit.rowId;
+                } else { // It's a row ID for adding to a specific row
+                    editingButtonId = null;
+                    modalTitle.textContent = 'Add New Button';
+                    saveButton.textContent = 'Add Button';
+                    buttonText.value = '';
+
+                    existingRowRadio.checked = true;
+                    rowSelection.style.display = 'block';
+                    populateRowSelect();
+                    rowSelect.value = id;
+                }
+            } else { // Adding a new button to a new row
+                editingButtonId = null;
+                modalTitle.textContent = 'Add New Button';
+                saveButton.textContent = 'Add Button';
+                buttonText.value = '';
+                newRowRadio.checked = true;
+                rowSelection.style.display = 'none';
             }
             
-            document.getElementById('buttonText').value = '';
+            saveButton.onclick = saveButtonChanges;
             addButtonModal.show();
         }
 
@@ -977,8 +1031,7 @@
             });
         }
 
-        // Add new button
-        function addButton() {
+        function saveButtonChanges() {
             const text = document.getElementById('buttonText').value.trim();
             if (!text) {
                 alert(translations[currentLang].alert_enterButtonText);
@@ -998,16 +1051,27 @@
                 }
             }
 
-            const newButton = {
-                id: Date.now().toString(),
-                text: text,
-                rowId: rowId
-            };
+            if (editingButtonId) {
+                // Update existing button
+                const buttonToUpdate = buttons.find(b => b.id === editingButtonId);
+                if (buttonToUpdate) {
+                    buttonToUpdate.text = text;
+                    buttonToUpdate.rowId = rowId;
+                }
+            } else {
+                // Add new button
+                const newButton = {
+                    id: Date.now().toString(),
+                    text: text,
+                    rowId: rowId
+                };
+                buttons.push(newButton);
+            }
 
-            buttons.push(newButton);
             saveButtons();
             renderButtons();
             addButtonModal.hide();
+            editingButtonId = null; // Reset editing state
         }
 
         // Show delete confirmation modal
