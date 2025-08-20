@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-i18n="title">Full Screen Message</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="../assets/fontawesome/css/all.min.css">
+    <style>
+        :root {
+            --bg-color: #1a1a1a;
+            --text-color: #f0f0f0;
+            --card-bg-color: #2a2a2a;
+            --border-color: #444;
+            --accent-color: #0d6efd;
+        }
+
+        html[data-theme="light"] {
+            --bg-color: #f8f9fa;
+            --text-color: #212529;
+            --card-bg-color: #fff;
+            --border-color: #dee2e6;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            margin: 0;
+        }
+
+        .container-fluid {
+            padding-top: 20px;
+            padding-bottom: 20px;
+            flex: 1;
+        }
+
+        .card {
+            background-color: var(--card-bg-color);
+            border-color: var(--border-color);
+        }
+
+        .card-header {
+            border-bottom-color: var(--border-color);
+            color: var(--text-color);
+        }
+
+        .form-control, .form-select, .form-control-color {
+            background-color: var(--card-bg-color);
+            color: var(--text-color);
+            border-color: var(--border-color);
+        }
+        .form-label,.navbar-brand{
+          color: var(--text-color);
+        }
+
+
+
+        .form-control:focus, .form-select:focus, .form-control-color:focus {
+            background-color: var(--card-bg-color);
+            color: var(--text-color);
+            border-color: var(--accent-color);
+            box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+        }
+
+        .form-control-color {
+            width: 100%;
+            height: calc(1.5em + .75rem + 2px);
+            padding: .375rem .75rem;
+        }
+
+        .btn-primary {
+            background-color: var(--accent-color);
+            border-color: var(--accent-color);
+        }
+
+        #fullscreen-container {
+            display: none;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+            height: 100%;
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 9999;
+        }
+
+        #fullscreen-message {
+            padding: 20px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg" style="background-color: var(--card-bg-color); border-bottom: 1px solid var(--border-color);">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="#" data-i18n="title">Full Screen Message</a>
+        <div class="d-flex ms-auto">
+            <select id="lang-switcher" class="form-select form-select-sm me-2" style="width: auto;">
+                <option value="en">English</option>
+                <option value="pt">Português</option>
+                <option value="ja">日本語</option>
+            </select>
+            <button id="theme-switcher" class="btn btn-sm btn-outline-secondary">
+                <i class="fas fa-moon"></i>
+            </button>
+        </div>
+    </div>
+</nav>
+
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h4 data-i18n="settingsTitle">Settings</h4>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="message-text" class="form-label" data-i18n="messageLabel">Message</label>
+                        <textarea id="message-text" class="form-control" rows="3" data-i18n-placeholder="messagePlaceholder" placeholder="Enter your message here..."></textarea>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="background-color" class="form-label" data-i18n="bgColorLabel">Background Color</label>
+                            <input type="color" id="background-color" class="form-control form-control-color" value="#000000">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="font-color" class="form-label" data-i18n="fontColorLabel">Font Color</label>
+                            <input type="color" id="font-color" class="form-control form-control-color" value="#FFFFFF">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="font-size" class="form-label" data-i18n="fontSizeLabel">Font Size (px)</label>
+                        <input type="number" id="font-size" class="form-control" value="60" min="10">
+                    </div>
+                    <div class="mb-3">
+                        <label for="font-shadow" class="form-label" data-i18n="fontShadowLabel">Font Shadow</label>
+                        <input type="text" id="font-shadow" class="form-control" data-i18n-placeholder="fontShadowPlaceholder" placeholder="e.g., 2px 2px 4px #000000">
+                    </div>
+                    <button id="fullscreen-btn" class="btn btn-primary w-100" data-i18n="fullscreenBtn">Show Full Screen</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="fullscreen-container">
+    <span id="fullscreen-message"></span>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="./fullscreen_message.js" defer></script>
+</body>
+</html>
