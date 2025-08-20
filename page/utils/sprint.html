@@ -148,9 +148,15 @@
         <h2 class="text-2xl font-bold" data-lang="selectAnIcon">Select an Icon</h2>
         <button id="close-icon-modal" class="text-gray-500 hover:text-gray-800 dark:hover:text-gray-200">&times;</button>
       </div>
-      <div class="flex items-center mb-4">
-        <label for="icon-color-picker" class="mr-4" data-lang="iconColor">Icon Color:</label>
-        <input type="color" id="icon-color-picker" value="#000000" class="w-12 h-12">
+      <div class="flex items-center mb-4 gap-4">
+        <div>
+          <label for="icon-color-picker" class="mr-4" data-lang="iconColor">Icon Color:</label>
+          <input type="color" id="icon-color-picker" value="#000000" class="w-12 h-12">
+        </div>
+        <div class="flex-grow">
+          <label for="icon-size-slider" class="block mb-1" data-lang="iconSize">Icon Size:</label>
+          <input type="range" id="icon-size-slider" min="10" max="100" value="80" class="w-full">
+        </div>
       </div>
       <div id="icon-picker-list" class="flex-grow overflow-y-auto grid grid-cols-6 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-12 gap-2 p-2 bg-gray-100 dark:bg-gray-900 rounded">
         <!-- Icons will be populated here by JavaScript -->
@@ -170,7 +176,7 @@
         delete: 'Delete', visibility: 'Visible', opacity: 'Opacity', actions: 'Actions', exportSize: 'Export Size (px)',
         exportActive: 'Export Active', exportAll: 'Export All', playback: 'Playback', frameDuration: 'Frame (ms)',
         play: 'Play', stop: 'Stop', layerName: 'Layer', exportPrefixPrompt: 'Enter filename prefix', zipNameDefault: 'layers',
-        selectAnIcon: 'Select an Icon', iconColor: 'Icon Color:', addIcon: 'Add Icon'
+        selectAnIcon: 'Select an Icon', iconColor: 'Icon Color:', addIcon: 'Add Icon', iconSize: 'Icon Size:'
       },
       ja: {
         title: 'ピクセルアート スプリントエディタ', language: '言語', tools: 'ツール', brush: 'ブラシ', eraser: '消しゴム',
@@ -179,7 +185,7 @@
         delete: '削除', visibility: '表示', opacity: '不透明度', actions: 'アクション', exportSize: 'エクスポートサイズ (px)',
         exportActive: 'アクティブを保存', exportAll: 'すべて保存', playback: '再生', frameDuration: 'フレーム (ms)',
         play: '再生', stop: '停止', layerName: 'レイヤー', exportPrefixPrompt: 'ファイル名のプレフィックスを入力してください', zipNameDefault: 'レイヤー',
-        selectAnIcon: 'アイコンを選択', iconColor: 'アイコンの色:', addIcon: 'アイコンを追加'
+        selectAnIcon: 'アイコンを選択', iconColor: 'アイコンの色:', addIcon: 'アイコンを追加', iconSize: 'アイコンサイズ:'
       },
       pt: {
         title: 'Editor de Sprint de Pixel Art', language: 'Idioma', tools: 'Ferramentas', brush: 'Pincel', eraser: 'Borracha',
@@ -188,7 +194,7 @@
         delete: 'Excluir', visibility: 'Visível', opacity: 'Opac.', actions: 'Ações', exportSize: 'Tamanho da Exportação (px)',
         exportActive: 'Exportar Ativa', exportAll: 'Exportar Todas', playback: 'Reprodução', frameDuration: 'Quadro (ms)',
         play: 'Reproduzir', stop: 'Parar', layerName: 'Camada', exportPrefixPrompt: 'Digite o prefixo do nome do arquivo', zipNameDefault: 'camadas',
-        selectAnIcon: 'Selecione um Ícone', iconColor: 'Cor do Ícone:', addIcon: 'Adicionar Ícone'
+        selectAnIcon: 'Selecione um Ícone', iconColor: 'Cor do Ícone:', addIcon: 'Adicionar Ícone', iconSize: 'Tamanho do Ícone:'
       }
     };
 
@@ -774,7 +780,7 @@
       }
     });
 
-    function drawIconOnCanvas(iconData, color) {
+    function drawIconOnCanvas(iconData, color, sizePercentage) {
       const tempCanvas = document.createElement('canvas');
       tempCanvas.width = gridResolution;
       tempCanvas.height = gridResolution;
@@ -782,9 +788,16 @@
 
       const pathData = iconData.body.match(/d="([^"]+)"/)[1];
       const path = new Path2D(pathData);
-      const scale = gridResolution / Math.max(iconData.width, iconData.height);
+
+      const size = gridResolution * (sizePercentage / 100);
+      const scale = size / Math.max(iconData.width, iconData.height);
+      const scaledWidth = iconData.width * scale;
+      const scaledHeight = iconData.height * scale;
+      const tx = (gridResolution - scaledWidth) / 2;
+      const ty = (gridResolution - scaledHeight) / 2;
 
       tCtx.fillStyle = color;
+      tCtx.translate(tx, ty);
       tCtx.scale(scale, scale);
       tCtx.fill(path);
 
@@ -809,7 +822,8 @@
         const iconName = selectedIcon.dataset.iconName;
         const iconData = fa_icons.icons[iconName];
         const color = iconColorPicker.value;
-        drawIconOnCanvas(iconData, color);
+        const size = document.getElementById('icon-size-slider').value;
+        drawIconOnCanvas(iconData, color, size);
         iconModal.classList.add('hidden');
         selectedIcon.classList.remove('bg-blue-500', 'text-white');
         selectedIcon = null;
