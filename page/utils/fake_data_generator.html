@@ -1,0 +1,498 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Fake Data Generator</title>
+  <script type="module">
+    import { faker, allLocales, allFakers } from 'https://esm.sh/@faker-js/faker';
+    window.faker = faker;
+    window.allLocales = allLocales;
+    window.allFakers = allFakers;
+  </script>
+  <style>
+    /* Color tokens */
+    :root{
+      --bg:#0b0e14; --fg:#e6e6e6; --muted:#9aa4b2; --card:#101521; --border:#1e2636;
+      --accent:#2c5894; --accent-2: color-mix(in oklch, var(--accent), white 15%);
+      --ok:#10b981; --warn:#f59e0b; --err:#ef4444;
+      --ring: color-mix(in oklch, var(--accent), white 35%);
+      --shadow: 0 10px 25px -12px rgba(0,0,0,.35);
+      --radius:.8rem;
+      --surface-1: color-mix(in oklch, var(--card), black 6%);
+      --surface-2: color-mix(in oklch, var(--card), black 12%);
+    }
+    [data-theme="light"]{
+      --bg:#f7fafc; --fg:#0f172a; --muted:#475569; --card:#ffffff; --border:#e5e7eb;
+      --accent:#418ffd; --accent-2: color-mix(in oklch, var(--accent), black 5%);
+      --ok:#16a34a; --warn:#d97706; --err:#dc2626;
+      --ring: color-mix(in oklch, var(--accent), white 30%);
+      --shadow: 0 10px 25px -14px rgba(2,6,23,.25);
+      --surface-1: color-mix(in oklch, var(--card), black 2%);
+      --surface-2: color-mix(in oklch, var(--card), black 6%);
+    }
+
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0; background:var(--bg); color:var(--fg);
+      font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial;
+      transition: background .25s ease, color .25s ease;
+    }
+
+    header{
+      position:sticky; top:0; z-index:5;
+      background: color-mix(in oklch, var(--card), transparent 20%);
+      -webkit-backdrop-filter: saturate(160%) blur(8px);
+      backdrop-filter: saturate(160%) blur(8px);
+      border-bottom:1px solid var(--border);
+      display:flex; align-items:center; gap:.75rem; padding:.6rem 1rem;
+    }
+    header h1{font-size:16px;margin:0;font-weight:700;letter-spacing:.1px}
+    .spacer{flex:1}
+
+    .btn{
+      appearance:none; border:1px solid var(--border); background:var(--surface-1); color:var(--fg);
+      padding:.5rem .8rem; border-radius:calc(var(--radius) - .2rem); cursor:pointer;
+      transition: border-color .2s ease, background .2s ease, transform .05s ease, box-shadow .2s ease;
+      display:inline-flex; align-items:center; gap:.45rem; font-weight:600;
+    }
+    .btn:hover{border-color: color-mix(in oklch, var(--border), var(--fg) 20%); background:var(--surface-2)}
+    .btn:active{transform: translateY(1px)}
+    .btn:focus-visible{outline:2px solid var(--ring); outline-offset:2px}
+    .btn.primary{
+      background: linear-gradient(180deg, var(--accent-2), var(--accent));
+      border-color: color-mix(in oklch, var(--accent), black 10%);
+      color:#fff; box-shadow: var(--shadow);
+    }
+    .btn.primary:hover{filter:saturate(1.05) brightness(1.02)}
+
+    main{max-width:1100px;margin:1rem auto;padding:0 1rem}
+
+    .panel{
+      border:1px solid var(--border); border-radius:var(--radius); background:var(--card);
+      padding:1rem; margin-top:.6rem; box-shadow: var(--shadow);
+    }
+    .row{display:flex;gap:1rem;flex-wrap:wrap}
+    .col{flex:1 1 420px; min-width:290px}
+    label{display:block;margin:.2rem 0 .3rem .1rem;color:var(--muted);font-size:.85rem}
+
+    textarea, input, select{
+      width:100%; padding:.65rem .75rem; border-radius:calc(var(--radius) - .2rem);
+      border:1px solid var(--border); background:var(--surface-1); color:var(--fg);
+      transition: border-color .2s ease, background .2s ease, box-shadow .2s ease;
+      font-family: inherit;
+      font-size: inherit;
+    }
+    input, select{min-height:unset}
+    textarea:focus, input:focus, select:focus{outline:none; border-color: var(--ring); box-shadow:0 0 0 3px color-mix(in oklch, var(--ring), transparent 70%)}
+
+    .controls{display:flex;gap:.5rem;flex-wrap:wrap;margin:.6rem 0}
+    .subtle{color:var(--muted);font-size:.85rem}
+    .note{padding:.7rem .85rem;border-left:3px solid var(--warn);background:var(--surface-2);border-radius:.4rem}
+    .hidden{display:none}
+
+    .checkbox-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 0.5rem;
+    }
+    .checkbox-item {
+      display: flex;
+      align-items: center;
+      background: var(--surface-1);
+      padding: 0.5rem;
+      border-radius: calc(var(--radius) - .4rem);
+      border: 1px solid var(--border);
+    }
+    .checkbox-item input {
+      width: auto;
+      margin-right: 0.5rem;
+    }
+
+    #output {
+      width: 100%;
+      height: 400px;
+      white-space: pre;
+      overflow: auto;
+      font-family: ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono",monospace;
+    }
+
+    #output-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    #output-table th, #output-table td {
+        border: 1px solid var(--border);
+        padding: 8px;
+        text-align: left;
+    }
+    #output-table th {
+        background-color: var(--surface-2);
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1 data-i18n="appTitle">Fake Data Generator</h1>
+    <div class="spacer"></div>
+    <select id="langSelect" style="border:1px solid var(--border);background:transparent;color:var(--fg);padding:.15rem .3rem;font-size:.92em;border-radius:.4rem;cursor:pointer;min-width:unset;max-width:90px">
+      <option value="en">English</option>
+      <option value="pt">Português</option>
+      <option value="ja">日本語</option>
+    </select>
+    <button class="btn" id="themeToggle" data-i18n="themeBtn" title="Toggle theme">Theme</button>
+  </header>
+
+  <main>
+    <section id="config-panel" class="panel">
+        <div class="row">
+            <div class="col">
+                <label for="faker-locale-select" data-i18n="dataLocale">Data Locale</label>
+                <select id="faker-locale-select"></select>
+            </div>
+            <div class="col">
+                <label for="quantity-input" data-i18n="quantity">Quantity</label>
+                <input type="number" id="quantity-input" value="10" min="1" max="1000">
+            </div>
+        </div>
+        <div style="margin-top: 1rem;">
+            <label data-i18n="dataFields">Data Fields</label>
+            <div id="fields-checkboxes" class="checkbox-grid">
+                <!-- Checkboxes will be populated by JS -->
+            </div>
+        </div>
+        <div class="controls">
+            <button id="generate-btn" class="btn primary" data-i18n="generate">Generate</button>
+        </div>
+    </section>
+    <section id="output-panel" class="panel">
+        <div class="controls">
+            <label data-i18n="outputFormat">Output Format:</label>
+            <button class="btn" data-format="html" data-i18n="formatHtml">HTML</button>
+            <button class="btn" data-format="sql" data-i18n="formatSql">SQL</button>
+            <button class="btn" data-format="json" data-i18n="formatJson">JSON</button>
+            <button class="btn" data-format="xml" data-i18n="formatXml">XML</button>
+            <button class="btn" data-format="csv" data-i18n="formatCsv">CSV</button>
+            <div class="spacer"></div>
+            <button id="copy-btn" class="btn" data-i18n="copy">Copy</button>
+        </div>
+        <div id="output-container" style="margin-top: 1rem;">
+            <pre id="output-text" class="hidden"></pre>
+            <div id="output-html" class="hidden"></div>
+        </div>
+    </section>
+  </main>
+
+<script>
+(() => {
+  // --- State and utils ---
+  const $ = (sel, el = document) => el.querySelector(sel);
+  const $$ = (sel, el = document) => [...el.querySelectorAll(sel)];
+
+  const state = {
+    theme: localStorage.getItem('app_theme') || 'dark',
+    lang: localStorage.getItem('app_lang') || 'en',
+  };
+  document.body.dataset.theme = state.theme;
+
+  const setTheme = t => {
+    state.theme = t;
+    document.body.dataset.theme = t;
+    localStorage.setItem('app_theme', t);
+  };
+
+  // --- i18n ---
+  const I18N = {
+    en: {
+      appTitle: 'Fake Data Generator',
+      docTitle: 'Fake Data Generator',
+      themeBtn: 'Theme',
+      dataLocale: 'Data Locale',
+      quantity: 'Quantity',
+      dataFields: 'Data Fields',
+      generate: 'Generate',
+      outputFormat: 'Output Format:',
+      formatHtml: 'HTML',
+      formatSql: 'SQL',
+      formatJson: 'JSON',
+      formatXml: 'XML',
+      formatCsv: 'CSV',
+      copy: 'Copy',
+      copied: 'Copied!',
+    },
+    pt: {
+      appTitle: 'Gerador de Dados Falsos',
+      docTitle: 'Gerador de Dados Falsos',
+      themeBtn: 'Tema',
+      dataLocale: 'Localidade dos Dados',
+      quantity: 'Quantidade',
+      dataFields: 'Campos de Dados',
+      generate: 'Gerar',
+      outputFormat: 'Formato de Saída:',
+      formatHtml: 'HTML',
+      formatSql: 'SQL',
+      formatJson: 'JSON',
+      formatXml: 'XML',
+      formatCsv: 'CSV',
+      copy: 'Copiar',
+      copied: 'Copiado!',
+    },
+    ja: {
+      appTitle: '偽データジェネレーター',
+      docTitle: '偽データジェネレーター',
+      themeBtn: 'テーマ',
+      dataLocale: 'データのロケール',
+      quantity: '数量',
+      dataFields: 'データフィールド',
+      generate: '生成',
+      outputFormat: '出力形式:',
+      formatHtml: 'HTML',
+      formatSql: 'SQL',
+      formatJson: 'JSON',
+      formatXml: 'XML',
+      formatCsv: 'CSV',
+      copy: 'コピー',
+      copied: 'コピーしました！',
+    },
+  };
+
+  function t(key) {
+    return (I18N[state.lang] && I18N[state.lang][key]) || I18N.en[key] || key;
+  }
+
+  function translateUI() {
+    document.title = t('docTitle');
+    $$('[data-i18n]').forEach(el => {
+      const key = el.dataset.i18n;
+      if (t(key)) {
+        el.textContent = t(key);
+      }
+    });
+    $('#langSelect').value = state.lang;
+    document.documentElement.lang = state.lang;
+  }
+
+  // --- Event Listeners ---
+  $('#themeToggle').addEventListener('click', () => setTheme(state.theme === 'dark' ? 'light' : 'dark'));
+  $('#langSelect').addEventListener('change', (e) => {
+    state.lang = e.target.value;
+    localStorage.setItem('app_lang', state.lang);
+    translateUI();
+  });
+
+  const FAKER_PERSON_METHODS = [
+    'fullName', 'firstName', 'lastName', 'middleName', 'prefix', 'suffix',
+    'sex', 'bio', 'jobTitle', 'jobDescriptor', 'jobArea', 'jobType', 'zodiacSign'
+  ];
+
+  function populateLocales() {
+    const select = $('#faker-locale-select');
+    const locales = Object.keys(window.allLocales);
+    locales.sort();
+    locales.forEach(locale => {
+      const option = document.createElement('option');
+      option.value = locale;
+      console.log("test",window.allLocales[locale])
+      option.textContent = `${locale} (${window.allLocales[locale].metadata.title})`;
+      select.appendChild(option);
+    });
+    select.value = 'en'; // Default to English
+  }
+
+  function populateFields() {
+    const container = $('#fields-checkboxes');
+    container.innerHTML = '';
+    FAKER_PERSON_METHODS.forEach(method => {
+        const div = document.createElement('div');
+        div.className = 'checkbox-item';
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.id = `field-${method}`;
+        checkbox.value = method;
+        checkbox.checked = ['fullName', 'jobTitle'].includes(method); // Default checked
+        const label = document.createElement('label');
+        label.htmlFor = `field-${method}`;
+        label.textContent = method;
+        div.appendChild(checkbox);
+        div.appendChild(label);
+        container.appendChild(div);
+    });
+  }
+
+  let generatedData = [];
+
+  function generateData() {
+    const locale = $('#faker-locale-select').value;
+    const quantity = parseInt($('#quantity-input').value, 10);
+    const activeFaker = window.allFakers[locale];
+
+    if (!activeFaker) {
+        console.error('Selected Faker locale not found:', locale);
+        return;
+    }
+
+    const selectedFields = $$('#fields-checkboxes input:checked').map(cb => cb.value);
+    if (selectedFields.length === 0) {
+        alert('Please select at least one data field.');
+        return;
+    }
+
+    generatedData = [];
+    for (let i = 0; i < quantity; i++) {
+        const record = {};
+        selectedFields.forEach(field => {
+            if (activeFaker.person[field]) {
+                try {
+                    record[field] = activeFaker.person[field]();
+                } catch (e) {
+                    console.warn(`Could not generate data for field '${field}' in locale '${locale}'.`, e);
+                    record[field] = 'N/A';
+                }
+            }
+        });
+        generatedData.push(record);
+    }
+    console.log('Generated Data:', generatedData);
+    renderOutput('html'); // Default to HTML view
+  }
+
+  let currentFormat = 'html';
+  const outputText = $('#output-text');
+  const outputHtml = $('#output-html');
+
+  function renderOutput(format) {
+    currentFormat = format;
+    if (generatedData.length === 0) return;
+
+    $$('#output-panel .btn[data-format]').forEach(b => {
+        b.classList.toggle('primary', b.dataset.format === format);
+    });
+
+    outputText.classList.add('hidden');
+    outputHtml.classList.add('hidden');
+
+    let content = '';
+    switch (format) {
+        case 'html':
+            outputHtml.innerHTML = toHTML(generatedData);
+            outputHtml.classList.remove('hidden');
+            break;
+        case 'sql':
+            content = toSQL(generatedData);
+            break;
+        case 'json':
+            content = toJSON(generatedData);
+            break;
+        case 'xml':
+            content = toXML(generatedData);
+            break;
+        case 'csv':
+            content = toCSV(generatedData);
+            break;
+    }
+
+    if (format !== 'html') {
+        outputText.textContent = content;
+        outputText.classList.remove('hidden');
+    }
+  }
+
+  function toHTML(data) {
+    if (data.length === 0) return '';
+    const headers = Object.keys(data[0]);
+    const headerRow = `<thead><tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr></thead>`;
+    const bodyRows = data.map(row => `<tr>${headers.map(h => `<td>${escapeHtml(row[h])}</td>`).join('')}</tr>`).join('');
+    return `<table id="output-table">${headerRow}<tbody>${bodyRows}</tbody></table>`;
+  }
+
+  function toSQL(data) {
+    if (data.length === 0) return '';
+    const headers = Object.keys(data[0]);
+    const tableName = 'generated_data';
+    const createTable = `CREATE TABLE ${tableName} (\n${headers.map(h => `  ${h} VARCHAR(255)`).join(',\n')}\n);\n\n`;
+    const inserts = data.map(row => {
+        const values = headers.map(h => `'${(row[h] || '').toString().replace(/'/g, "''")}'`).join(', ');
+        return `INSERT INTO ${tableName} (${headers.join(', ')}) VALUES (${values});`;
+    }).join('\n');
+    return createTable + inserts;
+  }
+
+  function toJSON(data) {
+    return JSON.stringify(data, null, 2);
+  }
+
+  function toXML(data) {
+    let xml = '<?xml version="1.0" encoding="UTF-8"?>\n<records>\n';
+    data.forEach(record => {
+        xml += '  <record>\n';
+        Object.keys(record).forEach(key => {
+            xml += `    <${key}>${escapeHtml(record[key])}</${key}>\n`;
+        });
+        xml += '  </record>\n';
+    });
+    xml += '</records>';
+    return xml;
+  }
+
+  function toCSV(data) {
+    if (data.length === 0) return '';
+    const headers = Object.keys(data[0]);
+    const headerRow = headers.join(',');
+    const bodyRows = data.map(row => headers.map(h => `"${(row[h] || '').toString().replace(/"/g, '""')}"`).join(',')).join('\n');
+    return `${headerRow}\n${bodyRows}`;
+  }
+
+  function copyOutput() {
+    let content = '';
+    if (currentFormat === 'html') {
+        content = outputHtml.innerHTML;
+    } else {
+        content = outputText.textContent;
+    }
+    navigator.clipboard.writeText(content).then(() => {
+        const copyBtn = $('#copy-btn');
+        const originalText = copyBtn.textContent;
+        copyBtn.textContent = t('copied');
+        setTimeout(() => copyBtn.textContent = originalText, 2000);
+    }).catch(err => console.error('Failed to copy: ', err));
+  }
+
+  function escapeHtml(str) {
+    if (typeof str !== 'string') return str;
+    return str.replace(/[&<>"']/g, function(match) {
+        return {
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;'
+        }[match];
+    });
+  }
+
+  // --- Init ---
+  function init() {
+    populateLocales();
+    populateFields();
+    translateUI();
+
+    $('#generate-btn').addEventListener('click', generateData);
+    $('#copy-btn').addEventListener('click', copyOutput);
+    $$('#output-panel .btn[data-format]').forEach(btn => {
+        btn.addEventListener('click', () => renderOutput(btn.dataset.format));
+    });
+  }
+
+  // Wait for faker to be ready
+  const checkFaker = setInterval(() => {
+    if (window.allFakers) {
+      clearInterval(checkFaker);
+      init();
+    }
+  }, 100);
+
+})();
+</script>
+</body>
+</html>
