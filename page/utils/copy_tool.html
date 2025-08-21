@@ -332,7 +332,7 @@
         
         <!-- Add new row button -->
         <div class="text-center mt-4">
-            <button class="add-button" onclick="showAddModal()" title="Add new button">
+            <button class="add-button" onclick="showAddModal(null, false)" title="Add new button">
                 <i class="fas fa-plus"></i>
             </button>
         </div>
@@ -902,7 +902,7 @@
             const editBtn = document.createElement('button');
             editBtn.className = 'edit-button';
             editBtn.innerHTML = '<i class="fas fa-edit"></i>';
-            editBtn.onclick = () => showAddModal(button.id);
+            editBtn.onclick = () => showAddModal(button.id, true);
             editBtn.title = 'Edit Button';
 
             const deleteBtn = document.createElement('button');
@@ -923,7 +923,7 @@
             const addButton = document.createElement('button');
             addButton.className = 'add-button';
             addButton.innerHTML = '<i class="fas fa-plus"></i>';
-            addButton.onclick = () => showAddModal(rowId);
+            addButton.onclick = () => showAddModal(rowId, false);
             addButton.title = translations[currentLang].addButtonToRowTitle;
             return addButton;
         }
@@ -958,7 +958,7 @@
         }
 
         // Show add/edit button modal
-        function showAddModal(id = null) {
+        function showAddModal(id = null, isEdit = false) {
             const modalTitle = document.getElementById('addButtonModalLabel');
             const buttonText = document.getElementById('buttonText');
             const newRowRadio = document.getElementById('newRow');
@@ -967,10 +967,11 @@
             const rowSelect = document.getElementById('rowSelect');
             const saveButton = document.querySelector('#addButtonModal .btn-primary');
 
-            if (id) { // Editing an existing button
-                 // Check if it's a button ID or a row ID
+            editingButtonId = null; // Reset editing state by default
+
+            if (isEdit) { // Editing an existing button
                 const buttonToEdit = buttons.find(b => b.id === id);
-                if(buttonToEdit) { // It's a button ID for editing
+                if(buttonToEdit) {
                     editingButtonId = id;
                     modalTitle.textContent = 'Edit Button';
                     saveButton.textContent = 'Update Button';
@@ -980,24 +981,25 @@
                     rowSelection.style.display = 'block';
                     populateRowSelect();
                     rowSelect.value = buttonToEdit.rowId;
-                } else { // It's a row ID for adding to a specific row
-                    editingButtonId = null;
-                    modalTitle.textContent = 'Add New Button';
-                    saveButton.textContent = 'Add Button';
-                    buttonText.value = '';
+                } else {
+                    // This case should ideally not happen if called correctly
+                    console.error("Edit button clicked but no button found with id:", id);
+                    return;
+                }
+            } else { // Adding a new button
+                modalTitle.textContent = 'Add New Button';
+                saveButton.textContent = 'Add Button';
+                buttonText.value = '';
 
+                if (id) { // Adding to a specific row (id is rowId)
                     existingRowRadio.checked = true;
                     rowSelection.style.display = 'block';
                     populateRowSelect();
                     rowSelect.value = id;
+                } else { // Adding to a new row
+                    newRowRadio.checked = true;
+                    rowSelection.style.display = 'none';
                 }
-            } else { // Adding a new button to a new row
-                editingButtonId = null;
-                modalTitle.textContent = 'Add New Button';
-                saveButton.textContent = 'Add Button';
-                buttonText.value = '';
-                newRowRadio.checked = true;
-                rowSelection.style.display = 'none';
             }
             
             saveButton.onclick = saveButtonChanges;
