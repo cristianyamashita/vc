@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title data-i18n="title">Calculator</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="../assets/fontawesome/css/all.min.css" />
+    <style>
+      :root {
+        --bg-color: #1a1a1a;
+        --text-color: #f0f0f0;
+        --card-bg-color: #2a2a2a;
+        --border-color: #444;
+        --accent-color: #0d6efd;
+        --btn-bg: #333;
+        --btn-hover-bg: #444;
+        --operator-bg: #f39c12;
+        --operator-hover-bg: #e67e22;
+      }
+
+      html[data-theme='light'] {
+        --bg-color: #f8f9fa;
+        --text-color: #212529;
+        --card-bg-color: #fff;
+        --border-color: #dee2e6;
+        --accent-color: #0d6efd;
+        --btn-bg: #f1f3f5;
+        --btn-hover-bg: #e9ecef;
+        --operator-bg: #f39c12;
+        --operator-hover-bg: #e67e22;
+      }
+
+      body {
+        background-color: var(--bg-color);
+        color: var(--text-color);
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+        margin: 0;
+      }
+
+      .container-fluid {
+        padding-top: 20px;
+        padding-bottom: 20px;
+        flex: 1;
+      }
+
+      .card {
+        background-color: var(--card-bg-color);
+        border-color: var(--border-color);
+      }
+
+      .card-header {
+        border-bottom-color: var(--border-color);
+      }
+
+      .nav.nav-tabs .nav-link {
+        color: var(--text-color);
+      }
+
+      .sum-calc-result-container {
+        background-color: var(--card-bg-color);
+        border-color: var(--border-color);
+        color: var(--text-color);
+      }
+      #expr-calc-result {
+        color: var(--text-color);
+      }
+
+      .nav.nav-tabs .nav-link.active {
+        background-color: var(--card-bg-color);
+        border-color: var(--border-color) var(--border-color) var(--card-bg-color);
+        color: var(--text-color);
+      }
+
+      .navbar-brand {
+        color: var(--text-color);
+      }
+
+      .form-control,
+      .form-select {
+        background-color: var(--card-bg-color);
+        color: var(--text-color);
+        border-color: var(--border-color);
+      }
+
+      .form-control:focus,
+      .form-select:focus {
+        background-color: var(--card-bg-color);
+        color: var(--text-color);
+        border-color: var(--accent-color);
+        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+      }
+    </style>
+  </head>
+  <body>
+    <nav class="navbar navbar-expand-lg" style="background-color: var(--card-bg-color); border-bottom: 1px solid var(--border-color)">
+      <div class="container-fluid">
+        <a class="navbar-brand" href="#" data-i18n="title">Calculator</a>
+        <div class="d-flex ms-auto">
+          <select id="lang-switcher" class="form-select form-select-sm me-2" style="width: auto">
+            <option value="en">English</option>
+            <option value="pt">Português</option>
+            <option value="ja">日本語</option>
+          </select>
+          <button id="theme-switcher" class="btn btn-sm btn-outline-secondary">
+            <i class="fas fa-moon"></i>
+          </button>
+        </div>
+      </div>
+    </nav>
+
+    <div class="container-fluid">
+      <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+          <div class="card">
+            <div class="card-header">
+              <ul class="nav nav-tabs card-header-tabs" id="myTab" role="tablist">
+                <li class="nav-item" role="presentation">
+                  <button class="nav-link active" id="simple-calc-tab" data-bs-toggle="tab" data-bs-target="#simple-calc" type="button" role="tab" aria-controls="simple-calc" aria-selected="true" data-i18n="simple_calculator">Simple Calculator</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                  <button class="nav-link" id="sum-calc-tab" data-bs-toggle="tab" data-bs-target="#sum-calc" type="button" role="tab" aria-controls="sum-calc" aria-selected="false" data-i18n="sum_calculator">Sum Calculator</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                  <button class="nav-link" id="expr-calc-tab" data-bs-toggle="tab" data-bs-target="#expr-calc" type="button" role="tab" aria-controls="expr-calc" aria-selected="false" data-i18n="expression_calculator">Expression Calculator</button>
+                </li>
+              </ul>
+            </div>
+            <div class="card-body">
+              <div class="tab-content" id="myTabContent">
+                <!-- Simple Calculator -->
+                <div class="tab-pane fade show active" id="simple-calc" role="tabpanel" aria-labelledby="simple-calc-tab">
+                  <div id="simple-calculator" class="mx-auto" style="max-width: 350px">
+                    <div class="form-control text-end mb-2" id="simple-calc-display" style="font-size: 2.5rem; height: auto; min-height: 70px; background-color: var(--bg-color); color: var(--text-color)">0</div>
+                    <div class="row g-2">
+                      <div class="col-3"><button class="btn btn-lg w-100 calc-btn" data-value="7" style="background-color: var(--btn-bg); color: var(--text-color)">7</button></div>
+                      <div class="col-3"><button class="btn btn-lg w-100 calc-btn" data-value="8" style="background-color: var(--btn-bg); color: var(--text-color)">8</button></div>
+                      <div class="col-3"><button class="btn btn-lg w-100 calc-btn" data-value="9" style="background-color: var(--btn-bg); color: var(--text-color)">9</button></div>
+                      <div class="col-3"><button class="btn btn-lg w-100 calc-btn" data-value="/" style="background-color: var(--operator-bg); color: white">/</button></div>
+
+                      <div class="col-3"><button class="btn btn-lg w-100 calc-btn" data-value="4" style="background-color: var(--btn-bg); color: var(--text-color)">4</button></div>
+                      <div class="col-3"><button class="btn btn-lg w-100 calc-btn" data-value="5" style="background-color: var(--btn-bg); color: var(--text-color)">5</button></div>
+                      <div class="col-3"><button class="btn btn-lg w-100 calc-btn" data-value="6" style="background-color: var(--btn-bg); color: var(--text-color)">6</button></div>
+                      <div class="col-3"><button class="btn btn-lg w-100 calc-btn" data-value="*" style="background-color: var(--operator-bg); color: white">*</button></div>
+
+                      <div class="col-3"><button class="btn btn-lg w-100 calc-btn" data-value="1" style="background-color: var(--btn-bg); color: var(--text-color)">1</button></div>
+                      <div class="col-3"><button class="btn btn-lg w-100 calc-btn" data-value="2" style="background-color: var(--btn-bg); color: var(--text-color)">2</button></div>
+                      <div class="col-3"><button class="btn btn-lg w-100 calc-btn" data-value="3" style="background-color: var(--btn-bg); color: var(--text-color)">3</button></div>
+                      <div class="col-3"><button class="btn btn-lg w-100 calc-btn" data-value="-" style="background-color: var(--operator-bg); color: white">-</button></div>
+
+                      <div class="col-6"><button class="btn btn-lg w-100 calc-btn" data-value="0" style="background-color: var(--btn-bg); color: var(--text-color)">0</button></div>
+                      <div class="col-3"><button class="btn btn-lg w-100 calc-btn" data-value="." style="background-color: var(--btn-bg); color: var(--text-color)">.</button></div>
+                      <div class="col-3"><button class="btn btn-lg w-100 calc-btn" data-value="+" style="background-color: var(--operator-bg); color: white" rowspan="2">+</button></div>
+
+                      <div class="col-9"><button class="btn btn-lg w-100 calc-btn" data-value="=" style="background-color: var(--operator-bg); color: white" rowspan="2">=</button></div>
+                      <div class="col-3"><button class="btn btn-lg w-100 calc-btn" data-value="C" style="background-color: var(--operator-bg); color: white">C</button></div>
+                    </div>
+                  </div>
+                </div>
+                <!-- Sum Calculator -->
+                <div class="tab-pane fade" id="sum-calc" role="tabpanel" aria-labelledby="sum-calc-tab">
+                  <div class="d-flex flex-column sum-calc-result-container" style="height: 400px">
+                    <textarea id="sum-calc-input" class="form-control flex-grow-1" data-i18n-placeholder="sum_calculator_placeholder" style="resize: none; font-family: 'Courier New', Courier, monospace"></textarea>
+                    <div class="align-self-end p-2" style="font-size: 2rem"><span data-i18n="sum_total">Total</span>: <span id="sum-calc-result">0</span></div>
+                  </div>
+                </div>
+                <!-- Expression Calculator -->
+                <div class="tab-pane fade" id="expr-calc" role="tabpanel" aria-labelledby="expr-calc-tab">
+                  <div class="d-flex flex-column" style="height: 400px; justify-content: center">
+                    <input type="text" id="expr-calc-input" class="form-control mb-3" data-i18n-placeholder="expression_calculator_placeholder" style="font-size: 1.5rem" />
+                    <button id="expr-calc-button" class="btn btn-primary mb-3" data-i18n="calculate">Calculate</button>
+                    <div id="expr-calc-result" class="p-2" style="font-size: 2rem; text-align: center"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.7.0/math.js"></script>
+    <script>
+      document.addEventListener('DOMContentLoaded', () => {
+        const i18n = {
+          en: {
+            title: 'Calculator',
+            simple_calculator: 'Simple Calculator',
+            sum_calculator: 'Sum Calculator',
+            expression_calculator: 'Expression Calculator',
+            sum_calculator_placeholder: 'Enter one number per line...',
+            sum_total: 'Total',
+            expression_calculator_placeholder: 'Enter an expression, e.g., (2 + 2) * 4',
+            calculate: 'Calculate',
+          },
+          pt: {
+            title: 'Calculadora',
+            simple_calculator: 'Calculadora Simples',
+            sum_calculator: 'Calculadora de Soma',
+            expression_calculator: 'Calculadora de Expressão',
+            sum_calculator_placeholder: 'Digite um número por linha...',
+            sum_total: 'Total',
+            expression_calculator_placeholder: 'Digite uma expressão, ex: (2 + 2) * 4',
+            calculate: 'Calcular',
+          },
+          ja: {
+            title: '電卓',
+            simple_calculator: 'シンプル電卓',
+            sum_calculator: '合計電卓',
+            expression_calculator: '式電卓',
+            sum_calculator_placeholder: '1行に1つの数字を入力してください...',
+            sum_total: '合計',
+            expression_calculator_placeholder: '式を入力してください、例: (2 + 2) * 4',
+            calculate: '計算する',
+          },
+        };
+
+        // --- Elements ---
+        const langSwitcher = document.getElementById('lang-switcher');
+        const themeSwitcher = document.getElementById('theme-switcher');
+
+        // Simple Calculator
+        const simpleCalcDisplay = document.getElementById('simple-calc-display');
+        const simpleCalcButtons = document.querySelectorAll('#simple-calculator .calc-btn');
+
+        // Sum Calculator
+        const sumCalcInput = document.getElementById('sum-calc-input');
+        const sumCalcResult = document.getElementById('sum-calc-result');
+
+        // Expression Calculator
+        const exprCalcInput = document.getElementById('expr-calc-input');
+        const exprCalcButton = document.getElementById('expr-calc-button');
+        const exprCalcResult = document.getElementById('expr-calc-result');
+
+        // --- State ---
+        let currentLanguage = localStorage.getItem('app_lang') || 'en';
+        let currentTheme = localStorage.getItem('app_theme') || 'dark';
+
+        // --- I18n & Theme ---
+        const applyI18n = () => {
+          const lang = i18n[currentLanguage] || i18n.en;
+          document.querySelectorAll('[data-i18n]').forEach((el) => {
+            const key = el.getAttribute('data-i18n');
+            if (lang[key]) el.innerText = lang[key];
+          });
+          document.querySelectorAll('[data-i18n-placeholder]').forEach((el) => {
+            const key = el.getAttribute('data-i18n-placeholder');
+            if (lang[key]) el.placeholder = lang[key];
+          });
+          document.title = lang.title;
+        };
+
+        const applyTheme = (theme) => {
+          document.documentElement.setAttribute('data-theme', theme);
+          const icon = themeSwitcher.querySelector('i');
+          icon.className = theme === 'light' ? 'fas fa-moon' : 'fas fa-sun';
+          localStorage.setItem('app_theme', theme);
+        };
+
+        // --- Event Listeners ---
+        langSwitcher.addEventListener('change', (e) => {
+          currentLanguage = e.target.value;
+          localStorage.setItem('app_lang', currentLanguage);
+          applyI18n();
+        });
+
+        themeSwitcher.addEventListener('click', () => {
+          currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
+          applyTheme(currentTheme);
+        });
+
+        // --- Simple Calculator Logic ---
+        simpleCalcButtons.forEach((button) => {
+          button.addEventListener('click', () => {
+            const value = button.getAttribute('data-value');
+            let display = simpleCalcDisplay.innerText;
+
+            if (value === 'C') {
+              simpleCalcDisplay.innerText = '0';
+            } else if (value === '=') {
+              try {
+                // Replace percentage symbol if you want to support it
+                // display = display.replace(/%/g, '/100');
+                let result = math.evaluate(display);
+                simpleCalcDisplay.innerText = result;
+              } catch (error) {
+                simpleCalcDisplay.innerText = 'Error';
+              }
+            } else {
+              if (display === '0' || display === 'Error') {
+                simpleCalcDisplay.innerText = value;
+              } else {
+                simpleCalcDisplay.innerText += value;
+              }
+            }
+          });
+        });
+
+        // --- Sum Calculator Logic ---
+        const calculateSum = () => {
+          const lines = sumCalcInput.value.split('\n');
+          const total = lines.reduce((sum, line) => {
+            const value = parseFloat(line);
+            return sum + (isNaN(value) ? 0 : value);
+          }, 0);
+          sumCalcResult.innerText = total.toLocaleString();
+        };
+
+        sumCalcInput.addEventListener('input', calculateSum);
+
+        // --- Expression Calculator Logic ---
+        const calculateExpression = () => {
+          const expression = exprCalcInput.value;
+          if (!expression) return;
+
+          try {
+            const result = math.evaluate(expression);
+            exprCalcResult.innerText = result;
+          } catch (error) {
+            exprCalcResult.innerText = 'Error';
+          }
+        };
+
+        exprCalcButton.addEventListener('click', calculateExpression);
+        exprCalcInput.addEventListener('keypress', (e) => {
+          if (e.key === 'Enter') {
+            calculateExpression();
+          }
+        });
+
+        // --- Initial Setup ---
+        langSwitcher.value = currentLanguage;
+        applyI18n();
+        applyTheme(currentTheme);
+      });
+    </script>
+  </body>
+</html>
