@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Code → Fluxograma (Monaco + Mermaid)</title>
+  <title data-i18n="pageTitle">Code → Flowchart (Monaco + Mermaid)</title>
   <style>
     html, body { height: 100%; margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; }
     .app { display: grid; grid-template-rows: auto 1fr auto; height: 100%; }
@@ -25,6 +25,10 @@
     .tests .ok { color: #065f46; }
     .tests .fail { color: #991b1b; }
     .mermaid { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; }
+    .lang-selector { display: flex; gap: 8px; align-items: center; }
+    .lang-selector a { color: #6b7280; text-decoration: none; font-size: 12px; font-weight: 600; padding: 4px 8px; border-radius: 6px; border: 1px solid transparent; cursor: pointer; }
+    .lang-selector a:hover { border-color: #e5e7eb; }
+    .lang-selector a.active { color: #111827; background: #f3f4f6; }
   </style>
   <!-- Mermaid -->
   <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
@@ -39,31 +43,255 @@
 <body>
   <div class="app">
     <header>
-      <h1>Code → Fluxograma</h1>
+      <h1 data-i18n="headerTitle">Code → Flowchart</h1>
       <div class="spacer"></div>
-      <button id="btn-diagram">Gerar diagrama</button>
-      <button id="btn-example" class="secondary">Carregar exemplo</button>
-      <button id="btn-tests" class="secondary">Rodar testes</button>
+      <div class="lang-selector">
+        <a href="#" data-lang="en" class="active">EN</a>
+        <a href="#" data-lang="ja">JA</a>
+        <a href="#" data-lang="pt">PT</a>
+      </div>
+      <button id="btn-diagram" data-i18n="generateDiagramBtn">Generate Diagram</button>
+      <button id="btn-example" class="secondary" data-i18n="loadExampleBtn">Load Example</button>
+      <button id="btn-tests" class="secondary" data-i18n="runTestsBtn">Run Tests</button>
       <span id="status"></span>
     </header>
     <div class="main">
       <div class="left">
-        <div class="panel-title">Editor (JavaScript)</div>
+        <div class="panel-title" data-i18n="editorPanelTitle">Editor (JavaScript)</div>
         <div id="editor"></div>
       </div>
       <div class="right">
-        <div class="panel-title">Fluxograma (Mermaid)</div>
-        <div id="diagram"><div class="note">Clique em "Carregar exemplo" ou escreva seu código JS à esquerda e depois clique em "Gerar diagrama".</div></div>
+        <div class="panel-title" data-i18n="diagramPanelTitle">Flowchart (Mermaid)</div>
+        <div id="diagram"><div class="note" data-i18n="diagramNote">Click "Load Example" or write your JS code on the left and then click "Generate Diagram".</div></div>
       </div>
     </div>
     <div class="footer">
-      <div>Suporta: declarações sequenciais, <code>if/else</code>, blocos, chamadas de função e <code>console.log</code> com texto.</div>
-      <div class="note">Exemplo: define variável → if → chama <code>mA()</code> ou <code>mB()</code> → <code>console.log('feito')</code>.</div>
+      <div data-i18n="footerSupport">Supports: sequential statements, <code>if/else</code>, blocks, function calls and <code>console.log</code> with text.</div>
+      <div class="note" data-i18n="footerExample">Example: define variable → if → call <code>mA()</code> or <code>mB()</code> → <code>console.log('done')</code>.</div>
     </div>
     <div class="tests" id="tests"></div>
   </div>
 
   <script>
+    // ------------------- i18n System -------------------
+    const translations = {
+      en: {
+        pageTitle: "Code → Flowchart (Monaco + Mermaid)",
+        headerTitle: "Code → Flowchart",
+        generateDiagramBtn: "Generate Diagram",
+        loadExampleBtn: "Load Example",
+        runTestsBtn: "Run Tests",
+        editorPanelTitle: "Editor (JavaScript)",
+        diagramPanelTitle: "Flowchart (Mermaid)",
+        diagramNote: "Click \"Load Example\" or write your JS code on the left and then click \"Generate Diagram\".",
+        footerSupport: "Supports: sequential statements, <code>if/else</code>, blocks, function calls and <code>console.log</code> with text.",
+        footerExample: "Example: define variable → if → call <code>mA()</code> or <code>mB()</code> → <code>console.log('done')</code>.",
+        statusReady: "Editor ready.",
+        statusGenerating: "Generating diagram...",
+        statusUpdated: "Diagram updated.",
+        statusExampleLoaded: "Example loaded.",
+        statusMermaidError: "Failed to render Mermaid.",
+        statusUnknownError: "Unknown error.",
+        statusInitError: "Failed to initialize Monaco/Acorn: ",
+        statusDepsError: "Error loading dependencies. See console.",
+        testAcornAvailable: "Acorn is available",
+        testAcornMissing: "acorn.parse missing",
+        testMermaidStartEnd: "Mermaid contains Start/End and let x",
+        testMermaidMissing: "graph TD missing",
+        testLabelMissing: "label let x missing",
+        testStartEndMissing: "Start/End missing",
+        testIfElseBranches: "If/else generates Yes/No branches and calls",
+        testBranchesMissing: "Yes/No branches missing",
+        testCallLabelsMissing: "call labels missing",
+        testEmptyCode: "Empty code still produces Start→End",
+        testStartEndIncorrect: "Start/End incorrect for empty",
+        testConsoleLogText: "console.log displays literal text",
+        testConsoleLogNoText: "console.log without text",
+        testMemberCalls: "call obj.method() labeled correctly",
+        testMemberCallMissing: "member call label missing",
+        testTemplateLiteral: "console.log with template literal simplified",
+        testTemplateNotSimplified: "template literal not simplified",
+        testNoLineJoining: "No improper line joining between nodes",
+        testLineJoiningDetected: "node joining detected",
+        testComplexCondition: "Complex condition preserves parentheses",
+        testConditionNoParentheses: "condition without parentheses",
+        testSummary: "Summary: {pass} passed, {fail} failed.",
+        errorAcornNotLoaded: "Acorn library not loaded (acorn is not defined).",
+        errorParseJS: "Error parsing JS: ",
+        errorUnknown: "Unknown error.",
+        // Mermaid diagram terms
+        diagramStart: "Start",
+        diagramEnd: "End",
+        diagramCall: "call",
+        diagramMerge: "merge",
+        diagramNoop: "noop",
+        diagramYes: "Yes",
+        diagramNo: "No",
+        diagramExpression: "expression",
+        diagramReturn: "return",
+        diagramVariable: "var"
+      },
+      ja: {
+        pageTitle: "コード → フローチャート (Monaco + Mermaid)",
+        headerTitle: "コード → フローチャート",
+        generateDiagramBtn: "図表を生成",
+        loadExampleBtn: "例を読み込み",
+        runTestsBtn: "テストを実行",
+        editorPanelTitle: "エディタ (JavaScript)",
+        diagramPanelTitle: "フローチャート (Mermaid)",
+        diagramNote: "\"例を読み込み\"をクリックするか、左側にJSコードを書いてから\"図表を生成\"をクリックしてください。",
+        footerSupport: "サポート：順次文、<code>if/else</code>、ブロック、関数呼び出し、テキスト付き<code>console.log</code>。",
+        footerExample: "例：変数を定義 → if → <code>mA()</code>または<code>mB()</code>を呼び出し → <code>console.log('完了')</code>。",
+        statusReady: "エディタの準備完了。",
+        statusGenerating: "図表を生成中...",
+        statusUpdated: "図表が更新されました。",
+        statusExampleLoaded: "例が読み込まれました。",
+        statusMermaidError: "Mermaidのレンダリングに失敗しました。",
+        statusUnknownError: "不明なエラー。",
+        statusInitError: "Monaco/Acornの初期化に失敗しました：",
+        statusDepsError: "依存関係の読み込みエラー。コンソールを確認してください。",
+        testAcornAvailable: "Acornが利用可能",
+        testAcornMissing: "acorn.parseが不足",
+        testMermaidStartEnd: "MermaidにStart/Endとlet xが含まれている",
+        testMermaidMissing: "graph TDが不足",
+        testLabelMissing: "ラベルlet xが不足",
+        testStartEndMissing: "Start/Endが不足",
+        testIfElseBranches: "If/elseがはい/いいえの分岐と呼び出しを生成",
+        testBranchesMissing: "はい/いいえの分岐が不足",
+        testCallLabelsMissing: "呼び出しラベルが不足",
+        testEmptyCode: "空のコードでもStart→Endを生成",
+        testStartEndIncorrect: "空の場合のStart/Endが不正",
+        testConsoleLogText: "console.logがリテラルテキストを表示",
+        testConsoleLogNoText: "テキストなしのconsole.log",
+        testMemberCalls: "call obj.method()が正しくラベル付けされている",
+        testMemberCallMissing: "メンバー呼び出しラベルが不足",
+        testTemplateLiteral: "テンプレートリテラル付きconsole.logが簡略化されている",
+        testTemplateNotSimplified: "テンプレートリテラルが簡略化されていない",
+        testNoLineJoining: "ノード間の不適切な行結合なし",
+        testLineJoiningDetected: "ノード結合が検出された",
+        testComplexCondition: "複雑な条件が括弧を保持",
+        testConditionNoParentheses: "括弧なしの条件",
+        testSummary: "要約：{pass}個合格、{fail}個不合格。",
+        errorAcornNotLoaded: "Acornライブラリが読み込まれていません（acornが定義されていません）。",
+        errorParseJS: "JSの解析エラー：",
+        errorUnknown: "不明なエラー。",
+        // Mermaid diagram terms
+        diagramStart: "開始",
+        diagramEnd: "終了",
+        diagramCall: "呼び出し",
+        diagramMerge: "結合",
+        diagramNoop: "何もしない",
+        diagramYes: "はい",
+        diagramNo: "いいえ",
+        diagramExpression: "式",
+        diagramReturn: "戻り",
+        diagramVariable: "変数"
+      },
+      pt: {
+        pageTitle: "Código → Fluxograma (Monaco + Mermaid)",
+        headerTitle: "Código → Fluxograma",
+        generateDiagramBtn: "Gerar diagrama",
+        loadExampleBtn: "Carregar exemplo",
+        runTestsBtn: "Rodar testes",
+        editorPanelTitle: "Editor (JavaScript)",
+        diagramPanelTitle: "Fluxograma (Mermaid)",
+        diagramNote: "Clique em \"Carregar exemplo\" ou escreva seu código JS à esquerda e depois clique em \"Gerar diagrama\".",
+        footerSupport: "Suporta: declarações sequenciais, <code>if/else</code>, blocos, chamadas de função e <code>console.log</code> com texto.",
+        footerExample: "Exemplo: define variável → if → chama <code>mA()</code> ou <code>mB()</code> → <code>console.log('feito')</code>.",
+        statusReady: "Editor pronto.",
+        statusGenerating: "Gerando diagrama...",
+        statusUpdated: "Diagrama atualizado.",
+        statusExampleLoaded: "Exemplo carregado.",
+        statusMermaidError: "Falha ao renderizar Mermaid.",
+        statusUnknownError: "Erro desconhecido.",
+        statusInitError: "Falha ao inicializar Monaco/Acorn: ",
+        statusDepsError: "Erro ao carregar dependências. Veja o console.",
+        testAcornAvailable: "Acorn está disponível",
+        testAcornMissing: "acorn.parse ausente",
+        testMermaidStartEnd: "Mermaid contém Start/End e let x",
+        testMermaidMissing: "graph TD ausente",
+        testLabelMissing: "label let x ausente",
+        testStartEndMissing: "Start/End ausentes",
+        testIfElseBranches: "If/else gera ramos Sim/Não e chamadas",
+        testBranchesMissing: "ramos Sim/Não ausentes",
+        testCallLabelsMissing: "labels de chamadas ausentes",
+        testEmptyCode: "Código vazio ainda produz Start→End",
+        testStartEndIncorrect: "Start/End incorretos para vazio",
+        testConsoleLogText: "console.log exibe o texto literal",
+        testConsoleLogNoText: "console.log sem texto",
+        testMemberCalls: "call obj.metodo() rotulado corretamente",
+        testMemberCallMissing: "label de chamada membro ausente",
+        testTemplateLiteral: "console.log com template literal simplificado",
+        testTemplateNotSimplified: "template literal não simplificado",
+        testNoLineJoining: "Sem junção indevida entre nós",
+        testLineJoiningDetected: "junção de nós detectada",
+        testComplexCondition: "Condição complexa preserva parênteses",
+        testConditionNoParentheses: "condição sem parênteses",
+        testSummary: "Resumo: {pass} passado(s), {fail} falhou(aram).",
+        errorAcornNotLoaded: "Biblioteca Acorn não carregada (acorn is not defined).",
+        errorParseJS: "Erro ao parsear JS: ",
+        errorUnknown: "Erro desconhecido.",
+        // Mermaid diagram terms
+        diagramStart: "Início",
+        diagramEnd: "Fim",
+        diagramCall: "chamada",
+        diagramMerge: "mesclar",
+        diagramNoop: "nada",
+        diagramYes: "Sim",
+        diagramNo: "Não",
+        diagramExpression: "expressão",
+        diagramReturn: "retorno",
+        diagramVariable: "variável"
+      }
+    };
+
+    const setLanguage = (lang) => {
+      document.querySelectorAll('[data-i18n]').forEach(element => {
+        const key = element.getAttribute('data-i18n');
+        if (translations[lang] && translations[lang][key]) {
+          if (element.tagName === 'TITLE') {
+            element.textContent = translations[lang][key];
+          } else {
+            element.innerHTML = translations[lang][key];
+          }
+        } else {
+          // Fallback to English if translation is missing
+          if (element.tagName === 'TITLE') {
+            element.textContent = translations['en'][key];
+          } else {
+            element.innerHTML = translations['en'][key];
+          }
+        }
+      });
+      document.documentElement.lang = lang;
+      localStorage.setItem('code_flow_lang', lang);
+
+      document.querySelectorAll('.lang-selector a').forEach(a => {
+        a.classList.remove('active');
+        if (a.getAttribute('data-lang') === lang) {
+          a.classList.add('active');
+        }
+      });
+
+      // Update editor content and regenerate diagram if editor is ready
+      if (editor) {
+        editor.setValue(getDefaultExample());
+        // Regenerate diagram with new language
+        setTimeout(() => {
+          try {
+            const code = editor.getValue();
+            const mer = jsToFlowMermaid(code);
+            renderMermaid(mer).then(() => setStatus(getCurrentTranslation('statusUpdated'))).catch(err => {
+              console.error(err); setStatus(getCurrentTranslation('statusMermaidError'));
+            });
+          } catch (e) {
+            console.error(e);
+            setStatus(e.message || getCurrentTranslation('statusUnknownError'));
+          }
+        }, 100);
+      }
+    };
+
     // ------------------- Helpers UI -------------------
     function setStatus(msg) { document.getElementById('status').textContent = msg || ''; }
     function escHtml(s){ return String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
@@ -91,14 +319,14 @@
     // ------------------- AST → Mermaid -------------------
     function jsToFlowMermaid(jsCode) {
       if (typeof window.acorn === 'undefined' || !acorn || !acorn.parse) {
-        throw new Error('Biblioteca Acorn não carregada (acorn is not defined).');
+        throw new Error(getCurrentTranslation('errorAcornNotLoaded'));
       }
 
       let ast;
       try {
         ast = acorn.parse(jsCode, { ecmaVersion: 2022, sourceType: 'script' });
       } catch (err) {
-        throw new Error('Erro ao parsear JS: ' + err.message);
+        throw new Error(getCurrentTranslation('errorParseJS') + err.message);
       }
 
       let nodeId = 0;
@@ -160,7 +388,7 @@
         switch (stmt.type) {
           case 'VariableDeclaration': {
             const d = (stmt.declarations || [])[0];
-            const name = d && d.id && d.id.name ? d.id.name : 'var';
+            const name = d && d.id && d.id.name ? d.id.name : getCurrentTranslation('diagramVariable');
             return `${stmt.kind} ${name}`;
           }
           case 'ExpressionStatement': {
@@ -170,14 +398,14 @@
                 return `console.log(${argsToLabel(ex.arguments)})`;
               }
               const cal = ex.callee;
-              if (cal && cal.type === 'Identifier') return `call ${cal.name}()`;
-              if (cal && cal.type === 'MemberExpression') return `call ${exprToShortText(cal)}()`;
-              return 'chamada';
+              if (cal && cal.type === 'Identifier') return `${getCurrentTranslation('diagramCall')} ${cal.name}()`;
+              if (cal && cal.type === 'MemberExpression') return `${getCurrentTranslation('diagramCall')} ${exprToShortText(cal)}()`;
+              return getCurrentTranslation('diagramCall');
             }
-            return 'expressão';
+            return getCurrentTranslation('diagramExpression');
           }
           case 'ReturnStatement':
-            return 'return';
+            return getCurrentTranslation('diagramReturn');
           default:
             return stmt.type;
         }
@@ -220,14 +448,14 @@
             let altFirst  = altSeg  ? altSeg.first  : null;
             let altLast   = altSeg  ? altSeg.last   : null;
 
-            if (!consFirst) { consFirst = newId(); addNode(consFirst, 'noop', 'op'); consLast = consFirst; }
-            if (!altFirst)  { altFirst  = newId(); addNode(altFirst,  'noop', 'op'); altLast  = altFirst; }
+            if (!consFirst) { consFirst = newId(); addNode(consFirst, getCurrentTranslation('diagramNoop'), 'op'); consLast = consFirst; }
+            if (!altFirst)  { altFirst  = newId(); addNode(altFirst,  getCurrentTranslation('diagramNoop'), 'op'); altLast  = altFirst; }
 
-            edges.push(`${condId} -- Sim --> ${consFirst}`);
-            edges.push(`${condId} -- Não --> ${altFirst}`);
+            edges.push(`${condId} -- ${getCurrentTranslation('diagramYes')} --> ${consFirst}`);
+            edges.push(`${condId} -- ${getCurrentTranslation('diagramNo')} --> ${altFirst}`);
 
             const mergeId = newId();
-            addNode(mergeId, 'merge', 'op');
+            addNode(mergeId, getCurrentTranslation('diagramMerge'), 'op');
             edges.push(`${consLast} --> ${mergeId}`);
             edges.push(`${altLast} --> ${mergeId}`);
 
@@ -245,7 +473,7 @@
         try {
           return acornToString(test);
         } catch {
-          return 'condição';
+          return getCurrentTranslation('diagramExpression');
         }
       }
 
@@ -268,11 +496,11 @@
       }
 
       const startId = newId();
-      addNode(startId, 'Start', 'start');
+      addNode(startId, getCurrentTranslation('diagramStart'), 'start');
 
       const flow = processBlock(ast.body || []);
       const endId = newId();
-      addNode(endId, 'End', 'end');
+      addNode(endId, getCurrentTranslation('diagramEnd'), 'end');
 
       if (flow) {
         edges.push(`${startId} --> ${flow.first}`);
@@ -299,26 +527,39 @@
 
     // ------------------- Monaco + RequireJS + Acorn -------------------
     let editor;
+    
+    function getDefaultExample() {
+      const callLabel = getCurrentTranslation('diagramCall');
+      const doneText = document.documentElement.lang === 'pt' ? 'feito' : 
+                      document.documentElement.lang === 'ja' ? '完了' : 'done';
+      return `// ${getCurrentTranslation('footerExample')}\nlet x = 12;\nif (x > 10) {\n  metodoA();\n} else {\n  metodoB();\n}\nconsole.log('${doneText}');`;
+    }
+
     const defaultExample = `// Exemplo: variável + if/else + chamadas de função\nlet x = 12;\nif (x > 10) {\n  metodoA();\n} else {\n  metodoB();\n}\nconsole.log('feito');`;
 
+    function getCurrentTranslation(key) {
+      const currentLang = document.documentElement.lang || 'en';
+      return translations[currentLang]?.[key] || translations['en'][key] || key;
+    }
+
     function loadExample() {
-      editor.setValue(defaultExample);
-      setStatus('Exemplo carregado.');
+      editor.setValue(getDefaultExample());
+      setStatus(getCurrentTranslation('statusExampleLoaded'));
     }
 
     function generateDiagram() {
-      setStatus('Gerando diagrama...');
+      setStatus(getCurrentTranslation('statusGenerating'));
       try {
         const code = editor.getValue();
         const mer = jsToFlowMermaid(code);
-        renderMermaid(mer).then(() => setStatus('Diagrama atualizado.')).catch(err => {
-          console.error(err); setStatus('Falha ao renderizar Mermaid.');
+        renderMermaid(mer).then(() => setStatus(getCurrentTranslation('statusUpdated'))).catch(err => {
+          console.error(err); setStatus(getCurrentTranslation('statusMermaidError'));
         });
       } catch (e) {
         console.error(e);
-        setStatus(e.message || 'Erro desconhecido.');
+        setStatus(e.message || getCurrentTranslation('statusUnknownError'));
         const container = document.getElementById('diagram');
-        container.innerHTML = `<pre class="mermaid">${escHtml(e.message||'Erro')}</pre>`;
+        container.innerHTML = `<pre class="mermaid">${escHtml(e.message||getCurrentTranslation('statusUnknownError'))}</pre>`;
       }
     }
 
@@ -337,66 +578,73 @@
       }
 
       // Teste 1: Acorn carregado
-      t('Acorn está disponível', () => {
-        if (!window.acorn || typeof acorn.parse !== 'function') throw new Error('acorn.parse ausente');
+      t(getCurrentTranslation('testAcornAvailable'), () => {
+        if (!window.acorn || typeof acorn.parse !== 'function') throw new Error(getCurrentTranslation('testAcornMissing'));
       });
 
       // Teste 2: Declaração simples
-      t('Mermaid contém Start/End e let x', () => {
+      t(getCurrentTranslation('testMermaidStartEnd'), () => {
         const m = jsToFlowMermaid('let x = 1;');
-        if (!/graph TD/.test(m)) throw new Error('graph TD ausente');
-        if (!/\blet x\b/.test(m)) throw new Error('label let x ausente');
-        if (!/Start/.test(m) || !/End/.test(m)) throw new Error('Start/End ausentes');
+        if (!/graph TD/.test(m)) throw new Error(getCurrentTranslation('testMermaidMissing'));
+        if (!/\blet x\b/.test(m)) throw new Error(getCurrentTranslation('testLabelMissing'));
+        if (!new RegExp(getCurrentTranslation('diagramStart')).test(m) || !new RegExp(getCurrentTranslation('diagramEnd')).test(m)) throw new Error(getCurrentTranslation('testStartEndMissing'));
       });
 
       // Teste 3: If/else com chamadas (espera ramos Sim/Não)
-      t('If/else gera ramos Sim/Não e chamadas', () => {
+      t(getCurrentTranslation('testIfElseBranches'), () => {
         const code = 'let x=12; if(x>10){metodoA();} else {metodoB();}';
         const m = jsToFlowMermaid(code);
-        if (!/-- Sim -->/.test(m) || !/-- Não -->/.test(m)) throw new Error('ramos Sim/Não ausentes');
-        if (!/call metodoA\(\)/.test(m) || !/call metodoB\(\)/.test(m)) throw new Error('labels de chamadas ausentes');
+        const yesLabel = getCurrentTranslation('diagramYes');
+        const noLabel = getCurrentTranslation('diagramNo');
+        if (!new RegExp(`-- ${yesLabel} -->`).test(m) || !new RegExp(`-- ${noLabel} -->`).test(m)) throw new Error(getCurrentTranslation('testBranchesMissing'));
+        const callLabel = getCurrentTranslation('diagramCall');
+        if (!new RegExp(`${callLabel} metodoA\\(\\)`).test(m) || !new RegExp(`${callLabel} metodoB\\(\\)`).test(m)) throw new Error(getCurrentTranslation('testCallLabelsMissing'));
       });
 
       // Teste 4: Vazio → apenas Start->End
-      t('Código vazio ainda produz Start→End', () => {
+      t(getCurrentTranslation('testEmptyCode'), () => {
         const m = jsToFlowMermaid('');
-        const countStart = (m.match(/\(\[Start\]\)/g) || []).length; // nó Start
-        const countEnd = (m.match(/\(\[End\]\)/g) || []).length;     // nó End
-        if (countStart !== 1 || countEnd !== 1) throw new Error('Start/End incorretos para vazio');
+        const startLabel = getCurrentTranslation('diagramStart');
+        const endLabel = getCurrentTranslation('diagramEnd');
+        const countStart = (m.match(new RegExp(`\\(\\[${startLabel}\\]\\)`, 'g')) || []).length; // nó Start
+        const countEnd = (m.match(new RegExp(`\\(\\[${endLabel}\\]\\)`, 'g')) || []).length;     // nó End
+        if (countStart !== 1 || countEnd !== 1) throw new Error(getCurrentTranslation('testStartEndIncorrect'));
       });
 
       // Teste 5: console.log com texto literal aparece no label
-      t('console.log exibe o texto literal', () => {
+      t(getCurrentTranslation('testConsoleLogText'), () => {
         const m = jsToFlowMermaid("console.log('hello');");
-        if (!/console\.log\('hello'\)/.test(m)) throw new Error('console.log sem texto');
+        if (!/console\.log\('hello'\)/.test(m)) throw new Error(getCurrentTranslation('testConsoleLogNoText'));
       });
 
       // Teste 6: chamadas membro
-      t('call obj.metodo() rotulado corretamente', () => {
+      t(getCurrentTranslation('testMemberCalls'), () => {
         const m = jsToFlowMermaid('obj.metodo();');
-        if (!/call obj\.metodo\(\)/.test(m)) throw new Error('label de chamada membro ausente');
+        const callLabel = getCurrentTranslation('diagramCall');
+        if (!new RegExp(`${callLabel} obj\\.metodo\\(\\)`).test(m)) throw new Error(getCurrentTranslation('testMemberCallMissing'));
       });
 
       // Teste 7: template literal no console.log
-      t('console.log com template literal simplificado', () => {
+      t(getCurrentTranslation('testTemplateLiteral'), () => {
         const m = jsToFlowMermaid('console.log(`Oi ${nome}`);');
-        if (!/console\.log\(`Oi .*`\)/.test(m)) throw new Error('template literal não simplificado');
+        if (!/console\.log\(`Oi .*`\)/.test(m)) throw new Error(getCurrentTranslation('testTemplateNotSimplified'));
       });
 
       // Teste 8: não deve haver junção de linhas entre nós
-      t('Sem junção indevida entre nós', () => {
+      t(getCurrentTranslation('testNoLineJoining'), () => {
         const code = 'let x=12; if(x>10){metodoA();} else {metodoB();}';
         const m = jsToFlowMermaid(code);
-        if (/}N\d+\[/.test(m) || /\]N\d+\[/.test(m)) throw new Error('junção de nós detectada');
+        if (/}N\d+\[/.test(m) || /\]N\d+\[/.test(m)) throw new Error(getCurrentTranslation('testLineJoiningDetected'));
       });
 
       // Teste 9: condição complexa (aceita aspas simples ou duplas)
-      t('Condição complexa preserva parênteses', () => {
+      t(getCurrentTranslation('testComplexCondition'), () => {
         const m = jsToFlowMermaid('if(a && (b || c)){x=1}else{x=2}');
-        if (!/\{["']a && \(b \|\| c\)["']\}/.test(m)) throw new Error('condição sem parênteses');
+        if (!/\{["']a && \(b \|\| c\)["']\}/.test(m)) throw new Error(getCurrentTranslation('testConditionNoParentheses'));
       });
 
-      out.appendChild(line(`Resumo: ${pass} passado(s), ${fail} falhou(aram).`));
+      const summary = getCurrentTranslation('testSummary').replace('{pass}', pass).replace('{fail}', fail);
+      out.appendChild(line(summary));
     }
 
     // Configure RequireJS paths e carregue Monaco + Acorn via AMD
@@ -413,21 +661,38 @@
         if (acornModule) { window.acorn = acornModule; }
         // Inicializa editor
         editor = monaco.editor.create(document.getElementById('editor'), {
-          value: defaultExample,
+          value: getDefaultExample(),
           language: 'javascript',
           theme: 'vs-dark',
           automaticLayout: true,
           minimap: { enabled: false },
           fontSize: 14,
         });
-        setStatus('Editor pronto.');
+        setStatus(getCurrentTranslation('statusReady'));
       } catch (e) {
         console.error('Falha ao inicializar Monaco/Acorn:', e);
-        setStatus('Falha ao inicializar Monaco/Acorn: ' + e.message);
+        setStatus(getCurrentTranslation('statusInitError') + e.message);
       }
     }, function(err){
       console.error('Erro no RequireJS:', err);
-      setStatus('Erro ao carregar dependências. Veja o console.');
+      setStatus(getCurrentTranslation('statusDepsError'));
+    });
+
+    // Initialize i18n system
+    document.addEventListener('DOMContentLoaded', () => {
+      const langSelector = document.querySelector('.lang-selector');
+      langSelector.addEventListener('click', (event) => {
+        event.preventDefault();
+        const lang = event.target.getAttribute('data-lang');
+        if (lang) {
+          setLanguage(lang);
+        }
+      });
+
+      const savedLang = localStorage.getItem('code_flow_lang');
+      const browserLang = navigator.language.split('-')[0];
+      const initialLang = savedLang || (translations[browserLang] ? browserLang : 'en');
+      setLanguage(initialLang);
     });
 
     // UI handlers
