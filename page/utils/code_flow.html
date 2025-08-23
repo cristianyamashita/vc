@@ -52,6 +52,7 @@
       </div>
       <button id="btn-diagram" data-i18n="generateDiagramBtn">Generate Diagram</button>
       <button id="btn-example" class="secondary" data-i18n="loadExampleBtn">Load Example</button>
+      <button id="btn-loop-example" class="secondary" data-i18n="loadLoopExampleBtn">Load Loop Example</button>
       <button id="btn-tests" class="secondary" data-i18n="runTestsBtn">Run Tests</button>
       <span id="status"></span>
     </header>
@@ -66,7 +67,7 @@
       </div>
     </div>
     <div class="footer">
-      <div data-i18n="footerSupport">Supports: sequential statements, <code>if/else</code>, blocks, function calls and <code>console.log</code> with text.</div>
+      <div data-i18n="footerSupport">Supports: sequential statements, <code>if/else</code>, blocks, function calls, loops (<code>while</code>, <code>for</code>, <code>for...in</code>, <code>for...of</code>, <code>do...while</code>) and <code>console.log</code> with text.</div>
       <div class="note" data-i18n="footerExample">Example: define variable → if → call <code>mA()</code> or <code>mB()</code> → <code>console.log('done')</code>.</div>
     </div>
     <div class="tests" id="tests"></div>
@@ -80,11 +81,12 @@
         headerTitle: "Code → Flowchart",
         generateDiagramBtn: "Generate Diagram",
         loadExampleBtn: "Load Example",
+        loadLoopExampleBtn: "Load Loop Example",
         runTestsBtn: "Run Tests",
         editorPanelTitle: "Editor (JavaScript)",
         diagramPanelTitle: "Flowchart (Mermaid)",
         diagramNote: "Click \"Load Example\" or write your JS code on the left and then click \"Generate Diagram\".",
-        footerSupport: "Supports: sequential statements, <code>if/else</code>, blocks, function calls and <code>console.log</code> with text.",
+        footerSupport: "Supports: sequential statements, <code>if/else</code>, blocks, function calls, loops (<code>while</code>, <code>for</code>, <code>for...in</code>, <code>for...of</code>, <code>do...while</code>) and <code>console.log</code> with text.",
         footerExample: "Example: define variable → if → call <code>mA()</code> or <code>mB()</code> → <code>console.log('done')</code>.",
         statusReady: "Editor ready.",
         statusGenerating: "Generating diagram...",
@@ -136,11 +138,12 @@
         headerTitle: "コード → フローチャート",
         generateDiagramBtn: "図表を生成",
         loadExampleBtn: "例を読み込み",
+        loadLoopExampleBtn: "ループ例を読み込み",
         runTestsBtn: "テストを実行",
         editorPanelTitle: "エディタ (JavaScript)",
         diagramPanelTitle: "フローチャート (Mermaid)",
         diagramNote: "\"例を読み込み\"をクリックするか、左側にJSコードを書いてから\"図表を生成\"をクリックしてください。",
-        footerSupport: "サポート：順次文、<code>if/else</code>、ブロック、関数呼び出し、テキスト付き<code>console.log</code>。",
+        footerSupport: "サポート：順次文、<code>if/else</code>、ブロック、関数呼び出し、ループ（<code>while</code>、<code>for</code>、<code>for...in</code>、<code>for...of</code>、<code>do...while</code>）、テキスト付き<code>console.log</code>。",
         footerExample: "例：変数を定義 → if → <code>mA()</code>または<code>mB()</code>を呼び出し → <code>console.log('完了')</code>。",
         statusReady: "エディタの準備完了。",
         statusGenerating: "図表を生成中...",
@@ -192,11 +195,12 @@
         headerTitle: "Código → Fluxograma",
         generateDiagramBtn: "Gerar diagrama",
         loadExampleBtn: "Carregar exemplo",
+        loadLoopExampleBtn: "Carregar exemplo de loop",
         runTestsBtn: "Rodar testes",
         editorPanelTitle: "Editor (JavaScript)",
         diagramPanelTitle: "Fluxograma (Mermaid)",
         diagramNote: "Clique em \"Carregar exemplo\" ou escreva seu código JS à esquerda e depois clique em \"Gerar diagrama\".",
-        footerSupport: "Suporta: declarações sequenciais, <code>if/else</code>, blocos, chamadas de função e <code>console.log</code> com texto.",
+        footerSupport: "Suporta: declarações sequenciais, <code>if/else</code>, blocos, chamadas de função, loops (<code>while</code>, <code>for</code>, <code>for...in</code>, <code>for...of</code>, <code>do...while</code>) e <code>console.log</code> com texto.",
         footerExample: "Exemplo: define variável → if → chama <code>mA()</code> ou <code>mB()</code> → <code>console.log('feito')</code>.",
         statusReady: "Editor pronto.",
         statusGenerating: "Gerando diagrama...",
@@ -461,6 +465,144 @@
 
             return { first: condId, last: mergeId };
           }
+          case 'WhileStatement': {
+            const condId = newId();
+            addNode(condId, generateCondText(stmt.test), 'cond');
+
+            const bodySeg = (stmt.body && stmt.body.type === 'BlockStatement')
+              ? processBlock(stmt.body.body)
+              : processStatement(stmt.body);
+
+            let bodyFirst = bodySeg ? bodySeg.first : null;
+            let bodyLast  = bodySeg ? bodySeg.last  : null;
+
+            if (!bodyFirst) { bodyFirst = newId(); addNode(bodyFirst, getCurrentTranslation('diagramNoop'), 'op'); bodyLast = bodyFirst; }
+
+            // Loop back to condition
+            edges.push(`${condId} -- ${getCurrentTranslation('diagramYes')} --> ${bodyFirst}`);
+            edges.push(`${bodyLast} --> ${condId}`);
+
+            // Exit loop
+            edges.push(`${condId} -- ${getCurrentTranslation('diagramNo')} --> ${condId}`);
+
+            return { first: condId, last: condId };
+          }
+          case 'ForStatement': {
+            const initId = stmt.init ? newId() : null;
+            const condId = newId();
+            const updateId = stmt.update ? newId() : null;
+
+            // Initialize
+            if (initId) {
+              addNode(initId, stmtLabel(stmt.init), 'op');
+              edges.push(`${initId} --> ${condId}`);
+            }
+
+            // Condition
+            addNode(condId, generateCondText(stmt.test || 'true'), 'cond');
+
+            // Body
+            const bodySeg = (stmt.body && stmt.body.type === 'BlockStatement')
+              ? processBlock(stmt.body.body)
+              : processStatement(stmt.body);
+
+            let bodyFirst = bodySeg ? bodySeg.first : null;
+            let bodyLast  = bodySeg ? bodySeg.last  : null;
+
+            if (!bodyFirst) { bodyFirst = newId(); addNode(bodyFirst, getCurrentTranslation('diagramNoop'), 'op'); bodyLast = bodyFirst; }
+
+            // Loop flow
+            edges.push(`${condId} -- ${getCurrentTranslation('diagramYes')} --> ${bodyFirst}`);
+            
+            if (updateId) {
+              addNode(updateId, stmtLabel(stmt.update), 'op');
+              edges.push(`${bodyLast} --> ${updateId}`);
+              edges.push(`${updateId} --> ${condId}`);
+            } else {
+              edges.push(`${bodyLast} --> ${condId}`);
+            }
+
+            // Exit loop
+            edges.push(`${condId} -- ${getCurrentTranslation('diagramNo')} --> ${condId}`);
+
+            return { first: initId || condId, last: condId };
+          }
+          case 'ForInStatement': {
+            const initId = newId();
+            const condId = newId();
+
+            // Initialize
+            addNode(initId, `for...in ${stmtLabel(stmt.left)}`, 'op');
+            addNode(condId, `has next ${stmtLabel(stmt.right)}?`, 'cond');
+
+            // Body
+            const bodySeg = (stmt.body && stmt.body.type === 'BlockStatement')
+              ? processBlock(stmt.body.body)
+              : processStatement(stmt.body);
+
+            let bodyFirst = bodySeg ? bodySeg.first : null;
+            let bodyLast  = bodySeg ? bodySeg.last  : null;
+
+            if (!bodyFirst) { bodyFirst = newId(); addNode(bodyFirst, getCurrentTranslation('diagramNoop'), 'op'); bodyLast = bodyFirst; }
+
+            // Loop flow
+            edges.push(`${initId} --> ${condId}`);
+            edges.push(`${condId} -- ${getCurrentTranslation('diagramYes')} --> ${bodyFirst}`);
+            edges.push(`${bodyLast} --> ${condId}`);
+
+            // Exit loop
+            edges.push(`${condId} -- ${getCurrentTranslation('diagramNo')} --> ${condId}`);
+
+            return { first: initId, last: condId };
+          }
+          case 'ForOfStatement': {
+            const initId = newId();
+            const condId = newId();
+
+            // Initialize
+            addNode(initId, `for...of ${stmtLabel(stmt.left)}`, 'op');
+            addNode(condId, `has next ${stmtLabel(stmt.right)}?`, 'cond');
+
+            // Body
+            const bodySeg = (stmt.body && stmt.body.type === 'BlockStatement')
+              ? processBlock(stmt.body.body)
+              : processStatement(stmt.body);
+
+            let bodyFirst = bodySeg ? bodySeg.first : null;
+            let bodyLast  = bodySeg ? bodySeg.last  : null;
+
+            if (!bodyFirst) { bodyFirst = newId(); addNode(bodyFirst, getCurrentTranslation('diagramNoop'), 'op'); bodyLast = bodyFirst; }
+
+            // Loop flow
+            edges.push(`${initId} --> ${condId}`);
+            edges.push(`${condId} -- ${getCurrentTranslation('diagramYes')} --> ${bodyFirst}`);
+            edges.push(`${bodyLast} --> ${condId}`);
+
+            // Exit loop
+            edges.push(`${condId} -- ${getCurrentTranslation('diagramNo')} --> ${condId}`);
+
+            return { first: initId, last: condId };
+          }
+          case 'DoWhileStatement': {
+            const bodySeg = (stmt.body && stmt.body.type === 'BlockStatement')
+              ? processBlock(stmt.body.body)
+              : processStatement(stmt.body);
+
+            let bodyFirst = bodySeg ? bodySeg.first : null;
+            let bodyLast  = bodySeg ? bodySeg.last  : null;
+
+            if (!bodyFirst) { bodyFirst = newId(); addNode(bodyFirst, getCurrentTranslation('diagramNoop'), 'op'); bodyLast = bodyFirst; }
+
+            const condId = newId();
+            addNode(condId, generateCondText(stmt.test), 'cond');
+
+            // Do-while flow: body first, then condition
+            edges.push(`${bodyLast} --> ${condId}`);
+            edges.push(`${condId} -- ${getCurrentTranslation('diagramYes')} --> ${bodyFirst}`);
+            edges.push(`${condId} -- ${getCurrentTranslation('diagramNo')} --> ${condId}`);
+
+            return { first: bodyFirst, last: condId };
+          }
           default: {
             const id = newId();
             addNode(id, stmtLabel(stmt), 'op');
@@ -535,6 +677,28 @@
       return `// ${getCurrentTranslation('footerExample')}\nlet x = 12;\nif (x > 10) {\n  metodoA();\n} else {\n  metodoB();\n}\nconsole.log('${doneText}');`;
     }
 
+    function getLoopExample() {
+      return `// Loop example: while, for, for...of
+let i = 0;
+while (i < 5) {
+  console.log('count:', i);
+  i++;
+}
+
+for (let j = 0; j < 3; j++) {
+  if (j % 2 === 0) {
+    console.log('even:', j);
+  } else {
+    console.log('odd:', j);
+  }
+}
+
+const items = ['a', 'b', 'c'];
+for (const item of items) {
+  console.log('item:', item);
+}`;
+    }
+
     const defaultExample = `// Exemplo: variável + if/else + chamadas de função\nlet x = 12;\nif (x > 10) {\n  metodoA();\n} else {\n  metodoB();\n}\nconsole.log('feito');`;
 
     function getCurrentTranslation(key) {
@@ -544,6 +708,11 @@
 
     function loadExample() {
       editor.setValue(getDefaultExample());
+      setStatus(getCurrentTranslation('statusExampleLoaded'));
+    }
+
+    function loadLoopExample() {
+      editor.setValue(getLoopExample());
       setStatus(getCurrentTranslation('statusExampleLoaded'));
     }
 
@@ -643,6 +812,24 @@
         if (!/\{["']a && \(b \|\| c\)["']\}/.test(m)) throw new Error(getCurrentTranslation('testConditionNoParentheses'));
       });
 
+      // Teste 10: while loop
+      t('While loop generates correct flow', () => {
+        const m = jsToFlowMermaid('while(x > 0) { x--; }');
+        if (!/while/.test(m)) throw new Error('while loop not detected');
+      });
+
+      // Teste 11: for loop
+      t('For loop generates correct flow', () => {
+        const m = jsToFlowMermaid('for(let i=0; i<5; i++) { console.log(i); }');
+        if (!/for/.test(m)) throw new Error('for loop not detected');
+      });
+
+      // Teste 12: for...of loop
+      t('For...of loop generates correct flow', () => {
+        const m = jsToFlowMermaid('for(const item of items) { console.log(item); }');
+        if (!/for\.\.\.of/.test(m)) throw new Error('for...of loop not detected');
+      });
+
       const summary = getCurrentTranslation('testSummary').replace('{pass}', pass).replace('{fail}', fail);
       out.appendChild(line(summary));
     }
@@ -697,6 +884,7 @@
 
     // UI handlers
     document.getElementById('btn-example').addEventListener('click', loadExample);
+    document.getElementById('btn-loop-example').addEventListener('click', loadLoopExample);
     document.getElementById('btn-diagram').addEventListener('click', generateDiagram);
     document.getElementById('btn-tests').addEventListener('click', runTests);
   </script>
