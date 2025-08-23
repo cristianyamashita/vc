@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Code → Fluxograma (Monaco + Mermaid)</title>
+  <style>
+    html, body { height: 100%; margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; }
+    .app { display: grid; grid-template-rows: auto 1fr auto; height: 100%; }
+    header { padding: 10px 14px; border-bottom: 1px solid #e5e7eb; display: flex; gap: 8px; align-items: center; }
+    header h1 { font-size: 16px; margin: 0; font-weight: 600; }
+    header .spacer { flex: 1; }
+    button { padding: 8px 12px; border: 1px solid #e5e7eb; background: #111827; color: white; border-radius: 10px; cursor: pointer; }
+    button.secondary { background: white; color: #111827; }
+    .main { display: grid; grid-template-columns: 1fr 1fr; height: 100%; padding-top: 28px; }
+    .left, .right { position: relative; }
+    .left   { border-right: 1px solid #e5e7eb; }
+    .panel-title { position: absolute; top: -28px; left: 12px; z-index: 2; background: rgba(255,255,255,0.9); padding: 4px 8px; border-radius: 8px; border: 1px solid #e5e7eb; font-size: 12px; }
+    #editor { position: absolute; inset: 0; }
+    #diagram { position: absolute; inset: 0; overflow: auto; padding: 16px; }
+    #status { font-size: 12px; color: #374151; }
+    .note { font-size: 12px; color: #6b7280; }
+    .footer { padding: 6px 14px; border-top: 1px solid #e5e7eb; font-size: 12px; display: flex; gap: 16px; align-items: center; }
+    .tests { border-top: 1px solid #e5e7eb; background: #fafafa; padding: 8px 14px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 12px; }
+    .tests .ok { color: #065f46; }
+    .tests .fail { color: #991b1b; }
+    .mermaid { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; }
+  </style>
+  <!-- Mermaid -->
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <script>
+    mermaid.initialize({ startOnLoad: false, securityLevel: 'loose', flowchart: { curve: 'basis' } });
+  </script>
+  <!-- Monaco Editor (AMD) + CSS -->
+  <link rel="stylesheet" data-name="vs/editor/editor.main" href="https://unpkg.com/monaco-editor@0.52.0/min/vs/editor/editor.main.css">
+  <script src="https://unpkg.com/monaco-editor@0.52.0/min/vs/loader.js"></script>
+  <!-- NÃO carregar Acorn antes do loader; como há RequireJS no contexto, vamos resolvê-lo via AMD para garantir que 'acorn' exista -->
+</head>
+<body>
+  <div class="app">
+    <header>
+      <h1>Code → Fluxograma</h1>
+      <div class="spacer"></div>
+      <button id="btn-diagram">Gerar diagrama</button>
+      <button id="btn-example" class="secondary">Carregar exemplo</button>
+      <button id="btn-tests" class="secondary">Rodar testes</button>
+      <span id="status"></span>
+    </header>
+    <div class="main">
+      <div class="left">
+        <div class="panel-title">Editor (JavaScript)</div>
+        <div id="editor"></div>
+      </div>
+      <div class="right">
+        <div class="panel-title">Fluxograma (Mermaid)</div>
+        <div id="diagram"><div class="note">Clique em "Carregar exemplo" ou escreva seu código JS à esquerda e depois clique em "Gerar diagrama".</div></div>
+      </div>
+    </div>
+    <div class="footer">
+      <div>Suporta: declarações sequenciais, <code>if/else</code>, blocos, e chamadas de função.</div>
+      <div class="note">Exemplo: define variável → if → chama <code>mA()</code> ou <code>mB()</code>.</div>
+    </div>
+    <div class="tests" id="tests"></div>
+  </div>
+
+  <script>
+    // ------------------- Helpers UI -------------------
+    function setStatus(msg) { document.getElementById('status').textContent = msg || ''; }
+    function escHtml(s){ return String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+
+    // ------------------- AST → Mermaid -------------------
+    function jsToFlowMermaid(jsCode) {
+      if (typeof window.acorn === 'undefined' || !acorn || !acorn.parse) {
+        throw new Error('Biblioteca Acorn não carregada (acorn is not defined).');
+      }
+
+      let ast;
+      try {
+        ast = acorn.parse(jsCode, { ecmaVersion: 2022, sourceType: 'script' });
+      } catch (err) {
+        throw new Error('Erro ao parsear JS: ' + err.message);
+      }
+
+      let nodeId = 0;
+      const nodes = [];
+      const edges = [];
+
+      function newId() { return 'N' + (++nodeId); }
+      function escLabel(s) { return String(s).replace(/[\[\]{}()|]/g, ''); }
+
+      function addNode(id, label, kind) {
+        if (kind === 'start') nodes.push(`${id}([${escLabel(label)}])`);
+        else if (kind === 'end') nodes.push(`${id}([${escLabel(label)}])`);
+        else if (kind === 'cond') nodes.push(`${id}{${escLabel(label)}}`);
+        else nodes.push(`${id}[${escLabel(label)}]`);
+      }
+
+      function stmtLabel(stmt) {
+        switch (stmt.type) {
+          case 'VariableDeclaration': {
+            const d = (stmt.declarations || [])[0];
+            const name = d && d.id && d.id.name ? d.id.name : 'var';
+            return `${stmt.kind} ${name}`;
+          }
+          case 'ExpressionStatement':
+            if (stmt.expression && stmt.expression.type === 'CallExpression') {
+              const callee = stmt.expression.callee;
+              const name = callee && callee.name ? callee.name : 'fun';
+              return `call ${name}()`;
+            }
+            return 'expressão';
+          case 'ReturnStatement':
+            return 'return';
+          default:
+            return stmt.type;
+        }
+      }
+
+      function processBlock(statements) {
+        let first = null, last = null;
+        for (const s of statements) {
+          const seg = processStatement(s);
+          if (!seg) continue;
+          if (!first) first = seg.first;
+          if (last) edges.push(`${last} --> ${seg.first}`);
+          last = seg.last;
+        }
+        return first ? { first, last } : null;
+      }
+
+      function processStatement(stmt) {
+        if (!stmt) return null;
+        switch (stmt.type) {
+          case 'BlockStatement': {
+            return processBlock(stmt.body || []);
+          }
+          case 'IfStatement': {
+            const condId = newId();
+            addNode(condId, generateCondText(stmt.test), 'cond');
+
+            const consSeg = (stmt.consequent && stmt.consequent.type === 'BlockStatement')
+              ? processBlock(stmt.consequent.body)
+              : processStatement(stmt.consequent);
+
+            const altSeg = stmt.alternate
+              ? (stmt.alternate.type === 'BlockStatement'
+                  ? processBlock(stmt.alternate.body)
+                  : processStatement(stmt.alternate))
+              : null;
+
+            let consFirst = consSeg ? consSeg.first : null;
+            let consLast  = consSeg ? consSeg.last  : null;
+            let altFirst  = altSeg  ? altSeg.first  : null;
+            let altLast   = altSeg  ? altSeg.last   : null;
+
+            if (!consFirst) { consFirst = newId(); addNode(consFirst, 'noop', 'op'); consLast = consFirst; }
+            if (!altFirst)  { altFirst  = newId(); addNode(altFirst,  'noop', 'op'); altLast  = altFirst; }
+
+            edges.push(`${condId} -- True --> ${consFirst}`);
+            edges.push(`${condId} -- False --> ${altFirst}`);
+
+            const mergeId = newId();
+            addNode(mergeId, 'merge', 'op');
+            edges.push(`${consLast} --> ${mergeId}`);
+            edges.push(`${altLast} --> ${mergeId}`);
+
+            return { first: condId, last: mergeId };
+          }
+          default: {
+            const id = newId();
+            addNode(id, stmtLabel(stmt), 'op');
+            return { first: id, last: id };
+          }
+        }
+      }
+
+      function generateCondText(test) {
+        try {
+          return acornToString(test);
+        } catch {
+          return 'condição';
+        }
+      }
+
+      function acornToString(node) {
+        if (!node) return '';
+        switch (node.type) {
+          case 'Identifier': return node.name;
+          case 'Literal': return JSON.stringify(node.value);
+          case 'BinaryExpression': return `${acornToString(node.left)} ${node.operator} ${acornToString(node.right)}`;
+          case 'LogicalExpression': return `${acornToString(node.left)} ${node.operator} ${acornToString(node.right)}`;
+          case 'UnaryExpression': return `${node.operator}${acornToString(node.argument)}`;
+          case 'MemberExpression': return `${acornToString(node.object)}.${acornToString(node.property)}`;
+          case 'CallExpression': return `${acornToString(node.callee)}(...)`;
+          case 'ConditionalExpression': return `${acornToString(node.test)} ? ... : ...`;
+          default: return node.type;
+        }
+      }
+
+      const startId = newId();
+      addNode(startId, 'Start', 'start');
+
+      const flow = processBlock(ast.body || []);
+      const endId = newId();
+      addNode(endId, 'End', 'end');
+
+      if (flow) {
+        edges.push(`${startId} --> ${flow.first}`);
+        edges.push(`${flow.last} --> ${endId}`);
+      } else {
+        edges.push(`${startId} --> ${endId}`);
+      }
+
+      const lines = ['graph TD', ...nodes, ...edges];
+      return lines.join('\n');
+    }
+
+    async function renderMermaid(code) {
+      const container = document.getElementById('diagram');
+      container.innerHTML = '';
+      const { svg } = await mermaid.render('graph' + Math.random().toString(36).slice(2), code);
+      const wrap = document.createElement('div');
+      wrap.className = 'mermaid';
+      wrap.innerHTML = svg;
+      container.appendChild(wrap);
+    }
+
+    // ------------------- Monaco + RequireJS + Acorn -------------------
+    let editor;
+    const defaultExample = `// Exemplo: variável + if/else + chamadas de função\nlet x = 12;\nif (x > 10) {\n  metodoA();\n} else {\n  metodoB();\n}\nconsole.log('feito');`;
+
+    function loadExample() {
+      editor.setValue(defaultExample);
+      setStatus('Exemplo carregado.');
+    }
+
+    function generateDiagram() {
+      setStatus('Gerando diagrama...');
+      try {
+        const code = editor.getValue();
+        const mer = jsToFlowMermaid(code);
+        renderMermaid(mer).then(() => setStatus('Diagrama atualizado.')).catch(err => {
+          console.error(err); setStatus('Falha ao renderizar Mermaid.');
+        });
+      } catch (e) {
+        console.error(e);
+        setStatus(e.message || 'Erro desconhecido.');
+        const container = document.getElementById('diagram');
+        container.innerHTML = `<pre class="mermaid">${escHtml(e.message||'Erro')}</pre>`;
+      }
+    }
+
+    function line(msg, cls){
+      const el = document.createElement('div');
+      el.className = cls||''; el.textContent = msg; return el;
+    }
+
+    function runTests(){
+      const out = document.getElementById('tests');
+      out.innerHTML = '';
+      let pass = 0, fail = 0;
+      function t(name, fn){
+        try { fn(); out.appendChild(line('✔ ' + name, 'ok')); pass++; }
+        catch(e){ out.appendChild(line('✘ ' + name + ' → ' + e.message, 'fail')); fail++; }
+      }
+
+      // Teste 1: Acorn carregado
+      t('Acorn está disponível', () => {
+        if (!window.acorn || typeof acorn.parse !== 'function') throw new Error('acorn.parse ausente');
+      });
+
+      // Teste 2: Declaração simples
+      t('Mermaid contém Start/End e let x', () => {
+        const m = jsToFlowMermaid('let x = 1;');
+        if (!/graph TD/.test(m)) throw new Error('graph TD ausente');
+        if (!/\blet x\b/.test(m)) throw new Error('label let x ausente');
+        if (!/Start/.test(m) || !/End/.test(m)) throw new Error('Start/End ausentes');
+      });
+
+      // Teste 3: If/else com chamadas
+      t('If/else gera ramos Sim/Não e chamadas', () => {
+        const code = 'let x=12; if(x>10){metodoA();} else {metodoB();}';
+        const m = jsToFlowMermaid(code);
+        if (!/-- Sim -->/.test(m) || !/-- Não -->/.test(m)) throw new Error('ramos Sim/Não ausentes');
+        if (!/call metodoA\(\)/.test(m) || !/call metodoB\(\)/.test(m)) throw new Error('labels de chamadas ausentes');
+      });
+
+      // Teste 4: Vazio → apenas Start->End
+      t('Código vazio ainda produz Start→End', () => {
+        const m = jsToFlowMermaid('');
+        const countStart = (m.match(/\(\[Start\]\)/g) || []).length; // nó Start
+        const countEnd = (m.match(/\(\[End\]\)/g) || []).length;     // nó End
+        if (countStart !== 1 || countEnd !== 1) throw new Error('Start/End incorretos para vazio');
+      });
+
+      out.appendChild(line(`Resumo: ${pass} passado(s), ${fail} falhou(aram).`));
+    }
+
+    // Configure RequireJS paths e carregue Monaco + Acorn via AMD
+    require.config({
+      paths: {
+        'vs': 'https://unpkg.com/monaco-editor@0.52.0/min/vs',
+        'acorn': 'https://cdn.jsdelivr.net/npm/acorn@8.12.1/dist/acorn.min'
+      }
+    });
+
+    // Carrega Monaco e Acorn; vincula Acorn ao escopo global para as funções que esperam window.acorn
+    require(['vs/editor/editor.main', 'acorn'], function (_ignored, acornModule) {
+      try {
+        if (acornModule) { window.acorn = acornModule; }
+        // Inicializa editor
+        editor = monaco.editor.create(document.getElementById('editor'), {
+          value: defaultExample,
+          language: 'javascript',
+          theme: 'vs-dark',
+          automaticLayout: true,
+          minimap: { enabled: false },
+          fontSize: 14,
+        });
+        setStatus('Editor pronto.');
+      } catch (e) {
+        console.error('Falha ao inicializar Monaco/Acorn:', e);
+        setStatus('Falha ao inicializar Monaco/Acorn: ' + e.message);
+      }
+    }, function(err){
+      console.error('Erro no RequireJS:', err);
+      setStatus('Erro ao carregar dependências. Veja o console.');
+    });
+
+    // UI handlers
+    document.getElementById('btn-example').addEventListener('click', loadExample);
+    document.getElementById('btn-diagram').addEventListener('click', generateDiagram);
+    document.getElementById('btn-tests').addEventListener('click', runTests);
+  </script>
+</body>
+</html>
