@@ -16,11 +16,11 @@
     .left, .right { position: relative; }
     .left   { border-right: 1px solid #e5e7eb; }
     .panel-title { position: absolute; top: -28px; left: 12px; z-index: 2; background: rgba(255,255,255,0.9); padding: 4px 8px; border-radius: 8px; border: 1px solid #e5e7eb; font-size: 12px; }
-    #editor { position: absolute; inset: 0; }
+    #editor { position: absolute; inset: 0; height: 95%;}
     #diagram { position: absolute; inset: 0; overflow: auto; padding: 16px; }
     #status { font-size: 12px; color: #374151; }
     .note { font-size: 12px; color: #6b7280; }
-    .footer { padding: 6px 14px; border-top: 1px solid #e5e7eb; font-size: 12px; display: flex; gap: 16px; align-items: center; }
+    .footer { padding: 16px 14px 0px 14px; border-top: 1px solid #e5e7eb; font-size: 12px; display: flex; gap: 16px; align-items: center; }
     .tests { border-top: 1px solid #e5e7eb; background: #fafafa; padding: 8px 14px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 12px; }
     .tests .ok { color: #065f46; }
     .tests .fail { color: #991b1b; }
@@ -34,7 +34,7 @@
   <!-- Monaco Editor (AMD) + CSS -->
   <link rel="stylesheet" data-name="vs/editor/editor.main" href="https://unpkg.com/monaco-editor@0.52.0/min/vs/editor/editor.main.css">
   <script src="https://unpkg.com/monaco-editor@0.52.0/min/vs/loader.js"></script>
-  <!-- NÃO carregar Acorn antes do loader; como há RequireJS no contexto, vamos resolvê-lo via AMD para garantir que 'acorn' exista -->
+  <!-- Acorn via AMD -->
 </head>
 <body>
   <div class="app">
@@ -57,8 +57,8 @@
       </div>
     </div>
     <div class="footer">
-      <div>Suporta: declarações sequenciais, <code>if/else</code>, blocos, e chamadas de função.</div>
-      <div class="note">Exemplo: define variável → if → chama <code>mA()</code> ou <code>mB()</code>.</div>
+      <div>Suporta: declarações sequenciais, <code>if/else</code>, blocos, chamadas de função e <code>console.log</code> com texto.</div>
+      <div class="note">Exemplo: define variável → if → chama <code>mA()</code> ou <code>mB()</code> → <code>console.log('feito')</code>.</div>
     </div>
     <div class="tests" id="tests"></div>
   </div>
@@ -67,6 +67,26 @@
     // ------------------- Helpers UI -------------------
     function setStatus(msg) { document.getElementById('status').textContent = msg || ''; }
     function escHtml(s){ return String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+
+    // Remove caracteres estruturais do Mermaid e normaliza whitespace
+    function sanitizeLabel(s){
+      return String(s)
+        .replace(/[\r\n\t]+/g, ' ')
+        .replace(/[\[\]{}|]/g, '') // evita quebrar o shape
+        .trim();
+    }
+
+    // Escolhe aspas seguras para o Mermaid; se contiver ambos tipos, converte em entidades
+    function quoteForMermaid(text, prefer) {
+      const s0 = sanitizeLabel(text);
+      const want = prefer || '"';
+      const alt = want === '"' ? "'" : '"';
+      if (!s0.includes(want)) return want + s0 + want;
+      if (!s0.includes(alt))  return alt + s0 + alt;
+      // contém ambos: converte aspas em entidades HTML
+      const ent = s0.replace(/\"/g, '"').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+      return want + ent + want;
+    }
 
     // ------------------- AST → Mermaid -------------------
     function jsToFlowMermaid(jsCode) {
@@ -86,13 +106,54 @@
       const edges = [];
 
       function newId() { return 'N' + (++nodeId); }
-      function escLabel(s) { return String(s).replace(/[\[\]{}()|]/g, ''); }
 
       function addNode(id, label, kind) {
-        if (kind === 'start') nodes.push(`${id}([${escLabel(label)}])`);
-        else if (kind === 'end') nodes.push(`${id}([${escLabel(label)}])`);
-        else if (kind === 'cond') nodes.push(`${id}{${escLabel(label)}}`);
-        else nodes.push(`${id}[${escLabel(label)}]`);
+        const safe = sanitizeLabel(label);
+        if (kind === 'start') nodes.push(`${id}([${safe}])`);                 // mantém formato dos testes
+        else if (kind === 'end') nodes.push(`${id}([${safe}])`);
+        else if (kind === 'cond') nodes.push(`${id}{${quoteForMermaid(safe, '"')}}`); // decisão com aspas seguras
+        else nodes.push(`${id}[${quoteForMermaid(safe, '"')}]`);              // nós comuns com aspas seguras
+      }
+
+      function isConsoleLogCall(expr) {
+        if (!expr || expr.type !== 'CallExpression') return false;
+        const cal = expr.callee;
+        return cal && cal.type === 'MemberExpression'
+          && cal.object && cal.object.type === 'Identifier' && cal.object.name === 'console'
+          && cal.property && ((cal.property.type === 'Identifier' && cal.property.name === 'log') || (cal.property === 'log'));
+      }
+
+      function exprToShortText(node) {
+        if (!node) return '';
+        switch (node.type) {
+          case 'Identifier': return node.name;
+          case 'Literal': {
+            if (typeof node.value === 'string') {
+              // Use aspas simples para evitar conflito com wrapper de rótulo
+              return '\'' + String(node.value).replace(/'/g, "\\'") + '\'';
+            }
+            return JSON.stringify(node.value);
+          }
+          case 'TemplateLiteral': {
+            const parts = [];
+            for (let i = 0; i < node.quasis.length; i++) {
+              parts.push(node.quasis[i].value.cooked ?? node.quasis[i].value.raw ?? '');
+              if (i < (node.expressions || []).length) parts.push('…');
+            }
+            return '`' + parts.join('') + '`';
+          }
+          case 'BinaryExpression': return `${exprToShortText(node.left)} ${node.operator} ${exprToShortText(node.right)}`;
+          case 'LogicalExpression': return `${exprToShortText(node.left)} ${node.operator} ${exprToShortText(node.right)}`;
+          case 'UnaryExpression': return `${node.operator}${exprToShortText(node.argument)}`;
+          case 'MemberExpression': return `${exprToShortText(node.object)}.${exprToShortText(node.property)}`;
+          case 'CallExpression': return `${exprToShortText(node.callee)}(...)`;
+          default: return node.type;
+        }
+      }
+
+      function argsToLabel(args) {
+        const text = (args || []).map(exprToShortText).join(', ');
+        return text.length > 80 ? text.slice(0, 77) + '…' : text;
       }
 
       function stmtLabel(stmt) {
@@ -102,13 +163,19 @@
             const name = d && d.id && d.id.name ? d.id.name : 'var';
             return `${stmt.kind} ${name}`;
           }
-          case 'ExpressionStatement':
-            if (stmt.expression && stmt.expression.type === 'CallExpression') {
-              const callee = stmt.expression.callee;
-              const name = callee && callee.name ? callee.name : 'fun';
-              return `call ${name}()`;
+          case 'ExpressionStatement': {
+            const ex = stmt.expression;
+            if (ex && ex.type === 'CallExpression') {
+              if (isConsoleLogCall(ex)) {
+                return `console.log(${argsToLabel(ex.arguments)})`;
+              }
+              const cal = ex.callee;
+              if (cal && cal.type === 'Identifier') return `call ${cal.name}()`;
+              if (cal && cal.type === 'MemberExpression') return `call ${exprToShortText(cal)}()`;
+              return 'chamada';
             }
             return 'expressão';
+          }
           case 'ReturnStatement':
             return 'return';
           default:
@@ -156,8 +223,8 @@
             if (!consFirst) { consFirst = newId(); addNode(consFirst, 'noop', 'op'); consLast = consFirst; }
             if (!altFirst)  { altFirst  = newId(); addNode(altFirst,  'noop', 'op'); altLast  = altFirst; }
 
-            edges.push(`${condId} -- True --> ${consFirst}`);
-            edges.push(`${condId} -- False --> ${altFirst}`);
+            edges.push(`${condId} -- Sim --> ${consFirst}`);
+            edges.push(`${condId} -- Não --> ${altFirst}`);
 
             const mergeId = newId();
             addNode(mergeId, 'merge', 'op');
@@ -186,7 +253,10 @@
         if (!node) return '';
         switch (node.type) {
           case 'Identifier': return node.name;
-          case 'Literal': return JSON.stringify(node.value);
+          case 'Literal': {
+            if (typeof node.value === 'string') return '\'' + String(node.value).replace(/'/g, "\\'") + '\'';
+            return JSON.stringify(node.value);
+          }
           case 'BinaryExpression': return `${acornToString(node.left)} ${node.operator} ${acornToString(node.right)}`;
           case 'LogicalExpression': return `${acornToString(node.left)} ${node.operator} ${acornToString(node.right)}`;
           case 'UnaryExpression': return `${node.operator}${acornToString(node.argument)}`;
@@ -211,8 +281,10 @@
         edges.push(`${startId} --> ${endId}`);
       }
 
-      const lines = ['graph TD', ...nodes, ...edges];
-      return lines.join('\n');
+      const lines = ['graph TD'];
+      for (const n of nodes) lines.push('  ' + n);
+      for (const e of edges) lines.push('  ' + e);
+      return lines.join('\n') + '\n';
     }
 
     async function renderMermaid(code) {
@@ -277,7 +349,7 @@
         if (!/Start/.test(m) || !/End/.test(m)) throw new Error('Start/End ausentes');
       });
 
-      // Teste 3: If/else com chamadas
+      // Teste 3: If/else com chamadas (espera ramos Sim/Não)
       t('If/else gera ramos Sim/Não e chamadas', () => {
         const code = 'let x=12; if(x>10){metodoA();} else {metodoB();}';
         const m = jsToFlowMermaid(code);
@@ -291,6 +363,37 @@
         const countStart = (m.match(/\(\[Start\]\)/g) || []).length; // nó Start
         const countEnd = (m.match(/\(\[End\]\)/g) || []).length;     // nó End
         if (countStart !== 1 || countEnd !== 1) throw new Error('Start/End incorretos para vazio');
+      });
+
+      // Teste 5: console.log com texto literal aparece no label
+      t('console.log exibe o texto literal', () => {
+        const m = jsToFlowMermaid("console.log('hello');");
+        if (!/console\.log\('hello'\)/.test(m)) throw new Error('console.log sem texto');
+      });
+
+      // Teste 6: chamadas membro
+      t('call obj.metodo() rotulado corretamente', () => {
+        const m = jsToFlowMermaid('obj.metodo();');
+        if (!/call obj\.metodo\(\)/.test(m)) throw new Error('label de chamada membro ausente');
+      });
+
+      // Teste 7: template literal no console.log
+      t('console.log com template literal simplificado', () => {
+        const m = jsToFlowMermaid('console.log(`Oi ${nome}`);');
+        if (!/console\.log\(`Oi .*`\)/.test(m)) throw new Error('template literal não simplificado');
+      });
+
+      // Teste 8: não deve haver junção de linhas entre nós
+      t('Sem junção indevida entre nós', () => {
+        const code = 'let x=12; if(x>10){metodoA();} else {metodoB();}';
+        const m = jsToFlowMermaid(code);
+        if (/}N\d+\[/.test(m) || /\]N\d+\[/.test(m)) throw new Error('junção de nós detectada');
+      });
+
+      // Teste 9: condição complexa (aceita aspas simples ou duplas)
+      t('Condição complexa preserva parênteses', () => {
+        const m = jsToFlowMermaid('if(a && (b || c)){x=1}else{x=2}');
+        if (!/\{["']a && \(b \|\| c\)["']\}/.test(m)) throw new Error('condição sem parênteses');
       });
 
       out.appendChild(line(`Resumo: ${pass} passado(s), ${fail} falhou(aram).`));
