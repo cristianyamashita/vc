@@ -188,7 +188,7 @@
       provideKey: 'Provide a key.',
 
       tab_base64: 'Base64', tab_url: 'URL', tab_md5: 'MD5', tab_sha: 'SHA/HMAC', tab_html: 'HTML/Unicode', tab_json: 'JSON',
-      tab_csv: 'CSV', tab_yaml: 'YAML', tab_xml: 'XML', tab_http_digest: 'HTTP Digest',
+      tab_csv: 'CSV', tab_yaml: 'YAML', tab_xml: 'XML', tab_http_digest: 'HTTP Digest', tab_unicode: 'Unicode',
 
       httpDigestTitle: 'HA1/HA1b Generator (HTTP Digest Auth)',
       username: 'Username',
@@ -229,6 +229,9 @@
       yamlInput: 'Input (YAML or JSON)', yamlToJson: 'YAML → JSON', jsonToYaml: 'JSON → YAML', yamlNote: 'Uses js-yaml for YAML.',
 
       xmlInput: 'Input (XML or JSON)', xmlToJson: 'XML → JSON', jsonToXml: 'JSON → XML', xmlNote: 'Uses fast-xml-parser for XML.',
+      
+      unicodeInput: 'Input (Unicode or Text)', unicodeToText: 'Unicode → Text', textToUnicode: 'Text → Unicode',
+      unicodeNote: 'Converts between Unicode escape sequences (\\uXXXX) and actual Unicode characters.',
     },
     pt: {
       appTitle: 'Conversor Web',
@@ -246,7 +249,7 @@
       pasteBase64: 'Cole um Base64.',
 
       tab_base64: 'Base64', tab_url: 'URL', tab_md5: 'MD5', tab_sha: 'SHA/HMAC', tab_html: 'HTML/Unicode', tab_json: 'JSON',
-      tab_csv: 'CSV', tab_yaml: 'YAML', tab_xml: 'XML', tab_http_digest: 'HTTP Digest',
+      tab_csv: 'CSV', tab_yaml: 'YAML', tab_xml: 'XML', tab_http_digest: 'HTTP Digest', tab_unicode: 'Unicode',
 
       httpDigestTitle: 'Gerador HA1/HA1b (HTTP Digest Auth)',
       username: 'Usuário',
@@ -287,6 +290,9 @@
       yamlInput: 'Entrada (YAML ou JSON)', yamlToJson: 'YAML → JSON', jsonToYaml: 'JSON → YAML', yamlNote: 'Usa js-yaml para YAML.',
 
       xmlInput: 'Entrada (XML ou JSON)', xmlToJson: 'XML → JSON', jsonToXml: 'JSON → XML', xmlNote: 'Usa fast-xml-parser para XML.',
+      
+      unicodeInput: 'Entrada (Unicode ou Texto)', unicodeToText: 'Unicode → Texto', textToUnicode: 'Texto → Unicode',
+      unicodeNote: 'Converte entre sequências de escape Unicode (\\uXXXX) e caracteres Unicode reais.',
     },
     ja: {
       appTitle: 'Webコンバーター',
@@ -305,7 +311,7 @@
       provideKey: 'キーを入力してください。',
 
       tab_base64: 'Base64', tab_url: 'URL', tab_md5: 'MD5', tab_sha: 'SHA/HMAC', tab_html: 'HTML/Unicode', tab_json: 'JSON',
-      tab_csv: 'CSV', tab_yaml: 'YAML', tab_xml: 'XML', tab_http_digest: 'HTTPダイジェスト',
+      tab_csv: 'CSV', tab_yaml: 'YAML', tab_xml: 'XML', tab_http_digest: 'HTTPダイジェスト', tab_unicode: 'Unicode',
 
       httpDigestTitle: 'HA1/HA1bジェネレーター (HTTP Digest Auth)',
       username: 'ユーザー名',
@@ -346,6 +352,9 @@
       yamlInput: '入力（YAMLまたはJSON）', yamlToJson: 'YAML → JSON', jsonToYaml: 'JSON → YAML', yamlNote: 'YAML は js-yaml を使用。',
 
       xmlInput: '入力（XMLまたはJSON）', xmlToJson: 'XML → JSON', jsonToXml: 'JSON → XML', xmlNote: 'XML は fast-xml-parser を使用。',
+      
+      unicodeInput: '入力（Unicodeまたはテキスト）', unicodeToText: 'Unicode → テキスト', textToUnicode: 'テキスト → Unicode',
+      unicodeNote: 'Unicodeエスケープシーケンス（\\uXXXX）と実際のUnicode文字の間で変換。',
     },
   };
   function t(key){
@@ -471,6 +480,7 @@
     { id:'csv',    render: renderCSV    },
     { id:'yaml',   render: renderYAML   },
     { id:'xml',    render: renderXML    },
+    { id:'unicode', render: renderUnicode },
   ];
   function getTabLabel(id){ return t(`tab_${id}`); }
   function getTabFromHash(){
@@ -1162,6 +1172,65 @@
     });
   }
 
+  function renderUnicode(root){
+    root.innerHTML = `
+      <div class="row">
+        <div class="col">
+          <label>${t('unicodeInput')}</label>
+          <textarea name="in" placeholder="Unicode escape sequences (\\u30c6\\u30b9\\u30c8) or text..."></textarea>
+          <div class="controls">
+            <button class="btn primary" data-action="unicode-to-text">${t('unicodeToText')}</button>
+            <button class="btn" data-action="text-to-unicode">${t('textToUnicode')}</button>
+            <button class="btn" data-action="swap">${t('swap')}</button>
+            <button class="btn" data-action="copy-out">${t('copyOut')}</button>
+            <button class="btn" data-action="clear">${t('clear')}</button>
+          </div>
+          <div class="note subtle">${t('unicodeNote')}</div>
+        </div>
+        <div class="col">
+          <label>${t('output')}</label>
+          <textarea name="out" readonly></textarea>
+        </div>
+      </div>
+    `;
+    
+    const elIn = $('textarea[name="in"]', root);
+    const elOut = $('textarea[name="out"]', root);
+    
+    root.addEventListener('click', (e)=>{
+      const a = e.target.closest('[data-action]'); if(!a) return;
+      const act = a.dataset.action;
+      try{
+        if(act==='unicode-to-text'){
+          // Convert Unicode escape sequences to actual characters
+          const unicodeStr = elIn.value;
+          const text = unicodeStr.replace(/\\u([0-9a-fA-F]{4})/g, (match, hex) => {
+            return String.fromCharCode(parseInt(hex, 16));
+          });
+          elOut.value = text;
+        } else if(act==='text-to-unicode'){
+          // Convert text to Unicode escape sequences
+          const text = elIn.value;
+          const unicodeStr = text.replace(/./g, (char) => {
+            const code = char.charCodeAt(0);
+            if(code > 127) {
+              return '\\u' + code.toString(16).padStart(4, '0');
+            }
+            return char;
+          });
+          elOut.value = unicodeStr;
+        } else if(act==='swap'){
+          [elIn.value, elOut.value] = [elOut.value, elIn.value];
+          textStore.save('unicode', elIn.value);
+        } else if(act==='copy-out'){
+          copy(elOut.value);
+        } else if(act==='clear'){
+          elIn.value = ''; elOut.value = ''; textStore.save('unicode', '');
+        }
+      }catch(err){ alert(t('errorPrefix') + err.message); }
+    });
+  }
+
   // Header actions
   $('#themeToggle').addEventListener('click', ()=> setTheme(state.theme==='dark'?'light':'dark'));
   $('#langSelect').addEventListener('change', (e)=>{
@@ -1184,6 +1253,7 @@
       localStorage.removeItem('conv.text.csv');
       localStorage.removeItem('conv.text.yaml');
       localStorage.removeItem('conv.text.xml');
+      localStorage.removeItem('conv.text.unicode');
     }
   });
 
