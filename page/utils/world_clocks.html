@@ -854,10 +854,14 @@
             return;
           }
 
-          const city = timezoneInput.dataset.city;
-          const country = timezoneInput.dataset.country;
+          // Get city and country from the global timezones array
+          const tzInfo = window.allTimezones?.find(tz => tz.timezone === selectedTimezone);
+          if (!tzInfo) {
+            showMessage('invalid_timezone', 'error');
+            return;
+          }
 
-          addClock(selectedTimezone, city, country);
+          addClock(selectedTimezone, tzInfo.city, tzInfo.country);
           showMessage('clock_added', 'success');
           timezoneInput.value = '';
           delete timezoneInput.dataset.selectedTimezone;
@@ -923,8 +927,14 @@
 
           clocksContainer.appendChild(clockCard);
 
-          // Fetch initial time
+          // Fetch initial time and update display
           updateClock(timezone);
+          
+          // Ensure the city name is displayed correctly
+          const cityElement = clockCard.querySelector('.clock-city');
+          if (cityElement && city) {
+            cityElement.textContent = city;
+          }
           
           // Save configuration to localStorage
           saveClocksToStorage();
@@ -1096,10 +1106,21 @@
         function startClockUpdates() {
           // Update all clocks every minute since we're not showing seconds
           clockUpdateInterval = setInterval(() => {
-            addedTimezones.forEach(timezone => {
-              updateClock(timezone);
-            });
+            refreshAllClocks();
           }, 60000); // Update every minute instead of every second
+        }
+
+        function refreshAllClocks() {
+          addedTimezones.forEach(timezone => {
+            updateClock(timezone);
+          });
+        }
+
+        // Force refresh all clocks immediately (useful for language changes)
+        function forceRefreshAllClocks() {
+          if (addedTimezones.size > 0) {
+            refreshAllClocks();
+          }
         }
 
         function showMessage(key, type) {
@@ -1120,6 +1141,9 @@
             if (lang[key]) el.innerText = lang[key];
           });
           document.title = lang.title;
+          
+          // Refresh all clocks to update date format for new language
+          refreshAllClocks();
         }
 
         function applyTheme(theme) {
