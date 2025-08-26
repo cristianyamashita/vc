@@ -1,0 +1,929 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title data-i18n="title">World Clocks</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="../assets/fontawesome/css/all.min.css" />
+    <style>
+      :root {
+        --bg-color: #1a1a1a;
+        --text-color: #f0f0f0;
+        --card-bg-color: #2a2a2a;
+        --border-color: #444;
+        --accent-color: #0d6efd;
+        --btn-bg: #333;
+        --btn-hover-bg: #444;
+        --clock-bg: linear-gradient(135deg, #5f5f5f 0%, #7d7c7c 100%);
+        --clock-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        --clock-border: rgba(255, 255, 255, 0.1);
+      }
+
+      html[data-theme='light'] {
+        --bg-color: #f8f9fa;
+        --text-color: #212529;
+        --card-bg-color: #fff;
+        --border-color: #dee2e6;
+        --accent-color: #0d6efd;
+        --btn-bg: #f1f3f5;
+        --btn-hover-bg: #e9ecef;
+        --clock-bg: linear-gradient(135deg, #bababa 0%, #7d7c7c 100%);
+        --clock-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        --clock-border: rgba(0, 0, 0, 0.1);
+      }
+
+      body {
+        background-color: var(--bg-color);
+        color: var(--text-color);
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+        margin: 0;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      }
+
+      .container-fluid {
+        padding-top: 20px;
+        padding-bottom: 20px;
+        flex: 1;
+      }
+
+      .card {
+        background-color: var(--card-bg-color);
+        border-color: var(--border-color);
+        border-radius: 15px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+      }
+
+      .card-header {
+        border-bottom-color: var(--border-color);
+        background: linear-gradient(135deg, var(--accent-color), #0056b3);
+        color: white;
+        border-radius: 15px 15px 0 0 !important;
+      }
+
+      .navbar-brand {
+        color: var(--text-color);
+        font-weight: 600;
+      }
+
+      .form-control,
+      .form-select {
+        background-color: var(--card-bg-color);
+        color: var(--text-color);
+        border-color: var(--border-color);
+        border-radius: 10px;
+      }
+
+      .form-control:focus,
+      .form-select:focus {
+        background-color: var(--card-bg-color);
+        color: var(--text-color);
+        border-color: var(--accent-color);
+        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+      }
+
+      .btn {
+        border-radius: 10px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+      }
+
+      .btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+      }
+
+      .clock-container {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 20px;
+        margin-top: 20px;
+      }
+
+      .clock-card {
+        background: var(--clock-bg);
+        border-radius: 20px;
+        padding: 25px;
+        text-align: center;
+        color: white;
+        box-shadow: var(--clock-shadow);
+        border: 1px solid var(--clock-border);
+        backdrop-filter: blur(10px);
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .clock-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+      }
+
+      .clock-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+        transform: translateX(-100%);
+        transition: transform 0.6s;
+      }
+
+      .clock-card:hover::before {
+        transform: translateX(100%);
+      }
+
+      .clock-city {
+        font-size: 1.5rem;
+        font-weight: 600;
+        margin-bottom: 10px;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+      }
+
+      .clock-time {
+        font-size: 3rem;
+        font-weight: 700;
+        margin-bottom: 10px;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        font-family: 'Courier New', monospace;
+      }
+
+      .clock-date {
+        font-size: 1rem;
+        opacity: 0.9;
+        margin-bottom: 15px;
+      }
+
+      .clock-timezone {
+        font-size: 0.9rem;
+        opacity: 0.8;
+        font-style: italic;
+      }
+
+      .remove-clock {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        background: rgba(255, 255, 255, 0.2);
+        border: none;
+        color: white;
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        opacity: 0;
+      }
+
+      .clock-card:hover .remove-clock {
+        opacity: 1;
+      }
+
+      .remove-clock:hover {
+        background: rgba(255, 0, 0, 0.8);
+        transform: scale(1.1);
+      }
+
+      .add-clock-section {
+        background: var(--card-bg-color);
+        border-radius: 15px;
+        padding: 25px;
+        margin-bottom: 20px;
+        border: 2px dashed var(--border-color);
+        text-align: center;
+        transition: all 0.3s ease;
+      }
+
+              .add-clock-section:hover {
+          border-color: var(--accent-color);
+          background: rgba(13, 110, 253, 0.05);
+        }
+
+        .gap-2 {
+          gap: 0.5rem;
+        }
+
+        .btn:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+        }
+
+        .fa-spin {
+          animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+
+      .timezone-select {
+        max-width: 400px;
+        margin: 0 auto 15px;
+      }
+
+      .loading {
+        opacity: 0.6;
+        pointer-events: none;
+      }
+
+      .error-message {
+        color: #dc3545;
+        font-size: 0.9rem;
+        margin-top: 5px;
+      }
+
+      .success-message {
+        color: #28a745;
+        font-size: 0.9rem;
+        margin-top: 5px;
+      }
+
+      .clock-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 20px;
+        margin-top: 20px;
+      }
+
+      @media (max-width: 768px) {
+        .clock-grid {
+          grid-template-columns: 1fr;
+        }
+        
+        .clock-time {
+          font-size: 2.5rem;
+        }
+        
+        .clock-city {
+          font-size: 1.3rem;
+        }
+      }
+
+      .pulse {
+        animation: pulse 2s infinite;
+      }
+
+      @keyframes pulse {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+        100% { transform: scale(1); }
+      }
+
+      .fade-in {
+        animation: fadeIn 0.5s ease-in;
+      }
+
+      @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+    </style>
+  </head>
+  <body>
+    <nav class="navbar navbar-expand-lg" style="background-color: var(--card-bg-color); border-bottom: 1px solid var(--border-color)">
+      <div class="container-fluid">
+        <a class="navbar-brand" href="#" data-i18n="title">
+          <i class="fas fa-globe-americas me-2"></i>World Clocks
+        </a>
+        <div class="d-flex ms-auto">
+          <select id="lang-switcher" class="form-select form-select-sm me-2" style="width: auto">
+            <option value="en">English</option>
+            <option value="pt">Português</option>
+            <option value="ja">日本語</option>
+          </select>
+          <button id="theme-switcher" class="btn btn-sm btn-outline-secondary">
+            <i class="fas fa-moon"></i>
+          </button>
+        </div>
+      </div>
+    </nav>
+
+    <div class="container-fluid">
+      <div class="row justify-content-center">
+        <div class="col-12 col-lg-10">
+          <!-- Clocks Grid -->
+          <div id="clocks-container" class="clock-grid">
+            <!-- Clocks will be dynamically added here -->
+          </div>
+
+          <!-- Add New Clock Section -->
+          <div class="add-clock-section" id="add-clock-form" style="display: none;">
+            <h5 class="mb-3" data-i18n="add_new_clock">Add New Clock</h5>
+            <div class="timezone-select">
+              <select id="timezone-select" class="form-select form-select-lg">
+                <option value="" data-i18n="select_timezone">Select a timezone...</option>
+              </select>
+            </div>
+            <div class="d-flex gap-2 justify-content-center">
+              <button id="add-clock-btn" class="btn btn-primary btn-lg" data-i18n="add_clock">
+                <i class="fas fa-plus me-2"></i>Add Clock
+              </button>
+              <button id="refresh-cache-btn" class="btn btn-outline-secondary btn-lg" title="Refresh timezone data cache" data-i18n="refresh_cache">
+                <i class="fas fa-sync-alt me-2"></i>Refresh Cache
+              </button>
+              <button id="cancel-add-btn" class="btn btn-outline-secondary btn-lg" data-i18n="cancel">
+                <i class="fas fa-times me-2"></i>Cancel
+              </button>
+            </div>
+            <div id="add-clock-message"></div>
+          </div>
+
+          <!-- Show Add Clock Button -->
+          <div class="text-center mt-4" id="show-add-form-btn">
+            <button class="btn btn-outline-primary btn-lg" id="show-add-clock-btn">
+              <i class="fas fa-plus me-2"></i><span data-i18n="add_new_clock">Add New Clock</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+      document.addEventListener('DOMContentLoaded', () => {
+        // Internationalization
+        const i18n = {
+          en: {
+            title: 'World Clocks',
+            add_new_clock: 'Add New Clock',
+            select_timezone: 'Select a timezone...',
+            add_clock: 'Add Clock',
+            remove_clock: 'Remove Clock',
+            refresh_cache: 'Refresh Cache',
+            cancel: 'Cancel',
+            loading: 'Loading...',
+            error_fetching_time: 'Error fetching time data',
+            clock_added: 'Clock added successfully!',
+            clock_removed: 'Clock removed successfully!',
+            invalid_timezone: 'Please select a valid timezone',
+            timezone_already_added: 'This timezone is already added',
+            cache_refreshed: 'Cache refreshed successfully!',
+            cache_refresh_error: 'Error refreshing cache'
+          },
+          pt: {
+            title: 'Relógios Mundiais',
+            add_new_clock: 'Adicionar Novo Relógio',
+            select_timezone: 'Selecione um fuso horário...',
+            add_clock: 'Adicionar Relógio',
+            remove_clock: 'Remover Relógio',
+            refresh_cache: 'Atualizar Cache',
+            cancel: 'Cancelar',
+            loading: 'Carregando...',
+            error_fetching_time: 'Erro ao buscar dados de tempo',
+            clock_added: 'Relógio adicionado com sucesso!',
+            clock_removed: 'Relógio removido com sucesso!',
+            invalid_timezone: 'Por favor, selecione um fuso horário válido',
+            timezone_already_added: 'Este fuso horário já foi adicionado',
+            cache_refreshed: 'Cache atualizado com sucesso!',
+            cache_refresh_error: 'Erro ao atualizar cache'
+          },
+          ja: {
+            title: '世界時計',
+            add_new_clock: '新しい時計を追加',
+            select_timezone: 'タイムゾーンを選択...',
+            add_clock: '時計を追加',
+            remove_clock: '時計を削除',
+            refresh_cache: 'キャッシュを更新',
+            cancel: 'キャンセル',
+            loading: '読み込み中...',
+            error_fetching_time: '時刻データの取得エラー',
+            clock_added: '時計が正常に追加されました！',
+            clock_removed: '時計が正常に削除されました！',
+            invalid_timezone: '有効なタイムゾーンを選択してください',
+            timezone_already_added: 'このタイムゾーンは既に追加されています',
+            cache_refreshed: 'キャッシュが正常に更新されました！',
+            cache_refresh_error: 'キャッシュの更新エラー'
+          }
+        };
+
+        // DOM Elements
+        const langSwitcher = document.getElementById('lang-switcher');
+        const themeSwitcher = document.getElementById('theme-switcher');
+        const timezoneSelect = document.getElementById('timezone-select');
+        const addClockBtn = document.getElementById('add-clock-btn');
+        const refreshCacheBtn = document.getElementById('refresh-cache-btn');
+        const cancelAddBtn = document.getElementById('cancel-add-btn');
+        const showAddClockBtn = document.getElementById('show-add-clock-btn');
+        const addClockForm = document.getElementById('add-clock-form');
+        const showAddFormBtn = document.getElementById('show-add-form-btn');
+        const addClockMessage = document.getElementById('add-clock-message');
+        const clocksContainer = document.getElementById('clocks-container');
+
+        // State
+        let currentLanguage = localStorage.getItem('app_lang') || 'en';
+        let currentTheme = localStorage.getItem('app_theme') || 'dark';
+        let addedTimezones = new Set();
+        let clockUpdateInterval;
+
+        // Default timezones (fallback if no saved configuration)
+        const defaultTimezones = [
+          { timezone: 'Asia/Tokyo', city: 'Tokyo', country: 'Japan' },
+          { timezone: 'America/New_York', city: 'New York', country: 'USA' },
+          { timezone: 'America/Sao_Paulo', city: 'São Paulo', country: 'Brazil' },
+          { timezone: 'Australia/Sydney', city: 'Sydney', country: 'Australia' },
+          { timezone: 'Europe/Rome', city: 'Milan', country: 'Italy' }
+        ];
+
+        // Initialize
+        initializeApp();
+
+        async function initializeApp() {
+          await loadTimezones();
+          setupDefaultClocks();
+          setupEventListeners();
+          applyI18n();
+          applyTheme(currentTheme);
+          startClockUpdates();
+        }
+
+        async function loadTimezones() {
+          try {
+            // Load all timezones from the local JSON file
+            const response = await fetch('../assets/timezones.json');
+            if (!response.ok) throw new Error('Failed to load timezones');
+            
+            const allTimezones = await response.json();
+            
+            // Create a mapping of timezone to city/country for better display
+            const timezoneDisplayMap = {
+              'Asia/Tokyo': { city: 'Tokyo', country: 'Japan' },
+              'America/New_York': { city: 'New York', country: 'USA' },
+              'America/Sao_Paulo': { city: 'São Paulo', country: 'Brazil' },
+              'Australia/Sydney': { city: 'Sydney', country: 'Australia' },
+              'Europe/Rome': { city: 'Milan', country: 'Italy' },
+              'Europe/London': { city: 'London', country: 'UK' },
+              'Europe/Paris': { city: 'Paris', country: 'France' },
+              'Europe/Berlin': { city: 'Berlin', country: 'Germany' },
+              'Europe/Moscow': { city: 'Moscow', country: 'Russia' },
+              'Asia/Shanghai': { city: 'Shanghai', country: 'China' },
+              'Asia/Seoul': { city: 'Seoul', country: 'South Korea' },
+              'Asia/Singapore': { city: 'Singapore', country: 'Singapore' },
+              'Asia/Dubai': { city: 'Dubai', country: 'UAE' },
+              'America/Los_Angeles': { city: 'Los Angeles', country: 'USA' },
+              'America/Chicago': { city: 'Chicago', country: 'USA' },
+              'America/Toronto': { city: 'Toronto', country: 'Canada' },
+              'America/Mexico_City': { city: 'Mexico City', country: 'Mexico' },
+              'America/Buenos_Aires': { city: 'Buenos Aires', country: 'Argentina' },
+              'America/Santiago': { city: 'Santiago', country: 'Chile' },
+              'Africa/Cairo': { city: 'Cairo', country: 'Egypt' },
+              'Africa/Johannesburg': { city: 'Johannesburg', country: 'South Africa' },
+              'Pacific/Auckland': { city: 'Auckland', country: 'New Zealand' }
+            };
+            
+            // Populate dropdown with all available timezones
+            allTimezones.forEach(timezone => {
+              const option = document.createElement('option');
+              option.value = timezone;
+              
+              // Use the display map if available, otherwise format the timezone
+              if (timezoneDisplayMap[timezone]) {
+                const info = timezoneDisplayMap[timezone];
+                option.textContent = `${info.city}, ${info.country}`;
+              } else {
+                // Format timezone for display (e.g., "Asia/Tokyo" -> "Tokyo, Asia")
+                const parts = timezone.split('/');
+                const city = parts[parts.length - 1].replace(/_/g, ' ');
+                const region = parts[0];
+                option.textContent = `${city}, ${region}`;
+              }
+              
+              timezoneSelect.appendChild(option);
+            });
+          } catch (error) {
+            console.error('Error loading timezones:', error);
+            // Fallback to hardcoded timezones if JSON loading fails
+            loadFallbackTimezones();
+          }
+        }
+
+        function loadFallbackTimezones() {
+          const fallbackTimezones = [
+            { timezone: 'Europe/London', city: 'London', country: 'UK' },
+            { timezone: 'Europe/Paris', city: 'Paris', country: 'France' },
+            { timezone: 'Europe/Berlin', city: 'Berlin', country: 'Germany' },
+            { timezone: 'Europe/Moscow', city: 'Moscow', country: 'Russia' },
+            { timezone: 'Asia/Shanghai', city: 'Shanghai', country: 'China' },
+            { timezone: 'Asia/Seoul', city: 'Seoul', country: 'South Korea' },
+            { timezone: 'Asia/Singapore', city: 'Singapore', country: 'Singapore' },
+            { timezone: 'Asia/Dubai', city: 'Dubai', country: 'UAE' },
+            { timezone: 'America/Los_Angeles', city: 'Los Angeles', country: 'USA' },
+            { timezone: 'America/Chicago', city: 'Chicago', country: 'USA' },
+            { timezone: 'America/Toronto', city: 'Toronto', country: 'Canada' },
+            { timezone: 'America/Mexico_City', city: 'Mexico City', country: 'Mexico' },
+            { timezone: 'America/Buenos_Aires', city: 'Buenos Aires', country: 'Argentina' },
+            { timezone: 'America/Santiago', city: 'Santiago', country: 'Chile' },
+            { timezone: 'Africa/Cairo', city: 'Cairo', country: 'Egypt' },
+            { timezone: 'Africa/Johannesburg', city: 'Johannesburg', country: 'South Africa' },
+            { timezone: 'Pacific/Auckland', city: 'Auckland', country: 'New Zealand' }
+          ];
+
+          const allTimezones = [...defaultTimezones, ...fallbackTimezones];
+          
+          allTimezones.forEach(tz => {
+            const option = document.createElement('option');
+            option.value = tz.timezone;
+            option.textContent = `${tz.city}, ${tz.country}`;
+            timezoneSelect.appendChild(option);
+          });
+        }
+
+        function setupDefaultClocks() {
+          // Load saved clock configuration from localStorage
+          const savedClocks = loadSavedClocks();
+          
+          if (savedClocks && savedClocks.length > 0) {
+            // Load saved clocks
+            savedClocks.forEach(tz => {
+              addClock(tz.timezone, tz.city, tz.country);
+            });
+          } else {
+            // Load default clocks if no saved configuration
+            defaultTimezones.forEach(tz => {
+              addClock(tz.timezone, tz.city, tz.country);
+            });
+          }
+        }
+
+        function loadSavedClocks() {
+          try {
+            const saved = localStorage.getItem('world_clocks_config');
+            return saved ? JSON.parse(saved) : null;
+          } catch (error) {
+            console.error('Error loading saved clocks:', error);
+            return null;
+          }
+        }
+
+        function saveClocksToStorage() {
+          try {
+            const clocksConfig = Array.from(addedTimezones).map(timezone => {
+              // Find the city and country for this timezone
+              const option = timezoneSelect.querySelector(`option[value="${timezone}"]`);
+              if (option) {
+                const text = option.textContent;
+                const parts = text.split(', ');
+                return {
+                  timezone: timezone,
+                  city: parts[0],
+                  country: parts[1]
+                };
+              }
+              return { timezone: timezone, city: timezone, country: '' };
+            });
+            
+            localStorage.setItem('world_clocks_config', JSON.stringify(clocksConfig));
+          } catch (error) {
+            console.error('Error saving clocks to storage:', error);
+          }
+        }
+
+        function showAddClockForm() {
+          addClockForm.style.display = 'block';
+          showAddFormBtn.style.display = 'none';
+          timezoneSelect.focus();
+        }
+
+        function hideAddClockForm() {
+          addClockForm.style.display = 'none';
+          showAddFormBtn.style.display = 'block';
+          timezoneSelect.value = '';
+          addClockMessage.textContent = '';
+        }
+
+        function setupEventListeners() {
+          langSwitcher.addEventListener('change', (e) => {
+            currentLanguage = e.target.value;
+            localStorage.setItem('app_lang', currentLanguage);
+            applyI18n();
+          });
+
+          themeSwitcher.addEventListener('click', () => {
+            currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            applyTheme(currentTheme);
+          });
+
+          addClockBtn.addEventListener('click', handleAddClock);
+          refreshCacheBtn.addEventListener('click', handleRefreshCache);
+          cancelAddBtn.addEventListener('click', hideAddClockForm);
+          showAddClockBtn.addEventListener('click', showAddClockForm);
+        }
+
+        function handleAddClock() {
+          const selectedTimezone = timezoneSelect.value;
+          if (!selectedTimezone) {
+            showMessage('invalid_timezone', 'error');
+            return;
+          }
+
+          if (addedTimezones.has(selectedTimezone)) {
+            showMessage('timezone_already_added', 'error');
+            return;
+          }
+
+          const option = timezoneSelect.querySelector(`option[value="${selectedTimezone}"]`);
+          const city = option.textContent.split(',')[0];
+          const country = option.textContent.split(',')[1];
+
+          addClock(selectedTimezone, city, country);
+          showMessage('clock_added', 'success');
+          timezoneSelect.value = '';
+          
+          // Hide the form after adding a clock
+          hideAddClockForm();
+        }
+
+        async function handleRefreshCache() {
+          try {
+            refreshCacheBtn.disabled = true;
+            refreshCacheBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Refreshing...';
+            
+            // Clear all cached timezone data
+            const keys = Object.keys(localStorage);
+            keys.forEach(key => {
+              if (key.startsWith('timezone_')) {
+                localStorage.removeItem(key);
+              }
+            });
+            
+            // Refresh all current clocks
+            const promises = Array.from(addedTimezones).map(timezone => 
+              fetchTimezoneData(timezone)
+            );
+            
+            await Promise.all(promises);
+            
+            showMessage('cache_refreshed', 'success');
+          } catch (error) {
+            console.error('Error refreshing cache:', error);
+            showMessage('cache_refresh_error', 'error');
+          } finally {
+            refreshCacheBtn.disabled = false;
+            refreshCacheBtn.innerHTML = '<i class="fas fa-sync-alt me-2"></i>Refresh Cache';
+          }
+        }
+
+        function addClock(timezone, city, country) {
+          if (addedTimezones.has(timezone)) return;
+
+          addedTimezones.add(timezone);
+
+          const clockCard = document.createElement('div');
+          clockCard.className = 'clock-card fade-in';
+          clockCard.dataset.timezone = timezone;
+          
+          clockCard.innerHTML = `
+            <button class="remove-clock" title="${i18n[currentLanguage]?.remove_clock || 'Remove Clock'}">
+              <i class="fas fa-times"></i>
+            </button>
+            <div class="clock-city">${city}</div>
+            <div class="clock-time" id="time-${timezone}">--:--:--</div>
+            <div class="clock-date" id="date-${timezone}">--</div>
+            <div class="clock-timezone">${timezone}</div>
+          `;
+
+          // Add remove functionality
+          const removeBtn = clockCard.querySelector('.remove-clock');
+          removeBtn.addEventListener('click', () => removeClock(timezone));
+
+          clocksContainer.appendChild(clockCard);
+
+          // Fetch initial time
+          updateClock(timezone);
+          
+          // Save configuration to localStorage
+          saveClocksToStorage();
+        }
+
+        function removeClock(timezone) {
+          const clockCard = document.querySelector(`[data-timezone="${timezone}"]`);
+          if (clockCard) {
+            clockCard.style.animation = 'fadeOut 0.3s ease-out';
+            setTimeout(() => {
+              clockCard.remove();
+              addedTimezones.delete(timezone);
+              showMessage('clock_removed', 'success');
+              
+              // Save configuration to localStorage
+              saveClocksToStorage();
+            }, 300);
+          }
+        }
+
+        async function updateClock(timezone) {
+          try {
+            const timeElement = document.getElementById(`time-${timezone}`);
+            const dateElement = document.getElementById(`date-${timezone}`);
+            
+            if (!timeElement || !dateElement) return;
+
+            // Get cached timezone data or fetch it
+            let timezoneData = getCachedTimezoneData(timezone);
+            
+            if (!timezoneData) {
+              // Fetch timezone data from API (only once per timezone)
+              timezoneData = await fetchTimezoneData(timezone);
+              if (!timezoneData) {
+                timeElement.textContent = 'Error';
+                return;
+              }
+            }
+
+            // Calculate current time using cached offset
+            const currentTime = calculateLocalTime(timezoneData);
+            
+            // Update display
+            timeElement.textContent = currentTime.timeString;
+            dateElement.textContent = currentTime.dateString;
+            
+          } catch (error) {
+            console.error(`Error updating clock for ${timezone}:`, error);
+            const timeElement = document.getElementById(`time-${timezone}`);
+            if (timeElement) {
+              timeElement.textContent = 'Error';
+            }
+          }
+        }
+
+        function getCachedTimezoneData(timezone) {
+          const cacheKey = `timezone_${timezone}`;
+          const cached = localStorage.getItem(cacheKey);
+          
+          if (!cached) return null;
+          
+          try {
+            const data = JSON.parse(cached);
+            const now = Date.now();
+            
+            // Check if cache is still valid (24 hours)
+            if (now - data.timestamp < 24 * 60 * 60 * 1000) {
+              return data;
+            } else {
+              // Cache expired, remove it
+              localStorage.removeItem(cacheKey);
+              return null;
+            }
+          } catch (error) {
+            console.error('Error parsing cached timezone data:', error);
+            localStorage.removeItem(cacheKey);
+            return null;
+          }
+        }
+
+        async function fetchTimezoneData(timezone) {
+          try {
+            const response = await fetch(`https://worldtimeapi.org/api/timezone/${timezone}`);
+            if (!response.ok) throw new Error('Failed to fetch time data');
+            
+            const data = await response.json();
+            
+            // Cache the timezone data
+            const cacheData = {
+              timezone: data.timezone,
+              utc_offset: data.utc_offset,
+              raw_offset: data.raw_offset,
+              dst: data.dst,
+              dst_offset: data.dst_offset,
+              abbreviation: data.abbreviation,
+              timestamp: Date.now()
+            };
+            
+            localStorage.setItem(`timezone_${timezone}`, JSON.stringify(cacheData));
+            
+            return cacheData;
+          } catch (error) {
+            console.error(`Error fetching timezone data for ${timezone}:`, error);
+            return null;
+          }
+        }
+
+        function calculateLocalTime(timezoneData) {
+          const now = new Date();
+          
+          // Use the browser's built-in timezone conversion instead of manual calculation
+          // This is more reliable and handles DST automatically
+          try {
+                         const timeString = now.toLocaleTimeString('en-US', { 
+               hour12: false, 
+               hour: '2-digit',
+               minute: '2-digit',
+               timeZone: timezoneData.timezone
+             });
+            
+            const dateString = now.toLocaleDateString('en-US', { 
+              weekday: 'long',
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric',
+              timeZone: timezoneData.timezone
+            });
+            
+            return { timeString, dateString };
+          } catch (error) {
+            console.error(`Error using timezone ${timezoneData.timezone}:`, error);
+            
+            // Fallback to manual calculation if browser timezone fails
+            const utcTime = now.getTime();
+            const offsetParts = timezoneData.utc_offset.split(':');
+            const offsetHours = parseInt(offsetParts[0]);
+            const offsetMinutes = parseInt(offsetParts[1]);
+            const totalOffsetMs = (offsetHours * 60 + offsetMinutes) * 60000;
+            
+            const localTime = new Date(utcTime + totalOffsetMs);
+            
+                         const fallbackTimeString = localTime.toLocaleTimeString('en-US', { 
+               hour12: false, 
+               hour: '2-digit',
+               minute: '2-digit'
+             });
+            
+            const fallbackDateString = localTime.toLocaleDateString('en-US', { 
+              weekday: 'long',
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric'
+            });
+            
+            return { timeString: fallbackTimeString, dateString: fallbackDateString };
+          }
+        }
+
+        function startClockUpdates() {
+          // Update all clocks every minute since we're not showing seconds
+          clockUpdateInterval = setInterval(() => {
+            addedTimezones.forEach(timezone => {
+              updateClock(timezone);
+            });
+          }, 60000); // Update every minute instead of every second
+        }
+
+        function showMessage(key, type) {
+          const message = i18n[currentLanguage]?.[key] || key;
+          addClockMessage.textContent = message;
+          addClockMessage.className = `message ${type}-message`;
+          
+          setTimeout(() => {
+            addClockMessage.textContent = '';
+            addClockMessage.className = '';
+          }, 3000);
+        }
+
+        function applyI18n() {
+          const lang = i18n[currentLanguage] || i18n.en;
+          document.querySelectorAll('[data-i18n]').forEach((el) => {
+            const key = el.getAttribute('data-i18n');
+            if (lang[key]) el.innerText = lang[key];
+          });
+          document.title = lang.title;
+        }
+
+        function applyTheme(theme) {
+          document.documentElement.setAttribute('data-theme', theme);
+          const icon = themeSwitcher.querySelector('i');
+          icon.className = theme === 'light' ? 'fas fa-moon' : 'fas fa-sun';
+          localStorage.setItem('app_theme', theme);
+        }
+
+        // Cleanup expired cache entries on startup
+        function cleanupExpiredCache() {
+          const keys = Object.keys(localStorage);
+          const now = Date.now();
+          
+          keys.forEach(key => {
+            if (key.startsWith('timezone_')) {
+              try {
+                const data = JSON.parse(localStorage.getItem(key));
+                if (now - data.timestamp >= 24 * 60 * 60 * 1000) {
+                  localStorage.removeItem(key);
+                }
+              } catch (error) {
+                // Remove invalid cache entries
+                localStorage.removeItem(key);
+              }
+            }
+          });
+        }
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+          if (clockUpdateInterval) {
+            clearInterval(clockUpdateInterval);
+          }
+        });
+
+        // Cleanup expired cache on startup
+        cleanupExpiredCache();
+        
+        // Set the language switcher to the current language
+        langSwitcher.value = currentLanguage;
+      });
+    </script>
+  </body>
+</html>
