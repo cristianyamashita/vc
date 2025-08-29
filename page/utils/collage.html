@@ -311,9 +311,50 @@ Still missing or possible future work:
     rootLayer.batchDraw();
   }
 
-  function setZoom(z){ zoom = Math.max(0.05, Math.min(8, z)); centerBoard(); updateZoomBadge(); }
+  function setZoom(z){
+    const newZoom = Math.max(0.05, Math.min(8, z));
+    if (newZoom === zoom) return;
 
-  window.addEventListener('resize', ()=>{fitStageToWrap(); centerBoard();});
+    // Capture current board-relative transforms before changing board
+    const snapshots = project.layers.map(L => ({
+      L,
+      relX: (L.group.x() - board.x()) / zoom,
+      relY: (L.group.y() - board.y()) / zoom,
+      relSX: L.group.scaleX() / zoom,
+      relSY: L.group.scaleY() / zoom
+    }));
+
+    // Apply zoom and recenter the board
+    zoom = newZoom;
+    centerBoard();
+
+    // Reapply transforms so content zooms with board
+    snapshots.forEach(s => {
+      s.L.group.position({ x: board.x() + s.relX * zoom, y: board.y() + s.relY * zoom });
+      s.L.group.scale({ x: s.relSX * zoom, y: s.relSY * zoom });
+    });
+
+    updateZoomBadge();
+    rootLayer.batchDraw();
+  }
+
+  function recenterContentWithBoard(){
+    const snaps = project.layers.map(L => ({
+      L,
+      relX: (L.group.x() - board.x()) / zoom,
+      relY: (L.group.y() - board.y()) / zoom,
+      relSX: L.group.scaleX() / zoom,
+      relSY: L.group.scaleY() / zoom
+    }));
+    centerBoard();
+    snaps.forEach(s => {
+      s.L.group.position({ x: board.x() + s.relX * zoom, y: board.y() + s.relY * zoom });
+      s.L.group.scale({ x: s.relSX * zoom, y: s.relSY * zoom });
+    });
+    rootLayer.batchDraw();
+  }
+
+  window.addEventListener('resize', ()=>{ fitStageToWrap(); recenterContentWithBoard(); });
   fitStageToWrap(); setZoom(0.6); // initial view
 
   // ===== Layer Model =====
