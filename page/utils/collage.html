@@ -1,0 +1,937 @@
+<!doctype html>
+<html lang="en">
+  <!--
+
+README
+
+This project is a browser-based image collage editor built with only HTML, CSS, and JavaScript, using libraries via CDN.
+
+Current features:
+- Upload, paste, or drag-and-drop images into the canvas
+- Multiple layers with reordering, renaming, visibility toggle, and lock
+- Move, rotate, and resize images with handles
+- Layer opacity and blend modes
+- Basic filters per layer: brightness, contrast, saturation, hue, blur
+- Eraser tool with brush size and restore option
+- Zoom controls and panning
+- Undo/Redo history
+- Export final composition to PNG with transparency
+- Preview modal
+- Multi-language UI (English, Portuguese, Japanese)
+- Add simple text or rectangle layers
+
+Still missing or possible future work:
+- Chroma key (make selected color transparent)
+- More filters and presets
+- Snap to grid and smart guides
+- Shapes with boolean operations (union/intersect)
+- Save and load project (JSON import/export)
+- Layer masks with advanced options
+- Clone/Stamp tool
+- Ruler and measurement tools
+- Mobile-friendly gestures (pinch zoom, touch pan)
+- Theme switching (light/dark)
+- More keyboard shortcuts
+
+
+  -->
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Image Collage Editor – Starter (HTML/JS/CSS)</title>
+  <style>
+    :root{
+      --bg:#121318; --panel:#1a1c23; --panel-2:#20232b; --text:#e6e7ea;
+      --muted:#8a8f98; --accent:#5aa7ff; --accent-2:#7bd389; --danger:#ff6b6b;
+      --border:#2b2f3a; --checker-a:#bbb; --checker-b:#eee;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{margin:0; background:var(--bg); color:var(--text); font:14px/1.35 system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";}
+
+    .app{display:grid; grid-template-rows:48px 1fr; height:100vh;}
+    .toolbar{display:flex; gap:8px; align-items:center; padding:8px; border-bottom:1px solid var(--border); background:linear-gradient(180deg,var(--panel),var(--panel-2)); position:sticky; top:0; z-index:10}
+    .toolbar .group{display:flex; gap:6px; align-items:center; padding-right:10px; border-right:1px solid var(--border)}
+    .toolbar button,.toolbar select,.toolbar input[type="number"], .toolbar .file-label{
+      background:var(--panel-2); color:var(--text); border:1px solid var(--border); padding:6px 10px; border-radius:8px; cursor:pointer; height:32px;
+    }
+    .toolbar button:hover,.toolbar .file-label:hover{border-color:#3a4050}
+    .toolbar button[aria-pressed="true"]{outline:2px solid var(--accent)}
+    .file-input{display:none}
+    .file-label{display:inline-flex; align-items:center; gap:6px}
+    .spacer{flex:1}
+
+    .main{display:grid; grid-template-columns:260px 1fr 300px; height:calc(100vh - 48px);}
+    .panel{border-right:1px solid var(--border); background:var(--panel); overflow:auto}
+    .panel.right{border-right:none; border-left:1px solid var(--border)}
+
+    .section{padding:10px; border-bottom:1px solid var(--border)}
+    .section h3{margin:0 0 8px 0; font-size:12px; text-transform:uppercase; letter-spacing:.08em; color:var(--muted)}
+
+    .layers{padding:10px}
+    .layer-item{display:grid; grid-template-columns:24px 1fr 24px; align-items:center; gap:8px; padding:6px; border:1px solid var(--border); border-radius:10px; background:var(--panel-2); margin-bottom:8px; cursor:pointer}
+    .layer-item[aria-selected="true"]{outline:2px solid var(--accent)}
+    .layer-name{white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+    .layer-actions{display:flex; gap:6px; justify-self:end}
+    .icon{width:18px; height:18px; display:grid; place-items:center; border:1px solid var(--border); border-radius:6px; background:#171922}
+    .icon[aria-pressed="true"]{outline:2px solid var(--accent)}
+    .muted{color:var(--muted)}
+
+    .prop-row{display:grid; grid-template-columns:120px 1fr; align-items:center; gap:10px; margin:8px 0}
+    .prop-row input[type="range"]{width:100%}
+    .prop-row select,.prop-row input[type="text"]{width:100%; background:var(--panel-2); color:var(--text); border:1px solid var(--border); border-radius:8px; padding:6px}
+
+    .canvas-wrap{position:relative; overflow:hidden; background:conic-gradient(#14161d, #101218);}
+    .stage-holder{position:absolute; inset:0; overflow:auto}
+
+    /* checkerboard */
+    .checker{position:absolute; inset:0; background-image: linear-gradient(45deg, var(--checker-a) 25%, transparent 25%), linear-gradient(-45deg, var(--checker-a) 25%, transparent 25%), linear-gradient(45deg, transparent 75%, var(--checker-a) 75%), linear-gradient(-45deg, transparent 75%, var(--checker-a) 75%); background-size:20px 20px; background-position:0 0, 0 10px, 10px -10px, -10px 0px; opacity:.35;}
+
+    .badge{display:inline-flex; align-items:center; gap:6px; padding:4px 8px; border:1px solid var(--border); border-radius:8px; background:var(--panel-2);}
+
+    dialog.modal{border:1px solid var(--border); background:var(--panel); color:var(--text); border-radius:12px; padding:0; width:min(90vw,900px)}
+    .modal header{display:flex; align-items:center; justify-content:space-between; padding:10px 12px; border-bottom:1px solid var(--border)}
+    .modal .content{padding:10px}
+    .modal .content img{max-width:100%; height:auto; display:block;}
+
+    /* small helpers */
+    input[type="range"]{accent-color: var(--accent)}
+    .row{display:flex; gap:8px; align-items:center}
+    .hidden{display:none !important}
+  </style>
+  <!-- CDNs -->
+  <script src="https://cdn.jsdelivr.net/npm/konva@9.3.11/konva.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.3/Sortable.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/hotkeys-js@3.13.9/dist/hotkeys.min.js"></script>
+</head>
+<body>
+  <div class="app">
+    <div class="toolbar" id="toolbar">
+      <div class="group">
+        <button id="btnNew" title="New / Novo / 新規">New</button>
+        <label class="file-label" for="fileInput">Upload<input class="file-input" id="fileInput" type="file" accept="image/*" multiple></label>
+        <button id="btnPaste">Paste</button>
+        <button id="btnExport">Export PNG</button>
+        <button id="btnPreview">Preview</button>
+      </div>
+      <div class="group">
+        <button id="btnUndo" title="Ctrl/Cmd+Z">Undo</button>
+        <button id="btnRedo" title="Shift+Ctrl/Cmd+Z">Redo</button>
+      </div>
+          <div class="group">
+      <button id="toolMove" aria-pressed="true">Move</button>
+      <button id="toolErase">Eraser</button>
+      <label class="row" style="gap:6px; padding-left:6px">
+        <span class="muted" id="lblBrush">Brush</span>
+        <input type="range" id="brushSize" min="5" max="200" value="40">
+        <input type="checkbox" id="chkRestore" /> <span class="muted" title="Restore reveals erased parts">Restore</span>
+      </label>
+      <span class="badge" id="toolStatus" style="margin-left: 8px;">Move Tool</span>
+    </div>
+      <div class="group">
+        <button id="btnZoomOut">-</button>
+        <span class="badge" id="zoomBadge">100%</span>
+        <button id="btnZoomIn">+</button>
+        <button id="btnZoomReset">Reset</button>
+      </div>
+      <div class="spacer"></div>
+      <div class="group">
+        <label class="row" style="gap:6px">
+          <span class="muted">Lang</span>
+          <select id="langSelect">
+            <option value="en">EN</option>
+            <option value="pt" selected>PT</option>
+            <option value="ja">日本語</option>
+          </select>
+        </label>
+      </div>
+    </div>
+
+    <div class="main">
+      <!-- Left: Layers -->
+      <aside class="panel left">
+        <div class="section">
+          <h3 id="lblLayers">Layers</h3>
+          <div id="layersList" class="layers" aria-label="Layers list"></div>
+          <div class="row" style="padding:0 10px 10px 10px">
+            <button id="btnAddText">+ Text</button>
+            <button id="btnAddRect">+ Rect</button>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Center: Canvas -->
+      <main class="canvas-wrap" id="canvasWrap">
+        <div class="checker"></div>
+        <div class="stage-holder" id="stageHolder"></div>
+      </main>
+
+      <!-- Right: Properties -->
+      <aside class="panel right">
+        <div class="section">
+          <h3 id="lblProps">Properties</h3>
+          <div class="prop-row"><label id="lblName">Name</label><input id="inpName" type="text" placeholder="Layer name" /></div>
+          <div class="prop-row"><label id="lblOpacity">Opacity</label><input id="inpOpacity" type="range" min="0" max="100" value="100" /></div>
+          <div class="prop-row"><label id="lblBlend">Blend</label>
+            <select id="selBlend">
+              <option>source-over</option>
+              <option>multiply</option>
+              <option>screen</option>
+              <option>overlay</option>
+              <option>darken</option>
+              <option>lighten</option>
+              <option>color-burn</option>
+              <option>color-dodge</option>
+              <option>hard-light</option>
+              <option>soft-light</option>
+              <option>difference</option>
+              <option>exclusion</option>
+              <option>luminosity</option>
+            </select>
+          </div>
+        </div>
+        <div class="section">
+          <h3 id="lblFilters">Filters</h3>
+          <div class="prop-row"><label id="lblBright">Brightness</label><input id="fBrightness" type="range" min="0" max="200" value="100" /></div>
+          <div class="prop-row"><label id="lblContrast">Contrast</label><input id="fContrast" type="range" min="0" max="200" value="100" /></div>
+          <div class="prop-row"><label id="lblSaturate">Saturate</label><input id="fSaturate" type="range" min="0" max="300" value="100" /></div>
+          <div class="prop-row"><label id="lblHue">Hue</label><input id="fHue" type="range" min="0" max="360" value="0" /></div>
+          <div class="prop-row"><label id="lblBlur">Blur(px)</label><input id="fBlur" type="range" min="0" max="20" value="0" /></div>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <dialog class="modal" id="previewModal">
+    <div class="modal">
+      <header>
+        <strong>Preview</strong>
+        <button id="closePreview">✕</button>
+      </header>
+      <div class="content">
+        <img id="previewImage" alt="Preview" />
+      </div>
+    </div>
+  </dialog>
+
+  <script>
+  // ===== i18n =====
+  const I18N = {
+    en: {
+      New:"New", Upload:"Upload", Paste:"Paste", ExportPNG:"Export PNG", Preview:"Preview",
+      Undo:"Undo", Redo:"Redo", Move:"Move", Eraser:"Eraser", Brush:"Brush", Restore:"Restore",
+      Reset:"Reset", Layers:"Layers", Properties:"Properties", Name:"Name", Opacity:"Opacity",
+      Blend:"Blend", Filters:"Filters", Brightness:"Brightness", Contrast:"Contrast",
+      Saturate:"Saturate", Hue:"Hue", Blur:"Blur(px)", Lang:"Lang"
+    },
+    pt: {
+      New:"Novo", Upload:"Enviar", Paste:"Colar", ExportPNG:"Exportar PNG", Preview:"Preview",
+      Undo:"Desfazer", Redo:"Refazer", Move:"Mover", Eraser:"Borracha", Brush:"Pincel", Restore:"Restaurar",
+      Reset:"Resetar", Layers:"Camadas", Properties:"Propriedades", Name:"Nome", Opacity:"Opacidade",
+      Blend:"Mistura", Filters:"Filtros", Brightness:"Brilho", Contrast:"Contraste",
+      Saturate:"Saturação", Hue:"Matiz", Blur:"Desfoque(px)", Lang:"Idioma"
+    },
+    ja: {
+      New:"新規", Upload:"アップロード", Paste:"貼り付け", ExportPNG:"PNG書き出し", Preview:"プレビュー",
+      Undo:"元に戻す", Redo:"やり直し", Move:"移動", Eraser:"消しゴム", Brush:"ブラシ", Restore:"復元",
+      Reset:"リセット", Layers:"レイヤー", Properties:"プロパティ", Name:"名前", Opacity:"不透明度",
+      Blend:"合成", Filters:"フィルター", Brightness:"明るさ", Contrast:"コントラスト",
+      Saturate:"彩度", Hue:"色相", Blur:"ぼかし(px)", Lang:"言語"
+    }
+  };
+  function applyLang(lang){
+    const t=I18N[lang]||I18N.en;
+    btnNew.textContent=t.New; 
+    const uploadLabel = document.querySelector("label[for='fileInput']");
+    if (uploadLabel && uploadLabel.childNodes[0]) uploadLabel.childNodes[0].textContent=t.Upload;
+    btnPaste.textContent=t.Paste; btnExport.textContent=t.ExportPNG; btnPreview.textContent=t.Preview;
+    btnUndo.textContent=t.Undo; btnRedo.textContent=t.Redo; toolMove.textContent=t.Move; toolErase.textContent=t.Eraser;
+    lblBrush.textContent=t.Brush; 
+    const resetBtn = document.getElementById('btnZoomReset');
+    if (resetBtn) resetBtn.textContent=t.Reset;
+    const lblLayers = document.getElementById('lblLayers');
+    if (lblLayers) lblLayers.textContent=t.Layers; 
+    const lblProps = document.getElementById('lblProps');
+    if (lblProps) lblProps.textContent=t.Properties;
+    const lblName = document.getElementById('lblName');
+    if (lblName) lblName.textContent=t.Name; 
+    const lblOpacity = document.getElementById('lblOpacity');
+    if (lblOpacity) lblOpacity.textContent=t.Opacity;
+    const lblBlend = document.getElementById('lblBlend');
+    if (lblBlend) lblBlend.textContent=t.Blend; 
+    const lblFilters = document.getElementById('lblFilters');
+    if (lblFilters) lblFilters.textContent=t.Filters;
+    const lblBright = document.getElementById('lblBright');
+    if (lblBright) lblBright.textContent=t.Brightness; 
+    const lblContrast = document.getElementById('lblContrast');
+    if (lblContrast) lblContrast.textContent=t.Contrast;
+    const lblSaturate = document.getElementById('lblSaturate');
+    if (lblSaturate) lblSaturate.textContent=t.Saturate; 
+    const lblHue = document.getElementById('lblHue');
+    if (lblHue) lblHue.textContent=t.Hue;
+    const lblBlur = document.getElementById('lblBlur');
+    if (lblBlur) lblBlur.textContent=t.Blur; 
+    const langLabel = document.querySelector("label[for='langSelect'] span");
+    if (langLabel) langLabel.textContent=t.Lang;
+    const restoreSpan = document.querySelector("label[for='chkRestore']+span");
+    if (restoreSpan) restoreSpan.remove(); // cleanup if exists
+    const chkRestore = document.getElementById('chkRestore');
+    if (chkRestore) chkRestore.insertAdjacentHTML('afterend', `<span class="muted" title="${t.Restore} reveals erased parts">${t.Restore}</span>`);
+  }
+
+  // ===== State =====
+  const stageHolder=document.getElementById('stageHolder');
+  const stage=new Konva.Stage({container:stageHolder, width:10, height:10});
+  const rootLayer=new Konva.Layer(); stage.add(rootLayer);
+  const transformer=new Konva.Transformer({rotateEnabled:true, enabledAnchors:['top-left','top-right','bottom-left','bottom-right'], rotateAnchorOffset:20, borderStroke:'#5aa7ff', anchorStroke:'#5aa7ff', anchorFill:'#1a1c23', anchorSize:10});
+  rootLayer.add(transformer);
+  let zoom=1; const ZOOM_STEP=1.1; let currentTool='move';
+
+  const project={ width:1600, height:900, layers:[], selectionId:null, history:[], historyPtr:-1 };
+
+  function fitStageToWrap(){
+    const wrap=document.getElementById('canvasWrap');
+    const pad=20; const w=wrap.clientWidth - pad*2; const h=wrap.clientHeight - pad*2;
+    stage.size({width:w, height:h});
+    updateZoomBadge();
+    drawCheckerboardFrame();
+  }
+
+  function updateZoomBadge(){ document.getElementById('zoomBadge').textContent = Math.round(zoom*100)+"%"; }
+
+  // Center-stage board (virtual canvas frame)
+  const board=new Konva.Rect({x:0,y:0,width:project.width,height:project.height, fillLinearGradientStartPoint:{x:0,y:0}, fillLinearGradientEndPoint:{x:0,y:project.height}, fillLinearGradientColorStops:[0,'rgba(255,255,255,0)',1,'rgba(255,255,255,0)'], listening:false, shadowBlur:0});
+  rootLayer.add(board);
+
+  function centerBoard(){
+    const {width:sw,height:sh}=stage.size();
+    board.position({x:(sw-project.width*zoom)/2, y:(sh-project.height*zoom)/2});
+    board.scale({x:zoom,y:zoom});
+    // Don't reposition existing layers - let them maintain their positions
+    rootLayer.batchDraw();
+  }
+
+  function setZoom(z){ zoom = Math.max(0.05, Math.min(8, z)); centerBoard(); updateZoomBadge(); }
+
+  window.addEventListener('resize', ()=>{fitStageToWrap(); centerBoard();});
+  fitStageToWrap(); setZoom(0.6); // initial view
+
+  // ===== Layer Model =====
+  let layerCounter=1;
+  function createLayerFromImage(img, name){
+    const baseW=img.naturalWidth||img.width; const baseH=img.naturalHeight||img.height;
+    const L={ id:"L"+(Date.now())+"_"+(layerCounter++), name: name||`Image ${layerCounter-1}`,
+      baseImage: img,
+      maskCanvas: document.createElement('canvas'),
+      composedCanvas: document.createElement('canvas'),
+      filters:{brightness:100, contrast:100, saturate:100, hue:0, blur:0},
+      opacity:1, blend:'source-over', visible:true, locked:false,
+      group: new Konva.Group({draggable: true}),
+      konvaImage: null
+    };
+    L.maskCanvas.width=baseW; L.maskCanvas.height=baseH;
+    L.composedCanvas.width=baseW; L.composedCanvas.height=baseH;
+
+    // initial draw
+    refreshComposed(L);
+
+    L.konvaImage = new Konva.Image({image:L.composedCanvas, x:0, y:0, opacity:L.opacity, listening:true});
+    L.konvaImage.globalCompositeOperation(L.blend);
+    L.group.add(L.konvaImage);
+    L.group.draggable(currentTool === 'move'); // Set initial draggable state
+    rootLayer.add(L.group);
+
+    // initial placement: fit into board
+    const fitScale = Math.min(project.width/baseW, project.height/baseH, 1);
+    const boardPos = board.position();
+    L.group.position({
+      x: boardPos.x + (project.width - baseW*fitScale)*zoom/2, 
+      y: boardPos.y + (project.height - baseH*fitScale)*zoom/2
+    });
+    L.group.scale({x: zoom*fitScale, y: zoom*fitScale});
+
+    // select on click - only handle move tool clicks here
+    L.group.on('mousedown touchstart', (e)=>{ 
+      if(currentTool==='move'){ 
+        selectLayer(L.id); 
+        e.cancelBubble=true; 
+      }
+      // For eraser tool, don't handle clicks here - let the stage handle them
+    });
+
+    project.layers.unshift(L); // topmost first in array
+    reorderKonvaFromList();
+    addLayerListItem(L);
+    selectLayer(L.id);
+    pushHistory("addLayer");
+  }
+
+  function refreshComposed(L){
+    const w=L.composedCanvas.width, h=L.composedCanvas.height;
+    const ctx=L.composedCanvas.getContext('2d'); ctx.clearRect(0,0,w,h);
+    // filters
+    const f = `brightness(${L.filters.brightness}%) contrast(${L.filters.contrast}%) saturate(${L.filters.saturate}%) hue-rotate(${L.filters.hue}deg) blur(${L.filters.blur}px)`;
+    ctx.filter=f; ctx.drawImage(L.baseImage, 0,0, w,h);
+    ctx.filter='none';
+    // apply mask strokes as destination-out
+    const m=L.maskCanvas; if(m){ ctx.save(); ctx.globalCompositeOperation='destination-out'; ctx.drawImage(m,0,0); ctx.restore(); }
+    // update Konva image
+    if(L.konvaImage){ L.konvaImage.image(L.composedCanvas); L.konvaImage.opacity(L.opacity); L.konvaImage.globalCompositeOperation(L.blend); }
+  }
+
+  // ===== UI: Layers List =====
+  const layersList=document.getElementById('layersList');
+  new Sortable(layersList, {animation:150, onEnd(){
+    // update project.layers order based on DOM order (top at top)
+    const ids=[...layersList.querySelectorAll('.layer-item')].map(n=>n.dataset.id);
+    project.layers.sort((a,b)=> ids.indexOf(a.id) - ids.indexOf(b.id));
+    reorderKonvaFromList(); pushHistory("reorder");
+  }});
+
+  function addLayerListItem(L){
+    const el=document.createElement('div'); el.className='layer-item'; el.dataset.id=L.id; el.setAttribute('role','button');
+    el.innerHTML=`
+      <button class="icon btn-eye" title="Toggle visibility">👁</button>
+      <div class="layer-name" contenteditable="true">${L.name}</div>
+      <div class="layer-actions">
+        <button class="icon btn-lock" title="Lock/Unlock">🔒</button>
+      </div>`;
+    layersList.prepend(el);
+
+    el.addEventListener('click', (e)=>{ if(e.target!==el.querySelector('.layer-name')) selectLayer(L.id); });
+    el.querySelector('.layer-name').addEventListener('input', (e)=>{ L.name = e.currentTarget.textContent.trim()||L.name; if(project.selectionId===L.id) inpName.value=L.name; pushHistory("rename"); });
+    el.querySelector('.btn-eye').addEventListener('click', (e)=>{ e.stopPropagation(); L.visible=!L.visible; L.group.visible(L.visible); e.currentTarget.setAttribute('aria-pressed', String(!L.visible)); pushHistory("visibility"); rootLayer.batchDraw(); });
+    el.querySelector('.btn-lock').addEventListener('click', (e)=>{ e.stopPropagation(); L.locked=!L.locked; L.group.draggable(!L.locked); e.currentTarget.setAttribute('aria-pressed', String(L.locked)); pushHistory("lock"); });
+  }
+
+  function selectLayer(id){ project.selectionId=id; [...layersList.children].forEach(n=>n.setAttribute('aria-selected', String(n.dataset.id===id)));
+    const L = project.layers.find(x=>x.id===id); if(!L){ transformer.nodes([]); return; }
+    transformer.nodes([L.group]); // Attach transformer to the group, not the image
+    // populate props
+    inpName.value=L.name; inpOpacity.value=Math.round((L.opacity||1)*100); selBlend.value=L.blend||'source-over';
+    fBrightness.value=L.filters.brightness; fContrast.value=L.filters.contrast; fSaturate.value=L.filters.saturate; fHue.value=L.filters.hue; fBlur.value=L.filters.blur;
+    rootLayer.batchDraw();
+  }
+
+  function reorderKonvaFromList(){
+    // DOM top -> Konva top: ensure zIndex order
+    const ids=[...layersList.querySelectorAll('.layer-item')].map(n=>n.dataset.id);
+    ids.forEach((id, idx)=>{ const L=project.layers.find(x=>x.id===id); if(L){ L.group.zIndex(project.layers.length-idx); }});
+    rootLayer.batchDraw();
+  }
+
+  // ===== File Load / Paste / DnD =====
+  const fileInput=document.getElementById('fileInput');
+  fileInput.addEventListener('change', async (e)=>{
+    const files=[...e.target.files]; for(const f of files){ await loadFileAsImage(f); }
+    fileInput.value='';
+  });
+
+  async function loadFileAsImage(file){ return new Promise((resolve,reject)=>{ const img=new Image(); img.onload=()=>{ createLayerFromImage(img, file.name); resolve(); }; img.onerror=reject; img.src=URL.createObjectURL(file); img.crossOrigin='anonymous'; }); }
+
+  document.getElementById('btnPaste').addEventListener('click', ()=>{
+    navigator.clipboard && navigator.clipboard.read && navigator.clipboard.read().then(items=>{
+      for(const item of items){ for(const type of item.types){ if(type.startsWith('image/')){ item.getType(type).then(blob=> loadFileAsImage(new File([blob], 'pasted.png', {type:blob.type})) ); } } }
+    }).catch(()=>{/* fallback to Ctrl+V */});
+  });
+
+  window.addEventListener('paste', (e)=>{
+    if(!e.clipboardData) return;
+    for(const item of e.clipboardData.items){ if(item.kind==='file' && item.type.startsWith('image/')){ const f=item.getAsFile(); if(f) loadFileAsImage(f); } }
+  });
+
+  // Drag & Drop
+  const canvasWrap=document.getElementById('canvasWrap');
+  ;['dragenter','dragover','dragleave','drop'].forEach(ev=> canvasWrap.addEventListener(ev, e=>{ e.preventDefault(); e.stopPropagation(); }));
+  canvasWrap.addEventListener('drop', (e)=>{
+    const files=[...e.dataTransfer.files].filter(f=>f.type.startsWith('image/'));
+    files.forEach(loadFileAsImage);
+  });
+
+  // ===== Tools: Move / Erase =====
+  const toolMove=document.getElementById('toolMove'); const toolErase=document.getElementById('toolErase');
+  function setTool(t){ 
+    console.log('setTool called with:', t);
+    currentTool=t; 
+    console.log('currentTool set to:', currentTool);
+    
+    toolMove.setAttribute('aria-pressed', t==='move'); 
+    toolErase.setAttribute('aria-pressed', t==='erase'); 
+    stage.container().style.cursor = (t==='move'?'default':'crosshair'); 
+    
+    // Update tool status badge
+    const toolStatus = document.getElementById('toolStatus');
+    if (toolStatus) {
+      toolStatus.textContent = t === 'move' ? 'Move Tool' : 'Eraser Tool';
+    }
+    
+    // Update draggable state for all layers
+    project.layers.forEach(layer => {
+      if (!layer.locked) {
+        layer.group.draggable(t === 'move');
+      }
+    });
+    
+    // Clear any existing selection when switching to eraser
+    if (t === 'erase') {
+      transformer.nodes([]);
+      rootLayer.batchDraw();
+    }
+    
+    console.log('Tool setup complete, currentTool is now:', currentTool);
+  }
+  toolMove.addEventListener('click', ()=> { console.log('Move tool clicked'); setTool('move'); });
+  toolErase.addEventListener('click', ()=> { console.log('Eraser tool clicked'); setTool('erase'); });
+
+  function getSelectedLayer(){ return project.layers.find(x=>x.id===project.selectionId); }
+
+  let drawing=false; let lastPt=null;
+  
+  // Handle eraser tool events
+  stage.on('mousedown touchstart', (e)=>{
+    console.log('Stage mousedown event, currentTool:', currentTool);
+    
+    if(currentTool!=='erase') {
+      console.log('Not eraser tool, ignoring');
+      return;
+    }
+    
+    console.log('Eraser tool clicked, currentTool:', currentTool);
+    
+    // Check if we clicked on a layer
+    const pos = stage.getPointerPosition();
+    console.log('Click position:', pos);
+    
+    // Log all layers for debugging
+    console.log('All layers:', project.layers.map(l => ({
+      name: l.name,
+      locked: l.locked,
+      visible: l.visible,
+      groupPos: l.group.position(),
+      groupScale: l.group.scale()
+    })));
+    
+    let L = project.layers.find(l => {
+      if (l.locked || !l.visible) {
+        console.log('Layer', l.name, 'is locked or invisible');
+        return false;
+      }
+      
+      // Use the group's bounding box for hit detection
+      const group = l.group;
+      const groupPos = group.position();
+      const groupScale = group.scale();
+      const imageWidth = l.konvaImage.width() * groupScale.x;
+      const imageHeight = l.konvaImage.height() * groupScale.y;
+      
+      console.log('Layer:', l.name, 'Group pos:', groupPos, 'Scale:', groupScale, 'Size:', imageWidth, 'x', imageHeight);
+      
+      // Check if click is within the transformed group bounds
+      const hit = pos.x >= groupPos.x && pos.x <= groupPos.x + imageWidth &&
+                  pos.y >= groupPos.y && pos.y <= groupPos.y + imageHeight;
+      
+      console.log('Hit test result:', hit);
+      return hit;
+    });
+    
+    if (L) {
+      console.log('Selected layer for erasing:', L.name);
+      selectLayer(L.id);
+      drawing = true;
+      lastPt = getLocalPoint(L, pos);
+      console.log('Local point:', lastPt);
+      drawStroke(L, lastPt, lastPt);
+      e.cancelBubble = true;
+    } else {
+      console.log('No layer hit for erasing');
+    }
+  });
+  
+  stage.on('mousemove touchmove', (e)=>{
+    if(!drawing || currentTool!=='erase') return;
+    const L = getSelectedLayer();
+    if(!L) return;
+    
+    const pos = stage.getPointerPosition();
+    const pt = getLocalPoint(L, pos);
+    
+    // Check if the point is within the image bounds
+    if (pt.x >= 0 && pt.x < L.konvaImage.width() && pt.y >= 0 && pt.y < L.konvaImage.height()) {
+      drawStroke(L, lastPt, pt);
+      lastPt = pt;
+    }
+    e.cancelBubble = true;
+  });
+  
+  stage.on('mouseup touchend', (e)=>{
+    if(!drawing || currentTool!=='erase') return;
+    drawing = false;
+    lastPt = null;
+    pushHistory("erase");
+    e.cancelBubble = true;
+  });
+
+  function getLocalPoint(L, stagePt){
+    // Convert stage coordinates to the layer's local coordinates
+    const group = L.group;
+    const groupPos = group.position();
+    const groupScale = group.scale();
+    const groupRotation = group.rotation() || 0;
+    
+    console.log('getLocalPoint - Stage point:', stagePt);
+    console.log('getLocalPoint - Group pos:', groupPos, 'scale:', groupScale, 'rotation:', groupRotation);
+    
+    // First, translate to group-relative coordinates
+    let localX = stagePt.x - groupPos.x;
+    let localY = stagePt.y - groupPos.y;
+    
+    console.log('getLocalPoint - After translation:', localX, localY);
+    
+    // Then, apply inverse rotation
+    if (groupRotation !== 0) {
+      const cos = Math.cos(-groupRotation * Math.PI / 180);
+      const sin = Math.sin(-groupRotation * Math.PI / 180);
+      const rotatedX = localX * cos - localY * sin;
+      const rotatedY = localX * sin + localY * cos;
+      localX = rotatedX;
+      localY = rotatedY;
+      console.log('getLocalPoint - After rotation:', localX, localY);
+    }
+    
+    // Finally, apply inverse scale
+    localX = localX / groupScale.x;
+    localY = localY / groupScale.y;
+    
+    console.log('getLocalPoint - Final result:', localX, localY);
+    
+    return { x: localX, y: localY };
+  }
+
+  function drawStroke(L, p0, p1){
+    if(!p0||!p1) {
+      console.log('drawStroke - Invalid points:', p0, p1);
+      return;
+    }
+    
+    console.log('drawStroke - Drawing from', p0, 'to', p1);
+    
+    const ctx=L.maskCanvas.getContext('2d');
+    
+    // compute brush size in image space to keep constant size regardless of zoom/scale
+    const groupScale = L.group.scale();
+    const avgScale = (Math.abs(groupScale.x) + Math.abs(groupScale.y)) / 2;
+    const size = Number(document.getElementById('brushSize').value) / Math.max(0.0001, avgScale);
+    
+    console.log('drawStroke - Brush size:', size, 'Group scale:', groupScale, 'Avg scale:', avgScale);
+    
+    ctx.save();
+    if(document.getElementById('chkRestore').checked){ // restore brush: remove mask paint
+      ctx.globalCompositeOperation='destination-out';
+      ctx.strokeStyle='rgba(255,255,255,1)'; // color doesn't matter here
+    } else {
+      ctx.globalCompositeOperation='source-over';
+      ctx.strokeStyle='rgba(255,255,255,1)'; // white strokes = areas to erase
+    }
+    ctx.lineCap='round'; ctx.lineJoin='round'; ctx.lineWidth=size;
+    ctx.beginPath(); ctx.moveTo(p0.x,p0.y); ctx.lineTo(p1.x,p1.y); ctx.stroke(); ctx.restore();
+    
+    console.log('drawStroke - Stroke drawn, refreshing composed image');
+    refreshComposed(L); rootLayer.batchDraw();
+  }
+
+  // ===== Properties bindings =====
+  const inpName=document.getElementById('inpName');
+  const inpOpacity=document.getElementById('inpOpacity');
+  const selBlend=document.getElementById('selBlend');
+  const fBrightness=document.getElementById('fBrightness');
+  const fContrast=document.getElementById('fContrast');
+  const fSaturate=document.getElementById('fSaturate');
+  const fHue=document.getElementById('fHue');
+  const fBlur=document.getElementById('fBlur');
+
+  inpName.addEventListener('input', ()=>{ const L=getSelectedLayer(); if(!L) return; L.name=inpName.value; const el=layersList.querySelector(`[data-id='${L.id}'] .layer-name`); if(el) el.textContent=L.name; pushHistory("rename"); });
+  inpOpacity.addEventListener('input', ()=>{ const L=getSelectedLayer(); if(!L) return; L.opacity=Math.max(0,Math.min(1, inpOpacity.value/100)); refreshComposed(L); rootLayer.batchDraw(); pushHistory("opacity");});
+  selBlend.addEventListener('change', ()=>{ const L=getSelectedLayer(); if(!L) return; L.blend=selBlend.value; refreshComposed(L); rootLayer.batchDraw(); pushHistory("blend");});
+  ;[fBrightness,fContrast,fSaturate,fHue,fBlur].forEach(sl=> sl.addEventListener('input', ()=>{
+    const L=getSelectedLayer(); if(!L) return; L.filters={brightness:Number(fBrightness.value), contrast:Number(fContrast.value), saturate:Number(fSaturate.value), hue:Number(fHue.value), blur:Number(fBlur.value)}; refreshComposed(L); rootLayer.batchDraw();
+  }));
+  ;[fBrightness,fContrast,fSaturate,fHue,fBlur].forEach(sl=> sl.addEventListener('change', ()=> pushHistory("filters")));
+
+  // Transformer changes => history
+  transformer.on('transformend dragend', ()=>{ pushHistory('transform'); });
+  stage.on('dragend', (e)=>{ if(e.target && e.target instanceof Konva.Group){ pushHistory('drag'); }});
+
+  // ===== Zoom controls =====
+  document.getElementById('btnZoomIn').addEventListener('click', ()=> setZoom(zoom*ZOOM_STEP));
+  document.getElementById('btnZoomOut').addEventListener('click', ()=> setZoom(zoom/ZOOM_STEP));
+  document.getElementById('btnZoomReset').addEventListener('click', ()=> setZoom(1));
+  stage.container().addEventListener('wheel', (e)=>{
+    if(e.ctrlKey || e.metaKey){ e.preventDefault(); const scale = e.deltaY<0 ? ZOOM_STEP : 1/ZOOM_STEP; setZoom(zoom*scale); }
+  }, {passive:false});
+
+  // Space = pan hand (temporarily)
+  let panning=false; let panStart=null; let savedDraggable=false;
+  window.addEventListener('keydown', (e)=>{ if(e.code==='Space' && !panning){ panning=true; stage.container().style.cursor='grab'; savedDraggable=stage.draggable(); stage.draggable(true); }});
+  window.addEventListener('keyup', (e)=>{ if(e.code==='Space'){ panning=false; stage.container().style.cursor=(currentTool==='erase'?'crosshair':'default'); stage.draggable(savedDraggable); }});
+
+  // ===== Export / Preview =====
+  document.getElementById('btnExport').addEventListener('click', ()=>{
+    // Render a temporary Konva stage at project resolution for crisp export
+    const tempStage = new Konva.Stage({container: document.createElement('div'), width: project.width, height: project.height});
+    const tempLayer = new Konva.Layer(); tempStage.add(tempLayer);
+    // clone and normalize groups to 1:1 pixel scale relative to board
+    project.layers.slice().reverse().forEach(L=>{ // bottom to top
+      if(!L.visible) return;
+      const clone = new Konva.Image({
+        image: L.composedCanvas,
+        x: (L.group.x() - board.x())/zoom,
+        y: (L.group.y() - board.y())/zoom
+      });
+      const scx = L.group.scaleX()/zoom;
+      const scy = L.group.scaleY()/zoom;
+      clone.scale({x: scx, y: scy});
+      // apply rotation so exported image matches canvas
+      clone.rotation(L.group.rotation() || 0);
+      clone.opacity(L.opacity);
+      clone.globalCompositeOperation(L.blend);
+      tempLayer.add(clone);
+    });
+    tempLayer.draw();
+    const uri = tempStage.toDataURL({mimeType:'image/png', pixelRatio:1});
+    const a=document.createElement('a'); a.href=uri; a.download='collage.png'; a.click();
+  });
+
+  // Preview modal
+  const previewModal=document.getElementById('previewModal');
+  document.getElementById('btnPreview').addEventListener('click', ()=>{
+    const tempStage = new Konva.Stage({container: document.createElement('div'), width: project.width, height: project.height});
+    const tempLayer = new Konva.Layer(); tempStage.add(tempLayer);
+    project.layers.slice().reverse().forEach(L=>{
+      if(!L.visible) return;
+      const clone = new Konva.Image({
+        image: L.composedCanvas,
+        x: (L.group.x() - board.x())/zoom,
+        y: (L.group.y() - board.y())/zoom
+      });
+      const scx = L.group.scaleX()/zoom;
+      const scy = L.group.scaleY()/zoom;
+      clone.scale({x: scx, y: scy});
+      // apply rotation so preview matches canvas
+      clone.rotation(L.group.rotation() || 0);
+      clone.opacity(L.opacity);
+      clone.globalCompositeOperation(L.blend);
+      tempLayer.add(clone);
+    });
+    tempLayer.draw();
+    document.getElementById('previewImage').src = tempStage.toDataURL({mimeType:'image/png', pixelRatio:1});
+    previewModal.showModal();
+  });
+  document.getElementById('closePreview').addEventListener('click', ()=> previewModal.close());
+
+  // ===== New / Undo / Redo / History =====
+  document.getElementById('btnNew').addEventListener('click', ()=>{ if(confirm('Clear all?')) resetProject(); });
+
+  function resetProject(){
+    project.layers.forEach(L=> L.group.destroy()); project.layers.length=0; layersList.innerHTML=''; project.selectionId=null; transformer.nodes([]); pushHistory('reset'); rootLayer.batchDraw();
+  }
+
+  function serializeState(){
+    console.log('serializeState called, layers count:', project.layers.length);
+    
+    const layers=project.layers.map(L=>{
+      console.log('Serializing layer:', L.name);
+      
+      // For blob URLs, convert to data URL to preserve the image data
+      let baseSrc = L.baseImage.src;
+      if(baseSrc.startsWith('blob:')) {
+        // Convert blob to data URL to preserve the image in history
+        baseSrc = L.composedCanvas.toDataURL('image/png');
+        console.log('Converted blob to data URL for layer:', L.name);
+      }
+      
+      return {
+        id:L.id, 
+        name:L.name, 
+        opacity:L.opacity, 
+        blend:L.blend, 
+        visible:L.visible, 
+        locked:L.locked,
+        // transform: store board-relative (un-zoomed)
+        x:(L.group.x()-board.x())/zoom, 
+        y:(L.group.y()-board.y())/zoom, 
+        scale:L.group.scaleX()/zoom, 
+        rotation:L.group.rotation()||0,
+        filters:L.filters,
+        base: baseSrc,
+        mask: L.maskCanvas.toDataURL('image/png')
+      };
+    });
+    
+    const state = {width:project.width, height:project.height, layers};
+    console.log('Serialized state:', state);
+    return state;
+  }
+
+  async function loadState(state){
+    // Clear everything without adding to history
+    project.layers.forEach(L=> L.group.destroy()); 
+    project.layers.length=0; 
+    layersList.innerHTML=''; 
+    project.selectionId=null; 
+    transformer.nodes([]);
+    
+    // Update project dimensions
+    project.width=state.width; 
+    project.height=state.height; 
+    board.size({width:project.width,height:project.height}); 
+    centerBoard();
+    
+    // Restore layers
+    for(const S of state.layers){
+      const baseImg = await loadImageFromSrc(S.base);
+      const L = createLayerShell(baseImg, S.name, false); // Don't auto-select when restoring from history
+      
+      // restore mask
+      if(S.mask){ 
+        const img=await loadImageFromSrc(S.mask); 
+        L.maskCanvas.width=img.width; 
+        L.maskCanvas.height=img.height; 
+        L.composedCanvas.width=img.width; 
+        L.composedCanvas.height=img.height; 
+        L.maskCanvas.getContext('2d').drawImage(img,0,0); 
+      }
+      
+      // restore properties
+      L.filters=S.filters||L.filters; 
+      L.opacity=S.opacity; 
+      L.blend=S.blend||'source-over';
+      L.visible = S.visible !== undefined ? S.visible : true;
+      L.locked = S.locked || false;
+      
+      refreshComposed(L);
+      
+      // restore transform
+      L.group.position({x: board.x() + (S.x||0)*zoom, y: board.y() + (S.y||0)*zoom});
+      L.group.scale({x:(S.scale||1)*zoom, y:(S.scale||1)*zoom});
+      L.group.rotation(S.rotation||0); 
+      L.group.draggable(!S.locked && currentTool === 'move');
+      L.group.visible(L.visible);
+      
+      // update list item state
+      const item = layersList.querySelector(`[data-id='${L.id}']`);
+      if(item) {
+        item.querySelector('.layer-name').textContent=L.name; 
+        if(!L.visible){
+          item.querySelector('.btn-eye').setAttribute('aria-pressed','true'); 
+        }
+        if(L.locked){
+          item.querySelector('.btn-lock').setAttribute('aria-pressed','true');
+        }
+      }
+    }
+    
+    reorderKonvaFromList(); 
+    rootLayer.batchDraw();
+  }
+
+  function createLayerShell(img, name, autoSelect = true){
+    const baseW=img.naturalWidth||img.width; const baseH=img.naturalHeight||img.height;
+    const L={ id:"L"+(Date.now())+"_"+(layerCounter++), name: name||`Image ${layerCounter-1}`,
+      baseImage: img, maskCanvas: document.createElement('canvas'), composedCanvas: document.createElement('canvas'),
+      filters:{brightness:100, contrast:100, saturate:100, hue:0, blur:0}, opacity:1, blend:'source-over', visible:true, locked:false,
+      group: new Konva.Group({draggable: currentTool === 'move'}), konvaImage: null };
+    L.maskCanvas.width=baseW; L.maskCanvas.height=baseH; L.composedCanvas.width=baseW; L.composedCanvas.height=baseH;
+    refreshComposed(L); L.konvaImage=new Konva.Image({image:L.composedCanvas}); L.konvaImage.globalCompositeOperation(L.blend); L.group.add(L.konvaImage); rootLayer.add(L.group);
+    project.layers.unshift(L); addLayerListItem(L); 
+    if(autoSelect) selectLayer(L.id); 
+    return L;
+  }
+
+  function loadImageFromSrc(src){ return new Promise((resolve,reject)=>{ const im=new Image(); im.onload=()=>resolve(im); im.onerror=reject; im.crossOrigin='anonymous'; im.src=src; }); }
+
+  function pushHistory(tag){
+    console.log('pushHistory called with tag:', tag);
+    console.log('Before push - historyPtr:', project.historyPtr, 'history length:', project.history.length);
+    
+    // snapshot (cap length)
+    const state=serializeState(); 
+    project.history = project.history.slice(0, project.historyPtr+1); 
+    project.history.push(state); 
+    if(project.history.length>20) project.history.shift(); 
+    project.historyPtr = project.history.length-1;
+    
+    console.log('After push - historyPtr:', project.historyPtr, 'history length:', project.history.length);
+    console.log('History tags:', project.history.map((_, i) => `[${i}]: ${i === project.historyPtr ? '*' : ''}`));
+  }
+
+  async function undo(){ 
+    console.log('Undo called, historyPtr:', project.historyPtr, 'history length:', project.history.length);
+    if(project.historyPtr<=0) {
+      console.log('Cannot undo - at beginning of history');
+      return; 
+    }
+    project.historyPtr--; 
+    const st=project.history[project.historyPtr]; 
+    console.log('Loading state for undo:', st);
+    await loadState(st); 
+    console.log('Undo complete, new historyPtr:', project.historyPtr);
+  }
+  
+  async function redo(){ 
+    console.log('Redo called, historyPtr:', project.historyPtr, 'history length:', project.history.length);
+    if(project.historyPtr>=project.history.length-1) {
+      console.log('Cannot redo - at end of history');
+      return; 
+    }
+    project.historyPtr++; 
+    const st=project.history[project.historyPtr]; 
+    console.log('Loading state for redo:', st);
+    await loadState(st); 
+    console.log('Redo complete, new historyPtr:', project.historyPtr);
+  }
+
+  document.getElementById('btnUndo').addEventListener('click', (e) => {
+    console.log('Undo button clicked');
+    undo();
+  });
+  document.getElementById('btnRedo').addEventListener('click', (e) => {
+    console.log('Redo button clicked');
+    redo();
+  });
+  hotkeys('ctrl+z, cmd+z', (e)=>{ e.preventDefault(); undo(); });
+  hotkeys('shift+ctrl+z, shift+cmd+z', (e)=>{ e.preventDefault(); redo(); });
+  hotkeys('v', ()=> setTool('move')); hotkeys('e', ()=> setTool('erase'));
+
+  // ===== Tiny helpers: add sample text/rect (vector layers)
+  document.getElementById('btnAddText').addEventListener('click', ()=>{
+    const canvas=document.createElement('canvas'); canvas.width=800; canvas.height=200; const c=canvas.getContext('2d');
+    c.fillStyle='#ffffff'; c.fillRect(0,0,canvas.width,canvas.height);
+    c.clearRect(0,0,canvas.width,canvas.height); // transparent bg
+    c.fillStyle='#e6e7ea'; c.font='bold 72px system-ui'; c.textBaseline='middle'; c.textAlign='center'; c.fillText('Text', canvas.width/2, canvas.height/2);
+    const img=new Image(); img.onload=()=> createLayerFromImage(img, 'Text'); img.src=canvas.toDataURL('image/png');
+  });
+  document.getElementById('btnAddRect').addEventListener('click', ()=>{
+    const canvas=document.createElement('canvas'); canvas.width=600; canvas.height=400; const c=canvas.getContext('2d');
+    c.fillStyle='rgba(255,255,255,0)'; c.fillRect(0,0,canvas.width,canvas.height);
+    c.strokeStyle='#5aa7ff'; c.lineWidth=8; c.strokeRect(16,16,canvas.width-32,canvas.height-32);
+    const img=new Image(); img.onload=()=> createLayerFromImage(img, 'Rect'); img.src=canvas.toDataURL('image/png');
+  });
+
+  // ===== Initial =====
+  // make board an outline of the working area
+  function drawCheckerboardFrame(){ board.stroke('#2e3340'); board.strokeWidth(2); board.listening(false); }
+  drawCheckerboardFrame();
+  
+  // Initialize tool state
+  setTool('move');
+
+  // Language init
+  const langSelect=document.getElementById('langSelect');
+  langSelect.addEventListener('change', ()=>{ localStorage.setItem('collage_lang', langSelect.value); applyLang(langSelect.value); });
+  applyLang(localStorage.getItem('collage_lang')||'pt'); langSelect.value=localStorage.getItem('collage_lang')||'pt';
+
+  // Empty initial history
+  pushHistory('init');
+  </script>
+</body>
+</html>
