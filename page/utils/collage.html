@@ -134,6 +134,14 @@ Still missing or possible future work:
         <button id="btnZoomIn">+</button>
         <button id="btnZoomReset">Reset</button>
       </div>
+      <div class="group" id="bgGroup">
+        <label class="row" style="gap:6px">
+          <span class="muted" id="lblBg">Background</span>
+          <input type="checkbox" id="bgTransparent" checked />
+          <span class="muted" id="lblBgTransparent">Transparent</span>
+          <input type="color" id="bgColor" value="#ffffff" disabled />
+        </label>
+      </div>
       <div class="spacer"></div>
       <div class="group">
         <label class="row" style="gap:6px">
@@ -222,21 +230,21 @@ Still missing or possible future work:
       Undo:"Undo", Redo:"Redo", Move:"Move", Eraser:"Eraser", Brush:"Brush", Restore:"Restore",
       Reset:"Reset", Layers:"Layers", Properties:"Properties", Name:"Name", Opacity:"Opacity",
       Blend:"Blend", Filters:"Filters", Brightness:"Brightness", Contrast:"Contrast",
-      Saturate:"Saturate", Hue:"Hue", Blur:"Blur(px)", Lang:"Lang"
+      Saturate:"Saturate", Hue:"Hue", Blur:"Blur(px)", Lang:"Lang", Background:"Background", Transparent:"Transparent"
     },
     pt: {
       New:"Novo", Upload:"Enviar", Paste:"Colar", ExportPNG:"Exportar PNG", Preview:"Preview",
       Undo:"Desfazer", Redo:"Refazer", Move:"Mover", Eraser:"Borracha", Brush:"Pincel", Restore:"Restaurar",
       Reset:"Resetar", Layers:"Camadas", Properties:"Propriedades", Name:"Nome", Opacity:"Opacidade",
       Blend:"Mistura", Filters:"Filtros", Brightness:"Brilho", Contrast:"Contraste",
-      Saturate:"Saturação", Hue:"Matiz", Blur:"Desfoque(px)", Lang:"Idioma"
+      Saturate:"Saturação", Hue:"Matiz", Blur:"Desfoque(px)", Lang:"Idioma", Background:"Fundo", Transparent:"Transparente"
     },
     ja: {
       New:"新規", Upload:"アップロード", Paste:"貼り付け", ExportPNG:"PNG書き出し", Preview:"プレビュー",
       Undo:"元に戻す", Redo:"やり直し", Move:"移動", Eraser:"消しゴム", Brush:"ブラシ", Restore:"復元",
       Reset:"リセット", Layers:"レイヤー", Properties:"プロパティ", Name:"名前", Opacity:"不透明度",
       Blend:"合成", Filters:"フィルター", Brightness:"明るさ", Contrast:"コントラスト",
-      Saturate:"彩度", Hue:"色相", Blur:"ぼかし(px)", Lang:"言語"
+      Saturate:"彩度", Hue:"色相", Blur:"ぼかし(px)", Lang:"言語", Background:"背景", Transparent:"透明"
     }
   };
   function applyLang(lang){
@@ -273,6 +281,8 @@ Still missing or possible future work:
     if (lblBlur) lblBlur.textContent=t.Blur; 
     const langLabel = document.querySelector("label[for='langSelect'] span");
     if (langLabel) langLabel.textContent=t.Lang;
+    const lblBg = document.getElementById('lblBg'); if(lblBg) lblBg.textContent=t.Background;
+    const lblBgT = document.getElementById('lblBgTransparent'); if(lblBgT) lblBgT.textContent=t.Transparent;
     const restoreSpan = document.querySelector("label[for='chkRestore']+span");
     if (restoreSpan) restoreSpan.remove(); // cleanup if exists
     const chkRestore = document.getElementById('chkRestore');
@@ -287,7 +297,7 @@ Still missing or possible future work:
   rootLayer.add(transformer);
   let zoom=1; const ZOOM_STEP=1.1; let currentTool='move';
 
-  const project={ width:1600, height:900, layers:[], selectionId:null, history:[], historyPtr:-1 };
+  const project={ width:1600, height:900, bgColor:null, layers:[], selectionId:null, history:[], historyPtr:-1 };
 
   function fitStageToWrap(){
     const wrap=document.getElementById('canvasWrap');
@@ -300,13 +310,17 @@ Still missing or possible future work:
   function updateZoomBadge(){ document.getElementById('zoomBadge').textContent = Math.round(zoom*100)+"%"; }
 
   // Center-stage board (virtual canvas frame)
+  const bgRect=new Konva.Rect({x:0,y:0,width:project.width,height:project.height, fill:'rgba(0,0,0,0)', listening:false});
   const board=new Konva.Rect({x:0,y:0,width:project.width,height:project.height, fillLinearGradientStartPoint:{x:0,y:0}, fillLinearGradientEndPoint:{x:0,y:project.height}, fillLinearGradientColorStops:[0,'rgba(255,255,255,0)',1,'rgba(255,255,255,0)'], listening:false, shadowBlur:0});
+  rootLayer.add(bgRect);
   rootLayer.add(board);
 
   function centerBoard(){
     const {width:sw,height:sh}=stage.size();
     board.position({x:(sw-project.width*zoom)/2, y:(sh-project.height*zoom)/2});
     board.scale({x:zoom,y:zoom});
+    bgRect.position(board.position());
+    bgRect.scale({x:zoom,y:zoom});
     // Don't reposition existing layers - let them maintain their positions
     rootLayer.batchDraw();
   }
@@ -720,6 +734,10 @@ Still missing or possible future work:
     // Render a temporary Konva stage at project resolution for crisp export
     const tempStage = new Konva.Stage({container: document.createElement('div'), width: project.width, height: project.height});
     const tempLayer = new Konva.Layer(); tempStage.add(tempLayer);
+    // background
+    if (project.bgColor) {
+      tempLayer.add(new Konva.Rect({x:0,y:0,width:project.width,height:project.height, fill: project.bgColor, listening:false}));
+    }
     // clone and normalize groups to 1:1 pixel scale relative to board
     project.layers.slice().reverse().forEach(L=>{ // bottom to top
       if(!L.visible) return;
@@ -747,6 +765,9 @@ Still missing or possible future work:
   document.getElementById('btnPreview').addEventListener('click', ()=>{
     const tempStage = new Konva.Stage({container: document.createElement('div'), width: project.width, height: project.height});
     const tempLayer = new Konva.Layer(); tempStage.add(tempLayer);
+    if (project.bgColor) {
+      tempLayer.add(new Konva.Rect({x:0,y:0,width:project.width,height:project.height, fill: project.bgColor, listening:false}));
+    }
     project.layers.slice().reverse().forEach(L=>{
       if(!L.visible) return;
       const clone = new Konva.Image({
@@ -773,7 +794,18 @@ Still missing or possible future work:
   document.getElementById('btnNew').addEventListener('click', ()=>{ if(confirm('Clear all?')) resetProject(); });
 
   function resetProject(){
-    project.layers.forEach(L=> L.group.destroy()); project.layers.length=0; layersList.innerHTML=''; project.selectionId=null; transformer.nodes([]); pushHistory('reset'); rootLayer.batchDraw();
+    project.layers.forEach(L=> L.group.destroy());
+    project.layers.length=0;
+    layersList.innerHTML='';
+    project.selectionId=null;
+    transformer.nodes([]);
+    // reset background
+    project.bgColor = null;
+    if (typeof bgTransparent !== 'undefined') bgTransparent.checked = true;
+    if (typeof bgColor !== 'undefined') bgColor.disabled = true;
+    bgRect.visible(false);
+    pushHistory('reset');
+    rootLayer.batchDraw();
   }
 
   function serializeState(){
@@ -808,7 +840,7 @@ Still missing or possible future work:
       };
     });
     
-    const state = {width:project.width, height:project.height, layers};
+    const state = {width:project.width, height:project.height, bgColor: project.bgColor || null, layers};
     console.log('Serialized state:', state);
     return state;
   }
@@ -824,7 +856,18 @@ Still missing or possible future work:
     // Update project dimensions
     project.width=state.width; 
     project.height=state.height; 
+    project.bgColor = state.bgColor || null;
     board.size({width:project.width,height:project.height}); 
+    bgRect.size({width:project.width,height:project.height});
+    if (project.bgColor) {
+      bgRect.fill(project.bgColor); bgRect.visible(true);
+      if (typeof bgTransparent !== 'undefined') bgTransparent.checked = false;
+      if (typeof bgColor !== 'undefined') { bgColor.disabled = false; bgColor.value = project.bgColor; }
+    } else {
+      bgRect.visible(false);
+      if (typeof bgTransparent !== 'undefined') bgTransparent.checked = true;
+      if (typeof bgColor !== 'undefined') { bgColor.disabled = true; }
+    }
     centerBoard();
     
     // Restore layers
@@ -965,6 +1008,28 @@ Still missing or possible future work:
   
   // Initialize tool state
   setTool('move');
+
+  // Background UI bindings
+  const bgTransparent = document.getElementById('bgTransparent');
+  const bgColor = document.getElementById('bgColor');
+  function applyBackground(){
+    if (bgTransparent.checked) {
+      project.bgColor = null;
+      bgColor.disabled = true;
+      bgRect.visible(false);
+    } else {
+      project.bgColor = bgColor.value;
+      bgColor.disabled = false;
+      bgRect.fill(project.bgColor);
+      bgRect.visible(true);
+    }
+    rootLayer.batchDraw();
+    pushHistory('background');
+  }
+  bgTransparent.addEventListener('change', applyBackground);
+  bgColor.addEventListener('input', ()=>{ if(!bgTransparent.checked){ applyBackground(); }});
+  // initial background (transparent)
+  applyBackground();
 
   // Language init
   const langSelect=document.getElementById('langSelect');
