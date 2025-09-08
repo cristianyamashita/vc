@@ -283,10 +283,13 @@ Still missing or possible future work:
     if (langLabel) langLabel.textContent=t.Lang;
     const lblBg = document.getElementById('lblBg'); if(lblBg) lblBg.textContent=t.Background;
     const lblBgT = document.getElementById('lblBgTransparent'); if(lblBgT) lblBgT.textContent=t.Transparent;
-    const restoreSpan = document.querySelector("label[for='chkRestore']+span");
-    if (restoreSpan) restoreSpan.remove(); // cleanup if exists
+    // Update the "Restore" checkbox label without duplicating
     const chkRestore = document.getElementById('chkRestore');
-    if (chkRestore) chkRestore.insertAdjacentHTML('afterend', `<span class="muted" title="${t.Restore} reveals erased parts">${t.Restore}</span>`);
+    if (chkRestore) {
+      // Remove any existing sibling spans previously inserted
+      document.querySelectorAll('#chkRestore ~ span.muted').forEach(n => n.remove());
+      chkRestore.insertAdjacentHTML('afterend', `<span class="muted" title="${t.Restore} reveals erased parts">${t.Restore}</span>`);
+    }
   }
 
   // ===== State =====

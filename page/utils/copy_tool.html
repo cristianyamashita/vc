@@ -396,6 +396,18 @@
                         <input type="text" class="form-control" id="buttonLabel" placeholder="Enter label (optional)" data-i18n-placeholder="buttonLabelPlaceholder">
                     </div>
                     <div class="mb-3">
+                        <label for="buttonBgColor" class="form-label" data-i18n="backgroundColorLabel">Background Color:</label>
+                        <input type="color" class="form-control form-control-color" id="buttonBgColor" value="#0d6efd" title="Pick a background color">
+                    </div>
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input" type="checkbox" id="buttonOutline">
+                        <label class="form-check-label" for="buttonOutline" data-i18n="outlineLabel">Outline</label>
+                    </div>
+                    <div class="mb-3">
+                        <label for="buttonFontColor" class="form-label" data-i18n="fontColorLabel">Font Color:</label>
+                        <input type="color" class="form-control form-control-color" id="buttonFontColor" value="#0d6efd" title="Pick a font color">
+                    </div>
+                    <div class="mb-3">
                         <label class="form-label">Add to:</label>
                         <div class="form-check">
                             <input class="form-check-input" type="radio" name="addLocation" id="newRow" value="newRow" checked>
@@ -497,6 +509,9 @@
                 error_importFailed: (msg) => `Failed to import buttons. Please check the JSON data and try again.\nError: ${msg}`,
                 buttonLabelLabel: "Label:",
                 buttonLabelPlaceholder: "Enter label (optional)",
+                backgroundColorLabel: "Background Color:",
+                fontColorLabel: "Font Color:",
+                outlineLabel: "Outline",
             },
             ja: {
                 title: "コピーページ",
@@ -536,6 +551,9 @@
                 error_importFailed: (msg) => `ボタンのインポートに失敗しました。JSONデータを確認して、もう一度お試しください。\nエラー: ${msg}`,
                 buttonLabelLabel: "ラベル:",
                 buttonLabelPlaceholder: "ラベルを入力（任意）",
+                backgroundColorLabel: "背景色:",
+                fontColorLabel: "文字色:",
+                outlineLabel: "アウトライン",
             },
             pt: {
                 title: "Página de Cópia",
@@ -575,6 +593,9 @@
                 error_importFailed: (msg) => `Falha ao importar botões. Verifique os dados JSON e tente novamente.\nErro: ${msg}`,
                 buttonLabelLabel: "Rótulo:",
                 buttonLabelPlaceholder: "Insira o rótulo (opcional)",
+                backgroundColorLabel: "Cor de fundo:",
+                fontColorLabel: "Cor da fonte:",
+                outlineLabel: "Contorno",
             }
         };
 
@@ -913,7 +934,7 @@
             buttonDiv.setAttribute('data-button-id', button.id);
 
             const copyBtn = document.createElement('button');
-            copyBtn.className = 'btn btn-outline-primary copy-button';
+            copyBtn.className = 'btn copy-button';
             copyBtn.setAttribute('data-text', button.text);
             copyBtn.innerHTML = '';
             if (button.label) {
@@ -926,6 +947,28 @@
             mainDiv.className = 'button-main-text';
             mainDiv.textContent = button.text;
             copyBtn.appendChild(mainDiv);
+
+            // Apply per-button styles
+            const bgColor = button.bgColor || '';
+            const outline = !!button.outline;
+            const fontColor = button.fontColor || '';
+            if (outline) {
+                copyBtn.style.backgroundColor = 'transparent';
+                if (fontColor) {
+                    copyBtn.style.color = fontColor;
+                    copyBtn.style.borderColor = fontColor;
+                }
+                copyBtn.style.borderStyle = 'solid';
+                copyBtn.style.borderWidth = '1px';
+            } else {
+                if (bgColor) {
+                    copyBtn.style.backgroundColor = bgColor;
+                }
+                if (fontColor) {
+                    copyBtn.style.color = fontColor;
+                }
+                // keep default border color from theme unless explicitly set by outline mode
+            }
 
             if (dragMode) {
                 copyBtn.draggable = true;
@@ -998,6 +1041,9 @@
         function showAddModal(id = null, isEdit = false) {
             const modalTitle = document.getElementById('addButtonModalLabel');
             const buttonText = document.getElementById('buttonText');
+            const buttonBgColor = document.getElementById('buttonBgColor');
+            const buttonOutline = document.getElementById('buttonOutline');
+            const buttonFontColor = document.getElementById('buttonFontColor');
             const buttonLabel = document.getElementById('buttonLabel');
             const newRowRadio = document.getElementById('newRow');
             const existingRowRadio = document.getElementById('existingRow');
@@ -1014,6 +1060,9 @@
                     modalTitle.textContent = 'Edit Button';
                     saveButton.textContent = 'Update Button';
                     buttonText.value = buttonToEdit.text;
+                    buttonBgColor.value = buttonToEdit.bgColor || '#0d6efd';
+                    buttonOutline.checked = buttonToEdit.outline !== undefined ? !!buttonToEdit.outline : true;
+                    buttonFontColor.value = buttonToEdit.fontColor || '#0d6efd';
                     buttonLabel.value = buttonToEdit.label || '';
 
                     existingRowRadio.checked = true;
@@ -1030,6 +1079,9 @@
                 saveButton.textContent = 'Add Button';
                 buttonText.value = '';
                 buttonLabel.value = '';
+                buttonBgColor.value = '#0d6efd';
+                buttonOutline.checked = true;
+                buttonFontColor.value = '#0d6efd';
 
                 if (id) { // Adding to a specific row (id is rowId)
                     existingRowRadio.checked = true;
@@ -1076,6 +1128,9 @@
         function saveButtonChanges() {
             const text = document.getElementById('buttonText').value.trim();
             const label = document.getElementById('buttonLabel').value.trim();
+            const bgColor = document.getElementById('buttonBgColor').value;
+            const outline = document.getElementById('buttonOutline').checked;
+            const fontColor = document.getElementById('buttonFontColor').value;
             if (!text) {
                 alert(translations[currentLang].alert_enterButtonText);
                 return;
@@ -1101,6 +1156,9 @@
                     buttonToUpdate.text = text;
                     buttonToUpdate.rowId = rowId;
                     buttonToUpdate.label = label;
+                    buttonToUpdate.bgColor = bgColor;
+                    buttonToUpdate.outline = outline;
+                    buttonToUpdate.fontColor = fontColor;
                 }
             } else {
                 // Add new button
@@ -1108,7 +1166,10 @@
                     id: Date.now().toString(),
                     text: text,
                     rowId: rowId,
-                    label: label
+                    label: label,
+                    bgColor: bgColor,
+                    outline: outline,
+                    fontColor: fontColor
                 };
                 buttons.push(newButton);
             }
