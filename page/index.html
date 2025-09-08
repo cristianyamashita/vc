@@ -99,6 +99,7 @@
       min-height: 110px;
     }
     .row { display: flex; align-items: center; gap: 8px; justify-content: space-between; }
+    .row > *:first-child { flex: 1; min-width: 0; }
     .name { font-weight: 700; }
     .desc { color: var(--desc-color); opacity: .9; font-size: 13px; }
     .actions { display: flex; gap: 8px; align-items: center; }
@@ -124,12 +125,54 @@
       font-size: 13px;
     }
     footer.small { color: var(--muted); font-size: 12px; text-align: center; margin-top: 6px; }
+
+    /* Pin functionality */
+    .pin-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 6px 8px;
+      margin-left: auto;
+      font-size: 12px;
+      color: var(--muted);
+      transition: color 0.2s ease;
+      opacity: 0.7;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 6px;
+    }
+    .pin-btn:hover {
+      opacity: 1;
+      color: var(--accent);
+      background: rgba(78, 161, 255, 0.1);
+    }
+    .pin-btn.pinned {
+      color: var(--accent-2);
+      opacity: 1;
+      background: rgba(134, 239, 172, 0.15);
+    }
+    .card.pinned {
+      border-color: var(--accent-2);
+      background: linear-gradient(135deg, var(--card), rgba(134, 239, 172, 0.1));
+    }
+    .pinned-section {
+      margin-bottom: 20px;
+    }
+    .pinned-section h2 {
+      color: var(--accent-2);
+      font-size: 14px;
+      margin: 0 0 10px 0;
+      font-weight: 600;
+    }
   </style>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath fill='%234ea1ff' d='M6 6h20v6H6z'/%3E%3Cpath fill='%2386efac' d='M6 14h20v12H6z'/%3E%3C/svg%3E" />
   <meta name="description" content="Collection of small games, physics sandboxes and utils. Single-file HTML demos." />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/fontawesome/css/all.min.css">
 </head>
 <body>
   <div class="page">
@@ -159,12 +202,13 @@
     <section id="games">
       <h2 data-i18n="gamesTitle">Games</h2>
       <div class="grid">
-        <article class="card">
+        <article class="card" data-card-id="tetris1">
           <div class="row">
             <a class="link" href="game/tetris1.html" target="_blank" rel="noopener">
               <div class="name" data-i18n="tetrisName">Tetris</div>
             </a>
             <span class="tag" data-i18n="tetrisTag">Classic</span>
+            <button class="pin-btn" data-card-id="tetris1"><i class="fas fa-thumbtack"></i></button>
           </div>
           <div class="desc" data-i18n="tetrisDesc">Classic Tetris game with modern UI, scoring system, and multilingual support (EN/PT/JA). Features next piece preview and level progression.</div>
           <div class="actions">
@@ -175,12 +219,13 @@
 
  
 
-        <article class="card">
+        <article class="card" data-card-id="melee-survivors">
           <div class="row">
             <a class="link" href="game/game1.html" target="_blank" rel="noopener">
               <div class="name" data-i18n="meleeSurvivorsName">Melee Survivors</div>
             </a>
             <span class="tag" data-i18n="meleeSurvivorsTag">Arena</span>
+            <button class="pin-btn" data-card-id="melee-survivors"><i class="fas fa-thumbtack"></i></button>
           </div>
           <div class="desc" data-i18n="meleeSurvivorsDesc">Top‑down survival: move, auto‑swing sword, collect XP and pick upgrades. Multilingual UI.</div>
           <div class="actions">
@@ -189,12 +234,13 @@
           </div>
         </article>
 
-        <article class="card">
+        <article class="card" data-card-id="rubiks-cube">
           <div class="row">
             <a class="link" href="game/cube.html" target="_blank" rel="noopener">
               <div class="name" data-i18n="rubiksCubeName">Rubik's Cube (Three.js)</div>
             </a>
             <span class="tag" data-i18n="rubiksCubeTag">WebGL</span>
+            <button class="pin-btn" data-card-id="rubiks-cube"><i class="fas fa-thumbtack"></i></button>
           </div>
           <div class="desc" data-i18n="rubiksCubeDesc">Interactive Rubik's Cube from 1×1×1 up to 20×20×20. Scramble, rotate layers on any axis, and auto‑solve.</div>
           <div class="actions">
@@ -1521,7 +1567,185 @@
       if (savedTheme === 'light') {
         body.classList.add('light-theme');
       }
+
+      // Initialize pin functionality
+      initializePins();
     });
+
+    // Pin functionality
+    function initializePins() {
+      // Add pin buttons to cards that don't have them
+      document.querySelectorAll('.card:not([data-card-id])').forEach((card, index) => {
+        const cardId = card.querySelector('a.link')?.getAttribute('href')?.replace(/[^a-zA-Z0-9]/g, '-') || `card-${index}`;
+        card.setAttribute('data-card-id', cardId);
+
+        const row = card.querySelector('.row');
+        if (row && !row.querySelector('.pin-btn')) {
+          const pinBtn = document.createElement('button');
+          pinBtn.className = 'pin-btn';
+          pinBtn.setAttribute('data-card-id', cardId);
+          pinBtn.innerHTML = '<i class="fas fa-thumbtack"></i>';
+          pinBtn.title = 'Pin to top';
+          row.appendChild(pinBtn);
+        }
+      });
+
+      // Load pinned cards from localStorage
+      loadPinnedCards();
+
+      // Add event listeners to pin buttons
+      document.addEventListener('click', handlePinClick);
+    }
+
+    function handlePinClick(event) {
+      // Check if clicked element is the pin button or an icon inside it
+      let target = event.target;
+      if (target.tagName === 'I' && target.parentElement.classList.contains('pin-btn')) {
+        target = target.parentElement;
+      }
+
+      if (target.classList.contains('pin-btn')) {
+        event.preventDefault();
+        event.stopPropagation();
+
+        const cardId = target.getAttribute('data-card-id');
+        togglePin(cardId);
+      }
+    }
+
+    function togglePin(cardId) {
+      const pinnedCards = getPinnedCards();
+      const cardElement = document.querySelector(`[data-card-id="${cardId}"]`);
+      const pinBtn = document.querySelector(`.pin-btn[data-card-id="${cardId}"]`);
+
+      if (pinnedCards.includes(cardId)) {
+        // Unpin the card
+        const index = pinnedCards.indexOf(cardId);
+        pinnedCards.splice(index, 1);
+        cardElement.classList.remove('pinned');
+        pinBtn.classList.remove('pinned');
+        pinBtn.title = 'Pin to top';
+        moveCardToOriginalPosition(cardId);
+      } else {
+        // Pin the card
+        pinnedCards.push(cardId);
+        cardElement.classList.add('pinned');
+        pinBtn.classList.add('pinned');
+        pinBtn.title = 'Unpin';
+        moveCardToTop(cardId);
+      }
+
+      // Save to localStorage
+      localStorage.setItem('pinned-cards', JSON.stringify(pinnedCards));
+
+      // Update pinned section
+      updatePinnedSection();
+    }
+
+    function moveCardToTop(cardId) {
+      const cardElement = document.querySelector(`[data-card-id="${cardId}"]`);
+      if (cardElement) {
+        // Store original position for unpinning
+        const originalParent = cardElement.parentElement;
+        const originalIndex = Array.from(originalParent.children).indexOf(cardElement);
+        cardElement.setAttribute('data-original-parent', originalParent.id || 'main');
+        cardElement.setAttribute('data-original-index', originalIndex);
+
+        // Move to pinned section
+        const pinnedSection = getOrCreatePinnedSection();
+        pinnedSection.appendChild(cardElement);
+      }
+    }
+
+    function moveCardToOriginalPosition(cardId) {
+      const cardElement = document.querySelector(`[data-card-id="${cardId}"]`);
+      if (cardElement) {
+        const originalParentId = cardElement.getAttribute('data-original-parent');
+        const originalIndex = parseInt(cardElement.getAttribute('data-original-index'));
+
+        let originalParent;
+        if (originalParentId === 'main') {
+          originalParent = document.querySelector('.grid');
+        } else {
+          originalParent = document.getElementById(originalParentId);
+          if (!originalParent) {
+            originalParent = document.querySelector('.grid');
+          }
+        }
+
+        if (originalParent && originalIndex >= 0) {
+          const children = Array.from(originalParent.children);
+          if (originalIndex < children.length) {
+            originalParent.insertBefore(cardElement, children[originalIndex]);
+          } else {
+            originalParent.appendChild(cardElement);
+          }
+        }
+
+        // Clean up attributes
+        cardElement.removeAttribute('data-original-parent');
+        cardElement.removeAttribute('data-original-index');
+      }
+    }
+
+    function getOrCreatePinnedSection() {
+      let pinnedSection = document.querySelector('.pinned-section .grid');
+      if (!pinnedSection) {
+        const mainPage = document.querySelector('.page');
+        const pinnedContainer = document.createElement('div');
+        pinnedContainer.className = 'pinned-section';
+
+        const pinnedTitle = document.createElement('h2');
+        pinnedTitle.textContent = '📌 Pinned Items';
+        pinnedContainer.appendChild(pinnedTitle);
+
+        const pinnedGrid = document.createElement('div');
+        pinnedGrid.className = 'grid';
+        pinnedContainer.appendChild(pinnedGrid);
+
+        // Insert after header but before games section
+        const header = document.querySelector('header.hero');
+        header.parentNode.insertBefore(pinnedContainer, header.nextSibling);
+
+        pinnedSection = pinnedGrid;
+      }
+      return pinnedSection;
+    }
+
+    function updatePinnedSection() {
+      const pinnedSection = document.querySelector('.pinned-section');
+      const pinnedCards = getPinnedCards();
+
+      if (pinnedCards.length === 0) {
+        if (pinnedSection) {
+          pinnedSection.remove();
+        }
+      } else {
+        getOrCreatePinnedSection();
+      }
+    }
+
+    function loadPinnedCards() {
+      const pinnedCards = getPinnedCards();
+      pinnedCards.forEach(cardId => {
+        const cardElement = document.querySelector(`[data-card-id="${cardId}"]`);
+        const pinBtn = document.querySelector(`.pin-btn[data-card-id="${cardId}"]`);
+
+        if (cardElement && pinBtn) {
+          cardElement.classList.add('pinned');
+          pinBtn.classList.add('pinned');
+          pinBtn.title = 'Unpin';
+          moveCardToTop(cardId);
+        }
+      });
+
+      updatePinnedSection();
+    }
+
+    function getPinnedCards() {
+      const pinned = localStorage.getItem('pinned-cards');
+      return pinned ? JSON.parse(pinned) : [];
+    }
   </script>
 </body>
 </html>
