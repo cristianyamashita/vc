@@ -67,6 +67,19 @@
             color: white !important;
         }
         
+        .copy-button .button-label {
+            display: block;
+            font-size: 0.8em;
+            opacity: 0.8;
+            margin-bottom: 0px;
+            padding: 0px;
+            color: var(--text-color);
+        }
+        
+        .copy-button .button-main-text {
+            display: block;
+        }
+        
         .add-button {
             background: none;
             border: 2px dashed var(--add-button-border);
@@ -172,7 +185,10 @@
         }
         
         .btn-close {
-            filter: var(--text-color) == #ffffff ? invert(1) grayscale(100%) brightness(200%) : none;
+            filter: invert(1) grayscale(100%) brightness(200%);
+        }
+        body.light-theme .btn-close {
+            filter: none;
         }
         
         .edit-mode-off .add-button,
@@ -376,6 +392,10 @@
                         <input type="text" class="form-control" id="buttonText" placeholder="Enter button text">
                     </div>
                     <div class="mb-3">
+                        <label for="buttonLabel" class="form-label" data-i18n="buttonLabelLabel">Label (optional):</label>
+                        <input type="text" class="form-control" id="buttonLabel" placeholder="Enter label (optional)" data-i18n-placeholder="buttonLabelPlaceholder">
+                    </div>
+                    <div class="mb-3">
                         <label class="form-label">Add to:</label>
                         <div class="form-check">
                             <input class="form-check-input" type="radio" name="addLocation" id="newRow" value="newRow" checked>
@@ -475,6 +495,8 @@
                 error_invalidJson: (msg) => `Invalid JSON structure. Expected an array of objects with id, text, and rowId. Error: ${msg}`,
                 alert_importSuccess: "Buttons imported successfully!",
                 error_importFailed: (msg) => `Failed to import buttons. Please check the JSON data and try again.\nError: ${msg}`,
+                buttonLabelLabel: "Label:",
+                buttonLabelPlaceholder: "Enter label (optional)",
             },
             ja: {
                 title: "コピーページ",
@@ -512,6 +534,8 @@
                 error_invalidJson: (msg) => `無効なJSON構造です。id、text、rowIdを持つオブジェクトの配列が必要です。エラー: ${msg}`,
                 alert_importSuccess: "ボタンが正常にインポートされました！",
                 error_importFailed: (msg) => `ボタンのインポートに失敗しました。JSONデータを確認して、もう一度お試しください。\nエラー: ${msg}`,
+                buttonLabelLabel: "ラベル:",
+                buttonLabelPlaceholder: "ラベルを入力（任意）",
             },
             pt: {
                 title: "Página de Cópia",
@@ -549,6 +573,8 @@
                 error_invalidJson: (msg) => `Estrutura JSON inválida. Esperado um array de objetos com id, text e rowId. Erro: ${msg}`,
                 alert_importSuccess: "Botões importados com sucesso!",
                 error_importFailed: (msg) => `Falha ao importar botões. Verifique os dados JSON e tente novamente.\nErro: ${msg}`,
+                buttonLabelLabel: "Rótulo:",
+                buttonLabelPlaceholder: "Insira o rótulo (opcional)",
             }
         };
 
@@ -816,8 +842,8 @@
                 
                 // Check if any button in this row matches the filter
                 buttons.forEach(button => {
-                    const buttonText = button.textContent.toLowerCase();
-                    if (buttonText.includes(filterLower)) {
+                    const mainText = (button.getAttribute('data-text') || button.textContent).toLowerCase();
+                    if (mainText.includes(filterLower)) {
                         rowHasMatch = true;
                     }
                 });
@@ -888,7 +914,18 @@
 
             const copyBtn = document.createElement('button');
             copyBtn.className = 'btn btn-outline-primary copy-button';
-            copyBtn.textContent = button.text;
+            copyBtn.setAttribute('data-text', button.text);
+            copyBtn.innerHTML = '';
+            if (button.label) {
+                const labelDiv = document.createElement('div');
+                labelDiv.className = 'button-label';
+                labelDiv.textContent = button.label;
+                copyBtn.appendChild(labelDiv);
+            }
+            const mainDiv = document.createElement('div');
+            mainDiv.className = 'button-main-text';
+            mainDiv.textContent = button.text;
+            copyBtn.appendChild(mainDiv);
 
             if (dragMode) {
                 copyBtn.draggable = true;
@@ -961,6 +998,7 @@
         function showAddModal(id = null, isEdit = false) {
             const modalTitle = document.getElementById('addButtonModalLabel');
             const buttonText = document.getElementById('buttonText');
+            const buttonLabel = document.getElementById('buttonLabel');
             const newRowRadio = document.getElementById('newRow');
             const existingRowRadio = document.getElementById('existingRow');
             const rowSelection = document.getElementById('rowSelection');
@@ -976,6 +1014,7 @@
                     modalTitle.textContent = 'Edit Button';
                     saveButton.textContent = 'Update Button';
                     buttonText.value = buttonToEdit.text;
+                    buttonLabel.value = buttonToEdit.label || '';
 
                     existingRowRadio.checked = true;
                     rowSelection.style.display = 'block';
@@ -990,6 +1029,7 @@
                 modalTitle.textContent = 'Add New Button';
                 saveButton.textContent = 'Add Button';
                 buttonText.value = '';
+                buttonLabel.value = '';
 
                 if (id) { // Adding to a specific row (id is rowId)
                     existingRowRadio.checked = true;
@@ -1035,6 +1075,7 @@
 
         function saveButtonChanges() {
             const text = document.getElementById('buttonText').value.trim();
+            const label = document.getElementById('buttonLabel').value.trim();
             if (!text) {
                 alert(translations[currentLang].alert_enterButtonText);
                 return;
@@ -1059,13 +1100,15 @@
                 if (buttonToUpdate) {
                     buttonToUpdate.text = text;
                     buttonToUpdate.rowId = rowId;
+                    buttonToUpdate.label = label;
                 }
             } else {
                 // Add new button
                 const newButton = {
                     id: Date.now().toString(),
                     text: text,
-                    rowId: rowId
+                    rowId: rowId,
+                    label: label
                 };
                 buttons.push(newButton);
             }
