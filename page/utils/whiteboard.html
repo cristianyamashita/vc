@@ -502,6 +502,20 @@
     const PREF_ZOOM_KEY = 'whiteboard_pref_zoom';
     const TABS_META_KEY = 'whiteboard_tabs_meta';
     const TAB_PREFIX = 'whiteboard_tab_';
+    // Per-tool size preferences
+    const PREF_TOOL_SIZES_KEY = 'whiteboard_pref_tool_sizes';
+    const TOOLS_WITH_SIZE = ['pen','marker','eraser','line','rect','ellipse','triangle','polygon','star','text','icon'];
+    const DEFAULT_TOOL_SIZES = { pen: 8, marker: 16, eraser: 24, line: 4, rect: 4, ellipse: 4, triangle: 4, polygon: 4, star: 4, text: 24, icon: 8 };
+    let toolSizes = { ...DEFAULT_TOOL_SIZES };
+    
+    // Per-tool color and opacity preferences
+    const PREF_TOOL_COLORS_KEY = 'whiteboard_pref_tool_colors';
+    const PREF_TOOL_OPACITIES_KEY = 'whiteboard_pref_tool_opacities';
+    const TOOLS_WITH_COLOR = ['pen','marker','line','rect','ellipse','triangle','polygon','star','text','icon'];
+    const DEFAULT_TOOL_COLORS = { pen: '#4de2cf', marker: '#ffd166', line: '#4de2cf', rect: '#7c8cff', ellipse: '#7c8cff', triangle: '#06d6a0', polygon: '#ff6b6b', star: '#ffd166', text: '#4de2cf', icon: '#4de2cf' };
+    const DEFAULT_TOOL_OPACITIES = { pen: '1', marker: '0.4', line: '1', rect: '1', ellipse: '1', triangle: '1', polygon: '1', star: '1', text: '1', icon: '1' };
+    let toolColors = { ...DEFAULT_TOOL_COLORS };
+    let toolOpacities = { ...DEFAULT_TOOL_OPACITIES };
     let savedLang = localStorage.getItem(PREF_LANG_KEY);
     let lang = savedLang || ((navigator.language || 'en').startsWith('ja') ? 'ja' : (navigator.language || 'en').startsWith('pt') ? 'pt' : 'en');
     langEl.value = lang;
@@ -620,6 +634,105 @@
       if (selection) drawSelectionOverlay();
     }
 
+    function toolHasSize(t) { return TOOLS_WITH_SIZE.includes(t); }
+    function toolHasColor(t) { return TOOLS_WITH_COLOR.includes(t); }
+    
+    function loadToolSizes() {
+      try {
+        const s = localStorage.getItem(PREF_TOOL_SIZES_KEY);
+        if (s) {
+          const obj = JSON.parse(s);
+          if (obj && typeof obj === 'object') {
+            toolSizes = { ...DEFAULT_TOOL_SIZES, ...obj };
+          }
+        } else {
+          // Backward compatibility: use legacy single size if present
+          const legacy = localStorage.getItem(PREF_SIZE_KEY);
+          if (legacy) {
+            const lv = parseInt(legacy, 10);
+            if (!Number.isNaN(lv)) {
+              toolSizes = { ...DEFAULT_TOOL_SIZES };
+              TOOLS_WITH_SIZE.forEach(k => { toolSizes[k] = lv; });
+            }
+          }
+        }
+      } catch {}
+    }
+    
+    function loadToolColors() {
+      try {
+        const s = localStorage.getItem(PREF_TOOL_COLORS_KEY);
+        if (s) {
+          const obj = JSON.parse(s);
+          if (obj && typeof obj === 'object') {
+            toolColors = { ...DEFAULT_TOOL_COLORS, ...obj };
+          }
+        } else {
+          // Backward compatibility: use legacy single color if present
+          const legacy = localStorage.getItem(PREF_COLOR_KEY);
+          if (legacy) {
+            toolColors = { ...DEFAULT_TOOL_COLORS };
+            TOOLS_WITH_COLOR.forEach(k => { toolColors[k] = legacy; });
+          }
+        }
+      } catch {}
+    }
+    
+    function loadToolOpacities() {
+      try {
+        const s = localStorage.getItem(PREF_TOOL_OPACITIES_KEY);
+        if (s) {
+          const obj = JSON.parse(s);
+          if (obj && typeof obj === 'object') {
+            toolOpacities = { ...DEFAULT_TOOL_OPACITIES, ...obj };
+          }
+        } else {
+          // Backward compatibility: use legacy single opacity if present
+          const legacy = localStorage.getItem(PREF_OPACITY_KEY);
+          if (legacy) {
+            toolOpacities = { ...DEFAULT_TOOL_OPACITIES };
+            TOOLS_WITH_COLOR.forEach(k => { toolOpacities[k] = legacy; });
+          }
+        }
+      } catch {}
+    }
+    function getToolSize(t) {
+      const v = toolSizes[t];
+      const min = parseInt(sizeEl.min, 10) || 1;
+      const max = parseInt(sizeEl.max, 10) || 80;
+      const n = parseInt(v, 10);
+      return (!Number.isNaN(n) ? Math.min(max, Math.max(min, n)) : DEFAULT_TOOL_SIZES[t] || min);
+    }
+    function setToolSize(t, v) {
+      if (!toolHasSize(t)) return;
+      const min = parseInt(sizeEl.min, 10) || 1;
+      const max = parseInt(sizeEl.max, 10) || 80;
+      const n = parseInt(v, 10);
+      const clamped = (!Number.isNaN(n) ? Math.min(max, Math.max(min, n)) : min);
+      toolSizes[t] = clamped;
+      try { localStorage.setItem(PREF_TOOL_SIZES_KEY, JSON.stringify(toolSizes)); } catch {}
+    }
+    
+    function getToolColor(t) {
+      return toolColors[t] || DEFAULT_TOOL_COLORS[t] || '#4de2cf';
+    }
+    
+    function setToolColor(t, color) {
+      if (!toolHasColor(t)) return;
+      toolColors[t] = color;
+      try { localStorage.setItem(PREF_TOOL_COLORS_KEY, JSON.stringify(toolColors)); } catch {}
+    }
+    
+    function getToolOpacity(t) {
+      return toolOpacities[t] || DEFAULT_TOOL_OPACITIES[t] || '1';
+    }
+    
+    function setToolOpacity(t, opacity) {
+      if (!toolHasColor(t)) return;
+      toolOpacities[t] = opacity;
+      try { localStorage.setItem(PREF_TOOL_OPACITIES_KEY, JSON.stringify(toolOpacities)); } catch {}
+    }
+
     function setTool(newTool) {
       tool = newTool;
       qsa('.tool-btn', toolbar).forEach(b => b.classList.remove('active'));
@@ -629,6 +742,17 @@
       if (tool !== 'select') hideSelectionBox();
       statusEl.textContent = `Tool: ${btn ? btn.getAttribute('data-title') : tool}`;
       updateOptionVisibility();
+      // Sync size UI with this tool's saved size
+      if (toolHasSize(tool)) {
+        const s = getToolSize(tool);
+        sizeEl.value = String(s);
+        sizeVal.textContent = String(s);
+      }
+      // Sync color and opacity UI with this tool's saved values
+      if (toolHasColor(tool)) {
+        colorEl.value = getToolColor(tool);
+        opacityEl.value = getToolOpacity(tool);
+      }
     }
 
     function show(el, visible) { if (!el) return; el.hidden = !visible; }
@@ -1470,11 +1594,11 @@
       const rgb = window.getComputedStyle(sw).backgroundColor;
       const hex = rgb.startsWith('#') ? rgb : rgbToHex(rgb);
       colorEl.value = hex; addRecentColor(hex);
-      try { localStorage.setItem(PREF_COLOR_KEY, hex); } catch {}
+      setToolColor(tool, hex);
     }));
-    sizeEl.addEventListener('input', () => { sizeVal.textContent = sizeEl.value; try { localStorage.setItem(PREF_SIZE_KEY, sizeEl.value); } catch {} });
-    colorEl.addEventListener('change', () => { addRecentColor(colorEl.value); try { localStorage.setItem(PREF_COLOR_KEY, colorEl.value); } catch {} });
-    opacityEl.addEventListener('input', () => { try { localStorage.setItem(PREF_OPACITY_KEY, opacityEl.value); } catch {} });
+    sizeEl.addEventListener('input', () => { sizeVal.textContent = sizeEl.value; setToolSize(tool, parseInt(sizeEl.value, 10)); });
+    colorEl.addEventListener('change', () => { addRecentColor(colorEl.value); setToolColor(tool, colorEl.value); });
+    opacityEl.addEventListener('input', () => { setToolOpacity(tool, opacityEl.value); });
     gridToggle.addEventListener('change', () => { try { localStorage.setItem(PREF_GRID_KEY, gridToggle.checked ? '1' : '0'); } catch {}; drawGrid(); });
     gridSizeEl.addEventListener('input', () => { try { localStorage.setItem(PREF_GRID_SIZE_KEY, gridSizeEl.value); } catch {}; drawGrid(); });
     gridTypeEl.addEventListener('change', () => { try { localStorage.setItem(PREF_GRID_TYPE_KEY, gridTypeEl.value); } catch {}; drawGrid(); });
@@ -1497,8 +1621,13 @@
     themeEl.addEventListener('change', () => {
       const t = themeEl.value;
       document.body.classList.toggle('theme-light', t === 'light');
-      if (t === 'light') colorEl.value = LIGHT_DEFAULT; else colorEl.value = DARK_DEFAULT;
-      addRecentColor(colorEl.value);
+      // Update current tool's color when theme changes
+      const newColor = t === 'light' ? LIGHT_DEFAULT : DARK_DEFAULT;
+      if (toolHasColor(tool)) {
+        colorEl.value = newColor;
+        setToolColor(tool, newColor);
+      }
+      addRecentColor(newColor);
       drawGrid();
       try { localStorage.setItem(PREF_THEME_KEY, t); } catch {}
     });
@@ -1688,9 +1817,21 @@
         if (k === 'i') setTool('icon');
         if (k === 'y') setTool('eyedropper');
         if (k === 'g') setTool('triangle');
-        if (k === '[') sizeEl.value = Math.max(1, parseInt(sizeEl.value,10)-1), sizeVal.textContent = sizeEl.value;
-        if (k === ']') sizeEl.value = Math.min(80, parseInt(sizeEl.value,10)+1), sizeVal.textContent = sizeEl.value;
-        if (/^[1-9]$/.test(k)) { sizeEl.value = String(parseInt(k,10) * 8); sizeVal.textContent = sizeEl.value; }
+        if (k === '[') {
+          sizeEl.value = String(Math.max(1, parseInt(sizeEl.value,10)-1));
+          sizeVal.textContent = sizeEl.value;
+          setToolSize(tool, parseInt(sizeEl.value,10));
+        }
+        if (k === ']') {
+          sizeEl.value = String(Math.min(80, parseInt(sizeEl.value,10)+1));
+          sizeVal.textContent = sizeEl.value;
+          setToolSize(tool, parseInt(sizeEl.value,10));
+        }
+        if (/^[1-9]$/.test(k)) {
+          sizeEl.value = String(parseInt(k,10) * 8);
+          sizeVal.textContent = sizeEl.value;
+          setToolSize(tool, parseInt(sizeEl.value,10));
+        }
         if (k === 'escape' || k === 'esc') { selection = null; hideSelectionBox(); clearOverlay(); }
         if (k === 'delete' || k === 'backspace') {
           if (selection && selection.canvas) { selection = null; hideSelectionBox(); clearOverlay(); pushHistory(); }
@@ -1783,6 +1924,9 @@
     // Init
     setCanvasSize();
     pushHistory();
+    loadToolSizes();
+    loadToolColors();
+    loadToolOpacities();
     setTool('pen');
     applyLang();
     // Preload Font Awesome faces for better reliability
@@ -1797,13 +1941,10 @@
     if (savedTheme === 'light') {
       themeEl.value = 'light';
       document.body.classList.add('theme-light');
-      colorEl.value = LIGHT_DEFAULT;
     } else {
       themeEl.value = 'dark';
       document.body.classList.remove('theme-light');
-      colorEl.value = DARK_DEFAULT;
     }
-    addRecentColor(colorEl.value);
     drawGrid();
     // Attempt to load autosave
     loadFromStorage();
@@ -1811,9 +1952,6 @@
 
     // Apply saved control prefs
     try {
-      const vSize = localStorage.getItem(PREF_SIZE_KEY); if (vSize) { sizeEl.value = vSize; sizeVal.textContent = vSize; }
-      const vColor = localStorage.getItem(PREF_COLOR_KEY); if (vColor) { colorEl.value = vColor; addRecentColor(vColor); }
-      const vOpac = localStorage.getItem(PREF_OPACITY_KEY); if (vOpac) { opacityEl.value = vOpac; }
       const vSmooth = localStorage.getItem(PREF_SMOOTH_KEY); if (vSmooth) { smoothingToggle.checked = vSmooth === '1'; }
       const vGrid = localStorage.getItem(PREF_GRID_KEY); if (vGrid) { gridToggle.checked = vGrid === '1'; }
       const vGridType = localStorage.getItem(PREF_GRID_TYPE_KEY); if (vGridType) { gridTypeEl.value = vGridType; }
