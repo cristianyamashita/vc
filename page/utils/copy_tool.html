@@ -278,6 +278,40 @@
         .lang-selector a.active {
             font-weight: bold;
         }
+
+        /* Row controls for reordering */
+        .row-controls {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            margin-right: 10px;
+            gap: 2px;
+        }
+
+        .row-move-btn {
+            background: none;
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+            cursor: pointer;
+            padding: 2px 5px;
+            font-size: 0.8rem;
+            border-radius: 3px;
+            transition: all 0.2s;
+        }
+
+        .row-move-btn:hover:not(:disabled) {
+            background-color: var(--btn-bg);
+            color: var(--add-button-hover-border);
+        }
+
+        .row-move-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        .edit-mode-off .row-controls {
+            display: none !important;
+        }
     </style>
 </head>
 <body>
@@ -901,18 +935,43 @@
 
             // Group buttons by row
             const rows = {};
+            const rowOrder = []; // To maintain the order of rows
+
             buttons.forEach(button => {
                 if (!rows[button.rowId]) {
                     rows[button.rowId] = [];
+                    rowOrder.push(button.rowId);
                 }
                 rows[button.rowId].push(button);
             });
 
-            // Render each row
-            Object.keys(rows).forEach(rowId => {
+            // Render each row in order
+            rowOrder.forEach((rowId, index) => {
                 const rowDiv = document.createElement('div');
                 rowDiv.className = 'button-container';
                 rowDiv.setAttribute('data-row-id', rowId);
+
+                // Add Row Controls (Up/Down)
+                const controlsDiv = document.createElement('div');
+                controlsDiv.className = 'row-controls';
+                
+                const upBtn = document.createElement('button');
+                upBtn.className = 'row-move-btn';
+                upBtn.innerHTML = '<i class="fas fa-chevron-up"></i>';
+                upBtn.onclick = () => moveRowUp(rowId);
+                upBtn.disabled = index === 0; // Disable if first row
+                upBtn.title = "Move Row Up";
+
+                const downBtn = document.createElement('button');
+                downBtn.className = 'row-move-btn';
+                downBtn.innerHTML = '<i class="fas fa-chevron-down"></i>';
+                downBtn.onclick = () => moveRowDown(rowId);
+                downBtn.disabled = index === rowOrder.length - 1; // Disable if last row
+                downBtn.title = "Move Row Down";
+
+                controlsDiv.appendChild(upBtn);
+                controlsDiv.appendChild(downBtn);
+                rowDiv.appendChild(controlsDiv);
 
                 rows[rowId].forEach(button => {
                     const buttonElement = createButtonElement(button);
@@ -925,6 +984,66 @@
 
                 container.appendChild(rowDiv);
             });
+        }
+
+        // Move row up
+        function moveRowUp(rowId) {
+            // 1. Identify unique rows and their order
+            const rowOrder = [];
+            const rows = {};
+            buttons.forEach(button => {
+                if (!rows[button.rowId]) {
+                    rows[button.rowId] = [];
+                    rowOrder.push(button.rowId);
+                }
+                rows[button.rowId].push(button);
+            });
+
+            const index = rowOrder.indexOf(rowId);
+            if (index > 0) {
+                // Swap with previous
+                const temp = rowOrder[index];
+                rowOrder[index] = rowOrder[index - 1];
+                rowOrder[index - 1] = temp;
+
+                // Reconstruct buttons array
+                reconstructButtonsArray(rowOrder, rows);
+            }
+        }
+
+        // Move row down
+        function moveRowDown(rowId) {
+            // 1. Identify unique rows and their order
+            const rowOrder = [];
+            const rows = {};
+            buttons.forEach(button => {
+                if (!rows[button.rowId]) {
+                    rows[button.rowId] = [];
+                    rowOrder.push(button.rowId);
+                }
+                rows[button.rowId].push(button);
+            });
+
+            const index = rowOrder.indexOf(rowId);
+            if (index < rowOrder.length - 1) {
+                // Swap with next
+                const temp = rowOrder[index];
+                rowOrder[index] = rowOrder[index + 1];
+                rowOrder[index + 1] = temp;
+
+                // Reconstruct buttons array
+                reconstructButtonsArray(rowOrder, rows);
+            }
+        }
+
+        function reconstructButtonsArray(newRowOrder, rowsMap) {
+            const newButtons = [];
+            newRowOrder.forEach(rId => {
+                newButtons.push(...rowsMap[rId]);
+            });
+            buttons = newButtons;
+            saveButtons();
+            renderButtons();
         }
 
         // Create a button element
