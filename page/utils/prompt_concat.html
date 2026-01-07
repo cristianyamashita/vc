@@ -222,7 +222,20 @@
           const lists = vEls.map((el) => parseLines(el.value));
           const combos = cartesianProduct(lists);
 
-          const lines = combos.map((values) => {
+          const lines = combos.map((valuesRaw) => {
+            // Resolve chained placeholders inside variable values:
+            // - V2 may reference {V1}
+            // - V3 may reference {V1} and {V2}
+            // - ...
+            const values = [];
+            for (let i = 0; i < valuesRaw.length; i++) {
+              let v = String(valuesRaw[i] ?? '');
+              for (let j = 0; j < i; j++) {
+                v = v.replaceAll(`{V${j + 1}}`, values[j]);
+              }
+              values.push(v);
+            }
+
             let out = template;
             for (let i = 0; i < values.length; i++) {
               const placeholder = `{V${i + 1}}`;
