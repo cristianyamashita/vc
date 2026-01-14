@@ -58,11 +58,18 @@
         border-color: var(--border-color);
       }
 
-      .form-control:focus {
+      .form-control:focus,
+      .form-select:focus {
         background-color: var(--card-bg-color);
         color: var(--text-color);
         border-color: var(--accent-color);
         box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+      }
+
+      .form-select {
+        background-color: var(--card-bg-color);
+        color: var(--text-color);
+        border-color: var(--border-color);
       }
 
       .help-text {
@@ -83,7 +90,9 @@
     <nav class="navbar navbar-expand-lg" style="background-color: var(--card-bg-color); border-bottom: 1px solid var(--border-color)">
       <div class="container-fluid">
         <a class="navbar-brand" href="#">Prompt Concat</a>
-        <div class="d-flex ms-auto gap-2">
+        <div class="d-flex ms-auto gap-2 align-items-center">
+          <select id="storage-select" class="form-select form-select-sm" style="background-color: var(--card-bg-color); color: var(--text-color); border-color: var(--border-color); min-width: 150px;">
+          </select>
           <button id="copy-result-btn" class="btn btn-sm btn-outline-secondary" type="button" title="Copy result">
             <i class="fas fa-copy"></i>
           </button>
@@ -116,31 +125,46 @@
                 <div class="col">
                   <label for="v1" class="form-label">V1</label>
                   <textarea id="v1" class="form-control mono" rows="5" placeholder="carro&#10;bicicleta&#10;barco"></textarea>
+                  <button class="btn btn-sm btn-outline-secondary mt-1 w-100" type="button" data-shuffle="v1" title="Shuffle lines">
+                    <i class="fas fa-random"></i> Shuffle
+                  </button>
                 </div>
                 <div class="col">
                   <label for="v2" class="form-label">V2</label>
                   <textarea id="v2" class="form-control mono" rows="5" placeholder="moderno&#10;velho&#10;vintage"></textarea>
+                  <button class="btn btn-sm btn-outline-secondary mt-1 w-100" type="button" data-shuffle="v2" title="Shuffle lines">
+                    <i class="fas fa-random"></i> Shuffle
+                  </button>
                 </div>
                 <div class="col">
                   <label for="v3" class="form-label">V3</label>
                   <textarea id="v3" class="form-control mono" rows="5" placeholder="grande&#10;pequeno"></textarea>
+                  <button class="btn btn-sm btn-outline-secondary mt-1 w-100" type="button" data-shuffle="v3" title="Shuffle lines">
+                    <i class="fas fa-random"></i> Shuffle
+                  </button>
                 </div>
                 <div class="col">
                   <label for="v4" class="form-label">V4</label>
                   <textarea id="v4" class="form-control mono" rows="5" placeholder="amarelo&#10;vermelho"></textarea>
+                  <button class="btn btn-sm btn-outline-secondary mt-1 w-100" type="button" data-shuffle="v4" title="Shuffle lines">
+                    <i class="fas fa-random"></i> Shuffle
+                  </button>
                 </div>
                 <div class="col">
                   <label for="v5" class="form-label">V5</label>
                   <textarea id="v5" class="form-control mono" rows="5" placeholder=""></textarea>
+                  <button class="btn btn-sm btn-outline-secondary mt-1 w-100" type="button" data-shuffle="v5" title="Shuffle lines">
+                    <i class="fas fa-random"></i> Shuffle
+                  </button>
                 </div>
               </div>
 
               <hr class="my-4" />
 
               <div class="mb-2 d-flex align-items-center justify-content-between gap-2">
-                <label for="result" class="form-label mb-0">Resultado</label>
+                <label for="result" class="form-label mb-0">Result</label>
                 <div class="help-text">
-                  <span id="result-count">0</span> linhas
+                  <span id="result-count">0</span> lines
                 </div>
               </div>
               <textarea id="result" class="form-control mono" rows="10" readonly></textarea>
@@ -158,6 +182,7 @@
         const clearBtn = document.getElementById('clear-btn');
         const copyResultBtn = document.getElementById('copy-result-btn');
         const storageScopeEl = document.getElementById('storage-scope');
+        const storageSelectEl = document.getElementById('storage-select');
 
         const inputTemplateEl = document.getElementById('input-template');
         const vEls = [document.getElementById('v1'), document.getElementById('v2'), document.getElementById('v3'), document.getElementById('v4'), document.getElementById('v5')];
@@ -180,7 +205,44 @@
         };
         const keyFor = (field) => `prompt_concat:${getPrefix()}:${field}`;
         const updateStorageScopeText = () => {
-          storageScopeEl.textContent = `storage: ${getPrefix()}`;
+          const prefix = getPrefix();
+          storageScopeEl.textContent = `storage: ${prefix}`;
+          document.title = `Prompt Concat - ${prefix}`;
+        };
+
+        // List all existing storages
+        const getAllStorages = () => {
+          const storages = new Set(['default']);
+          try {
+            for (let i = 0; i < localStorage.length; i++) {
+              const key = localStorage.key(i);
+              if (key && key.startsWith('prompt_concat:')) {
+                const parts = key.split(':');
+                if (parts.length >= 2) {
+                  storages.add(parts[1]);
+                }
+              }
+            }
+          } catch {
+            // ignore
+          }
+          return Array.from(storages).sort();
+        };
+
+        // Update storage select dropdown
+        const updateStorageSelect = () => {
+          const storages = getAllStorages();
+          const currentPrefix = getPrefix();
+          storageSelectEl.innerHTML = '';
+          storages.forEach((storage) => {
+            const option = document.createElement('option');
+            option.value = storage;
+            option.textContent = storage;
+            if (storage === currentPrefix) {
+              option.selected = true;
+            }
+            storageSelectEl.appendChild(option);
+          });
         };
 
         const readField = (field, fallback = '') => {
@@ -203,6 +265,18 @@
         const parseLines = (text) => {
           const raw = String(text || '').split(/\r?\n/).map((s) => s.trim()).filter((s) => s !== '');
           return raw.length ? raw : [''];
+        };
+
+        // Shuffle lines in a textarea
+        const shuffleLines = (textareaEl) => {
+          const lines = String(textareaEl.value || '').split(/\r?\n/);
+          // Fisher-Yates shuffle algorithm
+          for (let i = lines.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [lines[i], lines[j]] = [lines[j], lines[i]];
+          }
+          textareaEl.value = lines.join('\n');
+          schedule();
         };
 
         const cartesianProduct = (arrays) => {
@@ -297,8 +371,25 @@
         inputTemplateEl.addEventListener('input', schedule);
         vEls.forEach((el) => el.addEventListener('input', schedule));
 
+        // Shuffle buttons
+        document.querySelectorAll('[data-shuffle]').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            const targetId = btn.getAttribute('data-shuffle');
+            const targetEl = document.getElementById(targetId);
+            if (targetEl) {
+              shuffleLines(targetEl);
+            }
+          });
+        });
+
+        storageSelectEl.addEventListener('change', () => {
+          const selectedStorage = storageSelectEl.value;
+          location.hash = selectedStorage === 'default' ? '' : selectedStorage;
+        });
+
         window.addEventListener('hashchange', () => {
           updateStorageScopeText();
+          updateStorageSelect();
           loadAll();
           render();
         });
@@ -306,6 +397,7 @@
         // Init
         applyTheme(currentTheme);
         updateStorageScopeText();
+        updateStorageSelect();
         loadAll();
         render();
       });
