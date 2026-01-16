@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Bandwidth Calculator</title>
+    <title data-i18n="title">Bandwidth Calculator</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
     <link rel="stylesheet" href="../assets/fontawesome/css/all.min.css" />
     <style>
@@ -92,12 +92,17 @@
   <body>
     <nav class="navbar navbar-expand-lg" style="background-color: var(--card-bg-color); border-bottom: 1px solid var(--border-color)">
       <div class="container-fluid">
-        <a class="navbar-brand" href="#">Bandwidth Calculator</a>
+        <a class="navbar-brand" href="#" data-i18n="title">Bandwidth Calculator</a>
         <div class="d-flex ms-auto gap-2">
-          <button id="clear-btn" class="btn btn-sm btn-outline-secondary" type="button" title="Clear">
+          <select id="lang-switcher" class="form-select form-select-sm" style="width: auto;">
+            <option value="en">English</option>
+            <option value="pt">Português</option>
+            <option value="ja">日本語</option>
+          </select>
+          <button id="clear-btn" class="btn btn-sm btn-outline-secondary" type="button" data-i18n-title="clearBtn" title="Clear">
             <i class="fas fa-eraser"></i>
           </button>
-          <button id="theme-switcher" class="btn btn-sm btn-outline-secondary" type="button" title="Toggle theme">
+          <button id="theme-switcher" class="btn btn-sm btn-outline-secondary" type="button" data-i18n-title="themeBtn" title="Toggle theme">
             <i class="fas fa-moon"></i>
           </button>
         </div>
@@ -109,16 +114,16 @@
         <div class="col-xl-6 col-lg-8 col-md-10">
           <div class="card">
             <div class="card-header">
-              <h4 class="mb-0">Calculate Transfer Rate</h4>
+              <h4 class="mb-0" data-i18n="cardTitle">Calculate Transfer Rate</h4>
             </div>
             <div class="card-body">
               <div class="row g-3 mb-4">
                 <div class="col-sm-8">
-                  <label for="size-input" class="form-label">Data Size</label>
+                  <label for="size-input" class="form-label" data-i18n="dataSizeLabel">Data Size</label>
                   <input type="number" id="size-input" class="form-control" placeholder="0" min="0" step="any">
                 </div>
                 <div class="col-sm-4">
-                  <label for="size-unit" class="form-label">Unit</label>
+                  <label for="size-unit" class="form-label" data-i18n="unitLabel">Unit</label>
                   <select id="size-unit" class="form-select">
                     <option value="MB">MB</option>
                     <option value="GB">GB</option>
@@ -129,15 +134,15 @@
 
               <div class="row g-3 mb-4">
                 <div class="col-sm-8">
-                  <label for="time-input" class="form-label">Time</label>
+                  <label for="time-input" class="form-label" data-i18n="timeLabel">Time</label>
                   <input type="number" id="time-input" class="form-control" placeholder="0" min="0" step="any">
                 </div>
                 <div class="col-sm-4">
-                  <label for="time-unit" class="form-label">Unit</label>
+                  <label for="time-unit" class="form-label" data-i18n="unitLabel">Unit</label>
                   <select id="time-unit" class="form-select">
-                    <option value="s">Seconds</option>
-                    <option value="m">Minutes</option>
-                    <option value="h">Hours</option>
+                    <option value="s" data-i18n-option="seconds">Seconds</option>
+                    <option value="m" data-i18n-option="minutes">Minutes</option>
+                    <option value="h" data-i18n-option="hours">Hours</option>
                   </select>
                 </div>
               </div>
@@ -147,8 +152,8 @@
               <div id="results-area" style="display: none;">
                 <div class="result-box mb-3">
                   <div class="d-flex justify-content-between align-items-center">
-                    <span class="help-text">Transfer Rate (MegaBytes)</span>
-                    <button class="btn btn-sm btn-link copy-btn" data-target="result-mb" title="Copy">
+                    <span class="help-text" data-i18n="transferRateMB">Transfer Rate (MegaBytes)</span>
+                    <button class="btn btn-sm btn-link copy-btn" data-target="result-mb" data-i18n-title="copyBtn" title="Copy">
                       <i class="fas fa-copy"></i>
                     </button>
                   </div>
@@ -157,8 +162,8 @@
 
                 <div class="result-box">
                   <div class="d-flex justify-content-between align-items-center">
-                    <span class="help-text">Transfer Rate (MegaBits)</span>
-                    <button class="btn btn-sm btn-link copy-btn" data-target="result-mbits" title="Copy">
+                    <span class="help-text" data-i18n="transferRateMbits">Transfer Rate (MegaBits)</span>
+                    <button class="btn btn-sm btn-link copy-btn" data-target="result-mbits" data-i18n-title="copyBtn" title="Copy">
                       <i class="fas fa-copy"></i>
                     </button>
                   </div>
@@ -166,7 +171,7 @@
                 </div>
               </div>
 
-              <div id="empty-state" class="text-center py-4 text-muted">
+              <div id="empty-state" class="text-center py-4 text-muted" data-i18n="emptyState">
                 Enter size and time to see the results
               </div>
             </div>
@@ -177,8 +182,60 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+      const i18n = {
+        en: {
+          title: "Bandwidth Calculator",
+          cardTitle: "Calculate Transfer Rate",
+          dataSizeLabel: "Data Size",
+          timeLabel: "Time",
+          unitLabel: "Unit",
+          seconds: "Seconds",
+          minutes: "Minutes",
+          hours: "Hours",
+          transferRateMB: "Transfer Rate (MegaBytes)",
+          transferRateMbits: "Transfer Rate (MegaBits)",
+          copyBtn: "Copy",
+          clearBtn: "Clear",
+          themeBtn: "Toggle theme",
+          emptyState: "Enter size and time to see the results"
+        },
+        pt: {
+          title: "Calculadora de Banda",
+          cardTitle: "Calcular Taxa de Transferência",
+          dataSizeLabel: "Tamanho dos Dados",
+          timeLabel: "Tempo",
+          unitLabel: "Unidade",
+          seconds: "Segundos",
+          minutes: "Minutos",
+          hours: "Horas",
+          transferRateMB: "Taxa de Transferência (MegaBytes)",
+          transferRateMbits: "Taxa de Transferência (MegaBits)",
+          copyBtn: "Copiar",
+          clearBtn: "Limpar",
+          themeBtn: "Alternar tema",
+          emptyState: "Digite o tamanho e o tempo para ver os resultados"
+        },
+        ja: {
+          title: "帯域幅計算機",
+          cardTitle: "転送速度を計算",
+          dataSizeLabel: "データサイズ",
+          timeLabel: "時間",
+          unitLabel: "単位",
+          seconds: "秒",
+          minutes: "分",
+          hours: "時間",
+          transferRateMB: "転送速度 (メガバイト)",
+          transferRateMbits: "転送速度 (メガビット)",
+          copyBtn: "コピー",
+          clearBtn: "クリア",
+          themeBtn: "テーマを切り替え",
+          emptyState: "サイズと時間を入力して結果を表示"
+        }
+      };
+
       document.addEventListener('DOMContentLoaded', () => {
         // Elements
+        const langSwitcher = document.getElementById('lang-switcher');
         const themeSwitcher = document.getElementById('theme-switcher');
         const clearBtn = document.getElementById('clear-btn');
         const sizeInput = document.getElementById('size-input');
@@ -190,6 +247,31 @@
         const resultsArea = document.getElementById('results-area');
         const emptyState = document.getElementById('empty-state');
         const copyBtns = document.querySelectorAll('.copy-btn');
+
+        // Language
+        let currentLanguage = localStorage.getItem('app_lang') || 'en';
+        const applyI18n = () => {
+          const lang = i18n[currentLanguage] || i18n.en;
+          document.querySelectorAll('[data-i18n]').forEach(el => {
+            const key = el.getAttribute('data-i18n');
+            if (lang[key]) {
+              el.innerText = lang[key];
+            }
+          });
+          document.querySelectorAll('[data-i18n-title]').forEach(el => {
+            const key = el.getAttribute('data-i18n-title');
+            if (lang[key]) {
+              el.title = lang[key];
+            }
+          });
+          document.querySelectorAll('[data-i18n-option]').forEach(el => {
+            const key = el.getAttribute('data-i18n-option');
+            if (lang[key]) {
+              el.textContent = lang[key];
+            }
+          });
+          document.title = lang.title;
+        };
 
         // Theme
         let currentTheme = localStorage.getItem('app_theme') || 'dark';
@@ -231,6 +313,12 @@
         };
 
         // Events
+        langSwitcher.addEventListener('change', (e) => {
+          currentLanguage = e.target.value;
+          localStorage.setItem('app_lang', currentLanguage);
+          applyI18n();
+        });
+
         themeSwitcher.addEventListener('click', () => {
           currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
           applyTheme(currentTheme);
@@ -262,6 +350,8 @@
         });
 
         // Init
+        langSwitcher.value = currentLanguage;
+        applyI18n();
         applyTheme(currentTheme);
         calculate();
       });
