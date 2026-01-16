@@ -122,35 +122,35 @@
             <div class="card-body">
               <div class="mb-3">
                 <label for="input-template" class="form-label" data-i18n="inputLabel">Input</label>
-                <textarea id="input-template" class="form-control mono" rows="4" placeholder="O {V1} eh {V2} e tem o tamanho {V3}, da cor {V4}, esse eh o meu {V1}"></textarea>
+                <textarea id="input-template" class="form-control mono" rows="4" data-i18n-placeholder="inputPlaceholder" placeholder="The {V1} is {V2} and has size {V3}, color {V4}, this is my {V1}"></textarea>
                 <div class="help-text mt-1" data-i18n="placeholderHelp">Use placeholders: {V1}, {V2}, {V3}, {V4}, {V5}</div>
               </div>
 
               <div class="row g-3 row-cols-1 row-cols-md-2 row-cols-lg-5">
                 <div class="col">
                   <label for="v1" class="form-label">V1</label>
-                  <textarea id="v1" class="form-control mono" rows="5" placeholder="carro&#10;bicicleta&#10;barco"></textarea>
+                  <textarea id="v1" class="form-control mono" rows="5" data-i18n-placeholder="v1Placeholder" placeholder="car&#10;bicycle&#10;boat"></textarea>
                   <button class="btn btn-sm btn-outline-secondary mt-1 w-100" type="button" data-shuffle="v1" data-i18n-title="shuffleBtn" title="Shuffle lines">
                     <i class="fas fa-random"></i> <span data-i18n="shuffleBtn">Shuffle</span>
                   </button>
                 </div>
                 <div class="col">
                   <label for="v2" class="form-label">V2</label>
-                  <textarea id="v2" class="form-control mono" rows="5" placeholder="moderno&#10;velho&#10;vintage"></textarea>
+                  <textarea id="v2" class="form-control mono" rows="5" data-i18n-placeholder="v2Placeholder" placeholder="modern&#10;old&#10;vintage"></textarea>
                   <button class="btn btn-sm btn-outline-secondary mt-1 w-100" type="button" data-shuffle="v2" data-i18n-title="shuffleBtn" title="Shuffle lines">
                     <i class="fas fa-random"></i> <span data-i18n="shuffleBtn">Shuffle</span>
                   </button>
                 </div>
                 <div class="col">
                   <label for="v3" class="form-label">V3</label>
-                  <textarea id="v3" class="form-control mono" rows="5" placeholder="grande&#10;pequeno"></textarea>
+                  <textarea id="v3" class="form-control mono" rows="5" data-i18n-placeholder="v3Placeholder" placeholder="large&#10;small"></textarea>
                   <button class="btn btn-sm btn-outline-secondary mt-1 w-100" type="button" data-shuffle="v3" data-i18n-title="shuffleBtn" title="Shuffle lines">
                     <i class="fas fa-random"></i> <span data-i18n="shuffleBtn">Shuffle</span>
                   </button>
                 </div>
                 <div class="col">
                   <label for="v4" class="form-label">V4</label>
-                  <textarea id="v4" class="form-control mono" rows="5" placeholder="amarelo&#10;vermelho"></textarea>
+                  <textarea id="v4" class="form-control mono" rows="5" data-i18n-placeholder="v4Placeholder" placeholder="yellow&#10;red"></textarea>
                   <button class="btn btn-sm btn-outline-secondary mt-1 w-100" type="button" data-shuffle="v4" data-i18n-title="shuffleBtn" title="Shuffle lines">
                     <i class="fas fa-random"></i> <span data-i18n="shuffleBtn">Shuffle</span>
                   </button>
@@ -185,7 +185,12 @@
         en: {
           title: "Prompt Concat",
           inputLabel: "Input",
+          inputPlaceholder: "The {V1} is {V2} and has size {V3}, color {V4}, this is my {V1}",
           placeholderHelp: "Use placeholders: {V1}, {V2}, {V3}, {V4}, {V5}",
+          v1Placeholder: "car\nbicycle\nboat",
+          v2Placeholder: "modern\nold\nvintage",
+          v3Placeholder: "large\nsmall",
+          v4Placeholder: "yellow\nred",
           shuffleBtn: "Shuffle",
           resultLabel: "Result",
           linesText: "lines",
@@ -197,7 +202,12 @@
         pt: {
           title: "Prompt Concat",
           inputLabel: "Entrada",
+          inputPlaceholder: "O {V1} é {V2} e tem o tamanho {V3}, da cor {V4}, esse é o meu {V1}",
           placeholderHelp: "Use placeholders: {V1}, {V2}, {V3}, {V4}, {V5}",
+          v1Placeholder: "carro\nbicicleta\nbarco",
+          v2Placeholder: "moderno\nvelho\nvintage",
+          v3Placeholder: "grande\npequeno",
+          v4Placeholder: "amarelo\nvermelho",
           shuffleBtn: "Embaralhar",
           resultLabel: "Resultado",
           linesText: "linhas",
@@ -209,7 +219,12 @@
         ja: {
           title: "プロンプト連結",
           inputLabel: "入力",
+          inputPlaceholder: "{V1}は{V2}で、サイズは{V3}、色は{V4}です。これが私の{V1}です",
           placeholderHelp: "プレースホルダーを使用: {V1}, {V2}, {V3}, {V4}, {V5}",
+          v1Placeholder: "車\n自転車\nボート",
+          v2Placeholder: "モダン\n古い\nヴィンテージ",
+          v3Placeholder: "大きい\n小さい",
+          v4Placeholder: "黄色\n赤",
           shuffleBtn: "シャッフル",
           resultLabel: "結果",
           linesText: "行",
@@ -242,6 +257,12 @@
             const key = el.getAttribute('data-i18n');
             if (lang[key]) {
               el.innerText = lang[key];
+            }
+          });
+          document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+            const key = el.getAttribute('data-i18n-placeholder');
+            if (lang[key]) {
+              el.placeholder = lang[key];
             }
           });
           document.querySelectorAll('[data-i18n-title]').forEach(el => {
