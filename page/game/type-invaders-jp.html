@@ -200,6 +200,17 @@
       font-size: 14px;
       color: var(--text-dim);
       letter-spacing: 1px;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .word.show-romaji .romaji {
+      opacity: 1;
+    }
+
+    .word.show-romaji {
+      border-style: dashed;
+      opacity: 0.8;
     }
 
     .word .typed {
@@ -671,11 +682,12 @@
       <div class="instructions">
         <h3 data-i18n="howToPlay">遊び方</h3>
         <ul>
-          <li data-i18n="instruction1">落ちてくる日本語の単語のローマ字をタイプ</li>
+          <li data-i18n="instruction1">日本語を見てローマ字をタイプ（最初はローマ字非表示）</li>
           <li data-i18n="instruction2">タイプすると自動的に単語がマッチ</li>
           <li data-i18n="instruction3">単語を完成させて破壊</li>
           <li data-i18n="instruction4">赤いラインに到達させないで！</li>
           <li data-i18n="instruction5">コンボでボーナスポイント</li>
+          <li data-i18n="instruction6">⚠️ ローマ字が表示されると得点が半分に！</li>
         </ul>
       </div>
 
@@ -1051,11 +1063,12 @@
         level4: 'Level 4',
         level5: 'Level 5',
         howToPlay: 'How to Play',
-        instruction1: 'Type the romaji for falling Japanese words',
+        instruction1: 'Read Japanese and type romaji (romaji hidden at first)',
         instruction2: 'Words automatically match as you type',
         instruction3: 'Complete the word to destroy it',
         instruction4: "Don't let words reach the red line!",
         instruction5: 'Build combos for bonus points',
+        instruction6: '⚠️ Half points if romaji is revealed!',
         startGame: 'Start Game',
         gameOver: 'Game Over',
         finalScore: 'Final Score',
@@ -1083,11 +1096,12 @@
         level4: 'Nível 4',
         level5: 'Nível 5',
         howToPlay: 'Como Jogar',
-        instruction1: 'Digite o romaji das palavras japonesas',
+        instruction1: 'Leia japonês e digite romaji (romaji oculto no início)',
         instruction2: 'Palavras combinam automaticamente ao digitar',
         instruction3: 'Complete a palavra para destruí-la',
         instruction4: 'Não deixe palavras chegarem à linha vermelha!',
         instruction5: 'Faça combos para pontos bônus',
+        instruction6: '⚠️ Metade dos pontos se o romaji aparecer!',
         startGame: 'Iniciar Jogo',
         gameOver: 'Fim de Jogo',
         finalScore: 'Pontuação Final',
@@ -1115,11 +1129,12 @@
         level4: 'レベル4',
         level5: 'レベル5',
         howToPlay: '遊び方',
-        instruction1: '落ちてくる日本語の単語のローマ字をタイプ',
+        instruction1: '日本語を見てローマ字をタイプ（最初はローマ字非表示）',
         instruction2: 'タイプすると自動的に単語がマッチ',
         instruction3: '単語を完成させて破壊',
         instruction4: '赤いラインに到達させないで！',
         instruction5: 'コンボでボーナスポイント',
+        instruction6: '⚠️ ローマ字が表示されると得点が半分に！',
         startGame: 'ゲーム開始',
         gameOver: 'ゲームオーバー',
         finalScore: '最終スコア',
@@ -1351,6 +1366,7 @@
         y: -80,
         speed: getFallSpeed(),
         category: currentCategory,
+        romajiRevealed: false,
         element: null
       };
 
@@ -1413,6 +1429,7 @@
     // Word updates
     function updateWords(deltaTime) {
       const defenseY = gameArea.clientHeight;
+      const romajiThreshold = defenseY * 0.7; // Show romaji after 70% of the screen
 
       for (let i = words.length - 1; i >= 0; i--) {
         const word = words[i];
@@ -1420,6 +1437,12 @@
         // Move word down
         word.y += word.speed * (deltaTime / 1000);
         word.element.style.top = word.y + 'px';
+
+        // Check if romaji should be revealed (past 70% of screen)
+        if (!word.romajiRevealed && word.y >= romajiThreshold) {
+          word.romajiRevealed = true;
+          word.element.classList.add('show-romaji');
+        }
 
         // Check if word reached defense line
         if (word.y >= defenseY) {
@@ -1436,8 +1459,10 @@
         // Create explosion effect
         createExplosion(word.x + word.element.offsetWidth / 2, word.y + word.element.offsetHeight / 2, word.category);
         
-        // Award points
-        const points = word.romaji.length * 15 * (1 + combo * 0.1);
+        // Award points - reduced by 50% if romaji was revealed
+        const basePoints = word.romaji.length * 15 * (1 + combo * 0.1);
+        const pointMultiplier = word.romajiRevealed ? 0.5 : 1.0;
+        const points = basePoints * pointMultiplier;
         addScore(Math.floor(points));
         
         // Increment combo and words destroyed
@@ -1540,7 +1565,12 @@
       if (targetWord) {
         targetWord.typed = typed;
         updateWordDisplay(targetWord);
-        currentTargetDisplay.textContent = `${i18n[currentLang].targeting} ${targetWord.japanese} (${targetWord.romaji})`;
+        // Only show romaji in target display if it's been revealed on screen
+        if (targetWord.romajiRevealed) {
+          currentTargetDisplay.textContent = `${i18n[currentLang].targeting} ${targetWord.japanese} (${targetWord.romaji})`;
+        } else {
+          currentTargetDisplay.textContent = `${i18n[currentLang].targeting} ${targetWord.japanese}`;
+        }
         typeInput.classList.remove('error');
 
         // Check if word is complete
@@ -1572,8 +1602,15 @@
     function updateWordDisplay(word) {
       const typedSpan = word.element.querySelector('.typed');
       const remainingSpan = word.element.querySelector('.remaining');
-      typedSpan.textContent = word.typed;
-      remainingSpan.textContent = word.romaji.slice(word.typed.length);
+      // Only show typed progress in romaji when romaji is revealed
+      if (word.romajiRevealed) {
+        typedSpan.textContent = word.typed;
+        remainingSpan.textContent = word.romaji.slice(word.typed.length);
+      } else {
+        // When romaji is hidden, show nothing (it's hidden by CSS anyway)
+        typedSpan.textContent = '';
+        remainingSpan.textContent = word.romaji;
+      }
     }
 
     // Life management
