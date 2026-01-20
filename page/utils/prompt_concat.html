@@ -101,6 +101,9 @@
           <button id="copy-result-btn" class="btn btn-sm btn-outline-secondary" type="button" data-i18n-title="copyResultBtn" title="Copy result">
             <i class="fas fa-copy"></i>
           </button>
+          <button id="history-btn" class="btn btn-sm btn-outline-secondary" type="button" data-i18n-title="historyBtn" title="History">
+            <i class="fas fa-history"></i>
+          </button>
           <button id="clear-btn" class="btn btn-sm btn-outline-secondary" type="button" data-i18n-title="clearBtn" title="Clear">
             <i class="fas fa-eraser"></i>
           </button>
@@ -179,6 +182,22 @@
       </div>
     </div>
 
+    <!-- History Modal -->
+    <div class="modal fade" id="history-modal" tabindex="-1">
+      <div class="modal-dialog">
+        <div class="modal-content" style="background-color: var(--card-bg-color); color: var(--text-color); border-color: var(--border-color);">
+          <div class="modal-header" style="border-bottom-color: var(--border-color);">
+            <h5 class="modal-title" data-i18n="historyTitle">History</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <div id="history-list"></div>
+            <div id="history-empty" class="text-muted text-center py-3" data-i18n="historyEmpty">No history entries</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
       const i18n = {
@@ -197,7 +216,15 @@
           copyResultBtn: "Copy result",
           clearBtn: "Clear",
           themeBtn: "Toggle theme",
-          storageText: "storage"
+          storageText: "storage",
+          historyBtn: "Manage",
+          historyTitle: "Manage Storages",
+          historyEmpty: "No entries to manage",
+          loadBtn: "Load",
+          renameBtn: "Rename",
+          deleteBtn: "Delete",
+          renamePrompt: "Enter new name:",
+          deleteConfirm: "Delete this history entry?"
         },
         pt: {
           title: "Prompt Concat",
@@ -214,7 +241,15 @@
           copyResultBtn: "Copiar resultado",
           clearBtn: "Limpar",
           themeBtn: "Alternar tema",
-          storageText: "armazenamento"
+          storageText: "armazenamento",
+          historyBtn: "Gerenciar",
+          historyTitle: "Gerenciar Storages",
+          historyEmpty: "Nenhuma entrada para gerenciar",
+          loadBtn: "Carregar",
+          renameBtn: "Renomear",
+          deleteBtn: "Excluir",
+          renamePrompt: "Digite o novo nome:",
+          deleteConfirm: "Excluir este histórico?"
         },
         ja: {
           title: "プロンプト連結",
@@ -231,7 +266,15 @@
           copyResultBtn: "結果をコピー",
           clearBtn: "クリア",
           themeBtn: "テーマを切り替え",
-          storageText: "ストレージ"
+          storageText: "ストレージ",
+          historyBtn: "管理",
+          historyTitle: "ストレージ管理",
+          historyEmpty: "管理する項目がありません",
+          loadBtn: "読み込む",
+          renameBtn: "名前変更",
+          deleteBtn: "削除",
+          renamePrompt: "新しい名前を入力:",
+          deleteConfirm: "この履歴を削除しますか？"
         }
       };
 
@@ -248,6 +291,11 @@
         const vEls = [document.getElementById('v1'), document.getElementById('v2'), document.getElementById('v3'), document.getElementById('v4'), document.getElementById('v5')];
         const resultEl = document.getElementById('result');
         const resultCountEl = document.getElementById('result-count');
+
+        const historyBtn = document.getElementById('history-btn');
+        const historyListEl = document.getElementById('history-list');
+        const historyEmptyEl = document.getElementById('history-empty');
+        const historyModal = new bootstrap.Modal(document.getElementById('history-modal'));
 
         // Language
         let currentLanguage = localStorage.getItem('app_lang') || 'en';
@@ -282,6 +330,31 @@
           icon.className = theme === 'light' ? 'fas fa-moon' : 'fas fa-sun';
           localStorage.setItem('app_theme', theme);
         };
+
+        // History helpers
+        const formatTimestamp = () => {
+          const now = new Date();
+          const pad = (n) => String(n).padStart(2, '0');
+          const date = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}`;
+          const time = `${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+          return `${date}_${time}`;
+        };
+
+        const parseHistoryDate = (prefix) => {
+          // prefix format: history_YYYYMMDD_HHMMSS
+          const match = prefix.match(/^history_(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})(\d{2})$/);
+          if (!match) return null;
+          return new Date(match[1], parseInt(match[2]) - 1, match[3], match[4], match[5], match[6]);
+        };
+
+        const formatHistoryDateForDisplay = (prefix) => {
+          const date = parseHistoryDate(prefix);
+          if (!date) return prefix;
+          const pad = (n) => String(n).padStart(2, '0');
+          return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+        };
+
+        const isHistoryPrefix = (prefix) => /^history_\d{8}_\d{6}$/.test(prefix);
 
         // Storage (hash prefix)
         const getPrefix = () => {
@@ -320,7 +393,13 @@
           const storages = getAllStorages();
           const currentPrefix = getPrefix();
           storageSelectEl.innerHTML = '';
-          storages.forEach((storage) => {
+
+          // Separate normal storages from history
+          const normalStorages = storages.filter(s => !isHistoryPrefix(s));
+          const historyStorages = storages.filter(s => isHistoryPrefix(s)).sort().reverse(); // newest first
+
+          // Add normal storages
+          normalStorages.forEach((storage) => {
             const option = document.createElement('option');
             option.value = storage;
             option.textContent = storage;
@@ -329,6 +408,23 @@
             }
             storageSelectEl.appendChild(option);
           });
+
+          // Add history storages in optgroup
+          if (historyStorages.length > 0) {
+            const lang = i18n[currentLanguage] || i18n.en;
+            const optgroup = document.createElement('optgroup');
+            optgroup.label = lang.historyTitle || 'History';
+            historyStorages.forEach((storage) => {
+              const option = document.createElement('option');
+              option.value = storage;
+              option.textContent = formatHistoryDateForDisplay(storage);
+              if (storage === currentPrefix) {
+                option.selected = true;
+              }
+              optgroup.appendChild(option);
+            });
+            storageSelectEl.appendChild(optgroup);
+          }
         };
 
         const readField = (field, fallback = '') => {
@@ -345,6 +441,194 @@
           } catch {
             // ignore
           }
+        };
+
+        const writeFieldToPrefix = (prefix, field, value) => {
+          try {
+            localStorage.setItem(`prompt_concat:${prefix}:${field}`, String(value));
+          } catch {
+            // ignore
+          }
+        };
+
+        const saveHistory = () => {
+          const historyPrefix = `history_${formatTimestamp()}`;
+          writeFieldToPrefix(historyPrefix, 'input', inputTemplateEl.value);
+          vEls.forEach((el, idx) => writeFieldToPrefix(historyPrefix, `v${idx + 1}`, el.value));
+          cleanOldHistory();
+          updateStorageSelect();
+        };
+
+        const cleanOldHistory = () => {
+          const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
+          const keysToRemove = [];
+          const prefixesToRemove = new Set();
+
+          try {
+            for (let i = 0; i < localStorage.length; i++) {
+              const key = localStorage.key(i);
+              if (key && key.startsWith('prompt_concat:history_')) {
+                const parts = key.split(':');
+                if (parts.length >= 2) {
+                  const prefix = parts[1]; // history_YYYYMMDD_HHMMSS
+                  const date = parseHistoryDate(prefix);
+                  if (date && date < threeDaysAgo) {
+                    prefixesToRemove.add(prefix);
+                  }
+                }
+              }
+            }
+
+            // Collect all keys for old prefixes
+            for (let i = 0; i < localStorage.length; i++) {
+              const key = localStorage.key(i);
+              if (key) {
+                for (const prefix of prefixesToRemove) {
+                  if (key.startsWith(`prompt_concat:${prefix}:`)) {
+                    keysToRemove.push(key);
+                  }
+                }
+              }
+            }
+
+            keysToRemove.forEach(key => localStorage.removeItem(key));
+          } catch {
+            // ignore
+          }
+        };
+
+        const getAllEditablePrefixes = () => {
+          const prefixes = new Set();
+          try {
+            for (let i = 0; i < localStorage.length; i++) {
+              const key = localStorage.key(i);
+              if (key && key.startsWith('prompt_concat:')) {
+                const parts = key.split(':');
+                if (parts.length >= 2 && parts[1] !== 'default') {
+                  prefixes.add(parts[1]);
+                }
+              }
+            }
+          } catch {
+            // ignore
+          }
+          // Sort: history entries first (newest first), then other names alphabetically
+          const arr = Array.from(prefixes);
+          const historyPrefixes = arr.filter(p => isHistoryPrefix(p)).sort().reverse();
+          const otherPrefixes = arr.filter(p => !isHistoryPrefix(p)).sort();
+          return [...historyPrefixes, ...otherPrefixes];
+        };
+
+        const deleteHistoryPrefix = (prefix) => {
+          const keysToRemove = [];
+          try {
+            for (let i = 0; i < localStorage.length; i++) {
+              const key = localStorage.key(i);
+              if (key && key.startsWith(`prompt_concat:${prefix}:`)) {
+                keysToRemove.push(key);
+              }
+            }
+            keysToRemove.forEach(key => localStorage.removeItem(key));
+          } catch {
+            // ignore
+          }
+        };
+
+        const renameHistoryPrefix = (oldPrefix, newPrefix) => {
+          const fields = ['input', 'v1', 'v2', 'v3', 'v4', 'v5'];
+          try {
+            // Copy data to new prefix
+            fields.forEach(field => {
+              const oldKey = `prompt_concat:${oldPrefix}:${field}`;
+              const newKey = `prompt_concat:${newPrefix}:${field}`;
+              const value = localStorage.getItem(oldKey);
+              if (value !== null) {
+                localStorage.setItem(newKey, value);
+              }
+            });
+            // Delete old prefix
+            deleteHistoryPrefix(oldPrefix);
+          } catch {
+            // ignore
+          }
+        };
+
+        const renderHistoryModal = () => {
+          const prefixes = getAllEditablePrefixes();
+          const lang = i18n[currentLanguage] || i18n.en;
+          historyListEl.innerHTML = '';
+
+          if (prefixes.length === 0) {
+            historyEmptyEl.style.display = 'block';
+            return;
+          }
+          historyEmptyEl.style.display = 'none';
+
+          prefixes.forEach(prefix => {
+            const item = document.createElement('div');
+            item.className = 'd-flex align-items-center justify-content-between p-2 mb-2 rounded';
+            item.style.cssText = 'background-color: var(--bg-color); border: 1px solid var(--border-color);';
+            
+            const label = document.createElement('span');
+            // Show formatted date for history entries, plain name for others
+            label.textContent = isHistoryPrefix(prefix) ? formatHistoryDateForDisplay(prefix) : prefix;
+            label.style.flex = '1';
+            label.style.cursor = 'pointer';
+            label.title = lang.loadBtn || 'Load';
+            label.addEventListener('click', () => {
+              location.hash = prefix;
+              historyModal.hide();
+            });
+
+            const btnGroup = document.createElement('div');
+            btnGroup.className = 'd-flex gap-1';
+
+            const loadBtn = document.createElement('button');
+            loadBtn.className = 'btn btn-sm btn-outline-primary';
+            loadBtn.innerHTML = '<i class="fas fa-folder-open"></i>';
+            loadBtn.title = lang.loadBtn || 'Load';
+            loadBtn.addEventListener('click', () => {
+              location.hash = prefix;
+              historyModal.hide();
+            });
+
+            const renameBtn = document.createElement('button');
+            renameBtn.className = 'btn btn-sm btn-outline-warning';
+            renameBtn.innerHTML = '<i class="fas fa-edit"></i>';
+            renameBtn.title = lang.renameBtn || 'Rename';
+            renameBtn.addEventListener('click', () => {
+              const defaultName = isHistoryPrefix(prefix) ? prefix.replace('history_', '') : prefix;
+              const newName = prompt(lang.renamePrompt || 'Enter new name:', defaultName);
+              if (newName && newName.trim()) {
+                const sanitized = newName.trim().replace(/[^a-zA-Z0-9_-]/g, '_');
+                if (sanitized && sanitized !== prefix && sanitized !== 'default') {
+                  renameHistoryPrefix(prefix, sanitized);
+                  updateStorageSelect();
+                  renderHistoryModal();
+                }
+              }
+            });
+
+            const deleteBtn = document.createElement('button');
+            deleteBtn.className = 'btn btn-sm btn-outline-danger';
+            deleteBtn.innerHTML = '<i class="fas fa-trash"></i>';
+            deleteBtn.title = lang.deleteBtn || 'Delete';
+            deleteBtn.addEventListener('click', () => {
+              if (confirm(lang.deleteConfirm || 'Delete this entry?')) {
+                deleteHistoryPrefix(prefix);
+                updateStorageSelect();
+                renderHistoryModal();
+              }
+            });
+
+            btnGroup.appendChild(loadBtn);
+            btnGroup.appendChild(renameBtn);
+            btnGroup.appendChild(deleteBtn);
+
+            item.appendChild(label);
+            item.appendChild(btnGroup);
+            historyListEl.appendChild(item);
+          });
         };
 
         // Logic
@@ -448,6 +732,11 @@
           render();
         });
 
+        historyBtn.addEventListener('click', () => {
+          renderHistoryModal();
+          historyModal.show();
+        });
+
         copyResultBtn.addEventListener('click', async () => {
           const text = String(resultEl.value || '');
           try {
@@ -459,6 +748,8 @@
             document.execCommand('copy');
             resultEl.setSelectionRange(0, 0);
           }
+          // Save to history
+          saveHistory();
         });
 
         inputTemplateEl.addEventListener('input', schedule);
@@ -488,6 +779,7 @@
         });
 
         // Init
+        cleanOldHistory(); // Clean old history entries on page load
         langSwitcher.value = currentLanguage;
         applyI18n();
         applyTheme(currentTheme);
