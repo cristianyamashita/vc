@@ -127,6 +127,7 @@
                 <label for="input-template" class="form-label" data-i18n="inputLabel">Input</label>
                 <textarea id="input-template" class="form-control mono" rows="4" data-i18n-placeholder="inputPlaceholder" placeholder="The {V1} is {V2} and has size {V3}, color {V4}, this is my {V1}"></textarea>
                 <div class="help-text mt-1" data-i18n="placeholderHelp">Use placeholders: {V1}, {V2}, {V3}, {V4}, {V5}</div>
+                <div class="help-text mt-1" data-i18n="conditionalHelp">Conditional: IF({V1}==1,"value") | Operators: ==, !=, &lt;, &gt;, &lt;=, &gt;=, contains, &amp;&amp;, ||</div>
               </div>
 
               <div class="row g-3 row-cols-1 row-cols-md-2 row-cols-lg-5">
@@ -246,6 +247,7 @@
           inputLabel: "Input",
           inputPlaceholder: "The {V1} is {V2} and has size {V3}, color {V4}, this is my {V1}",
           placeholderHelp: "Use placeholders: {V1}, {V2}, {V3}, {V4}, {V5}",
+          conditionalHelp: "Conditional: IF({V1}==1,\"value\") | Operators: ==, !=, <, >, <=, >=, contains, &&, ||",
           v1Placeholder: "car\nbicycle\nboat",
           v2Placeholder: "modern\nold\nvintage",
           v3Placeholder: "large\nsmall",
@@ -273,6 +275,7 @@
           inputLabel: "Entrada",
           inputPlaceholder: "O {V1} é {V2} e tem o tamanho {V3}, da cor {V4}, esse é o meu {V1}",
           placeholderHelp: "Use placeholders: {V1}, {V2}, {V3}, {V4}, {V5}",
+          conditionalHelp: "Condicional: IF({V1}==1,\"valor\") | Operadores: ==, !=, <, >, <=, >=, contains, &&, ||",
           v1Placeholder: "carro\nbicicleta\nbarco",
           v2Placeholder: "moderno\nvelho\nvintage",
           v3Placeholder: "grande\npequeno",
@@ -300,6 +303,7 @@
           inputLabel: "入力",
           inputPlaceholder: "{V1}は{V2}で、サイズは{V3}、色は{V4}です。これが私の{V1}です",
           placeholderHelp: "プレースホルダーを使用: {V1}, {V2}, {V3}, {V4}, {V5}",
+          conditionalHelp: "条件式: IF({V1}==1,\"値\") | 演算子: ==, !=, <, >, <=, >=, contains, &&, ||",
           v1Placeholder: "車\n自転車\nボート",
           v2Placeholder: "モダン\n古い\nヴィンテージ",
           v3Placeholder: "大きい\n小さい",
@@ -711,6 +715,110 @@
           schedule();
         };
 
+        // Parse IF statement: IF(condition, "value")
+        // Returns { isConditional: true, condition: string, value: string } or { isConditional: false, value: string }
+        const parseIfStatement = (line) => {
+          const trimmed = String(line).trim();
+          // Match IF(condition, "value") or IF(condition, 'value')
+          const match = trimmed.match(/^IF\s*\(\s*(.+?)\s*,\s*["'](.*)["']\s*\)$/i);
+          if (match) {
+            return { isConditional: true, condition: match[1].trim(), value: match[2] };
+          }
+          return { isConditional: false, value: trimmed };
+        };
+
+        // Evaluate a single comparison: left op right
+        const evaluateSingleComparison = (left, op, right) => {
+          // Try to parse as numbers
+          const leftNum = parseFloat(left);
+          const rightNum = parseFloat(right);
+          const bothNumbers = !isNaN(leftNum) && !isNaN(rightNum);
+
+          switch (op) {
+            case '==':
+              return bothNumbers ? leftNum === rightNum : left === right;
+            case '!=':
+              return bothNumbers ? leftNum !== rightNum : left !== right;
+            case '<':
+              return bothNumbers ? leftNum < rightNum : left < right;
+            case '>':
+              return bothNumbers ? leftNum > rightNum : left > right;
+            case '<=':
+              return bothNumbers ? leftNum <= rightNum : left <= right;
+            case '>=':
+              return bothNumbers ? leftNum >= rightNum : left >= right;
+            case 'contains':
+              return String(left).includes(String(right));
+            default:
+              return false;
+          }
+        };
+
+        // Evaluate condition with variables replaced
+        // Supports: ==, !=, <, >, <=, >=, contains, &&, ||
+        const evaluateCondition = (condition, values) => {
+          // Replace variables {V1}, {V2}, etc. with actual values
+          let expr = condition;
+          for (let i = 0; i < values.length; i++) {
+            const placeholder = `{V${i + 1}}`;
+            expr = expr.replaceAll(placeholder, values[i]);
+          }
+
+          // Split by || (OR) first, then by && (AND)
+          const orParts = expr.split(/\s*\|\|\s*/);
+          
+          for (const orPart of orParts) {
+            const andParts = orPart.split(/\s*&&\s*/);
+            let andResult = true;
+            
+            for (const andPart of andParts) {
+              const part = andPart.trim();
+              let compResult = false;
+
+              // Try to match comparison operators
+              // Order matters: check longer operators first (<=, >=, !=, ==) before (<, >)
+              const compMatch = part.match(/^(.+?)\s*(<=|>=|!=|==|<|>|contains)\s*(.+)$/i);
+              
+              if (compMatch) {
+                let left = compMatch[1].trim();
+                const op = compMatch[2].toLowerCase();
+                let right = compMatch[3].trim();
+
+                // Remove quotes from left/right if present
+                left = left.replace(/^["']|["']$/g, '');
+                right = right.replace(/^["']|["']$/g, '');
+
+                compResult = evaluateSingleComparison(left, op, right);
+              } else {
+                // If no operator found, treat non-empty as true
+                compResult = part.length > 0;
+              }
+
+              andResult = andResult && compResult;
+            }
+
+            // If any OR part is true, return true
+            if (andResult) {
+              return true;
+            }
+          }
+
+          return false;
+        };
+
+        // Process a line that may contain IF() and return the value if condition passes, or null if it fails
+        const processConditionalLine = (line, values) => {
+          const parsed = parseIfStatement(line);
+          if (!parsed.isConditional) {
+            return parsed.value; // Always include non-conditional lines
+          }
+          // Evaluate the condition with the current values
+          if (evaluateCondition(parsed.condition, values)) {
+            return parsed.value;
+          }
+          return null; // Condition failed, exclude this line
+        };
+
         const cartesianProduct = (arrays) => {
           let acc = [[]];
           for (const arr of arrays) {
@@ -726,7 +834,39 @@
         const render = () => {
           const template = String(inputTemplateEl.value || '');
           const lists = vEls.map((el) => parseLines(el.value));
-          const combos = cartesianProduct(lists);
+          
+          // Cartesian product with conditional evaluation
+          // We need to evaluate conditions as we build combinations
+          const generateCombinations = (lists) => {
+            const results = [];
+            
+            const recurse = (depth, currentValues) => {
+              if (depth === lists.length) {
+                // All values selected, add to results
+                results.push([...currentValues]);
+                return;
+              }
+              
+              const currentList = lists[depth];
+              for (const line of currentList) {
+                // Process the line (may be conditional)
+                const processedValue = processConditionalLine(line, currentValues);
+                
+                if (processedValue !== null) {
+                  // Condition passed (or no condition), continue with this value
+                  currentValues.push(processedValue);
+                  recurse(depth + 1, currentValues);
+                  currentValues.pop();
+                }
+                // If processedValue is null, skip this line (condition failed)
+              }
+            };
+            
+            recurse(0, []);
+            return results;
+          };
+          
+          const combos = generateCombinations(lists);
 
           const lines = combos.map((valuesRaw) => {
             // Resolve chained placeholders inside variable values:
