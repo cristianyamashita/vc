@@ -166,6 +166,77 @@
       margin: 0 0 10px 0;
       font-weight: 600;
     }
+    /* Search box */
+    .search-container {
+      margin-top: 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .search-input {
+      flex: 1;
+      max-width: 400px;
+      padding: 8px 12px 8px 36px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--nav-link-bg);
+      color: var(--ink);
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .search-input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(78, 161, 255, 0.15);
+    }
+    .search-input::placeholder {
+      color: var(--muted);
+    }
+    .search-wrapper {
+      position: relative;
+      flex: 1;
+      max-width: 400px;
+    }
+    .search-wrapper i {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--muted);
+      font-size: 13px;
+      pointer-events: none;
+    }
+    .search-clear {
+      position: absolute;
+      right: 8px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      padding: 4px 6px;
+      font-size: 12px;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    .search-clear.visible {
+      opacity: 1;
+    }
+    .search-clear:hover {
+      color: var(--ink);
+    }
+    .search-count {
+      font-size: 12px;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+    .card.hidden-by-search {
+      display: none !important;
+    }
+    section.hidden-by-search {
+      display: none !important;
+    }
   </style>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath fill='%234ea1ff' d='M6 6h20v6H6z'/%3E%3Cpath fill='%2386efac' d='M6 14h20v12H6z'/%3E%3C/svg%3E" />
   <meta name="description" content="Collection of small games, physics sandboxes and utils. Single-file HTML demos." />
@@ -188,6 +259,14 @@
         <a href="#games" data-i18n="gamesLink">Games</a>
         <a href="#misc" data-i18n="miscLink">Miscellaneous</a>
       </nav>
+      <div class="search-container">
+        <div class="search-wrapper">
+          <i class="fas fa-search"></i>
+          <input type="text" id="search-input" class="search-input" data-i18n-placeholder="searchPlaceholder" placeholder="Search cards..." autocomplete="off" />
+          <button id="search-clear" class="search-clear" title="Clear"><i class="fas fa-times"></i></button>
+        </div>
+        <span id="search-count" class="search-count"></span>
+      </div>
       <div class="lang-selector">
         <a href="#" data-lang="en" class="active">EN</a>
         <a href="#" data-lang="ja">JA</a>
@@ -1069,6 +1148,9 @@
         singleFileDemos: "Single-file HTML demos",
         gamesPhysicsUtils: "Games • Physics • Utils",
         subtitle: "Collection of different scripts and applications. Pick a section below and explore.",
+        searchPlaceholder: "Search cards...",
+        searchResults: "results",
+        searchNoResults: "No results found",
         gamesLink: "Games",
         miscLink: "Miscellaneous",
         utilsLink: "Utils",
@@ -1265,6 +1347,9 @@
         singleFileDemos: "単一ファイルHTMLデモ",
         gamesPhysicsUtils: "ゲーム • 物理 • ユーティリティ",
         subtitle: "さまざまなスクリプトとアプリケーションのコレクション。以下のセクションを選択して探索してください。",
+        searchPlaceholder: "カードを検索...",
+        searchResults: "件の結果",
+        searchNoResults: "結果が見つかりません",
         gamesLink: "ゲーム",
         miscLink: "その他",
         utilsLink: "ユーティリティ",
@@ -1464,6 +1549,9 @@
         singleFileDemos: "Demos de HTML em arquivo único",
         gamesPhysicsUtils: "Jogos • Física • Utilitários",
         subtitle: "Coleção de diferentes scripts e aplicativos. Escolha uma seção abaixo e explore.",
+        searchPlaceholder: "Buscar cards...",
+        searchResults: "resultados",
+        searchNoResults: "Nenhum resultado encontrado",
         gamesLink: "Jogos",
         miscLink: "Diversos",
         utilsLink: "Utilitários",
@@ -1669,6 +1757,17 @@
           element.innerHTML = translations['en'][key];
         }
       });
+
+      // Update placeholders
+      document.querySelectorAll('[data-i18n-placeholder]').forEach(element => {
+        const key = element.getAttribute('data-i18n-placeholder');
+        if (translations[lang] && translations[lang][key]) {
+          element.placeholder = translations[lang][key];
+        } else {
+          element.placeholder = translations['en'][key];
+        }
+      });
+
       document.documentElement.lang = lang;
       localStorage.setItem('app_lang', lang);
 
@@ -1678,6 +1777,12 @@
           a.classList.add('active');
         }
       });
+
+      // Update search count text if there's an active search
+      const searchInput = document.getElementById('search-input');
+      if (searchInput && searchInput.value.trim()) {
+        filterCards(searchInput.value.trim());
+      }
     };
 
     document.addEventListener('DOMContentLoaded', () => {
@@ -1710,7 +1815,145 @@
 
       // Initialize pin functionality
       initializePins();
+
+      // Initialize search functionality
+      initializeSearch();
     });
+
+    // Search functionality
+    function initializeSearch() {
+      const searchInput = document.getElementById('search-input');
+      const searchClear = document.getElementById('search-clear');
+      const searchCount = document.getElementById('search-count');
+
+      let debounceTimer = null;
+
+      searchInput.addEventListener('input', () => {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => {
+          filterCards(searchInput.value.trim());
+        }, 150);
+        
+        // Show/hide clear button
+        searchClear.classList.toggle('visible', searchInput.value.length > 0);
+      });
+
+      searchClear.addEventListener('click', () => {
+        searchInput.value = '';
+        searchClear.classList.remove('visible');
+        filterCards('');
+        searchInput.focus();
+      });
+
+      // Handle Escape key
+      searchInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+          searchInput.value = '';
+          searchClear.classList.remove('visible');
+          filterCards('');
+        }
+      });
+    }
+
+    function filterCards(query) {
+      const searchCount = document.getElementById('search-count');
+      const cards = document.querySelectorAll('.card');
+      const sections = document.querySelectorAll('section');
+      const currentLang = localStorage.getItem('app_lang') || 'en';
+
+      if (!query) {
+        // Show all cards and sections
+        cards.forEach(card => card.classList.remove('hidden-by-search'));
+        sections.forEach(section => section.classList.remove('hidden-by-search'));
+        searchCount.textContent = '';
+        return;
+      }
+
+      const queryLower = query.toLowerCase();
+      let visibleCount = 0;
+
+      cards.forEach(card => {
+        const matches = cardMatchesQuery(card, queryLower);
+        card.classList.toggle('hidden-by-search', !matches);
+        if (matches) visibleCount++;
+      });
+
+      // Hide sections that have no visible cards
+      sections.forEach(section => {
+        const grid = section.querySelector('.grid');
+        if (grid) {
+          const visibleCards = grid.querySelectorAll('.card:not(.hidden-by-search)');
+          section.classList.toggle('hidden-by-search', visibleCards.length === 0);
+        }
+      });
+
+      // Also hide pinned section if all pinned cards are hidden
+      const pinnedSection = document.querySelector('.pinned-section');
+      if (pinnedSection) {
+        const pinnedGrid = pinnedSection.querySelector('.grid');
+        if (pinnedGrid) {
+          const visiblePinned = pinnedGrid.querySelectorAll('.card:not(.hidden-by-search)');
+          pinnedSection.classList.toggle('hidden-by-search', visiblePinned.length === 0);
+        }
+      }
+
+      // Update count
+      const lang = translations[currentLang] || translations['en'];
+      if (visibleCount > 0) {
+        searchCount.textContent = `${visibleCount} ${lang.searchResults || 'results'}`;
+      } else {
+        searchCount.textContent = lang.searchNoResults || 'No results found';
+      }
+    }
+
+    function cardMatchesQuery(card, queryLower) {
+      // Get i18n keys from the card
+      const nameEl = card.querySelector('[data-i18n*="Name"]');
+      const tagEl = card.querySelector('[data-i18n*="Tag"]');
+      const descEl = card.querySelector('[data-i18n*="Desc"]');
+      const pathEl = card.querySelector('.k');
+
+      // Get the translation keys
+      const nameKey = nameEl?.getAttribute('data-i18n');
+      const tagKey = tagEl?.getAttribute('data-i18n');
+      const descKey = descEl?.getAttribute('data-i18n');
+
+      // Search in all languages
+      const languages = ['en', 'ja', 'pt'];
+      
+      for (const lang of languages) {
+        const langTranslations = translations[lang];
+        if (!langTranslations) continue;
+
+        // Check name
+        if (nameKey && langTranslations[nameKey]) {
+          if (langTranslations[nameKey].toLowerCase().includes(queryLower)) {
+            return true;
+          }
+        }
+
+        // Check tag
+        if (tagKey && langTranslations[tagKey]) {
+          if (langTranslations[tagKey].toLowerCase().includes(queryLower)) {
+            return true;
+          }
+        }
+
+        // Check description
+        if (descKey && langTranslations[descKey]) {
+          if (langTranslations[descKey].toLowerCase().includes(queryLower)) {
+            return true;
+          }
+        }
+      }
+
+      // Also check the file path
+      if (pathEl && pathEl.textContent.toLowerCase().includes(queryLower)) {
+        return true;
+      }
+
+      return false;
+    }
 
     // Pin functionality
     function initializePins() {
