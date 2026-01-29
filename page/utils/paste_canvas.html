@@ -139,6 +139,10 @@
         <div id="propsFill" class="hidden">
           <div class="prop-row"><label data-i18n="fillColor">Fill color</label><input type="color" id="inpFillColor" value="#5aa7ff" /></div>
         </div>
+        <div id="propsLine" class="hidden">
+          <div class="prop-row"><label data-i18n="lineColor">Color</label><input type="color" id="inpLineColor" value="#333333" /></div>
+          <div class="prop-row"><label data-i18n="lineSize">Size</label><input type="number" id="inpLineSize" min="1" max="50" value="3" /></div>
+        </div>
         <h3 data-i18n="border">Border</h3>
         <div class="prop-row"><label><input type="checkbox" id="chkBorder" /> <span data-i18n="borderEnable">Enable</span></label></div>
         <div class="prop-row"><label data-i18n="borderColor">Color</label><input type="color" id="inpBorderColor" value="#000000" /></div>
@@ -178,6 +182,14 @@
   let drawStart = null;
   let dragMode = null;
   let dragStart = null;
+  let templateType = null;
+
+  const lastConfig = {
+    rect: { fill: '#5aa7ff', stroke: '#333', strokeWidth: 2, shadowBlur: 0, shadowColor: '#000000', shadowOffsetX: 5, shadowOffsetY: 5 },
+    roundedRect: { fill: '#5aa7ff', cornerRadius: 20, stroke: '#333', strokeWidth: 2, shadowBlur: 0, shadowColor: '#000000', shadowOffsetX: 5, shadowOffsetY: 5 },
+    line: { stroke: '#333333', strokeWidth: 3, borderColor: null, borderSize: 0, shadowBlur: 0, shadowColor: '#000000', shadowOffsetX: 5, shadowOffsetY: 5 },
+    arrow: { stroke: '#333333', strokeWidth: 3, borderColor: null, borderSize: 0, shadowBlur: 0, shadowColor: '#000000', shadowOffsetX: 5, shadowOffsetY: 5 }
+  };
 
   function screenToBoard(sx, sy) {
     return {
@@ -341,23 +353,34 @@
     }
     if (obj.type === 'line' || obj.type === 'arrow') {
       const [x0, y0, x1, y1] = obj.points;
-      ctx.strokeStyle = obj.stroke || '#333';
-      ctx.lineWidth = obj.strokeWidth || 3;
+      const lineW = obj.strokeWidth ?? 3;
+      const lineColor = obj.stroke || '#333';
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
+      applyShadow(ctx, obj);
+      if ((obj.borderSize ?? 0) > 0 && obj.borderColor) {
+        ctx.strokeStyle = obj.borderColor;
+        ctx.lineWidth = lineW + 2 * obj.borderSize;
+        ctx.beginPath();
+        ctx.moveTo(x0, y0);
+        ctx.lineTo(x1, y1);
+        ctx.stroke();
+      }
+      ctx.strokeStyle = lineColor;
+      ctx.lineWidth = lineW;
       ctx.beginPath();
       ctx.moveTo(x0, y0);
       ctx.lineTo(x1, y1);
       ctx.stroke();
       if (obj.type === 'arrow') {
         const angle = Math.atan2(y1 - y0, x1 - x0);
-        const arrowLen = 15;
+        const arrowLen = Math.max(10, lineW * 5);
         ctx.beginPath();
         ctx.moveTo(x1, y1);
         ctx.lineTo(x1 - arrowLen * Math.cos(angle - 0.4), y1 - arrowLen * Math.sin(angle - 0.4));
         ctx.lineTo(x1 - arrowLen * Math.cos(angle + 0.4), y1 - arrowLen * Math.sin(angle + 0.4));
         ctx.closePath();
-        ctx.fillStyle = obj.stroke || '#333';
+        ctx.fillStyle = lineColor;
         ctx.fill();
       }
     }
@@ -469,6 +492,7 @@
     }
     const hit = hitTest(sx, sy);
     if (hit) {
+      templateType = null;
       selected = hit.obj;
       dragMode = 'move';
       const board = screenToBoard(sx, sy);
@@ -490,6 +514,7 @@
     }
     selected = null;
     dragMode = null;
+    if (!drawMode || drawMode === 'text') templateType = null;
     updatePropsPanel();
     render();
   });
@@ -610,11 +635,13 @@
     if (drawMode === 'rect' && drawStart) {
       const b = screenToBoard(e.clientX - canvas.getBoundingClientRect().left, e.clientY - canvas.getBoundingClientRect().top);
       const isRounded = document.getElementById('btnRoundedRect').classList.contains('active');
+      const cfg = lastConfig[isRounded ? 'roundedRect' : 'rect'];
       const obj = {
         type: isRounded ? 'roundedRect' : 'rect',
         x: Math.min(drawStart.x, b.x), y: Math.min(drawStart.y, b.y),
         w: Math.max(20, Math.abs(b.x - drawStart.x)), h: Math.max(20, Math.abs(b.y - drawStart.y)),
-        fill: '#5aa7ff', stroke: '#333', strokeWidth: 2, cornerRadius: isRounded ? 20 : 0
+        fill: cfg.fill, stroke: cfg.stroke, strokeWidth: cfg.strokeWidth ?? 0, cornerRadius: isRounded ? (cfg.cornerRadius ?? 20) : 0,
+        shadowColor: cfg.shadowColor, shadowBlur: cfg.shadowBlur ?? 0, shadowOffsetX: cfg.shadowOffsetX ?? 0, shadowOffsetY: cfg.shadowOffsetY ?? 0
       };
       objects.push(obj);
       selected = obj;
@@ -629,10 +656,13 @@
     if (drawMode === 'line' && drawStart) {
       const b = screenToBoard(e.clientX - canvas.getBoundingClientRect().left, e.clientY - canvas.getBoundingClientRect().top);
       const isArrow = document.getElementById('btnArrow').classList.contains('active');
+      const cfg = lastConfig[isArrow ? 'arrow' : 'line'];
       objects.push({
         type: isArrow ? 'arrow' : 'line',
         points: [drawStart.x, drawStart.y, b.x, b.y],
-        stroke: '#333', strokeWidth: 3
+        stroke: cfg.stroke, strokeWidth: cfg.strokeWidth ?? 3,
+        borderColor: cfg.borderColor ?? null, borderSize: cfg.borderSize ?? 0,
+        shadowColor: cfg.shadowColor, shadowBlur: cfg.shadowBlur ?? 0, shadowOffsetX: cfg.shadowOffsetX ?? 0, shadowOffsetY: cfg.shadowOffsetY ?? 0
       });
       selected = objects[objects.length - 1];
       drawMode = null;
@@ -652,34 +682,48 @@
   document.getElementById('btnRect').addEventListener('click', () => {
     drawMode = 'rect';
     drawStart = null;
+    templateType = 'rect';
+    selected = null;
     document.getElementById('btnRect').classList.add('active');
     document.getElementById('btnRoundedRect').classList.remove('active');
     canvas.style.cursor = 'crosshair';
+    updatePropsPanel();
   });
   document.getElementById('btnRoundedRect').addEventListener('click', () => {
     drawMode = 'rect';
     drawStart = null;
+    templateType = 'roundedRect';
+    selected = null;
     document.getElementById('btnRoundedRect').classList.add('active');
     document.getElementById('btnRect').classList.remove('active');
     canvas.style.cursor = 'crosshair';
+    updatePropsPanel();
   });
   document.getElementById('btnLine').addEventListener('click', () => {
     drawMode = 'line';
     drawStart = null;
+    templateType = 'line';
+    selected = null;
     document.getElementById('btnLine').classList.add('active');
     document.getElementById('btnArrow').classList.remove('active');
     canvas.style.cursor = 'crosshair';
+    updatePropsPanel();
   });
   document.getElementById('btnArrow').addEventListener('click', () => {
     drawMode = 'line';
     drawStart = null;
+    templateType = 'arrow';
+    selected = null;
     document.getElementById('btnArrow').classList.add('active');
     document.getElementById('btnLine').classList.remove('active');
     canvas.style.cursor = 'crosshair';
+    updatePropsPanel();
   });
   document.getElementById('btnText').addEventListener('click', () => {
     drawMode = 'text';
+    templateType = null;
     canvas.style.cursor = 'crosshair';
+    updatePropsPanel();
   });
 
   canvas.addEventListener('mousedown', e => {
@@ -728,23 +772,41 @@
 
   function updatePropsPanel() {
     const ph = document.getElementById('propsPlaceholder'), panel = document.getElementById('propsPanel');
-    const textPanel = document.getElementById('propsText'), fillPanel = document.getElementById('propsFill');
-    if (!selected) { ph.classList.remove('hidden'); panel.classList.add('hidden'); return; }
-    ph.classList.add('hidden'); panel.classList.remove('hidden');
-    const o = selected;
+    const textPanel = document.getElementById('propsText'), fillPanel = document.getElementById('propsFill'), linePanel = document.getElementById('propsLine');
+    if (!selected && !templateType) {
+      ph.classList.remove('hidden');
+      panel.classList.add('hidden');
+      return;
+    }
+    ph.classList.add('hidden');
+    panel.classList.remove('hidden');
+    const o = selected || (templateType ? { type: templateType, ...lastConfig[templateType] } : null);
+    if (!o) return;
     const isText = o.type === 'text';
     const isShape = o.type === 'rect' || o.type === 'roundedRect';
+    const isLineOrArrow = o.type === 'line' || o.type === 'arrow';
     textPanel.classList.toggle('hidden', !isText);
     fillPanel.classList.toggle('hidden', !isShape);
+    linePanel.classList.toggle('hidden', !isLineOrArrow);
     if (isText) {
       document.getElementById('inpTextContent').value = o.text ?? 'Text';
       document.getElementById('inpFontSize').value = o.fontSize || 24;
       document.getElementById('inpTextColor').value = o.fill || '#000000';
     }
     if (isShape) document.getElementById('inpFillColor').value = o.fill || '#5aa7ff';
-    document.getElementById('chkBorder').checked = !!(o.strokeWidth > 0 && o.stroke);
-    document.getElementById('inpBorderColor').value = o.stroke || '#000000';
-    document.getElementById('inpBorderSize').value = o.strokeWidth || 0;
+    if (isLineOrArrow) {
+      document.getElementById('inpLineColor').value = o.stroke || '#333333';
+      document.getElementById('inpLineSize').value = o.strokeWidth ?? 3;
+    }
+    if (isLineOrArrow) {
+      document.getElementById('chkBorder').checked = !!((o.borderSize ?? 0) > 0 && o.borderColor);
+      document.getElementById('inpBorderColor').value = o.borderColor || '#000000';
+      document.getElementById('inpBorderSize').value = o.borderSize ?? 0;
+    } else {
+      document.getElementById('chkBorder').checked = !!(o.strokeWidth > 0 && o.stroke);
+      document.getElementById('inpBorderColor').value = o.stroke || '#000000';
+      document.getElementById('inpBorderSize').value = o.strokeWidth || 0;
+    }
     document.getElementById('chkShadow').checked = !!(o.shadowBlur && o.shadowBlur > 0);
     document.getElementById('inpShadowColor').value = o.shadowColor || '#000000';
     document.getElementById('inpShadowBlur').value = o.shadowBlur || 10;
@@ -752,24 +814,76 @@
     document.getElementById('inpShadowOffsetY').value = o.shadowOffsetY || 5;
   }
 
-  function applyBorderShadow(o) {
-    o.stroke = document.getElementById('chkBorder').checked ? document.getElementById('inpBorderColor').value : null;
-    o.strokeWidth = document.getElementById('chkBorder').checked ? parseInt(document.getElementById('inpBorderSize').value, 10) || 0 : 0;
-    if (document.getElementById('chkShadow').checked) {
-      o.shadowColor = document.getElementById('inpShadowColor').value;
-      o.shadowBlur = parseInt(document.getElementById('inpShadowBlur').value, 10) || 10;
-      o.shadowOffsetX = parseInt(document.getElementById('inpShadowOffsetX').value, 10) || 0;
-      o.shadowOffsetY = parseInt(document.getElementById('inpShadowOffsetY').value, 10) || 0;
+  function saveToLastConfig(obj) {
+    const t = obj.type;
+    if (t !== 'rect' && t !== 'roundedRect' && t !== 'line' && t !== 'arrow') return;
+    const c = lastConfig[t];
+    if (t === 'rect' || t === 'roundedRect') {
+      c.fill = obj.fill;
+      c.stroke = obj.stroke;
+      c.strokeWidth = obj.strokeWidth ?? 0;
+      if (t === 'roundedRect') c.cornerRadius = obj.cornerRadius ?? 20;
     } else {
-      o.shadowBlur = 0;
-      o.shadowOffsetX = 0;
-      o.shadowOffsetY = 0;
+      c.stroke = obj.stroke;
+      c.strokeWidth = obj.strokeWidth ?? 3;
+      c.borderColor = obj.borderColor ?? null;
+      c.borderSize = obj.borderSize ?? 0;
     }
-    render();
+    c.shadowColor = obj.shadowColor;
+    c.shadowBlur = obj.shadowBlur ?? 0;
+    c.shadowOffsetX = obj.shadowOffsetX ?? 0;
+    c.shadowOffsetY = obj.shadowOffsetY ?? 0;
   }
-  ['chkBorder', 'inpBorderColor', 'inpBorderSize', 'chkShadow', 'inpShadowColor', 'inpShadowBlur', 'inpShadowOffsetX', 'inpShadowOffsetY'].forEach(id => {
-    document.getElementById(id).addEventListener('input', () => { if (selected) applyBorderShadow(selected); });
-    document.getElementById(id).addEventListener('change', () => { if (selected) applyBorderShadow(selected); });
+
+  function applyBorderShadow(o) {
+    const isTemplate = !selected && templateType;
+    const target = isTemplate ? lastConfig[templateType] : o;
+    if (!target) return;
+    const type = isTemplate ? templateType : o.type;
+    const isLineOrArrow = type === 'line' || type === 'arrow';
+    const isShape = type === 'rect' || type === 'roundedRect';
+    if (isLineOrArrow) {
+      target.stroke = document.getElementById('inpLineColor').value;
+      target.strokeWidth = parseInt(document.getElementById('inpLineSize').value, 10) || 3;
+      target.borderColor = document.getElementById('chkBorder').checked ? document.getElementById('inpBorderColor').value : null;
+      target.borderSize = document.getElementById('chkBorder').checked ? parseInt(document.getElementById('inpBorderSize').value, 10) || 0 : 0;
+    } else {
+      target.stroke = document.getElementById('chkBorder').checked ? document.getElementById('inpBorderColor').value : null;
+      target.strokeWidth = document.getElementById('chkBorder').checked ? parseInt(document.getElementById('inpBorderSize').value, 10) || 0 : 0;
+      if (isShape) target.fill = document.getElementById('inpFillColor').value;
+    }
+    if (document.getElementById('chkShadow').checked) {
+      target.shadowColor = document.getElementById('inpShadowColor').value;
+      target.shadowBlur = parseInt(document.getElementById('inpShadowBlur').value, 10) || 10;
+      target.shadowOffsetX = parseInt(document.getElementById('inpShadowOffsetX').value, 10) || 0;
+      target.shadowOffsetY = parseInt(document.getElementById('inpShadowOffsetY').value, 10) || 0;
+    } else {
+      target.shadowBlur = 0;
+      target.shadowOffsetX = 0;
+      target.shadowOffsetY = 0;
+    }
+    if (selected) {
+      if (isLineOrArrow) {
+        selected.stroke = target.stroke;
+        selected.strokeWidth = target.strokeWidth;
+        selected.borderColor = target.borderColor;
+        selected.borderSize = target.borderSize;
+      } else {
+        selected.stroke = target.stroke;
+        selected.strokeWidth = target.strokeWidth;
+        if (isShape) selected.fill = target.fill;
+      }
+      selected.shadowColor = target.shadowColor;
+      selected.shadowBlur = target.shadowBlur;
+      selected.shadowOffsetX = target.shadowOffsetX;
+      selected.shadowOffsetY = target.shadowOffsetY;
+      saveToLastConfig(selected);
+      render();
+    }
+  }
+  ['chkBorder', 'inpBorderColor', 'inpBorderSize', 'inpLineColor', 'inpLineSize', 'inpFillColor', 'chkShadow', 'inpShadowColor', 'inpShadowBlur', 'inpShadowOffsetX', 'inpShadowOffsetY'].forEach(id => {
+    document.getElementById(id).addEventListener('input', () => { if (selected || templateType) applyBorderShadow(selected); });
+    document.getElementById(id).addEventListener('change', () => { if (selected || templateType) applyBorderShadow(selected); });
   });
   function updateTextObjectSize(obj) {
     if (obj.type !== 'text' || !ctx) return;
@@ -806,7 +920,11 @@
     if (selected && selected.type === 'text') { selected.fill = document.getElementById('inpTextColor').value; render(); }
   });
   document.getElementById('inpFillColor').addEventListener('input', () => {
-    if (selected && (selected.type === 'rect' || selected.type === 'roundedRect')) { selected.fill = document.getElementById('inpFillColor').value; render(); }
+    if (selected && (selected.type === 'rect' || selected.type === 'roundedRect')) {
+      selected.fill = document.getElementById('inpFillColor').value;
+      saveToLastConfig(selected);
+      render();
+    }
   });
 
   function loadImage(file) {
@@ -905,9 +1023,9 @@
   });
 
   const I18N = {
-    en: { title: 'Paste Canvas', upload: 'Upload', paste: 'Paste', rect: 'Rect', roundedRect: 'Rounded', line: 'Line', arrow: 'Arrow', text: 'Text', exportPng: 'Export PNG', reset: 'Reset', properties: 'Properties', selectObject: 'Select an object to edit properties.', textContent: 'Content', fontSize: 'Font size', textColor: 'Text color', fillColor: 'Fill color', border: 'Border', borderEnable: 'Enable', borderColor: 'Color', borderSize: 'Size', shadow: 'Shadow', shadowEnable: 'Enable', shadowColor: 'Color', shadowBlur: 'Blur', shadowOffsetX: 'Offset X', shadowOffsetY: 'Offset Y', bringToFront: 'Bring to front', sendToBack: 'Send to back', duplicate: 'Duplicate', delete: 'Delete' },
-    pt: { title: 'Canvas Colar', upload: 'Enviar', paste: 'Colar', rect: 'Rect', roundedRect: 'Oval', line: 'Linha', arrow: 'Seta', text: 'Texto', exportPng: 'Exportar PNG', reset: 'Resetar', properties: 'Propriedades', selectObject: 'Selecione um objeto para editar propriedades.', textContent: 'Conteúdo', fontSize: 'Tamanho fonte', textColor: 'Cor do texto', fillColor: 'Cor de preenchimento', border: 'Borda', borderEnable: 'Ativar', borderColor: 'Cor', borderSize: 'Espessura', shadow: 'Sombra', shadowEnable: 'Ativar', shadowColor: 'Cor', shadowBlur: 'Desfoque', shadowOffsetX: 'Offset X', shadowOffsetY: 'Offset Y', bringToFront: 'Trazer à frente', sendToBack: 'Enviar para trás', duplicate: 'Duplicar', delete: 'Apagar' },
-    ja: { title: 'ペーストキャンバス', upload: 'アップロード', paste: '貼り付け', rect: '四角', roundedRect: '角丸', line: '線', arrow: '矢印', text: 'テキスト', exportPng: 'PNG書き出し', reset: 'リセット', properties: 'プロパティ', selectObject: 'オブジェクトを選択してプロパティを編集します。', textContent: '内容', fontSize: 'フォントサイズ', textColor: '文字色', fillColor: '塗りつぶし', border: '枠線', borderEnable: '有効', borderColor: '色', borderSize: '太さ', shadow: '影', shadowEnable: '有効', shadowColor: '色', shadowBlur: 'ぼかし', shadowOffsetX: 'オフセットX', shadowOffsetY: 'オフセットY', bringToFront: '最前面へ', sendToBack: '最背面へ', duplicate: '複製', delete: '削除' }
+    en: { title: 'Paste Canvas', upload: 'Upload', paste: 'Paste', rect: 'Rect', roundedRect: 'Rounded', line: 'Line', arrow: 'Arrow', text: 'Text', exportPng: 'Export PNG', reset: 'Reset', properties: 'Properties', selectObject: 'Select an object to edit properties.', textContent: 'Content', lineColor: 'Color', lineSize: 'Size', fontSize: 'Font size', textColor: 'Text color', fillColor: 'Fill color', border: 'Border', borderEnable: 'Enable', borderColor: 'Color', borderSize: 'Size', shadow: 'Shadow', shadowEnable: 'Enable', shadowColor: 'Color', shadowBlur: 'Blur', shadowOffsetX: 'Offset X', shadowOffsetY: 'Offset Y', bringToFront: 'Bring to front', sendToBack: 'Send to back', duplicate: 'Duplicate', delete: 'Delete' },
+    pt: { title: 'Canvas Colar', upload: 'Enviar', paste: 'Colar', rect: 'Rect', roundedRect: 'Oval', line: 'Linha', arrow: 'Seta', text: 'Texto', exportPng: 'Exportar PNG', reset: 'Resetar', properties: 'Propriedades', selectObject: 'Selecione um objeto para editar propriedades.', textContent: 'Conteúdo', lineColor: 'Cor', lineSize: 'Espessura', fontSize: 'Tamanho fonte', textColor: 'Cor do texto', fillColor: 'Cor de preenchimento', border: 'Borda', borderEnable: 'Ativar', borderColor: 'Cor', borderSize: 'Espessura', shadow: 'Sombra', shadowEnable: 'Ativar', shadowColor: 'Cor', shadowBlur: 'Desfoque', shadowOffsetX: 'Offset X', shadowOffsetY: 'Offset Y', bringToFront: 'Trazer à frente', sendToBack: 'Enviar para trás', duplicate: 'Duplicar', delete: 'Apagar' },
+    ja: { title: 'ペーストキャンバス', upload: 'アップロード', paste: '貼り付け', rect: '四角', roundedRect: '角丸', line: '線', arrow: '矢印', text: 'テキスト', exportPng: 'PNG書き出し', reset: 'リセット', properties: 'プロパティ', selectObject: 'オブジェクトを選択してプロパティを編集します。', textContent: '内容', lineColor: '色', lineSize: '太さ', fontSize: 'フォントサイズ', textColor: '文字色', fillColor: '塗りつぶし', border: '枠線', borderEnable: '有効', borderColor: '色', borderSize: '太さ', shadow: '影', shadowEnable: '有効', shadowColor: '色', shadowBlur: 'ぼかし', shadowOffsetX: 'オフセットX', shadowOffsetY: 'オフセットY', bringToFront: '最前面へ', sendToBack: '最背面へ', duplicate: '複製', delete: '削除' }
   };
   let currentLang = localStorage.getItem('paste_canvas_lang') || 'en';
   function applyLang(lang) {
