@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Robot Face — Screen Saver</title>
+  <style>
+    :root {
+      --face-bg: #e8a598;
+      --eye-color: #1a1a1a;
+      --mouth-color: #1a1a1a;
+      --tongue-color: #d22b2b;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      height: 100%;
+      width: 100%;
+      overflow: hidden;
+      background: #1a1a1a;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+    }
+    .screen {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2vmin;
+    }
+
+    /* Face */
+    .face {
+      --face-w: min(85vmin, 85vh);
+      --face-h: min(75vmin, 75vh);
+      width: var(--face-w);
+      height: var(--face-h);
+      max-width: 90vw;
+      max-height: 85vh;
+      background: var(--face-bg);
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      transition: background 10s ease, transform 900ms ease, filter 900ms ease;
+      flex-shrink: 0;
+      will-change: transform, filter;
+      user-select: none;
+    }
+
+    /* Humores */
+    .face.mood-bored { filter: saturate(0.85) brightness(0.98); }
+    .face.mood-happy { filter: saturate(1.1) brightness(1.03); }
+    .face.mood-excited { filter: saturate(1.25) brightness(1.06); }
+    .face.mood-sleepy { filter: saturate(0.8) brightness(0.95); transform: scale(1.02); }
+
+    .eyes-row {
+      display: flex;
+      gap: min(12vmin, 12vh);
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      margin-bottom: min(8vmin, 8vh);
+    }
+
+    .eye {
+      width: min(14vmin, 14vh);
+      height: min(14vmin, 14vh);
+      min-width: 32px;
+      min-height: 32px;
+      background: var(--eye-color);
+      transition: transform 0.18s ease-out;
+      transform-origin: center center;
+      will-change: transform;
+      cursor: pointer;
+    }
+    .eye.blinking {
+      transform: scaleY(0.05) !important;
+      transition-duration: 0.08s;
+    }
+    .eye.squint {
+      transform: scaleY(0.35) !important;
+      transition-duration: 0.12s;
+    }
+
+    /* “Dor” no olho: fecha e treme um pouco */
+    .eye.hurt {
+      transform: scaleY(0.05) rotate(-2deg) !important;
+      transition-duration: 0.05s;
+      cursor: pointer;
+    }
+
+    /* Mouth */
+    .mouth-wrap {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden; /* garante que a lingua saia de dentro da boca */
+    }
+
+    .mouth {
+      width: min(20vmin, 20vh);
+      height: min(3vmin, 3vh);
+      min-height: 6px;
+      max-height: 14px;
+      background: var(--mouth-color);
+      position: relative;
+      overflow: hidden; /* importante: a língua nasce "dentro" da boca */
+      transition: height 0.35s ease, width 0.35s ease, transform 0.35s ease;
+      will-change: height, width, transform;
+    }
+    .mouth.yawning {
+      height: min(12vmin, 12vh);
+      width: min(14vmin, 14vh);
+      max-height: 80px;
+      transform: translateY(2px);
+    }
+    .mouth.sleeping {
+      height: 2px;
+      width: min(16vmin, 16vh);
+      transform: translateY(1px);
+    }
+    .mouth.talking {
+      min-height: 0;
+      transition: height 0.10s ease, width 0.10s ease, transform 0.10s ease;
+    }
+
+    /* Tongue (dentro da boca) */
+    .tongue {
+      position: absolute;
+      left: 50%;
+      /* comece um pouco abaixo da metade da boca, para parecer que sai de dentro */
+      top: 55%;
+      transform-origin: top center;
+      transform: translate(-50%, 0) scaleY(0);
+      width: min(12vmin, 12vh);
+      height: min(9vmin, 9vh);
+      max-width: 110px;
+      max-height: 90px;
+      background: var(--tongue-color);
+      border-radius: 0 0 999px 999px;
+      opacity: 0;
+      transition: transform 180ms ease, opacity 180ms ease;
+      pointer-events: none;
+      filter: saturate(1.1);
+    }
+    .tongue.show {
+      opacity: 1;
+      transform: translate(-50%, 0) scaleY(1);
+    }
+
+    .back-link {
+      position: fixed;
+      bottom: 12px;
+      right: 12px;
+      z-index: 10;
+      color: rgba(255,255,255,0.5);
+      font-size: 12px;
+      text-decoration: none;
+      padding: 6px 10px;
+      border-radius: 6px;
+      background: rgba(0,0,0,0.2);
+    }
+    .back-link:hover {
+      color: rgba(255,255,255,0.9);
+      background: rgba(0,0,0,0.4);
+    }
+
+    /* Acessibilidade */
+    @media (prefers-reduced-motion: reduce) {
+      .face, .eye, .mouth, .tongue { transition: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="screen">
+    <div class="face" id="face" aria-label="Robot face">
+      <div class="eyes-row">
+        <div class="eye" id="eyeL" title="Clique para fechar (dor)"></div>
+        <div class="eye" id="eyeR" title="Clique para fechar (dor)"></div>
+      </div>
+      <div class="mouth-wrap" id="mouthWrap">
+        <div class="mouth" id="mouth">
+          <div class="tongue" id="tongue" aria-hidden="true"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <a class="back-link" href="../index.html">Voltar ao índice</a>
+
+  <script>
+  (() => {
+    const face = document.getElementById('face');
+    const eyeL = document.getElementById('eyeL');
+    const eyeR = document.getElementById('eyeR');
+    const mouth = document.getElementById('mouth');
+    const mouthWrap = document.getElementById('mouthWrap');
+    const tongue = document.getElementById('tongue');
+
+    const FACE_COLORS = [
+      '#e8a598', '#e8b4a8', '#d4a5a0', '#c9a89e', '#b8a8b0',
+      '#a8b0c0', '#a0b8c8', '#98b8d0', '#a8c0c8', '#b0c8c0',
+      '#b8d0b8', '#c0d8b0', '#d0d8a8', '#e0d8a0', '#e8d098',
+      '#e8c8a0', '#e0b8a8'
+    ];
+
+    // Atenção / sono
+    const LOSE_ATTENTION_MS = 3500;
+    const SLEEP_AFTER_MS = 22000;
+
+    // Olhar
+    const RANDOM_LOOK_INTERVAL_MS = 2600;
+    const EYE_MOVE_MAX_PX = 10;
+    const EYE_SMOOTH = 0.12;
+
+    // Piscadas
+    const BLINK_BASE_MIN_MS = 1200;
+    const BLINK_BASE_MAX_MS = 4200;
+    const BLINK_DURATION_MS = 130;
+    const BLINK_DOUBLE_CHANCE = 0.18;
+    const BLINK_DOUBLE_DELAY_MS = 220;
+
+    // Bocejo
+    const YAWN_INTERVAL_MIN_MS = 26000;
+    const YAWN_INTERVAL_MAX_MS = 62000;
+    const YAWN_DURATION_MS = 1900;
+
+    // Tongue interaction
+    const TONGUE_PROX_PX = 120; // distancia do mouse ate a boca
+    const TONGUE_HOLD_MIN_MS = 300;
+    const TONGUE_HOLD_MAX_MS = 1200;
+
+    // Dor no olho
+    const HURT_MIN_MS = 800;
+    const HURT_MAX_MS = 2200;
+
+    const MOOD = {
+      SLEEPING: 'sleeping',
+      IDLE: 'idle',
+      BORED: 'bored',
+      HAPPY: 'happy',
+      EXCITED: 'excited'
+    };
+    const SPEECH = {
+      SILENT: 'silent',
+      LOW: 'low',
+      NORMAL: 'normal',
+      HIGH: 'high'
+    };
+
+    let mood = MOOD.IDLE;
+    let speech = SPEECH.NORMAL;
+    let state = 'awake'; // awake | yawning | sleeping
+    let followMouse = true;
+
+    // Timers
+    let loseAttentionTimer = null;
+    let sleepTimer = null;
+    let randomLookTimer = null;
+    let blinkTimer = null;
+    let yawnTimer = null;
+    let talkTimer = null;
+    let moodTimer = null;
+
+    // Olhar
+    let targetX = 0, targetY = 0;
+    let currentEyeX = 0, currentEyeY = 0;
+    let faceRect = null;
+
+    // Mouth animation
+    let mouthOpen = 0;
+    let mouthTarget = 0;
+
+    // Tongue
+    let tongueHoldTimer = null;
+    let tongueActiveUntil = 0;
+
+    // Eye hurt
+    let eyeHurtTimerL = null;
+    let eyeHurtTimerR = null;
+
+    // Cor de fundo
+    let colorIndex = 0;
+
+    const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+    const lerp = (a, b, t) => a + (b - a) * t;
+    const rand = (min, max) => min + Math.random() * (max - min);
+    const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+
+    function getFaceRect() {
+      faceRect = face.getBoundingClientRect();
+      return faceRect;
+    }
+
+    function setMood(nextMood, nextSpeech) {
+      mood = nextMood;
+      if (nextSpeech) speech = nextSpeech;
+
+      face.classList.remove('mood-bored', 'mood-happy', 'mood-excited', 'mood-sleepy');
+      if (mood === MOOD.BORED) face.classList.add('mood-bored');
+      if (mood === MOOD.HAPPY) face.classList.add('mood-happy');
+      if (mood === MOOD.EXCITED) face.classList.add('mood-excited');
+      if (mood === MOOD.SLEEPING) face.classList.add('mood-sleepy');
+    }
+
+    function randomStartColor() {
+      // comece aleatorio a cada reload
+      colorIndex = Math.floor(Math.random() * FACE_COLORS.length);
+      face.style.setProperty('--face-bg', FACE_COLORS[colorIndex]);
+    }
+
+    function nextBackgroundColor() {
+      // troca lentamente, sempre para uma cor aleatoria (pode repetir, ok)
+      const next = pick(FACE_COLORS);
+      face.style.setProperty('--face-bg', next);
+      setTimeout(nextBackgroundColor, 12000 + Math.random() * 9000);
+    }
+
+    function scheduleMoodChanges() {
+      if (moodTimer) clearTimeout(moodTimer);
+      if (state === 'sleeping') return;
+
+      const nextIn = rand(5000, 14000);
+      moodTimer = setTimeout(() => {
+        const candidates = [
+          { m: MOOD.IDLE, s: SPEECH.SILENT, w: 1.0 },
+          { m: MOOD.BORED, s: SPEECH.LOW, w: 1.2 },
+          { m: MOOD.HAPPY, s: SPEECH.NORMAL, w: 1.0 },
+          { m: MOOD.EXCITED, s: SPEECH.HIGH, w: 0.7 }
+        ];
+
+        if (!followMouse) {
+          candidates.find(x => x.m === MOOD.BORED).w += 1.2;
+          candidates.find(x => x.m === MOOD.IDLE).w += 0.5;
+          candidates.find(x => x.m === MOOD.EXCITED).w -= 0.2;
+        } else {
+          candidates.find(x => x.m === MOOD.HAPPY).w += 0.8;
+          candidates.find(x => x.m === MOOD.EXCITED).w += 0.6;
+          candidates.find(x => x.m === MOOD.BORED).w -= 0.4;
+        }
+
+        const total = candidates.reduce((a, c) => a + Math.max(0, c.w), 0);
+        let r = Math.random() * total;
+        let chosen = candidates[0];
+        for (const c of candidates) {
+          r -= Math.max(0, c.w);
+          if (r <= 0) { chosen = c; break; }
+        }
+
+        setMood(chosen.m, chosen.s);
+
+        if (mood === MOOD.BORED && Math.random() < 0.35) {
+          eyeL.classList.add('squint');
+          eyeR.classList.add('squint');
+          setTimeout(() => {
+            eyeL.classList.remove('squint');
+            eyeR.classList.remove('squint');
+          }, rand(250, 650));
+        }
+
+        scheduleMoodChanges();
+      }, nextIn);
+    }
+
+    function setRandomLookTarget() {
+      const r = getFaceRect();
+      const rangeX = r.width * 0.35;
+      const rangeY = r.height * 0.25;
+
+      let amp = 1.0;
+      if (mood === MOOD.EXCITED) amp = 1.25;
+      if (mood === MOOD.BORED) amp = 0.85;
+
+      targetX = (Math.random() - 0.5) * 2 * rangeX * amp;
+      targetY = (Math.random() - 0.5) * 2 * rangeY * amp;
+    }
+
+    function updateEyeTargetFromMouse(clientX, clientY) {
+      const r = getFaceRect();
+      const cx = r.left + r.width / 2;
+      const cy = r.top + r.height / 2;
+      targetX = clientX - cx;
+      targetY = clientY - cy;
+
+      const maxD = Math.min(r.width, r.height) * 0.42;
+      const d = Math.hypot(targetX, targetY);
+      if (d > maxD) {
+        const s = maxD / d;
+        targetX *= s;
+        targetY *= s;
+      }
+    }
+
+    function tickEyes() {
+      if (state === 'sleeping') return;
+
+      const maxOff = EYE_MOVE_MAX_PX;
+
+      let jitterX = 0, jitterY = 0;
+      if (mood === MOOD.EXCITED) {
+        jitterX = (Math.random() - 0.5) * 1.2;
+        jitterY = (Math.random() - 0.5) * 1.2;
+      } else if (mood === MOOD.BORED) {
+        jitterX = (Math.random() - 0.5) * 0.3;
+        jitterY = (Math.random() - 0.5) * 0.3;
+      }
+
+      const wantX = clamp(targetX * 0.5 + jitterX, -maxOff, maxOff);
+      const wantY = clamp(targetY * 0.5 + jitterY, -maxOff, maxOff);
+
+      const smooth = mood === MOOD.BORED ? EYE_SMOOTH * 0.75 : EYE_SMOOTH;
+
+      currentEyeX = lerp(currentEyeX, wantX, smooth);
+      currentEyeY = lerp(currentEyeY, wantY, smooth);
+
+      const tr = `translate(${currentEyeX}px, ${currentEyeY}px)`;
+
+      // Se estiver "machucado", não mexe para não sobrescrever o transform.
+      if (!eyeL.classList.contains('blinking') && !eyeL.classList.contains('hurt')) eyeL.style.transform = tr;
+      if (!eyeR.classList.contains('blinking') && !eyeR.classList.contains('hurt')) eyeR.style.transform = tr;
+    }
+
+    function scheduleNextBlink() {
+      if (state !== 'awake') return;
+
+      let min = BLINK_BASE_MIN_MS;
+      let max = BLINK_BASE_MAX_MS;
+
+      if (mood === MOOD.BORED) { min *= 1.3; max *= 1.5; }
+      if (mood === MOOD.EXCITED) { min *= 0.75; max *= 0.85; }
+
+      blinkTimer = setTimeout(doBlink, rand(min, max));
+    }
+
+    function doBlink() {
+      if (state === 'sleeping' || state === 'yawning') {
+        scheduleNextBlink();
+        return;
+      }
+
+      // Se está machucado, não pisca aquele olho (fica fechado).
+      const canBlinkL = !eyeL.classList.contains('hurt');
+      const canBlinkR = !eyeR.classList.contains('hurt');
+
+      if (canBlinkL) eyeL.classList.add('blinking');
+      if (canBlinkR) eyeR.classList.add('blinking');
+
+      setTimeout(() => {
+        if (canBlinkL) eyeL.classList.remove('blinking');
+        if (canBlinkR) eyeR.classList.remove('blinking');
+
+        let dbl = BLINK_DOUBLE_CHANCE;
+        if (mood === MOOD.EXCITED) dbl += 0.10;
+        if (mood === MOOD.BORED) dbl -= 0.06;
+
+        if (Math.random() < dbl) {
+          setTimeout(() => {
+            if (canBlinkL) eyeL.classList.add('blinking');
+            if (canBlinkR) eyeR.classList.add('blinking');
+            setTimeout(() => {
+              if (canBlinkL) eyeL.classList.remove('blinking');
+              if (canBlinkR) eyeR.classList.remove('blinking');
+              scheduleNextBlink();
+            }, BLINK_DURATION_MS);
+          }, BLINK_DOUBLE_DELAY_MS);
+        } else {
+          scheduleNextBlink();
+        }
+      }, BLINK_DURATION_MS);
+    }
+
+    function scheduleNextYawn() {
+      if (state === 'sleeping') return;
+      yawnTimer = setTimeout(doYawn, rand(YAWN_INTERVAL_MIN_MS, YAWN_INTERVAL_MAX_MS));
+    }
+
+    function doYawn() {
+      if (state === 'sleeping') {
+        scheduleNextYawn();
+        return;
+      }
+
+      const chance =
+        (mood === MOOD.BORED ? 0.75 : 0.45) +
+        (followMouse ? -0.08 : 0.10);
+
+      if (Math.random() > chance) {
+        scheduleNextYawn();
+        return;
+      }
+
+      state = 'yawning';
+      mouth.classList.remove('talking');
+      mouth.classList.add('yawning');
+      stopMouthTalking(true);
+
+      setTimeout(() => {
+        mouth.classList.remove('yawning');
+        state = 'awake';
+        scheduleNextYawn();
+        startMouthTalking();
+      }, YAWN_DURATION_MS);
+    }
+
+    function stopMouthTalking(keepStyle = false) {
+      if (talkTimer) clearTimeout(talkTimer);
+      talkTimer = null;
+      mouth.classList.remove('talking');
+      if (!keepStyle) {
+        mouth.style.height = '';
+        mouth.style.transform = '';
+      }
+    }
+
+    function mouthParamsForSpeech() {
+      if (speech === SPEECH.SILENT) return {
+        ampMin: 0.00, ampMax: 0.10,
+        intervalMin: 240, intervalMax: 560,
+        pauseChance: 0.70, pauseMin: 900, pauseMax: 2600,
+      };
+      if (speech === SPEECH.LOW) return {
+        ampMin: 0.05, ampMax: 0.32,
+        intervalMin: 170, intervalMax: 360,
+        pauseChance: 0.45, pauseMin: 650, pauseMax: 1800,
+      };
+      if (speech === SPEECH.HIGH) return {
+        ampMin: 0.25, ampMax: 0.95,
+        intervalMin: 70, intervalMax: 150,
+        pauseChance: 0.18, pauseMin: 220, pauseMax: 620,
+      };
+      return {
+        ampMin: 0.12, ampMax: 0.65,
+        intervalMin: 110, intervalMax: 240,
+        pauseChance: 0.30, pauseMin: 420, pauseMax: 1200,
+      };
+    }
+
+    function mouthApply(target) {
+      const baseClosedH = 5;
+      const baseOpenH = 28;
+      const h = lerp(baseClosedH, baseOpenH, clamp(target, 0, 1));
+
+      // leve variacao na largura via scaleX
+      const wJ = (Math.random() - 0.5) * 2;
+      const scaleX = 1 + wJ * 0.08;
+
+      mouth.classList.add('talking');
+      mouth.style.height = h.toFixed(1) + 'px';
+      mouth.style.transform = `scaleX(${scaleX.toFixed(3)})`;
+    }
+
+    function tickMouthTalking() {
+      if (state !== 'awake' || mouth.classList.contains('yawning') || mouth.classList.contains('sleeping')) return;
+
+      const p = mouthParamsForSpeech();
+
+      if (Math.random() < p.pauseChance) {
+        mouthTarget = 0.0;
+        mouthOpen = lerp(mouthOpen, mouthTarget, 0.25);
+        mouthApply(mouthOpen);
+        talkTimer = setTimeout(tickMouthTalking, rand(p.pauseMin, p.pauseMax));
+        return;
+      }
+
+      mouthTarget = rand(p.ampMin, p.ampMax);
+      const speed = (mood === MOOD.EXCITED) ? 0.55 : (mood === MOOD.BORED ? 0.22 : 0.35);
+      mouthOpen = lerp(mouthOpen, mouthTarget, speed);
+      mouthApply(mouthOpen);
+
+      talkTimer = setTimeout(tickMouthTalking, rand(p.intervalMin, p.intervalMax));
+    }
+
+    function startMouthTalking() {
+      if (talkTimer) clearTimeout(talkTimer);
+      if (state !== 'awake') return;
+
+      if (mood === MOOD.BORED && Math.random() < 0.55) speech = SPEECH.LOW;
+      if (followMouse && Math.random() < 0.35) speech = pick([SPEECH.NORMAL, SPEECH.HIGH]);
+
+      mouthOpen = 0;
+      mouthTarget = 0;
+      mouth.classList.remove('sleeping');
+      mouth.classList.remove('yawning');
+
+      talkTimer = setTimeout(tickMouthTalking, rand(120, 320));
+    }
+
+    function enterSleep() {
+      state = 'sleeping';
+      setMood(MOOD.SLEEPING, SPEECH.SILENT);
+
+      eyeL.classList.add('blinking');
+      eyeR.classList.add('blinking');
+
+      stopMouthTalking(true);
+      mouth.classList.add('sleeping');
+      mouth.style.height = '';
+      mouth.style.transform = '';
+
+      hideTongue(true);
+
+      if (randomLookTimer) clearInterval(randomLookTimer);
+      randomLookTimer = null;
+    }
+
+    function wakeUp() {
+      state = 'awake';
+      mouth.classList.remove('sleeping');
+      eyeL.classList.remove('blinking');
+      eyeR.classList.remove('blinking');
+
+      if (Math.random() < 0.25) setMood(MOOD.EXCITED, SPEECH.HIGH);
+      else setMood(MOOD.HAPPY, SPEECH.NORMAL);
+
+      scheduleNextBlink();
+      scheduleNextYawn();
+      startMouthTalking();
+      scheduleMoodChanges();
+    }
+
+    function startLoseAttentionTimer() {
+      if (loseAttentionTimer) clearTimeout(loseAttentionTimer);
+
+      loseAttentionTimer = setTimeout(() => {
+        followMouse = false;
+        if (state === 'awake') setMood(MOOD.BORED, SPEECH.LOW);
+
+        setRandomLookTarget();
+        if (randomLookTimer) clearInterval(randomLookTimer);
+        randomLookTimer = setInterval(() => {
+          if (state !== 'awake') return;
+          setRandomLookTarget();
+        }, RANDOM_LOOK_INTERVAL_MS);
+      }, LOSE_ATTENTION_MS);
+    }
+
+    function startSleepTimer() {
+      if (sleepTimer) clearTimeout(sleepTimer);
+      sleepTimer = setTimeout(() => {
+        if (state === 'awake') enterSleep();
+      }, SLEEP_AFTER_MS);
+    }
+
+    // --- Interações ---
+    function hurtEye(which) {
+      const eye = which === 'L' ? eyeL : eyeR;
+      const timerKey = which === 'L' ? 'L' : 'R';
+
+      eye.classList.add('hurt');
+
+      // pequena tremida enquanto está "doendo"
+      let jitterCount = 0;
+      const jitterInterval = setInterval(() => {
+        if (!eye.classList.contains('hurt')) {
+          clearInterval(jitterInterval);
+          return;
+        }
+        jitterCount++;
+        const j = (Math.random() - 0.5) * 2;
+        eye.style.transform = `scaleY(0.05) rotate(${(-2 + j).toFixed(2)}deg)`;
+        if (jitterCount > 40) jitterCount = 0;
+      }, 60);
+
+      const endIn = rand(HURT_MIN_MS, HURT_MAX_MS);
+
+      if (timerKey === 'L' && eyeHurtTimerL) clearTimeout(eyeHurtTimerL);
+      if (timerKey === 'R' && eyeHurtTimerR) clearTimeout(eyeHurtTimerR);
+
+      const end = () => {
+        eye.classList.remove('hurt');
+        eye.style.transform = '';
+        clearInterval(jitterInterval);
+      };
+
+      if (timerKey === 'L') eyeHurtTimerL = setTimeout(end, endIn);
+      else eyeHurtTimerR = setTimeout(end, endIn);
+    }
+
+    eyeL.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (state === 'sleeping') wakeUp();
+      hurtEye('L');
+      // reação: fica mais "bored" por um instante
+      if (state === 'awake' && Math.random() < 0.6) setMood(MOOD.BORED, SPEECH.LOW);
+    });
+
+    eyeR.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (state === 'sleeping') wakeUp();
+      hurtEye('R');
+      if (state === 'awake' && Math.random() < 0.6) setMood(MOOD.BORED, SPEECH.LOW);
+    });
+
+    function showTongue() {
+      const now = Date.now();
+      const hold = rand(TONGUE_HOLD_MIN_MS, TONGUE_HOLD_MAX_MS);
+      tongueActiveUntil = Math.max(tongueActiveUntil, now + hold);
+      tongue.classList.add('show');
+
+      // quando mostrar lingua, para a fala por um instante
+      if (state === 'awake' && Math.random() < 0.35) speech = SPEECH.SILENT;
+
+      if (tongueHoldTimer) clearTimeout(tongueHoldTimer);
+      tongueHoldTimer = setTimeout(() => {
+        if (Date.now() >= tongueActiveUntil) hideTongue();
+      }, hold + 30);
+    }
+
+    function hideTongue(force = false) {
+      if (force) {
+        tongueActiveUntil = 0;
+        tongue.classList.remove('show');
+        if (tongueHoldTimer) clearTimeout(tongueHoldTimer);
+        tongueHoldTimer = null;
+        return;
+      }
+      if (Date.now() < tongueActiveUntil) return;
+      tongue.classList.remove('show');
+    }
+
+    function isMouseNearMouth(clientX, clientY) {
+      const r = mouthWrap.getBoundingClientRect();
+      const cx = r.left + r.width / 2;
+      const cy = r.top + r.height / 2;
+      const d = Math.hypot(clientX - cx, clientY - cy);
+      return d <= TONGUE_PROX_PX;
+    }
+
+    function onMouseMove(e) {
+      // timers de atenção/sono
+      if (loseAttentionTimer) { clearTimeout(loseAttentionTimer); loseAttentionTimer = null; }
+      if (sleepTimer) { clearTimeout(sleepTimer); sleepTimer = null; }
+
+      if (state === 'sleeping') wakeUp();
+
+      if (randomLookTimer) {
+        clearInterval(randomLookTimer);
+        randomLookTimer = null;
+      }
+
+      followMouse = true;
+      updateEyeTargetFromMouse(e.clientX, e.clientY);
+
+      if (state === 'awake') {
+        if (Math.random() < 0.18) setMood(MOOD.EXCITED, SPEECH.HIGH);
+        else setMood(MOOD.HAPPY, pick([SPEECH.NORMAL, SPEECH.HIGH]));
+      }
+
+      // lingua quando mouse passa perto da boca
+      if (state !== 'sleeping' && isMouseNearMouth(e.clientX, e.clientY)) {
+        showTongue();
+      } else {
+        hideTongue();
+      }
+
+      startLoseAttentionTimer();
+      startSleepTimer();
+    }
+
+    document.addEventListener('mousemove', onMouseMove, { passive: true });
+
+    // --- Boot ---
+    function boot() {
+      getFaceRect();
+      randomStartColor();
+      nextBackgroundColor();
+
+      setMood(MOOD.IDLE, SPEECH.NORMAL);
+
+      scheduleNextBlink();
+      scheduleNextYawn();
+      startMouthTalking();
+      startLoseAttentionTimer();
+      startSleepTimer();
+      scheduleMoodChanges();
+
+      setInterval(tickEyes, 1000 / 60);
+      window.addEventListener('resize', getFaceRect);
+    }
+
+    boot();
+  })();
+  </script>
+</body>
+</html>

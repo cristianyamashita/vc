@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title data-i18n="title">Paste Canvas</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link rel="stylesheet" href="../assets/fontawesome/css/all.min.css" />
+  <style>
+    :root {
+      --bg-color: #1a1a1a;
+      --text-color: #f0f0f0;
+      --card-bg-color: #2a2a2a;
+      --border-color: #444;
+      --accent-color: #0d6efd;
+      --hover-color: #3a3a3a;
+    }
+    html[data-theme='light'] {
+      --bg-color: #f8f9fa;
+      --text-color: #212529;
+      --card-bg-color: #fff;
+      --border-color: #dee2e6;
+      --accent-color: #0d6efd;
+      --hover-color: #e9ecef;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      display: flex;
+      flex-direction: column;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+    .toolbar {
+      flex-shrink: 0;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border-color);
+      background-color: var(--card-bg-color);
+    }
+    .toolbar .group { display: flex; gap: 6px; align-items: center; padding-right: 10px; border-right: 1px solid var(--border-color); }
+    .toolbar .group:last-child { border-right: none; }
+    .toolbar button, .toolbar select, .toolbar label {
+      background: var(--card-bg-color); color: var(--text-color); border: 1px solid var(--border-color);
+      padding: 6px 10px; border-radius: 8px; cursor: pointer; font-size: 14px;
+    }
+    .toolbar button:hover, .toolbar label:hover { border-color: var(--accent-color); background: var(--hover-color); }
+    .toolbar .file-label { display: inline-flex; align-items: center; gap: 6px; }
+    .file-input { display: none; }
+    .spacer { flex: 1; }
+    .main { flex: 1; min-height: 0; display: grid; grid-template-columns: 1fr 280px; overflow: hidden; }
+    .canvas-wrap { position: relative; overflow: hidden; background: var(--bg-color); min-width: 0; min-height: 0; }
+    .canvas-wrap canvas { display: block; width: 100%; height: 100%; }
+    .sidebar {
+      border-left: 1px solid var(--border-color);
+      background: var(--card-bg-color);
+      overflow-y: auto;
+      padding: 12px;
+    }
+    .sidebar h3 { margin: 0 0 10px 0; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.8; }
+    .prop-row { display: grid; grid-template-columns: 100px 1fr; align-items: center; gap: 8px; margin-bottom: 10px; }
+    .prop-row label { font-size: 13px; }
+    .prop-row input[type="number"], .prop-row input[type="color"] {
+      background: var(--bg-color); color: var(--text-color); border: 1px solid var(--border-color);
+      padding: 6px 8px; border-radius: 6px; max-width: 120px;
+    }
+    .context-menu {
+      position: fixed; z-index: 1000;
+      background: var(--card-bg-color); border: 1px solid var(--border-color);
+      border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      padding: 4px 0; min-width: 180px; display: none;
+    }
+    .context-menu.show { display: block; }
+    .context-menu button {
+      display: block; width: 100%; text-align: left; padding: 8px 14px;
+      border: none; background: transparent; color: var(--text-color);
+      cursor: pointer; font-size: 14px;
+    }
+    .context-menu button:hover { background: var(--hover-color); }
+    .context-menu button i { margin-right: 8px; width: 18px; }
+    .badge { padding: 4px 8px; border-radius: 6px; background: var(--hover-color); font-size: 13px; }
+    .muted { opacity: 0.7; font-size: 13px; }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <div class="toolbar" id="toolbar">
+    <div class="group"><span data-i18n="title">Paste Canvas</span></div>
+    <div class="group">
+      <label class="file-label" for="fileInput"><i class="fas fa-upload"></i> <span data-i18n="upload">Upload</span></label>
+      <input class="file-input" id="fileInput" type="file" accept="image/*" multiple />
+      <button type="button" id="btnPaste"><i class="fas fa-paste"></i> <span data-i18n="paste">Paste</span></button>
+    </div>
+    <div class="group">
+      <button type="button" id="btnRect"><i class="far fa-square"></i> <span data-i18n="rect">Rect</span></button>
+      <button type="button" id="btnRoundedRect"><i class="fas fa-square" style="border-radius:4px;"></i> <span data-i18n="roundedRect">Rounded</span></button>
+      <button type="button" id="btnLine"><i class="fas fa-minus"></i> <span data-i18n="line">Line</span></button>
+      <button type="button" id="btnArrow"><i class="fas fa-arrow-right"></i> <span data-i18n="arrow">Arrow</span></button>
+      <button type="button" id="btnText"><i class="fas fa-font"></i> <span data-i18n="text">Text</span></button>
+    </div>
+    <div class="group">
+      <button type="button" id="btnZoomOut">−</button>
+      <span class="badge" id="zoomBadge">100%</span>
+      <button type="button" id="btnZoomIn">+</button>
+      <button type="button" id="btnZoomReset" data-i18n="reset">Reset</button>
+    </div>
+    <div class="group">
+      <button type="button" id="btnExport"><i class="fas fa-download"></i> <span data-i18n="exportPng">Export PNG</span></button>
+    </div>
+    <div class="spacer"></div>
+    <div class="group">
+      <select id="langSelect"><option value="en">EN</option><option value="pt">PT</option><option value="ja">JA</option></select>
+      <button type="button" id="themeSwitcher" title="Toggle theme"><i class="fas fa-moon"></i></button>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="canvas-wrap" id="canvasWrap">
+      <canvas id="canvas"></canvas>
+    </div>
+    <aside class="sidebar" id="sidebar">
+      <h3 data-i18n="properties">Properties</h3>
+      <div id="propsPlaceholder" class="muted" data-i18n="selectObject">Select an object to edit properties.</div>
+      <div id="propsPanel" class="hidden">
+        <div id="propsText" class="hidden">
+          <div class="prop-row"><label data-i18n="fontSize">Font size</label><input type="number" id="inpFontSize" min="8" max="200" value="24" /></div>
+          <div class="prop-row"><label data-i18n="textColor">Text color</label><input type="color" id="inpTextColor" value="#000000" /></div>
+        </div>
+        <div id="propsFill" class="hidden">
+          <div class="prop-row"><label data-i18n="fillColor">Fill color</label><input type="color" id="inpFillColor" value="#5aa7ff" /></div>
+        </div>
+        <h3 data-i18n="border">Border</h3>
+        <div class="prop-row"><label><input type="checkbox" id="chkBorder" /> <span data-i18n="borderEnable">Enable</span></label></div>
+        <div class="prop-row"><label data-i18n="borderColor">Color</label><input type="color" id="inpBorderColor" value="#000000" /></div>
+        <div class="prop-row"><label data-i18n="borderSize">Size</label><input type="number" id="inpBorderSize" min="0" max="50" value="2" /></div>
+        <h3 data-i18n="shadow">Shadow</h3>
+        <div class="prop-row"><label><input type="checkbox" id="chkShadow" /> <span data-i18n="shadowEnable">Enable</span></label></div>
+        <div class="prop-row"><label data-i18n="shadowColor">Color</label><input type="color" id="inpShadowColor" value="#000000" /></div>
+        <div class="prop-row"><label data-i18n="shadowBlur">Blur</label><input type="number" id="inpShadowBlur" min="0" max="50" value="10" /></div>
+        <div class="prop-row"><label data-i18n="shadowOffsetX">Offset X</label><input type="number" id="inpShadowOffsetX" value="5" /></div>
+        <div class="prop-row"><label data-i18n="shadowOffsetY">Offset Y</label><input type="number" id="inpShadowOffsetY" value="5" /></div>
+      </div>
+    </aside>
+  </div>
+
+  <div class="context-menu" id="contextMenu">
+    <button type="button" id="ctxBringFront"><i class="fas fa-arrow-up"></i> <span data-i18n="bringToFront">Bring to front</span></button>
+    <button type="button" id="ctxSendBack"><i class="fas fa-arrow-down"></i> <span data-i18n="sendToBack">Send to back</span></button>
+    <button type="button" id="ctxDuplicate"><i class="fas fa-copy"></i> <span data-i18n="duplicate">Duplicate</span></button>
+    <button type="button" id="ctxDelete"><i class="fas fa-trash-alt"></i> <span data-i18n="delete">Delete</span></button>
+  </div>
+
+  <script>
+(function() {
+  'use strict';
+
+  const HANDLE = 8;
+  const ROTATE_HANDLE_OFFSET = 24;
+  const ZOOM_STEP = 1.1;
+
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d');
+  const objects = [];
+  let selected = null;
+  let boardW = 1600, boardH = 900;
+  let viewZoom = 1, viewX = 0, viewY = 0;
+  let drawMode = null;
+  let drawStart = null;
+  let dragMode = null;
+  let dragStart = null;
+
+  function screenToBoard(sx, sy) {
+    return {
+      x: (sx - viewX) / viewZoom,
+      y: (sy - viewY) / viewZoom
+    };
+  }
+  function boardToScreen(bx, by) {
+    return {
+      x: viewX + bx * viewZoom,
+      y: viewY + by * viewZoom
+    };
+  }
+
+  function getObjectBounds(obj) {
+    if (obj.type === 'image' || obj.type === 'rect' || obj.type === 'roundedRect' || obj.type === 'text') {
+      const w = obj.w || 100, h = obj.h || 100;
+      const cx = obj.x + w / 2, cy = obj.y + h / 2;
+      const r = (obj.rotation || 0) * Math.PI / 180;
+      const cos = Math.cos(r), sin = Math.sin(r);
+      const dx = -w / 2, dy = -h / 2;
+      const x1 = cx + dx * cos - dy * sin, y1 = cy + dx * sin + dy * cos;
+      const x2 = cx + (w + dx) * cos - dy * sin, y2 = cy + (w + dx) * sin + dy * cos;
+      const x3 = cx + (w + dx) * cos - (h + dy) * sin, y3 = cy + (w + dx) * sin + (h + dy) * cos;
+      const x4 = cx + dx * cos - (h + dy) * sin, y4 = cy + dx * sin + (h + dy) * cos;
+      const xs = [x1, x2, x3, x4], ys = [y1, y2, y3, y4];
+      return { minX: Math.min(...xs), minY: Math.min(...ys), maxX: Math.max(...xs), maxY: Math.max(...ys), cx, cy, w, h };
+    }
+    if (obj.type === 'line' || obj.type === 'arrow') {
+      const [x0, y0, x1, y1] = obj.points;
+      return { minX: Math.min(x0, x1), minY: Math.min(y0, y1), maxX: Math.max(x0, x1), maxY: Math.max(y0, y1) };
+    }
+    return null;
+  }
+
+  function hitRect(px, py, rx, ry, rw, rh) {
+    return px >= rx && px <= rx + rw && py >= ry && py <= ry + rh;
+  }
+
+  function pointInRotatedRect(px, py, obj) {
+    const w = obj.w || 100, h = obj.h || 100;
+    const cx = obj.x + w / 2, cy = obj.y + h / 2;
+    const r = -(obj.rotation || 0) * Math.PI / 180;
+    const cos = Math.cos(r), sin = Math.sin(r);
+    const dx = px - cx, dy = py - cy;
+    const lx = dx * cos - dy * sin, ly = dx * sin + dy * cos;
+    return lx >= -w / 2 && lx <= w / 2 && ly >= -h / 2 && ly <= h / 2;
+  }
+
+  function dist(ax, ay, bx, by) {
+    return Math.hypot(ax - bx, ay - by);
+  }
+
+  function hitTest(px, py) {
+    const b = screenToBoard(px, py);
+    const bx = b.x, by = b.y;
+    for (let i = objects.length - 1; i >= 0; i--) {
+      const obj = objects[i];
+      if (obj.type === 'image' || obj.type === 'rect' || obj.type === 'roundedRect') {
+        if (pointInRotatedRect(bx, by, obj)) return { obj, index: i };
+      }
+      if (obj.type === 'text') {
+        const w = obj.w || 80, h = obj.h || 24;
+        if (pointInRotatedRect(bx, by, { x: obj.x, y: obj.y, w, h, rotation: obj.rotation || 0 })) return { obj, index: i };
+      }
+      if (obj.type === 'line' || obj.type === 'arrow') {
+        const [x0, y0, x1, y1] = obj.points;
+        const d = dist(bx, by, x0, y0) + dist(bx, by, x1, y1);
+        if (Math.abs(d - dist(x0, y0, x1, y1)) < 10) return { obj, index: i };
+      }
+    }
+    return null;
+  }
+
+  function hitHandle(px, py) {
+    if (!selected) return null;
+    const b = screenToBoard(px, py);
+    const bx = b.x, by = b.y;
+    if (selected.type === 'line' || selected.type === 'arrow') {
+      const [x0, y0, x1, y1] = selected.points;
+      if (dist(bx, by, x0, y0) < HANDLE * 2) return 'line-p0';
+      if (dist(bx, by, x1, y1) < HANDLE * 2) return 'line-p1';
+      return null;
+    }
+    const bounds = getObjectBounds(selected);
+    if (!bounds) return null;
+    const { minX, minY, maxX, maxY, cx, cy, w, h } = bounds;
+    const rotY = cy - ROTATE_HANDLE_OFFSET - h / 2;
+    if (dist(bx, by, cx, rotY) < HANDLE * 2) return 'rotate';
+    if (dist(bx, by, minX, minY) < HANDLE * 2) return 'resize-nw';
+    if (dist(bx, by, maxX, minY) < HANDLE * 2) return 'resize-ne';
+    if (dist(bx, by, minX, maxY) < HANDLE * 2) return 'resize-sw';
+    if (dist(bx, by, maxX, maxY) < HANDLE * 2) return 'resize-se';
+    if (pointInRotatedRect(bx, by, selected)) return 'move';
+    return null;
+  }
+
+  function applyShadow(ctx, obj) {
+    if (obj.shadowBlur && obj.shadowBlur > 0) {
+      ctx.shadowColor = obj.shadowColor || '#000000';
+      ctx.shadowBlur = obj.shadowBlur || 10;
+      ctx.shadowOffsetX = obj.shadowOffsetX || 5;
+      ctx.shadowOffsetY = obj.shadowOffsetY || 5;
+    } else {
+      ctx.shadowColor = 'transparent';
+      ctx.shadowBlur = 0;
+      ctx.shadowOffsetX = 0;
+      ctx.shadowOffsetY = 0;
+    }
+  }
+
+  function applyStroke(ctx, obj) {
+    if (obj.strokeWidth && obj.strokeWidth > 0 && obj.stroke) {
+      ctx.strokeStyle = obj.stroke;
+      ctx.lineWidth = obj.strokeWidth;
+    }
+  }
+
+  function drawObject(ctx, obj) {
+    ctx.save();
+    applyShadow(ctx, obj);
+    if (obj.type === 'image' && obj.img) {
+      const w = obj.w || obj.img.naturalWidth || 100;
+      const h = obj.h || obj.img.naturalHeight || 100;
+      ctx.translate(obj.x + w / 2, obj.y + h / 2);
+      ctx.rotate((obj.rotation || 0) * Math.PI / 180);
+      ctx.translate(-w / 2, -h / 2);
+      ctx.drawImage(obj.img, 0, 0, w, h);
+      if (obj.strokeWidth > 0 && obj.stroke) {
+        ctx.strokeStyle = obj.stroke;
+        ctx.lineWidth = obj.strokeWidth;
+        ctx.strokeRect(0, 0, w, h);
+      }
+    }
+    if (obj.type === 'rect' || obj.type === 'roundedRect') {
+      ctx.translate(obj.x + obj.w / 2, obj.y + obj.h / 2);
+      ctx.rotate((obj.rotation || 0) * Math.PI / 180);
+      ctx.translate(-obj.w / 2, -obj.h / 2);
+      ctx.fillStyle = obj.fill || '#5aa7ff';
+      if (obj.type === 'roundedRect') {
+        const r = Math.min(obj.cornerRadius || 20, obj.w / 2, obj.h / 2);
+        ctx.beginPath();
+        ctx.moveTo(r, 0);
+        ctx.lineTo(obj.w - r, 0);
+        ctx.quadraticCurveTo(obj.w, 0, obj.w, r);
+        ctx.lineTo(obj.w, obj.h - r);
+        ctx.quadraticCurveTo(obj.w, obj.h, obj.w - r, obj.h);
+        ctx.lineTo(r, obj.h);
+        ctx.quadraticCurveTo(0, obj.h, 0, obj.h - r);
+        ctx.lineTo(0, r);
+        ctx.quadraticCurveTo(0, 0, r, 0);
+        ctx.closePath();
+        ctx.fill();
+        applyStroke(ctx, obj);
+        ctx.stroke();
+      } else {
+        ctx.fillRect(0, 0, obj.w, obj.h);
+        applyStroke(ctx, obj);
+        ctx.strokeRect(0, 0, obj.w, obj.h);
+      }
+    }
+    if (obj.type === 'line' || obj.type === 'arrow') {
+      const [x0, y0, x1, y1] = obj.points;
+      ctx.strokeStyle = obj.stroke || '#333';
+      ctx.lineWidth = obj.strokeWidth || 3;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.beginPath();
+      ctx.moveTo(x0, y0);
+      ctx.lineTo(x1, y1);
+      ctx.stroke();
+      if (obj.type === 'arrow') {
+        const angle = Math.atan2(y1 - y0, x1 - x0);
+        const arrowLen = 15;
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x1 - arrowLen * Math.cos(angle - 0.4), y1 - arrowLen * Math.sin(angle - 0.4));
+        ctx.lineTo(x1 - arrowLen * Math.cos(angle + 0.4), y1 - arrowLen * Math.sin(angle + 0.4));
+        ctx.closePath();
+        ctx.fillStyle = obj.stroke || '#333';
+        ctx.fill();
+      }
+    }
+    if (obj.type === 'text') {
+      const w = obj.w || 80, h = obj.h || 24;
+      ctx.translate(obj.x + w / 2, obj.y + h / 2);
+      ctx.rotate((obj.rotation || 0) * Math.PI / 180);
+      ctx.translate(-w / 2, -h / 2);
+      ctx.font = (obj.fontSize || 24) + 'px sans-serif';
+      ctx.fillStyle = obj.fill || '#000000';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(obj.text || 'Text', 0, h / 2);
+      applyStroke(ctx, obj);
+      if (obj.strokeWidth > 0) ctx.strokeText(obj.text || 'Text', 0, h / 2);
+    }
+    ctx.restore();
+  }
+
+  function drawHandles(ctx, obj) {
+    ctx.save();
+    ctx.strokeStyle = '#0d6efd';
+    ctx.fillStyle = 'rgba(13,110,253,0.3)';
+    ctx.lineWidth = 2;
+    if (obj.type === 'line' || obj.type === 'arrow') {
+      const [x0, y0, x1, y1] = obj.points;
+      for (const [x, y] of [[x0, y0], [x1, y1]]) {
+        ctx.beginPath();
+        ctx.arc(x, y, HANDLE, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      }
+      return ctx.restore();
+    }
+    const bounds = getObjectBounds(obj);
+    if (!bounds) return ctx.restore();
+    const { minX, minY, maxX, maxY, cx, cy, w, h } = bounds;
+    const rotY = cy - ROTATE_HANDLE_OFFSET - h / 2;
+    for (const [x, y] of [[minX, minY], [maxX, minY], [minX, maxY], [maxX, maxY], [cx, rotY]]) {
+      ctx.beginPath();
+      ctx.arc(x, y, HANDLE, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+    }
+    ctx.setLineDash([4, 4]);
+    ctx.strokeStyle = '#0d6efd';
+    ctx.strokeRect(minX - HANDLE, minY - HANDLE, maxX - minX + HANDLE * 2, maxY - minY + HANDLE * 2);
+    ctx.restore();
+  }
+
+  function render() {
+    const dpr = window.devicePixelRatio || 1;
+    const wrap = document.getElementById('canvasWrap');
+    const w = wrap.clientWidth, h = wrap.clientHeight;
+    boardW = w;
+    boardH = h;
+    canvas.width = w * dpr;
+    canvas.height = h * dpr;
+    canvas.style.width = w + 'px';
+    canvas.style.height = h + 'px';
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.scale(dpr, dpr);
+    ctx.fillStyle = '#1a1a1a';
+    ctx.fillRect(0, 0, w, h);
+    ctx.save();
+    ctx.translate(viewX, viewY);
+    ctx.scale(viewZoom, viewZoom);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, boardW, boardH);
+    objects.forEach(obj => drawObject(ctx, obj));
+    if (selected) drawHandles(ctx, selected);
+    ctx.restore();
+  }
+
+  function centerView() {
+    const wrap = document.getElementById('canvasWrap');
+    viewX = (wrap.clientWidth - boardW * viewZoom) / 2;
+    viewY = (wrap.clientHeight - boardH * viewZoom) / 2;
+  }
+
+  function setZoom(z) {
+    viewZoom = Math.max(0.1, Math.min(5, z));
+    centerView();
+    document.getElementById('zoomBadge').textContent = Math.round(viewZoom * 100) + '%';
+    render();
+  }
+
+  window.addEventListener('resize', () => { centerView(); render(); });
+
+  let lastPointer = null;
+  canvas.addEventListener('mousedown', e => {
+    const rect = canvas.getBoundingClientRect();
+    const sx = e.clientX - rect.left, sy = e.clientY - rect.top;
+    if (drawMode) return;
+    const handle = hitHandle(sx, sy);
+    if (handle) {
+      dragMode = handle;
+      dragStart = { ...screenToBoard(sx, sy), obj: selected };
+      lastPointer = { sx, sy };
+      e.preventDefault();
+      return;
+    }
+    const hit = hitTest(sx, sy);
+    if (hit) {
+      selected = hit.obj;
+      dragMode = 'move';
+      const board = screenToBoard(sx, sy);
+      dragStart = {
+        x: board.x, y: board.y,
+        obj: selected,
+        startX: Number(selected.x) ?? selected.points?.[0] ?? 0,
+        startY: Number(selected.y) ?? selected.points?.[1] ?? 0,
+        moveStarted: false
+      };
+      if (selected.type === 'line' || selected.type === 'arrow') {
+        dragStart.points = selected.points.slice();
+      }
+      lastPointer = { sx, sy };
+      updatePropsPanel();
+      render();
+      e.preventDefault();
+      return;
+    }
+    selected = null;
+    dragMode = null;
+    updatePropsPanel();
+    render();
+  });
+
+  canvas.addEventListener('mousemove', e => {
+    const rect = canvas.getBoundingClientRect();
+    const sx = e.clientX - rect.left, sy = e.clientY - rect.top;
+    const b = screenToBoard(sx, sy);
+    if (drawMode === 'rect' && drawStart) {
+      const obj = { type: 'rect', x: Math.min(drawStart.x, b.x), y: Math.min(drawStart.y, b.y), w: Math.max(20, Math.abs(b.x - drawStart.x)), h: Math.max(20, Math.abs(b.y - drawStart.y)), fill: '#5aa7ff', cornerRadius: 0 };
+      if (document.getElementById('btnRoundedRect').classList.contains('active')) obj.type = 'roundedRect'; obj.cornerRadius = 20;
+      render();
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.save();
+      ctx.translate(viewX, viewY);
+      ctx.scale(viewZoom, viewZoom);
+      ctx.strokeStyle = '#0d6efd';
+      ctx.setLineDash([4, 4]);
+      ctx.strokeRect(obj.x, obj.y, obj.w, obj.h);
+      ctx.restore();
+      return;
+    }
+    if (drawMode === 'line' && drawStart) {
+      render();
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.save();
+      ctx.translate(viewX, viewY);
+      ctx.scale(viewZoom, viewZoom);
+      ctx.strokeStyle = '#0d6efd';
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.moveTo(drawStart.x, drawStart.y);
+      ctx.lineTo(b.x, b.y);
+      ctx.stroke();
+      ctx.restore();
+      return;
+    }
+    if (drawMode === 'text') return;
+    if (!dragMode || !dragStart) return;
+    if (dragMode === 'move') {
+      const o = dragStart.obj;
+      if (!dragStart.moveStarted) {
+        dragStart.lastBx = b.x;
+        dragStart.lastBy = b.y;
+        dragStart.moveStarted = true;
+      } else {
+        const dx = b.x - dragStart.lastBx, dy = b.y - dragStart.lastBy;
+        dragStart.lastBx = b.x;
+        dragStart.lastBy = b.y;
+        if (o.type === 'line' || o.type === 'arrow') {
+          o.points[0] += dx;
+          o.points[1] += dy;
+          o.points[2] += dx;
+          o.points[3] += dy;
+        } else {
+          o.x += dx;
+          o.y += dy;
+        }
+      }
+    }
+    if (dragMode === 'rotate' && dragStart.obj && dragStart.obj.rotation !== undefined) {
+      const o = dragStart.obj;
+      const bounds = getObjectBounds(o);
+      const angle = Math.atan2(b.y - bounds.cy, b.x - bounds.cx);
+      const startAngle = Math.atan2(dragStart.y - bounds.cy, dragStart.x - bounds.cx);
+      o.rotation = (o.rotation || 0) + (angle - startAngle) * 180 / Math.PI;
+      dragStart.x = b.x;
+      dragStart.y = b.y;
+    }
+    if (dragMode && dragMode.startsWith('resize-') && dragStart.obj) {
+      const o = dragStart.obj;
+      const bounds = getObjectBounds(o);
+      const cx = bounds.cx, cy = bounds.cy, w = bounds.w, h = bounds.h;
+      const rad = (o.rotation || 0) * Math.PI / 180;
+      const cos = Math.cos(rad), sin = Math.sin(rad);
+      const minSz = 20;
+      let nw = o.w || 100, nh = o.h || 100;
+      if (dragMode === 'resize-se') {
+        const fx = cx - (w/2)*cos + (h/2)*sin, fy = cy - (w/2)*sin - (h/2)*cos;
+        nw = Math.max(minSz, (b.x - fx)*cos + (b.y - fy)*sin);
+        nh = Math.max(minSz, -(b.x - fx)*sin + (b.y - fy)*cos);
+        o.x = (fx + b.x)/2 - nw/2; o.y = (fy + b.y)/2 - nh/2;
+      } else if (dragMode === 'resize-nw') {
+        const fx = cx + (w/2)*cos - (h/2)*sin, fy = cy + (w/2)*sin + (h/2)*cos;
+        nw = Math.max(minSz, (fx - b.x)*cos + (fy - b.y)*sin);
+        nh = Math.max(minSz, -(fx - b.x)*sin + (fy - b.y)*cos);
+        o.x = (b.x + fx)/2 - nw/2; o.y = (b.y + fy)/2 - nh/2;
+      } else if (dragMode === 'resize-ne') {
+        const fx = cx - (w/2)*cos - (h/2)*sin, fy = cy - (w/2)*sin + (h/2)*cos;
+        nw = Math.max(minSz, (b.x - fx)*cos + (b.y - fy)*sin);
+        nh = Math.max(minSz, (fx - b.x)*sin + (fy - b.y)*cos);
+        o.x = (fx + b.x)/2 - nw/2; o.y = (fy + b.y)/2 - nh/2;
+      } else if (dragMode === 'resize-sw') {
+        const fx = cx + (w/2)*cos + (h/2)*sin, fy = cy + (w/2)*sin - (h/2)*cos;
+        nw = Math.max(minSz, (fx - b.x)*cos + (b.y - fy)*sin);
+        nh = Math.max(minSz, (fx - b.x)*sin + (fy - b.y)*cos);
+        o.x = (b.x + fx)/2 - nw/2; o.y = (b.y + fy)/2 - nh/2;
+      }
+      o.w = nw; o.h = nh;
+    }
+    if (dragMode === 'line-p0') {
+      dragStart.obj.points[0] = b.x;
+      dragStart.obj.points[1] = b.y;
+    }
+    if (dragMode === 'line-p1') {
+      dragStart.obj.points[2] = b.x;
+      dragStart.obj.points[3] = b.y;
+    }
+    lastPointer = { sx: e.clientX - rect.left, sy: e.clientY - rect.top };
+    render();
+  });
+
+  canvas.addEventListener('mouseup', e => {
+    if (drawMode === 'rect' && drawStart) {
+      const b = screenToBoard(e.clientX - canvas.getBoundingClientRect().left, e.clientY - canvas.getBoundingClientRect().top);
+      const isRounded = document.getElementById('btnRoundedRect').classList.contains('active');
+      const obj = {
+        type: isRounded ? 'roundedRect' : 'rect',
+        x: Math.min(drawStart.x, b.x), y: Math.min(drawStart.y, b.y),
+        w: Math.max(20, Math.abs(b.x - drawStart.x)), h: Math.max(20, Math.abs(b.y - drawStart.y)),
+        fill: '#5aa7ff', stroke: '#333', strokeWidth: 2, cornerRadius: isRounded ? 20 : 0
+      };
+      objects.push(obj);
+      selected = obj;
+      drawMode = null;
+      drawStart = null;
+      document.getElementById('btnRect').classList.remove('active');
+      document.getElementById('btnRoundedRect').classList.remove('active');
+      updatePropsPanel();
+      render();
+      return;
+    }
+    if (drawMode === 'line' && drawStart) {
+      const b = screenToBoard(e.clientX - canvas.getBoundingClientRect().left, e.clientY - canvas.getBoundingClientRect().top);
+      const isArrow = document.getElementById('btnArrow').classList.contains('active');
+      objects.push({
+        type: isArrow ? 'arrow' : 'line',
+        points: [drawStart.x, drawStart.y, b.x, b.y],
+        stroke: '#333', strokeWidth: 3
+      });
+      selected = objects[objects.length - 1];
+      drawMode = null;
+      drawStart = null;
+      document.getElementById('btnLine').classList.remove('active');
+      document.getElementById('btnArrow').classList.remove('active');
+      updatePropsPanel();
+      render();
+      return;
+    }
+    dragMode = null;
+    dragStart = null;
+  });
+
+  canvas.addEventListener('mouseleave', () => { dragMode = null; dragStart = null; render(); });
+
+  document.getElementById('btnRect').addEventListener('click', () => {
+    drawMode = 'rect';
+    drawStart = null;
+    document.getElementById('btnRect').classList.add('active');
+    document.getElementById('btnRoundedRect').classList.remove('active');
+    canvas.style.cursor = 'crosshair';
+  });
+  document.getElementById('btnRoundedRect').addEventListener('click', () => {
+    drawMode = 'rect';
+    drawStart = null;
+    document.getElementById('btnRoundedRect').classList.add('active');
+    document.getElementById('btnRect').classList.remove('active');
+    canvas.style.cursor = 'crosshair';
+  });
+  document.getElementById('btnLine').addEventListener('click', () => {
+    drawMode = 'line';
+    drawStart = null;
+    document.getElementById('btnLine').classList.add('active');
+    document.getElementById('btnArrow').classList.remove('active');
+    canvas.style.cursor = 'crosshair';
+  });
+  document.getElementById('btnArrow').addEventListener('click', () => {
+    drawMode = 'line';
+    drawStart = null;
+    document.getElementById('btnArrow').classList.add('active');
+    document.getElementById('btnLine').classList.remove('active');
+    canvas.style.cursor = 'crosshair';
+  });
+  document.getElementById('btnText').addEventListener('click', () => {
+    drawMode = 'text';
+    canvas.style.cursor = 'crosshair';
+  });
+
+  canvas.addEventListener('mousedown', e => {
+    if (drawMode === 'rect' && !drawStart) {
+      const rect = canvas.getBoundingClientRect();
+      drawStart = screenToBoard(e.clientX - rect.left, e.clientY - rect.top);
+    }
+    if (drawMode === 'line' && !drawStart) {
+      const rect = canvas.getBoundingClientRect();
+      drawStart = screenToBoard(e.clientX - rect.left, e.clientY - rect.top);
+    }
+    if (drawMode === 'text') {
+      const rect = canvas.getBoundingClientRect();
+      const b = screenToBoard(e.clientX - rect.left, e.clientY - rect.top);
+      const obj = { type: 'text', x: b.x, y: b.y, text: 'Text', fontSize: 24, fill: '#000000', w: 80, h: 24 };
+      objects.push(obj);
+      selected = obj;
+      drawMode = null;
+      document.getElementById('btnText').classList.remove('active');
+      canvas.style.cursor = 'default';
+      updatePropsPanel();
+      render();
+    }
+  }, true);
+
+  document.getElementById('btnZoomIn').addEventListener('click', () => setZoom(viewZoom * ZOOM_STEP));
+  document.getElementById('btnZoomOut').addEventListener('click', () => setZoom(viewZoom / ZOOM_STEP));
+  document.getElementById('btnZoomReset').addEventListener('click', () => setZoom(1));
+  canvas.addEventListener('wheel', e => {
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+      setZoom(viewZoom * (e.deltaY < 0 ? ZOOM_STEP : 1 / ZOOM_STEP));
+    }
+  }, { passive: false });
+
+  let spacePan = false;
+  window.addEventListener('keydown', e => { if (e.code === 'Space') spacePan = true; });
+  window.addEventListener('keyup', e => { if (e.code === 'Space') { spacePan = false; canvas.style.cursor = selected ? 'default' : 'crosshair'; } });
+  canvas.addEventListener('mousemove', e => {
+    if (spacePan && e.buttons === 1) {
+      viewX += e.movementX;
+      viewY += e.movementY;
+      render();
+    }
+  });
+
+  function updatePropsPanel() {
+    const ph = document.getElementById('propsPlaceholder'), panel = document.getElementById('propsPanel');
+    const textPanel = document.getElementById('propsText'), fillPanel = document.getElementById('propsFill');
+    if (!selected) { ph.classList.remove('hidden'); panel.classList.add('hidden'); return; }
+    ph.classList.add('hidden'); panel.classList.remove('hidden');
+    const o = selected;
+    const isText = o.type === 'text';
+    const isShape = o.type === 'rect' || o.type === 'roundedRect';
+    textPanel.classList.toggle('hidden', !isText);
+    fillPanel.classList.toggle('hidden', !isShape);
+    if (isText) {
+      document.getElementById('inpFontSize').value = o.fontSize || 24;
+      document.getElementById('inpTextColor').value = o.fill || '#000000';
+    }
+    if (isShape) document.getElementById('inpFillColor').value = o.fill || '#5aa7ff';
+    document.getElementById('chkBorder').checked = !!(o.strokeWidth > 0 && o.stroke);
+    document.getElementById('inpBorderColor').value = o.stroke || '#000000';
+    document.getElementById('inpBorderSize').value = o.strokeWidth || 0;
+    document.getElementById('chkShadow').checked = !!(o.shadowBlur && o.shadowBlur > 0);
+    document.getElementById('inpShadowColor').value = o.shadowColor || '#000000';
+    document.getElementById('inpShadowBlur').value = o.shadowBlur || 10;
+    document.getElementById('inpShadowOffsetX').value = o.shadowOffsetX || 5;
+    document.getElementById('inpShadowOffsetY').value = o.shadowOffsetY || 5;
+  }
+
+  function applyBorderShadow(o) {
+    o.stroke = document.getElementById('chkBorder').checked ? document.getElementById('inpBorderColor').value : null;
+    o.strokeWidth = document.getElementById('chkBorder').checked ? parseInt(document.getElementById('inpBorderSize').value, 10) || 0 : 0;
+    if (document.getElementById('chkShadow').checked) {
+      o.shadowColor = document.getElementById('inpShadowColor').value;
+      o.shadowBlur = parseInt(document.getElementById('inpShadowBlur').value, 10) || 10;
+      o.shadowOffsetX = parseInt(document.getElementById('inpShadowOffsetX').value, 10) || 0;
+      o.shadowOffsetY = parseInt(document.getElementById('inpShadowOffsetY').value, 10) || 0;
+    } else {
+      o.shadowBlur = 0;
+      o.shadowOffsetX = 0;
+      o.shadowOffsetY = 0;
+    }
+    render();
+  }
+  ['chkBorder', 'inpBorderColor', 'inpBorderSize', 'chkShadow', 'inpShadowColor', 'inpShadowBlur', 'inpShadowOffsetX', 'inpShadowOffsetY'].forEach(id => {
+    document.getElementById(id).addEventListener('input', () => { if (selected) applyBorderShadow(selected); });
+    document.getElementById(id).addEventListener('change', () => { if (selected) applyBorderShadow(selected); });
+  });
+  document.getElementById('inpFontSize').addEventListener('input', () => {
+    if (selected && selected.type === 'text') { selected.fontSize = parseInt(document.getElementById('inpFontSize').value, 10) || 24; render(); }
+  });
+  document.getElementById('inpTextColor').addEventListener('input', () => {
+    if (selected && selected.type === 'text') { selected.fill = document.getElementById('inpTextColor').value; render(); }
+  });
+  document.getElementById('inpFillColor').addEventListener('input', () => {
+    if (selected && (selected.type === 'rect' || selected.type === 'roundedRect')) { selected.fill = document.getElementById('inpFillColor').value; render(); }
+  });
+
+  function loadImage(file) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        const wrap = document.getElementById('canvasWrap');
+        const fit = Math.min((wrap.clientWidth || 800) / img.naturalWidth, (wrap.clientHeight || 600) / img.naturalHeight, 0.4);
+        const obj = {
+          type: 'image', img,
+          x: 80 + 80 * objects.length, y: 80 + 80 * objects.length,
+          w: img.naturalWidth * fit, h: img.naturalHeight * fit,
+          rotation: 0
+        };
+        objects.push(obj);
+        selected = obj;
+        updatePropsPanel();
+        render();
+        resolve();
+      };
+      img.onerror = reject;
+      img.crossOrigin = 'anonymous';
+      img.src = URL.createObjectURL(file);
+    });
+  }
+  document.getElementById('fileInput').addEventListener('change', async e => {
+    for (const f of [...e.target.files]) await loadImage(f);
+    e.target.value = '';
+  });
+  document.getElementById('btnPaste').addEventListener('click', () => {
+    if (navigator.clipboard && navigator.clipboard.read)
+      navigator.clipboard.read().then(items => {
+        items.forEach(item => item.types.forEach(type => {
+          if (type.startsWith('image/')) item.getType(type).then(blob => loadImage(new File([blob], 'pasted.png', { type: blob.type })));
+        }));
+      }).catch(() => {});
+  });
+  window.addEventListener('paste', e => {
+    if (!e.clipboardData) return;
+    [...e.clipboardData.items].forEach(item => {
+      if (item.kind === 'file' && item.type.startsWith('image/')) { const f = item.getAsFile(); if (f) loadImage(f); }
+    });
+  });
+  const canvasWrap = document.getElementById('canvasWrap');
+  ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(ev => canvasWrap.addEventListener(ev, e => { e.preventDefault(); e.stopPropagation(); }));
+  canvasWrap.addEventListener('drop', e => { [...e.dataTransfer.files].filter(f => f.type.startsWith('image/')).forEach(loadImage); });
+
+  const ctxMenu = document.getElementById('contextMenu');
+  canvas.addEventListener('contextmenu', e => {
+    e.preventDefault();
+    const rect = canvas.getBoundingClientRect();
+    const hit = hitTest(e.clientX - rect.left, e.clientY - rect.top);
+    if (hit) { selected = hit.obj; ctxMenu.classList.add('show'); ctxMenu.style.left = e.clientX + 'px'; ctxMenu.style.top = e.clientY + 'px'; updatePropsPanel(); }
+    else ctxMenu.classList.remove('show');
+  });
+  window.addEventListener('click', () => ctxMenu.classList.remove('show'));
+
+  document.getElementById('ctxBringFront').addEventListener('click', () => {
+    if (selected) { const i = objects.indexOf(selected); if (i >= 0) { objects.splice(i, 1); objects.push(selected); } render(); }
+    ctxMenu.classList.remove('show');
+  });
+  document.getElementById('ctxSendBack').addEventListener('click', () => {
+    if (selected) { const i = objects.indexOf(selected); if (i >= 0) { objects.splice(i, 1); objects.unshift(selected); } render(); }
+    ctxMenu.classList.remove('show');
+  });
+  document.getElementById('ctxDuplicate').addEventListener('click', () => {
+    if (!selected) { ctxMenu.classList.remove('show'); return; }
+    const copy = JSON.parse(JSON.stringify(selected));
+    if (copy.img) copy.img = selected.img;
+    copy.x = (copy.x || 0) + 20;
+    copy.y = (copy.y || 0) + 20;
+    if (copy.points) copy.points = copy.points.slice();
+    objects.push(copy);
+    selected = copy;
+    render();
+    updatePropsPanel();
+    ctxMenu.classList.remove('show');
+  });
+  document.getElementById('ctxDelete').addEventListener('click', () => {
+    if (selected) { const i = objects.indexOf(selected); if (i >= 0) objects.splice(i, 1); selected = null; updatePropsPanel(); render(); }
+    ctxMenu.classList.remove('show');
+  });
+
+  document.getElementById('btnExport').addEventListener('click', () => {
+    const off = document.createElement('canvas');
+    off.width = boardW;
+    off.height = boardH;
+    const octx = off.getContext('2d');
+    octx.fillStyle = '#ffffff';
+    octx.fillRect(0, 0, boardW, boardH);
+    objects.forEach(obj => drawObject(octx, obj));
+    const a = document.createElement('a');
+    a.href = off.toDataURL('image/png');
+    a.download = 'paste_canvas.png';
+    a.click();
+  });
+
+  const I18N = {
+    en: { title: 'Paste Canvas', upload: 'Upload', paste: 'Paste', rect: 'Rect', roundedRect: 'Rounded', line: 'Line', arrow: 'Arrow', text: 'Text', exportPng: 'Export PNG', reset: 'Reset', properties: 'Properties', selectObject: 'Select an object to edit properties.', fontSize: 'Font size', textColor: 'Text color', fillColor: 'Fill color', border: 'Border', borderEnable: 'Enable', borderColor: 'Color', borderSize: 'Size', shadow: 'Shadow', shadowEnable: 'Enable', shadowColor: 'Color', shadowBlur: 'Blur', shadowOffsetX: 'Offset X', shadowOffsetY: 'Offset Y', bringToFront: 'Bring to front', sendToBack: 'Send to back', duplicate: 'Duplicate', delete: 'Delete' },
+    pt: { title: 'Canvas Colar', upload: 'Enviar', paste: 'Colar', rect: 'Rect', roundedRect: 'Oval', line: 'Linha', arrow: 'Seta', text: 'Texto', exportPng: 'Exportar PNG', reset: 'Resetar', properties: 'Propriedades', selectObject: 'Selecione um objeto para editar propriedades.', fontSize: 'Tamanho fonte', textColor: 'Cor do texto', fillColor: 'Cor de preenchimento', border: 'Borda', borderEnable: 'Ativar', borderColor: 'Cor', borderSize: 'Espessura', shadow: 'Sombra', shadowEnable: 'Ativar', shadowColor: 'Cor', shadowBlur: 'Desfoque', shadowOffsetX: 'Offset X', shadowOffsetY: 'Offset Y', bringToFront: 'Trazer à frente', sendToBack: 'Enviar para trás', duplicate: 'Duplicar', delete: 'Apagar' },
+    ja: { title: 'ペーストキャンバス', upload: 'アップロード', paste: '貼り付け', rect: '四角', roundedRect: '角丸', line: '線', arrow: '矢印', text: 'テキスト', exportPng: 'PNG書き出し', reset: 'リセット', properties: 'プロパティ', selectObject: 'オブジェクトを選択してプロパティを編集します。', fontSize: 'フォントサイズ', textColor: '文字色', fillColor: '塗りつぶし', border: '枠線', borderEnable: '有効', borderColor: '色', borderSize: '太さ', shadow: '影', shadowEnable: '有効', shadowColor: '色', shadowBlur: 'ぼかし', shadowOffsetX: 'オフセットX', shadowOffsetY: 'オフセットY', bringToFront: '最前面へ', sendToBack: '最背面へ', duplicate: '複製', delete: '削除' }
+  };
+  let currentLang = localStorage.getItem('paste_canvas_lang') || 'en';
+  function applyLang(lang) {
+    currentLang = lang;
+    try { localStorage.setItem('paste_canvas_lang', lang); } catch (e) {}
+    const t = I18N[lang] || I18N.en;
+    document.querySelectorAll('[data-i18n]').forEach(el => { const k = el.getAttribute('data-i18n'); if (t[k] != null) el.textContent = t[k]; });
+  }
+  document.getElementById('langSelect').value = currentLang;
+  document.getElementById('langSelect').addEventListener('change', e => { applyLang(e.target.value); });
+  applyLang(currentLang);
+
+  const themeKey = 'paste_canvas_theme';
+  let theme = localStorage.getItem(themeKey) || 'dark';
+  if (theme === 'light') document.documentElement.setAttribute('data-theme', 'light');
+  document.getElementById('themeSwitcher').addEventListener('click', () => {
+    theme = document.documentElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+    document.documentElement.setAttribute('data-theme', theme);
+    document.getElementById('themeSwitcher').innerHTML = theme === 'dark' ? '<i class="fas fa-moon"></i>' : '<i class="fas fa-sun"></i>';
+    try { localStorage.setItem(themeKey, theme); } catch (e) {}
+  });
+  if (theme === 'light') document.getElementById('themeSwitcher').innerHTML = '<i class="fas fa-sun"></i>';
+
+  centerView();
+  document.getElementById('zoomBadge').textContent = '100%';
+  render();
+})();
+  </script>
+</body>
+</html>
