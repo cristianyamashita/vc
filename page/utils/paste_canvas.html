@@ -68,6 +68,11 @@
       background: var(--bg-color); color: var(--text-color); border: 1px solid var(--border-color);
       padding: 6px 8px; border-radius: 6px; max-width: 120px;
     }
+    .prop-row-text textarea {
+      width: 100%; min-height: 60px; resize: vertical;
+      background: var(--bg-color); color: var(--text-color); border: 1px solid var(--border-color);
+      padding: 6px 8px; border-radius: 6px; font-size: 13px; font-family: inherit;
+    }
     .context-menu {
       position: fixed; z-index: 1000;
       background: var(--card-bg-color); border: 1px solid var(--border-color);
@@ -127,6 +132,7 @@
       <div id="propsPlaceholder" class="muted" data-i18n="selectObject">Select an object to edit properties.</div>
       <div id="propsPanel" class="hidden">
         <div id="propsText" class="hidden">
+          <div class="prop-row prop-row-text"><label data-i18n="textContent">Content</label><textarea id="inpTextContent" rows="3" placeholder="Text"></textarea></div>
           <div class="prop-row"><label data-i18n="fontSize">Font size</label><input type="number" id="inpFontSize" min="8" max="200" value="24" /></div>
           <div class="prop-row"><label data-i18n="textColor">Text color</label><input type="color" id="inpTextColor" value="#000000" /></div>
         </div>
@@ -357,15 +363,23 @@
     }
     if (obj.type === 'text') {
       const w = obj.w || 80, h = obj.h || 24;
+      const lines = (obj.text ?? 'Text').split('\n');
+      const fontSize = obj.fontSize || 24;
+      const lineHeight = fontSize * 1.2;
       ctx.translate(obj.x + w / 2, obj.y + h / 2);
       ctx.rotate((obj.rotation || 0) * Math.PI / 180);
       ctx.translate(-w / 2, -h / 2);
-      ctx.font = (obj.fontSize || 24) + 'px sans-serif';
+      ctx.font = fontSize + 'px sans-serif';
       ctx.fillStyle = obj.fill || '#000000';
       ctx.textBaseline = 'middle';
-      ctx.fillText(obj.text || 'Text', 0, h / 2);
       applyStroke(ctx, obj);
-      if (obj.strokeWidth > 0) ctx.strokeText(obj.text || 'Text', 0, h / 2);
+      const totalH = (lines.length - 1) * lineHeight;
+      let y = h / 2 - totalH / 2 + lineHeight / 2;
+      lines.forEach(line => {
+        ctx.fillText(line || ' ', 0, y);
+        if (obj.strokeWidth > 0 && obj.stroke) ctx.strokeText(line || ' ', 0, y);
+        y += lineHeight;
+      });
     }
     ctx.restore();
   }
@@ -719,6 +733,7 @@
     textPanel.classList.toggle('hidden', !isText);
     fillPanel.classList.toggle('hidden', !isShape);
     if (isText) {
+      document.getElementById('inpTextContent').value = o.text ?? 'Text';
       document.getElementById('inpFontSize').value = o.fontSize || 24;
       document.getElementById('inpTextColor').value = o.fill || '#000000';
     }
@@ -752,8 +767,36 @@
     document.getElementById(id).addEventListener('input', () => { if (selected) applyBorderShadow(selected); });
     document.getElementById(id).addEventListener('change', () => { if (selected) applyBorderShadow(selected); });
   });
+  function updateTextObjectSize(obj) {
+    if (obj.type !== 'text' || !ctx) return;
+    const s = obj.text ?? 'Text';
+    const lines = s.split('\n');
+    const fontSize = obj.fontSize || 24;
+    const lineHeight = fontSize * 1.2;
+    ctx.save();
+    ctx.font = fontSize + 'px sans-serif';
+    let w = 0;
+    lines.forEach(l => { w = Math.max(w, ctx.measureText(l || ' ').width); });
+    ctx.restore();
+    obj.w = Math.max(20, Math.ceil(w) + 8);
+    obj.h = Math.max(20, lines.length * lineHeight + 4);
+  }
+  document.getElementById('inpTextContent').addEventListener('input', () => {
+    if (selected && selected.type === 'text') {
+      selected.text = document.getElementById('inpTextContent').value || 'Text';
+      updateTextObjectSize(selected);
+      render();
+    }
+  });
+  document.getElementById('inpTextContent').addEventListener('change', () => {
+    if (selected && selected.type === 'text') {
+      selected.text = document.getElementById('inpTextContent').value || 'Text';
+      updateTextObjectSize(selected);
+      render();
+    }
+  });
   document.getElementById('inpFontSize').addEventListener('input', () => {
-    if (selected && selected.type === 'text') { selected.fontSize = parseInt(document.getElementById('inpFontSize').value, 10) || 24; render(); }
+    if (selected && selected.type === 'text') { selected.fontSize = parseInt(document.getElementById('inpFontSize').value, 10) || 24; updateTextObjectSize(selected); render(); }
   });
   document.getElementById('inpTextColor').addEventListener('input', () => {
     if (selected && selected.type === 'text') { selected.fill = document.getElementById('inpTextColor').value; render(); }
@@ -858,9 +901,9 @@
   });
 
   const I18N = {
-    en: { title: 'Paste Canvas', upload: 'Upload', paste: 'Paste', rect: 'Rect', roundedRect: 'Rounded', line: 'Line', arrow: 'Arrow', text: 'Text', exportPng: 'Export PNG', reset: 'Reset', properties: 'Properties', selectObject: 'Select an object to edit properties.', fontSize: 'Font size', textColor: 'Text color', fillColor: 'Fill color', border: 'Border', borderEnable: 'Enable', borderColor: 'Color', borderSize: 'Size', shadow: 'Shadow', shadowEnable: 'Enable', shadowColor: 'Color', shadowBlur: 'Blur', shadowOffsetX: 'Offset X', shadowOffsetY: 'Offset Y', bringToFront: 'Bring to front', sendToBack: 'Send to back', duplicate: 'Duplicate', delete: 'Delete' },
-    pt: { title: 'Canvas Colar', upload: 'Enviar', paste: 'Colar', rect: 'Rect', roundedRect: 'Oval', line: 'Linha', arrow: 'Seta', text: 'Texto', exportPng: 'Exportar PNG', reset: 'Resetar', properties: 'Propriedades', selectObject: 'Selecione um objeto para editar propriedades.', fontSize: 'Tamanho fonte', textColor: 'Cor do texto', fillColor: 'Cor de preenchimento', border: 'Borda', borderEnable: 'Ativar', borderColor: 'Cor', borderSize: 'Espessura', shadow: 'Sombra', shadowEnable: 'Ativar', shadowColor: 'Cor', shadowBlur: 'Desfoque', shadowOffsetX: 'Offset X', shadowOffsetY: 'Offset Y', bringToFront: 'Trazer à frente', sendToBack: 'Enviar para trás', duplicate: 'Duplicar', delete: 'Apagar' },
-    ja: { title: 'ペーストキャンバス', upload: 'アップロード', paste: '貼り付け', rect: '四角', roundedRect: '角丸', line: '線', arrow: '矢印', text: 'テキスト', exportPng: 'PNG書き出し', reset: 'リセット', properties: 'プロパティ', selectObject: 'オブジェクトを選択してプロパティを編集します。', fontSize: 'フォントサイズ', textColor: '文字色', fillColor: '塗りつぶし', border: '枠線', borderEnable: '有効', borderColor: '色', borderSize: '太さ', shadow: '影', shadowEnable: '有効', shadowColor: '色', shadowBlur: 'ぼかし', shadowOffsetX: 'オフセットX', shadowOffsetY: 'オフセットY', bringToFront: '最前面へ', sendToBack: '最背面へ', duplicate: '複製', delete: '削除' }
+    en: { title: 'Paste Canvas', upload: 'Upload', paste: 'Paste', rect: 'Rect', roundedRect: 'Rounded', line: 'Line', arrow: 'Arrow', text: 'Text', exportPng: 'Export PNG', reset: 'Reset', properties: 'Properties', selectObject: 'Select an object to edit properties.', textContent: 'Content', fontSize: 'Font size', textColor: 'Text color', fillColor: 'Fill color', border: 'Border', borderEnable: 'Enable', borderColor: 'Color', borderSize: 'Size', shadow: 'Shadow', shadowEnable: 'Enable', shadowColor: 'Color', shadowBlur: 'Blur', shadowOffsetX: 'Offset X', shadowOffsetY: 'Offset Y', bringToFront: 'Bring to front', sendToBack: 'Send to back', duplicate: 'Duplicate', delete: 'Delete' },
+    pt: { title: 'Canvas Colar', upload: 'Enviar', paste: 'Colar', rect: 'Rect', roundedRect: 'Oval', line: 'Linha', arrow: 'Seta', text: 'Texto', exportPng: 'Exportar PNG', reset: 'Resetar', properties: 'Propriedades', selectObject: 'Selecione um objeto para editar propriedades.', textContent: 'Conteúdo', fontSize: 'Tamanho fonte', textColor: 'Cor do texto', fillColor: 'Cor de preenchimento', border: 'Borda', borderEnable: 'Ativar', borderColor: 'Cor', borderSize: 'Espessura', shadow: 'Sombra', shadowEnable: 'Ativar', shadowColor: 'Cor', shadowBlur: 'Desfoque', shadowOffsetX: 'Offset X', shadowOffsetY: 'Offset Y', bringToFront: 'Trazer à frente', sendToBack: 'Enviar para trás', duplicate: 'Duplicar', delete: 'Apagar' },
+    ja: { title: 'ペーストキャンバス', upload: 'アップロード', paste: '貼り付け', rect: '四角', roundedRect: '角丸', line: '線', arrow: '矢印', text: 'テキスト', exportPng: 'PNG書き出し', reset: 'リセット', properties: 'プロパティ', selectObject: 'オブジェクトを選択してプロパティを編集します。', textContent: '内容', fontSize: 'フォントサイズ', textColor: '文字色', fillColor: '塗りつぶし', border: '枠線', borderEnable: '有効', borderColor: '色', borderSize: '太さ', shadow: '影', shadowEnable: '有効', shadowColor: '色', shadowBlur: 'ぼかし', shadowOffsetX: 'オフセットX', shadowOffsetY: 'オフセットY', bringToFront: '最前面へ', sendToBack: '最背面へ', duplicate: '複製', delete: '削除' }
   };
   let currentLang = localStorage.getItem('paste_canvas_lang') || 'en';
   function applyLang(lang) {
