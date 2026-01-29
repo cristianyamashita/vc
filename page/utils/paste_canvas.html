@@ -137,7 +137,8 @@
           <div class="prop-row"><label data-i18n="textColor">Text color</label><input type="color" id="inpTextColor" value="#000000" /></div>
         </div>
         <div id="propsFill" class="hidden">
-          <div class="prop-row"><label data-i18n="fillColor">Fill color</label><input type="color" id="inpFillColor" value="#5aa7ff" /></div>
+          <div class="prop-row"><label><input type="checkbox" id="chkFillTransparent" /> <span data-i18n="fillTransparent">Transparent</span></label></div>
+          <div class="prop-row prop-row-fill-color"><label data-i18n="fillColor">Fill color</label><input type="color" id="inpFillColor" value="#5aa7ff" /></div>
         </div>
         <div id="propsLine" class="hidden">
           <div class="prop-row"><label data-i18n="lineColor">Color</label><input type="color" id="inpLineColor" value="#333333" /></div>
@@ -185,8 +186,8 @@
   let templateType = null;
 
   const lastConfig = {
-    rect: { fill: '#5aa7ff', stroke: '#333', strokeWidth: 2, shadowBlur: 0, shadowColor: '#000000', shadowOffsetX: 5, shadowOffsetY: 5 },
-    roundedRect: { fill: '#5aa7ff', cornerRadius: 20, stroke: '#333', strokeWidth: 2, shadowBlur: 0, shadowColor: '#000000', shadowOffsetX: 5, shadowOffsetY: 5 },
+    rect: { fill: null, stroke: '#8B0000', strokeWidth: 2, shadowBlur: 0, shadowColor: '#000000', shadowOffsetX: 5, shadowOffsetY: 5 },
+    roundedRect: { fill: null, cornerRadius: 20, stroke: '#8B0000', strokeWidth: 2, shadowBlur: 0, shadowColor: '#000000', shadowOffsetX: 5, shadowOffsetY: 5 },
     line: { stroke: '#333333', strokeWidth: 3, borderColor: null, borderSize: 0, shadowBlur: 0, shadowColor: '#000000', shadowOffsetX: 5, shadowOffsetY: 5 },
     arrow: { stroke: '#333333', strokeWidth: 3, borderColor: null, borderSize: 0, shadowBlur: 0, shadowColor: '#000000', shadowOffsetX: 5, shadowOffsetY: 5 }
   };
@@ -328,7 +329,10 @@
       ctx.translate(obj.x + obj.w / 2, obj.y + obj.h / 2);
       ctx.rotate((obj.rotation || 0) * Math.PI / 180);
       ctx.translate(-obj.w / 2, -obj.h / 2);
-      ctx.fillStyle = obj.fill || '#5aa7ff';
+      const fillTransparent = obj.fill == null || obj.fill === 'transparent';
+      if (!fillTransparent) {
+        ctx.fillStyle = obj.fill || '#5aa7ff';
+      }
       if (obj.type === 'roundedRect') {
         const r = Math.min(obj.cornerRadius || 20, obj.w / 2, obj.h / 2);
         ctx.beginPath();
@@ -342,11 +346,11 @@
         ctx.lineTo(0, r);
         ctx.quadraticCurveTo(0, 0, r, 0);
         ctx.closePath();
-        ctx.fill();
+        if (!fillTransparent) ctx.fill();
         applyStroke(ctx, obj);
         ctx.stroke();
       } else {
-        ctx.fillRect(0, 0, obj.w, obj.h);
+        if (!fillTransparent) ctx.fillRect(0, 0, obj.w, obj.h);
         applyStroke(ctx, obj);
         ctx.strokeRect(0, 0, obj.w, obj.h);
       }
@@ -793,7 +797,11 @@
       document.getElementById('inpFontSize').value = o.fontSize || 24;
       document.getElementById('inpTextColor').value = o.fill || '#000000';
     }
-    if (isShape) document.getElementById('inpFillColor').value = o.fill || '#5aa7ff';
+    if (isShape) {
+      const fillTransparent = o.fill == null || o.fill === 'transparent';
+      document.getElementById('chkFillTransparent').checked = fillTransparent;
+      document.getElementById('inpFillColor').value = o.fill && o.fill !== 'transparent' ? o.fill : '#5aa7ff';
+    }
     if (isLineOrArrow) {
       document.getElementById('inpLineColor').value = o.stroke || '#333333';
       document.getElementById('inpLineSize').value = o.strokeWidth ?? 3;
@@ -850,7 +858,9 @@
     } else {
       target.stroke = document.getElementById('chkBorder').checked ? document.getElementById('inpBorderColor').value : null;
       target.strokeWidth = document.getElementById('chkBorder').checked ? parseInt(document.getElementById('inpBorderSize').value, 10) || 0 : 0;
-      if (isShape) target.fill = document.getElementById('inpFillColor').value;
+      if (isShape) {
+        target.fill = document.getElementById('chkFillTransparent').checked ? null : document.getElementById('inpFillColor').value;
+      }
     }
     if (document.getElementById('chkShadow').checked) {
       target.shadowColor = document.getElementById('inpShadowColor').value;
@@ -871,7 +881,7 @@
       } else {
         selected.stroke = target.stroke;
         selected.strokeWidth = target.strokeWidth;
-        if (isShape) selected.fill = target.fill;
+        if (isShape) selected.fill = document.getElementById('chkFillTransparent').checked ? null : document.getElementById('inpFillColor').value;
       }
       selected.shadowColor = target.shadowColor;
       selected.shadowBlur = target.shadowBlur;
@@ -881,7 +891,7 @@
       render();
     }
   }
-  ['chkBorder', 'inpBorderColor', 'inpBorderSize', 'inpLineColor', 'inpLineSize', 'inpFillColor', 'chkShadow', 'inpShadowColor', 'inpShadowBlur', 'inpShadowOffsetX', 'inpShadowOffsetY'].forEach(id => {
+  ['chkBorder', 'inpBorderColor', 'inpBorderSize', 'inpLineColor', 'inpLineSize', 'chkFillTransparent', 'inpFillColor', 'chkShadow', 'inpShadowColor', 'inpShadowBlur', 'inpShadowOffsetX', 'inpShadowOffsetY'].forEach(id => {
     document.getElementById(id).addEventListener('input', () => { if (selected || templateType) applyBorderShadow(selected); });
     document.getElementById(id).addEventListener('change', () => { if (selected || templateType) applyBorderShadow(selected); });
   });
@@ -919,8 +929,17 @@
   document.getElementById('inpTextColor').addEventListener('input', () => {
     if (selected && selected.type === 'text') { selected.fill = document.getElementById('inpTextColor').value; render(); }
   });
-  document.getElementById('inpFillColor').addEventListener('input', () => {
+  document.getElementById('chkFillTransparent').addEventListener('change', () => {
     if (selected && (selected.type === 'rect' || selected.type === 'roundedRect')) {
+      selected.fill = document.getElementById('chkFillTransparent').checked ? null : document.getElementById('inpFillColor').value;
+      saveToLastConfig(selected);
+      render();
+    } else if (templateType && (templateType === 'rect' || templateType === 'roundedRect')) {
+      lastConfig[templateType].fill = document.getElementById('chkFillTransparent').checked ? null : document.getElementById('inpFillColor').value;
+    }
+  });
+  document.getElementById('inpFillColor').addEventListener('input', () => {
+    if (selected && (selected.type === 'rect' || selected.type === 'roundedRect') && !document.getElementById('chkFillTransparent').checked) {
       selected.fill = document.getElementById('inpFillColor').value;
       saveToLastConfig(selected);
       render();
@@ -1023,9 +1042,9 @@
   });
 
   const I18N = {
-    en: { title: 'Paste Canvas', upload: 'Upload', paste: 'Paste', rect: 'Rect', roundedRect: 'Rounded', line: 'Line', arrow: 'Arrow', text: 'Text', exportPng: 'Export PNG', reset: 'Reset', properties: 'Properties', selectObject: 'Select an object to edit properties.', textContent: 'Content', lineColor: 'Color', lineSize: 'Size', fontSize: 'Font size', textColor: 'Text color', fillColor: 'Fill color', border: 'Border', borderEnable: 'Enable', borderColor: 'Color', borderSize: 'Size', shadow: 'Shadow', shadowEnable: 'Enable', shadowColor: 'Color', shadowBlur: 'Blur', shadowOffsetX: 'Offset X', shadowOffsetY: 'Offset Y', bringToFront: 'Bring to front', sendToBack: 'Send to back', duplicate: 'Duplicate', delete: 'Delete' },
-    pt: { title: 'Canvas Colar', upload: 'Enviar', paste: 'Colar', rect: 'Rect', roundedRect: 'Oval', line: 'Linha', arrow: 'Seta', text: 'Texto', exportPng: 'Exportar PNG', reset: 'Resetar', properties: 'Propriedades', selectObject: 'Selecione um objeto para editar propriedades.', textContent: 'Conteúdo', lineColor: 'Cor', lineSize: 'Espessura', fontSize: 'Tamanho fonte', textColor: 'Cor do texto', fillColor: 'Cor de preenchimento', border: 'Borda', borderEnable: 'Ativar', borderColor: 'Cor', borderSize: 'Espessura', shadow: 'Sombra', shadowEnable: 'Ativar', shadowColor: 'Cor', shadowBlur: 'Desfoque', shadowOffsetX: 'Offset X', shadowOffsetY: 'Offset Y', bringToFront: 'Trazer à frente', sendToBack: 'Enviar para trás', duplicate: 'Duplicar', delete: 'Apagar' },
-    ja: { title: 'ペーストキャンバス', upload: 'アップロード', paste: '貼り付け', rect: '四角', roundedRect: '角丸', line: '線', arrow: '矢印', text: 'テキスト', exportPng: 'PNG書き出し', reset: 'リセット', properties: 'プロパティ', selectObject: 'オブジェクトを選択してプロパティを編集します。', textContent: '内容', lineColor: '色', lineSize: '太さ', fontSize: 'フォントサイズ', textColor: '文字色', fillColor: '塗りつぶし', border: '枠線', borderEnable: '有効', borderColor: '色', borderSize: '太さ', shadow: '影', shadowEnable: '有効', shadowColor: '色', shadowBlur: 'ぼかし', shadowOffsetX: 'オフセットX', shadowOffsetY: 'オフセットY', bringToFront: '最前面へ', sendToBack: '最背面へ', duplicate: '複製', delete: '削除' }
+    en: { title: 'Paste Canvas', upload: 'Upload', paste: 'Paste', rect: 'Rect', roundedRect: 'Rounded', line: 'Line', arrow: 'Arrow', text: 'Text', exportPng: 'Export PNG', reset: 'Reset', properties: 'Properties', selectObject: 'Select an object to edit properties.', textContent: 'Content', lineColor: 'Color', lineSize: 'Size', fontSize: 'Font size', textColor: 'Text color', fillTransparent: 'Transparent', fillColor: 'Fill color', border: 'Border', borderEnable: 'Enable', borderColor: 'Color', borderSize: 'Size', shadow: 'Shadow', shadowEnable: 'Enable', shadowColor: 'Color', shadowBlur: 'Blur', shadowOffsetX: 'Offset X', shadowOffsetY: 'Offset Y', bringToFront: 'Bring to front', sendToBack: 'Send to back', duplicate: 'Duplicate', delete: 'Delete' },
+    pt: { title: 'Canvas Colar', upload: 'Enviar', paste: 'Colar', rect: 'Rect', roundedRect: 'Oval', line: 'Linha', arrow: 'Seta', text: 'Texto', exportPng: 'Exportar PNG', reset: 'Resetar', properties: 'Propriedades', selectObject: 'Selecione um objeto para editar propriedades.', textContent: 'Conteúdo', lineColor: 'Cor', lineSize: 'Espessura', fontSize: 'Tamanho fonte', textColor: 'Cor do texto', fillTransparent: 'Transparente', fillColor: 'Cor de preenchimento', border: 'Borda', borderEnable: 'Ativar', borderColor: 'Cor', borderSize: 'Espessura', shadow: 'Sombra', shadowEnable: 'Ativar', shadowColor: 'Cor', shadowBlur: 'Desfoque', shadowOffsetX: 'Offset X', shadowOffsetY: 'Offset Y', bringToFront: 'Trazer à frente', sendToBack: 'Enviar para trás', duplicate: 'Duplicar', delete: 'Apagar' },
+    ja: { title: 'ペーストキャンバス', upload: 'アップロード', paste: '貼り付け', rect: '四角', roundedRect: '角丸', line: '線', arrow: '矢印', text: 'テキスト', exportPng: 'PNG書き出し', reset: 'リセット', properties: 'プロパティ', selectObject: 'オブジェクトを選択してプロパティを編集します。', textContent: '内容', lineColor: '色', lineSize: '太さ', fontSize: 'フォントサイズ', textColor: '文字色', fillTransparent: '透明', fillColor: '塗りつぶし', border: '枠線', borderEnable: '有効', borderColor: '色', borderSize: '太さ', shadow: '影', shadowEnable: '有効', shadowColor: '色', shadowBlur: 'ぼかし', shadowOffsetX: 'オフセットX', shadowOffsetY: 'オフセットY', bringToFront: '最前面へ', sendToBack: '最背面へ', duplicate: '複製', delete: '削除' }
   };
   let currentLang = localStorage.getItem('paste_canvas_lang') || 'en';
   function applyLang(lang) {
