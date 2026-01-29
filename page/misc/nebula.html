@@ -1,0 +1,720 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title data-i18n="title">Nebulosa / Estrelas — Gravity Playground</title>
+  <style>
+    :root{
+      --bg:#0b0f1a;
+      --panel:rgba(20, 24, 40, 0.75);
+      --border:rgba(255,255,255,0.12);
+      --text:#e8ecff;
+      --muted:rgba(232,236,255,0.72);
+      --accent:#8fd3ff;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;background:var(--bg);color:var(--text);font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
+    #wrap{position:fixed;inset:0;overflow:hidden}
+    canvas{position:absolute;inset:0;display:block}
+    .hud{
+      position:absolute;left:14px;top:14px;z-index:10;
+      width:min(380px, calc(100vw - 28px));
+      background:var(--panel);
+      border:1px solid var(--border);
+      border-radius:14px;
+      padding:12px 12px 10px;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+    }
+    .row{display:flex;align-items:center;gap:10px;margin:8px 0}
+    .row.tight{margin:6px 0}
+    .title{
+      display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:6px
+    }
+    .title h1{font-size:14px;margin:0;letter-spacing:0.2px}
+    .title .sub{font-size:12px;color:var(--muted);line-height:1.2}
+    label{font-size:12px;color:var(--muted);flex:1}
+    input[type="range"]{width:180px}
+    input[type="number"]{width:92px;background:rgba(255,255,255,0.06);border:1px solid var(--border);color:var(--text);border-radius:10px;padding:6px 8px}
+    .btns{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+    button{
+      background:rgba(255,255,255,0.08);
+      border:1px solid var(--border);
+      color:var(--text);
+      padding:7px 10px;border-radius:12px;
+      cursor:pointer;
+      font-size:12px;
+    }
+    button:hover{border-color:rgba(255,255,255,0.22)}
+    button.primary{background:rgba(143,211,255,0.12);border-color:rgba(143,211,255,0.28)}
+    .pill{
+      display:inline-flex;align-items:center;gap:8px;
+      padding:6px 10px;border-radius:999px;
+      border:1px solid var(--border);
+      background:rgba(255,255,255,0.06);
+      font-size:12px;color:var(--muted);
+    }
+    .split{display:flex;gap:10px;align-items:center;justify-content:space-between}
+    .help{
+      margin-top:8px;
+      font-size:12px;color:var(--muted);
+      line-height:1.3;
+    }
+    .kbd{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;
+      font-size:11px;color:var(--text);
+      padding:1px 6px;border-radius:6px;border:1px solid var(--border);
+      background:rgba(0,0,0,0.25)
+    }
+    .foot{
+      position:absolute;right:14px;bottom:14px;z-index:10;
+      display:flex;gap:10px;align-items:center;justify-content:flex-end;flex-wrap:wrap;
+    }
+    .lang-selector{display:flex;gap:6px;align-items:center}
+    .lang-selector a{color:var(--muted);text-decoration:none;font-size:11px;font-weight:600;padding:2px 6px;border-radius:6px;border:1px solid transparent}
+    .lang-selector a:hover{border-color:rgba(255,255,255,0.2)}
+    .lang-selector a.active{color:var(--accent)}
+  </style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="c"></canvas>
+
+  <div class="hud">
+    <div class="title">
+      <div>
+        <h1 data-i18n="titleShort">Nebulosa / Estrelas</h1>
+        <div class="sub" data-i18n="subtitle">Gravidade + links entre estrelas próximas, com controles e interação.</div>
+      </div>
+      <div class="lang-selector">
+        <a href="#" data-lang="en">EN</a>
+        <a href="#" data-lang="ja">JA</a>
+        <a href="#" data-lang="pt">PT</a>
+      </div>
+      <div class="pill" id="fpsPill">FPS: --</div>
+    </div>
+
+    <div class="row">
+      <label data-i18n="labelCount">Quantidade</label>
+      <input id="count" type="range" min="50" max="900" value="50">
+      <span class="pill" id="countVal">50</span>
+    </div>
+
+    <div class="row">
+      <label data-i18n="labelGravity">Gravidade (G)</label>
+      <input id="g" type="range" min="0" max="200" value="55">
+      <span class="pill" id="gVal">0.55</span>
+    </div>
+
+    <div class="row">
+      <label data-i18n="labelSoftening">Softening (evita explosão)</label>
+      <input id="soft" type="range" min="1" max="60" value="14">
+      <span class="pill" id="softVal">14</span>
+    </div>
+
+    <div class="row">
+      <label data-i18n="labelDamping">Damping (atrito)</label>
+      <input id="damp" type="range" min="900" max="999" value="985">
+      <span class="pill" id="dampVal">0.985</span>
+    </div>
+
+    <div class="row">
+      <label data-i18n="labelLinkDist">Link distância</label>
+      <input id="linkDist" type="range" min="20" max="240" value="120">
+      <span class="pill" id="linkDistVal">120</span>
+    </div>
+
+    <div class="row">
+      <label data-i18n="labelMass">Massa base</label>
+      <input id="mass" type="range" min="1" max="60" value="10">
+      <span class="pill" id="massVal">10</span>
+    </div>
+
+    <div class="row tight split">
+      <label data-i18n="labelTrails">Trilhas</label>
+      <input id="trails" type="range" min="0" max="98" value="88">
+      <span class="pill" id="trailsVal">0.88</span>
+    </div>
+
+    <div class="row tight split">
+      <label data-i18n="labelGlow">Glow blur</label>
+      <input id="glow" type="range" min="0" max="18" value="6">
+      <span class="pill" id="glowVal">6</span>
+    </div>
+
+    <div class="btns">
+      <button class="primary" id="reset" data-i18n="btnReset">Reset</button>
+      <button id="toggle" data-i18n="btnPause">Pause</button>
+      <button id="burst" data-i18n="btnBurst">Burst</button>
+      <button id="center" data-i18n="btnAttractorCenter">Attractor center</button>
+      <button id="clearTrails" data-i18n="btnClearTrails">Limpar trilhas</button>
+    </div>
+
+    <div class="help">
+      <div data-i18n="helpIntro">Interação:</div>
+      <div data-i18n="helpClick">Clique para criar estrela (segure Shift para criar mais pesada), arraste uma estrela para “puxar”, roda do mouse ajusta a massa do pincel.</div>
+      <div style="margin-top:6px;" data-i18n="helpKeys">Teclas: Space pause, R reset, B burst.</div>
+    </div>
+  </div>
+
+  <div class="foot">
+    <div class="pill" id="brushPill"><span data-i18n="brushMassLabel">Massa do pincel</span>: <b id="brushMass">18</b></div>
+    <div class="pill" id="infoPill" data-i18n="infoPill">Arraste para interagir</div>
+  </div>
+</div>
+
+<script>
+(() => {
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d', { alpha: false });
+
+  const ui = {
+    count: document.getElementById('count'),
+    g: document.getElementById('g'),
+    soft: document.getElementById('soft'),
+    damp: document.getElementById('damp'),
+    linkDist: document.getElementById('linkDist'),
+    mass: document.getElementById('mass'),
+    trails: document.getElementById('trails'),
+    glow: document.getElementById('glow'),
+
+    countVal: document.getElementById('countVal'),
+    gVal: document.getElementById('gVal'),
+    softVal: document.getElementById('softVal'),
+    dampVal: document.getElementById('dampVal'),
+    linkDistVal: document.getElementById('linkDistVal'),
+    massVal: document.getElementById('massVal'),
+    trailsVal: document.getElementById('trailsVal'),
+    glowVal: document.getElementById('glowVal'),
+
+    fpsPill: document.getElementById('fpsPill'),
+    reset: document.getElementById('reset'),
+    toggle: document.getElementById('toggle'),
+    burst: document.getElementById('burst'),
+    center: document.getElementById('center'),
+    clearTrails: document.getElementById('clearTrails'),
+    brushMass: document.getElementById('brushMass'),
+  };
+
+  // -------- I18N --------
+  const I18N = {
+    en: {
+      title: 'Nebula / Stars — Gravity Playground',
+      titleShort: 'Nebula / Stars',
+      subtitle: 'Gravity + links between nearby stars, with controls and interaction.',
+      fpsLabel: 'FPS',
+      labelCount: 'Count',
+      labelGravity: 'Gravity (G)',
+      labelSoftening: 'Softening (prevents explosion)',
+      labelDamping: 'Damping (friction)',
+      labelLinkDist: 'Link distance',
+      labelMass: 'Base mass',
+      labelTrails: 'Trails',
+      labelGlow: 'Glow blur',
+      btnReset: 'Reset',
+      btnPause: 'Pause',
+      btnResume: 'Resume',
+      btnBurst: 'Burst',
+      btnAttractorCenter: 'Attractor center',
+      btnAttractorOff: 'Attractor off',
+      btnClearTrails: 'Clear trails',
+      helpIntro: 'Interaction:',
+      helpClick: 'Click to create star (hold Shift for heavier), drag a star to pull, mouse wheel adjusts brush mass.',
+      helpKeys: 'Keys: Space pause, R reset, B burst.',
+      brushMassLabel: 'Brush mass',
+      infoPill: 'Drag to interact'
+    },
+    pt: {
+      title: 'Nebulosa / Estrelas — Gravity Playground',
+      titleShort: 'Nebulosa / Estrelas',
+      subtitle: 'Gravidade + links entre estrelas próximas, com controles e interação.',
+      fpsLabel: 'FPS',
+      labelCount: 'Quantidade',
+      labelGravity: 'Gravidade (G)',
+      labelSoftening: 'Softening (evita explosão)',
+      labelDamping: 'Damping (atrito)',
+      labelLinkDist: 'Link distância',
+      labelMass: 'Massa base',
+      labelTrails: 'Trilhas',
+      labelGlow: 'Glow blur',
+      btnReset: 'Reset',
+      btnPause: 'Pause',
+      btnResume: 'Continuar',
+      btnBurst: 'Burst',
+      btnAttractorCenter: 'Attractor center',
+      btnAttractorOff: 'Attractor off',
+      btnClearTrails: 'Limpar trilhas',
+      helpIntro: 'Interação:',
+      helpClick: 'Clique para criar estrela (segure Shift para criar mais pesada), arraste uma estrela para "puxar", roda do mouse ajusta a massa do pincel.',
+      helpKeys: 'Teclas: Space pause, R reset, B burst.',
+      brushMassLabel: 'Massa do pincel',
+      infoPill: 'Arraste para interagir'
+    },
+    ja: {
+      title: '星雲・恒星 — Gravity Playground',
+      titleShort: '星雲・恒星',
+      subtitle: '重力＋近くの星同士をリンク。操作・インタラクション付き。',
+      fpsLabel: 'FPS',
+      labelCount: '数',
+      labelGravity: '重力 (G)',
+      labelSoftening: 'ソフトニング（爆発防止）',
+      labelDamping: '減衰（摩擦）',
+      labelLinkDist: 'リンク距離',
+      labelMass: '基準質量',
+      labelTrails: '軌跡',
+      labelGlow: 'グローぼかし',
+      btnReset: 'リセット',
+      btnPause: '一時停止',
+      btnResume: '再開',
+      btnBurst: 'バースト',
+      btnAttractorCenter: 'アトラクター中心',
+      btnAttractorOff: 'アトラクター解除',
+      btnClearTrails: '軌跡を消す',
+      helpIntro: '操作:',
+      helpClick: 'クリックで星を追加（Shift長押しで重く）、星をドラッグで引っ張る。マウスホイールでブラシ質量。',
+      helpKeys: 'キー: Space 一時停止, R リセット, B バースト。',
+      brushMassLabel: 'ブラシ質量',
+      infoPill: 'ドラッグで操作'
+    }
+  };
+  let currentLang = (function(){ try { return localStorage.getItem('nebula_lang') || 'pt'; } catch(e){ return 'pt'; } })();
+  function t(k) { return (I18N[currentLang] || I18N.pt)[k] || (I18N.pt)[k] || k; }
+  function applyLang(lang) {
+    currentLang = lang;
+    try { localStorage.setItem('nebula_lang', lang); } catch (e) {}
+    document.documentElement.lang = lang === 'ja' ? 'ja' : lang === 'en' ? 'en' : 'pt-BR';
+    const L = I18N[lang] || I18N.pt;
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+      const key = el.getAttribute('data-i18n');
+      if (L[key] != null) el.textContent = L[key];
+    });
+    if (document.title !== undefined) document.title = L.title;
+    ui.toggle.textContent = running ? t('btnResume') : t('btnPause');
+    ui.center.textContent = attractor ? t('btnAttractorOff') : t('btnAttractorCenter');
+    syncLabels();
+    document.querySelectorAll('.lang-selector a').forEach(a => {
+      a.classList.toggle('active', a.getAttribute('data-lang') === lang);
+    });
+  }
+  document.querySelectorAll('.lang-selector a').forEach(a => {
+    a.addEventListener('click', (e) => { e.preventDefault(); applyLang(a.getAttribute('data-lang')); });
+  });
+
+  let W = 0, H = 0, DPR = 1;
+
+  function resize() {
+    DPR = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+    W = Math.floor(window.innerWidth);
+    H = Math.floor(window.innerHeight);
+    canvas.width = Math.floor(W * DPR);
+    canvas.height = Math.floor(H * DPR);
+    canvas.style.width = W + 'px';
+    canvas.style.height = H + 'px';
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    ctx.imageSmoothingEnabled = true;
+    clearHard();
+  }
+
+  function clearHard() {
+    ctx.save();
+    ctx.setTransform(1,0,0,1,0,0);
+    ctx.fillStyle = '#0b0f1a';
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.restore();
+  }
+
+  window.addEventListener('resize', resize);
+
+  // -------- Simulation --------
+  // Observação: N-body completo é O(N^2). Mantemos N moderado e usamos "linkDist"
+  // e softening para estabilidade visual.
+  let bodies = [];
+  let running = true;
+  let attractor = null; // {x,y,mass} opcional
+
+  // Pincel de criação
+  let brushMass = 18;
+
+  function rand(min, max) { return min + Math.random()*(max-min); }
+
+  function initBodies(n) {
+    bodies = [];
+    const baseM = Number(ui.mass.value);
+    const cx = W/2, cy = H/2;
+
+    // Distribuição tipo nebulosa: elipse com ruído + rotação suave
+    for (let i=0;i<n;i++){
+      const ang = Math.random()*Math.PI*2;
+      const r = Math.pow(Math.random(), 0.55) * Math.min(W,H) * 0.38;
+      const ex = r * Math.cos(ang) * rand(0.75, 1.25);
+      const ey = r * Math.sin(ang) * rand(0.55, 1.35);
+
+      const x = cx + ex + rand(-18, 18);
+      const y = cy + ey + rand(-18, 18);
+
+      const m = Math.max(1, baseM * rand(0.4, 1.6));
+      // Velocidade inicial com “swirl”
+      const vx = -ey * 0.0009 * rand(0.6, 1.3);
+      const vy =  ex * 0.0009 * rand(0.6, 1.3);
+
+      bodies.push({
+        x, y, vx, vy,
+        ax: 0, ay: 0,
+        m,
+        r: Math.max(1.2, Math.sqrt(m) * 0.45),
+      });
+    }
+  }
+
+  function syncLabels() {
+    ui.countVal.textContent = ui.count.value;
+    const g = Number(ui.g.value) / 100;
+    ui.gVal.textContent = g.toFixed(2);
+    ui.softVal.textContent = ui.soft.value;
+    ui.dampVal.textContent = (Number(ui.damp.value)/1000).toFixed(3);
+    ui.linkDistVal.textContent = ui.linkDist.value;
+    ui.massVal.textContent = ui.mass.value;
+    ui.trailsVal.textContent = (Number(ui.trails.value)/100).toFixed(2);
+    ui.glowVal.textContent = ui.glow.value;
+    ui.brushMass.textContent = Math.round(brushMass);
+  }
+
+  // UI events
+  for (const k of ['count','g','soft','damp','linkDist','mass','trails','glow']) {
+    ui[k].addEventListener('input', () => {
+      syncLabels();
+      if (k === 'count') {
+        // Ajuste suave: recria se for grande mudança
+        const target = Number(ui.count.value);
+        if (Math.abs(target - bodies.length) > 80) {
+          initBodies(target);
+        } else {
+          while (bodies.length < target) bodies.push(spawnBody(rand(0,W), rand(0,H), brushMass*rand(0.4,0.9)));
+          while (bodies.length > target) bodies.pop();
+        }
+      }
+      if (k === 'mass') {
+        // Recalcula raios com base no slider
+        // (não altera massas existentes, mas afeta próximos spawns e resets)
+      }
+    });
+  }
+
+  ui.reset.addEventListener('click', () => initBodies(Number(ui.count.value)));
+  ui.toggle.addEventListener('click', () => {
+    running = !running;
+    ui.toggle.textContent = running ? t('btnPause') : t('btnResume');
+  });
+  ui.clearTrails.addEventListener('click', clearHard);
+  ui.burst.addEventListener('click', () => burst());
+  ui.center.addEventListener('click', () => {
+    if (attractor) {
+      attractor = null;
+      ui.center.textContent = t('btnAttractorCenter');
+    } else {
+      attractor = { x: W/2, y: H/2, m: 4500 };
+      ui.center.textContent = t('btnAttractorOff');
+    }
+  });
+
+  // Keyboard
+  window.addEventListener('keydown', (e) => {
+    if (e.code === 'Space') { e.preventDefault(); ui.toggle.click(); }
+    if (e.key.toLowerCase() === 'r') ui.reset.click();
+    if (e.key.toLowerCase() === 'b') ui.burst.click();
+  });
+
+  function spawnBody(x, y, mass) {
+    const m = Math.max(1, mass);
+    return {
+      x, y,
+      vx: rand(-0.08, 0.08),
+      vy: rand(-0.08, 0.08),
+      ax: 0, ay: 0,
+      m,
+      r: Math.max(1.2, Math.sqrt(m) * 0.45),
+    };
+  }
+
+  function burst() {
+    // Empurra tudo para fora do centro
+    const cx = W/2, cy = H/2;
+    for (const b of bodies) {
+      const dx = b.x - cx;
+      const dy = b.y - cy;
+      const d = Math.hypot(dx,dy) + 0.001;
+      const s = 0.25 + Math.random()*0.6;
+      b.vx += (dx/d) * s;
+      b.vy += (dy/d) * s;
+    }
+  }
+
+  // -------- Interaction (mouse/touch) --------
+  let pointer = { x:0, y:0, down:false };
+  let dragging = null;
+
+  function pointerPos(ev){
+    const rect = canvas.getBoundingClientRect();
+    let x, y;
+    if (ev.touches && ev.touches[0]) {
+      x = ev.touches[0].clientX - rect.left;
+      y = ev.touches[0].clientY - rect.top;
+    } else {
+      x = ev.clientX - rect.left;
+      y = ev.clientY - rect.top;
+    }
+    return { x, y };
+  }
+
+  function findNearest(x,y, maxDist=22) {
+    let best = null;
+    let bestD2 = maxDist*maxDist;
+    for (let i=0;i<bodies.length;i++){
+      const b = bodies[i];
+      const dx = b.x - x;
+      const dy = b.y - y;
+      const d2 = dx*dx + dy*dy;
+      if (d2 < bestD2) { bestD2 = d2; best = b; }
+    }
+    return best;
+  }
+
+  function onDown(ev){
+    ev.preventDefault();
+    const p = pointerPos(ev);
+    pointer.x = p.x; pointer.y = p.y; pointer.down = true;
+
+    const near = findNearest(p.x, p.y, 26);
+    if (near) {
+      dragging = { b: near, ox: near.x - p.x, oy: near.y - p.y };
+    } else {
+      // cria novo corpo
+      const heavy = ev.shiftKey || (ev.touches && ev.touches.length > 1);
+      const m = heavy ? brushMass*3.2 : brushMass;
+      bodies.push(spawnBody(p.x, p.y, m));
+      // mantém limite
+      const maxN = Number(ui.count.value);
+      if (bodies.length > maxN) bodies.splice(0, bodies.length - maxN);
+    }
+  }
+  function onMove(ev){
+    const p = pointerPos(ev);
+    pointer.x = p.x; pointer.y = p.y;
+    if (dragging && pointer.down) {
+      const b = dragging.b;
+      b.x = p.x + dragging.ox;
+      b.y = p.y + dragging.oy;
+      b.vx *= 0.6;
+      b.vy *= 0.6;
+    }
+    if (attractor) {
+      attractor.x = pointer.x;
+      attractor.y = pointer.y;
+    }
+  }
+  function onUp(ev){
+    pointer.down = false;
+    dragging = null;
+  }
+
+  canvas.addEventListener('mousedown', onDown);
+  window.addEventListener('mousemove', onMove);
+  window.addEventListener('mouseup', onUp);
+
+  canvas.addEventListener('touchstart', onDown, { passive:false });
+  window.addEventListener('touchmove', onMove, { passive:false });
+  window.addEventListener('touchend', onUp);
+
+  // Wheel adjusts brush mass
+  canvas.addEventListener('wheel', (ev) => {
+    ev.preventDefault();
+    const delta = Math.sign(ev.deltaY);
+    brushMass = Math.min(220, Math.max(3, brushMass + delta * 2.5));
+    syncLabels();
+  }, { passive:false });
+
+  // -------- Physics step --------
+  // dt fixo com clamp
+  let lastT = performance.now();
+  let fpsEMA = 60;
+
+  function step(now){
+    const dtMs = Math.min(33, Math.max(8, now - lastT));
+    lastT = now;
+    const dt = dtMs / 16.6667; // ~60fps baseline
+    const damp = Number(ui.damp.value)/1000;
+
+    // FPS
+    const fps = 1000/dtMs;
+    fpsEMA = fpsEMA*0.92 + fps*0.08;
+    ui.fpsPill.textContent = t('fpsLabel') + ': ' + fpsEMA.toFixed(0);
+
+    if (running) {
+      const G = Number(ui.g.value)/100;   // 0..2
+      const soft = Number(ui.soft.value); // px
+      const soft2 = soft*soft;
+      const N = bodies.length;
+
+      // zera aceleração
+      for (let i=0;i<N;i++){
+        bodies[i].ax = 0;
+        bodies[i].ay = 0;
+      }
+
+      // N-body O(N^2)
+      for (let i=0;i<N;i++){
+        const bi = bodies[i];
+        for (let j=i+1;j<N;j++){
+          const bj = bodies[j];
+          const dx = bj.x - bi.x;
+          const dy = bj.y - bi.y;
+          const r2 = dx*dx + dy*dy + soft2;
+          const invR = 1 / Math.sqrt(r2);
+          const invR3 = invR*invR*invR;
+
+          // Força proporcional a m1*m2
+          const f = G * invR3;
+
+          // aceleração em i causada por j: f*mj
+          bi.ax += dx * f * bj.m;
+          bi.ay += dy * f * bj.m;
+
+          // aceleração em j causada por i: -f*mi
+          bj.ax -= dx * f * bi.m;
+          bj.ay -= dy * f * bi.m;
+        }
+      }
+
+      // attractor externo (opcional)
+      if (attractor) {
+        for (const b of bodies) {
+          const dx = attractor.x - b.x;
+          const dy = attractor.y - b.y;
+          const r2 = dx*dx + dy*dy + soft2;
+          const invR = 1 / Math.sqrt(r2);
+          const invR3 = invR*invR*invR;
+          const f = (G * 1.4) * invR3;
+          b.ax += dx * f * attractor.m;
+          b.ay += dy * f * attractor.m;
+        }
+      }
+
+      // integra
+      for (const b of bodies){
+        b.vx = (b.vx + b.ax * dt) * damp;
+        b.vy = (b.vy + b.ay * dt) * damp;
+
+        b.x += b.vx * dt;
+        b.y += b.vy * dt;
+
+        // bordas com wrap suave
+        if (b.x < -40) b.x = W + 40;
+        if (b.x > W + 40) b.x = -40;
+        if (b.y < -40) b.y = H + 40;
+        if (b.y > H + 40) b.y = -40;
+      }
+    }
+
+    draw();
+    requestAnimationFrame(step);
+  }
+
+  function draw(){
+    const trailsAlpha = Number(ui.trails.value)/100; // 0..0.98
+    const linkD = Number(ui.linkDist.value);
+    const linkD2 = linkD*linkD;
+    const glow = Number(ui.glow.value);
+
+    // Fundo com trilhas
+    ctx.save();
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.fillStyle = `rgba(11, 15, 26, ${1 - trailsAlpha})`;
+    ctx.fillRect(0,0,W,H);
+    ctx.restore();
+
+    // Links
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.lineWidth = 1;
+
+    // Um pouco caro: links também são O(N^2). Então limitamos desenhando links
+    // só para pares bem próximos (e com early break por amostragem quando N grande).
+    const N = bodies.length;
+    const stepJ = N > 520 ? 2 : 1; // amostragem leve quando muito grande
+
+    for (let i=0;i<N;i++){
+      const a = bodies[i];
+      for (let j=i+stepJ;j<N;j+=stepJ){
+        const b = bodies[j];
+        const dx = b.x - a.x;
+        const dy = b.y - a.y;
+        const d2 = dx*dx + dy*dy;
+        if (d2 < linkD2) {
+          const d = Math.sqrt(d2);
+          const t = 1 - (d / linkD);
+          // intensidade também por massa (dá “clusters” mais brilhantes)
+          const mFactor = Math.min(1, (a.m + b.m) / 60);
+          const alpha = (0.04 + 0.30 * t*t) * (0.5 + 0.5*mFactor);
+
+          // cor varia levemente com massa e distância
+          const hue = 200 + (a.m - b.m) * 0.6;
+          ctx.strokeStyle = `hsla(${hue}, 95%, 70%, ${alpha})`;
+          ctx.beginPath();
+          ctx.moveTo(a.x, a.y);
+          ctx.lineTo(b.x, b.y);
+          ctx.stroke();
+        }
+      }
+    }
+    ctx.restore();
+
+    // Estrelas
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.shadowBlur = glow;
+    ctx.shadowColor = 'rgba(140, 210, 255, 0.9)';
+
+    for (const b of bodies) {
+      // brilho por massa
+      const lum = Math.min(90, 55 + b.m*0.7);
+      const hue = 205 + (b.m % 12) * 2;
+      ctx.fillStyle = `hsla(${hue}, 95%, ${lum}%, 0.9)`;
+
+      // corpo
+      ctx.beginPath();
+      ctx.arc(b.x, b.y, b.r, 0, Math.PI*2);
+      ctx.fill();
+
+      // “halo” sutil
+      if (b.m > 18) {
+        ctx.globalAlpha = 0.22;
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, b.r*2.8, 0, Math.PI*2);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+      }
+    }
+    ctx.restore();
+
+    // cursor preview (pincel)
+    ctx.save();
+    ctx.globalCompositeOperation = 'screen';
+    ctx.strokeStyle = 'rgba(143, 211, 255, 0.35)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    const pr = Math.max(6, Math.sqrt(brushMass) * 1.2);
+    ctx.arc(pointer.x, pointer.y, pr, 0, Math.PI*2);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // -------- Boot --------
+  resize();
+  syncLabels();
+  initBodies(Number(ui.count.value));
+  applyLang(currentLang);
+  requestAnimationFrame(step);
+})();
+</script>
+</body>
+</html>
