@@ -127,6 +127,13 @@
                 <label for="input-template" class="form-label" data-i18n="inputLabel">Input</label>
                 <textarea id="input-template" class="form-control mono" rows="4" data-i18n-placeholder="inputPlaceholder" placeholder="The {V1} is {V2} and has size {V3}, color {V4}, this is my {V1}"></textarea>
                 <div class="help-text mt-1" data-i18n="placeholderHelp">Use placeholders: {V1}, {V2}, {V3}, {V4}, {V5}</div>
+                <div class="mt-2 d-flex gap-2 align-items-center flex-wrap">
+                  <input type="text" id="search-input" class="form-control mono" style="max-width: 280px;" data-i18n-placeholder="searchPlaceholder" placeholder="Buscar no Input e V1–V5...">
+                  <button type="button" id="search-btn" class="btn btn-sm btn-outline-primary" data-i18n="searchBtn">
+                    <i class="fas fa-search"></i> <span data-i18n="searchBtn">Buscar</span>
+                  </button>
+                </div>
+                <div id="search-results" class="mt-2 p-2 rounded" style="display: none; background-color: var(--border-color); max-height: 320px; overflow-y: auto;"></div>
                 <div class="help-text mt-1" data-i18n="conditionalHelp">Conditional: IF({V1}==1,"value") | Operators: ==, !=, &lt;, &gt;, &lt;=, &gt;=, contains, &amp;&amp;, ||</div>
               </div>
 
@@ -268,7 +275,15 @@
           renameBtn: "Rename",
           deleteBtn: "Delete",
           renamePrompt: "Enter new name:",
-          deleteConfirm: "Delete this history entry?"
+          deleteConfirm: "Delete this history entry?",
+          searchPlaceholder: "Search in Input and V1–V5...",
+          searchBtn: "Search",
+          searchFoundIn: "Found in",
+          searchPromptsContaining: "Prompts containing:",
+          openInNewTab: "Open in new tab",
+          searchNoResults: "No matches",
+          searchLineLabel: "line",
+          searchOtherStorages: "other storages"
         },
         pt: {
           title: "Prompt Concat",
@@ -296,7 +311,15 @@
           renameBtn: "Renomear",
           deleteBtn: "Excluir",
           renamePrompt: "Digite o novo nome:",
-          deleteConfirm: "Excluir este histórico?"
+          deleteConfirm: "Excluir este histórico?",
+          searchPlaceholder: "Buscar no Input e V1–V5...",
+          searchBtn: "Buscar",
+          searchFoundIn: "Encontrado em",
+          searchPromptsContaining: "Prompts que contêm:",
+          openInNewTab: "Abrir em nova aba",
+          searchNoResults: "Nenhum resultado",
+          searchLineLabel: "linha",
+          searchOtherStorages: "outros storages"
         },
         ja: {
           title: "プロンプト連結",
@@ -324,7 +347,15 @@
           renameBtn: "名前変更",
           deleteBtn: "削除",
           renamePrompt: "新しい名前を入力:",
-          deleteConfirm: "この履歴を削除しますか？"
+          deleteConfirm: "この履歴を削除しますか？",
+          searchPlaceholder: "InputとV1–V5で検索...",
+          searchBtn: "検索",
+          searchFoundIn: "見つかった場所",
+          searchPromptsContaining: "含むプロンプト:",
+          openInNewTab: "新しいタブで開く",
+          searchNoResults: "一致なし",
+          searchLineLabel: "行",
+          searchOtherStorages: "他のストレージ"
         }
       };
 
@@ -341,6 +372,10 @@
         const vEls = [document.getElementById('v1'), document.getElementById('v2'), document.getElementById('v3'), document.getElementById('v4'), document.getElementById('v5')];
         const resultEl = document.getElementById('result');
         const resultCountEl = document.getElementById('result-count');
+
+        const searchInputEl = document.getElementById('search-input');
+        const searchBtnEl = document.getElementById('search-btn');
+        const searchResultsEl = document.getElementById('search-results');
 
         const historyBtn = document.getElementById('history-btn');
         const historyListEl = document.getElementById('history-list');
@@ -480,6 +515,14 @@
         const readField = (field, fallback = '') => {
           try {
             const v = localStorage.getItem(keyFor(field));
+            return v == null ? fallback : v;
+          } catch {
+            return fallback;
+          }
+        };
+        const readFieldFromPrefix = (prefix, field, fallback = '') => {
+          try {
+            const v = localStorage.getItem(`prompt_concat:${prefix}:${field}`);
             return v == null ? fallback : v;
           } catch {
             return fallback;
@@ -894,6 +937,88 @@
           resultCountEl.textContent = String(lines.length);
         };
 
+        const escapeHtml = (s) => {
+          const div = document.createElement('div');
+          div.textContent = s;
+          return div.innerHTML;
+        };
+
+        const openPromptInNewTab = (promptText) => {
+          const endStyle = '<' + '/style>';
+          const endHeadBody = '<' + '/head><body>';
+          const endBodyHtml = '<' + '/body><' + '/html>';
+          const html = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Prompt</title><style>body{font-family:monospace;white-space:pre-wrap;word-break:break-all;padding:1rem;margin:0;background:#1a1a1a;color:#f0f0f0;}' + endStyle + endHeadBody + escapeHtml(promptText) + endBodyHtml;
+          const dataUrl = 'data:text/html;charset=utf-8,' + encodeURIComponent(html);
+          window.open(dataUrl, '_blank', 'noopener');
+        };
+
+        const runSearch = () => {
+          const term = String(searchInputEl.value || '').trim();
+          const lang = i18n[currentLanguage] || i18n.en;
+          searchResultsEl.style.display = 'none';
+          searchResultsEl.innerHTML = '';
+
+          if (!term) return;
+
+          const currentPrefix = getPrefix();
+          const allStorages = getAllStorages();
+          const otherStorages = allStorages.filter((p) => p !== currentPrefix);
+
+          const sourceNames = [
+            { key: 'input', name: 'Input' },
+            { key: 'v1', name: 'V1' },
+            { key: 'v2', name: 'V2' },
+            { key: 'v3', name: 'V3' },
+            { key: 'v4', name: 'V4' },
+            { key: 'v5', name: 'V5' }
+          ];
+
+          const foundInSources = [];
+          const lowerTerm = term.toLowerCase();
+
+          for (const prefix of otherStorages) {
+            for (const src of sourceNames) {
+              const text = String(readFieldFromPrefix(prefix, src.key, ''));
+              const lines = text.split(/\r?\n/);
+              lines.forEach((line, idx) => {
+                if (line.toLowerCase().includes(lowerTerm)) {
+                  foundInSources.push({
+                    storage: prefix,
+                    storageDisplay: isHistoryPrefix(prefix) ? formatHistoryDateForDisplay(prefix) : prefix,
+                    source: src.name,
+                    line: line.trim(),
+                    lineNum: idx + 1
+                  });
+                }
+              });
+            }
+          }
+
+          if (foundInSources.length === 0) {
+            searchResultsEl.innerHTML = '<div class="text-muted small">' + (lang.searchNoResults || 'No matches') + '</div>';
+            searchResultsEl.style.display = 'block';
+            return;
+          }
+
+          const lineLabel = lang.searchLineLabel || 'line';
+          const openStorageLabel = lang.openInNewTab || 'Open in new tab';
+          const baseUrl = location.href.split('#')[0];
+          let html = '<div class="small fw-bold mb-1">' + (lang.searchFoundIn || 'Found in') + ' (' + (lang.searchOtherStorages || 'other storages') + '):</div>';
+          html += '<ul class="list-unstyled small mb-2">';
+          foundInSources.forEach(({ storage, storageDisplay, source, line, lineNum }) => {
+            const snippet = escapeHtml(line.length > 120 ? line.slice(0, 120) + '…' : line);
+            const storageUrl = baseUrl + '#' + encodeURIComponent(storage);
+            html += '<li class="mb-2">';
+            html += '<span class="text-warning">' + escapeHtml(storageDisplay) + '</span> &rarr; <span class="text-info">' + escapeHtml(source) + '</span> (' + lineLabel + ' ' + lineNum + '): <span class="mono">' + snippet + '</span><br>';
+            html += '<a href="' + escapeHtml(storageUrl) + '" class="open-storage-link" target="_blank" rel="noopener">' + escapeHtml(openStorageLabel) + ' <i class="fas fa-external-link-alt"></i></a>';
+            html += '</li>';
+          });
+          html += '</ul>';
+
+          searchResultsEl.innerHTML = html;
+          searchResultsEl.style.display = 'block';
+        };
+
         const saveAll = () => {
           writeField('input', inputTemplateEl.value);
           vEls.forEach((el, idx) => writeField(`v${idx + 1}`, el.value));
@@ -956,6 +1081,14 @@
 
         inputTemplateEl.addEventListener('input', schedule);
         vEls.forEach((el) => el.addEventListener('input', schedule));
+
+        searchBtnEl.addEventListener('click', runSearch);
+        searchInputEl.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            runSearch();
+          }
+        });
 
         // Shuffle buttons
         document.querySelectorAll('[data-shuffle]').forEach((btn) => {
