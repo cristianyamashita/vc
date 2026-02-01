@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Sandbox</title>
+  <style>
+    html, body { height: 100%; margin: 0; background: #0b0f1a; overflow: hidden; }
+    canvas { display: block; width: 100%; height: 100%; }
+  </style>
+</head>
+<body>
+  <canvas id="cv"></canvas>
+  <script>
+(function() {
+  var canvas = document.getElementById('cv');
+  var runId = null;
+
+  function send(type, args) {
+    if (runId === null) return;
+    try {
+      parent.postMessage({ __runner: true, runId: runId, type: type, args: args }, '*');
+    } catch (e) {}
+  }
+
+  function setupConsole() {
+    var C = {};
+    ['log','warn','error','info'].forEach(function(k) {
+      C[k] = function() { send(k, [].slice.call(arguments)); };
+    });
+    C.table = function(x) { send('table', [x]); };
+    return C;
+  }
+
+  window.addEventListener('error', function(e) {
+    var msg = e.error && e.error.stack ? e.error.stack : (e.error && (e.error.name + ': ' + e.error.message)) || e.message || 'Error';
+    send('error', [msg]);
+  });
+  window.addEventListener('unhandledrejection', function(e) {
+    var r = e.reason;
+    var msg = (r && r.stack) ? r.stack : String(r);
+    send('error', ['UnhandledPromiseRejection: ' + msg]);
+  });
+
+  function resize() {
+    var w = innerWidth, h = innerHeight;
+    var dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+    canvas.width = Math.floor(w * dpr);
+    canvas.height = Math.floor(h * dpr);
+    canvas.style.width = w + 'px';
+    canvas.style.height = h + 'px';
+    var ctx = canvas.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    send('info', ['canvas resized: ' + w + 'x' + h]);
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  var ctx = canvas.getContext('2d');
+  var dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  window.addEventListener('message', function(ev) {
+    var d = ev.data;
+    if (!d || d.__runner !== true || d.type !== 'run') return;
+    runId = d.runId;
+    var code = typeof d.code === 'string' ? d.code : '';
+    var console = setupConsole();
+    try {
+      (function(canvas, ctx, console) {
+        eval(code);
+      })(canvas, ctx, console);
+    } catch (err) {
+      console.error(err && err.stack ? err.stack : String(err));
+    }
+  });
+
+  parent.postMessage({ __runner: true, type: 'ready' }, '*');
+})();
+  </script>
+</body>
+</html>

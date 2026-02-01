@@ -1,0 +1,523 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>JS Code Runner (Offline)</title>
+  <style>
+    :root, [data-theme="dark"] {
+      --bg:#0b0f1a;
+      --panel:rgba(20,24,40,0.75);
+      --border:rgba(255,255,255,0.12);
+      --text:#e8ecff;
+      --muted:rgba(232,236,255,0.72);
+      --input-bg:rgba(0,0,0,0.20);
+      --console-bg:rgba(0,0,0,0.18);
+      --btn-hover:rgba(255,255,255,0.22);
+      --kbd-bg:rgba(0,0,0,0.25);
+    }
+    [data-theme="light"] {
+      --bg:#e8ecf4;
+      --panel:rgba(255,255,255,0.85);
+      --border:rgba(0,0,0,0.12);
+      --text:#1a1f2e;
+      --muted:rgba(26,31,46,0.72);
+      --input-bg:rgba(255,255,255,0.7);
+      --console-bg:rgba(0,0,0,0.06);
+      --btn-hover:rgba(0,0,0,0.18);
+      --kbd-bg:rgba(0,0,0,0.08);
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;background:var(--bg);color:var(--text);font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
+    .app{position:fixed;inset:0;display:grid;grid-template-columns: 1.2fr 0.8fr;gap:12px;padding:12px}
+    .card{
+      background:var(--panel);
+      border:1px solid var(--border);
+      border-radius:14px;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+      overflow:hidden;
+      display:flex;
+      flex-direction:column;
+      min-height:0;
+    }
+    .bar{
+      display:flex;align-items:center;justify-content:space-between;gap:10px;
+      padding:10px 12px;border-bottom:1px solid var(--border);
+    }
+    .bar .title{font-size:13px;margin:0}
+    .bar .sub{font-size:12px;color:var(--muted)}
+    .btns{display:flex;gap:8px;flex-wrap:wrap}
+    button, select{
+      background:rgba(255,255,255,0.08);
+      border:1px solid var(--border);
+      color:var(--text);
+      padding:7px 10px;border-radius:12px;
+      cursor:pointer;
+      font-size:12px;
+    }
+    [data-theme="light"] button, [data-theme="light"] select {
+      background:rgba(0,0,0,0.06);
+      border-color:rgba(0,0,0,0.12);
+    }
+    button:hover{border-color:var(--btn-hover)}
+    button.primary{background:rgba(143,211,255,0.12);border-color:rgba(143,211,255,0.28)}
+    button.danger{background:rgba(255,120,120,0.10);border-color:rgba(255,120,120,0.26)}
+    .pill{
+      display:inline-flex;align-items:center;gap:8px;
+      padding:6px 10px;border-radius:999px;
+      border:1px solid var(--border);
+      background:rgba(255,255,255,0.06);
+      font-size:12px;color:var(--muted);
+      white-space:nowrap;
+    }
+    [data-theme="light"] .pill { background:rgba(0,0,0,0.05); }
+    textarea{
+      width:100%;height:100%;
+      resize:none;
+      padding:12px;
+      border:0;
+      outline:none;
+      color:var(--text);
+      background:var(--input-bg);
+      font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;
+      font-size:12.5px;
+      line-height:1.45;
+      tab-size:2;
+      min-height:0;
+    }
+    .console{
+      padding:10px 12px;
+      font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;
+      font-size:12px;
+      line-height:1.35;
+      overflow:auto;
+      min-height:0;
+      background:var(--console-bg);
+    }
+    .line{padding:6px 8px;border:1px solid rgba(255,255,255,0.08);border-radius:10px;margin-bottom:8px}
+    [data-theme="light"] .line { border-color:rgba(0,0,0,0.08); }
+    .line .meta{display:flex;gap:8px;align-items:center;justify-content:space-between;margin-bottom:4px}
+    .tag{font-size:11px;padding:2px 8px;border-radius:999px;border:1px solid rgba(255,255,255,0.14);color:var(--muted)}
+    [data-theme="light"] .tag { border-color:rgba(0,0,0,0.14); }
+    .tag.log{border-color:rgba(143,211,255,0.22)}
+    .tag.warn{border-color:rgba(255,210,120,0.25)}
+    .tag.err{border-color:rgba(255,120,120,0.28)}
+    .tag.info{border-color:rgba(190,160,255,0.22)}
+    pre{margin:0;white-space:pre-wrap;word-break:break-word}
+    .rightTop{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    .split{display:grid;grid-template-rows: 1fr 1fr;gap:12px;min-height:0}
+    .hint{padding:10px 12px;color:var(--muted);font-size:12px;border-top:1px solid var(--border)}
+    .hint kbd{
+      font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;
+      font-size:11px;color:var(--text);
+      padding:1px 6px;border-radius:6px;border:1px solid var(--border);
+      background:var(--kbd-bg)
+    }
+    @media (max-width: 980px){
+      .app{grid-template-columns:1fr;grid-template-rows: 1.2fr 0.8fr}
+      .split{grid-template-rows: 1fr 1fr}
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="card" id="editorCard">
+      <div class="bar">
+        <div>
+          <div class="title" data-i18n="editorTitle">Editor</div>
+          <div class="sub" data-i18n="editorSub">Run JS in a sandbox (iframe) with canvas and captured console</div>
+        </div>
+        <div class="rightTop">
+          <select id="langSel" title="Language" aria-label="Language">
+            <option value="en">EN</option>
+            <option value="ja">JA</option>
+            <option value="pt">PT</option>
+          </select>
+          <button id="themeBtn" type="button" aria-label="Theme"></button>
+          <span class="pill">Timeout: <b id="timeoutLabel">3.0s</b></span>
+          <select id="exampleSel" title="Examples" data-i18n-title="examplesTitle">
+            <option value="nebula" data-i18n="exampleNebula">Example: Canvas (particles)</option>
+            <option value="draw" data-i18n="exampleDraw">Example: Basic draw</option>
+            <option value="logs" data-i18n="exampleLogs">Example: Console</option>
+            <option value="error" data-i18n="exampleError">Example: Error</option>
+          </select>
+          <div class="btns">
+            <button class="primary" id="runBtn" data-i18n="run">Run</button>
+            <button class="danger" id="stopBtn" data-i18n="stop">Stop</button>
+            <button id="addDefaultBtn" type="button" data-i18n="addDefault">Add default code</button>
+            <button id="clearBtn" data-i18n="clear">Clear</button>
+          </div>
+        </div>
+      </div>
+      <textarea id="code" spellcheck="false"></textarea>
+      <div class="hint" data-i18n="hint"></div>
+    </div>
+
+    <div class="split">
+      <div class="card">
+        <div class="bar">
+          <div>
+            <div class="title" data-i18n="previewTitle">Preview (Sandbox)</div>
+            <div class="sub" data-i18n="previewSub">Code runs here</div>
+          </div>
+          <div class="rightTop">
+            <span class="pill">Status: <b id="status">idle</b></span>
+          </div>
+        </div>
+        <div style="flex:1;min-height:0;">
+          <iframe id="sandbox" style="width:100%;height:100%;border:0;background:rgba(0,0,0,0.15)" title="Sandbox"></iframe>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="bar">
+          <div>
+            <div class="title" data-i18n="consoleTitle">Console</div>
+            <div class="sub" data-i18n="consoleSub">log / warn / error / table + exceptions</div>
+          </div>
+          <div class="btns">
+            <button id="copyLogsBtn" data-i18n="copy">Copy</button>
+          </div>
+        </div>
+        <div class="console" id="console"></div>
+      </div>
+    </div>
+  </div>
+
+<script>
+(function() {
+  var STORAGE_KEY = 'code_runer_code';
+  var LANG_KEY = 'code_runer_lang';
+  var THEME_KEY = 'code_runer_theme';
+
+  var LANG = {
+    en: {
+      editorTitle: 'Editor',
+      editorSub: 'Run JS in a sandbox (iframe) with canvas and captured console',
+      examplesTitle: 'Examples',
+      exampleNebula: 'Example: Canvas (particles)',
+      exampleDraw: 'Example: Basic draw',
+      exampleLogs: 'Example: Console',
+      exampleError: 'Example: Error',
+      run: 'Run',
+      stop: 'Stop',
+      addDefault: 'Add default code',
+      clear: 'Clear',
+      copy: 'Copy',
+      previewTitle: 'Preview (Sandbox)',
+      previewSub: 'Code runs here',
+      consoleTitle: 'Console',
+      consoleSub: 'log / warn / error / table + exceptions',
+      statusIdle: 'idle',
+      statusRunning: 'running',
+      statusStopped: 'stopped',
+      hint: 'Tips: Cmd+Enter to run, Esc to stop. You have canvas and ctx ready in the sandbox.',
+      clearConsoleMsg: 'Console cleared',
+      copySuccess: 'Logs copied to clipboard',
+      copyError: 'Could not copy (browser permission).',
+      readyMsg: 'Ready. Pick an example and click Run.',
+      timeoutMsg: 'Timeout: execution exceeded',
+      runError: 'Error sending code: '
+    },
+    ja: {
+      editorTitle: 'エディタ',
+      editorSub: 'iframeサンドボックスでJSを実行（canvas・console取得）',
+      examplesTitle: '例',
+      exampleNebula: '例: Canvas（パーティクル）',
+      exampleDraw: '例: 基本描画',
+      exampleLogs: '例: Console',
+      exampleError: '例: エラー',
+      run: '実行',
+      stop: '停止',
+      addDefault: 'デフォルトコードを追加',
+      clear: 'クリア',
+      copy: 'コピー',
+      previewTitle: 'プレビュー（サンドボックス）',
+      previewSub: 'コードはここで実行されます',
+      consoleTitle: 'コンソール',
+      consoleSub: 'log / warn / error / table + 例外',
+      statusIdle: '待機',
+      statusRunning: '実行中',
+      statusStopped: '停止',
+      hint: 'ヒント: Cmd+Enterで実行、Escで停止。サンドボックス内でcanvasとctxが使えます。',
+      clearConsoleMsg: 'コンソールをクリアしました',
+      copySuccess: 'ログをクリップボードにコピーしました',
+      copyError: 'コピーできませんでした（ブラウザの許可）。',
+      readyMsg: '準備完了。例を選んで実行をクリック。',
+      timeoutMsg: 'タイムアウト: 実行時間を超過',
+      runError: 'コード送信エラー: '
+    },
+    pt: {
+      editorTitle: 'Editor',
+      editorSub: 'Execute JS num sandbox (iframe) com canvas e console capturado',
+      examplesTitle: 'Exemplos',
+      exampleNebula: 'Exemplo: Canvas (partículas)',
+      exampleDraw: 'Exemplo: Desenho básico',
+      exampleLogs: 'Exemplo: Console',
+      exampleError: 'Exemplo: Erro',
+      run: 'Run',
+      stop: 'Stop',
+      addDefault: 'Adicionar código padrão',
+      clear: 'Clear',
+      copy: 'Copy',
+      previewTitle: 'Preview (Sandbox)',
+      previewSub: 'O código roda aqui dentro',
+      consoleTitle: 'Console',
+      consoleSub: 'log / warn / error / table + exceptions',
+      statusIdle: 'idle',
+      statusRunning: 'running',
+      statusStopped: 'stopped',
+      hint: 'Dicas: Cmd+Enter para rodar, Esc para parar. Você tem canvas e ctx prontos no sandbox.',
+      clearConsoleMsg: 'Console limpo',
+      copySuccess: 'Logs copiados para clipboard',
+      copyError: 'Não consegui copiar (permissão do browser).',
+      readyMsg: 'Pronto. Escolha um exemplo e clique Run.',
+      timeoutMsg: 'Timeout: execução passou de',
+      runError: 'Erro ao enviar código: '
+    }
+  };
+
+  var THEME_LABEL = {
+    en: { dark: 'Dark', light: 'Light' },
+    ja: { dark: 'ダーク', light: 'ライト' },
+    pt: { dark: 'Escuro', light: 'Claro' }
+  };
+
+  var el = {
+    code: document.getElementById('code'),
+    sandbox: document.getElementById('sandbox'),
+    console: document.getElementById('console'),
+    status: document.getElementById('status'),
+    runBtn: document.getElementById('runBtn'),
+    stopBtn: document.getElementById('stopBtn'),
+    clearBtn: document.getElementById('clearBtn'),
+    addDefaultBtn: document.getElementById('addDefaultBtn'),
+    copyLogsBtn: document.getElementById('copyLogsBtn'),
+    exampleSel: document.getElementById('exampleSel'),
+    timeoutLabel: document.getElementById('timeoutLabel'),
+    langSel: document.getElementById('langSel'),
+    themeBtn: document.getElementById('themeBtn')
+  };
+
+  var currentLang = localStorage.getItem(LANG_KEY) || 'pt';
+  var currentTheme = localStorage.getItem(THEME_KEY) || 'dark';
+
+  function t(key) { return (LANG[currentLang] && LANG[currentLang][key]) || LANG.en[key] || key; }
+
+  function applyLang() {
+    document.querySelectorAll('[data-i18n]').forEach(function(node) {
+      var key = node.getAttribute('data-i18n');
+      if (key && t(key)) node.textContent = t(key);
+    });
+    document.querySelectorAll('[data-i18n-title]').forEach(function(node) {
+      var key = node.getAttribute('data-i18n-title');
+      if (key && t(key)) node.title = t(key);
+    });
+    document.title = t('editorTitle') + ' (Offline)';
+    el.themeBtn.textContent = THEME_LABEL[currentLang] ? THEME_LABEL[currentLang][currentTheme] : currentTheme;
+    el.status.textContent = t('statusIdle');
+  }
+
+  function applyTheme() {
+    document.documentElement.setAttribute('data-theme', currentTheme);
+    el.themeBtn.textContent = THEME_LABEL[currentLang] ? THEME_LABEL[currentLang][currentTheme] : currentTheme;
+  }
+
+  var TIMEOUT_MS = 3000;
+  el.timeoutLabel.textContent = (TIMEOUT_MS / 1000).toFixed(1) + 's';
+
+  var runId = 0;
+  var timeoutHandle = null;
+  var saveCodeTimer = null;
+
+  var examples = {
+    draw: '// Desenho básico\nctx.clearRect(0,0,canvas.width,canvas.height);\nctx.fillStyle = \'#0b0f1a\';\nctx.fillRect(0,0,canvas.width,canvas.height);\n\nctx.fillStyle = \'rgba(143,211,255,0.9)\';\nctx.font = \'24px system-ui\';\nctx.fillText(\'Hello Canvas\', 20, 50);\n\nctx.strokeStyle = \'rgba(255,255,255,0.25)\';\nctx.beginPath();\nctx.arc(200, 160, 70, 0, Math.PI*2);\nctx.stroke();\n\nconsole.log(\'Desenho pronto\');',
+    logs: 'console.log(\'log\', {a:1, b:[2,3]});\nconsole.warn(\'warn: algo a observar\');\nconsole.error(\'error: exemplo\');\nconsole.table([\n  {name:\'A\', value:10},\n  {name:\'B\', value:20},\n]);',
+    error: '// Erro proposital para testar captura\nconsole.log(\'vai dar erro em 1s...\');\nsetTimeout(function() {\n  notDefinedFunction();\n}, 1000);',
+    nebula: 'var W = canvas.width, H = canvas.height;\nvar N = 220;\nvar p = Array.from({length:N}, function() {\n  return {\n    x: Math.random()*W,\n    y: Math.random()*H,\n    vx: (Math.random()-0.5)*1.4,\n    vy: (Math.random()-0.5)*1.4,\n    r: 1 + Math.random()*1.7\n  };\n});\n\nfunction tick() {\n  ctx.fillStyle = \'rgba(11,15,26,0.18)\';\n  ctx.fillRect(0,0,W,H);\n  ctx.globalCompositeOperation = \'lighter\';\n  for (var i=0;i<N;i++) {\n    var a = p[i];\n    a.x += a.vx; a.y += a.vy;\n    if (a.x < -20) a.x = W+20;\n    if (a.x > W+20) a.x = -20;\n    if (a.y < -20) a.y = H+20;\n    if (a.y > H+20) a.y = -20;\n    ctx.fillStyle = \'rgba(143,211,255,0.85)\';\n    ctx.beginPath();\n    ctx.arc(a.x,a.y,a.r,0,Math.PI*2);\n    ctx.fill();\n    for (var j=i+1;j<N;j+=4) {\n      var b = p[j];\n      var dx = b.x-a.x, dy = b.y-a.y;\n      var d2 = dx*dx+dy*dy;\n      if (d2 < 120*120) {\n        var t = 1 - Math.sqrt(d2)/120;\n        ctx.strokeStyle = \'rgba(160,210,255,\'+(0.12*t*t)+\')\';\n        ctx.beginPath();\n        ctx.moveTo(a.x,a.y);\n        ctx.lineTo(b.x,b.y);\n        ctx.stroke();\n      }\n    }\n  }\n  ctx.globalCompositeOperation = \'source-over\';\n  requestAnimationFrame(tick);\n}\ntick();\nconsole.log(\'rodando... (animation loop)\');'
+  };
+
+  function setStatus(s) { el.status.textContent = s; }
+
+  function escapeHtml(s) {
+    return String(s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+  }
+
+  function addLine(kind, payload) {
+    var time = new Date().toLocaleTimeString();
+    var div = document.createElement('div');
+    div.className = 'line';
+    var tagClass = kind === 'warn' ? 'warn' : kind === 'error' ? 'err' : kind === 'info' ? 'info' : 'log';
+    div.innerHTML = '<div class="meta"><span class="tag ' + tagClass + '">' + kind + '</span><span class="tag">' + escapeHtml(time) + '</span></div><pre>' + escapeHtml(payload) + '</pre>';
+    el.console.appendChild(div);
+    el.console.scrollTop = el.console.scrollHeight;
+  }
+
+  function clearConsole() {
+    el.console.innerHTML = '';
+  }
+
+  function stringifyAny(x) {
+    try {
+      if (typeof x === 'string') return x;
+      if (x instanceof Error) return x.stack || (x.name + ': ' + x.message);
+      return JSON.stringify(x, function(k, v) {
+        if (typeof v === 'bigint') return String(v);
+        return v;
+      }, 2);
+    } catch (e) {
+      return String(x);
+    }
+  }
+
+  function saveCodeToStorage() {
+    if (saveCodeTimer) clearTimeout(saveCodeTimer);
+    saveCodeTimer = setTimeout(function() {
+      try {
+        localStorage.setItem(STORAGE_KEY, el.code.value);
+      } catch (e) {}
+      saveCodeTimer = null;
+    }, 400);
+  }
+
+  function run() {
+    var code = el.code.value || '';
+    runId += 1;
+    var rid = runId;
+    setStatus(t('statusRunning'));
+    addLine('info', 'Run #' + rid);
+
+    if (timeoutHandle) clearTimeout(timeoutHandle);
+    timeoutHandle = setTimeout(function() {
+      if (rid !== runId) return;
+      addLine('error', t('timeoutMsg') + ' ' + (TIMEOUT_MS/1000).toFixed(1) + 's.');
+      stopRun();
+    }, TIMEOUT_MS);
+
+    try {
+      el.sandbox.contentWindow.postMessage({ __runner: true, type: 'run', runId: rid, code: code }, '*');
+    } catch (e) {
+      addLine('error', t('runError') + (e.message || e));
+    }
+    saveCodeToStorage();
+  }
+
+  function stopRun() {
+    runId += 1;
+    setStatus(t('statusStopped'));
+    if (timeoutHandle) {
+      clearTimeout(timeoutHandle);
+      timeoutHandle = null;
+    }
+    el.sandbox.src = el.sandbox.src;
+  }
+
+  function insertDefaultCode() {
+    var code = examples[el.exampleSel.value] || examples.nebula;
+    var ta = el.code;
+    var start = ta.selectionStart;
+    var end = ta.selectionEnd;
+    var before = ta.value.substring(0, start);
+    var after = ta.value.substring(end);
+    var insert = (before && !/[\n\r]$/.test(before) ? '\n\n' : '') + code + (after && !/^[\n\r]/.test(after) ? '\n\n' : '');
+    ta.value = before + insert + after;
+    ta.selectionStart = ta.selectionEnd = start + insert.length;
+    ta.focus();
+    saveCodeToStorage();
+  }
+
+  window.addEventListener('message', function(ev) {
+    var msg = ev.data;
+    if (!msg || msg.__runner !== true) return;
+    if (msg.type === 'ready') return;
+    if (msg.runId !== runId) return;
+
+    var type = msg.type;
+    var args = Array.isArray(msg.args) ? msg.args : [];
+
+    if (type === 'table') {
+      addLine('log', 'console.table:\n' + stringifyAny(args[0]));
+      return;
+    }
+    var joined = args.map(stringifyAny).join(' ');
+    if (type === 'warn') addLine('warn', joined);
+    else if (type === 'error') addLine('error', joined);
+    else if (type === 'info') addLine('info', joined);
+    else addLine('log', joined);
+  });
+
+  el.runBtn.addEventListener('click', run);
+  el.stopBtn.addEventListener('click', stopRun);
+  el.clearBtn.addEventListener('click', function() {
+    clearConsole();
+    el.code.value = '';
+    saveCodeToStorage();
+    addLine('info', t('clearConsoleMsg'));
+  });
+  el.addDefaultBtn.addEventListener('click', insertDefaultCode);
+
+  el.copyLogsBtn.addEventListener('click', function() {
+    var lines = Array.prototype.slice.call(el.console.querySelectorAll('pre')).map(function(p) { return p.textContent; });
+    var text = lines.join('\n\n');
+    try {
+      navigator.clipboard.writeText(text).then(function() {
+        addLine('info', t('copySuccess'));
+      }).catch(function() {
+        addLine('error', t('copyError'));
+      });
+    } catch (e) {
+      addLine('error', t('copyError'));
+    }
+  });
+
+  el.exampleSel.addEventListener('change', function() {
+    var v = el.exampleSel.value;
+    el.code.value = examples[v] || examples.nebula;
+    saveCodeToStorage();
+  });
+
+  el.langSel.addEventListener('change', function() {
+    currentLang = el.langSel.value;
+    localStorage.setItem(LANG_KEY, currentLang);
+    applyLang();
+    applyTheme();
+  });
+
+  el.themeBtn.addEventListener('click', function() {
+    currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
+    localStorage.setItem(THEME_KEY, currentTheme);
+    applyTheme();
+  });
+
+  el.code.addEventListener('input', saveCodeToStorage);
+
+  window.addEventListener('keydown', function(e) {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+      e.preventDefault();
+      run();
+    }
+    if (e.key === 'Escape') stopRun();
+  });
+
+  el.langSel.value = currentLang;
+  applyLang();
+  applyTheme();
+
+  var saved = '';
+  try {
+    saved = localStorage.getItem(STORAGE_KEY) || '';
+  } catch (e) {}
+  el.code.value = saved || examples.nebula;
+  if (saved) saveCodeToStorage();
+
+  el.sandbox.src = 'code_runer_sandbox.html';
+  clearConsole();
+  addLine('info', t('readyMsg'));
+})();
+</script>
+</body>
+</html>
