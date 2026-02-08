@@ -1,0 +1,2546 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title data-i18n="title">Slides</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link rel="stylesheet" href="../assets/fontawesome/css/all.min.css" />
+  <style>
+    :root {
+      --bg-color: #1a1a1a;
+      --text-color: #f0f0f0;
+      --card-bg-color: #2a2a2a;
+      --border-color: #444;
+      --accent-color: #0d6efd;
+      --hover-color: #3a3a3a;
+      --selected-color: #0d6efd33;
+    }
+    html[data-theme='light'] {
+      --bg-color: #f8f9fa;
+      --text-color: #212529;
+      --card-bg-color: #fff;
+      --border-color: #dee2e6;
+      --accent-color: #0d6efd;
+      --hover-color: #e9ecef;
+      --selected-color: #0d6efd22;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      display: flex;
+      flex-direction: column;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+    .navbar {
+      background-color: var(--card-bg-color);
+      border-bottom: 1px solid var(--border-color);
+      padding: 0.5rem 1rem;
+    }
+    .navbar-brand { color: var(--text-color); font-weight: 600; }
+    .form-control, .form-select {
+      background-color: var(--card-bg-color);
+      color: var(--text-color);
+      border-color: var(--border-color);
+    }
+    .form-control:focus, .form-select:focus {
+      background-color: var(--card-bg-color);
+      color: var(--text-color);
+      border-color: var(--accent-color);
+    }
+    .main-container { flex: 1; display: flex; overflow: hidden; }
+    .nav-column {
+      display: flex; flex-direction: column;
+      min-width: 180px; max-width: 250px; width: 200px;
+      background-color: var(--card-bg-color);
+      border-right: 1px solid var(--border-color);
+      transition: width 0.3s ease, min-width 0.3s ease;
+      overflow: hidden;
+    }
+    .nav-column.collapsed { min-width: 42px; width: 42px; }
+    .nav-column.collapsed .column-content,
+    .nav-column.collapsed .column-title-text,
+    .nav-column.collapsed .add-btn-text { display: none; }
+    .nav-column.collapsed .column-header { justify-content: center; padding: 0.5rem; }
+    .nav-column.collapsed .collapse-btn { transform: rotate(180deg); }
+    .column-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0.5rem 0.75rem;
+      border-bottom: 1px solid var(--border-color);
+      background-color: var(--bg-color);
+      min-height: 42px;
+    }
+    .column-title { display: flex; align-items: center; gap: 0.5rem; font-weight: 600; font-size: 0.9rem; }
+    .collapse-btn { background: none; border: none; color: var(--text-color); cursor: pointer; padding: 0.25rem; opacity: 0.7; }
+    .collapse-btn:hover { opacity: 1; }
+    .column-content { flex: 1; overflow-y: auto; padding: 0.5rem; }
+    .item-list { list-style: none; padding: 0; margin: 0; }
+    .item-list li {
+      display: flex; align-items: center;
+      padding: 0.5rem 0.75rem; border-radius: 6px; cursor: pointer; margin-bottom: 2px;
+    }
+    .item-list li:hover { background-color: var(--hover-color); }
+    .item-list li.selected { background-color: var(--selected-color); border: 1px solid var(--accent-color); }
+    .item-list li .item-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .item-list li .item-actions { display: none; gap: 0.25rem; }
+    .item-list li:hover .item-actions { display: flex; }
+    .item-actions button { background: none; border: none; color: var(--text-color); cursor: pointer; padding: 0.15rem 0.3rem; opacity: 0.6; font-size: 0.75rem; }
+    .item-actions button:hover { opacity: 1; }
+    .add-item-btn {
+      display: flex; align-items: center; justify-content: center; gap: 0.5rem;
+      width: 100%; padding: 0.5rem; margin-top: 0.5rem;
+      background: transparent; border: 1px dashed var(--border-color); border-radius: 6px;
+      color: var(--text-color); cursor: pointer; opacity: 0.7;
+    }
+    .add-item-btn:hover { opacity: 1; border-color: var(--accent-color); }
+    .badge-system { font-size: 0.7rem; opacity: 0.8; }
+    .content-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+    .doc-toolbar {
+      flex-shrink: 0; display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+      padding: 8px 12px; border-bottom: 1px solid var(--border-color);
+      background-color: var(--card-bg-color);
+    }
+    .doc-toolbar .group { display: flex; gap: 6px; align-items: center; padding-right: 10px; border-right: 1px solid var(--border-color); }
+    .doc-toolbar .group:last-child { border-right: none; }
+    .doc-toolbar button, .doc-toolbar select {
+      background: var(--card-bg-color); color: var(--text-color); border: 1px solid var(--border-color);
+      padding: 6px 10px; border-radius: 8px; cursor: pointer; font-size: 14px;
+    }
+    .doc-toolbar button:hover { border-color: var(--accent-color); background: var(--hover-color); }
+    .doc-toolbar .toggle.active { border-color: var(--accent-color); background: var(--hover-color); }
+    .doc-toolbar label.file-label {
+      background: var(--card-bg-color); color: var(--text-color); border: 1px solid var(--border-color);
+      padding: 6px 10px; border-radius: 8px; cursor: pointer; font-size: 14px;
+      display: inline-flex; align-items: center; gap: 6px;
+    }
+    .doc-toolbar label.file-label:hover { border-color: var(--accent-color); background: var(--hover-color); }
+    .doc-body { flex: 1; display: flex; min-height: 0; overflow: hidden; }
+    .slide-strip {
+      width: 140px; flex-shrink: 0;
+      border-right: 1px solid var(--border-color);
+      background: var(--card-bg-color);
+      overflow-y: auto; padding: 8px;
+    }
+    .slide-thumb {
+      width: 100%; aspect-ratio: 16/9; margin-bottom: 8px;
+      border: 2px solid var(--border-color); border-radius: 4px;
+      cursor: pointer; overflow: hidden; background: #fff;
+    }
+    .slide-thumb.selected { border-color: var(--accent-color); }
+    .slide-thumb.dragging { opacity: 0.6; border-style: dashed; }
+    .slide-thumb.drop-target { outline: 2px dashed var(--accent-color); outline-offset: 2px; }
+    .slide-thumb canvas { width: 100%; height: 100%; display: block; }
+    .slide-thumb-placeholder { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #999; }
+    .editor-area { flex: 1; display: flex; min-width: 0; overflow: hidden; }
+    .canvas-wrap { position: relative; overflow: hidden; background: var(--bg-color); flex: 1; min-width: 0; min-height: 0; }
+    .canvas-wrap canvas { display: block; }
+    .sidebar {
+      width: 280px; flex-shrink: 0;
+      border-left: 1px solid var(--border-color);
+      background: var(--card-bg-color);
+      overflow-y: auto; padding: 12px;
+    }
+    .sidebar h3 { margin: 0 0 10px 0; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.8; }
+    .prop-row { display: grid; grid-template-columns: 100px 1fr; align-items: center; gap: 8px; margin-bottom: 10px; }
+    .prop-row label { font-size: 13px; }
+    .prop-row input[type="number"], .prop-row input[type="color"], .prop-row input[type="text"] {
+      background: var(--bg-color); color: var(--text-color); border: 1px solid var(--border-color);
+      padding: 6px 8px; border-radius: 6px; max-width: 160px;
+    }
+    .prop-row-text textarea {
+      width: 100%; min-height: 60px; resize: vertical;
+      background: var(--bg-color); color: var(--text-color); border: 1px solid var(--border-color);
+      padding: 6px 8px; border-radius: 6px; font-size: 13px; font-family: inherit;
+    }
+    .no-doc {
+      flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+      color: var(--text-color); opacity: 0.5; text-align: center; padding: 2rem;
+    }
+    .no-doc i { font-size: 3rem; margin-bottom: 1rem; }
+    .context-menu {
+      position: fixed; z-index: 1000;
+      background: var(--card-bg-color); border: 1px solid var(--border-color);
+      border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      padding: 4px 0; min-width: 180px; display: none;
+    }
+    .context-menu.show { display: block; }
+    .context-menu button {
+      display: block; width: 100%; text-align: left; padding: 8px 14px;
+      border: none; background: transparent; color: var(--text-color);
+      cursor: pointer; font-size: 14px;
+    }
+    .context-menu button:hover { background: var(--hover-color); }
+    .context-menu button i { margin-right: 8px; width: 18px; }
+    .hidden { display: none !important; }
+    .muted { opacity: 0.7; font-size: 13px; }
+    .zoom-badge { padding: 4px 8px; border-radius: 6px; background: var(--hover-color); font-size: 13px; }
+    #presentation-container {
+      display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      z-index: 9999; background: #000;
+      justify-content: center; align-items: center;
+    }
+    #presentation-container.active { display: flex; }
+    #presentation-slide-wrap {
+      position: relative;
+      max-width: 100%; max-height: 100%;
+      display: flex; justify-content: center; align-items: center;
+    }
+    #presentation-slide-wrap canvas { max-width: 100%; max-height: 100%; object-fit: contain; }
+    #presentation-slide-wrap .pres-video {
+      position: absolute;
+      border: 0;
+    }
+    .presentation-controls {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      padding: 12px; background: rgba(0,0,0,0.6);
+      display: flex; align-items: center; justify-content: center; gap: 16px;
+    }
+    .presentation-controls button { padding: 8px 16px; border-radius: 8px; cursor: pointer; background: var(--accent-color); color: #fff; border: none; }
+    .presentation-controls button:hover { opacity: 0.9; }
+    .presentation-controls .slide-num { color: #fff; font-size: 14px; }
+
+    .modal-content {
+      background-color: var(--card-bg-color);
+      color: var(--text-color);
+      border-color: var(--border-color);
+    }
+    .modal-header, .modal-footer { border-color: var(--border-color); }
+    .btn-close { filter: invert(1) grayscale(100%) brightness(200%); }
+    html[data-theme='light'] .btn-close { filter: none; }
+  </style>
+</head>
+<body>
+
+<nav class="navbar">
+  <div class="container-fluid">
+    <a class="navbar-brand" href="#" data-i18n="title">Slides</a>
+    <div class="d-flex ms-auto gap-2 align-items-center">
+      <select id="lang-switcher" class="form-select form-select-sm" style="width: auto;">
+        <option value="en">English</option>
+        <option value="pt">Português</option>
+        <option value="ja">日本語</option>
+      </select>
+      <button id="theme-switcher" class="btn btn-sm btn-outline-secondary" type="button" data-i18n-title="themeBtn" title="Toggle theme">
+        <i class="fas fa-moon"></i>
+      </button>
+    </div>
+  </div>
+</nav>
+
+<div class="main-container">
+  <div class="nav-column" id="projects-column">
+    <div class="column-header">
+      <div class="column-title">
+        <i class="fas fa-folder"></i>
+        <span class="column-title-text" data-i18n="projects">Projects</span>
+      </div>
+      <button class="collapse-btn" data-target="projects-column" title="Toggle"><i class="fas fa-chevron-left"></i></button>
+    </div>
+    <div class="column-content">
+      <ul class="item-list" id="projects-list"></ul>
+      <button type="button" class="add-item-btn" id="add-project-btn">
+        <i class="fas fa-plus"></i>
+        <span class="add-btn-text" data-i18n="addProject">Add Project</span>
+      </button>
+    </div>
+  </div>
+  <div class="nav-column" id="folders-column">
+    <div class="column-header">
+      <div class="column-title">
+        <i class="fas fa-folder-open"></i>
+        <span class="column-title-text" data-i18n="folders">Folders</span>
+      </div>
+      <button class="collapse-btn" data-target="folders-column" title="Toggle"><i class="fas fa-chevron-left"></i></button>
+    </div>
+    <div class="column-content">
+      <ul class="item-list" id="folders-list"></ul>
+      <button type="button" class="add-item-btn" id="add-folder-btn" style="display: none;">
+        <i class="fas fa-plus"></i>
+        <span class="add-btn-text" data-i18n="addFolder">Add Folder</span>
+      </button>
+    </div>
+  </div>
+  <div class="nav-column" id="documents-column">
+    <div class="column-header">
+      <div class="column-title">
+        <i class="fas fa-file-powerpoint"></i>
+        <span class="column-title-text" data-i18n="documents">Documents</span>
+      </div>
+      <button class="collapse-btn" data-target="documents-column" title="Toggle"><i class="fas fa-chevron-left"></i></button>
+    </div>
+    <div class="column-content">
+      <ul class="item-list" id="documents-list"></ul>
+      <button type="button" class="add-item-btn" id="add-document-btn" style="display: none;">
+        <i class="fas fa-plus"></i>
+        <span class="add-btn-text" data-i18n="addDocument">Add Document</span>
+      </button>
+    </div>
+  </div>
+  <div class="content-area">
+    <div id="no-doc-panel" class="no-doc">
+      <i class="fas fa-file-powerpoint"></i>
+      <p data-i18n="selectDocument">Select a document to edit slides</p>
+    </div>
+    <div id="doc-panel" class="hidden" style="flex:1;display:flex;flex-direction:column;overflow:hidden;">
+      <div class="doc-toolbar" id="doc-toolbar">
+        <div class="group">
+          <button type="button" id="btnNewSlide"><i class="fas fa-plus"></i> <span data-i18n="newSlide">New slide</span></button>
+          <button type="button" id="btnDuplicateSlide"><i class="fas fa-copy"></i> <span data-i18n="duplicateSlide">Duplicate</span></button>
+          <button type="button" id="btnDeleteSlide"><i class="fas fa-trash-alt"></i> <span data-i18n="deleteSlide">Delete</span></button>
+        </div>
+        <div class="group">
+          <button type="button" id="btnUndo" title="Ctrl/Cmd+Z"><i class="fas fa-undo"></i> <span data-i18n="undo">Undo</span></button>
+          <button type="button" id="btnRedo" title="Ctrl/Cmd+Shift+Z"><i class="fas fa-redo"></i> <span data-i18n="redo">Redo</span></button>
+        </div>
+        <div class="group">
+          <button type="button" id="btnPlay"><i class="fas fa-play"></i> <span data-i18n="presentation">Presentation</span></button>
+        </div>
+        <div class="group">
+          <label data-i18n="template">Template</label>
+          <select id="templateSelect"><option value="">—</option></select>
+          <button type="button" id="btnApplyTemplate"><i class="fas fa-magic"></i> <span data-i18n="apply">Apply</span></button>
+        </div>
+        <div class="group">
+          <label data-i18n="background">Background</label>
+          <select id="backgroundSelect"><option value="">—</option></select>
+          <button type="button" id="btnApplyBackground"><i class="fas fa-fill-drip"></i> <span data-i18n="apply">Apply</span></button>
+        </div>
+        <div class="group">
+          <button type="button" id="btnText"><i class="fas fa-font"></i> <span data-i18n="text">Text</span></button>
+          <button type="button" id="btnRect"><i class="far fa-square"></i> <span data-i18n="rect">Rect</span></button>
+          <button type="button" id="btnRoundedRect"><i class="fas fa-square" style="border-radius:4px;"></i> <span data-i18n="roundedRect">Rounded</span></button>
+          <button type="button" id="btnLine"><i class="fas fa-minus"></i> <span data-i18n="line">Line</span></button>
+          <button type="button" id="btnArrow"><i class="fas fa-arrow-right"></i> <span data-i18n="arrow">Arrow</span></button>
+          <label class="file-label" for="fileInput"><i class="fas fa-image"></i> <span data-i18n="image">Image</span></label>
+          <input class="file-input" id="fileInput" type="file" accept="image/*" style="display:none;" />
+          <button type="button" id="btnVideo"><i class="fas fa-video"></i> <span data-i18n="video">Video</span></button>
+        </div>
+        <div class="group">
+          <button type="button" id="btnGrid" class="toggle"><i class="fas fa-border-all"></i> <span data-i18n="grid">Grid</span></button>
+          <button type="button" id="btnSnap" class="toggle active"><i class="fas fa-magnet"></i> <span data-i18n="snap">Snap</span></button>
+        </div>
+        <div class="group">
+          <button type="button" id="btnZoomOut">−</button>
+          <span class="zoom-badge" id="zoomBadge">100%</span>
+          <button type="button" id="btnZoomIn">+</button>
+          <button type="button" id="btnZoomReset" data-i18n="reset">Reset</button>
+        </div>
+        <div class="group">
+          <button type="button" id="btnExportPng"><i class="fas fa-download"></i> <span data-i18n="exportPng">Export PNG</span></button>
+          <button type="button" id="btnExportDoc"><i class="fas fa-file-export"></i> <span data-i18n="exportDoc">Export</span></button>
+          <label class="file-label" for="importDocInput"><i class="fas fa-file-import"></i> <span data-i18n="importDoc">Import</span></label>
+          <input class="file-input" id="importDocInput" type="file" accept="application/json" style="display:none;" />
+          <button type="button" id="btnHelp"><i class="fas fa-circle-info"></i> <span data-i18n="help">Help</span></button>
+        </div>
+      </div>
+      <div class="doc-body">
+        <div class="slide-strip" id="slide-strip"></div>
+        <div class="editor-area">
+          <div class="canvas-wrap" id="canvasWrap">
+            <canvas id="canvas"></canvas>
+          </div>
+          <aside class="sidebar" id="sidebar">
+            <h3 data-i18n="properties">Properties</h3>
+            <div id="propsPlaceholder" class="muted" data-i18n="selectObject">Select an object to edit properties.</div>
+            <div id="propsPanel" class="hidden">
+              <div id="propsText" class="hidden">
+                <div class="prop-row prop-row-text"><label data-i18n="textContent">Content</label><textarea id="inpTextContent" rows="3"></textarea></div>
+                <div class="prop-row"><label data-i18n="fontSize">Font size</label><input type="number" id="inpFontSize" min="8" max="200" value="24" /></div>
+                <div class="prop-row"><label data-i18n="textColor">Text color</label><input type="color" id="inpTextColor" value="#000000" /></div>
+              </div>
+              <div id="propsFill" class="hidden">
+                <div class="prop-row"><label><input type="checkbox" id="chkFillTransparent" /> <span data-i18n="fillTransparent">Transparent</span></label></div>
+                <div class="prop-row"><label data-i18n="fillColor">Fill color</label><input type="color" id="inpFillColor" value="#5aa7ff" /></div>
+              </div>
+              <div id="propsLine" class="hidden">
+                <div class="prop-row"><label data-i18n="lineColor">Color</label><input type="color" id="inpLineColor" value="#333333" /></div>
+                <div class="prop-row"><label data-i18n="lineSize">Size</label><input type="number" id="inpLineSize" min="1" max="50" value="3" /></div>
+              </div>
+              <div id="propsVideo" class="hidden">
+                <div class="prop-row"><label data-i18n="videoUrl">YouTube URL</label><input type="text" id="inpVideoUrl" placeholder="https://youtube.com/..." /></div>
+              </div>
+              <h3 data-i18n="border">Border</h3>
+              <div class="prop-row"><label><input type="checkbox" id="chkBorder" /> <span data-i18n="borderEnable">Enable</span></label></div>
+              <div class="prop-row"><label data-i18n="borderColor">Color</label><input type="color" id="inpBorderColor" value="#000000" /></div>
+              <div class="prop-row"><label data-i18n="borderSize">Size</label><input type="number" id="inpBorderSize" min="0" max="50" value="2" /></div>
+              <h3 data-i18n="slideBackground">Slide background</h3>
+              <div class="prop-row"><label data-i18n="backgroundColor">Color</label><input type="color" id="inpSlideBackground" value="#ffffff" /></div>
+              <h3 data-i18n="speakerNotes">Speaker notes</h3>
+              <div class="prop-row prop-row-text"><textarea id="inpSpeakerNotes" rows="3" placeholder="Notes for this slide"></textarea></div>
+            </div>
+          </aside>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="context-menu" id="contextMenu">
+  <button type="button" id="ctxBringFront"><i class="fas fa-arrow-up"></i> <span data-i18n="bringToFront">Bring to front</span></button>
+  <button type="button" id="ctxSendBack"><i class="fas fa-arrow-down"></i> <span data-i18n="sendToBack">Send to back</span></button>
+  <button type="button" id="ctxDuplicate"><i class="fas fa-copy"></i> <span data-i18n="duplicate">Duplicate</span></button>
+  <button type="button" id="ctxDelete"><i class="fas fa-trash-alt"></i> <span data-i18n="delete">Delete</span></button>
+</div>
+
+<div id="presentation-container">
+  <div id="presentation-slide-wrap"></div>
+  <div class="presentation-controls">
+    <button type="button" id="presPrev"><i class="fas fa-chevron-left"></i> <span data-i18n="previous">Previous</span></button>
+    <span class="slide-num" id="presSlideNum">1 / 1</span>
+    <button type="button" id="presNext"><span data-i18n="next">Next</span> <i class="fas fa-chevron-right"></i></button>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+<!-- Help / Features modal -->
+<div class="modal fade" id="help-modal" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" data-i18n="helpTitle">Slides — Features</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p class="muted" data-i18n="helpIntro">This editor implements a practical subset of PowerPoint/Google Slides workflows.</p>
+
+        <h6 data-i18n="helpPowerPoint">Common in MS PowerPoint</h6>
+        <ul id="features-ppt"></ul>
+
+        <h6 data-i18n="helpGoogleSlides" style="margin-top:12px;">Common in Google Slides</h6>
+        <ul id="features-gslides"></ul>
+
+        <h6 data-i18n="helpShortcuts" style="margin-top:12px;">Shortcuts</h6>
+        <ul id="features-shortcuts"></ul>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal" data-i18n="close">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script id="slides-code" type="text/plain">
+// ========== Constants ==========
+const DB_NAME = 'slides_db';
+const DB_VERSION = 1;
+const SLIDE_W = 960;
+const SLIDE_H = 540;
+const HANDLE = 8;
+const ROTATE_HANDLE_OFFSET = 24;
+const ZOOM_STEP = 1.1;
+const ZZ_PROJECT_NAME = 'zzSlideSystem';
+const ZZ_TEMPLATES_FOLDER = 'Templates';
+const ZZ_BACKGROUNDS_FOLDER = 'Backgrounds';
+
+// ========== Editor feature flags ==========
+const GRID_SIZE = 20;
+
+// ========== IndexedDB ==========
+let db = null;
+const openDB = () => new Promise((resolve, reject) => {
+  const request = indexedDB.open(DB_NAME, DB_VERSION);
+  request.onerror = () => reject(request.error);
+  request.onsuccess = () => { db = request.result; resolve(db); };
+  request.onupgradeneeded = (e) => {
+    const database = e.target.result;
+    if (!database.objectStoreNames.contains('projects')) {
+      const s = database.createObjectStore('projects', { keyPath: 'id' });
+      s.createIndex('order', 'order', { unique: false });
+    }
+    if (!database.objectStoreNames.contains('folders')) {
+      const s = database.createObjectStore('folders', { keyPath: 'id' });
+      s.createIndex('projectId', 'projectId', { unique: false });
+      s.createIndex('order', 'order', { unique: false });
+    }
+    if (!database.objectStoreNames.contains('documents')) {
+      const s = database.createObjectStore('documents', { keyPath: 'id' });
+      s.createIndex('folderId', 'folderId', { unique: false });
+      s.createIndex('order', 'order', { unique: false });
+    }
+    if (!database.objectStoreNames.contains('slides')) {
+      const s = database.createObjectStore('slides', { keyPath: 'id' });
+      s.createIndex('documentId', 'documentId', { unique: false });
+      s.createIndex('order', 'order', { unique: false });
+    }
+  };
+});
+
+const dbAdd = (storeName, data) => new Promise((resolve, reject) => {
+  const tx = db.transaction(storeName, 'readwrite');
+  tx.objectStore(storeName).add(data).onsuccess = () => resolve(); tx.onerror = () => reject(tx.error);
+});
+const dbPut = (storeName, data) => new Promise((resolve, reject) => {
+  const tx = db.transaction(storeName, 'readwrite');
+  tx.objectStore(storeName).put(data).onsuccess = () => resolve(); tx.onerror = () => reject(tx.error);
+});
+const dbDelete = (storeName, id) => new Promise((resolve, reject) => {
+  const tx = db.transaction(storeName, 'readwrite');
+  tx.objectStore(storeName).delete(id).onsuccess = () => resolve(); tx.onerror = () => reject(tx.error);
+});
+const dbGet = (storeName, id) => new Promise((resolve, reject) => {
+  const tx = db.transaction(storeName, 'readonly');
+  const req = tx.objectStore(storeName).get(id);
+  req.onsuccess = () => resolve(req.result); req.onerror = () => reject(req.error);
+});
+const dbGetAll = (storeName) => new Promise((resolve, reject) => {
+  const tx = db.transaction(storeName, 'readonly');
+  const req = tx.objectStore(storeName).getAll();
+  req.onsuccess = () => resolve(req.result); req.onerror = () => reject(req.error);
+});
+const dbGetByIndex = (storeName, indexName, value) => new Promise((resolve, reject) => {
+  const tx = db.transaction(storeName, 'readonly');
+  const req = tx.objectStore(storeName).index(indexName).getAll(value);
+  req.onsuccess = () => resolve(req.result); req.onerror = () => reject(req.error);
+});
+
+const generateId = () => Date.now().toString(36) + Math.random().toString(36).substr(2);
+const escapeHtml = (s) => { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; };
+
+function getEventTargetElement(e) {
+  const t = e && e.target;
+  if (!t) return null;
+  // Handle text-node clicks (common when clicking button labels)
+  if (t.nodeType === 3) return t.parentElement;
+  return t;
+}
+
+// Help modal feature lists (implemented features only)
+const FEATURES_PPT = [
+  'Slide management: new, duplicate, delete',
+  'Reorder slides (drag and drop in thumbnail strip)',
+  'Select, move, resize, rotate objects',
+  'Bring to front / send to back',
+  'Duplicate object',
+  'Undo / redo',
+  'Copy, cut, paste, delete',
+  'Keyboard shortcuts (Ctrl/Cmd+Z, C, X, V, D, arrows)',
+  'Grid and snap-to-grid',
+  'Export slide as PNG',
+  'Export / import document as JSON',
+  'Fullscreen presentation, start from current slide',
+  'Keyboard navigation in presentation (arrows, space, Escape)'
+];
+const FEATURES_GS = [
+  'Insert: text box, image upload, YouTube video by URL',
+  'Arrange: bring to front, send to back',
+  'View: zoom in/out/reset, grid, snap',
+  'Speaker notes per slide',
+  'Export/import JSON for portability'
+];
+const FEATURES_SHORTCUTS = [
+  'Ctrl/Cmd+Z: Undo',
+  'Ctrl/Cmd+Shift+Z or Ctrl/Cmd+Y: Redo',
+  'Ctrl/Cmd+C: Copy',
+  'Ctrl/Cmd+X: Cut',
+  'Ctrl/Cmd+V: Paste',
+  'Ctrl/Cmd+D: Duplicate object',
+  'Delete / Backspace: Delete object',
+  'Arrow keys: Nudge object (Shift = larger step)',
+  'Ctrl/Cmd+S: Save current slide',
+  'Presentation: Arrow Left/Right or Space = next, Escape = exit fullscreen'
+];
+function populateHelpModal() {
+  document.getElementById('features-ppt').innerHTML = FEATURES_PPT.map(s => '<li>' + escapeHtml(s) + '</li>').join('');
+  document.getElementById('features-gslides').innerHTML = FEATURES_GS.map(s => '<li>' + escapeHtml(s) + '</li>').join('');
+  document.getElementById('features-shortcuts').innerHTML = FEATURES_SHORTCUTS.map(s => '<li>' + escapeHtml(s) + '</li>').join('');
+}
+
+// ========== i18n ==========
+const i18n = {
+  en: {
+    title: 'Slides',
+    projects: 'Projects',
+    folders: 'Folders',
+    documents: 'Documents',
+    addProject: 'Add Project',
+    addFolder: 'Add Folder',
+    addDocument: 'Add Document',
+    selectDocument: 'Select a document to edit slides',
+    newSlide: 'New slide',
+    duplicateSlide: 'Duplicate',
+    deleteSlide: 'Delete',
+    undo: 'Undo',
+    redo: 'Redo',
+    presentation: 'Presentation',
+    template: 'Template',
+    apply: 'Apply',
+    background: 'Background',
+    text: 'Text',
+    rect: 'Rect',
+    roundedRect: 'Rounded',
+    line: 'Line',
+    arrow: 'Arrow',
+    image: 'Image',
+    video: 'Video',
+    grid: 'Grid',
+    snap: 'Snap',
+    reset: 'Reset',
+    exportPng: 'Export PNG',
+    exportDoc: 'Export',
+    importDoc: 'Import',
+    help: 'Help',
+    close: 'Close',
+    helpTitle: 'Slides — Features',
+    helpIntro: 'This editor implements a practical subset of PowerPoint/Google Slides workflows.',
+    helpPowerPoint: 'Common in MS PowerPoint',
+    helpGoogleSlides: 'Common in Google Slides',
+    helpShortcuts: 'Shortcuts',
+    properties: 'Properties',
+    selectObject: 'Select an object to edit properties.',
+    textContent: 'Content',
+    fontSize: 'Font size',
+    textColor: 'Text color',
+    fillTransparent: 'Transparent',
+    fillColor: 'Fill color',
+    lineColor: 'Color',
+    lineSize: 'Size',
+    videoUrl: 'YouTube URL',
+    border: 'Border',
+    borderEnable: 'Enable',
+    borderColor: 'Color',
+    borderSize: 'Size',
+    slideBackground: 'Slide background',
+    backgroundColor: 'Color',
+    speakerNotes: 'Speaker notes',
+    bringToFront: 'Bring to front',
+    sendToBack: 'Send to back',
+    duplicate: 'Duplicate',
+    delete: 'Delete',
+    previous: 'Previous',
+    next: 'Next',
+    themeBtn: 'Toggle theme',
+    enterName: 'Enter name:',
+    newProjectName: 'New Project',
+    newFolderName: 'New Folder',
+    newDocumentName: 'New Document',
+    confirmDelete: 'Are you sure you want to delete?'
+  },
+  pt: {
+    title: 'Slides',
+    projects: 'Projetos',
+    folders: 'Pastas',
+    documents: 'Documentos',
+    addProject: 'Adicionar Projeto',
+    addFolder: 'Adicionar Pasta',
+    addDocument: 'Adicionar Documento',
+    selectDocument: 'Selecione um documento para editar slides',
+    newSlide: 'Novo slide',
+    duplicateSlide: 'Duplicar',
+    deleteSlide: 'Apagar',
+    undo: 'Desfazer',
+    redo: 'Refazer',
+    presentation: 'Apresentação',
+    template: 'Modelo',
+    apply: 'Aplicar',
+    background: 'Fundo',
+    text: 'Texto',
+    rect: 'Retângulo',
+    roundedRect: 'Arredondado',
+    line: 'Linha',
+    arrow: 'Seta',
+    image: 'Imagem',
+    video: 'Vídeo',
+    grid: 'Grade',
+    snap: 'Ímã',
+    reset: 'Resetar',
+    exportPng: 'Exportar PNG',
+    exportDoc: 'Exportar',
+    importDoc: 'Importar',
+    help: 'Ajuda',
+    close: 'Fechar',
+    helpTitle: 'Slides — Recursos',
+    helpIntro: 'Este editor implementa um subconjunto prático de fluxos do PowerPoint/Google Slides.',
+    helpPowerPoint: 'Comum no MS PowerPoint',
+    helpGoogleSlides: 'Comum no Google Slides',
+    helpShortcuts: 'Atalhos',
+    properties: 'Propriedades',
+    selectObject: 'Selecione um objeto para editar propriedades.',
+    textContent: 'Conteúdo',
+    fontSize: 'Tamanho fonte',
+    textColor: 'Cor do texto',
+    fillTransparent: 'Transparente',
+    fillColor: 'Cor de preenchimento',
+    lineColor: 'Cor',
+    lineSize: 'Espessura',
+    videoUrl: 'URL YouTube',
+    border: 'Borda',
+    borderEnable: 'Ativar',
+    borderColor: 'Cor',
+    borderSize: 'Espessura',
+    slideBackground: 'Fundo do slide',
+    backgroundColor: 'Cor',
+    speakerNotes: 'Notas do apresentador',
+    bringToFront: 'Trazer à frente',
+    sendToBack: 'Enviar para trás',
+    duplicate: 'Duplicar',
+    delete: 'Apagar',
+    previous: 'Anterior',
+    next: 'Próximo',
+    themeBtn: 'Alternar tema',
+    enterName: 'Digite o nome:',
+    newProjectName: 'Novo Projeto',
+    newFolderName: 'Nova Pasta',
+    newDocumentName: 'Novo Documento',
+    confirmDelete: 'Tem certeza que deseja excluir?'
+  },
+  ja: {
+    title: 'スライド',
+    projects: 'プロジェクト',
+    folders: 'フォルダ',
+    documents: 'ドキュメント',
+    addProject: 'プロジェクト追加',
+    addFolder: 'フォルダ追加',
+    addDocument: 'ドキュメント追加',
+    selectDocument: 'スライドを編集するドキュメントを選択',
+    newSlide: '新規スライド',
+    duplicateSlide: '複製',
+    deleteSlide: '削除',
+    undo: '元に戻す',
+    redo: 'やり直し',
+    presentation: 'プレゼン',
+    template: 'テンプレート',
+    apply: '適用',
+    background: '背景',
+    text: 'テキスト',
+    rect: '四角',
+    roundedRect: '角丸',
+    line: '線',
+    arrow: '矢印',
+    image: '画像',
+    video: '動画',
+    grid: 'グリッド',
+    snap: 'スナップ',
+    reset: 'リセット',
+    exportPng: 'PNG書き出し',
+    exportDoc: '書き出し',
+    importDoc: '読み込み',
+    help: 'ヘルプ',
+    close: '閉じる',
+    helpTitle: 'スライド — 機能',
+    helpIntro: 'このエディタは PowerPoint/Google Slides の実用的な機能を実装しています。',
+    helpPowerPoint: 'MS PowerPoint で一般的',
+    helpGoogleSlides: 'Google Slides で一般的',
+    helpShortcuts: 'ショートカット',
+    properties: 'プロパティ',
+    selectObject: 'オブジェクトを選択してプロパティを編集',
+    textContent: '内容',
+    fontSize: 'フォントサイズ',
+    textColor: '文字色',
+    fillTransparent: '透明',
+    fillColor: '塗り',
+    lineColor: '色',
+    lineSize: '太さ',
+    videoUrl: 'YouTube URL',
+    border: '枠線',
+    borderEnable: '有効',
+    borderColor: '色',
+    borderSize: '太さ',
+    slideBackground: 'スライドの背景',
+    backgroundColor: '色',
+    speakerNotes: '発表者ノート',
+    bringToFront: '最前面へ',
+    sendToBack: '最背面へ',
+    duplicate: '複製',
+    delete: '削除',
+    previous: '前へ',
+    next: '次へ',
+    themeBtn: 'テーマ切替',
+    enterName: '名前を入力:',
+    newProjectName: '新規プロジェクト',
+    newFolderName: '新規フォルダ',
+    newDocumentName: '新規ドキュメント',
+    confirmDelete: '削除してもよろしいですか？'
+  }
+};
+let currentLanguage = localStorage.getItem('app_lang') || 'en';
+let currentTheme = localStorage.getItem('app_theme') || 'dark';
+const t = (key) => (i18n[currentLanguage] || i18n.en)[key] || key;
+const applyI18n = () => {
+  const lang = i18n[currentLanguage] || i18n.en;
+  document.querySelectorAll('[data-i18n]').forEach(el => { const k = el.getAttribute('data-i18n'); if (lang[k]) el.textContent = lang[k]; });
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { const k = el.getAttribute('data-i18n-placeholder'); if (lang[k]) el.placeholder = lang[k]; });
+  document.querySelectorAll('[data-i18n-title]').forEach(el => { const k = el.getAttribute('data-i18n-title'); if (lang[k]) el.title = lang[k]; });
+  document.title = lang.title || 'Slides';
+};
+
+// ========== State ==========
+let state = {
+  projects: [],
+  folders: [],
+  documents: [],
+  slides: [],
+  selectedProjectId: null,
+  selectedFolderId: null,
+  selectedDocumentId: null,
+  selectedSlideId: null
+};
+
+// Ensure zzSlideSystem project and Templates/Backgrounds folders exist
+async function ensureZzSlideSystem() {
+  let proj = state.projects.find(p => p.name === ZZ_PROJECT_NAME);
+  if (!proj) {
+    proj = { id: 'zz-' + generateId(), name: ZZ_PROJECT_NAME, order: -1 };
+    await dbAdd('projects', proj);
+    state.projects.push(proj);
+  }
+  const foldersInZz = state.folders.filter(f => f.projectId === proj.id);
+  const hasTemplates = foldersInZz.some(f => f.name === ZZ_TEMPLATES_FOLDER);
+  const hasBackgrounds = foldersInZz.some(f => f.name === ZZ_BACKGROUNDS_FOLDER);
+  if (!hasTemplates) {
+    const tf = { id: generateId(), projectId: proj.id, name: ZZ_TEMPLATES_FOLDER, order: 0 };
+    await dbAdd('folders', tf);
+    state.folders.push(tf);
+  }
+  if (!hasBackgrounds) {
+    const bf = { id: generateId(), projectId: proj.id, name: ZZ_BACKGROUNDS_FOLDER, order: 1 };
+    await dbAdd('folders', bf);
+    state.folders.push(bf);
+  }
+}
+
+function loadUIState() {
+  try {
+    const s = JSON.parse(localStorage.getItem('slides_ui_state') || '{}');
+    state.selectedProjectId = s.selectedProjectId || null;
+    state.selectedFolderId = s.selectedFolderId || null;
+    state.selectedDocumentId = s.selectedDocumentId || null;
+    state.selectedSlideId = s.selectedSlideId || null;
+    const collapse = JSON.parse(localStorage.getItem('slides_collapse') || '{}');
+    ['projects-column', 'folders-column', 'documents-column'].forEach(id => {
+      if (collapse[id]) document.getElementById(id).classList.add('collapsed');
+    });
+  } catch (_) {}
+}
+
+function saveUIState() {
+  localStorage.setItem('slides_ui_state', JSON.stringify({
+    selectedProjectId: state.selectedProjectId,
+    selectedFolderId: state.selectedFolderId,
+    selectedDocumentId: state.selectedDocumentId,
+    selectedSlideId: state.selectedSlideId
+  }));
+  const collapse = {};
+  ['projects-column', 'folders-column', 'documents-column'].forEach(id => {
+    collapse[id] = document.getElementById(id).classList.contains('collapsed');
+  });
+  localStorage.setItem('slides_collapse', JSON.stringify(collapse));
+}
+
+// ========== Render nav columns ==========
+function renderProjects() {
+  const list = document.getElementById('projects-list');
+  list.innerHTML = '';
+  const sorted = [...state.projects].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  sorted.forEach(proj => {
+    const li = document.createElement('li');
+    li.dataset.id = proj.id;
+    if (proj.id === state.selectedProjectId) li.classList.add('selected');
+    const isZz = proj.name === ZZ_PROJECT_NAME;
+    li.innerHTML = `
+      <span class="item-name">${escapeHtml(proj.name)}</span>
+      ${isZz ? '<span class="badge-system">System</span>' : ''}
+      <div class="item-actions">
+        ${!isZz ? '<button class="rename-btn"><i class="fas fa-edit"></i></button><button class="delete-btn"><i class="fas fa-trash"></i></button>' : ''}
+      </div>
+    `;
+    li.addEventListener('click', e => {
+      const t = getEventTargetElement(e);
+      if (!t) return;
+      if (!t.closest('.item-actions')) selectProject(proj.id);
+    });
+    if (!isZz) {
+      const rn = li.querySelector('.rename-btn'); if (rn) rn.addEventListener('click', () => renameProject(proj.id));
+      const dl = li.querySelector('.delete-btn'); if (dl) dl.addEventListener('click', () => deleteProject(proj.id));
+    }
+    list.appendChild(li);
+  });
+}
+
+function renderFolders() {
+  const list = document.getElementById('folders-list');
+  const addBtn = document.getElementById('add-folder-btn');
+  list.innerHTML = '';
+  const proj = state.projects.find(p => p.id === state.selectedProjectId);
+  const isZz = proj && proj.name === ZZ_PROJECT_NAME;
+  addBtn.style.display = state.selectedProjectId && !isZz ? 'flex' : 'none';
+  if (!state.selectedProjectId) return;
+  const filtered = state.folders.filter(f => f.projectId === state.selectedProjectId);
+  const sorted = [...filtered].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  sorted.forEach(folder => {
+    const li = document.createElement('li');
+    li.dataset.id = folder.id;
+    if (folder.id === state.selectedFolderId) li.classList.add('selected');
+    const isFixed = isZz && (folder.name === ZZ_TEMPLATES_FOLDER || folder.name === ZZ_BACKGROUNDS_FOLDER);
+    li.innerHTML = `
+      <span class="item-name">${escapeHtml(folder.name)}</span>
+      <div class="item-actions">
+        ${!isFixed ? '<button class="rename-btn"><i class="fas fa-edit"></i></button><button class="delete-btn"><i class="fas fa-trash"></i></button>' : ''}
+      </div>
+    `;
+    li.addEventListener('click', e => {
+      const t = getEventTargetElement(e);
+      if (!t) return;
+      if (!t.closest('.item-actions')) selectFolder(folder.id);
+    });
+    if (!isFixed) {
+      const rn = li.querySelector('.rename-btn'); if (rn) rn.addEventListener('click', () => renameFolder(folder.id));
+      const dl = li.querySelector('.delete-btn'); if (dl) dl.addEventListener('click', () => deleteFolder(folder.id));
+    }
+    list.appendChild(li);
+  });
+}
+
+function renderDocuments() {
+  const list = document.getElementById('documents-list');
+  const addBtn = document.getElementById('add-document-btn');
+  list.innerHTML = '';
+  addBtn.style.display = state.selectedFolderId ? 'flex' : 'none';
+  if (!state.selectedFolderId) return;
+  const filtered = state.documents.filter(d => d.folderId === state.selectedFolderId);
+  const sorted = [...filtered].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  sorted.forEach(doc => {
+    const li = document.createElement('li');
+    li.dataset.id = doc.id;
+    if (doc.id === state.selectedDocumentId) li.classList.add('selected');
+    li.innerHTML = `
+      <span class="item-name">${escapeHtml(doc.name)}</span>
+      <div class="item-actions">
+        <button class="rename-btn"><i class="fas fa-edit"></i></button>
+        <button class="delete-btn"><i class="fas fa-trash"></i></button>
+      </div>
+    `;
+    li.addEventListener('click', e => {
+      const t = getEventTargetElement(e);
+      if (!t) return;
+      if (!t.closest('.item-actions')) selectDocument(doc.id);
+    });
+    li.querySelector('.rename-btn').addEventListener('click', () => renameDocument(doc.id));
+    li.querySelector('.delete-btn').addEventListener('click', () => deleteDocument(doc.id));
+    list.appendChild(li);
+  });
+}
+
+async function selectProject(id) {
+  state.selectedProjectId = id;
+  state.selectedFolderId = null;
+  state.selectedDocumentId = null;
+  state.selectedSlideId = null;
+  renderProjects();
+  renderFolders();
+  renderDocuments();
+  saveUIState();
+  showNoDoc();
+}
+
+async function selectFolder(id) {
+  state.selectedFolderId = id;
+  state.selectedDocumentId = null;
+  state.selectedSlideId = null;
+  renderFolders();
+  renderDocuments();
+  saveUIState();
+  showNoDoc();
+}
+
+async function selectDocument(id) {
+  state.selectedDocumentId = id;
+  state.selectedSlideId = null;
+  renderDocuments();
+  saveUIState();
+  await loadDocumentSlides();
+  renderSlideStrip();
+  showDocPanel();
+  if (state.slides.length) selectSlide(state.slides[0].id);
+  else selectSlide(null);
+}
+
+async function addProject() {
+  if (!db) {
+    alert('Please wait, the app is still loading.');
+    return;
+  }
+  const name = prompt(t('enterName'), t('newProjectName'));
+  if (!name || !name.trim()) return;
+  try {
+    const order = state.projects.length;
+    const proj = { id: generateId(), name: name.trim(), order };
+    await dbAdd('projects', proj);
+    state.projects.push(proj);
+    renderProjects();
+    selectProject(proj.id);
+  } catch (err) {
+    console.error(err);
+    alert('Error: ' + (err.message || err));
+  }
+}
+
+async function renameProject(id) {
+  const proj = state.projects.find(p => p.id === id);
+  if (!proj) return;
+  const name = prompt(t('enterName'), proj.name);
+  if (!name || !name.trim()) return;
+  proj.name = name.trim();
+  await dbPut('projects', proj);
+  renderProjects();
+}
+
+async function deleteProject(id) {
+  if (!confirm(t('confirmDelete'))) return;
+  const foldersToDel = state.folders.filter(f => f.projectId === id);
+  const folderIdsToDel = new Set(foldersToDel.map(f => f.id));
+  for (const f of foldersToDel) {
+    const docs = state.documents.filter(d => d.folderId === f.id);
+    for (const d of docs) {
+      const slidesToDel = state.slides.filter(s => s.documentId === d.id);
+      for (const s of slidesToDel) await dbDelete('slides', s.id);
+      await dbDelete('documents', d.id);
+    }
+    await dbDelete('folders', f.id);
+  }
+  await dbDelete('projects', id);
+  state.folders = state.folders.filter(f => f.projectId !== id);
+  state.documents = state.documents.filter(d => !folderIdsToDel.has(d.folderId));
+  const remainingDocIds = new Set(state.documents.map(d => d.id));
+  state.slides = state.slides.filter(s => remainingDocIds.has(s.documentId));
+  state.projects = state.projects.filter(p => p.id !== id);
+  if (state.selectedProjectId === id) { state.selectedProjectId = null; state.selectedFolderId = null; state.selectedDocumentId = null; state.selectedSlideId = null; showNoDoc(); }
+  renderProjects();
+  renderFolders();
+  renderDocuments();
+  saveUIState();
+}
+
+async function addFolder() {
+  if (!state.selectedProjectId) return;
+  const name = prompt(t('enterName'), t('newFolderName'));
+  if (!name || !name.trim()) return;
+  const count = state.folders.filter(f => f.projectId === state.selectedProjectId).length;
+  const folder = { id: generateId(), projectId: state.selectedProjectId, name: name.trim(), order: count };
+  await dbAdd('folders', folder);
+  state.folders.push(folder);
+  renderFolders();
+  selectFolder(folder.id);
+}
+
+async function renameFolder(id) {
+  const folder = state.folders.find(f => f.id === id);
+  if (!folder) return;
+  const proj = state.projects.find(p => p.id === folder.projectId);
+  if (proj && proj.name === ZZ_PROJECT_NAME) return;
+  const name = prompt(t('enterName'), folder.name);
+  if (!name || !name.trim()) return;
+  folder.name = name.trim();
+  await dbPut('folders', folder);
+  renderFolders();
+}
+
+async function deleteFolder(id) {
+  if (!confirm(t('confirmDelete'))) return;
+  const docs = state.documents.filter(d => d.folderId === id);
+  const docIdsToDel = new Set(docs.map(d => d.id));
+  for (const d of docs) {
+    const slidesToDel = state.slides.filter(s => s.documentId === d.id);
+    for (const s of slidesToDel) await dbDelete('slides', s.id);
+    await dbDelete('documents', d.id);
+  }
+  await dbDelete('folders', id);
+  state.documents = state.documents.filter(d => d.folderId !== id);
+  state.slides = state.slides.filter(s => !docIdsToDel.has(s.documentId));
+  state.folders = state.folders.filter(f => f.id !== id);
+  if (state.selectedFolderId === id) { state.selectedFolderId = null; state.selectedDocumentId = null; state.selectedSlideId = null; showNoDoc(); }
+  renderFolders();
+  renderDocuments();
+  saveUIState();
+}
+
+async function addDocument() {
+  if (!state.selectedFolderId) return;
+  const name = prompt(t('enterName'), t('newDocumentName'));
+  if (!name || !name.trim()) return;
+  const count = state.documents.filter(d => d.folderId === state.selectedFolderId).length;
+  const doc = { id: generateId(), folderId: state.selectedFolderId, name: name.trim(), order: count, slideIds: [], templateId: null, createdAt: Date.now(), updatedAt: Date.now() };
+  await dbAdd('documents', doc);
+  state.documents.push(doc);
+  renderDocuments();
+  selectDocument(doc.id);
+}
+
+async function renameDocument(id) {
+  const doc = state.documents.find(d => d.id === id);
+  if (!doc) return;
+  const name = prompt(t('enterName'), doc.name);
+  if (!name || !name.trim()) return;
+  doc.name = name.trim();
+  doc.updatedAt = Date.now();
+  await dbPut('documents', doc);
+  renderDocuments();
+}
+
+async function deleteDocument(id) {
+  if (!confirm(t('confirmDelete'))) return;
+  const slidesToDel = state.slides.filter(s => s.documentId === id);
+  for (const s of slidesToDel) await dbDelete('slides', s.id);
+  await dbDelete('documents', id);
+  state.slides = state.slides.filter(s => s.documentId !== id);
+  state.documents = state.documents.filter(d => d.id !== id);
+  if (state.selectedDocumentId === id) { state.selectedDocumentId = null; state.selectedSlideId = null; showNoDoc(); }
+  renderDocuments();
+  saveUIState();
+}
+
+async function loadDocumentSlides() {
+  if (!state.selectedDocumentId) { state.slides = []; return; }
+  const slides = await dbGetByIndex('slides', 'documentId', state.selectedDocumentId);
+  state.slides = slides.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  const doc = state.documents.find(d => d.id === state.selectedDocumentId);
+  if (doc && (!doc.slideIds || doc.slideIds.length !== state.slides.length)) {
+    doc.slideIds = state.slides.map(s => s.id);
+    await dbPut('documents', doc);
+  }
+}
+
+async function getFirstSlideOfDocument(docId) {
+  const slides = await dbGetByIndex('slides', 'documentId', docId);
+  const sorted = slides.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  return sorted[0] || null;
+}
+
+function showNoDoc() {
+  document.getElementById('no-doc-panel').classList.remove('hidden');
+  document.getElementById('doc-panel').classList.add('hidden');
+}
+
+function showDocPanel() {
+  document.getElementById('no-doc-panel').classList.add('hidden');
+  document.getElementById('doc-panel').classList.remove('hidden');
+  document.getElementById('doc-panel').style.display = 'flex';
+  populateTemplateSelect();
+  populateBackgroundSelect();
+}
+
+async function addSlide() {
+  if (!state.selectedDocumentId) return;
+  await saveCurrentSlide();
+  const doc = state.documents.find(d => d.id === state.selectedDocumentId);
+  const order = state.slides.length;
+  let objects = [];
+  let background = '#ffffff';
+  if (doc && doc.templateId) {
+    const templateSlide = await getFirstSlideOfDocument(doc.templateId);
+    if (templateSlide) {
+      objects = JSON.parse(JSON.stringify(templateSlide.objects || []));
+      objects.forEach(o => { o.id = generateId(); o.x = (o.x || 0) + 20; o.y = (o.y || 0) + 20; });
+      background = templateSlide.background != null ? (typeof templateSlide.background === 'string' ? templateSlide.background : { ...templateSlide.background }) : '#ffffff';
+    }
+  }
+  const slide = { id: generateId(), documentId: state.selectedDocumentId, order, objects, background, speakerNotes: '' };
+  await dbAdd('slides', slide);
+  state.slides.push(slide);
+  if (doc) { doc.slideIds = doc.slideIds || []; doc.slideIds.push(slide.id); doc.updatedAt = Date.now(); await dbPut('documents', doc); }
+  renderSlideStrip();
+  selectSlide(slide.id);
+  invalidateThumb(slide.id);
+}
+
+async function duplicateSlide() {
+  const slide = state.slides.find(s => s.id === state.selectedSlideId);
+  if (!slide || !state.selectedDocumentId) return;
+  await saveCurrentSlide();
+  const doc = state.documents.find(d => d.id === state.selectedDocumentId);
+  const order = state.slides.length;
+  const newSlide = { id: generateId(), documentId: state.selectedDocumentId, order, objects: JSON.parse(JSON.stringify(slide.objects || [])), background: slide.background || '#ffffff', speakerNotes: slide.speakerNotes || '' };
+  if (newSlide.objects.length) {
+    newSlide.objects.forEach(o => { o.x = (o.x || 0) + 20; o.y = (o.y || 0) + 20; });
+  }
+  await dbAdd('slides', newSlide);
+  state.slides.push(newSlide);
+  if (doc) { doc.slideIds = doc.slideIds || []; doc.slideIds.push(newSlide.id); doc.updatedAt = Date.now(); await dbPut('documents', doc); }
+  renderSlideStrip();
+  selectSlide(newSlide.id);
+  invalidateThumb(newSlide.id);
+}
+
+async function deleteSlide() {
+  const slide = state.slides.find(s => s.id === state.selectedSlideId);
+  if (!slide || !state.selectedDocumentId) return;
+  if (!confirm(t('confirmDelete'))) return;
+  await dbDelete('slides', slide.id);
+  state.slides = state.slides.filter(s => s.id !== slide.id);
+  const doc = state.documents.find(d => d.id === state.selectedDocumentId);
+  if (doc && doc.slideIds) { doc.slideIds = doc.slideIds.filter(id => id !== slide.id); doc.updatedAt = Date.now(); await dbPut('documents', doc); }
+  state.slides.forEach((s, i) => { s.order = i; dbPut('slides', s); });
+  renderSlideStrip();
+  state.selectedSlideId = state.slides.length ? state.slides[0].id : null;
+  if (state.selectedSlideId) selectSlide(state.selectedSlideId);
+  else { slideEditorClear(); updateSlideStripSelection(); }
+  saveUIState();
+}
+
+let thumbCache = {};
+function invalidateThumb(slideId) { delete thumbCache[slideId]; }
+function getCurrentSlide() { return state.slides.find(s => s.id === state.selectedSlideId); }
+
+let slideDragSourceId = null;
+function renderSlideStrip() {
+  const strip = document.getElementById('slide-strip');
+  strip.innerHTML = '';
+  state.slides.forEach((slide, idx) => {
+    const wrap = document.createElement('div');
+    wrap.className = 'slide-thumb' + (slide.id === state.selectedSlideId ? ' selected' : '');
+    wrap.dataset.slideId = slide.id;
+    wrap.dataset.index = String(idx);
+    wrap.draggable = true;
+    const c = document.createElement('canvas');
+    c.width = 160;
+    c.height = 90;
+    wrap.appendChild(c);
+    wrap.addEventListener('click', (e) => { if (!wrap.classList.contains('dragging')) selectSlide(slide.id); });
+    wrap.addEventListener('dragstart', (e) => { slideDragSourceId = slide.id; wrap.classList.add('dragging'); e.dataTransfer.setData('text/plain', slide.id); e.dataTransfer.effectAllowed = 'move'; });
+    wrap.addEventListener('dragend', () => { wrap.classList.remove('dragging'); strip.querySelectorAll('.slide-thumb').forEach(el => el.classList.remove('drop-target')); slideDragSourceId = null; });
+    wrap.addEventListener('dragover', (e) => { e.preventDefault(); if (slideDragSourceId && slideDragSourceId !== slide.id) wrap.classList.add('drop-target'); e.dataTransfer.dropEffect = 'move'; });
+    wrap.addEventListener('dragleave', () => wrap.classList.remove('drop-target'));
+    wrap.addEventListener('drop', async (e) => {
+      e.preventDefault();
+      wrap.classList.remove('drop-target');
+      const srcId = e.dataTransfer.getData('text/plain');
+      if (!srcId || srcId === slide.id) return;
+      const srcIdx = state.slides.findIndex(s => s.id === srcId);
+      const tgtIdx = state.slides.findIndex(s => s.id === slide.id);
+      if (srcIdx < 0 || tgtIdx < 0) return;
+      const [moved] = state.slides.splice(srcIdx, 1);
+      state.slides.splice(tgtIdx, 0, moved);
+      state.slides.forEach((s, i) => { s.order = i; dbPut('slides', s); });
+      renderSlideStrip();
+      saveUIState();
+    });
+    strip.appendChild(wrap);
+    drawThumb(c, slide);
+  });
+}
+
+function drawThumb(canvasEl, slide) {
+  const key = slide.id;
+  if (thumbCache[key] && thumbCache[key].complete) {
+    const ctx = canvasEl.getContext('2d');
+    ctx.drawImage(thumbCache[key], 0, 0, 160, 90);
+    return;
+  }
+  const ctx = canvasEl.getContext('2d');
+  const scale = 160 / SLIDE_W;
+  drawBackground(ctx, slide.background, 160, 90);
+  ctx.save();
+  ctx.scale(scale, scale);
+  (slide.objects || []).forEach(obj => drawObjectToCtx(ctx, obj, false));
+  ctx.restore();
+  const img = new Image();
+  img.onload = () => { thumbCache[key] = img; };
+  img.src = canvasEl.toDataURL('image/png');
+}
+
+function updateSlideStripSelection() {
+  document.querySelectorAll('.slide-thumb').forEach(el => {
+    el.classList.toggle('selected', el.dataset.slideId === state.selectedSlideId);
+  });
+}
+
+async function selectSlide(slideId) {
+  await saveCurrentSlide();
+  state.selectedSlideId = slideId;
+  saveUIState();
+  const slide = getCurrentSlide();
+  if (slide) {
+    slideEditorLoad(slide);
+    invalidateThumb(slideId);
+    renderSlideStrip();
+  } else slideEditorClear();
+  updateSlideStripSelection();
+  populateTemplateSelect();
+  populateBackgroundSelect();
+}
+
+function populateTemplateSelect() {
+  const sel = document.getElementById('templateSelect');
+  const doc = state.documents.find(d => d.id === state.selectedDocumentId);
+  const proj = state.projects.find(p => p.name === ZZ_PROJECT_NAME);
+  const templatesFolder = proj ? state.folders.find(f => f.projectId === proj.id && f.name === ZZ_TEMPLATES_FOLDER) : null;
+  const templates = templatesFolder ? state.documents.filter(d => d.folderId === templatesFolder.id) : [];
+  sel.innerHTML = '<option value="">—</option>' + templates.map(t => `<option value="${t.id}" ${doc && doc.templateId === t.id ? 'selected' : ''}>${escapeHtml(t.name)}</option>`).join('');
+}
+
+function populateBackgroundSelect() {
+  const sel = document.getElementById('backgroundSelect');
+  const proj = state.projects.find(p => p.name === ZZ_PROJECT_NAME);
+  const bgFolder = proj ? state.folders.find(f => f.projectId === proj.id && f.name === ZZ_BACKGROUNDS_FOLDER) : null;
+  const backgrounds = bgFolder ? state.documents.filter(d => d.folderId === bgFolder.id) : [];
+  sel.innerHTML = '<option value="">—</option>' + backgrounds.map(b => `<option value="${b.id}">${escapeHtml(b.name)}</option>`).join('');
+}
+
+// ========== Slide editor (canvas) ==========
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+let slideObjects = [];
+let selectedObj = null;
+let selectedIds = new Set();
+let viewZoom = 1, viewX = 0, viewY = 0;
+let baseScale = 1;
+let userZoom = 1;
+let drawMode = null, drawStart = null;
+let dragMode = null, dragStart = null;
+let gridEnabled = false;
+let snapEnabled = true;
+let dragDidChange = false;
+let objectClipboard = null; // { objects: [...], cut: boolean }
+
+function serializeObject(obj) {
+  const copy = JSON.parse(JSON.stringify(obj));
+  if (obj.type === 'image' && (obj.dataUrl || (obj.img && obj.img.src && obj.img.src.startsWith('data:')))) copy.dataUrl = obj.dataUrl || obj.img.src;
+  if (copy.img) delete copy.img;
+  copy.id = generateId();
+  return copy;
+}
+function pasteClipboard() {
+  if (!objectClipboard || !objectClipboard.objects.length) return;
+  pushHistory();
+  const offset = 20;
+  objectClipboard.objects.forEach((o, i) => {
+    const obj = { ...o, id: generateId(), x: (o.x || 0) + offset + i * 10, y: (o.y || 0) + offset + i * 10 };
+    if (obj.points) obj.points = [obj.points[0] + offset, obj.points[1] + offset, obj.points[2] + offset, obj.points[3] + offset];
+    if (obj.type === 'image' && obj.dataUrl) {
+      const img = new Image();
+      img.onload = () => { obj.img = img; editorRender(); };
+      img.src = obj.dataUrl;
+    }
+    slideObjects.push(obj);
+  });
+  objectClipboard.cut = false;
+  selectedObj = slideObjects[slideObjects.length - 1];
+  updatePropsPanel();
+  editorRender();
+  saveCurrentSlide();
+  invalidateThumb(state.selectedSlideId);
+  renderSlideStrip();
+}
+function duplicateSelectedObject() {
+  if (!selectedObj) return;
+  pushHistory();
+  const copy = serializeObject(selectedObj);
+  copy.x = (copy.x || 0) + 20; copy.y = (copy.y || 0) + 20;
+  if (copy.points) copy.points = [copy.points[0] + 20, copy.points[1] + 20, copy.points[2] + 20, copy.points[3] + 20];
+  if (copy.type === 'image' && copy.dataUrl) {
+    const img = new Image();
+    img.onload = () => { copy.img = img; editorRender(); };
+    img.src = copy.dataUrl;
+  }
+  slideObjects.push(copy);
+  selectedObj = copy;
+  updatePropsPanel();
+  editorRender();
+  saveCurrentSlide();
+  invalidateThumb(state.selectedSlideId);
+  renderSlideStrip();
+}
+
+// Undo/redo per slide
+const historyBySlideId = new Map(); // slideId -> { undo: [], redo: [] }
+const MAX_HISTORY = 50;
+function getHistory(slideId) {
+  if (!historyBySlideId.has(slideId)) historyBySlideId.set(slideId, { undo: [], redo: [] });
+  return historyBySlideId.get(slideId);
+}
+function snapshotSlideState() {
+  const slide = getCurrentSlide();
+  if (!slide) return null;
+  const objects = slideObjects.map(o => {
+    const copy = { ...o };
+    if (o.type === 'image' && o.img && (o.dataUrl || (o.img.src && o.img.src.startsWith('data:')))) copy.dataUrl = o.dataUrl || o.img.src;
+    if (copy.img) delete copy.img;
+    return copy;
+  });
+  return { objects, background: slide.background != null ? (typeof slide.background === 'string' ? slide.background : { ...slide.background }) : '#ffffff', speakerNotes: document.getElementById('inpSpeakerNotes').value || '' };
+}
+function pushHistory() {
+  const slideId = state.selectedSlideId;
+  if (!slideId) return;
+  const snap = snapshotSlideState();
+  if (!snap) return;
+  const hist = getHistory(slideId);
+  hist.redo.length = 0;
+  hist.undo.push(snap);
+  if (hist.undo.length > MAX_HISTORY) hist.undo.shift();
+  updateUndoRedoButtons();
+}
+function applySnapshot(snap) {
+  if (!snap || !getCurrentSlide()) return;
+  const slide = getCurrentSlide();
+  slideObjects = [];
+  (snap.objects || []).forEach(o => {
+    const obj = ensureObjId({ ...o });
+    if (obj.type === 'image' && obj.dataUrl) {
+      const img = new Image();
+      img.onload = () => { obj.img = img; editorRender(); };
+      img.src = obj.dataUrl;
+    }
+    slideObjects.push(obj);
+  });
+  slide.background = snap.background;
+  slide.objects = snap.objects || [];
+  document.getElementById('inpSpeakerNotes').value = snap.speakerNotes || '';
+  document.getElementById('inpSlideBackground').value = normalizeBackground(slide.background).color || '#ffffff';
+  selectedObj = null;
+  updatePropsPanel();
+  editorRender();
+}
+function undo() {
+  const slideId = state.selectedSlideId;
+  if (!slideId) return;
+  const hist = getHistory(slideId);
+  if (hist.undo.length < 2) return;
+  const currentSnap = snapshotSlideState();
+  hist.undo.pop();
+  const prev = hist.undo[hist.undo.length - 1];
+  hist.redo.push(currentSnap);
+  applySnapshot(prev);
+  saveCurrentSlide();
+  invalidateThumb(slideId);
+  renderSlideStrip();
+  updateUndoRedoButtons();
+}
+function redo() {
+  const slideId = state.selectedSlideId;
+  if (!slideId) return;
+  const hist = getHistory(slideId);
+  if (hist.redo.length === 0) return;
+  const next = hist.redo.pop();
+  hist.undo.push(snapshotSlideState());
+  applySnapshot(next);
+  saveCurrentSlide();
+  invalidateThumb(slideId);
+  renderSlideStrip();
+  updateUndoRedoButtons();
+}
+function seedHistoryForCurrentSlide() {
+  const slideId = state.selectedSlideId;
+  if (!slideId) return;
+  const hist = getHistory(slideId);
+  hist.undo = [];
+  hist.redo = [];
+  pushHistory();
+  updateUndoRedoButtons();
+}
+function updateUndoRedoButtons() {
+  const slideId = state.selectedSlideId;
+  const hist = slideId ? getHistory(slideId) : { undo: [], redo: [] };
+  document.getElementById('btnUndo').disabled = !hist.undo || hist.undo.length <= 1;
+  document.getElementById('btnRedo').disabled = !hist.redo || hist.redo.length === 0;
+}
+function setZoomBadge() {
+  document.getElementById('zoomBadge').textContent = Math.round(viewZoom * 100) + '%';
+}
+
+function ensureObjId(o) {
+  if (!o.id) o.id = generateId();
+  return o;
+}
+const lastConfig = {
+  rect: { fill: null, stroke: '#333', strokeWidth: 2 },
+  roundedRect: { fill: null, stroke: '#333', strokeWidth: 2, cornerRadius: 20 },
+  line: { stroke: '#333', strokeWidth: 3 },
+  arrow: { stroke: '#333', strokeWidth: 3 }
+};
+
+function screenToBoard(sx, sy) {
+  return { x: (sx - viewX) / viewZoom, y: (sy - viewY) / viewZoom };
+}
+function boardToScreen(bx, by) {
+  return { x: viewX + bx * viewZoom, y: viewY + by * viewZoom };
+}
+
+function getObjectBounds(obj) {
+  if (['image', 'rect', 'roundedRect', 'text', 'video'].includes(obj.type)) {
+    const w = obj.w || 100, h = obj.h || 100;
+    const cx = obj.x + w / 2, cy = obj.y + h / 2;
+    const r = (obj.rotation || 0) * Math.PI / 180;
+    const cos = Math.cos(r), sin = Math.sin(r);
+    const dx = -w / 2, dy = -h / 2;
+    const x1 = cx + dx * cos - dy * sin, y1 = cy + dx * sin + dy * cos;
+    const x2 = cx + (w + dx) * cos - dy * sin, y2 = cy + (w + dx) * sin + dy * cos;
+    const x3 = cx + (w + dx) * cos - (h + dy) * sin, y3 = cy + (w + dx) * sin + (h + dy) * cos;
+    const x4 = cx + dx * cos - (h + dy) * sin, y4 = cy + dx * sin + (h + dy) * cos;
+    return { minX: Math.min(x1,x2,x3,x4), minY: Math.min(y1,y2,y3,y4), maxX: Math.max(x1,x2,x3,x4), maxY: Math.max(y1,y2,y3,y4), cx, cy, w, h };
+  }
+  if (obj.type === 'line' || obj.type === 'arrow') {
+    const [x0, y0, x1, y1] = obj.points;
+    return { minX: Math.min(x0,x1), minY: Math.min(y0,y1), maxX: Math.max(x0,x1), maxY: Math.max(y0,y1) };
+  }
+  return null;
+}
+
+function pointInRotatedRect(px, py, obj) {
+  const w = obj.w || 100, h = obj.h || 100;
+  const cx = obj.x + w / 2, cy = obj.y + h / 2;
+  const r = -(obj.rotation || 0) * Math.PI / 180;
+  const cos = Math.cos(r), sin = Math.sin(r);
+  const dx = px - cx, dy = py - cy;
+  const lx = dx * cos - dy * sin, ly = dx * sin + dy * cos;
+  return lx >= -w / 2 && lx <= w / 2 && ly >= -h / 2 && ly <= h / 2;
+}
+
+function dist(ax, ay, bx, by) { return Math.hypot(ax - bx, ay - by); }
+
+function hitTest(px, py) {
+  const b = screenToBoard(px, py);
+  const bx = b.x, by = b.y;
+  for (let i = slideObjects.length - 1; i >= 0; i--) {
+    const obj = slideObjects[i];
+    if (['image', 'rect', 'roundedRect', 'video'].includes(obj.type) && pointInRotatedRect(bx, by, obj)) return { obj, index: i };
+    if (obj.type === 'text' && pointInRotatedRect(bx, by, { x: obj.x, y: obj.y, w: obj.w || 80, h: obj.h || 24, rotation: obj.rotation || 0 })) return { obj, index: i };
+    if ((obj.type === 'line' || obj.type === 'arrow') && obj.points) {
+      const [x0, y0, x1, y1] = obj.points;
+      if (Math.abs(dist(bx, by, x0, y0) + dist(bx, by, x1, y1) - dist(x0, y0, x1, y1)) < 10) return { obj, index: i };
+    }
+  }
+  return null;
+}
+
+function hitHandle(px, py) {
+  if (!selectedObj) return null;
+  const b = screenToBoard(px, py);
+  const bx = b.x, by = b.y;
+  if (selectedObj.type === 'line' || selectedObj.type === 'arrow') {
+    const [x0, y0, x1, y1] = selectedObj.points;
+    if (dist(bx, by, x0, y0) < HANDLE * 2) return 'line-p0';
+    if (dist(bx, by, x1, y1) < HANDLE * 2) return 'line-p1';
+    return null;
+  }
+  const bounds = getObjectBounds(selectedObj);
+  if (!bounds) return null;
+  const { minX, minY, maxX, maxY, cx, cy, w, h } = bounds;
+  const rotY = cy - ROTATE_HANDLE_OFFSET - h / 2;
+  if (dist(bx, by, cx, rotY) < HANDLE * 2) return 'rotate';
+  if (dist(bx, by, minX, minY) < HANDLE * 2) return 'resize-nw';
+  if (dist(bx, by, maxX, minY) < HANDLE * 2) return 'resize-ne';
+  if (dist(bx, by, minX, maxY) < HANDLE * 2) return 'resize-sw';
+  if (dist(bx, by, maxX, maxY) < HANDLE * 2) return 'resize-se';
+  if (pointInRotatedRect(bx, by, selectedObj)) return 'move';
+  return null;
+}
+
+function applyShadow(c, obj) {
+  if (obj.shadowBlur && obj.shadowBlur > 0) {
+    c.shadowColor = obj.shadowColor || '#000'; c.shadowBlur = obj.shadowBlur || 10;
+    c.shadowOffsetX = obj.shadowOffsetX || 5; c.shadowOffsetY = obj.shadowOffsetY || 5;
+  } else { c.shadowColor = 'transparent'; c.shadowBlur = 0; c.shadowOffsetX = 0; c.shadowOffsetY = 0; }
+}
+function applyStroke(c, obj) {
+  if (obj.strokeWidth > 0 && obj.stroke) { c.strokeStyle = obj.stroke; c.lineWidth = obj.strokeWidth; }
+}
+
+function normalizeBackground(bg) {
+  if (!bg) return { type: 'solid', color: '#ffffff' };
+  if (typeof bg === 'string') return { type: 'solid', color: bg };
+  if (bg.type === 'color' && bg.color) return { type: 'solid', color: bg.color };
+  if (bg.type === 'solid' && bg.color) return bg;
+  if (bg.type === 'linearGradient' && bg.from && bg.to) return { type: 'linearGradient', from: bg.from, to: bg.to, angle: Number(bg.angle ?? 45) };
+  return { type: 'solid', color: '#ffffff' };
+}
+
+function drawBackground(c, bg, w, h) {
+  const b = normalizeBackground(bg);
+  if (b.type === 'solid') {
+    c.fillStyle = b.color || '#ffffff';
+    c.fillRect(0, 0, w, h);
+    return;
+  }
+  if (b.type === 'linearGradient') {
+    const angle = (Number(b.angle ?? 45) * Math.PI) / 180;
+    const cx = w / 2;
+    const cy = h / 2;
+    const radius = Math.hypot(w, h) / 2;
+    const x0 = cx - Math.cos(angle) * radius;
+    const y0 = cy - Math.sin(angle) * radius;
+    const x1 = cx + Math.cos(angle) * radius;
+    const y1 = cy + Math.sin(angle) * radius;
+    const g = c.createLinearGradient(x0, y0, x1, y1);
+    g.addColorStop(0, b.from);
+    g.addColorStop(1, b.to);
+    c.fillStyle = g;
+    c.fillRect(0, 0, w, h);
+    return;
+  }
+  c.fillStyle = '#ffffff';
+  c.fillRect(0, 0, w, h);
+}
+
+function drawObjectToCtx(c, obj, forEditor) {
+  c.save();
+  applyShadow(c, obj);
+  if (obj.type === 'image') {
+    const w = obj.w || 100, h = obj.h || 100;
+    c.translate(obj.x + w / 2, obj.y + h / 2);
+    c.rotate((obj.rotation || 0) * Math.PI / 180);
+    c.translate(-w / 2, -h / 2);
+    if (obj.img) {
+      c.drawImage(obj.img, 0, 0, w, h);
+      if (obj.strokeWidth > 0 && obj.stroke) { c.strokeStyle = obj.stroke; c.lineWidth = obj.strokeWidth; c.strokeRect(0, 0, w, h); }
+    } else {
+      c.fillStyle = '#ccc';
+      c.fillRect(0, 0, w, h);
+    }
+  }
+  if (obj.type === 'video') {
+    const w = obj.w || 200, h = obj.h || 120;
+    c.translate(obj.x + w / 2, obj.y + h / 2);
+    c.rotate((obj.rotation || 0) * Math.PI / 180);
+    c.translate(-w / 2, -h / 2);
+    c.fillStyle = '#333';
+    c.fillRect(0, 0, w, h);
+    c.fillStyle = '#fff';
+    c.font = '48px sans-serif';
+    c.textAlign = 'center';
+    c.textBaseline = 'middle';
+    c.fillText('\u25B6', w / 2, h / 2);
+  }
+  if (obj.type === 'rect' || obj.type === 'roundedRect') {
+    c.translate(obj.x + obj.w / 2, obj.y + obj.h / 2);
+    c.rotate((obj.rotation || 0) * Math.PI / 180);
+    c.translate(-obj.w / 2, -obj.h / 2);
+    const fillT = obj.fill == null || obj.fill === 'transparent';
+    if (!fillT) c.fillStyle = obj.fill || '#5aa7ff';
+    if (obj.type === 'roundedRect') {
+      const r = Math.min(obj.cornerRadius || 20, obj.w / 2, obj.h / 2);
+      c.beginPath();
+      c.moveTo(r, 0); c.lineTo(obj.w - r, 0); c.quadraticCurveTo(obj.w, 0, obj.w, r);
+      c.lineTo(obj.w, obj.h - r); c.quadraticCurveTo(obj.w, obj.h, obj.w - r, obj.h);
+      c.lineTo(r, obj.h); c.quadraticCurveTo(0, obj.h, 0, obj.h - r); c.lineTo(0, r); c.quadraticCurveTo(0, 0, r, 0);
+      c.closePath();
+      if (!fillT) c.fill();
+      applyStroke(c, obj); c.stroke();
+    } else {
+      if (!fillT) c.fillRect(0, 0, obj.w, obj.h);
+      applyStroke(c, obj); c.strokeRect(0, 0, obj.w, obj.h);
+    }
+  }
+  if (obj.type === 'line' || obj.type === 'arrow') {
+    const [x0, y0, x1, y1] = obj.points;
+    const lw = obj.strokeWidth ?? 3, lc = obj.stroke || '#333';
+    c.lineCap = 'round'; c.lineJoin = 'round';
+    applyShadow(c, obj);
+    c.strokeStyle = lc; c.lineWidth = lw;
+    c.beginPath(); c.moveTo(x0, y0); c.lineTo(x1, y1); c.stroke();
+    if (obj.type === 'arrow') {
+      const angle = Math.atan2(y1 - y0, x1 - x0);
+      const al = Math.max(10, lw * 5);
+      c.beginPath(); c.moveTo(x1, y1);
+      c.lineTo(x1 - al * Math.cos(angle - 0.4), y1 - al * Math.sin(angle - 0.4));
+      c.lineTo(x1 - al * Math.cos(angle + 0.4), y1 - al * Math.sin(angle + 0.4));
+      c.closePath(); c.fillStyle = lc; c.fill();
+    }
+  }
+  if (obj.type === 'text') {
+    const w = obj.w || 80, h = obj.h || 24;
+    const lines = (obj.text ?? 'Text').split('\n');
+    const fs = obj.fontSize || 24, lh = fs * 1.2;
+    c.translate(obj.x + w / 2, obj.y + h / 2);
+    c.rotate((obj.rotation || 0) * Math.PI / 180);
+    c.translate(-w / 2, -h / 2);
+    c.font = fs + 'px sans-serif';
+    c.fillStyle = obj.fill || '#000';
+    c.textBaseline = 'middle';
+    applyStroke(c, obj);
+    let y = h / 2 - (lines.length - 1) * lh / 2;
+    lines.forEach(line => {
+      c.fillText(line || ' ', 0, y);
+      if (obj.strokeWidth > 0 && obj.stroke) c.strokeText(line || ' ', 0, y);
+      y += lh;
+    });
+  }
+  c.restore();
+}
+
+function drawHandles(c, obj) {
+  c.save();
+  c.strokeStyle = '#0d6efd';
+  c.fillStyle = 'rgba(13,110,253,0.3)';
+  c.lineWidth = 2;
+  if (obj.type === 'line' || obj.type === 'arrow') {
+    const [x0, y0, x1, y1] = obj.points;
+    [[x0, y0], [x1, y1]].forEach(([x, y]) => { c.beginPath(); c.arc(x, y, HANDLE, 0, Math.PI * 2); c.fill(); c.stroke(); });
+  } else {
+    const bounds = getObjectBounds(obj);
+    if (bounds) {
+      const { minX, minY, maxX, maxY, cx, cy, w, h } = bounds;
+      const rotY = cy - ROTATE_HANDLE_OFFSET - h / 2;
+      [[minX, minY], [maxX, minY], [minX, maxY], [maxX, maxY], [cx, rotY]].forEach(([x, y]) => { c.beginPath(); c.arc(x, y, HANDLE, 0, Math.PI * 2); c.fill(); c.stroke(); });
+      c.setLineDash([4, 4]);
+      c.strokeRect(minX - HANDLE, minY - HANDLE, maxX - minX + HANDLE * 2, maxY - minY + HANDLE * 2);
+    }
+  }
+  c.restore();
+}
+
+function editorRender() {
+  const wrap = document.getElementById('canvasWrap');
+  const cw = wrap.clientWidth, ch = wrap.clientHeight;
+  baseScale = Math.min(cw / SLIDE_W, ch / SLIDE_H);
+  viewZoom = baseScale * userZoom;
+  viewX = (cw - SLIDE_W * viewZoom) / 2;
+  viewY = (ch - SLIDE_H * viewZoom) / 2;
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = cw * dpr;
+  canvas.height = ch * dpr;
+  canvas.style.width = cw + 'px';
+  canvas.style.height = ch + 'px';
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.scale(dpr, dpr);
+  ctx.fillStyle = '#1a1a1a';
+  ctx.fillRect(0, 0, cw, ch);
+  const slide = getCurrentSlide();
+  ctx.save();
+  ctx.translate(viewX, viewY);
+  ctx.scale(viewZoom, viewZoom);
+  drawBackground(ctx, slide ? slide.background : null, SLIDE_W, SLIDE_H);
+  if (gridEnabled) {
+    ctx.save();
+    ctx.strokeStyle = 'rgba(0,0,0,0.12)';
+    ctx.lineWidth = 1;
+    for (let x = 0; x <= SLIDE_W; x += GRID_SIZE) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, SLIDE_H);
+      ctx.stroke();
+    }
+    for (let y = 0; y <= SLIDE_H; y += GRID_SIZE) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(SLIDE_W, y);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+  slideObjects.forEach(o => drawObjectToCtx(ctx, o, true));
+  if (selectedObj) drawHandles(ctx, selectedObj);
+  ctx.restore();
+}
+
+function slideEditorLoad(slide) {
+  slideObjects = [];
+  selectedIds = new Set();
+  slide.background = normalizeBackground(slide.background);
+  (slide.objects || []).forEach(o => {
+    const obj = ensureObjId({ ...o });
+    if (obj.type === 'image' && obj.dataUrl) {
+      const img = new Image();
+      img.onload = () => { obj.img = img; editorRender(); };
+      img.src = obj.dataUrl;
+    }
+    slideObjects.push(obj);
+  });
+  selectedObj = null;
+  updatePropsPanel();
+  document.getElementById('inpSpeakerNotes').value = slide.speakerNotes || '';
+  document.getElementById('inpSlideBackground').value = normalizeBackground(slide.background).color || '#ffffff';
+  setZoomBadge();
+  seedHistoryForCurrentSlide();
+  updateUndoRedoButtons();
+  editorRender();
+}
+
+function slideEditorClear() {
+  slideObjects = [];
+  selectedObj = null;
+  selectedIds = new Set();
+  drawMode = null;
+  drawStart = null;
+  updatePropsPanel();
+  document.getElementById('propsPlaceholder').classList.remove('hidden');
+  document.getElementById('propsPanel').classList.add('hidden');
+  updateUndoRedoButtons();
+  editorRender();
+}
+
+let saveTimeout = null;
+async function saveCurrentSlide() {
+  const slide = getCurrentSlide();
+  if (!slide) return;
+  const toSave = slideObjects.map(o => {
+    const copy = { ...o };
+    if (o.type === 'image' && o.img) copy.dataUrl = o.dataUrl || (o.img.src && o.img.src.startsWith('data:') ? o.img.src : null);
+    if (copy.img) delete copy.img;
+    return copy;
+  });
+  slide.objects = toSave;
+  slide.speakerNotes = document.getElementById('inpSpeakerNotes').value || '';
+  slide.updatedAt = Date.now();
+  await dbPut('slides', slide);
+  invalidateThumb(slide.id);
+}
+
+function updatePropsPanel() {
+  const ph = document.getElementById('propsPlaceholder');
+  const panel = document.getElementById('propsPanel');
+  const textP = document.getElementById('propsText');
+  const fillP = document.getElementById('propsFill');
+  const lineP = document.getElementById('propsLine');
+  const videoP = document.getElementById('propsVideo');
+  if (!selectedObj) {
+    ph.classList.remove('hidden');
+    panel.classList.add('hidden');
+    return;
+  }
+  ph.classList.add('hidden');
+  panel.classList.remove('hidden');
+  const o = selectedObj;
+  textP.classList.add('hidden');
+  fillP.classList.add('hidden');
+  lineP.classList.add('hidden');
+  videoP.classList.add('hidden');
+  if (o.type === 'text') {
+    textP.classList.remove('hidden');
+    document.getElementById('inpTextContent').value = o.text ?? 'Text';
+    document.getElementById('inpFontSize').value = o.fontSize || 24;
+    document.getElementById('inpTextColor').value = o.fill || '#000000';
+  }
+  if (o.type === 'rect' || o.type === 'roundedRect') {
+    fillP.classList.remove('hidden');
+    document.getElementById('chkFillTransparent').checked = o.fill == null || o.fill === 'transparent';
+    document.getElementById('inpFillColor').value = o.fill && o.fill !== 'transparent' ? o.fill : '#5aa7ff';
+  }
+  if (o.type === 'line' || o.type === 'arrow') {
+    lineP.classList.remove('hidden');
+    document.getElementById('inpLineColor').value = o.stroke || '#333';
+    document.getElementById('inpLineSize').value = o.strokeWidth ?? 3;
+  }
+  if (o.type === 'video') {
+    videoP.classList.remove('hidden');
+    document.getElementById('inpVideoUrl').value = o.url || '';
+  }
+  document.getElementById('chkBorder').checked = !!(o.strokeWidth > 0 && o.stroke);
+  document.getElementById('inpBorderColor').value = o.stroke || '#000';
+  document.getElementById('inpBorderSize').value = o.strokeWidth || 0;
+}
+
+function centerView() {
+  const wrap = document.getElementById('canvasWrap');
+  const cw = wrap.clientWidth, ch = wrap.clientHeight;
+  baseScale = Math.min(cw / SLIDE_W, ch / SLIDE_H);
+  viewZoom = baseScale * userZoom;
+  viewX = (cw - SLIDE_W * viewZoom) / 2;
+  viewY = (ch - SLIDE_H * viewZoom) / 2;
+}
+
+canvas.addEventListener('mousedown', e => {
+  const rect = canvas.getBoundingClientRect();
+  const sx = e.clientX - rect.left, sy = e.clientY - rect.top;
+  if (drawMode) return;
+  const handle = hitHandle(sx, sy);
+  if (handle) {
+    dragMode = handle;
+    dragStart = { ...screenToBoard(sx, sy), obj: selectedObj };
+    e.preventDefault();
+    return;
+  }
+  const hit = hitTest(sx, sy);
+  if (hit) {
+    selectedObj = hit.obj;
+    dragMode = 'move';
+    const b = screenToBoard(sx, sy);
+    dragStart = { x: b.x, y: b.y, obj: selectedObj, lastBx: b.x, lastBy: b.y, moveStarted: false };
+    if (selectedObj.type === 'line' || selectedObj.type === 'arrow') dragStart.points = selectedObj.points.slice();
+    updatePropsPanel();
+    editorRender();
+    e.preventDefault();
+    return;
+  }
+  selectedObj = null;
+  dragMode = null;
+  updatePropsPanel();
+  editorRender();
+});
+
+canvas.addEventListener('mousemove', e => {
+  const rect = canvas.getBoundingClientRect();
+  const sx = e.clientX - rect.left, sy = e.clientY - rect.top;
+  const b = screenToBoard(sx, sy);
+  if (drawMode === 'rect' && drawStart) {
+    editorRender();
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.translate(viewX, viewY);
+    ctx.scale(viewZoom, viewZoom);
+    ctx.strokeStyle = '#0d6efd';
+    ctx.setLineDash([4, 4]);
+    const obj = { x: Math.min(drawStart.x, b.x), y: Math.min(drawStart.y, b.y), w: Math.max(20, Math.abs(b.x - drawStart.x)), h: Math.max(20, Math.abs(b.y - drawStart.y)) };
+    ctx.strokeRect(obj.x, obj.y, obj.w, obj.h);
+    ctx.restore();
+    return;
+  }
+  if (drawMode === 'line' && drawStart) {
+    editorRender();
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.translate(viewX, viewY);
+    ctx.scale(viewZoom, viewZoom);
+    ctx.strokeStyle = '#0d6efd';
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath();
+    ctx.moveTo(drawStart.x, drawStart.y);
+    ctx.lineTo(b.x, b.y);
+    ctx.stroke();
+    ctx.restore();
+    return;
+  }
+  if (drawMode === 'text') return;
+  if (!dragMode || !dragStart) return;
+  if (dragMode === 'move') {
+    const o = dragStart.obj;
+    if (!dragStart.moveStarted) { dragStart.lastBx = b.x; dragStart.lastBy = b.y; dragStart.moveStarted = true; }
+    const dx = b.x - dragStart.lastBx, dy = b.y - dragStart.lastBy;
+    dragStart.lastBx = b.x; dragStart.lastBy = b.y;
+    if (o.type === 'line' || o.type === 'arrow') {
+      o.points[0] += dx; o.points[1] += dy; o.points[2] += dx; o.points[3] += dy;
+    } else { o.x += dx; o.y += dy; }
+  }
+  if (dragMode === 'rotate' && dragStart.obj) {
+    const o = dragStart.obj;
+    const bounds = getObjectBounds(o);
+    const angle = Math.atan2(b.y - bounds.cy, b.x - bounds.cx);
+    const startAngle = Math.atan2(dragStart.y - bounds.cy, dragStart.x - bounds.cx);
+    o.rotation = (o.rotation || 0) + (angle - startAngle) * 180 / Math.PI;
+    dragStart.x = b.x; dragStart.y = b.y;
+  }
+  if (dragMode && dragMode.startsWith('resize-') && dragStart.obj) {
+    const o = dragStart.obj;
+    const bounds = getObjectBounds(o);
+    const { cx, cy, w, h } = bounds;
+    const rad = (o.rotation || 0) * Math.PI / 180;
+    const cos = Math.cos(rad), sin = Math.sin(rad);
+    const minSz = 20;
+    let nw = o.w || 100, nh = o.h || 100;
+    if (dragMode === 'resize-se') {
+      const fx = cx - (w/2)*cos + (h/2)*sin, fy = cy - (w/2)*sin - (h/2)*cos;
+      nw = Math.max(minSz, (b.x - fx)*cos + (b.y - fy)*sin);
+      nh = Math.max(minSz, -(b.x - fx)*sin + (b.y - fy)*cos);
+      o.x = (fx + b.x)/2 - nw/2; o.y = (fy + b.y)/2 - nh/2;
+    } else if (dragMode === 'resize-nw') {
+      const fx = cx + (w/2)*cos - (h/2)*sin, fy = cy + (w/2)*sin + (h/2)*cos;
+      nw = Math.max(minSz, (fx - b.x)*cos + (fy - b.y)*sin);
+      nh = Math.max(minSz, -(fx - b.x)*sin + (fy - b.y)*cos);
+      o.x = (b.x + fx)/2 - nw/2; o.y = (b.y + fy)/2 - nh/2;
+    } else if (dragMode === 'resize-ne') {
+      const fx = cx - (w/2)*cos - (h/2)*sin, fy = cy - (w/2)*sin + (h/2)*cos;
+      nw = Math.max(minSz, (b.x - fx)*cos + (b.y - fy)*sin);
+      nh = Math.max(minSz, (fx - b.x)*sin + (fy - b.y)*cos);
+      o.x = (fx + b.x)/2 - nw/2; o.y = (fy + b.y)/2 - nh/2;
+    } else if (dragMode === 'resize-sw') {
+      const fx = cx + (w/2)*cos + (h/2)*sin, fy = cy + (w/2)*sin - (h/2)*cos;
+      nw = Math.max(minSz, (fx - b.x)*cos + (b.y - fy)*sin);
+      nh = Math.max(minSz, (fx - b.x)*sin + (fy - b.y)*cos);
+      o.x = (b.x + fx)/2 - nw/2; o.y = (b.y + fy)/2 - nh/2;
+    }
+    o.w = nw; o.h = nh;
+  }
+  if (dragMode === 'line-p0') { dragStart.obj.points[0] = b.x; dragStart.obj.points[1] = b.y; }
+  if (dragMode === 'line-p1') { dragStart.obj.points[2] = b.x; dragStart.obj.points[3] = b.y; }
+  editorRender();
+});
+
+canvas.addEventListener('mouseup', e => {
+  if (drawMode === 'rect' && drawStart) {
+    pushHistory();
+    const b = screenToBoard(e.clientX - canvas.getBoundingClientRect().left, e.clientY - canvas.getBoundingClientRect().top);
+    const isRounded = document.getElementById('btnRoundedRect').classList.contains('active');
+    const cfg = lastConfig[isRounded ? 'roundedRect' : 'rect'];
+    const obj = {
+      type: isRounded ? 'roundedRect' : 'rect',
+      x: Math.min(drawStart.x, b.x), y: Math.min(drawStart.y, b.y),
+      w: Math.max(20, Math.abs(b.x - drawStart.x)), h: Math.max(20, Math.abs(b.y - drawStart.y)),
+      fill: cfg.fill, stroke: cfg.stroke, strokeWidth: cfg.strokeWidth ?? 0, cornerRadius: isRounded ? (cfg.cornerRadius ?? 20) : 0
+    };
+    slideObjects.push(obj);
+    selectedObj = obj;
+    drawMode = null;
+    drawStart = null;
+    document.getElementById('btnRect').classList.remove('active');
+    document.getElementById('btnRoundedRect').classList.remove('active');
+    updatePropsPanel();
+    editorRender();
+    saveCurrentSlide();
+    invalidateThumb(state.selectedSlideId);
+    renderSlideStrip();
+    return;
+  }
+  if (drawMode === 'line' && drawStart) {
+    pushHistory();
+    const b = screenToBoard(e.clientX - canvas.getBoundingClientRect().left, e.clientY - canvas.getBoundingClientRect().top);
+    const isArrow = document.getElementById('btnArrow').classList.contains('active');
+    const cfg = lastConfig[isArrow ? 'arrow' : 'line'];
+    slideObjects.push({
+      type: isArrow ? 'arrow' : 'line',
+      points: [drawStart.x, drawStart.y, b.x, b.y],
+      stroke: cfg.stroke, strokeWidth: cfg.strokeWidth ?? 3
+    });
+    selectedObj = slideObjects[slideObjects.length - 1];
+    drawMode = null;
+    drawStart = null;
+    document.getElementById('btnLine').classList.remove('active');
+    document.getElementById('btnArrow').classList.remove('active');
+    updatePropsPanel();
+    editorRender();
+    saveCurrentSlide();
+    invalidateThumb(state.selectedSlideId);
+    renderSlideStrip();
+    return;
+  }
+  if (dragMode && dragStart && (dragMode === 'move' || dragMode === 'rotate' || dragMode.startsWith('resize-') || dragMode === 'line-p0' || dragMode === 'line-p1')) {
+    if (snapEnabled && dragStart.obj) {
+      const o = dragStart.obj;
+      const snap = (v) => Math.round(v / GRID_SIZE) * GRID_SIZE;
+      if (o.type === 'line' || o.type === 'arrow') {
+        o.points[0] = snap(o.points[0]); o.points[1] = snap(o.points[1]);
+        o.points[2] = snap(o.points[2]); o.points[3] = snap(o.points[3]);
+      } else { o.x = snap(o.x || 0); o.y = snap(o.y || 0); }
+    }
+    saveCurrentSlide();
+    invalidateThumb(state.selectedSlideId);
+    renderSlideStrip();
+  }
+  dragMode = null;
+  dragStart = null;
+});
+
+canvas.addEventListener('mouseleave', () => { dragMode = null; drawStart = null; editorRender(); });
+
+canvas.addEventListener('mousedown', e => {
+  if (drawMode === 'rect' && !drawStart) {
+    const rect = canvas.getBoundingClientRect();
+    drawStart = screenToBoard(e.clientX - rect.left, e.clientY - rect.top);
+  }
+  if (drawMode === 'line' && !drawStart) {
+    const rect = canvas.getBoundingClientRect();
+    drawStart = screenToBoard(e.clientX - rect.left, e.clientY - rect.top);
+  }
+  if (drawMode === 'text') {
+    pushHistory();
+    const rect = canvas.getBoundingClientRect();
+    const b = screenToBoard(e.clientX - rect.left, e.clientY - rect.top);
+    slideObjects.push({ type: 'text', x: b.x, y: b.y, text: 'Text', fontSize: 24, fill: '#000000', w: 80, h: 24 });
+    selectedObj = slideObjects[slideObjects.length - 1];
+    drawMode = null;
+    document.getElementById('btnText').classList.remove('active');
+    updatePropsPanel();
+    editorRender();
+    saveCurrentSlide();
+    invalidateThumb(state.selectedSlideId);
+    renderSlideStrip();
+  }
+}, true);
+
+document.getElementById('btnText').addEventListener('click', () => { drawMode = 'text'; document.getElementById('btnText').classList.add('active'); document.getElementById('btnRect').classList.remove('active'); document.getElementById('btnRoundedRect').classList.remove('active'); document.getElementById('btnLine').classList.remove('active'); document.getElementById('btnArrow').classList.remove('active'); canvas.style.cursor = 'crosshair'; });
+document.getElementById('btnRect').addEventListener('click', () => { drawMode = 'rect'; drawStart = null; document.getElementById('btnRect').classList.add('active'); document.getElementById('btnRoundedRect').classList.remove('active'); document.getElementById('btnLine').classList.remove('active'); document.getElementById('btnArrow').classList.remove('active'); document.getElementById('btnText').classList.remove('active'); canvas.style.cursor = 'crosshair'; });
+document.getElementById('btnRoundedRect').addEventListener('click', () => { drawMode = 'rect'; drawStart = null; document.getElementById('btnRoundedRect').classList.add('active'); document.getElementById('btnRect').classList.remove('active'); document.getElementById('btnLine').classList.remove('active'); document.getElementById('btnArrow').classList.remove('active'); document.getElementById('btnText').classList.remove('active'); canvas.style.cursor = 'crosshair'; });
+document.getElementById('btnLine').addEventListener('click', () => { drawMode = 'line'; drawStart = null; document.getElementById('btnLine').classList.add('active'); document.getElementById('btnArrow').classList.remove('active'); document.getElementById('btnRect').classList.remove('active'); document.getElementById('btnRoundedRect').classList.remove('active'); document.getElementById('btnText').classList.remove('active'); canvas.style.cursor = 'crosshair'; });
+document.getElementById('btnArrow').addEventListener('click', () => { drawMode = 'line'; drawStart = null; document.getElementById('btnArrow').classList.add('active'); document.getElementById('btnLine').classList.remove('active'); document.getElementById('btnRect').classList.remove('active'); document.getElementById('btnRoundedRect').classList.remove('active'); document.getElementById('btnText').classList.remove('active'); canvas.style.cursor = 'crosshair'; });
+
+document.getElementById('fileInput').addEventListener('change', e => {
+  const file = e.target.files && e.target.files[0];
+  if (!file || !file.type.startsWith('image/')) return;
+  pushHistory();
+  const reader = new FileReader();
+  reader.onload = () => {
+    const img = new Image();
+    img.onload = () => {
+      const fit = Math.min(SLIDE_W / img.naturalWidth, SLIDE_H / img.naturalHeight, 0.4);
+      slideObjects.push({ type: 'image', img, dataUrl: reader.result, x: 80, y: 80, w: img.naturalWidth * fit, h: img.naturalHeight * fit, rotation: 0 });
+      selectedObj = slideObjects[slideObjects.length - 1];
+      updatePropsPanel();
+      editorRender();
+      saveCurrentSlide();
+      invalidateThumb(state.selectedSlideId);
+      renderSlideStrip();
+    };
+    img.src = reader.result;
+  };
+  reader.readAsDataURL(file);
+  e.target.value = '';
+});
+
+document.getElementById('btnVideo').addEventListener('click', () => {
+  const url = prompt(t('videoUrl') + ' (YouTube)', 'https://www.youtube.com/watch?v=');
+  if (!url || !url.trim()) return;
+  let vid = url.trim();
+  const m = vid.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]+)/);
+  const id = m ? m[1] : null;
+  if (!id) { alert('Invalid YouTube URL'); return; }
+  pushHistory();
+  slideObjects.push({ type: 'video', url: vid, x: 100, y: 100, w: 320, h: 180, rotation: 0 });
+  selectedObj = slideObjects[slideObjects.length - 1];
+  updatePropsPanel();
+  editorRender();
+  saveCurrentSlide();
+  invalidateThumb(state.selectedSlideId);
+  renderSlideStrip();
+});
+
+document.getElementById('inpTextContent').addEventListener('input', () => { if (selectedObj && selectedObj.type === 'text') { selectedObj.text = document.getElementById('inpTextContent').value || 'Text'; editorRender(); } });
+document.getElementById('inpFontSize').addEventListener('input', () => { if (selectedObj && selectedObj.type === 'text') { selectedObj.fontSize = parseInt(document.getElementById('inpFontSize').value, 10) || 24; editorRender(); } });
+document.getElementById('inpTextColor').addEventListener('input', () => { if (selectedObj && selectedObj.type === 'text') { selectedObj.fill = document.getElementById('inpTextColor').value; editorRender(); } });
+document.getElementById('chkFillTransparent').addEventListener('change', () => { if (selectedObj && (selectedObj.type === 'rect' || selectedObj.type === 'roundedRect')) { selectedObj.fill = document.getElementById('chkFillTransparent').checked ? null : document.getElementById('inpFillColor').value; editorRender(); } });
+document.getElementById('inpFillColor').addEventListener('input', () => { if (selectedObj && (selectedObj.type === 'rect' || selectedObj.type === 'roundedRect') && !document.getElementById('chkFillTransparent').checked) { selectedObj.fill = document.getElementById('inpFillColor').value; editorRender(); } });
+document.getElementById('inpLineColor').addEventListener('input', () => { if (selectedObj && (selectedObj.type === 'line' || selectedObj.type === 'arrow')) { selectedObj.stroke = document.getElementById('inpLineColor').value; editorRender(); } });
+document.getElementById('inpLineSize').addEventListener('input', () => { if (selectedObj && (selectedObj.type === 'line' || selectedObj.type === 'arrow')) { selectedObj.strokeWidth = parseInt(document.getElementById('inpLineSize').value, 10) || 3; editorRender(); } });
+document.getElementById('inpVideoUrl').addEventListener('input', () => { if (selectedObj && selectedObj.type === 'video') { selectedObj.url = document.getElementById('inpVideoUrl').value; } });
+document.getElementById('inpSpeakerNotes').addEventListener('input', () => { if (saveTimeout) clearTimeout(saveTimeout); saveTimeout = setTimeout(saveCurrentSlide, 500); });
+
+document.getElementById('inpSlideBackground').addEventListener('input', () => {
+  const slide = getCurrentSlide();
+  if (slide) { slide.background = document.getElementById('inpSlideBackground').value; editorRender(); if (saveTimeout) clearTimeout(saveTimeout); saveTimeout = setTimeout(saveCurrentSlide, 500); }
+});
+
+const ctxMenu = document.getElementById('contextMenu');
+canvas.addEventListener('contextmenu', e => {
+  e.preventDefault();
+  const rect = canvas.getBoundingClientRect();
+  const hit = hitTest(e.clientX - rect.left, e.clientY - rect.top);
+  if (hit) {
+    selectedObj = hit.obj;
+    ctxMenu.classList.add('show');
+    ctxMenu.style.left = e.clientX + 'px';
+    ctxMenu.style.top = e.clientY + 'px';
+    updatePropsPanel();
+  } else ctxMenu.classList.remove('show');
+});
+window.addEventListener('click', () => ctxMenu.classList.remove('show'));
+
+document.getElementById('ctxBringFront').addEventListener('click', () => {
+  if (selectedObj) { const i = slideObjects.indexOf(selectedObj); if (i >= 0) { slideObjects.splice(i, 1); slideObjects.push(selectedObj); } editorRender(); }
+  ctxMenu.classList.remove('show');
+});
+document.getElementById('ctxSendBack').addEventListener('click', () => {
+  if (selectedObj) { const i = slideObjects.indexOf(selectedObj); if (i >= 0) { slideObjects.splice(i, 1); slideObjects.unshift(selectedObj); } editorRender(); }
+  ctxMenu.classList.remove('show');
+});
+document.getElementById('ctxDuplicate').addEventListener('click', () => {
+  if (!selectedObj) { ctxMenu.classList.remove('show'); return; }
+  const copy = JSON.parse(JSON.stringify(selectedObj));
+  if (copy.img) copy.img = selectedObj.img;
+  if (copy.dataUrl) copy.dataUrl = selectedObj.dataUrl;
+  copy.x = (copy.x || 0) + 20; copy.y = (copy.y || 0) + 20;
+  if (copy.points) copy.points = copy.points.slice();
+  slideObjects.push(copy);
+  selectedObj = copy;
+  editorRender();
+  updatePropsPanel();
+  ctxMenu.classList.remove('show');
+});
+document.getElementById('ctxDelete').addEventListener('click', () => {
+  if (selectedObj) { const i = slideObjects.indexOf(selectedObj); if (i >= 0) slideObjects.splice(i, 1); selectedObj = null; updatePropsPanel(); editorRender(); }
+  ctxMenu.classList.remove('show');
+});
+
+document.getElementById('btnZoomIn').addEventListener('click', () => { userZoom *= ZOOM_STEP; userZoom = Math.min(5, userZoom); centerView(); setZoomBadge(); editorRender(); });
+document.getElementById('btnZoomOut').addEventListener('click', () => { userZoom /= ZOOM_STEP; userZoom = Math.max(0.1, userZoom); centerView(); setZoomBadge(); editorRender(); });
+document.getElementById('btnZoomReset').addEventListener('click', () => { userZoom = 1; centerView(); setZoomBadge(); editorRender(); });
+
+document.getElementById('btnNewSlide').addEventListener('click', addSlide);
+document.getElementById('btnDuplicateSlide').addEventListener('click', duplicateSlide);
+document.getElementById('btnDeleteSlide').addEventListener('click', deleteSlide);
+
+document.getElementById('btnUndo').addEventListener('click', () => { undo(); });
+document.getElementById('btnRedo').addEventListener('click', () => { redo(); });
+
+document.getElementById('btnGrid').addEventListener('click', () => {
+  gridEnabled = !gridEnabled;
+  document.getElementById('btnGrid').classList.toggle('active', gridEnabled);
+  editorRender();
+});
+document.getElementById('btnSnap').addEventListener('click', () => {
+  snapEnabled = !snapEnabled;
+  document.getElementById('btnSnap').classList.toggle('active', snapEnabled);
+});
+
+// ========== Presentation mode ==========
+let presIndex = 0;
+let presCanvas = null;
+
+function startPresentation() {
+  if (!state.slides.length) return;
+  presIndex = state.selectedSlideId ? state.slides.findIndex(s => s.id === state.selectedSlideId) : 0;
+  if (presIndex < 0) presIndex = 0;
+  const container = document.getElementById('presentation-container');
+  container.classList.add('active');
+  container.requestFullscreen().catch(() => {});
+  renderPresentationSlide();
+  document.getElementById('presSlideNum').textContent = (presIndex + 1) + ' / ' + state.slides.length;
+}
+
+function renderPresentationSlide() {
+  const slide = state.slides[presIndex];
+  if (!slide) return;
+  const wrap = document.getElementById('presentation-slide-wrap');
+  wrap.innerHTML = '';
+  slide.background = normalizeBackground(slide.background);
+
+  // Build a scaled stage so both canvas and iframes scale together.
+  const STAGE_PAD_BOTTOM = 72; // controls overlay height
+  const scale = Math.min(window.innerWidth / SLIDE_W, Math.max(0.1, (window.innerHeight - STAGE_PAD_BOTTOM) / SLIDE_H));
+  const stage = document.createElement('div');
+  stage.style.position = 'relative';
+  stage.style.width = SLIDE_W + 'px';
+  stage.style.height = SLIDE_H + 'px';
+  stage.style.transformOrigin = 'top left';
+  stage.style.transform = `scale(${scale})`;
+  wrap.appendChild(stage);
+
+  presCanvas = document.createElement('canvas');
+  presCanvas.width = SLIDE_W;
+  presCanvas.height = SLIDE_H;
+  presCanvas.style.width = '100%';
+  presCanvas.style.height = '100%';
+  stage.appendChild(presCanvas);
+
+  const c = presCanvas.getContext('2d');
+  drawBackground(c, slide.background, SLIDE_W, SLIDE_H);
+  const objects = (slide.objects || []).map(o => ensureObjId({ ...o }));
+
+  // Draw everything except videos to canvas.
+  const imageObjs = [];
+  objects.forEach(obj => {
+    const o = { ...obj };
+    if (o.type === 'image' && o.dataUrl) imageObjs.push(o);
+    else if (o.type !== 'video') drawObjectToCtx(c, o, false);
+  });
+  imageObjs.forEach(o => {
+    const img = new Image();
+    img.onload = () => { o.img = img; drawObjectToCtx(c, o, false); };
+    img.src = o.dataUrl;
+  });
+
+  // Overlay each video as iframe (YouTube)
+  const videos = objects.filter(o => o.type === 'video' && o.url);
+  videos.forEach(v => {
+    const m = String(v.url || '').match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]+)/);
+    const vid = m ? m[1] : null;
+    if (!vid) return;
+    const iframe = document.createElement('iframe');
+    iframe.className = 'pres-video';
+    iframe.src = 'https://www.youtube.com/embed/' + vid + '?autoplay=0&rel=0';
+    iframe.style.left = (v.x || 0) + 'px';
+    iframe.style.top = (v.y || 0) + 'px';
+    iframe.style.width = (v.w || 320) + 'px';
+    iframe.style.height = (v.h || 180) + 'px';
+    iframe.style.transformOrigin = 'center center';
+    if (v.rotation) iframe.style.transform = `rotate(${v.rotation}deg)`;
+    iframe.setAttribute('allow', 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share');
+    iframe.setAttribute('allowfullscreen', '');
+    stage.appendChild(iframe);
+  });
+}
+
+document.getElementById('presPrev').addEventListener('click', () => {
+  if (presIndex <= 0) return;
+  presIndex--;
+  document.getElementById('presSlideNum').textContent = (presIndex + 1) + ' / ' + state.slides.length;
+  renderPresentationSlide();
+});
+
+document.getElementById('presNext').addEventListener('click', () => {
+  if (presIndex >= state.slides.length - 1) return;
+  presIndex++;
+  document.getElementById('presSlideNum').textContent = (presIndex + 1) + ' / ' + state.slides.length;
+  renderPresentationSlide();
+});
+
+document.getElementById('btnPlay').addEventListener('click', startPresentation);
+
+document.getElementById('btnExportPng').addEventListener('click', () => {
+  const slide = getCurrentSlide();
+  if (!slide) return;
+  const off = document.createElement('canvas');
+  off.width = SLIDE_W;
+  off.height = SLIDE_H;
+  const octx = off.getContext('2d');
+  drawBackground(octx, slide.background, SLIDE_W, SLIDE_H);
+  slideObjects.forEach(obj => drawObjectToCtx(octx, obj, false));
+  const a = document.createElement('a');
+  a.href = off.toDataURL('image/png');
+  a.download = (slide.id || 'slide') + '.png';
+  a.click();
+});
+
+async function exportDocumentJson() {
+  const doc = state.documents.find(d => d.id === state.selectedDocumentId);
+  if (!doc) return;
+  await saveCurrentSlide();
+  const slides = state.slides.map(s => ({
+    id: s.id,
+    order: s.order,
+    objects: (s.objects || []).map(o => {
+      const copy = { ...o };
+      if (o.type === 'image' && (o.dataUrl || (o.img && o.img.src && o.img.src.startsWith('data:')))) copy.dataUrl = o.dataUrl || o.img.src;
+      if (copy.img) delete copy.img;
+      return copy;
+    }),
+    background: s.background,
+    speakerNotes: s.speakerNotes || ''
+  }));
+  const package_ = { version: 1, document: { name: doc.name, templateId: doc.templateId }, slides };
+  const blob = new Blob([JSON.stringify(package_, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = (doc.name || 'slides') + '.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+document.getElementById('btnExportDoc').addEventListener('click', () => exportDocumentJson().catch(console.error));
+
+document.getElementById('importDocInput').addEventListener('change', async (e) => {
+  const file = e.target.files && e.target.files[0];
+  if (!file || !state.selectedFolderId) return;
+  try {
+    const text = await new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = () => resolve(r.result);
+      r.onerror = reject;
+      r.readAsText(file);
+    });
+    const package_ = JSON.parse(text);
+    if (!package_.document || !Array.isArray(package_.slides)) throw new Error('Invalid document format');
+    const doc = state.documents.find(d => d.id === state.selectedDocumentId);
+    const folderId = state.selectedFolderId;
+    const count = state.documents.filter(d => d.folderId === folderId).length;
+    const newDoc = { id: generateId(), folderId, name: (package_.document.name || 'Imported') + ' (' + new Date().toISOString().slice(0, 10) + ')', order: count, templateId: package_.document.templateId || null, slideIds: [], createdAt: Date.now(), updatedAt: Date.now() };
+    await dbAdd('documents', newDoc);
+    state.documents.push(newDoc);
+    for (let i = 0; i < package_.slides.length; i++) {
+      const s = package_.slides[i];
+      const slide = { id: generateId(), documentId: newDoc.id, order: i, objects: (s.objects || []).map(o => ({ ...o, id: o.id || generateId() })), background: s.background != null ? s.background : '#ffffff', speakerNotes: s.speakerNotes || '', updatedAt: Date.now() };
+      await dbAdd('slides', slide);
+      state.slides.push(slide);
+      newDoc.slideIds = newDoc.slideIds || [];
+      newDoc.slideIds.push(slide.id);
+    }
+    newDoc.updatedAt = Date.now();
+    await dbPut('documents', newDoc);
+    renderDocuments();
+    selectDocument(newDoc.id);
+  } catch (err) {
+    console.error(err);
+    alert('Import failed: ' + (err.message || err));
+  }
+  e.target.value = '';
+});
+
+document.addEventListener('keydown', e => {
+  if (document.getElementById('presentation-container').classList.contains('active')) return;
+  const isInput = document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA';
+  const mod = e.ctrlKey || e.metaKey;
+  if (mod && e.key.toLowerCase() === 'z') {
+    e.preventDefault();
+    if (e.shiftKey) redo(); else undo();
+    return;
+  }
+  if (mod && e.key.toLowerCase() === 'y') {
+    e.preventDefault();
+    redo();
+    return;
+  }
+  if (mod && e.key.toLowerCase() === 'c' && !isInput) {
+    e.preventDefault();
+    if (selectedObj) { objectClipboard = { objects: [serializeObject(selectedObj)], cut: false }; }
+    return;
+  }
+  if (mod && e.key.toLowerCase() === 'x' && !isInput) {
+    e.preventDefault();
+    if (selectedObj) {
+      pushHistory();
+      objectClipboard = { objects: [serializeObject(selectedObj)], cut: true };
+      const i = slideObjects.indexOf(selectedObj);
+      if (i >= 0) slideObjects.splice(i, 1);
+      selectedObj = null;
+      updatePropsPanel();
+      editorRender();
+      saveCurrentSlide();
+      invalidateThumb(state.selectedSlideId);
+      renderSlideStrip();
+    }
+    return;
+  }
+  if (mod && e.key.toLowerCase() === 'v' && !isInput) {
+    e.preventDefault();
+    pasteClipboard();
+    return;
+  }
+  if (mod && e.key.toLowerCase() === 'd' && !isInput) {
+    e.preventDefault();
+    if (selectedObj) duplicateSelectedObject();
+    return;
+  }
+  if ((e.key === 'Delete' || e.key === 'Backspace') && !isInput) {
+    if (selectedObj) {
+      e.preventDefault();
+      pushHistory();
+      const i = slideObjects.indexOf(selectedObj);
+      if (i >= 0) slideObjects.splice(i, 1);
+      selectedObj = null;
+      updatePropsPanel();
+      editorRender();
+      saveCurrentSlide();
+      invalidateThumb(state.selectedSlideId);
+      renderSlideStrip();
+    }
+    return;
+  }
+  if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key) && selectedObj && !isInput) {
+    e.preventDefault();
+    const step = snapEnabled ? GRID_SIZE : (e.shiftKey ? 10 : 1);
+    let dx = 0, dy = 0;
+    if (e.key === 'ArrowLeft') dx = -step;
+    if (e.key === 'ArrowRight') dx = step;
+    if (e.key === 'ArrowUp') dy = -step;
+    if (e.key === 'ArrowDown') dy = step;
+    if (selectedObj.type === 'line' || selectedObj.type === 'arrow') {
+      selectedObj.points[0] += dx; selectedObj.points[1] += dy;
+      selectedObj.points[2] += dx; selectedObj.points[3] += dy;
+    } else { selectedObj.x = (selectedObj.x || 0) + dx; selectedObj.y = (selectedObj.y || 0) + dy; }
+    editorRender();
+    saveCurrentSlide();
+    invalidateThumb(state.selectedSlideId);
+    renderSlideStrip();
+    return;
+  }
+  if (mod && e.key === 's') {
+    e.preventDefault();
+    saveCurrentSlide();
+  }
+});
+
+document.addEventListener('fullscreenchange', () => {
+  if (!document.fullscreenElement) {
+    document.getElementById('presentation-container').classList.remove('active');
+    document.getElementById('presentation-slide-wrap').innerHTML = '';
+  }
+});
+
+document.addEventListener('keydown', e => {
+  if (document.getElementById('presentation-container').classList.contains('active')) {
+    if (e.key === 'Escape') { document.exitFullscreen(); return; }
+    if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); document.getElementById('presNext').click(); return; }
+    if (e.key === 'ArrowLeft') { e.preventDefault(); document.getElementById('presPrev').click(); return; }
+  }
+});
+
+// ========== Collapse columns & init ==========
+document.querySelectorAll('.collapse-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const targetId = btn.getAttribute('data-target');
+    const col = document.getElementById(targetId);
+    col.classList.toggle('collapsed');
+    saveUIState();
+  });
+});
+
+document.getElementById('templateSelect').addEventListener('change', async () => {
+  const doc = state.documents.find(d => d.id === state.selectedDocumentId);
+  if (!doc) return;
+  doc.templateId = document.getElementById('templateSelect').value || null;
+  doc.updatedAt = Date.now();
+  await dbPut('documents', doc);
+});
+
+document.getElementById('btnApplyTemplate').addEventListener('click', async () => {
+  const templateId = document.getElementById('templateSelect').value;
+  if (!templateId || !state.selectedSlideId) return;
+  const templateSlide = await getFirstSlideOfDocument(templateId);
+  if (!templateSlide) return;
+  const slide = getCurrentSlide();
+  if (!slide) return;
+  slide.objects = JSON.parse(JSON.stringify(templateSlide.objects || []));
+  slide.objects.forEach(o => { o.id = generateId(); });
+  slide.background = templateSlide.background != null ? (typeof templateSlide.background === 'string' ? templateSlide.background : { ...templateSlide.background }) : '#ffffff';
+  await dbPut('slides', slide);
+  slideEditorLoad(slide);
+  invalidateThumb(slide.id);
+  renderSlideStrip();
+});
+
+document.getElementById('btnApplyBackground').addEventListener('click', async () => {
+  const bgDocId = document.getElementById('backgroundSelect').value;
+  if (!bgDocId || !state.selectedSlideId) return;
+  const bgSlide = await getFirstSlideOfDocument(bgDocId);
+  if (!bgSlide) return;
+  const slide = getCurrentSlide();
+  if (!slide) return;
+  slide.background = bgSlide.background != null ? (typeof bgSlide.background === 'string' ? bgSlide.background : { ...bgSlide.background }) : '#ffffff';
+  document.getElementById('inpSlideBackground').value = normalizeBackground(slide.background).color || '#ffffff';
+  await dbPut('slides', slide);
+  invalidateThumb(slide.id);
+  renderSlideStrip();
+  editorRender();
+});
+
+document.getElementById('lang-switcher').addEventListener('change', e => {
+  currentLanguage = e.target.value;
+  localStorage.setItem('app_lang', currentLanguage);
+  applyI18n();
+});
+
+document.getElementById('theme-switcher').addEventListener('click', () => {
+  currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', currentTheme);
+  document.getElementById('theme-switcher').querySelector('i').className = currentTheme === 'light' ? 'fas fa-moon' : 'fas fa-sun';
+  localStorage.setItem('app_theme', currentTheme);
+});
+
+async function init() {
+  await openDB();
+  state.projects = await dbGetAll('projects');
+  state.folders = await dbGetAll('folders');
+  state.documents = await dbGetAll('documents');
+  state.slides = await dbGetAll('slides');
+  await ensureZzSlideSystem();
+  loadUIState();
+  applyI18n();
+  document.documentElement.setAttribute('data-theme', currentTheme);
+  document.getElementById('theme-switcher').querySelector('i').className = currentTheme === 'light' ? 'fas fa-moon' : 'fas fa-sun';
+  renderProjects();
+  renderFolders();
+  renderDocuments();
+  if (state.selectedDocumentId && state.documents.find(d => d.id === state.selectedDocumentId)) {
+    await loadDocumentSlides();
+    renderSlideStrip();
+    showDocPanel();
+    if (state.selectedSlideId && state.slides.find(s => s.id === state.selectedSlideId)) selectSlide(state.selectedSlideId);
+    else if (state.slides.length) selectSlide(state.slides[0].id);
+    else showNoDoc();
+  } else showNoDoc();
+  window.addEventListener('resize', () => { centerView(); editorRender(); });
+}
+
+document.addEventListener('click', function(e) {
+  const t = getEventTargetElement(e);
+  if (!t || !t.closest) return;
+  if (t.closest('#add-project-btn')) { e.preventDefault(); addProject(); return; }
+  if (t.closest('#add-folder-btn')) { e.preventDefault(); addFolder(); return; }
+  if (t.closest('#add-document-btn')) { e.preventDefault(); addDocument(); return; }
+});
+
+document.getElementById('btnHelp').addEventListener('click', () => {
+  populateHelpModal();
+  const helpModalEl = document.getElementById('help-modal');
+  if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+    const modal = bootstrap.Modal.getOrCreateInstance(helpModalEl);
+    modal.show();
+  } else helpModalEl.classList.add('show');
+});
+
+document.addEventListener('DOMContentLoaded', function() {
+  init().catch(function(err) {
+    console.error('Slides init error:', err);
+    alert('Error loading app: ' + (err.message || String(err)));
+  });
+});
+</script>
+<script src="./slides_runner.js"></script>

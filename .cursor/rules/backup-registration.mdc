@@ -1,0 +1,32 @@
+---
+description: Register new pages that use localStorage or IndexedDB in the backup utility
+globs: page/**/*.html
+alwaysApply: false
+---
+
+# Register storage in backup.html
+
+When creating or modifying a page that uses `localStorage` or `IndexedDB`, ensure it is covered by `page/utils/backup.html`.
+
+## IndexedDB
+
+If the page creates an IndexedDB database, add an entry to the `KNOWN_IDB_DATABASES` array in `page/utils/backup.html`:
+
+```javascript
+// Example entry in KNOWN_IDB_DATABASES
+{
+  name: 'MyNewDB',       // exact database name used in indexedDB.open()
+  version: 1,            // database version
+  stores: ['store1']     // list of all object store names
+}
+```
+
+## localStorage
+
+localStorage keys are backed up automatically (all keys are exported). No extra registration is needed, but be aware that `backup.html` already handles this.
+
+## Checklist
+
+- [ ] Every `indexedDB.open(dbName, ...)` call in the new page has a matching entry in `KNOWN_IDB_DATABASES`
+- [ ] The `stores` array lists **all** object store names created in `onupgradeneeded`
+- [ ] The `version` matches the version used in `indexedDB.open()`

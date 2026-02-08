@@ -1,0 +1,969 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title data-i18n="title">Backup &amp; Restore</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="../assets/fontawesome/css/all.min.css" />
+    <style>
+      :root {
+        --bg-color: #1a1a1a;
+        --text-color: #f0f0f0;
+        --card-bg-color: #2a2a2a;
+        --border-color: #444;
+        --accent-color: #0d6efd;
+        --success-color: #198754;
+        --danger-color: #dc3545;
+        --warning-color: #ffc107;
+      }
+
+      html[data-theme='light'] {
+        --bg-color: #f8f9fa;
+        --text-color: #212529;
+        --card-bg-color: #fff;
+        --border-color: #dee2e6;
+        --accent-color: #0d6efd;
+        --success-color: #198754;
+        --danger-color: #dc3545;
+        --warning-color: #ffc107;
+      }
+
+      body {
+        background-color: var(--bg-color);
+        color: var(--text-color);
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+        margin: 0;
+      }
+
+      .container-fluid { padding-top: 20px; padding-bottom: 20px; flex: 1; }
+
+      .card { background-color: var(--card-bg-color); border-color: var(--border-color); }
+      .card-header { border-bottom-color: var(--border-color); }
+
+      .navbar-brand, .form-label { color: var(--text-color); }
+
+      .form-control, .form-select {
+        background-color: var(--card-bg-color);
+        color: var(--text-color);
+        border-color: var(--border-color);
+      }
+      .form-control:focus, .form-select:focus {
+        background-color: var(--card-bg-color);
+        color: var(--text-color);
+        border-color: var(--accent-color);
+        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+      }
+
+      .help-text { color: #aaa; font-size: 0.9rem; }
+      .mono { font-family: 'Courier New', Courier, monospace; }
+
+      .section-icon { font-size: 2rem; color: var(--accent-color); }
+
+      .action-card {
+        transition: border-color 0.2s;
+        cursor: default;
+      }
+      .action-card:hover { border-color: var(--accent-color); }
+
+      .stats-badge {
+        display: inline-block;
+        padding: 0.2rem 0.6rem;
+        border-radius: 0.25rem;
+        font-size: 0.8rem;
+        margin-right: 0.25rem;
+        margin-bottom: 0.25rem;
+      }
+      .stats-badge-ls {
+        background-color: rgba(13, 110, 253, 0.15);
+        color: #6ea8fe;
+        border: 1px solid rgba(13, 110, 253, 0.3);
+      }
+      .stats-badge-idb {
+        background-color: rgba(25, 135, 84, 0.15);
+        color: #75b798;
+        border: 1px solid rgba(25, 135, 84, 0.3);
+      }
+
+      #log-container {
+        max-height: 300px;
+        overflow-y: auto;
+        font-size: 0.82rem;
+      }
+      .log-entry { padding: 3px 0; border-bottom: 1px solid var(--border-color); }
+      .log-entry:last-child { border-bottom: none; }
+      .log-ok { color: #75b798; }
+      .log-warn { color: #ffda6a; }
+      .log-err { color: #ea868f; }
+      .log-info { color: #6ea8fe; }
+
+      .drop-zone {
+        border: 2px dashed var(--border-color);
+        border-radius: 0.5rem;
+        padding: 2rem;
+        text-align: center;
+        transition: border-color 0.2s, background-color 0.2s;
+        cursor: pointer;
+      }
+      .drop-zone.drag-over {
+        border-color: var(--accent-color);
+        background-color: rgba(13, 110, 253, 0.05);
+      }
+
+      .progress { height: 6px; background-color: var(--border-color); }
+      .progress-bar { transition: width 0.3s; }
+
+      .hidden { display: none !important; }
+    </style>
+  </head>
+  <body>
+    <nav class="navbar navbar-expand-lg" style="background-color: var(--card-bg-color); border-bottom: 1px solid var(--border-color)">
+      <div class="container-fluid">
+        <a class="navbar-brand" href="#" data-i18n="title">Backup &amp; Restore</a>
+        <div class="d-flex ms-auto gap-2 align-items-center">
+          <select id="lang-switcher" class="form-select form-select-sm" style="width: auto;">
+            <option value="en">English</option>
+            <option value="pt">Português</option>
+            <option value="ja">日本語</option>
+          </select>
+          <button id="theme-switcher" class="btn btn-sm btn-outline-secondary" type="button" data-i18n-title="themeBtn" title="Toggle theme">
+            <i class="fas fa-moon"></i>
+          </button>
+        </div>
+      </div>
+    </nav>
+
+    <div class="container-fluid">
+      <div class="row justify-content-center">
+        <div class="col-xl-10 col-lg-12">
+
+          <p class="help-text mb-4" data-i18n="subtitle">Export all localStorage and IndexedDB data as a single JSON file. Restore from a previous backup to migrate between browsers.</p>
+
+          <!-- Export / Import cards -->
+          <div class="row g-4 mb-4">
+            <!-- Export -->
+            <div class="col-md-6">
+              <div class="card action-card h-100">
+                <div class="card-body text-center py-4">
+                  <div class="section-icon mb-3"><i class="fas fa-cloud-arrow-down"></i></div>
+                  <h5 class="card-title" data-i18n="exportTitle">Export Backup</h5>
+                  <p class="help-text" data-i18n="exportDesc">Download all stored data (localStorage + IndexedDB) as a JSON file.</p>
+                  <div id="export-stats" class="mb-3"></div>
+                  <button id="btn-export" class="btn btn-primary px-4">
+                    <i class="fas fa-download me-1"></i> <span data-i18n="exportBtn">Export</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+            <!-- Import -->
+            <div class="col-md-6">
+              <div class="card action-card h-100">
+                <div class="card-body text-center py-4">
+                  <div class="section-icon mb-3"><i class="fas fa-cloud-arrow-up"></i></div>
+                  <h5 class="card-title" data-i18n="importTitle">Restore Backup</h5>
+                  <p class="help-text" data-i18n="importDesc">Load a previously exported JSON backup file to restore all data.</p>
+                  <div id="drop-zone" class="drop-zone mb-3">
+                    <i class="fas fa-file-import fa-2x mb-2" style="color: var(--accent-color);"></i>
+                    <div data-i18n="dropHint">Drop JSON file here or click to browse</div>
+                    <input type="file" id="file-input" accept=".json" class="hidden" />
+                  </div>
+                  <div id="import-file-info" class="help-text mb-2 hidden"></div>
+                  <div class="d-flex justify-content-center gap-2">
+                    <button id="btn-import-merge" class="btn btn-success px-3 hidden">
+                      <i class="fas fa-code-merge me-1"></i> <span data-i18n="importMergeBtn">Merge</span>
+                    </button>
+                    <button id="btn-import-replace" class="btn btn-danger px-3 hidden">
+                      <i class="fas fa-rotate me-1"></i> <span data-i18n="importReplaceBtn">Replace All</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Progress -->
+          <div id="progress-section" class="mb-3 hidden">
+            <div class="progress">
+              <div id="progress-bar" class="progress-bar bg-primary" role="progressbar" style="width: 0%"></div>
+            </div>
+          </div>
+
+          <!-- Log -->
+          <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+              <strong data-i18n="logTitle">Activity Log</strong>
+              <button id="btn-clear-log" class="btn btn-sm btn-outline-secondary" data-i18n-title="clearLogBtn" title="Clear log">
+                <i class="fas fa-eraser"></i>
+              </button>
+            </div>
+            <div class="card-body p-2" id="log-container">
+              <div class="text-muted text-center py-3" data-i18n="logEmpty">No activity yet</div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+    /* ================================================================
+       i18n
+       ================================================================ */
+    const i18n = {
+      en: {
+        title: "Backup & Restore",
+        subtitle: "Export all localStorage and IndexedDB data as a single JSON file. Restore from a previous backup to migrate between browsers.",
+        exportTitle: "Export Backup",
+        exportDesc: "Download all stored data (localStorage + IndexedDB) as a JSON file.",
+        exportBtn: "Export",
+        importTitle: "Restore Backup",
+        importDesc: "Load a previously exported JSON backup file to restore all data.",
+        dropHint: "Drop JSON file here or click to browse",
+        importMergeBtn: "Merge",
+        importReplaceBtn: "Replace All",
+        logTitle: "Activity Log",
+        logEmpty: "No activity yet",
+        themeBtn: "Toggle theme",
+        clearLogBtn: "Clear log",
+        statsLsKeys: "localStorage keys",
+        statsIdbDbs: "IndexedDB databases",
+        exporting: "Exporting...",
+        exportDone: "Export complete — {size} file downloaded.",
+        importReady: "File loaded: {name} ({size}). Choose Merge or Replace All.",
+        importing: "Importing ({mode})...",
+        importDone: "Import complete.",
+        confirmReplace: "This will CLEAR all existing data before restoring. Continue?",
+        errInvalidFile: "Invalid backup file format.",
+        errReadFile: "Error reading file.",
+        lsExported: "localStorage: {n} keys exported.",
+        lsImported: "localStorage: {n} keys imported.",
+        lsCleared: "localStorage cleared.",
+        idbExported: "IndexedDB \"{db}\": {n} object stores exported.",
+        idbImported: "IndexedDB \"{db}\": restored.",
+        idbCleared: "IndexedDB \"{db}\": deleted.",
+        idbSkipped: "IndexedDB \"{db}\": skipped (no data in backup).",
+        idbError: "IndexedDB \"{db}\": error — {err}",
+        noIdb: "No IndexedDB databases found.",
+        scanning: "Scanning storage...",
+        fileInfo: "File: {name} — {lsKeys} localStorage keys, {idbDbs} IndexedDB databases.",
+      },
+      pt: {
+        title: "Backup & Restauração",
+        subtitle: "Exporte todos os dados do localStorage e IndexedDB como um único arquivo JSON. Restaure a partir de um backup anterior para migrar entre navegadores.",
+        exportTitle: "Exportar Backup",
+        exportDesc: "Baixe todos os dados armazenados (localStorage + IndexedDB) como um arquivo JSON.",
+        exportBtn: "Exportar",
+        importTitle: "Restaurar Backup",
+        importDesc: "Carregue um arquivo JSON de backup previamente exportado para restaurar todos os dados.",
+        dropHint: "Arraste o arquivo JSON aqui ou clique para selecionar",
+        importMergeBtn: "Mesclar",
+        importReplaceBtn: "Substituir Tudo",
+        logTitle: "Log de Atividade",
+        logEmpty: "Nenhuma atividade ainda",
+        themeBtn: "Alternar tema",
+        clearLogBtn: "Limpar log",
+        statsLsKeys: "chaves localStorage",
+        statsIdbDbs: "bancos IndexedDB",
+        exporting: "Exportando...",
+        exportDone: "Exportação concluída — arquivo de {size} baixado.",
+        importReady: "Arquivo carregado: {name} ({size}). Escolha Mesclar ou Substituir Tudo.",
+        importing: "Importando ({mode})...",
+        importDone: "Importação concluída.",
+        confirmReplace: "Isso VAI APAGAR todos os dados existentes antes de restaurar. Continuar?",
+        errInvalidFile: "Formato de arquivo de backup inválido.",
+        errReadFile: "Erro ao ler arquivo.",
+        lsExported: "localStorage: {n} chaves exportadas.",
+        lsImported: "localStorage: {n} chaves importadas.",
+        lsCleared: "localStorage limpo.",
+        idbExported: "IndexedDB \"{db}\": {n} object stores exportados.",
+        idbImported: "IndexedDB \"{db}\": restaurado.",
+        idbCleared: "IndexedDB \"{db}\": excluído.",
+        idbSkipped: "IndexedDB \"{db}\": ignorado (sem dados no backup).",
+        idbError: "IndexedDB \"{db}\": erro — {err}",
+        noIdb: "Nenhum banco IndexedDB encontrado.",
+        scanning: "Escaneando armazenamento...",
+        fileInfo: "Arquivo: {name} — {lsKeys} chaves localStorage, {idbDbs} bancos IndexedDB.",
+      },
+      ja: {
+        title: "バックアップと復元",
+        subtitle: "localStorageとIndexedDBの全データを1つのJSONファイルとしてエクスポートします。以前のバックアップから復元してブラウザ間で移行できます。",
+        exportTitle: "バックアップをエクスポート",
+        exportDesc: "保存されたすべてのデータ（localStorage + IndexedDB）をJSONファイルとしてダウンロードします。",
+        exportBtn: "エクスポート",
+        importTitle: "バックアップを復元",
+        importDesc: "以前にエクスポートしたJSONバックアップファイルを読み込んでデータを復元します。",
+        dropHint: "JSONファイルをここにドロップまたはクリックして選択",
+        importMergeBtn: "マージ",
+        importReplaceBtn: "すべて置換",
+        logTitle: "アクティビティログ",
+        logEmpty: "まだアクティビティはありません",
+        themeBtn: "テーマ切替",
+        clearLogBtn: "ログをクリア",
+        statsLsKeys: "localStorageキー",
+        statsIdbDbs: "IndexedDBデータベース",
+        exporting: "エクスポート中...",
+        exportDone: "エクスポート完了 — {size}のファイルをダウンロードしました。",
+        importReady: "ファイル読込完了: {name} ({size})。マージまたはすべて置換を選択してください。",
+        importing: "インポート中（{mode}）...",
+        importDone: "インポート完了。",
+        confirmReplace: "既存のデータをすべて削除してから復元します。続行しますか？",
+        errInvalidFile: "無効なバックアップファイル形式です。",
+        errReadFile: "ファイルの読み取りエラー。",
+        lsExported: "localStorage: {n}個のキーをエクスポートしました。",
+        lsImported: "localStorage: {n}個のキーをインポートしました。",
+        lsCleared: "localStorageをクリアしました。",
+        idbExported: "IndexedDB \"{db}\": {n}個のオブジェクトストアをエクスポートしました。",
+        idbImported: "IndexedDB \"{db}\": 復元しました。",
+        idbCleared: "IndexedDB \"{db}\": 削除しました。",
+        idbSkipped: "IndexedDB \"{db}\": スキップしました（バックアップにデータなし）。",
+        idbError: "IndexedDB \"{db}\": エラー — {err}",
+        noIdb: "IndexedDBデータベースが見つかりません。",
+        scanning: "ストレージをスキャン中...",
+        fileInfo: "ファイル: {name} — {lsKeys} localStorageキー, {idbDbs} IndexedDBデータベース。",
+      }
+    };
+
+    let currentLang = localStorage.getItem('app_lang') || 'en';
+
+    function t(key, vars = {}) {
+      let s = (i18n[currentLang] || i18n.en)[key] || (i18n.en)[key] || key;
+      for (const [k, v] of Object.entries(vars)) s = s.replace(`{${k}}`, v);
+      return s;
+    }
+
+    function applyI18n() {
+      document.querySelectorAll('[data-i18n]').forEach(el => {
+        el.textContent = t(el.getAttribute('data-i18n'));
+      });
+      document.querySelectorAll('[data-i18n-title]').forEach(el => {
+        el.title = t(el.getAttribute('data-i18n-title'));
+      });
+      document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+        el.placeholder = t(el.getAttribute('data-i18n-placeholder'));
+      });
+      document.title = t('title');
+    }
+
+    /* ================================================================
+       Theme
+       ================================================================ */
+    function applyTheme(theme) {
+      document.documentElement.setAttribute('data-theme', theme);
+      const icon = document.querySelector('#theme-switcher i');
+      icon.className = theme === 'dark' ? 'fas fa-moon' : 'fas fa-sun';
+    }
+
+    /* ================================================================
+       Utility: human-readable size
+       ================================================================ */
+    function humanSize(bytes) {
+      if (bytes < 1024) return bytes + ' B';
+      if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+      return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+    }
+
+    /* ================================================================
+       Logging
+       ================================================================ */
+    const logContainer = document.getElementById('log-container');
+    let logHasEntries = false;
+
+    function logMsg(text, cls = 'log-info') {
+      if (!logHasEntries) { logContainer.innerHTML = ''; logHasEntries = true; }
+      const div = document.createElement('div');
+      div.className = 'log-entry ' + cls;
+      div.textContent = new Date().toLocaleTimeString() + '  ' + text;
+      logContainer.appendChild(div);
+      logContainer.scrollTop = logContainer.scrollHeight;
+    }
+
+    /* ================================================================
+       Progress bar
+       ================================================================ */
+    const progressSection = document.getElementById('progress-section');
+    const progressBar = document.getElementById('progress-bar');
+
+    function showProgress(pct) {
+      progressSection.classList.remove('hidden');
+      progressBar.style.width = Math.round(pct) + '%';
+    }
+    function hideProgress() {
+      progressSection.classList.add('hidden');
+      progressBar.style.width = '0%';
+    }
+
+    /* ================================================================
+       Binary-safe helpers
+       ================================================================ */
+
+    /** Check if a value is likely binary (ArrayBuffer, Blob, typed array) */
+    function isBinary(val) {
+      return val instanceof ArrayBuffer ||
+             val instanceof Blob ||
+             (val && val.buffer instanceof ArrayBuffer && typeof val.byteLength === 'number');
+    }
+
+    /** Convert ArrayBuffer to base64 string */
+    function arrayBufferToBase64(buffer) {
+      const bytes = new Uint8Array(buffer);
+      let binary = '';
+      const chunkSize = 8192;
+      for (let i = 0; i < bytes.length; i += chunkSize) {
+        binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+      }
+      return btoa(binary);
+    }
+
+    /** Convert base64 string back to ArrayBuffer */
+    function base64ToArrayBuffer(base64) {
+      const binary = atob(base64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      return bytes.buffer;
+    }
+
+    /** Convert Blob to a serializable object */
+    async function blobToSerializable(blob) {
+      const buffer = await blob.arrayBuffer();
+      return {
+        __type: 'Blob',
+        data: arrayBufferToBase64(buffer),
+        mime: blob.type
+      };
+    }
+
+    /** Recursively prepare a value for JSON serialization (handle binary) */
+    async function serializeValue(val) {
+      if (val === null || val === undefined) return val;
+      if (val instanceof Blob) return await blobToSerializable(val);
+      if (val instanceof ArrayBuffer) {
+        return { __type: 'ArrayBuffer', data: arrayBufferToBase64(val) };
+      }
+      if (val && val.buffer instanceof ArrayBuffer && typeof val.byteLength === 'number') {
+        // TypedArray (Uint8Array, Int16Array, etc.)
+        const ctorName = val.constructor.name;
+        return { __type: ctorName, data: arrayBufferToBase64(val.buffer) };
+      }
+      if (Array.isArray(val)) {
+        const arr = [];
+        for (const item of val) arr.push(await serializeValue(item));
+        return arr;
+      }
+      if (typeof val === 'object' && val.constructor === Object) {
+        const obj = {};
+        for (const [k, v] of Object.entries(val)) obj[k] = await serializeValue(v);
+        return obj;
+      }
+      return val;
+    }
+
+    /** Recursively deserialize a value (restore binary types) */
+    function deserializeValue(val) {
+      if (val === null || val === undefined) return val;
+      if (Array.isArray(val)) return val.map(deserializeValue);
+      if (typeof val === 'object') {
+        if (val.__type === 'Blob') {
+          const buf = base64ToArrayBuffer(val.data);
+          return new Blob([buf], { type: val.mime || '' });
+        }
+        if (val.__type === 'ArrayBuffer') {
+          return base64ToArrayBuffer(val.data);
+        }
+        // TypedArrays
+        const typedArrays = { Uint8Array, Int8Array, Uint8ClampedArray, Int16Array, Uint16Array, Int32Array, Uint32Array, Float32Array, Float64Array, BigInt64Array, BigUint64Array };
+        if (val.__type && typedArrays[val.__type]) {
+          const buf = base64ToArrayBuffer(val.data);
+          return new typedArrays[val.__type](buf);
+        }
+        // Regular object
+        const obj = {};
+        for (const [k, v] of Object.entries(val)) obj[k] = deserializeValue(v);
+        return obj;
+      }
+      return val;
+    }
+
+    /* ================================================================
+       Known IndexedDB databases
+       We enumerate known databases used by this project.
+       indexedDB.databases() is not available in all browsers,
+       so we maintain a known list as well.
+       ================================================================ */
+    const KNOWN_IDB_DATABASES = [
+      {
+        name: 'prompt_context_db',
+        version: 1,
+        stores: ['data']
+      },
+      {
+        name: 'slides_db',
+        version: 1,
+        stores: ['projects', 'folders', 'documents', 'slides']
+      },
+      {
+        name: 'AudioPlayerDB',
+        version: 1,
+        stores: ['folders', 'subfolders', 'tracks']
+      },
+      {
+        name: 'NotebookDB',
+        version: 1,
+        stores: ['projects', 'books', 'sheets']
+      },
+      {
+        name: 'wordpad_db_v1',
+        version: 1,
+        stores: ['documents']
+      }
+    ];
+
+    /** Discover databases — combine known list with indexedDB.databases() if available */
+    async function discoverDatabases() {
+      const map = new Map();
+      for (const db of KNOWN_IDB_DATABASES) map.set(db.name, db);
+      try {
+        if (indexedDB.databases) {
+          const browserDbs = await indexedDB.databases();
+          for (const db of browserDbs) {
+            if (!map.has(db.name)) {
+              map.set(db.name, { name: db.name, version: db.version, stores: null });
+            }
+          }
+        }
+      } catch (e) { /* ignore */ }
+      return Array.from(map.values());
+    }
+
+    /** Open an IDB database with given version, creating stores if needed */
+    function openIDB(name, version, storeNames) {
+      return new Promise((resolve, reject) => {
+        const req = indexedDB.open(name, version);
+        req.onupgradeneeded = (e) => {
+          const db = e.target.result;
+          if (storeNames) {
+            for (const sn of storeNames) {
+              if (!db.objectStoreNames.contains(sn)) {
+                db.createObjectStore(sn);
+              }
+            }
+          }
+        };
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+      });
+    }
+
+    /** Read all records from one object store, returns {key, value}[] */
+    function readAllFromStore(db, storeName) {
+      return new Promise((resolve, reject) => {
+        try {
+          const tx = db.transaction(storeName, 'readonly');
+          const store = tx.objectStore(storeName);
+          const results = [];
+          const cursorReq = store.openCursor();
+          cursorReq.onsuccess = (e) => {
+            const cursor = e.target.result;
+            if (cursor) {
+              results.push({ key: cursor.key, value: cursor.value });
+              cursor.continue();
+            } else {
+              resolve(results);
+            }
+          };
+          cursorReq.onerror = () => reject(cursorReq.error);
+        } catch (e) {
+          resolve([]); // store doesn't exist or is empty
+        }
+      });
+    }
+
+    /** Write records to a store */
+    function writeToStore(db, storeName, records) {
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(storeName, 'readwrite');
+        const store = tx.objectStore(storeName);
+        for (const rec of records) {
+          // If the store has a keyPath, use put(value).
+          // Otherwise use put(value, key).
+          if (store.keyPath) {
+            store.put(rec.value);
+          } else {
+            store.put(rec.value, rec.key);
+          }
+        }
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      });
+    }
+
+    /** Clear all records from a store */
+    function clearStore(db, storeName) {
+      return new Promise((resolve, reject) => {
+        try {
+          const tx = db.transaction(storeName, 'readwrite');
+          const store = tx.objectStore(storeName);
+          const req = store.clear();
+          req.onsuccess = () => resolve();
+          req.onerror = () => reject(req.error);
+        } catch (e) {
+          resolve();
+        }
+      });
+    }
+
+    /** Delete an entire IndexedDB database */
+    function deleteIDB(name) {
+      return new Promise((resolve, reject) => {
+        const req = indexedDB.deleteDatabase(name);
+        req.onsuccess = () => resolve();
+        req.onerror = () => reject(req.error);
+        req.onblocked = () => resolve(); // might be blocked, still ok
+      });
+    }
+
+    /* ================================================================
+       EXPORT
+       ================================================================ */
+    async function doExport() {
+      const btnExport = document.getElementById('btn-export');
+      btnExport.disabled = true;
+
+      try {
+        logMsg(t('scanning'), 'log-info');
+        showProgress(5);
+
+        const backup = {
+          __backup_meta: {
+            version: 1,
+            timestamp: new Date().toISOString(),
+            userAgent: navigator.userAgent,
+            url: location.origin
+          },
+          localStorage: {},
+          indexedDB: {}
+        };
+
+        // --- localStorage ---
+        const lsKeys = Object.keys(localStorage);
+        for (const key of lsKeys) {
+          backup.localStorage[key] = localStorage.getItem(key);
+        }
+        logMsg(t('lsExported', { n: lsKeys.length }), 'log-ok');
+        showProgress(20);
+
+        // --- IndexedDB ---
+        const databases = await discoverDatabases();
+
+        if (databases.length === 0) {
+          logMsg(t('noIdb'), 'log-warn');
+        }
+
+        const dbTotal = databases.length;
+        let dbDone = 0;
+
+        for (const dbInfo of databases) {
+          try {
+            const db = await openIDB(dbInfo.name, dbInfo.version, null);
+            const storeNames = Array.from(db.objectStoreNames);
+            const dbExport = { version: db.version, stores: {} };
+
+            for (const sn of storeNames) {
+              const records = await readAllFromStore(db, sn);
+              const serialized = [];
+              for (const rec of records) {
+                serialized.push({
+                  key: await serializeValue(rec.key),
+                  value: await serializeValue(rec.value)
+                });
+              }
+              dbExport.stores[sn] = serialized;
+            }
+
+            backup.indexedDB[dbInfo.name] = dbExport;
+            db.close();
+            logMsg(t('idbExported', { db: dbInfo.name, n: storeNames.length }), 'log-ok');
+          } catch (err) {
+            logMsg(t('idbError', { db: dbInfo.name, err: err.message }), 'log-err');
+          }
+          dbDone++;
+          showProgress(20 + (dbDone / dbTotal) * 70);
+        }
+
+        // --- Download ---
+        showProgress(95);
+        const json = JSON.stringify(backup, null, 2);
+        const blob = new Blob([json], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        const dateStr = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+        a.href = url;
+        a.download = `vc-backup-${dateStr}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        showProgress(100);
+        logMsg(t('exportDone', { size: humanSize(blob.size) }), 'log-ok');
+        setTimeout(hideProgress, 1500);
+
+      } catch (err) {
+        logMsg('Export error: ' + err.message, 'log-err');
+        hideProgress();
+      } finally {
+        btnExport.disabled = false;
+      }
+    }
+
+    /* ================================================================
+       IMPORT
+       ================================================================ */
+    let pendingBackup = null;
+
+    function loadFile(file) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const data = JSON.parse(reader.result);
+          if (!data.__backup_meta || !data.localStorage || !data.indexedDB) {
+            logMsg(t('errInvalidFile'), 'log-err');
+            return;
+          }
+          pendingBackup = data;
+
+          const lsCount = Object.keys(data.localStorage).length;
+          const idbCount = Object.keys(data.indexedDB).length;
+
+          document.getElementById('import-file-info').textContent = t('fileInfo', {
+            name: file.name,
+            lsKeys: lsCount,
+            idbDbs: idbCount
+          });
+          document.getElementById('import-file-info').classList.remove('hidden');
+          document.getElementById('btn-import-merge').classList.remove('hidden');
+          document.getElementById('btn-import-replace').classList.remove('hidden');
+
+          logMsg(t('importReady', { name: file.name, size: humanSize(file.size) }), 'log-info');
+        } catch (e) {
+          logMsg(t('errInvalidFile') + ' ' + e.message, 'log-err');
+        }
+      };
+      reader.onerror = () => logMsg(t('errReadFile'), 'log-err');
+      reader.readAsText(file);
+    }
+
+    async function doImport(mode) {
+      if (!pendingBackup) return;
+      const data = pendingBackup;
+
+      const btnMerge = document.getElementById('btn-import-merge');
+      const btnReplace = document.getElementById('btn-import-replace');
+      btnMerge.disabled = true;
+      btnReplace.disabled = true;
+
+      try {
+        if (mode === 'replace') {
+          if (!confirm(t('confirmReplace'))) {
+            btnMerge.disabled = false;
+            btnReplace.disabled = false;
+            return;
+          }
+        }
+
+        logMsg(t('importing', { mode }), 'log-info');
+        showProgress(5);
+
+        // --- localStorage ---
+        if (mode === 'replace') {
+          // Keep only app_lang and app_theme during clear to not break this page
+          const keepLang = localStorage.getItem('app_lang');
+          const keepTheme = localStorage.getItem('app_theme');
+          localStorage.clear();
+          if (keepLang) localStorage.setItem('app_lang', keepLang);
+          if (keepTheme) localStorage.setItem('app_theme', keepTheme);
+          logMsg(t('lsCleared'), 'log-warn');
+        }
+
+        const lsEntries = Object.entries(data.localStorage);
+        for (const [key, value] of lsEntries) {
+          localStorage.setItem(key, value);
+        }
+        logMsg(t('lsImported', { n: lsEntries.length }), 'log-ok');
+        showProgress(25);
+
+        // --- IndexedDB ---
+        const dbNames = Object.keys(data.indexedDB);
+        const dbTotal = dbNames.length;
+        let dbDone = 0;
+
+        for (const dbName of dbNames) {
+          const dbData = data.indexedDB[dbName];
+          if (!dbData || !dbData.stores || Object.keys(dbData.stores).length === 0) {
+            logMsg(t('idbSkipped', { db: dbName }), 'log-warn');
+            dbDone++;
+            showProgress(25 + (dbDone / dbTotal) * 70);
+            continue;
+          }
+
+          try {
+            if (mode === 'replace') {
+              // Delete and recreate the database
+              await deleteIDB(dbName);
+              logMsg(t('idbCleared', { db: dbName }), 'log-warn');
+            }
+
+            const storeNames = Object.keys(dbData.stores);
+            const version = dbData.version || 1;
+
+            // Open with upgrade to ensure all stores exist
+            const db = await new Promise((resolve, reject) => {
+              const req = indexedDB.open(dbName, version);
+              req.onupgradeneeded = (e) => {
+                const database = e.target.result;
+                for (const sn of storeNames) {
+                  if (!database.objectStoreNames.contains(sn)) {
+                    // We need to figure out if the store uses inline keys.
+                    // Check the first record to determine.
+                    const storeRecords = dbData.stores[sn] || [];
+                    const firstRecord = storeRecords[0];
+                    let useKeyPath = false;
+                    if (firstRecord && firstRecord.value && typeof firstRecord.value === 'object' && firstRecord.value !== null) {
+                      // If the value has an 'id' field matching the key, it's likely inline
+                      if ('id' in firstRecord.value && firstRecord.value.id === firstRecord.key) {
+                        useKeyPath = true;
+                      }
+                    }
+                    if (useKeyPath) {
+                      database.createObjectStore(sn, { keyPath: 'id' });
+                    } else {
+                      database.createObjectStore(sn);
+                    }
+                  }
+                }
+              };
+              req.onsuccess = () => resolve(req.result);
+              req.onerror = () => reject(req.error);
+            });
+
+            for (const sn of storeNames) {
+              const records = (dbData.stores[sn] || []).map(rec => ({
+                key: deserializeValue(rec.key),
+                value: deserializeValue(rec.value)
+              }));
+
+              if (mode === 'replace') {
+                // Already deleted & recreated, just write
+                if (records.length > 0) await writeToStore(db, sn, records);
+              } else {
+                // Merge mode: just overwrite existing keys
+                if (records.length > 0) await writeToStore(db, sn, records);
+              }
+            }
+
+            db.close();
+            logMsg(t('idbImported', { db: dbName }), 'log-ok');
+          } catch (err) {
+            logMsg(t('idbError', { db: dbName, err: err.message }), 'log-err');
+          }
+          dbDone++;
+          showProgress(25 + (dbDone / dbTotal) * 70);
+        }
+
+        showProgress(100);
+        logMsg(t('importDone'), 'log-ok');
+        setTimeout(hideProgress, 1500);
+
+        // Reset UI
+        pendingBackup = null;
+        document.getElementById('import-file-info').classList.add('hidden');
+        btnMerge.classList.add('hidden');
+        btnReplace.classList.add('hidden');
+        document.getElementById('file-input').value = '';
+
+      } catch (err) {
+        logMsg('Import error: ' + err.message, 'log-err');
+        hideProgress();
+      } finally {
+        btnMerge.disabled = false;
+        btnReplace.disabled = false;
+      }
+    }
+
+    /* ================================================================
+       Show stats on load
+       ================================================================ */
+    async function showExportStats() {
+      const lsCount = localStorage.length;
+      const databases = await discoverDatabases();
+      const idbCount = databases.length;
+
+      const statsEl = document.getElementById('export-stats');
+      statsEl.innerHTML =
+        `<span class="stats-badge stats-badge-ls">${lsCount} ${t('statsLsKeys')}</span>` +
+        `<span class="stats-badge stats-badge-idb">${idbCount} ${t('statsIdbDbs')}</span>`;
+    }
+
+    /* ================================================================
+       Init
+       ================================================================ */
+    (function init() {
+      // Language
+      const langSwitcher = document.getElementById('lang-switcher');
+      langSwitcher.value = currentLang;
+      applyI18n();
+
+      langSwitcher.addEventListener('change', () => {
+        currentLang = langSwitcher.value;
+        localStorage.setItem('app_lang', currentLang);
+        applyI18n();
+        showExportStats();
+      });
+
+      // Theme
+      const savedTheme = localStorage.getItem('app_theme') || 'dark';
+      applyTheme(savedTheme);
+
+      document.getElementById('theme-switcher').addEventListener('click', () => {
+        const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+        localStorage.setItem('app_theme', next);
+        applyTheme(next);
+      });
+
+      // Export button
+      document.getElementById('btn-export').addEventListener('click', doExport);
+
+      // Import — drop zone
+      const dropZone = document.getElementById('drop-zone');
+      const fileInput = document.getElementById('file-input');
+
+      dropZone.addEventListener('click', () => fileInput.click());
+      dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+      dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+      dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('drag-over');
+        if (e.dataTransfer.files.length) loadFile(e.dataTransfer.files[0]);
+      });
+      fileInput.addEventListener('change', () => {
+        if (fileInput.files.length) loadFile(fileInput.files[0]);
+      });
+
+      // Import buttons
+      document.getElementById('btn-import-merge').addEventListener('click', () => doImport('merge'));
+      document.getElementById('btn-import-replace').addEventListener('click', () => doImport('replace'));
+
+      // Clear log
+      document.getElementById('btn-clear-log').addEventListener('click', () => {
+        logContainer.innerHTML = `<div class="text-muted text-center py-3" data-i18n="logEmpty">${t('logEmpty')}</div>`;
+        logHasEntries = false;
+      });
+
+      // Show stats
+      showExportStats();
+    })();
+    </script>
+  </body>
+</html>
