@@ -126,7 +126,7 @@
               <div class="mb-3">
                 <label for="input-template" class="form-label" data-i18n="inputLabel">Input</label>
                 <textarea id="input-template" class="form-control mono" rows="4" data-i18n-placeholder="inputPlaceholder" placeholder="The {V1} is {V2} and has size {V3}, color {V4}, this is my {V1}"></textarea>
-                <div class="help-text mt-1" data-i18n="placeholderHelp">Use placeholders: {V1}, {V2}, {V3}, {V4}, {V5}</div>
+                <div class="help-text mt-1" data-i18n="placeholderHelp">Use placeholders: {V1}, {V2}, {V3}, {V4}, {V5}. Lines starting with # are ignored.</div>
                 <div class="mt-2 d-flex gap-2 align-items-center flex-wrap">
                   <input type="text" id="search-input" class="form-control mono" style="max-width: 280px;" data-i18n-placeholder="searchPlaceholder" placeholder="Buscar no Input e V1–V5...">
                   <button type="button" id="search-btn" class="btn btn-sm btn-outline-primary" data-i18n="searchBtn">
@@ -253,7 +253,7 @@
           title: "Prompt Concat",
           inputLabel: "Input",
           inputPlaceholder: "The {V1} is {V2} and has size {V3}, color {V4}, this is my {V1}",
-          placeholderHelp: "Use placeholders: {V1}, {V2}, {V3}, {V4}, {V5}",
+          placeholderHelp: "Use placeholders: {V1}, {V2}, {V3}, {V4}, {V5}. Lines starting with # are ignored.",
           conditionalHelp: "Conditional: IF({V1}==1,\"value\") | Operators: ==, !=, <, >, <=, >=, contains, &&, ||",
           v1Placeholder: "car\nbicycle\nboat",
           v2Placeholder: "modern\nold\nvintage",
@@ -289,7 +289,7 @@
           title: "Prompt Concat",
           inputLabel: "Entrada",
           inputPlaceholder: "O {V1} é {V2} e tem o tamanho {V3}, da cor {V4}, esse é o meu {V1}",
-          placeholderHelp: "Use placeholders: {V1}, {V2}, {V3}, {V4}, {V5}",
+          placeholderHelp: "Use placeholders: {V1}, {V2}, {V3}, {V4}, {V5}. Linhas que começam com # são ignoradas.",
           conditionalHelp: "Condicional: IF({V1}==1,\"valor\") | Operadores: ==, !=, <, >, <=, >=, contains, &&, ||",
           v1Placeholder: "carro\nbicicleta\nbarco",
           v2Placeholder: "moderno\nvelho\nvintage",
@@ -325,7 +325,7 @@
           title: "プロンプト連結",
           inputLabel: "入力",
           inputPlaceholder: "{V1}は{V2}で、サイズは{V3}、色は{V4}です。これが私の{V1}です",
-          placeholderHelp: "プレースホルダーを使用: {V1}, {V2}, {V3}, {V4}, {V5}",
+          placeholderHelp: "プレースホルダーを使用: {V1}, {V2}, {V3}, {V4}, {V5}。#で始まる行は無視されます。",
           conditionalHelp: "条件式: IF({V1}==1,\"値\") | 演算子: ==, !=, <, >, <=, >=, contains, &&, ||",
           v1Placeholder: "車\n自転車\nボート",
           v2Placeholder: "モダン\n古い\nヴィンテージ",
@@ -875,7 +875,12 @@
         };
 
         const render = () => {
-          const template = String(inputTemplateEl.value || '');
+          // Input: ignore lines that start with "#" (same as V1–V5)
+          const inputRaw = String(inputTemplateEl.value || '');
+          const template = inputRaw
+            .split(/\r?\n/)
+            .filter((line) => !line.trim().startsWith('#'))
+            .join('\n');
           const lists = vEls.map((el) => parseLines(el.value));
           
           // Cartesian product with conditional evaluation
