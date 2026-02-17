@@ -126,7 +126,7 @@
               <div class="mb-3">
                 <label for="input-template" class="form-label" data-i18n="inputLabel">Input</label>
                 <textarea id="input-template" class="form-control mono" rows="4" data-i18n-placeholder="inputPlaceholder" placeholder="The {V1} is {V2} and has size {V3}, color {V4}, this is my {V1}"></textarea>
-                <div class="help-text mt-1" data-i18n="placeholderHelp">Use placeholders: {V1}, {V2}, {V3}, {V4}, {V5}. Lines starting with # are ignored.</div>
+                <div class="help-text mt-1" data-i18n="placeholderHelp">Use placeholders: {V1}, {V2}, {V3}, {V4}, {V5}. # = comment. [[a, b, c]] = random pick per line (Input & V1–V5, max 100 items).</div>
                 <div class="mt-2 d-flex gap-2 align-items-center flex-wrap">
                   <input type="text" id="search-input" class="form-control mono" style="max-width: 280px;" data-i18n-placeholder="searchPlaceholder" placeholder="Buscar no Input e V1–V5...">
                   <button type="button" id="search-btn" class="btn btn-sm btn-outline-primary" data-i18n="searchBtn">
@@ -253,7 +253,7 @@
           title: "Prompt Concat",
           inputLabel: "Input",
           inputPlaceholder: "The {V1} is {V2} and has size {V3}, color {V4}, this is my {V1}",
-          placeholderHelp: "Use placeholders: {V1}, {V2}, {V3}, {V4}, {V5}. Lines starting with # are ignored.",
+          placeholderHelp: "Use placeholders: {V1}, {V2}, {V3}, {V4}, {V5}. # = comment. [[a, b, c]] = random pick per line (Input & V1–V5, max 100 items).",
           conditionalHelp: "Conditional: IF({V1}==1,\"value\") | Operators: ==, !=, <, >, <=, >=, contains, &&, ||",
           v1Placeholder: "car\nbicycle\nboat",
           v2Placeholder: "modern\nold\nvintage",
@@ -289,7 +289,7 @@
           title: "Prompt Concat",
           inputLabel: "Entrada",
           inputPlaceholder: "O {V1} é {V2} e tem o tamanho {V3}, da cor {V4}, esse é o meu {V1}",
-          placeholderHelp: "Use placeholders: {V1}, {V2}, {V3}, {V4}, {V5}. Linhas que começam com # são ignoradas.",
+          placeholderHelp: "Placeholders: {V1}, {V2}, {V3}, {V4}, {V5}. # = comentário. [[a, b, c]] = escolha aleatória por linha (Input e V1–V5, máx. 100 itens).",
           conditionalHelp: "Condicional: IF({V1}==1,\"valor\") | Operadores: ==, !=, <, >, <=, >=, contains, &&, ||",
           v1Placeholder: "carro\nbicicleta\nbarco",
           v2Placeholder: "moderno\nvelho\nvintage",
@@ -325,7 +325,7 @@
           title: "プロンプト連結",
           inputLabel: "入力",
           inputPlaceholder: "{V1}は{V2}で、サイズは{V3}、色は{V4}です。これが私の{V1}です",
-          placeholderHelp: "プレースホルダーを使用: {V1}, {V2}, {V3}, {V4}, {V5}。#で始まる行は無視されます。",
+          placeholderHelp: "プレースホルダー: {V1}, {V2}, {V3}, {V4}, {V5}。#=コメント。[[a, b, c]]=行ごとにランダム選択（Input・V1–V5、最大100件）。",
           conditionalHelp: "条件式: IF({V1}==1,\"値\") | 演算子: ==, !=, <, >, <=, >=, contains, &&, ||",
           v1Placeholder: "車\n自転車\nボート",
           v2Placeholder: "モダン\n古い\nヴィンテージ",
@@ -725,9 +725,35 @@
         };
 
         // Logic
+        const MAX_ARRAY_ITEMS = 100;
+
+        // Parse [[val1, val2, ...]] into array of strings, or null if not an array line
+        const parseArrayLiteral = (line) => {
+          const s = String(line).trim();
+          const m = s.match(/^\[\[(.*)\]\]$/s);
+          if (!m) return null;
+          const inner = (m[1] || '').trim();
+          const parts = inner ? inner.split(',').map((p) => p.trim()).filter(Boolean) : [];
+          const arr = parts.slice(0, MAX_ARRAY_ITEMS);
+          return arr.length ? arr : [''];
+        };
+
+        // Pick one value at random from a line (string or array of strings)
+        const pickValue = (line) => {
+          if (Array.isArray(line)) {
+            return line.length ? line[Math.floor(Math.random() * line.length)] : '';
+          }
+          return line;
+        };
+
         const parseLines = (text) => {
           const raw = String(text || '').split(/\r?\n/).map((s) => s.trim()).filter((s) => s !== '' && !s.startsWith('#'));
-          return raw.length ? raw : [''];
+          const out = [];
+          for (const s of raw) {
+            const arr = parseArrayLiteral(s);
+            out.push(arr !== null ? arr : s);
+          }
+          return out.length ? out : [''];
         };
 
         // Shuffle lines in a textarea
@@ -849,8 +875,9 @@
           return false;
         };
 
-        // Process a line that may contain IF() and return the value if condition passes, or null if it fails
+        // Process a line that may contain IF(), or be an array [[...]]; return value/array or null if condition fails
         const processConditionalLine = (line, values) => {
+          if (Array.isArray(line)) return line; // Array line: include as-is; random pick at render time
           const parsed = parseIfStatement(line);
           if (!parsed.isConditional) {
             return parsed.value; // Always include non-conditional lines
@@ -872,6 +899,14 @@
             acc = next;
           }
           return acc;
+        };
+
+        // Replace each [[val1, val2, ...]] in template with one random value (for Input template)
+        const replaceArrayLiteralsInTemplate = (str) => {
+          return String(str).replace(/\[\[(.*?)\]\]/g, (_, inner) => {
+            const parts = (inner || '').split(',').map((p) => p.trim()).filter(Boolean).slice(0, MAX_ARRAY_ITEMS);
+            return parts.length ? parts[Math.floor(Math.random() * parts.length)] : '';
+          });
         };
 
         const render = () => {
@@ -917,13 +952,11 @@
           const combos = generateCombinations(lists);
 
           const lines = combos.map((valuesRaw) => {
-            // Resolve chained placeholders inside variable values:
-            // - V2 may reference {V1}
-            // - V3 may reference {V1} and {V2}
-            // - ...
+            // Resolve arrays to one random value per line, then chained placeholders
             const values = [];
             for (let i = 0; i < valuesRaw.length; i++) {
-              let v = String(valuesRaw[i] ?? '');
+              let v = pickValue(valuesRaw[i]);
+              v = String(v ?? '');
               for (let j = 0; j < i; j++) {
                 v = v.replaceAll(`{V${j + 1}}`, values[j]);
               }
@@ -935,6 +968,8 @@
               const placeholder = `{V${i + 1}}`;
               out = out.replaceAll(placeholder, values[i]);
             }
+            // Replace [[...]] in template with random pick per result line
+            out = replaceArrayLiteralsInTemplate(out);
             return out;
           });
 
