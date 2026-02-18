@@ -104,6 +104,9 @@
           <button id="history-btn" class="btn btn-sm btn-outline-secondary" type="button" data-i18n-title="historyBtn" title="History">
             <i class="fas fa-history"></i>
           </button>
+          <button id="permanent-vars-btn" class="btn btn-sm btn-outline-secondary" type="button" data-i18n-title="permanentVarsBtn" title="Permanent Variables">
+            <i class="fas fa-bookmark"></i>
+          </button>
           <button id="clear-btn" class="btn btn-sm btn-outline-secondary" type="button" data-i18n-title="clearBtn" title="Clear">
             <i class="fas fa-eraser"></i>
           </button>
@@ -246,6 +249,28 @@
       </div>
     </div>
 
+    <!-- Permanent Variables Modal -->
+    <div class="modal fade" id="permanent-vars-modal" tabindex="-1">
+      <div class="modal-dialog modal-lg">
+        <div class="modal-content" style="background-color: var(--card-bg-color); color: var(--text-color); border-color: var(--border-color);">
+          <div class="modal-header" style="border-bottom-color: var(--border-color);">
+            <h5 class="modal-title" data-i18n="permanentVarsTitle">Permanent Variables</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <div id="permanent-vars-rows"></div>
+            <button type="button" id="permanent-vars-add-row" class="btn btn-sm btn-outline-primary mt-2" data-i18n="permanentVarsAdd">
+              <i class="fas fa-plus"></i> <span data-i18n="permanentVarsAdd">Add</span>
+            </button>
+          </div>
+          <div class="modal-footer" style="border-top-color: var(--border-color);">
+            <button type="button" class="btn btn-primary" id="permanent-vars-save" data-i18n="permanentVarsSave">Save</button>
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
       const i18n = {
@@ -253,7 +278,7 @@
           title: "Prompt Concat",
           inputLabel: "Input",
           inputPlaceholder: "The {V1} is {V2} and has size {V3}, color {V4}, this is my {V1}",
-          placeholderHelp: "Use placeholders: {V1}, {V2}, {V3}, {V4}, {V5}. # = comment. [[a, b, c]] = random pick per line (Input & V1–V5, max 100 items).",
+          placeholderHelp: "Use placeholders: {V1}, {V2}, {V3}, {V4}, {V5}. {{ID}} = permanent variable (same across storages). # = comment. [[a, b, c]] = random pick per line (Input & V1–V5, max 100 items).",
           conditionalHelp: "Conditional: IF({V1}==1,\"value\") | Operators: ==, !=, <, >, <=, >=, contains, &&, ||",
           v1Placeholder: "car\nbicycle\nboat",
           v2Placeholder: "modern\nold\nvintage",
@@ -266,6 +291,7 @@
           linesText: "lines",
           copyResultBtn: "Copy result",
           clearBtn: "Clear",
+          clearConfirm: "Clear all Input and V1–V5 content?",
           themeBtn: "Toggle theme",
           storageText: "storage",
           historyBtn: "Manage",
@@ -283,13 +309,19 @@
           openInNewTab: "Open in new tab",
           searchNoResults: "No matches",
           searchLineLabel: "line",
-          searchOtherStorages: "other storages"
+          searchOtherStorages: "other storages",
+          permanentVarsBtn: "Permanent Variables",
+          permanentVarsTitle: "Permanent Variables",
+          permanentVarsAdd: "Add",
+          permanentVarsSave: "Save",
+          permanentVarsId: "ID",
+          permanentVarsValue: "Value"
         },
         pt: {
           title: "Prompt Concat",
           inputLabel: "Entrada",
           inputPlaceholder: "O {V1} é {V2} e tem o tamanho {V3}, da cor {V4}, esse é o meu {V1}",
-          placeholderHelp: "Placeholders: {V1}, {V2}, {V3}, {V4}, {V5}. # = comentário. [[a, b, c]] = escolha aleatória por linha (Input e V1–V5, máx. 100 itens).",
+          placeholderHelp: "Placeholders: {V1}, {V2}, {V3}, {V4}, {V5}. {{ID}} = variável permanente (igual em todos os storages). # = comentário. [[a, b, c]] = escolha aleatória por linha (Input e V1–V5, máx. 100 itens).",
           conditionalHelp: "Condicional: IF({V1}==1,\"valor\") | Operadores: ==, !=, <, >, <=, >=, contains, &&, ||",
           v1Placeholder: "carro\nbicicleta\nbarco",
           v2Placeholder: "moderno\nvelho\nvintage",
@@ -302,6 +334,7 @@
           linesText: "linhas",
           copyResultBtn: "Copiar resultado",
           clearBtn: "Limpar",
+          clearConfirm: "Limpar todo o conteúdo do Input e V1–V5?",
           themeBtn: "Alternar tema",
           storageText: "armazenamento",
           historyBtn: "Gerenciar",
@@ -319,13 +352,19 @@
           openInNewTab: "Abrir em nova aba",
           searchNoResults: "Nenhum resultado",
           searchLineLabel: "linha",
-          searchOtherStorages: "outros storages"
+          searchOtherStorages: "outros storages",
+          permanentVarsBtn: "Variáveis Permanentes",
+          permanentVarsTitle: "Variáveis Permanentes",
+          permanentVarsAdd: "Adicionar",
+          permanentVarsSave: "Salvar",
+          permanentVarsId: "ID",
+          permanentVarsValue: "Valor"
         },
         ja: {
           title: "プロンプト連結",
           inputLabel: "入力",
           inputPlaceholder: "{V1}は{V2}で、サイズは{V3}、色は{V4}です。これが私の{V1}です",
-          placeholderHelp: "プレースホルダー: {V1}, {V2}, {V3}, {V4}, {V5}。#=コメント。[[a, b, c]]=行ごとにランダム選択（Input・V1–V5、最大100件）。",
+          placeholderHelp: "プレースホルダー: {V1}, {V2}, {V3}, {V4}, {V5}。{{ID}}=永続変数（全ストレージ共通）。#=コメント。[[a, b, c]]=行ごとにランダム選択（Input・V1–V5、最大100件）。",
           conditionalHelp: "条件式: IF({V1}==1,\"値\") | 演算子: ==, !=, <, >, <=, >=, contains, &&, ||",
           v1Placeholder: "車\n自転車\nボート",
           v2Placeholder: "モダン\n古い\nヴィンテージ",
@@ -338,6 +377,7 @@
           linesText: "行",
           copyResultBtn: "結果をコピー",
           clearBtn: "クリア",
+          clearConfirm: "InputとV1–V5の内容をすべてクリアしますか？",
           themeBtn: "テーマを切り替え",
           storageText: "ストレージ",
           historyBtn: "管理",
@@ -355,7 +395,13 @@
           openInNewTab: "新しいタブで開く",
           searchNoResults: "一致なし",
           searchLineLabel: "行",
-          searchOtherStorages: "他のストレージ"
+          searchOtherStorages: "他のストレージ",
+          permanentVarsBtn: "永続変数",
+          permanentVarsTitle: "永続変数",
+          permanentVarsAdd: "追加",
+          permanentVarsSave: "保存",
+          permanentVarsId: "ID",
+          permanentVarsValue: "値"
         }
       };
 
@@ -381,6 +427,13 @@
         const historyListEl = document.getElementById('history-list');
         const historyEmptyEl = document.getElementById('history-empty');
         const historyModal = new bootstrap.Modal(document.getElementById('history-modal'));
+
+        const permanentVarsBtn = document.getElementById('permanent-vars-btn');
+        const permanentVarsModalEl = document.getElementById('permanent-vars-modal');
+        const permanentVarsModal = new bootstrap.Modal(permanentVarsModalEl);
+        const permanentVarsRowsEl = document.getElementById('permanent-vars-rows');
+        const permanentVarsAddRowBtn = document.getElementById('permanent-vars-add-row');
+        const permanentVarsSaveBtn = document.getElementById('permanent-vars-save');
 
         // Language
         let currentLanguage = localStorage.getItem('app_lang') || 'en';
@@ -534,6 +587,37 @@
           } catch {
             // ignore
           }
+        };
+
+        // Permanent variables (shared across all storages)
+        const PERMANENT_VARS_KEY = 'prompt_concat:permanent_vars';
+        const getPermanentVars = () => {
+          try {
+            const raw = localStorage.getItem(PERMANENT_VARS_KEY);
+            if (raw == null) return {};
+            const parsed = JSON.parse(raw);
+            return typeof parsed === 'object' && parsed !== null ? parsed : {};
+          } catch {
+            return {};
+          }
+        };
+        const setPermanentVars = (obj) => {
+          try {
+            localStorage.setItem(PERMANENT_VARS_KEY, JSON.stringify(obj));
+          } catch {
+            // ignore
+          }
+        };
+        const applyPermanentVariables = (text, varsObj) => {
+          if (!text || typeof text !== 'string') return text;
+          let out = text;
+          for (const id of Object.keys(varsObj)) {
+            if (!id) continue;
+            const value = varsObj[id];
+            const placeholder = '{{' + id + '}}';
+            out = out.split(placeholder).join(value != null ? String(value) : '');
+          }
+          return out;
         };
 
         const writeFieldToPrefix = (prefix, field, value) => {
@@ -724,6 +808,58 @@
           });
         };
 
+        // Permanent Variables modal
+        const lang = () => i18n[currentLanguage] || i18n.en;
+        const createPermanentVarRow = (idVal, valueVal) => {
+          const row = document.createElement('div');
+          row.className = 'permanent-var-row d-flex gap-2 align-items-start mb-2';
+          const idInput = document.createElement('input');
+          idInput.type = 'text';
+          idInput.className = 'form-control form-control-sm permanent-var-id mono';
+          idInput.placeholder = lang().permanentVarsId || 'ID';
+          idInput.value = idVal || '';
+          idInput.style.minWidth = '80px';
+          idInput.style.maxWidth = '120px';
+          const valueInput = document.createElement('textarea');
+          valueInput.className = 'form-control form-control-sm permanent-var-value mono flex-grow-1';
+          valueInput.placeholder = lang().permanentVarsValue || 'Value';
+          valueInput.rows = 2;
+          valueInput.value = valueVal != null ? String(valueVal) : '';
+          const deleteBtn = document.createElement('button');
+          deleteBtn.type = 'button';
+          deleteBtn.className = 'btn btn-sm btn-outline-danger';
+          deleteBtn.innerHTML = '<i class="fas fa-trash"></i>';
+          deleteBtn.title = lang().deleteBtn || 'Delete';
+          deleteBtn.addEventListener('click', () => row.remove());
+          row.appendChild(idInput);
+          row.appendChild(valueInput);
+          row.appendChild(deleteBtn);
+          return row;
+        };
+        const renderPermanentVarsModal = () => {
+          permanentVarsRowsEl.innerHTML = '';
+          const vars = getPermanentVars();
+          const entries = Object.entries(vars);
+          if (entries.length === 0) {
+            permanentVarsRowsEl.appendChild(createPermanentVarRow('', ''));
+          } else {
+            entries.forEach(([id, value]) => {
+              permanentVarsRowsEl.appendChild(createPermanentVarRow(id, value));
+            });
+          }
+        };
+        const savePermanentVarsFromModal = () => {
+          const obj = {};
+          permanentVarsRowsEl.querySelectorAll('.permanent-var-row').forEach((row) => {
+            const idEl = row.querySelector('.permanent-var-id');
+            const valueEl = row.querySelector('.permanent-var-value');
+            const id = (idEl && idEl.value || '').trim();
+            if (id) obj[id] = valueEl && valueEl.value != null ? valueEl.value : '';
+          });
+          setPermanentVars(obj);
+          render();
+        };
+
         // Logic
         const MAX_ARRAY_ITEMS = 100;
 
@@ -910,13 +1046,15 @@
         };
 
         const render = () => {
+          const permanentVars = getPermanentVars();
+          // Apply {{ID}} substitution before processing
+          const inputRaw = applyPermanentVariables(String(inputTemplateEl.value || ''), permanentVars);
           // Input: ignore lines that start with "#" (same as V1–V5)
-          const inputRaw = String(inputTemplateEl.value || '');
           const template = inputRaw
             .split(/\r?\n/)
             .filter((line) => !line.trim().startsWith('#'))
             .join('\n');
-          const lists = vEls.map((el) => parseLines(el.value));
+          const lists = vEls.map((el) => parseLines(applyPermanentVariables(el.value, permanentVars)));
           
           // Cartesian product with conditional evaluation
           // We need to evaluate conditions as we build combinations
@@ -1093,6 +1231,8 @@
         });
 
         clearBtn.addEventListener('click', () => {
+          const lang = i18n[currentLanguage] || i18n.en;
+          if (!confirm(lang.clearConfirm || 'Clear all Input and V1–V5 content?')) return;
           inputTemplateEl.value = '';
           vEls.forEach((el) => (el.value = ''));
           saveAll();
@@ -1102,6 +1242,21 @@
         historyBtn.addEventListener('click', () => {
           renderHistoryModal();
           historyModal.show();
+        });
+
+        permanentVarsBtn.addEventListener('click', () => {
+          renderPermanentVarsModal();
+          permanentVarsModal.show();
+        });
+        permanentVarsAddRowBtn.addEventListener('click', () => {
+          permanentVarsRowsEl.appendChild(createPermanentVarRow('', ''));
+        });
+        permanentVarsSaveBtn.addEventListener('click', () => {
+          savePermanentVarsFromModal();
+          permanentVarsModal.hide();
+        });
+        permanentVarsModalEl.addEventListener('hide.bs.modal', () => {
+          savePermanentVarsFromModal();
         });
 
         copyResultBtn.addEventListener('click', async () => {
