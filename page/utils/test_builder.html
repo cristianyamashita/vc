@@ -1646,12 +1646,21 @@
             if (bilingual) {
               const top = primaryFirst ? (qu.questionText || '') : (qu.questionTranslation || '');
               const bottom = primaryFirst ? (qu.questionTranslation || '') : (qu.questionText || '');
-              lines.push(formatQuestionLine(n, top, qId));
-              if (bottom) lines.push('   ' + bottom);
+              const topLines = top.split('\n');
+              lines.push(formatQuestionLine(n, topLines[0] || '', qId));
+              for (let i = 1; i < topLines.length; i++) lines.push('   ' + topLines[i]);
+              if (bottom) {
+                const bottomLines = bottom.split('\n');
+                for (let i = 0; i < bottomLines.length; i++) lines.push('   ' + bottomLines[i]);
+              }
             } else if (langOpt === 'primary') {
-              lines.push(formatQuestionLine(n, qu.questionText || '', qId));
+              const qLines = (qu.questionText || '').split('\n');
+              lines.push(formatQuestionLine(n, qLines[0] || '', qId));
+              for (let i = 1; i < qLines.length; i++) lines.push('   ' + qLines[i]);
             } else {
-              lines.push(formatQuestionLine(n, qu.questionTranslation || '', qId));
+              const qLines = (qu.questionTranslation || '').split('\n');
+              lines.push(formatQuestionLine(n, qLines[0] || '', qId));
+              for (let i = 1; i < qLines.length; i++) lines.push('   ' + qLines[i]);
             }
             const isTextQuestion = qu.questionType === 'text';
             if (isTextQuestion) {
@@ -1748,12 +1757,13 @@
                   }
                 });
               }
+              const questionHtmlWithBreaks = (s) => formatTextWithCode(s).replace(/\n/g, '<br>');
               const externalComment = (withAnswers && qu.externalComment) ? formatTextWithCode(qu.externalComment) : '';
               const qBlock = template
                 .replace(/\{\{questionNumber\}\}/g, String(n))
                 .replace(/\{\{questionId\}\}/g, escapeHtml(qId))
-                .replace(/\{\{questionText\}\}/g, formatTextWithCode(questionText))
-                .replace(/\{\{questionTextSecondary\}\}/g, formatTextWithCode(questionTextSecondary))
+                .replace(/\{\{questionText\}\}/g, questionHtmlWithBreaks(questionText))
+                .replace(/\{\{questionTextSecondary\}\}/g, questionHtmlWithBreaks(questionTextSecondary))
                 .replace(/\{\{optionsHtml\}\}/g, optionsHtml)
                 .replace(/\{\{textAnswerBlock\}\}/g, textAnswerBlock)
                 .replace(/\{\{externalComment\}\}/g, externalComment);
