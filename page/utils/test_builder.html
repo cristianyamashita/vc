@@ -595,6 +595,7 @@
 .text-answer-block { margin-top: 0.5rem; }
 .text-answer-line { min-height: 1.5em; border-bottom: 1px solid #ccc; margin-bottom: 0.25rem; }
 .text-answer-line.answer-text { color: blue; }
+.code { color: #0066aa; font-family: monospace; font-size: 0.95em; }
 `;
 
       // ========== IndexedDB ==========
@@ -696,6 +697,13 @@
         const div = document.createElement('div');
         div.textContent = str;
         return div.innerHTML;
+      }
+
+      function formatTextWithCode(str) {
+        if (str == null) return '';
+        const s = String(str);
+        const parts = s.split('```');
+        return parts.map((p, i) => i % 2 === 1 ? '<span class="code">' + escapeHtml(p) + '</span>' : escapeHtml(p)).join('');
       }
 
       function escapeRegex(str) {
@@ -824,7 +832,8 @@
           const li = document.createElement('li');
           li.dataset.id = section.id;
           if (section.id === state.selectedSectionId) li.classList.add('selected');
-          const label = (section.sectionId ? section.sectionId + ' — ' : '') + (section.name || '');
+          const count = state.questions.filter(q => q.sectionId === section.id).length;
+          const label = '(' + count + ') ' + (section.sectionId ? section.sectionId + ' — ' : '') + (section.name || '');
           li.innerHTML = `
             <span class="item-name">${escapeHtml(label)}</span>
             <div class="item-actions">
@@ -1676,7 +1685,7 @@
                 const modelLines = (qu.textAnswerContent || '').split('\n');
                 const numLines = Math.max(1, modelLines.length);
                 if (withAnswers) {
-                  textAnswerBlock = modelLines.map(l => '<div class="text-answer-line answer-text">' + escapeHtml(l) + '</div>').join('');
+                  textAnswerBlock = modelLines.map(l => '<div class="text-answer-line answer-text">' + formatTextWithCode(l) + '</div>').join('');
                 } else {
                   textAnswerBlock = Array(numLines).fill('<div class="text-answer-line">&nbsp;</div>').join('');
                 }
@@ -1688,21 +1697,21 @@
                     const top = primaryFirst ? (o.text || '') : (o.translation || '');
                     const bottom = primaryFirst ? (o.translation || '') : (o.text || '');
                     const correctClass = withAnswers && o.correct ? ' correct-option' : '';
-                    optionsHtml += '<li class="primary-lang' + correctClass + '">' + cb + letter + ') ' + escapeHtml(top) + '</li>';
-                    if (bottom) optionsHtml += '<li class="secondary-lang">' + escapeHtml(bottom) + '</li>';
+                    optionsHtml += '<li class="primary-lang' + correctClass + '">' + cb + letter + ') ' + formatTextWithCode(top) + '</li>';
+                    if (bottom) optionsHtml += '<li class="secondary-lang">' + formatTextWithCode(bottom) + '</li>';
                   } else {
                     const text = langOpt === 'primary' ? (o.text || '') : (o.translation || '');
                     const correctClass = withAnswers && o.correct ? ' correct-option' : '';
-                    optionsHtml += '<li class="' + correctClass + '">' + cb + letter + ') ' + escapeHtml(text) + '</li>';
+                    optionsHtml += '<li class="' + correctClass + '">' + cb + letter + ') ' + formatTextWithCode(text) + '</li>';
                   }
                 });
               }
-              const externalComment = (withAnswers && qu.externalComment) ? escapeHtml(qu.externalComment) : '';
+              const externalComment = (withAnswers && qu.externalComment) ? formatTextWithCode(qu.externalComment) : '';
               const qBlock = template
                 .replace(/\{\{questionNumber\}\}/g, String(n))
                 .replace(/\{\{questionId\}\}/g, escapeHtml(qId))
-                .replace(/\{\{questionText\}\}/g, escapeHtml(questionText))
-                .replace(/\{\{questionTextSecondary\}\}/g, escapeHtml(questionTextSecondary))
+                .replace(/\{\{questionText\}\}/g, formatTextWithCode(questionText))
+                .replace(/\{\{questionTextSecondary\}\}/g, formatTextWithCode(questionTextSecondary))
                 .replace(/\{\{optionsHtml\}\}/g, optionsHtml)
                 .replace(/\{\{textAnswerBlock\}\}/g, textAnswerBlock)
                 .replace(/\{\{externalComment\}\}/g, externalComment);
