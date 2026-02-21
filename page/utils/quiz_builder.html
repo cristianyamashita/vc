@@ -216,7 +216,7 @@
       .search-result-preview { font-size: 0.85rem; opacity: 0.8; }
       .search-result-preview mark { background-color: #ffc107; color: #000; padding: 0 2px; border-radius: 2px; }
       .empty-state { text-align: center; padding: 2rem; color: var(--text-color); opacity: 0.5; }
-      #export-css-textarea { font-family: monospace; font-size: 0.85rem; min-height: 200px; }
+      #export-css-textarea, #export-template-textarea { font-family: monospace; font-size: 0.85rem; min-height: 200px; }
     </style>
   </head>
   <body>
@@ -278,6 +278,23 @@
           <button class="add-item-btn" id="add-test-btn" style="display: none;">
             <i class="fas fa-plus"></i>
             <span class="add-btn-text" data-i18n="addTest">Add Test</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="nav-column" id="sections-column">
+        <div class="column-header">
+          <div class="column-title">
+            <i class="fas fa-layer-group"></i>
+            <span class="column-title-text" data-i18n="sections">Sections</span>
+          </div>
+          <button class="collapse-btn" data-target="sections-column" title="Toggle"><i class="fas fa-chevron-left"></i></button>
+        </div>
+        <div class="column-content">
+          <ul class="item-list" id="sections-list"></ul>
+          <button class="add-item-btn" id="add-section-btn" style="display: none;">
+            <i class="fas fa-plus"></i>
+            <span class="add-btn-text" data-i18n="addSection">Add Section</span>
           </button>
         </div>
       </div>
@@ -345,6 +362,25 @@
       </div>
     </div>
 
+    <div class="modal fade" id="export-template-modal" tabindex="-1">
+      <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" data-i18n="editExportTemplate">Edit question HTML template</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <p class="small opacity-75 mb-2" data-i18n="templatePlaceholders">Placeholders: {{questionNumber}}, {{questionId}}, {{questionText}}, {{questionTextSecondary}}, {{optionsHtml}}, {{externalComment}}</p>
+            <textarea id="export-template-textarea" class="form-control"></textarea>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" data-i18n="close">Close</button>
+            <button type="button" class="btn btn-primary" id="export-template-save" data-i18n="save">Save</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
       // ========== i18n ==========
@@ -353,10 +389,14 @@
           title: 'Quiz Builder',
           projects: 'Projects',
           tests: 'Tests',
+          sections: 'Sections',
           questions: 'Questions',
           addProject: 'Add Project',
           addTest: 'Add Test',
+          addSection: 'Add Section',
           addQuestion: 'Add Question',
+          newSectionName: 'New Section',
+          sectionId: 'Section ID (sort)',
           searchPlaceholder: 'Search...',
           scopeTest: 'This test',
           scopeProject: 'This project',
@@ -396,6 +436,8 @@
           langFirst: 'Primary first',
           langSecond: 'Secondary first',
           editExportCss: 'Edit export CSS',
+          editExportTemplate: 'Edit question HTML template',
+          templatePlaceholders: 'Placeholders: {{questionNumber}}, {{questionId}}, {{questionText}}, {{questionTextSecondary}}, {{optionsHtml}}, {{externalComment}}',
           close: 'Close',
           save: 'Save',
           testActions: 'Test actions'
@@ -404,10 +446,14 @@
           title: 'Criador de Quiz',
           projects: 'Projetos',
           tests: 'Testes',
+          sections: 'Seções',
           questions: 'Perguntas',
           addProject: 'Adicionar Projeto',
           addTest: 'Adicionar Teste',
+          addSection: 'Adicionar Seção',
           addQuestion: 'Adicionar Pergunta',
+          newSectionName: 'Nova Seção',
+          sectionId: 'ID da seção (ordem)',
           searchPlaceholder: 'Buscar...',
           scopeTest: 'Neste teste',
           scopeProject: 'Neste projeto',
@@ -447,6 +493,8 @@
           langFirst: 'Primário em cima',
           langSecond: 'Secundário em cima',
           editExportCss: 'Editar CSS de exportação',
+          editExportTemplate: 'Editar template HTML da pergunta',
+          templatePlaceholders: 'Placeholders: {{questionNumber}}, {{questionId}}, {{questionText}}, {{questionTextSecondary}}, {{optionsHtml}}, {{externalComment}}',
           close: 'Fechar',
           save: 'Salvar',
           testActions: 'Ações do teste'
@@ -455,10 +503,14 @@
           title: 'クイズビルダー',
           projects: 'プロジェクト',
           tests: 'テスト',
+          sections: 'セクション',
           questions: '質問',
           addProject: 'プロジェクト追加',
           addTest: 'テスト追加',
+          addSection: 'セクション追加',
           addQuestion: '質問追加',
+          newSectionName: '新規セクション',
+          sectionId: 'セクションID（並び）',
           searchPlaceholder: '検索...',
           scopeTest: 'このテスト',
           scopeProject: 'このプロジェクト',
@@ -498,11 +550,15 @@
           langFirst: '第一を上',
           langSecond: '第二を上',
           editExportCss: '出力CSSを編集',
+          editExportTemplate: '質問HTMLテンプレートを編集',
+          templatePlaceholders: 'プレースホルダー: {{questionNumber}}, {{questionId}}, {{questionText}}, {{questionTextSecondary}}, {{optionsHtml}}, {{externalComment}}',
           close: '閉じる',
           save: '保存',
           testActions: 'テスト操作'
         }
       };
+
+      const DEFAULT_EXPORT_QUESTION_TEMPLATE = '<div class="question-block">\n  <div class="question-id-line">ID: {{questionId}}</div>\n  <div class="question-text primary-lang">{{questionNumber}} ) {{questionText}}</div>\n  <div class="question-text secondary-lang">{{questionTextSecondary}}</div>\n  <ul class="options-list">{{optionsHtml}}</ul>\n  <div class="external-comment">{{externalComment}}</div>\n</div>';
 
       const DEFAULT_EXPORT_CSS = `body { font-family: sans-serif; margin: 1rem; line-height: 1.5; }
 .quiz-title { font-size: 1.25rem; margin-bottom: 1rem; }
@@ -518,7 +574,7 @@
 
       // ========== IndexedDB ==========
       const DB_NAME = 'QuizBuilderDB';
-      const DB_VERSION = 1;
+      const DB_VERSION = 2;
       let db = null;
 
       const openDB = () => {
@@ -537,10 +593,21 @@
               s.createIndex('projectId', 'projectId', { unique: false });
               s.createIndex('order', 'order', { unique: false });
             }
+            if (!database.objectStoreNames.contains('sections')) {
+              const s = database.createObjectStore('sections', { keyPath: 'id' });
+              s.createIndex('testId', 'testId', { unique: false });
+              s.createIndex('order', 'order', { unique: false });
+            }
             if (!database.objectStoreNames.contains('questions')) {
               const s = database.createObjectStore('questions', { keyPath: 'id' });
               s.createIndex('testId', 'testId', { unique: false });
+              s.createIndex('sectionId', 'sectionId', { unique: false });
               s.createIndex('order', 'order', { unique: false });
+            } else {
+              try {
+                const qStore = event.target.transaction.objectStore('questions');
+                if (!qStore.indexNames.contains('sectionId')) qStore.createIndex('sectionId', 'sectionId', { unique: false });
+              } catch (e) {}
             }
           };
         });
@@ -646,17 +713,21 @@
       let state = {
         selectedProjectId: null,
         selectedTestId: null,
+        selectedSectionId: null,
         selectedQuestionId: null,
         projects: [],
         tests: [],
+        sections: [],
         questions: []
       };
 
       const projectsList = document.getElementById('projects-list');
       const testsList = document.getElementById('tests-list');
+      const sectionsList = document.getElementById('sections-list');
       const questionsList = document.getElementById('questions-list');
       const addProjectBtn = document.getElementById('add-project-btn');
       const addTestBtn = document.getElementById('add-test-btn');
+      const addSectionBtn = document.getElementById('add-section-btn');
       const addQuestionBtn = document.getElementById('add-question-btn');
       const contentPath = document.getElementById('content-path');
       const noSelection = document.getElementById('no-selection');
@@ -667,6 +738,8 @@
       const searchResultsEl = document.getElementById('search-results');
       const exportCssModal = new bootstrap.Modal(document.getElementById('export-css-modal'));
       const exportCssTextarea = document.getElementById('export-css-textarea');
+      const exportTemplateModal = new bootstrap.Modal(document.getElementById('export-template-modal'));
+      const exportTemplateTextarea = document.getElementById('export-template-textarea');
 
       // ========== Render ==========
       function renderProjects() {
@@ -717,11 +790,37 @@
         });
       }
 
+      function renderSections() {
+        sectionsList.innerHTML = '';
+        const filtered = state.sections.filter(s => s.testId === state.selectedTestId);
+        const sorted = filtered.sort((a, b) => (a.sectionId || '').localeCompare(b.sectionId || '', undefined, { numeric: true }) || (a.order - b.order));
+        addSectionBtn.style.display = state.selectedTestId ? 'flex' : 'none';
+        sorted.forEach(section => {
+          const li = document.createElement('li');
+          li.dataset.id = section.id;
+          if (section.id === state.selectedSectionId) li.classList.add('selected');
+          const label = (section.sectionId ? section.sectionId + ' — ' : '') + (section.name || '');
+          li.innerHTML = `
+            <span class="item-name">${escapeHtml(label)}</span>
+            <div class="item-actions">
+              <button class="rename-btn" title="${t('rename')}"><i class="fas fa-edit"></i></button>
+              <button class="delete-btn" title="${t('delete')}"><i class="fas fa-trash"></i></button>
+            </div>
+          `;
+          li.addEventListener('click', (e) => {
+            if (!e.target.closest('.item-actions')) selectSection(section.id);
+          });
+          li.querySelector('.rename-btn').addEventListener('click', (e) => { e.stopPropagation(); renameSection(section.id); });
+          li.querySelector('.delete-btn').addEventListener('click', (e) => { e.stopPropagation(); deleteSection(section.id); });
+          sectionsList.appendChild(li);
+        });
+      }
+
       function renderQuestions() {
         questionsList.innerHTML = '';
-        const filtered = state.questions.filter(q => q.testId === state.selectedTestId);
+        const filtered = state.questions.filter(q => q.testId === state.selectedTestId && q.sectionId === state.selectedSectionId);
         const sorted = filtered.sort((a, b) => (a.questionId || '').localeCompare(b.questionId || ''));
-        addQuestionBtn.style.display = state.selectedTestId ? 'flex' : 'none';
+        addQuestionBtn.style.display = state.selectedSectionId ? 'flex' : 'none';
         sorted.forEach(q => {
           const li = document.createElement('li');
           li.dataset.id = q.id;
@@ -746,9 +845,12 @@
       function renderContentPath() {
         const project = state.projects.find(p => p.id === state.selectedProjectId);
         const test = state.tests.find(t => t.id === state.selectedTestId);
+        const section = state.sections.find(s => s.id === state.selectedSectionId);
         const question = state.questions.find(q => q.id === state.selectedQuestionId);
-        if (question && test && project) {
-          contentPath.innerHTML = `<span>${escapeHtml(project.name)}</span> / <span>${escapeHtml(test.name)}</span> / <strong>${escapeHtml(question.questionId || question.id)}</strong>`;
+        if (question && section && test && project) {
+          contentPath.innerHTML = `<span>${escapeHtml(project.name)}</span> / <span>${escapeHtml(test.name)}</span> / <span>${escapeHtml(section.name || section.sectionId)}</span> / <strong>${escapeHtml(question.questionId || question.id)}</strong>`;
+        } else if (section && test && project) {
+          contentPath.innerHTML = `<span>${escapeHtml(project.name)}</span> / <span>${escapeHtml(test.name)}</span> / <strong>${escapeHtml(section.name || section.sectionId)}</strong>`;
         } else if (test && project) {
           contentPath.innerHTML = `<span>${escapeHtml(project.name)}</span> / <strong>${escapeHtml(test.name)}</strong>`;
         } else {
@@ -759,6 +861,7 @@
       function renderContent() {
         renderContentPath();
         const question = state.questions.find(q => q.id === state.selectedQuestionId);
+        const section = state.sections.find(s => s.id === state.selectedSectionId);
         const test = state.tests.find(t => t.id === state.selectedTestId);
 
         if (question) {
@@ -766,6 +869,11 @@
           testActionsPanel.style.display = 'none';
           questionFormContainer.style.display = 'flex';
           renderQuestionForm(question);
+        } else if (section && test) {
+          noSelection.style.display = 'flex';
+          testActionsPanel.style.display = 'none';
+          questionFormContainer.style.display = 'none';
+          document.querySelector('#no-selection p').setAttribute('data-i18n', 'selectQuestion');
         } else if (test) {
           noSelection.style.display = 'none';
           questionFormContainer.style.display = 'none';
@@ -804,6 +912,7 @@
           </select></p>
           <div class="test-actions-group">
             <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-edit-export-css"><i class="fas fa-palette"></i> ${t('editExportCss')}</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-edit-export-template"><i class="fas fa-code"></i> ${t('editExportTemplate')}</button>
           </div>
         `;
         document.getElementById('btn-export-json').addEventListener('click', () => exportTestJson(test));
@@ -821,7 +930,24 @@
           exportCssModal.show();
           exportCssModal._currentTest = test;
         });
+        document.getElementById('btn-edit-export-template').addEventListener('click', () => {
+          exportTemplateTextarea.value = (test.exportQuestionHtml != null && test.exportQuestionHtml.trim() !== '') ? test.exportQuestionHtml : DEFAULT_EXPORT_QUESTION_TEMPLATE;
+          exportTemplateModal.show();
+          exportTemplateModal._currentTest = test;
+        });
       }
+
+      document.getElementById('export-template-save').addEventListener('click', () => {
+        const test = exportTemplateModal._currentTest;
+        if (test) {
+          test.exportQuestionHtml = exportTemplateTextarea.value;
+          dbPut('tests', test).then(() => {
+            const idx = state.tests.findIndex(t => t.id === test.id);
+            if (idx >= 0) state.tests[idx] = test;
+            exportTemplateModal.hide();
+          });
+        }
+      });
 
       document.getElementById('export-css-save').addEventListener('click', () => {
         const test = exportCssModal._currentTest;
@@ -965,9 +1091,11 @@
       function selectProject(projectId) {
         state.selectedProjectId = projectId;
         state.selectedTestId = null;
+        state.selectedSectionId = null;
         state.selectedQuestionId = null;
         renderProjects();
         renderTests();
+        renderSections();
         renderQuestions();
         renderContent();
         saveState();
@@ -975,8 +1103,19 @@
 
       function selectTest(testId) {
         state.selectedTestId = testId;
+        state.selectedSectionId = null;
         state.selectedQuestionId = null;
         renderTests();
+        renderSections();
+        renderQuestions();
+        renderContent();
+        saveState();
+      }
+
+      function selectSection(sectionId) {
+        state.selectedSectionId = sectionId;
+        state.selectedQuestionId = null;
+        renderSections();
         renderQuestions();
         renderContent();
         saveState();
@@ -1015,21 +1154,30 @@
         if (!confirm(t('confirmDelete'))) return;
         const testsToDelete = state.tests.filter(t => t.projectId === projectId);
         for (const test of testsToDelete) {
+          const sectionsToDelete = state.sections.filter(s => s.testId === test.id);
+          for (const s of sectionsToDelete) {
+            const qs = state.questions.filter(q => q.sectionId === s.id);
+            for (const q of qs) await dbDelete('questions', q.id);
+            await dbDelete('sections', s.id);
+          }
           const questionsToDelete = state.questions.filter(q => q.testId === test.id);
           for (const q of questionsToDelete) await dbDelete('questions', q.id);
           await dbDelete('tests', test.id);
         }
         await dbDelete('projects', projectId);
         state.questions = state.questions.filter(q => !testsToDelete.some(t => t.id === q.testId));
+        state.sections = state.sections.filter(s => !testsToDelete.some(t => t.id === s.testId));
         state.tests = state.tests.filter(t => t.projectId !== projectId);
         state.projects = state.projects.filter(p => p.id !== projectId);
         if (state.selectedProjectId === projectId) {
           state.selectedProjectId = null;
           state.selectedTestId = null;
+          state.selectedSectionId = null;
           state.selectedQuestionId = null;
         }
         renderProjects();
         renderTests();
+        renderSections();
         renderQuestions();
         renderContent();
       }
@@ -1059,26 +1207,85 @@
 
       async function deleteTest(testId) {
         if (!confirm(t('confirmDelete'))) return;
+        const sectionsToDelete = state.sections.filter(s => s.testId === testId);
+        for (const s of sectionsToDelete) {
+          const qs = state.questions.filter(q => q.sectionId === s.id);
+          for (const q of qs) await dbDelete('questions', q.id);
+          await dbDelete('sections', s.id);
+        }
         const questionsToDelete = state.questions.filter(q => q.testId === testId);
         for (const q of questionsToDelete) await dbDelete('questions', q.id);
         await dbDelete('tests', testId);
         state.questions = state.questions.filter(q => q.testId !== testId);
+        state.sections = state.sections.filter(s => s.testId !== testId);
         state.tests = state.tests.filter(t => t.id !== testId);
         if (state.selectedTestId === testId) {
           state.selectedTestId = null;
+          state.selectedSectionId = null;
           state.selectedQuestionId = null;
         }
         renderTests();
+        renderSections();
+        renderQuestions();
+        renderContent();
+      }
+
+      async function addSection() {
+        if (!state.selectedTestId) return;
+        const sectionId = prompt(t('sectionId') + ' (e.g. 01, 02)', '01');
+        const name = prompt(t('enterName'), t('newSectionName'));
+        if (!name || !name.trim()) return;
+        const sectionsInTest = state.sections.filter(s => s.testId === state.selectedTestId);
+        const section = {
+          id: generateId(),
+          testId: state.selectedTestId,
+          sectionId: (sectionId || '').trim() || String(sectionsInTest.length + 1).padStart(2, '0'),
+          name: name.trim(),
+          order: sectionsInTest.length,
+          createdAt: Date.now()
+        };
+        await dbAdd('sections', section);
+        state.sections.push(section);
+        renderSections();
+        selectSection(section.id);
+      }
+
+      async function renameSection(sectionId) {
+        const section = state.sections.find(s => s.id === sectionId);
+        if (!section) return;
+        const name = prompt(t('enterName'), section.name);
+        if (!name || !name.trim()) return;
+        const sectionIdSort = prompt(t('sectionId'), section.sectionId || '');
+        section.name = name.trim();
+        if (sectionIdSort != null) section.sectionId = (sectionIdSort || '').trim() || section.sectionId;
+        await dbPut('sections', section);
+        renderSections();
+        renderContentPath();
+      }
+
+      async function deleteSection(sectionId) {
+        if (!confirm(t('confirmDelete'))) return;
+        const questionsInSection = state.questions.filter(q => q.sectionId === sectionId);
+        for (const q of questionsInSection) await dbDelete('questions', q.id);
+        await dbDelete('sections', sectionId);
+        state.questions = state.questions.filter(q => q.sectionId !== sectionId);
+        state.sections = state.sections.filter(s => s.id !== sectionId);
+        if (state.selectedSectionId === sectionId) {
+          state.selectedSectionId = null;
+          state.selectedQuestionId = null;
+        }
+        renderSections();
         renderQuestions();
         renderContent();
       }
 
       async function addQuestion() {
-        if (!state.selectedTestId) return;
-        const questionsInTest = state.questions.filter(q => q.testId === state.selectedTestId);
+        if (!state.selectedTestId || !state.selectedSectionId) return;
+        const questionsInSection = state.questions.filter(q => q.sectionId === state.selectedSectionId);
         const question = {
           id: generateId(),
           testId: state.selectedTestId,
+          sectionId: state.selectedSectionId,
           questionId: generateQuestionId(),
           questionText: '',
           questionTranslation: '',
@@ -1087,7 +1294,7 @@
           internalComment: '',
           externalComment: '',
           isReady: false,
-          order: questionsInTest.length,
+          order: questionsInSection.length,
           createdAt: Date.now(),
           updatedAt: Date.now()
         };
@@ -1163,10 +1370,11 @@
         } else {
           searchResultsEl.innerHTML = results.map(q => {
             const tObj = state.tests.find(t => t.id === q.testId);
+            const sObj = state.sections.find(s => s.id === q.sectionId);
             const pObj = state.projects.find(p => p.id === tObj?.projectId);
             return `
-              <div class="search-result-item" data-project-id="${pObj?.id || ''}" data-test-id="${tObj?.id || ''}" data-question-id="${q.id}">
-                <div class="search-result-path">${escapeHtml(pObj?.name || '')} / ${escapeHtml(tObj?.name || '')} / ${escapeHtml(q.questionId || q.id)}</div>
+              <div class="search-result-item" data-project-id="${pObj?.id || ''}" data-test-id="${tObj?.id || ''}" data-section-id="${sObj?.id || ''}" data-question-id="${q.id}">
+                <div class="search-result-path">${escapeHtml(pObj?.name || '')} / ${escapeHtml(tObj?.name || '')} / ${escapeHtml(sObj?.name || sObj?.sectionId || '')} / ${escapeHtml(q.questionId || q.id)}</div>
                 <div class="search-result-preview">${getSearchPreview(q, query)}</div>
               </div>
             `;
@@ -1175,9 +1383,11 @@
             item.addEventListener('click', () => {
               state.selectedProjectId = item.dataset.projectId || null;
               state.selectedTestId = item.dataset.testId || null;
+              state.selectedSectionId = item.dataset.sectionId || null;
               state.selectedQuestionId = item.dataset.questionId || null;
               renderProjects();
               renderTests();
+              renderSections();
               renderQuestions();
               renderContent();
               saveState();
@@ -1190,8 +1400,9 @@
 
       // ========== Export / Import ==========
       function exportTestJson(test) {
+        const sections = state.sections.filter(s => s.testId === test.id).sort((a, b) => (a.sectionId || '').localeCompare(b.sectionId || '', undefined, { numeric: true }));
         const questions = state.questions.filter(q => q.testId === test.id).sort((a, b) => (a.questionId || '').localeCompare(b.questionId || ''));
-        const payload = { version: 1, test: { ...test }, questions };
+        const payload = { version: 2, test: { ...test }, sections, questions };
         const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
         const a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
@@ -1211,6 +1422,7 @@
             const text = await file.text();
             const data = JSON.parse(text);
             const importedTest = data.test;
+            const importedSections = Array.isArray(data.sections) ? data.sections : [];
             const importedQuestions = Array.isArray(data.questions) ? data.questions : [];
             if (!importedTest || !importedTest.id) return;
             importedTest.id = generateId();
@@ -1218,13 +1430,26 @@
             importedTest.order = state.tests.filter(t => t.projectId === state.selectedProjectId).length;
             await dbAdd('tests', importedTest);
             state.tests.push(importedTest);
+            const oldToNewSectionId = {};
+            for (const sec of importedSections) {
+              const oldId = sec.id;
+              sec.id = generateId();
+              sec.testId = importedTest.id;
+              sec.order = state.sections.filter(s => s.testId === importedTest.id).length;
+              await dbAdd('sections', sec);
+              state.sections.push(sec);
+              oldToNewSectionId[oldId] = sec.id;
+            }
             for (const q of importedQuestions) {
               const newQ = { ...q, id: generateId(), testId: importedTest.id };
+              if (q.sectionId && oldToNewSectionId[q.sectionId]) newQ.sectionId = oldToNewSectionId[q.sectionId];
+              else newQ.sectionId = null;
               newQ.order = state.questions.filter(x => x.testId === importedTest.id).length;
               await dbAdd('questions', newQ);
               state.questions.push(newQ);
             }
             renderTests();
+            renderSections();
             renderQuestions();
             selectTest(importedTest.id);
           } catch (err) {
@@ -1235,94 +1460,136 @@
         input.click();
       }
 
-      function getTestQuestionsSorted(test) {
-        return state.questions.filter(q => q.testId === test.id).sort((a, b) => (a.questionId || '').localeCompare(b.questionId || ''));
+      function getTestSectionsWithQuestions(test) {
+        const sections = state.sections.filter(s => s.testId === test.id).sort((a, b) => (a.sectionId || '').localeCompare(b.sectionId || '', undefined, { numeric: true }) || (a.order - b.order));
+        const sectionIds = new Set(sections.map(s => s.id));
+        const allTestQuestions = state.questions.filter(q => q.testId === test.id);
+        const result = sections.map(sec => ({
+          section: sec,
+          questions: allTestQuestions.filter(q => q.sectionId === sec.id).sort((a, b) => (a.questionId || '').localeCompare(b.questionId || ''))
+        }));
+        const orphanQuestions = allTestQuestions.filter(q => !q.sectionId || !sectionIds.has(q.sectionId)).sort((a, b) => (a.questionId || '').localeCompare(b.questionId || ''));
+        if (orphanQuestions.length > 0) {
+          result.push({ section: { id: null, sectionId: '', name: 'Other' }, questions: orphanQuestions });
+        }
+        return result;
       }
 
       function exportRendered(test, format, withAnswers, langOpt) {
-        const questions = getTestQuestionsSorted(test);
+        const sectionsWithQuestions = getTestSectionsWithQuestions(test);
         const langPrimary = langOpt === 'primary' || langOpt === 'bilingual-primary' || langOpt === 'bilingual-secondary';
         const langSecondary = langOpt === 'secondary' || langOpt === 'bilingual-primary' || langOpt === 'bilingual-secondary';
         const bilingual = langOpt.startsWith('bilingual');
         const primaryFirst = langOpt === 'bilingual-primary';
-
-        function textBlock(q, withExtComment) {
-          const lines = [];
-          questions.forEach((qu, i) => {
-            const n = i + 1;
-            if (bilingual) {
-              const top = primaryFirst ? (qu.questionText || '') : (qu.questionTranslation || '');
-              const bottom = primaryFirst ? (qu.questionTranslation || '') : (qu.questionText || '');
-              lines.push(`${n}. ${top}`);
-              if (bottom) lines.push(`   ${bottom}`);
-            } else if (langOpt === 'primary') {
-              lines.push(`${n}. ${qu.questionText || ''}`);
-            } else {
-              lines.push(`${n}. ${qu.questionTranslation || ''}`);
-            }
-            (qu.options || []).forEach((o, j) => {
-              const letter = String.fromCharCode(65 + j);
-              if (bilingual) {
-                const top = primaryFirst ? (o.text || '') : (o.translation || '');
-                const bottom = primaryFirst ? (o.translation || '') : (o.text || '');
-                lines.push(`   ${letter}) ${top}`);
-                if (bottom) lines.push(`      ${bottom}`);
-              } else if (langOpt === 'primary') {
-                lines.push(`   ${letter}) ${o.text || ''}`);
-              } else {
-                lines.push(`   ${letter}) ${o.translation || ''}`);
-              }
-              if (withAnswers && o.correct) lines.push(`      [CORRECT]`);
-            });
-            if (withAnswers && qu.externalComment) lines.push(`   Comment: ${qu.externalComment}`);
-          });
-          return lines.join('\n');
+        function checkBox(withAnswers, correct, forHtml) {
+          if (forHtml) {
+            return (withAnswers && correct) ? '[&nbsp;x&nbsp;]&nbsp;' : '[&nbsp;&nbsp;&nbsp;]&nbsp;';
+          }
+          return (withAnswers && correct) ? '[ x ] ' : '[  ] ';
         }
 
+        function formatQuestionLine(num, text, qId) {
+          const idPart = (qId || '').trim();
+          if (!idPart) return num + '. ' + text;
+          const padding = Math.max(1, 50 - (num + '. ' + text).length);
+          return num + '. ' + text + ' '.repeat(padding) + idPart;
+        }
+
+        const lines = [];
         const title = test.name || 'Quiz';
-        let content;
-        if (format === 'txt') {
-          content = title + '\n\n' + textBlock(null, withAnswers);
-        } else {
-          const css = (test.exportCss != null && test.exportCss.trim() !== '') ? test.exportCss : DEFAULT_EXPORT_CSS;
-          const bodyParts = [];
-          bodyParts.push(`<h1 class="quiz-title">${escapeHtml(title)}</h1>`);
-          questions.forEach((qu, i) => {
-            const n = i + 1;
-            let qHtml = '';
+        lines.push(title);
+        lines.push('');
+        let globalNum = 0;
+        sectionsWithQuestions.forEach(({ section, questions }) => {
+          lines.push('--- ' + (section.name || section.sectionId || '') + ' ---');
+          lines.push('');
+          questions.forEach((qu) => {
+            globalNum += 1;
+            const n = globalNum;
+            const qId = qu.questionId || '';
             if (bilingual) {
               const top = primaryFirst ? (qu.questionText || '') : (qu.questionTranslation || '');
               const bottom = primaryFirst ? (qu.questionTranslation || '') : (qu.questionText || '');
-              qHtml += `<div class="question-text primary-lang">${n}. ${escapeHtml(top)}</div>`;
-              if (bottom) qHtml += `<div class="secondary-lang">${escapeHtml(bottom)}</div>`;
+              lines.push(formatQuestionLine(n, top, qId));
+              if (bottom) lines.push('   ' + bottom);
             } else if (langOpt === 'primary') {
-              qHtml += `<div class="question-text">${n}. ${escapeHtml(qu.questionText || '')}</div>`;
+              lines.push(formatQuestionLine(n, qu.questionText || '', qId));
             } else {
-              qHtml += `<div class="question-text">${n}. ${escapeHtml(qu.questionTranslation || '')}</div>`;
+              lines.push(formatQuestionLine(n, qu.questionTranslation || '', qId));
             }
-            qHtml += '<ul class="options-list">';
             (qu.options || []).forEach((o, j) => {
               const letter = String.fromCharCode(65 + j);
+              const cb = checkBox(withAnswers, o.correct, false);
               if (bilingual) {
                 const top = primaryFirst ? (o.text || '') : (o.translation || '');
                 const bottom = primaryFirst ? (o.translation || '') : (o.text || '');
-                const correctClass = withAnswers && o.correct ? ' correct-option' : '';
-                qHtml += `<li class="primary-lang${correctClass}">${letter}) ${escapeHtml(top)}</li>`;
-                if (bottom) qHtml += `<li class="secondary-lang">${escapeHtml(bottom)}</li>`;
+                lines.push('   ' + cb + letter + ') ' + top);
+                if (bottom) lines.push('      ' + bottom);
+              } else if (langOpt === 'primary') {
+                lines.push('   ' + cb + letter + ') ' + (o.text || ''));
               } else {
-                const text = langOpt === 'primary' ? (o.text || '') : (o.translation || '');
-                const correctClass = withAnswers && o.correct ? ' correct-option' : '';
-                qHtml += `<li class="${correctClass}">${letter}) ${escapeHtml(text)}</li>`;
+                lines.push('   ' + cb + letter + ') ' + (o.translation || ''));
               }
             });
-            qHtml += '</ul>';
-            if (withAnswers && qu.externalComment) {
-              qHtml += `<div class="external-comment">${escapeHtml(qu.externalComment)}</div>`;
-            }
-            bodyParts.push(`<div class="question-block">${qHtml}</div>`);
+            if (withAnswers && qu.externalComment) lines.push('   Comment: ' + qu.externalComment);
+            lines.push('');
           });
-          var et = '<' + '/'; // avoid </ in source so HTML parser does not close script early
-          content = '<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>' + escapeHtml(title) + et + 'title><style>\n' + css + '\n' + et + 'style>' + et + 'head><body>\n' + bodyParts.join('\n') + '\n' + et + 'body>' + et + 'html>';
+        });
+
+        let content;
+        if (format === 'txt') {
+          content = lines.join('\n');
+        } else {
+          const css = (test.exportCss != null && test.exportCss.trim() !== '') ? test.exportCss : DEFAULT_EXPORT_CSS;
+          const template = (test.exportQuestionHtml != null && test.exportQuestionHtml.trim() !== '') ? test.exportQuestionHtml : DEFAULT_EXPORT_QUESTION_TEMPLATE;
+          const bodyParts = [];
+          bodyParts.push('<h1 class="quiz-title">' + escapeHtml(title) + '</h1>');
+          globalNum = 0;
+          sectionsWithQuestions.forEach(({ section, questions }) => {
+            bodyParts.push('<h2 class="section-title">' + escapeHtml(section.name || section.sectionId || '') + '</h2>');
+            questions.forEach((qu) => {
+              globalNum += 1;
+              const n = globalNum;
+              const qId = qu.questionId || qu.id || '';
+              let questionText = '';
+              let questionTextSecondary = '';
+              if (bilingual) {
+                questionText = primaryFirst ? (qu.questionText || '') : (qu.questionTranslation || '');
+                questionTextSecondary = primaryFirst ? (qu.questionTranslation || '') : (qu.questionText || '');
+              } else if (langOpt === 'primary') {
+                questionText = qu.questionText || '';
+              } else {
+                questionText = qu.questionTranslation || '';
+              }
+              let optionsHtml = '';
+              (qu.options || []).forEach((o, j) => {
+                const letter = String.fromCharCode(65 + j);
+                const cb = checkBox(withAnswers, o.correct, true);
+                if (bilingual) {
+                  const top = primaryFirst ? (o.text || '') : (o.translation || '');
+                  const bottom = primaryFirst ? (o.translation || '') : (o.text || '');
+                  const correctClass = withAnswers && o.correct ? ' correct-option' : '';
+                  optionsHtml += '<li class="primary-lang' + correctClass + '">' + cb + letter + ') ' + escapeHtml(top) + '</li>';
+                  if (bottom) optionsHtml += '<li class="secondary-lang">' + escapeHtml(bottom) + '</li>';
+                } else {
+                  const text = langOpt === 'primary' ? (o.text || '') : (o.translation || '');
+                  const correctClass = withAnswers && o.correct ? ' correct-option' : '';
+                  optionsHtml += '<li class="' + correctClass + '">' + cb + letter + ') ' + escapeHtml(text) + '</li>';
+                }
+              });
+              const externalComment = (withAnswers && qu.externalComment) ? escapeHtml(qu.externalComment) : '';
+              const qBlock = template
+                .replace(/\{\{questionNumber\}\}/g, String(n))
+                .replace(/\{\{questionId\}\}/g, escapeHtml(qId))
+                .replace(/\{\{questionText\}\}/g, escapeHtml(questionText))
+                .replace(/\{\{questionTextSecondary\}\}/g, escapeHtml(questionTextSecondary))
+                .replace(/\{\{optionsHtml\}\}/g, optionsHtml)
+                .replace(/\{\{externalComment\}\}/g, externalComment);
+              bodyParts.push(qBlock);
+            });
+          });
+          var et = '<' + '/';
+          content = '<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>' + escapeHtml(title) + et + 'title><style>\n' + css + '\n.question-id-line{color:#999;font-size:0.85em;text-align:right;margin-bottom:0.2em;line-height:1.2;}\n.question-text.primary-lang{margin-top:0;}\n.section-title{font-size:1.1rem;margin:1rem 0 0.5rem 0;}\n' + et + 'style>' + et + 'head><body>\n' + bodyParts.join('\n') + '\n' + et + 'body>' + et + 'html>';
         }
 
         const blob = new Blob([content], { type: format === 'html' ? 'text/html' : 'text/plain' });
@@ -1338,6 +1605,7 @@
         localStorage.setItem('quiz_builder_state', JSON.stringify({
           selectedProjectId: state.selectedProjectId,
           selectedTestId: state.selectedTestId,
+          selectedSectionId: state.selectedSectionId,
           selectedQuestionId: state.selectedQuestionId
         }));
       }
@@ -1349,6 +1617,7 @@
             const parsed = JSON.parse(saved);
             state.selectedProjectId = parsed.selectedProjectId;
             state.selectedTestId = parsed.selectedTestId;
+            state.selectedSectionId = parsed.selectedSectionId;
             state.selectedQuestionId = parsed.selectedQuestionId;
           }
         } catch (e) {}
@@ -1384,10 +1653,26 @@
         await openDB();
         state.projects = await dbGetAll('projects');
         state.tests = await dbGetAll('tests');
+        state.sections = await dbGetAll('sections');
         state.questions = await dbGetAll('questions');
+        if (state.sections.length === 0 && state.questions.some(q => !q.sectionId)) {
+          for (const test of state.tests) {
+            const questionsWithoutSection = state.questions.filter(q => q.testId === test.id && !q.sectionId);
+            if (questionsWithoutSection.length > 0) {
+              const defaultSection = { id: generateId(), testId: test.id, sectionId: '01', name: 'Default', order: 0, createdAt: Date.now() };
+              await dbAdd('sections', defaultSection);
+              state.sections.push(defaultSection);
+              for (const q of questionsWithoutSection) {
+                q.sectionId = defaultSection.id;
+                await dbPut('questions', q);
+              }
+            }
+          }
+        }
         loadState();
         if (state.selectedProjectId && !state.projects.find(p => p.id === state.selectedProjectId)) state.selectedProjectId = null;
         if (state.selectedTestId && !state.tests.find(t => t.id === state.selectedTestId)) state.selectedTestId = null;
+        if (state.selectedSectionId && !state.sections.find(s => s.id === state.selectedSectionId)) state.selectedSectionId = null;
         if (state.selectedQuestionId && !state.questions.find(q => q.id === state.selectedQuestionId)) state.selectedQuestionId = null;
 
         document.getElementById('lang-switcher').value = currentLanguage;
@@ -1396,6 +1681,7 @@
 
         renderProjects();
         renderTests();
+        renderSections();
         renderQuestions();
         renderContent();
         setupCollapseButtons();
@@ -1406,6 +1692,7 @@
           applyI18n();
           renderProjects();
           renderTests();
+          renderSections();
           renderQuestions();
           renderContent();
         });
@@ -1418,6 +1705,7 @@
         });
         addProjectBtn.addEventListener('click', addProject);
         addTestBtn.addEventListener('click', addTest);
+        addSectionBtn.addEventListener('click', addSection);
         addQuestionBtn.addEventListener('click', addQuestion);
       }
 
