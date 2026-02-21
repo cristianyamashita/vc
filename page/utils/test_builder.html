@@ -181,7 +181,7 @@
       .question-form .form-group label { display: block; margin-bottom: 0.25rem; font-size: 0.9rem; }
       .question-form textarea.form-control { min-height: auto; }
       .question-form .question-text { rows: 3; }
-      .question-form .option-text { rows: 2; }
+      .question-form .option-text { min-height: 4em; }
       .question-form .option-row {
         display: flex;
         align-items: flex-start;
@@ -424,6 +424,7 @@
           options: 'Options',
           correct: 'Correct',
           addOption: 'Add option',
+          noTranslation: 'No translation',
           singleChoice: 'Single choice',
           internalComment: 'Internal comment (not in export with answers)',
           externalComment: 'External comment (for graders)',
@@ -489,6 +490,7 @@
           options: 'Opções',
           correct: 'Correta',
           addOption: 'Adicionar opção',
+          noTranslation: 'Sem tradução',
           singleChoice: 'Resposta única',
           internalComment: 'Comentário interno (não sai no export com respostas)',
           externalComment: 'Comentário externo (para correção)',
@@ -554,6 +556,7 @@
           options: '選択肢',
           correct: '正解',
           addOption: '選択肢を追加',
+          noTranslation: '翻訳なし',
           singleChoice: '単一選択',
           internalComment: '内部コメント（回答付き出力に含めない）',
           externalComment: '外部コメント（採点用）',
@@ -1005,8 +1008,8 @@
       function renderQuestionForm(question) {
         const qType = question.questionType === 'text' ? 'text' : 'multiple_choice';
         const opts = question.options && question.options.length >= 2 ? question.options : [
-          { text: '', translation: '', correct: false },
-          { text: '', translation: '', correct: false }
+          { text: '', translation: '', correct: false, noTranslation: false },
+          { text: '', translation: '', correct: false, noTranslation: false }
         ];
         questionFormContainer.innerHTML = `
           <div class="form-group">
@@ -1107,7 +1110,7 @@
           container.appendChild(createOptionRow(i, opt));
         });
         questionFormContainer.querySelector('.add-option-btn').addEventListener('click', () => {
-          const newOpt = { text: '', translation: '', correct: false };
+          const newOpt = { text: '', translation: '', correct: false, noTranslation: false };
           container.appendChild(createOptionRow(container.children.length, newOpt));
         });
 
@@ -1134,19 +1137,29 @@
       }
 
       function createOptionRow(index, opt) {
+        const noTrans = opt.noTranslation === true;
         const row = document.createElement('div');
         row.className = 'option-row';
         row.innerHTML = `
           <div class="option-fields">
-            <textarea class="form-control option-text" rows="2" data-opt-index="${index}" data-opt-field="text">${escapeHtml(opt.text || '')}</textarea>
-            <textarea class="form-control option-text" rows="2" data-opt-index="${index}" data-opt-field="translation" placeholder="${t('questionTranslation')}">${escapeHtml(opt.translation || '')}</textarea>
+            <textarea class="form-control option-text" rows="3" data-opt-index="${index}" data-opt-field="text" placeholder="">${escapeHtml(opt.text || '')}</textarea>
+            <div class="option-translation-wrap" style="display:${noTrans ? 'none' : 'block'}">
+              <textarea class="form-control option-text" rows="3" data-opt-index="${index}" data-opt-field="translation" placeholder="${t('questionTranslation')}">${escapeHtml(opt.translation || '')}</textarea>
+            </div>
           </div>
           <div class="option-correct">
             <label class="form-check-label small">${t('correct')}</label>
-            <input type="checkbox" class="form-check-input" data-opt-index="${index}" ${opt.correct ? 'checked' : ''} />
+            <input type="checkbox" class="form-check-input" data-opt-field="correct" data-opt-index="${index}" ${opt.correct ? 'checked' : ''} />
+            <label class="form-check-label small">${t('noTranslation')}</label>
+            <input type="checkbox" class="form-check-input" data-opt-field="noTranslation" data-opt-index="${index}" ${noTrans ? 'checked' : ''} />
           </div>
           <button type="button" class="btn btn-sm btn-outline-danger remove-option-btn" data-opt-index="${index}" title="${t('delete')}"><i class="fas fa-times"></i></button>
         `;
+        const noTranslationEl = row.querySelector('[data-opt-field="noTranslation"]');
+        const translationWrap = row.querySelector('.option-translation-wrap');
+        noTranslationEl.addEventListener('change', () => {
+          translationWrap.style.display = noTranslationEl.checked ? 'none' : 'block';
+        });
         const removeBtn = row.querySelector('.remove-option-btn');
         removeBtn.addEventListener('click', () => {
           const container = document.getElementById('options-container');
@@ -1163,11 +1176,13 @@
         document.querySelectorAll('#options-container .option-row').forEach(row => {
           const textEl = row.querySelector('[data-opt-field="text"]');
           const transEl = row.querySelector('[data-opt-field="translation"]');
-          const correctEl = row.querySelector('.form-check-input');
+          const correctEl = row.querySelector('[data-opt-field="correct"]');
+          const noTranslationEl = row.querySelector('[data-opt-field="noTranslation"]');
           opts.push({
             text: textEl ? textEl.value : '',
             translation: transEl ? transEl.value : '',
-            correct: correctEl ? correctEl.checked : false
+            correct: correctEl ? correctEl.checked : false,
+            noTranslation: noTranslationEl ? noTranslationEl.checked : false
           });
         });
         return {
@@ -1177,7 +1192,7 @@
           disabled: document.getElementById('q-disabled')?.checked === true,
           questionText: document.getElementById('q-text')?.value ?? '',
           questionTranslation: document.getElementById('q-text-trans')?.value ?? '',
-          options: opts.length >= 2 ? opts : [{ text: '', translation: '', correct: false }, { text: '', translation: '', correct: false }],
+          options: opts.length >= 2 ? opts : [{ text: '', translation: '', correct: false, noTranslation: false }, { text: '', translation: '', correct: false, noTranslation: false }],
           singleChoice: document.getElementById('q-single')?.checked !== false,
           textAnswerContent: document.getElementById('q-text-answer')?.value ?? '',
           internalComment: document.getElementById('q-internal')?.value ?? '',
@@ -1408,7 +1423,7 @@
           questionType: 'multiple_choice',
           questionText: '',
           questionTranslation: '',
-          options: [{ text: '', translation: '', correct: false }, { text: '', translation: '', correct: false }],
+          options: [{ text: '', translation: '', correct: false, noTranslation: false }, { text: '', translation: '', correct: false, noTranslation: false }],
           singleChoice: true,
           textAnswerContent: '',
           internalComment: '',
@@ -1653,14 +1668,24 @@
                 const letter = String.fromCharCode(65 + j);
                 const cb = checkBox(withAnswers, o.correct, false);
                 if (bilingual) {
-                  const top = primaryFirst ? (o.text || '') : (o.translation || '');
-                  const bottom = primaryFirst ? (o.translation || '') : (o.text || '');
-                  lines.push('   ' + cb + letter + ') ' + top);
-                  if (bottom) lines.push('      ' + bottom);
+                  const top = o.noTranslation ? (o.text || '') : (primaryFirst ? (o.text || '') : (o.translation || ''));
+                  const bottom = o.noTranslation ? '' : (primaryFirst ? (o.translation || '') : (o.text || ''));
+                  const topLines = top.split('\n');
+                  lines.push('   ' + cb + letter + ') ' + (topLines[0] || ''));
+                  for (let i = 1; i < topLines.length; i++) lines.push('      ' + topLines[i]);
+                  const bottomLines = bottom.split('\n');
+                  if (bottomLines[0]) lines.push('      ' + bottomLines[0]);
+                  for (let i = 1; i < bottomLines.length; i++) lines.push('         ' + bottomLines[i]);
                 } else if (langOpt === 'primary') {
-                  lines.push('   ' + cb + letter + ') ' + (o.text || ''));
+                  const optText = o.noTranslation ? (o.text || '') : (o.text || '');
+                  const optLines = optText.split('\n');
+                  lines.push('   ' + cb + letter + ') ' + (optLines[0] || ''));
+                  for (let i = 1; i < optLines.length; i++) lines.push('      ' + optLines[i]);
                 } else {
-                  lines.push('   ' + cb + letter + ') ' + (o.translation || ''));
+                  const optText = o.noTranslation ? (o.text || '') : (o.translation || '');
+                  const optLines = optText.split('\n');
+                  lines.push('   ' + cb + letter + ') ' + (optLines[0] || ''));
+                  for (let i = 1; i < optLines.length; i++) lines.push('      ' + optLines[i]);
                 }
               });
             }
@@ -1706,19 +1731,20 @@
                   textAnswerBlock = Array(numLines).fill('<div class="text-answer-line">&nbsp;</div>').join('');
                 }
               } else {
+                const optionHtmlWithBreaks = (s) => formatTextWithCode(s).replace(/\n/g, '<br>');
                 (qu.options || []).forEach((o, j) => {
                   const letter = String.fromCharCode(65 + j);
                   const cb = checkBox(withAnswers, o.correct, true);
                   if (bilingual) {
-                    const top = primaryFirst ? (o.text || '') : (o.translation || '');
-                    const bottom = primaryFirst ? (o.translation || '') : (o.text || '');
+                    const top = o.noTranslation ? (o.text || '') : (primaryFirst ? (o.text || '') : (o.translation || ''));
+                    const bottom = o.noTranslation ? '' : (primaryFirst ? (o.translation || '') : (o.text || ''));
                     const correctClass = withAnswers && o.correct ? ' correct-option' : '';
-                    optionsHtml += '<li class="primary-lang' + correctClass + '">' + cb + letter + ') ' + formatTextWithCode(top) + '</li>';
-                    if (bottom) optionsHtml += '<li class="secondary-lang">' + formatTextWithCode(bottom) + '</li>';
+                    optionsHtml += '<li class="primary-lang' + correctClass + '">' + cb + letter + ') ' + optionHtmlWithBreaks(top) + '</li>';
+                    if (bottom) optionsHtml += '<li class="secondary-lang">' + optionHtmlWithBreaks(bottom) + '</li>';
                   } else {
-                    const text = langOpt === 'primary' ? (o.text || '') : (o.translation || '');
+                    const text = o.noTranslation ? (o.text || '') : (langOpt === 'primary' ? (o.text || '') : (o.translation || ''));
                     const correctClass = withAnswers && o.correct ? ' correct-option' : '';
-                    optionsHtml += '<li class="' + correctClass + '">' + cb + letter + ') ' + formatTextWithCode(text) + '</li>';
+                    optionsHtml += '<li class="' + correctClass + '">' + cb + letter + ') ' + optionHtmlWithBreaks(text) + '</li>';
                   }
                 });
               }
