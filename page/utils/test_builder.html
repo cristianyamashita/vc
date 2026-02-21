@@ -119,6 +119,7 @@
       .item-list li .status-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; margin-right: 0.35rem; }
       .item-list li .status-dot.ready { background: #28a745; }
       .item-list li .status-dot.draft { background: #ffc107; }
+      .item-list li .status-dot.disabled { background: #dc3545; }
 
       .add-item-btn {
         display: flex;
@@ -417,6 +418,7 @@
           textAnswerLinesHint: 'Model answer (number of lines = space for student)',
           questionId: 'Question ID',
           questionReady: 'Question ready',
+          questionDisabled: 'Disabled',
           questionText: 'Question',
           questionTranslation: 'Translation',
           options: 'Options',
@@ -481,6 +483,7 @@
           textAnswerLinesHint: 'Resposta modelo (a quantidade de linhas = espaço para o aluno)',
           questionId: 'ID da pergunta',
           questionReady: 'Pergunta pronta',
+          questionDisabled: 'Desabilitada',
           questionText: 'Pergunta',
           questionTranslation: 'Tradução',
           options: 'Opções',
@@ -545,6 +548,7 @@
           textAnswerLinesHint: '模範解答（行数＝生徒用の解答欄の行数）',
           questionId: '質問ID',
           questionReady: '準備完了',
+          questionDisabled: '無効',
           questionText: '質問',
           questionTranslation: '翻訳',
           options: '選択肢',
@@ -832,7 +836,7 @@
           const li = document.createElement('li');
           li.dataset.id = section.id;
           if (section.id === state.selectedSectionId) li.classList.add('selected');
-          const count = state.questions.filter(q => q.sectionId === section.id).length;
+          const count = state.questions.filter(q => q.sectionId === section.id && !q.disabled).length;
           const label = '(' + count + ') ' + (section.sectionId ? section.sectionId + ' — ' : '') + (section.name || '');
           li.innerHTML = `
             <span class="item-name">${escapeHtml(label)}</span>
@@ -860,9 +864,12 @@
           li.dataset.id = q.id;
           if (q.id === state.selectedQuestionId) li.classList.add('selected');
           const ready = q.isReady !== false;
+          const disabled = q.disabled === true;
           const displayId = q.questionId || q.id || '?';
+          const dotClass = disabled ? 'disabled' : (ready ? 'ready' : 'draft');
+          const dotTitle = disabled ? t('questionDisabled') : (ready ? t('questionReady') : 'Draft');
           li.innerHTML = `
-            <span class="status-dot ${ready ? 'ready' : 'draft'}" title="${ready ? t('questionReady') : 'Draft'}"></span>
+            <span class="status-dot ${dotClass}" title="${dotTitle}"></span>
             <span class="item-name ${ready ? '' : 'draft'}">${escapeHtml(displayId)}</span>
             <div class="item-actions">
               <button class="delete-btn" title="${t('delete')}"><i class="fas fa-trash"></i></button>
@@ -1013,9 +1020,15 @@
             <label>${t('questionId')}</label>
             <input type="text" class="form-control" id="q-id" value="${escapeHtml(question.questionId || '')}" placeholder="YYYYMMDD-HHmmss" />
           </div>
-          <div class="form-group form-check">
-            <input type="checkbox" class="form-check-input" id="q-ready" ${question.isReady !== false ? 'checked' : ''} />
-            <label class="form-check-label" for="q-ready">${t('questionReady')}</label>
+          <div class="form-group d-flex gap-3 flex-wrap align-items-center">
+            <div class="form-check">
+              <input type="checkbox" class="form-check-input" id="q-ready" ${question.isReady !== false ? 'checked' : ''} />
+              <label class="form-check-label" for="q-ready">${t('questionReady')}</label>
+            </div>
+            <div class="form-check">
+              <input type="checkbox" class="form-check-input" id="q-disabled" ${question.disabled ? 'checked' : ''} />
+              <label class="form-check-label" for="q-disabled">${t('questionDisabled')}</label>
+            </div>
           </div>
           <div class="form-group">
             <label>${t('questionText')}</label>
@@ -1161,6 +1174,7 @@
           questionType,
           questionId: document.getElementById('q-id')?.value?.trim() || '',
           isReady: document.getElementById('q-ready')?.checked !== false,
+          disabled: document.getElementById('q-disabled')?.checked === true,
           questionText: document.getElementById('q-text')?.value ?? '',
           questionTranslation: document.getElementById('q-text-trans')?.value ?? '',
           options: opts.length >= 2 ? opts : [{ text: '', translation: '', correct: false }, { text: '', translation: '', correct: false }],
@@ -1186,6 +1200,7 @@
           saveStatus.textContent = t('saved');
           saveStatus.className = 'save-status saved';
           renderQuestions();
+          renderSections();
           setTimeout(() => { saveStatus.textContent = ''; }, 2000);
         });
       }
@@ -1399,6 +1414,7 @@
           internalComment: '',
           externalComment: '',
           isReady: false,
+          disabled: false,
           order: questionsInSection.length,
           createdAt: Date.now(),
           updatedAt: Date.now()
@@ -1568,7 +1584,7 @@
       function getTestSectionsWithQuestions(test) {
         const sections = state.sections.filter(s => s.testId === test.id).sort((a, b) => (a.sectionId || '').localeCompare(b.sectionId || '', undefined, { numeric: true }) || (a.order - b.order));
         const sectionIds = new Set(sections.map(s => s.id));
-        const allTestQuestions = state.questions.filter(q => q.testId === test.id);
+        const allTestQuestions = state.questions.filter(q => q.testId === test.id && !q.disabled);
         const result = sections.map(sec => ({
           section: sec,
           questions: allTestQuestions.filter(q => q.sectionId === sec.id).sort((a, b) => (a.questionId || '').localeCompare(b.questionId || ''))
