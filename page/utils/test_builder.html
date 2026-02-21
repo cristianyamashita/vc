@@ -370,7 +370,7 @@
             <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
           </div>
           <div class="modal-body">
-            <p class="small opacity-75 mb-2" data-i18n="templatePlaceholders">Placeholders: {{questionNumber}}, {{questionId}}, {{questionText}}, {{questionTextSecondary}}, {{optionsHtml}}, {{externalComment}}</p>
+            <p class="small opacity-75 mb-2" data-i18n="templatePlaceholders">Placeholders: {{questionNumber}}, {{questionId}}, {{questionText}}, {{questionTextSecondary}}, {{optionsHtml}}, {{textAnswerBlock}}, {{externalComment}}</p>
             <textarea id="export-template-textarea" class="form-control"></textarea>
           </div>
           <div class="modal-footer">
@@ -411,6 +411,10 @@
           rename: 'Rename',
           delete: 'Delete',
           enterName: 'Enter name:',
+          questionType: 'Question type',
+          questionTypeMultipleChoice: 'Multiple choice',
+          questionTypeText: 'Text response',
+          textAnswerLinesHint: 'Model answer (number of lines = space for student)',
           questionId: 'Question ID',
           questionReady: 'Question ready',
           questionText: 'Question',
@@ -437,10 +441,13 @@
           langSecond: 'Secondary first',
           editExportCss: 'Edit export CSS',
           editExportTemplate: 'Edit question HTML template',
-          templatePlaceholders: 'Placeholders: {{questionNumber}}, {{questionId}}, {{questionText}}, {{questionTextSecondary}}, {{optionsHtml}}, {{externalComment}}',
+          templatePlaceholders: 'Placeholders: {{questionNumber}}, {{questionId}}, {{questionText}}, {{questionTextSecondary}}, {{optionsHtml}}, {{textAnswerBlock}}, {{externalComment}}',
           close: 'Close',
           save: 'Save',
-          testActions: 'Test actions'
+          testActions: 'Test actions',
+          moveToSection: 'Move to section',
+          moveQuestion: 'Move',
+          moveQuestionConfirm: 'Move this question to this section?'
         },
         pt: {
           title: 'Criador de Teste',
@@ -468,6 +475,10 @@
           rename: 'Renomear',
           delete: 'Excluir',
           enterName: 'Digite o nome:',
+          questionType: 'Tipo de pergunta',
+          questionTypeMultipleChoice: 'Múltipla escolha',
+          questionTypeText: 'Resposta em texto',
+          textAnswerLinesHint: 'Resposta modelo (a quantidade de linhas = espaço para o aluno)',
           questionId: 'ID da pergunta',
           questionReady: 'Pergunta pronta',
           questionText: 'Pergunta',
@@ -494,10 +505,13 @@
           langSecond: 'Secundário em cima',
           editExportCss: 'Editar CSS de exportação',
           editExportTemplate: 'Editar template HTML da pergunta',
-          templatePlaceholders: 'Placeholders: {{questionNumber}}, {{questionId}}, {{questionText}}, {{questionTextSecondary}}, {{optionsHtml}}, {{externalComment}}',
+          templatePlaceholders: 'Placeholders: {{questionNumber}}, {{questionId}}, {{questionText}}, {{questionTextSecondary}}, {{optionsHtml}}, {{textAnswerBlock}}, {{externalComment}}',
           close: 'Fechar',
           save: 'Salvar',
-          testActions: 'Ações do teste'
+          testActions: 'Ações do teste',
+          moveToSection: 'Mover para seção',
+          moveQuestion: 'Mover',
+          moveQuestionConfirm: 'Mover esta pergunta para esta seção?'
         },
         ja: {
           title: 'クイズビルダー',
@@ -525,6 +539,10 @@
           rename: '名前変更',
           delete: '削除',
           enterName: '名前を入力:',
+          questionType: '質問タイプ',
+          questionTypeMultipleChoice: '多肢選択',
+          questionTypeText: 'テキスト回答',
+          textAnswerLinesHint: '模範解答（行数＝生徒用の解答欄の行数）',
           questionId: '質問ID',
           questionReady: '準備完了',
           questionText: '質問',
@@ -551,14 +569,17 @@
           langSecond: '第二を上',
           editExportCss: '出力CSSを編集',
           editExportTemplate: '質問HTMLテンプレートを編集',
-          templatePlaceholders: 'プレースホルダー: {{questionNumber}}, {{questionId}}, {{questionText}}, {{questionTextSecondary}}, {{optionsHtml}}, {{externalComment}}',
+          templatePlaceholders: 'プレースホルダー: {{questionNumber}}, {{questionId}}, {{questionText}}, {{questionTextSecondary}}, {{optionsHtml}}, {{textAnswerBlock}}, {{externalComment}}',
           close: '閉じる',
           save: '保存',
-          testActions: 'テスト操作'
+          testActions: 'テスト操作',
+          moveToSection: 'セクションへ移動',
+          moveQuestion: '移動',
+          moveQuestionConfirm: 'この質問をこのセクションに移動しますか？'
         }
       };
 
-      const DEFAULT_EXPORT_QUESTION_TEMPLATE = '<div class="question-block">\n  <div class="question-id-line">ID: {{questionId}}</div>\n  <div class="question-text primary-lang">{{questionNumber}} ) {{questionText}}</div>\n  <div class="question-text secondary-lang">{{questionTextSecondary}}</div>\n  <ul class="options-list">{{optionsHtml}}</ul>\n  <div class="external-comment">{{externalComment}}</div>\n</div>';
+      const DEFAULT_EXPORT_QUESTION_TEMPLATE = '<div class="question-block">\n  <div class="question-id-line">ID: {{questionId}}</div>\n  <div class="question-text primary-lang">{{questionNumber}} ) {{questionText}}</div>\n  <div class="question-text secondary-lang">{{questionTextSecondary}}</div>\n  <ul class="options-list">{{optionsHtml}}</ul>\n  <div class="text-answer-block">{{textAnswerBlock}}</div>\n  <div class="external-comment">{{externalComment}}</div>\n</div>';
 
       const DEFAULT_EXPORT_CSS = `body { font-family: sans-serif; margin: 1rem; line-height: 1.5; }
 .quiz-title { font-size: 1.25rem; margin-bottom: 1rem; }
@@ -567,9 +588,13 @@
 .options-list { list-style: none; padding-left: 0; }
 .options-list li { margin-bottom: 0.35rem; padding-left: 1rem; }
 .primary-lang { font-size: 1rem; font-weight: 500; }
-.secondary-lang { font-size: 0.9rem; opacity: 0.85; margin-top: 0.25rem; }
+.secondary-lang {     font-size: 0.9rem; opacity: 0.75; margin-top: 0.25rem; color: #838383;font-weight: 100; }
 .external-comment { margin-top: 0.5rem; font-size: 0.9rem; font-style: italic; }
 .correct-option { font-weight: 600; }
+.answer-mark { color: blue; }
+.text-answer-block { margin-top: 0.5rem; }
+.text-answer-line { min-height: 1.5em; border-bottom: 1px solid #ccc; margin-bottom: 0.25rem; }
+.text-answer-line.answer-text { color: blue; }
 `;
 
       // ========== IndexedDB ==========
@@ -962,11 +987,19 @@
       });
 
       function renderQuestionForm(question) {
+        const qType = question.questionType === 'text' ? 'text' : 'multiple_choice';
         const opts = question.options && question.options.length >= 2 ? question.options : [
           { text: '', translation: '', correct: false },
           { text: '', translation: '', correct: false }
         ];
         questionFormContainer.innerHTML = `
+          <div class="form-group">
+            <label>${t('questionType')}</label>
+            <select class="form-select" id="q-type">
+              <option value="multiple_choice" ${qType === 'multiple_choice' ? 'selected' : ''}>${t('questionTypeMultipleChoice')}</option>
+              <option value="text" ${qType === 'text' ? 'selected' : ''}>${t('questionTypeText')}</option>
+            </select>
+          </div>
           <div class="form-group">
             <label>${t('questionId')}</label>
             <input type="text" class="form-control" id="q-id" value="${escapeHtml(question.questionId || '')}" placeholder="YYYYMMDD-HHmmss" />
@@ -983,14 +1016,18 @@
             <label>${t('questionTranslation')}</label>
             <textarea class="form-control question-text" id="q-text-trans" rows="3">${escapeHtml(question.questionTranslation || '')}</textarea>
           </div>
-          <div class="form-group">
+          <div id="question-type-multiple" class="form-group" style="display:${qType === 'multiple_choice' ? 'block' : 'none'}">
             <label>${t('options')}</label>
             <div id="options-container"></div>
             <button type="button" class="btn btn-sm btn-outline-secondary add-option-btn">${t('addOption')}</button>
           </div>
-          <div class="form-group form-check">
+          <div id="question-type-single-check" class="form-group form-check" style="display:${qType === 'multiple_choice' ? 'block' : 'none'}">
             <input type="checkbox" class="form-check-input" id="q-single" ${question.singleChoice !== false ? 'checked' : ''} />
             <label class="form-check-label" for="q-single">${t('singleChoice')}</label>
+          </div>
+          <div id="question-type-text" class="form-group" style="display:${qType === 'text' ? 'block' : 'none'}">
+            <label>${t('textAnswerLinesHint')}</label>
+            <textarea class="form-control" id="q-text-answer" rows="4" placeholder="">${escapeHtml(question.textAnswerContent || '')}</textarea>
           </div>
           <div class="form-group">
             <label>${t('internalComment')}</label>
@@ -1000,7 +1037,49 @@
             <label>${t('externalComment')}</label>
             <textarea class="form-control" id="q-external" rows="2">${escapeHtml(question.externalComment || '')}</textarea>
           </div>
+          <div class="form-group border-top pt-3 mt-3">
+            <label>${t('moveToSection')}</label>
+            <div class="d-flex gap-2 align-items-end flex-wrap">
+              <select class="form-select" id="q-move-section" style="max-width: 20rem;">
+                <option value="">—</option>
+              </select>
+              <button type="button" class="btn btn-outline-primary" id="q-move-btn">${t('moveQuestion')}</button>
+            </div>
+          </div>
         `;
+        const moveSectionSelect = document.getElementById('q-move-section');
+        const sectionsInTest = state.sections.filter(s => s.testId === state.selectedTestId).sort((a, b) => (a.sectionId || '').localeCompare(b.sectionId || '', undefined, { numeric: true }) || (a.order - b.order));
+        sectionsInTest.forEach(sec => {
+          const opt = document.createElement('option');
+          opt.value = sec.id;
+          opt.textContent = (sec.sectionId ? sec.sectionId + ' — ' : '') + (sec.name || t('sections'));
+          moveSectionSelect.appendChild(opt);
+        });
+        document.getElementById('q-move-btn').addEventListener('click', () => {
+          const targetSectionId = moveSectionSelect.value;
+          if (!targetSectionId) return;
+          const targetSection = state.sections.find(s => s.id === targetSectionId);
+          const targetName = targetSection ? (targetSection.sectionId ? targetSection.sectionId + ' — ' : '') + (targetSection.name || '') : targetSectionId;
+          if (!confirm(t('moveQuestionConfirm') + '\n\n' + targetName)) return;
+          const questionId = state.selectedQuestionId;
+          const question = state.questions.find(q => q.id === questionId);
+          if (!question) return;
+          question.sectionId = targetSectionId;
+          saveStatus.textContent = t('saving');
+          saveStatus.className = 'save-status saving';
+          dbPut('questions', question).then(() => {
+            const idx = state.questions.findIndex(q => q.id === question.id);
+            if (idx >= 0) state.questions[idx] = question;
+            state.selectedSectionId = targetSectionId;
+            renderSections();
+            renderQuestions();
+            renderContent();
+            saveState();
+            saveStatus.textContent = t('saved');
+            saveStatus.className = 'save-status saved';
+            setTimeout(() => { saveStatus.textContent = ''; }, 2000);
+          });
+        });
         const container = document.getElementById('options-container');
         opts.forEach((opt, i) => {
           container.appendChild(createOptionRow(i, opt));
@@ -1009,6 +1088,18 @@
           const newOpt = { text: '', translation: '', correct: false };
           container.appendChild(createOptionRow(container.children.length, newOpt));
         });
+
+        const typeSelect = document.getElementById('q-type');
+        const multipleBlock = document.getElementById('question-type-multiple');
+        const singleCheckBlock = document.getElementById('question-type-single-check');
+        const textBlock = document.getElementById('question-type-text');
+        function toggleTypeVisibility() {
+          const isText = typeSelect.value === 'text';
+          multipleBlock.style.display = isText ? 'none' : 'block';
+          singleCheckBlock.style.display = isText ? 'none' : 'block';
+          textBlock.style.display = isText ? 'block' : 'none';
+        }
+        typeSelect.addEventListener('change', () => { toggleTypeVisibility(); scheduleSave(); });
 
         let saveTimeout;
         const scheduleSave = () => {
@@ -1045,6 +1136,7 @@
       }
 
       function getQuestionFormData() {
+        const questionType = document.getElementById('q-type')?.value === 'text' ? 'text' : 'multiple_choice';
         const opts = [];
         document.querySelectorAll('#options-container .option-row').forEach(row => {
           const textEl = row.querySelector('[data-opt-field="text"]');
@@ -1057,12 +1149,14 @@
           });
         });
         return {
+          questionType,
           questionId: document.getElementById('q-id')?.value?.trim() || '',
           isReady: document.getElementById('q-ready')?.checked !== false,
           questionText: document.getElementById('q-text')?.value ?? '',
           questionTranslation: document.getElementById('q-text-trans')?.value ?? '',
           options: opts.length >= 2 ? opts : [{ text: '', translation: '', correct: false }, { text: '', translation: '', correct: false }],
           singleChoice: document.getElementById('q-single')?.checked !== false,
+          textAnswerContent: document.getElementById('q-text-answer')?.value ?? '',
           internalComment: document.getElementById('q-internal')?.value ?? '',
           externalComment: document.getElementById('q-external')?.value ?? ''
         };
@@ -1287,10 +1381,12 @@
           testId: state.selectedTestId,
           sectionId: state.selectedSectionId,
           questionId: generateQuestionId(),
+          questionType: 'multiple_choice',
           questionText: '',
           questionTranslation: '',
           options: [{ text: '', translation: '', correct: false }, { text: '', translation: '', correct: false }],
           singleChoice: true,
+          textAnswerContent: '',
           internalComment: '',
           externalComment: '',
           isReady: false,
@@ -1483,7 +1579,7 @@
         const primaryFirst = langOpt === 'bilingual-primary';
         function checkBox(withAnswers, correct, forHtml) {
           if (forHtml) {
-            return (withAnswers && correct) ? '[&nbsp;x&nbsp;]&nbsp;' : '[&nbsp;&nbsp;&nbsp;]&nbsp;';
+            return (withAnswers && correct) ? '<span class="answer-mark">[&nbsp;x&nbsp;]</span>&nbsp;' : '[&nbsp;&nbsp;&nbsp;]&nbsp;';
           }
           return (withAnswers && correct) ? '[ x ] ' : '[  ] ';
         }
@@ -1517,20 +1613,32 @@
             } else {
               lines.push(formatQuestionLine(n, qu.questionTranslation || '', qId));
             }
-            (qu.options || []).forEach((o, j) => {
-              const letter = String.fromCharCode(65 + j);
-              const cb = checkBox(withAnswers, o.correct, false);
-              if (bilingual) {
-                const top = primaryFirst ? (o.text || '') : (o.translation || '');
-                const bottom = primaryFirst ? (o.translation || '') : (o.text || '');
-                lines.push('   ' + cb + letter + ') ' + top);
-                if (bottom) lines.push('      ' + bottom);
-              } else if (langOpt === 'primary') {
-                lines.push('   ' + cb + letter + ') ' + (o.text || ''));
+            const isTextQuestion = qu.questionType === 'text';
+            if (isTextQuestion) {
+              const modelLines = (qu.textAnswerContent || '').split('\n');
+              const numLines = Math.max(1, modelLines.length);
+              lines.push('   Answer:');
+              if (withAnswers) {
+                modelLines.forEach(line => lines.push('   ' + line));
               } else {
-                lines.push('   ' + cb + letter + ') ' + (o.translation || ''));
+                for (let i = 0; i < numLines; i++) lines.push('   ');
               }
-            });
+            } else {
+              (qu.options || []).forEach((o, j) => {
+                const letter = String.fromCharCode(65 + j);
+                const cb = checkBox(withAnswers, o.correct, false);
+                if (bilingual) {
+                  const top = primaryFirst ? (o.text || '') : (o.translation || '');
+                  const bottom = primaryFirst ? (o.translation || '') : (o.text || '');
+                  lines.push('   ' + cb + letter + ') ' + top);
+                  if (bottom) lines.push('      ' + bottom);
+                } else if (langOpt === 'primary') {
+                  lines.push('   ' + cb + letter + ') ' + (o.text || ''));
+                } else {
+                  lines.push('   ' + cb + letter + ') ' + (o.translation || ''));
+                }
+              });
+            }
             if (withAnswers && qu.externalComment) lines.push('   Comment: ' + qu.externalComment);
             lines.push('');
           });
@@ -1562,21 +1670,33 @@
                 questionText = qu.questionTranslation || '';
               }
               let optionsHtml = '';
-              (qu.options || []).forEach((o, j) => {
-                const letter = String.fromCharCode(65 + j);
-                const cb = checkBox(withAnswers, o.correct, true);
-                if (bilingual) {
-                  const top = primaryFirst ? (o.text || '') : (o.translation || '');
-                  const bottom = primaryFirst ? (o.translation || '') : (o.text || '');
-                  const correctClass = withAnswers && o.correct ? ' correct-option' : '';
-                  optionsHtml += '<li class="primary-lang' + correctClass + '">' + cb + letter + ') ' + escapeHtml(top) + '</li>';
-                  if (bottom) optionsHtml += '<li class="secondary-lang">' + escapeHtml(bottom) + '</li>';
+              let textAnswerBlock = '';
+              const isTextQuestion = qu.questionType === 'text';
+              if (isTextQuestion) {
+                const modelLines = (qu.textAnswerContent || '').split('\n');
+                const numLines = Math.max(1, modelLines.length);
+                if (withAnswers) {
+                  textAnswerBlock = modelLines.map(l => '<div class="text-answer-line answer-text">' + escapeHtml(l) + '</div>').join('');
                 } else {
-                  const text = langOpt === 'primary' ? (o.text || '') : (o.translation || '');
-                  const correctClass = withAnswers && o.correct ? ' correct-option' : '';
-                  optionsHtml += '<li class="' + correctClass + '">' + cb + letter + ') ' + escapeHtml(text) + '</li>';
+                  textAnswerBlock = Array(numLines).fill('<div class="text-answer-line">&nbsp;</div>').join('');
                 }
-              });
+              } else {
+                (qu.options || []).forEach((o, j) => {
+                  const letter = String.fromCharCode(65 + j);
+                  const cb = checkBox(withAnswers, o.correct, true);
+                  if (bilingual) {
+                    const top = primaryFirst ? (o.text || '') : (o.translation || '');
+                    const bottom = primaryFirst ? (o.translation || '') : (o.text || '');
+                    const correctClass = withAnswers && o.correct ? ' correct-option' : '';
+                    optionsHtml += '<li class="primary-lang' + correctClass + '">' + cb + letter + ') ' + escapeHtml(top) + '</li>';
+                    if (bottom) optionsHtml += '<li class="secondary-lang">' + escapeHtml(bottom) + '</li>';
+                  } else {
+                    const text = langOpt === 'primary' ? (o.text || '') : (o.translation || '');
+                    const correctClass = withAnswers && o.correct ? ' correct-option' : '';
+                    optionsHtml += '<li class="' + correctClass + '">' + cb + letter + ') ' + escapeHtml(text) + '</li>';
+                  }
+                });
+              }
               const externalComment = (withAnswers && qu.externalComment) ? escapeHtml(qu.externalComment) : '';
               const qBlock = template
                 .replace(/\{\{questionNumber\}\}/g, String(n))
@@ -1584,6 +1704,7 @@
                 .replace(/\{\{questionText\}\}/g, escapeHtml(questionText))
                 .replace(/\{\{questionTextSecondary\}\}/g, escapeHtml(questionTextSecondary))
                 .replace(/\{\{optionsHtml\}\}/g, optionsHtml)
+                .replace(/\{\{textAnswerBlock\}\}/g, textAnswerBlock)
                 .replace(/\{\{externalComment\}\}/g, externalComment);
               bodyParts.push(qBlock);
             });
