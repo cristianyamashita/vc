@@ -1,0 +1,1425 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title data-i18n="title">Quiz Builder</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="../assets/fontawesome/css/all.min.css" />
+    <style>
+      :root {
+        --bg-color: #1a1a1a;
+        --text-color: #f0f0f0;
+        --card-bg-color: #2a2a2a;
+        --border-color: #444;
+        --accent-color: #0d6efd;
+        --hover-color: #3a3a3a;
+        --selected-color: #0d6efd33;
+      }
+
+      html[data-theme='light'] {
+        --bg-color: #f8f9fa;
+        --text-color: #212529;
+        --card-bg-color: #fff;
+        --border-color: #dee2e6;
+        --accent-color: #0d6efd;
+        --hover-color: #e9ecef;
+        --selected-color: #0d6efd22;
+      }
+
+      * { box-sizing: border-box; }
+      html, body { height: 100%; margin: 0; }
+      body {
+        background-color: var(--bg-color);
+        color: var(--text-color);
+        display: flex;
+        flex-direction: column;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      }
+
+      .navbar {
+        background-color: var(--card-bg-color);
+        border-bottom: 1px solid var(--border-color);
+        padding: 0.5rem 1rem;
+      }
+      .navbar-brand { color: var(--text-color); font-weight: 600; }
+      .form-control, .form-select {
+        background-color: var(--card-bg-color);
+        color: var(--text-color);
+        border-color: var(--border-color);
+      }
+      .form-control:focus, .form-select:focus {
+        background-color: var(--card-bg-color);
+        color: var(--text-color);
+        border-color: var(--accent-color);
+        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+      }
+      .form-control::placeholder { color: var(--text-color); opacity: 0.5; }
+
+      .main-container { flex: 1; display: flex; overflow: hidden; }
+
+      .nav-column {
+        display: flex;
+        flex-direction: column;
+        min-width: 180px;
+        max-width: 250px;
+        width: 200px;
+        background-color: var(--card-bg-color);
+        border-right: 1px solid var(--border-color);
+        transition: width 0.3s ease, min-width 0.3s ease;
+        overflow: hidden;
+      }
+      .nav-column.collapsed { min-width: 42px; width: 42px; }
+      .nav-column.collapsed .column-content,
+      .nav-column.collapsed .column-title-text,
+      .nav-column.collapsed .add-btn-text { display: none; }
+      .nav-column.collapsed .column-header { justify-content: center; padding: 0.5rem; }
+      .nav-column.collapsed .collapse-btn { transform: rotate(180deg); }
+
+      .column-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.5rem 0.75rem;
+        border-bottom: 1px solid var(--border-color);
+        background-color: var(--bg-color);
+        min-height: 42px;
+      }
+      .column-title { display: flex; align-items: center; gap: 0.5rem; font-weight: 600; font-size: 0.9rem; }
+      .collapse-btn {
+        background: none; border: none; color: var(--text-color);
+        cursor: pointer; padding: 0.25rem; opacity: 0.7;
+        transition: opacity 0.2s, transform 0.3s;
+      }
+      .collapse-btn:hover { opacity: 1; }
+      .column-content { flex: 1; overflow-y: auto; padding: 0.5rem; }
+
+      .item-list { list-style: none; padding: 0; margin: 0; }
+      .item-list li {
+        display: flex;
+        align-items: center;
+        padding: 0.5rem 0.75rem;
+        border-radius: 6px;
+        cursor: pointer;
+        margin-bottom: 2px;
+        transition: background-color 0.15s;
+      }
+      .item-list li:hover { background-color: var(--hover-color); }
+      .item-list li.selected { background-color: var(--selected-color); border: 1px solid var(--accent-color); }
+      .item-list li .item-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .item-list li .item-actions { display: none; gap: 0.25rem; }
+      .item-list li:hover .item-actions { display: flex; }
+      .item-actions button {
+        background: none; border: none; color: var(--text-color);
+        cursor: pointer; padding: 0.15rem 0.3rem; opacity: 0.6; font-size: 0.75rem;
+      }
+      .item-actions button:hover { opacity: 1; }
+      .item-list li .question-id { font-size: 0.75rem; opacity: 0.8; margin-right: 0.25rem; }
+      .item-list li .item-name.draft { opacity: 0.7; }
+      .item-list li .status-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; margin-right: 0.35rem; }
+      .item-list li .status-dot.ready { background: #28a745; }
+      .item-list li .status-dot.draft { background: #ffc107; }
+
+      .add-item-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        width: 100%;
+        padding: 0.5rem;
+        margin-top: 0.5rem;
+        background-color: transparent;
+        border: 1px dashed var(--border-color);
+        border-radius: 6px;
+        color: var(--text-color);
+        cursor: pointer;
+        opacity: 0.7;
+        transition: opacity 0.2s, border-color 0.2s;
+      }
+      .add-item-btn:hover { opacity: 1; border-color: var(--accent-color); }
+
+      .content-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+      .content-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid var(--border-color);
+        background-color: var(--card-bg-color);
+        min-height: 50px;
+      }
+      .content-path { font-size: 0.85rem; color: var(--text-color); opacity: 0.7; }
+      .content-body {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        padding: 1rem;
+        overflow: auto;
+      }
+
+      .no-selection {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        color: var(--text-color);
+        opacity: 0.5;
+        text-align: center;
+      }
+      .no-selection i { font-size: 3rem; margin-bottom: 1rem; }
+
+      /* Test actions panel */
+      .test-actions-panel { max-width: 600px; }
+      .test-actions-panel .btn { margin-right: 0.5rem; margin-bottom: 0.5rem; }
+      .test-actions-group { margin-bottom: 1.5rem; }
+      .test-actions-group h6 { margin-bottom: 0.5rem; opacity: 0.9; }
+
+      /* Question form */
+      .question-form { display: flex; flex-direction: column; gap: 1rem; max-width: 800px; }
+      .question-form .form-group label { display: block; margin-bottom: 0.25rem; font-size: 0.9rem; }
+      .question-form textarea.form-control { min-height: auto; }
+      .question-form .question-text { rows: 3; }
+      .question-form .option-text { rows: 2; }
+      .question-form .option-row {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.5rem;
+        margin-bottom: 0.5rem;
+        padding: 0.5rem;
+        background: var(--bg-color);
+        border-radius: 6px;
+        border: 1px solid var(--border-color);
+      }
+      .question-form .option-row .option-fields { flex: 1; display: flex; flex-direction: column; gap: 0.25rem; }
+      .question-form .option-row .option-correct { margin-top: 0.25rem; }
+      .question-form .add-option-btn { align-self: flex-start; }
+      .save-status { font-size: 0.75rem; opacity: 0.6; }
+      .save-status.saving { color: #ffc107; }
+      .save-status.saved { color: #28a745; }
+
+      .modal-content { background-color: var(--card-bg-color); color: var(--text-color); border-color: var(--border-color); }
+      .modal-header { border-bottom-color: var(--border-color); }
+      .modal-footer { border-top-color: var(--border-color); }
+      .btn-close { filter: invert(1) grayscale(100%) brightness(200%); }
+      html[data-theme='light'] .btn-close { filter: none; }
+      .search-result-item {
+        padding: 0.75rem;
+        border: 1px solid var(--border-color);
+        border-radius: 6px;
+        margin-bottom: 0.5rem;
+        cursor: pointer;
+        transition: background-color 0.15s;
+      }
+      .search-result-item:hover { background-color: var(--hover-color); }
+      .search-result-path { font-size: 0.8rem; color: var(--accent-color); margin-bottom: 0.25rem; }
+      .search-result-preview { font-size: 0.85rem; opacity: 0.8; }
+      .search-result-preview mark { background-color: #ffc107; color: #000; padding: 0 2px; border-radius: 2px; }
+      .empty-state { text-align: center; padding: 2rem; color: var(--text-color); opacity: 0.5; }
+      #export-css-textarea { font-family: monospace; font-size: 0.85rem; min-height: 200px; }
+    </style>
+  </head>
+  <body>
+    <nav class="navbar">
+      <div class="container-fluid">
+        <a class="navbar-brand" href="#" data-i18n="title">Quiz Builder</a>
+        <div class="d-flex ms-auto gap-2 align-items-center flex-wrap">
+          <div class="input-group input-group-sm" style="width: 200px;">
+            <span class="input-group-text" style="background-color: var(--card-bg-color); border-color: var(--border-color); color: var(--text-color);">
+              <i class="fas fa-search"></i>
+            </span>
+            <input type="text" id="search-input" class="form-control form-control-sm" data-i18n-placeholder="searchPlaceholder" placeholder="Search..." />
+          </div>
+          <select id="search-scope" class="form-select form-select-sm" style="width: auto; max-width: 140px;">
+            <option value="test" data-i18n="scopeTest">This test</option>
+            <option value="project" data-i18n="scopeProject">This project</option>
+            <option value="all" data-i18n="scopeAll">All</option>
+          </select>
+          <select id="lang-switcher" class="form-select form-select-sm" style="width: auto;">
+            <option value="en">English</option>
+            <option value="pt">Português</option>
+            <option value="ja">日本語</option>
+          </select>
+          <button id="theme-switcher" class="btn btn-sm btn-outline-secondary" type="button" data-i18n-title="themeBtn" title="Toggle theme">
+            <i class="fas fa-moon"></i>
+          </button>
+        </div>
+      </div>
+    </nav>
+
+    <div class="main-container">
+      <div class="nav-column" id="projects-column">
+        <div class="column-header">
+          <div class="column-title">
+            <i class="fas fa-folder"></i>
+            <span class="column-title-text" data-i18n="projects">Projects</span>
+          </div>
+          <button class="collapse-btn" data-target="projects-column" title="Toggle"><i class="fas fa-chevron-left"></i></button>
+        </div>
+        <div class="column-content">
+          <ul class="item-list" id="projects-list"></ul>
+          <button class="add-item-btn" id="add-project-btn">
+            <i class="fas fa-plus"></i>
+            <span class="add-btn-text" data-i18n="addProject">Add Project</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="nav-column" id="tests-column">
+        <div class="column-header">
+          <div class="column-title">
+            <i class="fas fa-list-alt"></i>
+            <span class="column-title-text" data-i18n="tests">Tests</span>
+          </div>
+          <button class="collapse-btn" data-target="tests-column" title="Toggle"><i class="fas fa-chevron-left"></i></button>
+        </div>
+        <div class="column-content">
+          <ul class="item-list" id="tests-list"></ul>
+          <button class="add-item-btn" id="add-test-btn" style="display: none;">
+            <i class="fas fa-plus"></i>
+            <span class="add-btn-text" data-i18n="addTest">Add Test</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="nav-column" id="questions-column">
+        <div class="column-header">
+          <div class="column-title">
+            <i class="fas fa-question-circle"></i>
+            <span class="column-title-text" data-i18n="questions">Questions</span>
+          </div>
+          <button class="collapse-btn" data-target="questions-column" title="Toggle"><i class="fas fa-chevron-left"></i></button>
+        </div>
+        <div class="column-content">
+          <ul class="item-list" id="questions-list"></ul>
+          <button class="add-item-btn" id="add-question-btn" style="display: none;">
+            <i class="fas fa-plus"></i>
+            <span class="add-btn-text" data-i18n="addQuestion">Add Question</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="content-area">
+        <div class="content-header">
+          <div class="content-path" id="content-path"></div>
+          <div class="save-status" id="save-status"></div>
+        </div>
+        <div class="content-body">
+          <div class="no-selection" id="no-selection">
+            <i class="fas fa-question-circle"></i>
+            <p data-i18n="selectQuestion">Select a project, test, and question</p>
+          </div>
+          <div id="test-actions-panel" class="test-actions-panel" style="display: none;"></div>
+          <div id="question-form-container" class="question-form" style="display: none;"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal fade" id="search-modal" tabindex="-1">
+      <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" data-i18n="searchResults">Search Results</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body" id="search-results"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal fade" id="export-css-modal" tabindex="-1">
+      <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" data-i18n="editExportCss">Edit export CSS</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <textarea id="export-css-textarea" class="form-control"></textarea>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" data-i18n="close">Close</button>
+            <button type="button" class="btn btn-primary" id="export-css-save" data-i18n="save">Save</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+      // ========== i18n ==========
+      const i18n = {
+        en: {
+          title: 'Quiz Builder',
+          projects: 'Projects',
+          tests: 'Tests',
+          questions: 'Questions',
+          addProject: 'Add Project',
+          addTest: 'Add Test',
+          addQuestion: 'Add Question',
+          searchPlaceholder: 'Search...',
+          scopeTest: 'This test',
+          scopeProject: 'This project',
+          scopeAll: 'All',
+          searchResults: 'Search Results',
+          noResults: 'No results found',
+          selectQuestion: 'Select a project, test, and question',
+          themeBtn: 'Toggle theme',
+          confirmDelete: 'Are you sure you want to delete?',
+          newProjectName: 'New Project',
+          newTestName: 'New Test',
+          rename: 'Rename',
+          delete: 'Delete',
+          enterName: 'Enter name:',
+          questionId: 'Question ID',
+          questionReady: 'Question ready',
+          questionText: 'Question',
+          questionTranslation: 'Translation',
+          options: 'Options',
+          correct: 'Correct',
+          addOption: 'Add option',
+          singleChoice: 'Single choice',
+          internalComment: 'Internal comment (not in export with answers)',
+          externalComment: 'External comment (for graders)',
+          saving: 'Saving...',
+          saved: 'Saved',
+          exportJson: 'Export JSON',
+          importJson: 'Import JSON',
+          exportRendered: 'Export rendered',
+          exportWithAnswers: 'Export with answers',
+          formatTxt: 'TXT',
+          formatHtml: 'HTML',
+          langPrimary: 'Primary',
+          langSecondary: 'Secondary',
+          langBilingual: 'Bilingual',
+          langOrder: 'Order',
+          langFirst: 'Primary first',
+          langSecond: 'Secondary first',
+          editExportCss: 'Edit export CSS',
+          close: 'Close',
+          save: 'Save',
+          testActions: 'Test actions'
+        },
+        pt: {
+          title: 'Criador de Quiz',
+          projects: 'Projetos',
+          tests: 'Testes',
+          questions: 'Perguntas',
+          addProject: 'Adicionar Projeto',
+          addTest: 'Adicionar Teste',
+          addQuestion: 'Adicionar Pergunta',
+          searchPlaceholder: 'Buscar...',
+          scopeTest: 'Neste teste',
+          scopeProject: 'Neste projeto',
+          scopeAll: 'Tudo',
+          searchResults: 'Resultados da Busca',
+          noResults: 'Nenhum resultado',
+          selectQuestion: 'Selecione projeto, teste e pergunta',
+          themeBtn: 'Alternar tema',
+          confirmDelete: 'Tem certeza que deseja excluir?',
+          newProjectName: 'Novo Projeto',
+          newTestName: 'Novo Teste',
+          rename: 'Renomear',
+          delete: 'Excluir',
+          enterName: 'Digite o nome:',
+          questionId: 'ID da pergunta',
+          questionReady: 'Pergunta pronta',
+          questionText: 'Pergunta',
+          questionTranslation: 'Tradução',
+          options: 'Opções',
+          correct: 'Correta',
+          addOption: 'Adicionar opção',
+          singleChoice: 'Resposta única',
+          internalComment: 'Comentário interno (não sai no export com respostas)',
+          externalComment: 'Comentário externo (para correção)',
+          saving: 'Salvando...',
+          saved: 'Salvo',
+          exportJson: 'Exportar JSON',
+          importJson: 'Importar JSON',
+          exportRendered: 'Exportar renderizado',
+          exportWithAnswers: 'Exportar com respostas',
+          formatTxt: 'TXT',
+          formatHtml: 'HTML',
+          langPrimary: 'Primário',
+          langSecondary: 'Secundário',
+          langBilingual: 'Bilíngue',
+          langOrder: 'Ordem',
+          langFirst: 'Primário em cima',
+          langSecond: 'Secundário em cima',
+          editExportCss: 'Editar CSS de exportação',
+          close: 'Fechar',
+          save: 'Salvar',
+          testActions: 'Ações do teste'
+        },
+        ja: {
+          title: 'クイズビルダー',
+          projects: 'プロジェクト',
+          tests: 'テスト',
+          questions: '質問',
+          addProject: 'プロジェクト追加',
+          addTest: 'テスト追加',
+          addQuestion: '質問追加',
+          searchPlaceholder: '検索...',
+          scopeTest: 'このテスト',
+          scopeProject: 'このプロジェクト',
+          scopeAll: 'すべて',
+          searchResults: '検索結果',
+          noResults: '結果なし',
+          selectQuestion: 'プロジェクト、テスト、質問を選択',
+          themeBtn: 'テーマ切替',
+          confirmDelete: '削除しますか？',
+          newProjectName: '新規プロジェクト',
+          newTestName: '新規テスト',
+          rename: '名前変更',
+          delete: '削除',
+          enterName: '名前を入力:',
+          questionId: '質問ID',
+          questionReady: '準備完了',
+          questionText: '質問',
+          questionTranslation: '翻訳',
+          options: '選択肢',
+          correct: '正解',
+          addOption: '選択肢を追加',
+          singleChoice: '単一選択',
+          internalComment: '内部コメント（回答付き出力に含めない）',
+          externalComment: '外部コメント（採点用）',
+          saving: '保存中...',
+          saved: '保存済み',
+          exportJson: 'JSON出力',
+          importJson: 'JSON入力',
+          exportRendered: 'レンダー出力',
+          exportWithAnswers: '回答付き出力',
+          formatTxt: 'TXT',
+          formatHtml: 'HTML',
+          langPrimary: '第一',
+          langSecondary: '第二',
+          langBilingual: '二言語',
+          langOrder: '順序',
+          langFirst: '第一を上',
+          langSecond: '第二を上',
+          editExportCss: '出力CSSを編集',
+          close: '閉じる',
+          save: '保存',
+          testActions: 'テスト操作'
+        }
+      };
+
+      const DEFAULT_EXPORT_CSS = `body { font-family: sans-serif; margin: 1rem; line-height: 1.5; }
+.quiz-title { font-size: 1.25rem; margin-bottom: 1rem; }
+.question-block { margin-bottom: 1.5rem; }
+.question-text { font-weight: 600; margin-bottom: 0.5rem; }
+.options-list { list-style: none; padding-left: 0; }
+.options-list li { margin-bottom: 0.35rem; padding-left: 1rem; }
+.primary-lang { font-size: 1rem; font-weight: 500; }
+.secondary-lang { font-size: 0.9rem; opacity: 0.85; margin-top: 0.25rem; }
+.external-comment { margin-top: 0.5rem; font-size: 0.9rem; font-style: italic; }
+.correct-option { font-weight: 600; }
+`;
+
+      // ========== IndexedDB ==========
+      const DB_NAME = 'QuizBuilderDB';
+      const DB_VERSION = 1;
+      let db = null;
+
+      const openDB = () => {
+        return new Promise((resolve, reject) => {
+          const request = indexedDB.open(DB_NAME, DB_VERSION);
+          request.onerror = () => reject(request.error);
+          request.onsuccess = () => { db = request.result; resolve(db); };
+          request.onupgradeneeded = (event) => {
+            const database = event.target.result;
+            if (!database.objectStoreNames.contains('projects')) {
+              const s = database.createObjectStore('projects', { keyPath: 'id' });
+              s.createIndex('order', 'order', { unique: false });
+            }
+            if (!database.objectStoreNames.contains('tests')) {
+              const s = database.createObjectStore('tests', { keyPath: 'id' });
+              s.createIndex('projectId', 'projectId', { unique: false });
+              s.createIndex('order', 'order', { unique: false });
+            }
+            if (!database.objectStoreNames.contains('questions')) {
+              const s = database.createObjectStore('questions', { keyPath: 'id' });
+              s.createIndex('testId', 'testId', { unique: false });
+              s.createIndex('order', 'order', { unique: false });
+            }
+          };
+        });
+      };
+
+      const dbAdd = (storeName, data) => {
+        return new Promise((resolve, reject) => {
+          const tx = db.transaction(storeName, 'readwrite');
+          const request = tx.objectStore(storeName).add(data);
+          request.onsuccess = () => resolve(request.result);
+          request.onerror = () => reject(request.error);
+        });
+      };
+      const dbPut = (storeName, data) => {
+        return new Promise((resolve, reject) => {
+          const tx = db.transaction(storeName, 'readwrite');
+          const request = tx.objectStore(storeName).put(data);
+          request.onsuccess = () => resolve(request.result);
+          request.onerror = () => reject(request.error);
+        });
+      };
+      const dbDelete = (storeName, id) => {
+        return new Promise((resolve, reject) => {
+          const tx = db.transaction(storeName, 'readwrite');
+          const request = tx.objectStore(storeName).delete(id);
+          request.onsuccess = () => resolve();
+          request.onerror = () => reject(request.error);
+        });
+      };
+      const dbGetAll = (storeName) => {
+        return new Promise((resolve, reject) => {
+          const tx = db.transaction(storeName, 'readonly');
+          const request = tx.objectStore(storeName).getAll();
+          request.onsuccess = () => resolve(request.result);
+          request.onerror = () => reject(request.error);
+        });
+      };
+      const dbGetByIndex = (storeName, indexName, value) => {
+        return new Promise((resolve, reject) => {
+          const tx = db.transaction(storeName, 'readonly');
+          const index = tx.objectStore(storeName).index(indexName);
+          const request = index.getAll(value);
+          request.onsuccess = () => resolve(request.result);
+          request.onerror = () => reject(request.error);
+        });
+      };
+
+      // ========== Helpers ==========
+      function generateId() {
+        return Date.now().toString(36) + Math.random().toString(36).substr(2);
+      }
+
+      function generateQuestionId() {
+        const d = new Date();
+        const pad = (n) => String(n).padStart(2, '0');
+        return `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
+      }
+
+      function escapeHtml(str) {
+        if (str == null) return '';
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+      }
+
+      function escapeRegex(str) {
+        return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      }
+
+      let currentLanguage = localStorage.getItem('app_lang') || 'en';
+      let currentTheme = localStorage.getItem('app_theme') || 'dark';
+
+      function t(key) {
+        const lang = i18n[currentLanguage] || i18n.en;
+        return lang[key] || key;
+      }
+
+      function applyI18n() {
+        const lang = i18n[currentLanguage] || i18n.en;
+        document.querySelectorAll('[data-i18n]').forEach(el => {
+          const k = el.getAttribute('data-i18n');
+          if (lang[k]) el.textContent = lang[k];
+        });
+        document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+          const k = el.getAttribute('data-i18n-placeholder');
+          if (lang[k]) el.placeholder = lang[k];
+        });
+        document.querySelectorAll('[data-i18n-title]').forEach(el => {
+          const k = el.getAttribute('data-i18n-title');
+          if (lang[k]) el.title = lang[k];
+        });
+        document.title = lang.title || 'Quiz Builder';
+      }
+
+      function applyTheme(theme) {
+        document.documentElement.setAttribute('data-theme', theme);
+        const icon = document.querySelector('#theme-switcher i');
+        if (icon) icon.className = theme === 'light' ? 'fas fa-moon' : 'fas fa-sun';
+        localStorage.setItem('app_theme', theme);
+      }
+
+      // ========== State ==========
+      let state = {
+        selectedProjectId: null,
+        selectedTestId: null,
+        selectedQuestionId: null,
+        projects: [],
+        tests: [],
+        questions: []
+      };
+
+      const projectsList = document.getElementById('projects-list');
+      const testsList = document.getElementById('tests-list');
+      const questionsList = document.getElementById('questions-list');
+      const addProjectBtn = document.getElementById('add-project-btn');
+      const addTestBtn = document.getElementById('add-test-btn');
+      const addQuestionBtn = document.getElementById('add-question-btn');
+      const contentPath = document.getElementById('content-path');
+      const noSelection = document.getElementById('no-selection');
+      const testActionsPanel = document.getElementById('test-actions-panel');
+      const questionFormContainer = document.getElementById('question-form-container');
+      const saveStatus = document.getElementById('save-status');
+      const searchModal = new bootstrap.Modal(document.getElementById('search-modal'));
+      const searchResultsEl = document.getElementById('search-results');
+      const exportCssModal = new bootstrap.Modal(document.getElementById('export-css-modal'));
+      const exportCssTextarea = document.getElementById('export-css-textarea');
+
+      // ========== Render ==========
+      function renderProjects() {
+        projectsList.innerHTML = '';
+        const sorted = [...state.projects].sort((a, b) => a.order - b.order);
+        sorted.forEach(project => {
+          const li = document.createElement('li');
+          li.dataset.id = project.id;
+          if (project.id === state.selectedProjectId) li.classList.add('selected');
+          li.innerHTML = `
+            <span class="item-name">${escapeHtml(project.name)}</span>
+            <div class="item-actions">
+              <button class="rename-btn" title="${t('rename')}"><i class="fas fa-edit"></i></button>
+              <button class="delete-btn" title="${t('delete')}"><i class="fas fa-trash"></i></button>
+            </div>
+          `;
+          li.addEventListener('click', (e) => {
+            if (!e.target.closest('.item-actions')) selectProject(project.id);
+          });
+          li.querySelector('.rename-btn').addEventListener('click', (e) => { e.stopPropagation(); renameProject(project.id); });
+          li.querySelector('.delete-btn').addEventListener('click', (e) => { e.stopPropagation(); deleteProject(project.id); });
+          projectsList.appendChild(li);
+        });
+      }
+
+      function renderTests() {
+        testsList.innerHTML = '';
+        const filtered = state.tests.filter(t => t.projectId === state.selectedProjectId);
+        const sorted = filtered.sort((a, b) => a.order - b.order);
+        addTestBtn.style.display = state.selectedProjectId ? 'flex' : 'none';
+        sorted.forEach(test => {
+          const li = document.createElement('li');
+          li.dataset.id = test.id;
+          if (test.id === state.selectedTestId) li.classList.add('selected');
+          li.innerHTML = `
+            <span class="item-name">${escapeHtml(test.name)}</span>
+            <div class="item-actions">
+              <button class="rename-btn" title="${t('rename')}"><i class="fas fa-edit"></i></button>
+              <button class="delete-btn" title="${t('delete')}"><i class="fas fa-trash"></i></button>
+            </div>
+          `;
+          li.addEventListener('click', (e) => {
+            if (!e.target.closest('.item-actions')) selectTest(test.id);
+          });
+          li.querySelector('.rename-btn').addEventListener('click', (e) => { e.stopPropagation(); renameTest(test.id); });
+          li.querySelector('.delete-btn').addEventListener('click', (e) => { e.stopPropagation(); deleteTest(test.id); });
+          testsList.appendChild(li);
+        });
+      }
+
+      function renderQuestions() {
+        questionsList.innerHTML = '';
+        const filtered = state.questions.filter(q => q.testId === state.selectedTestId);
+        const sorted = filtered.sort((a, b) => (a.questionId || '').localeCompare(b.questionId || ''));
+        addQuestionBtn.style.display = state.selectedTestId ? 'flex' : 'none';
+        sorted.forEach(q => {
+          const li = document.createElement('li');
+          li.dataset.id = q.id;
+          if (q.id === state.selectedQuestionId) li.classList.add('selected');
+          const ready = q.isReady !== false;
+          const displayId = q.questionId || q.id || '?';
+          li.innerHTML = `
+            <span class="status-dot ${ready ? 'ready' : 'draft'}" title="${ready ? t('questionReady') : 'Draft'}"></span>
+            <span class="item-name ${ready ? '' : 'draft'}">${escapeHtml(displayId)}</span>
+            <div class="item-actions">
+              <button class="delete-btn" title="${t('delete')}"><i class="fas fa-trash"></i></button>
+            </div>
+          `;
+          li.addEventListener('click', (e) => {
+            if (!e.target.closest('.item-actions')) selectQuestion(q.id);
+          });
+          li.querySelector('.delete-btn').addEventListener('click', (e) => { e.stopPropagation(); deleteQuestion(q.id); });
+          questionsList.appendChild(li);
+        });
+      }
+
+      function renderContentPath() {
+        const project = state.projects.find(p => p.id === state.selectedProjectId);
+        const test = state.tests.find(t => t.id === state.selectedTestId);
+        const question = state.questions.find(q => q.id === state.selectedQuestionId);
+        if (question && test && project) {
+          contentPath.innerHTML = `<span>${escapeHtml(project.name)}</span> / <span>${escapeHtml(test.name)}</span> / <strong>${escapeHtml(question.questionId || question.id)}</strong>`;
+        } else if (test && project) {
+          contentPath.innerHTML = `<span>${escapeHtml(project.name)}</span> / <strong>${escapeHtml(test.name)}</strong>`;
+        } else {
+          contentPath.innerHTML = '';
+        }
+      }
+
+      function renderContent() {
+        renderContentPath();
+        const question = state.questions.find(q => q.id === state.selectedQuestionId);
+        const test = state.tests.find(t => t.id === state.selectedTestId);
+
+        if (question) {
+          noSelection.style.display = 'none';
+          testActionsPanel.style.display = 'none';
+          questionFormContainer.style.display = 'flex';
+          renderQuestionForm(question);
+        } else if (test) {
+          noSelection.style.display = 'none';
+          questionFormContainer.style.display = 'none';
+          testActionsPanel.style.display = 'block';
+          renderTestActions(test);
+        } else {
+          testActionsPanel.style.display = 'none';
+          questionFormContainer.style.display = 'none';
+          noSelection.style.display = 'flex';
+        }
+      }
+
+      function renderTestActions(test) {
+        const primaryFirst = true;
+        testActionsPanel.innerHTML = `
+          <h6>${escapeHtml(t('testActions'))}</h6>
+          <div class="test-actions-group">
+            <button type="button" class="btn btn-sm btn-outline-primary" id="btn-export-json"><i class="fas fa-download"></i> ${t('exportJson')}</button>
+            <button type="button" class="btn btn-sm btn-outline-primary" id="btn-import-json"><i class="fas fa-upload"></i> ${t('importJson')}</button>
+          </div>
+          <div class="test-actions-group">
+            <span>${t('exportRendered')}:</span>
+            <button type="button" class="btn btn-sm btn-outline-secondary export-rendered-btn" data-format="txt" data-with-answers="false"><i class="fas fa-file-alt"></i> ${t('formatTxt')}</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary export-rendered-btn" data-format="html" data-with-answers="false"><i class="fas fa-file-code"></i> ${t('formatHtml')}</button>
+          </div>
+          <div class="test-actions-group">
+            <span>${t('exportWithAnswers')}:</span>
+            <button type="button" class="btn btn-sm btn-outline-secondary export-rendered-btn" data-format="txt" data-with-answers="true"><i class="fas fa-file-alt"></i> ${t('formatTxt')}</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary export-rendered-btn" data-format="html" data-with-answers="true"><i class="fas fa-file-code"></i> ${t('formatHtml')}</button>
+          </div>
+          <p class="small opacity-75">${t('langPrimary')} / ${t('langSecondary')} / ${t('langBilingual')}: <select id="export-lang" class="form-select form-select-sm d-inline-block" style="width: auto;">
+            <option value="primary">${t('langPrimary')}</option>
+            <option value="secondary">${t('langSecondary')}</option>
+            <option value="bilingual-primary">${t('langBilingual')} (${t('langFirst')})</option>
+            <option value="bilingual-secondary">${t('langBilingual')} (${t('langSecond')})</option>
+          </select></p>
+          <div class="test-actions-group">
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-edit-export-css"><i class="fas fa-palette"></i> ${t('editExportCss')}</button>
+          </div>
+        `;
+        document.getElementById('btn-export-json').addEventListener('click', () => exportTestJson(test));
+        document.getElementById('btn-import-json').addEventListener('click', () => importTestJson(test));
+        document.querySelectorAll('.export-rendered-btn').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const format = btn.dataset.format;
+            const withAnswers = btn.dataset.withAnswers === 'true';
+            const langOpt = document.getElementById('export-lang').value;
+            exportRendered(test, format, withAnswers, langOpt);
+          });
+        });
+        document.getElementById('btn-edit-export-css').addEventListener('click', () => {
+          exportCssTextarea.value = test.exportCss != null ? test.exportCss : DEFAULT_EXPORT_CSS;
+          exportCssModal.show();
+          exportCssModal._currentTest = test;
+        });
+      }
+
+      document.getElementById('export-css-save').addEventListener('click', () => {
+        const test = exportCssModal._currentTest;
+        if (test) {
+          test.exportCss = exportCssTextarea.value;
+          dbPut('tests', test).then(() => {
+            const idx = state.tests.findIndex(t => t.id === test.id);
+            if (idx >= 0) state.tests[idx] = test;
+            exportCssModal.hide();
+          });
+        }
+      });
+
+      function renderQuestionForm(question) {
+        const opts = question.options && question.options.length >= 2 ? question.options : [
+          { text: '', translation: '', correct: false },
+          { text: '', translation: '', correct: false }
+        ];
+        questionFormContainer.innerHTML = `
+          <div class="form-group">
+            <label>${t('questionId')}</label>
+            <input type="text" class="form-control" id="q-id" value="${escapeHtml(question.questionId || '')}" placeholder="YYYYMMDD-HHmmss" />
+          </div>
+          <div class="form-group form-check">
+            <input type="checkbox" class="form-check-input" id="q-ready" ${question.isReady !== false ? 'checked' : ''} />
+            <label class="form-check-label" for="q-ready">${t('questionReady')}</label>
+          </div>
+          <div class="form-group">
+            <label>${t('questionText')}</label>
+            <textarea class="form-control question-text" id="q-text" rows="3">${escapeHtml(question.questionText || '')}</textarea>
+          </div>
+          <div class="form-group">
+            <label>${t('questionTranslation')}</label>
+            <textarea class="form-control question-text" id="q-text-trans" rows="3">${escapeHtml(question.questionTranslation || '')}</textarea>
+          </div>
+          <div class="form-group">
+            <label>${t('options')}</label>
+            <div id="options-container"></div>
+            <button type="button" class="btn btn-sm btn-outline-secondary add-option-btn">${t('addOption')}</button>
+          </div>
+          <div class="form-group form-check">
+            <input type="checkbox" class="form-check-input" id="q-single" ${question.singleChoice !== false ? 'checked' : ''} />
+            <label class="form-check-label" for="q-single">${t('singleChoice')}</label>
+          </div>
+          <div class="form-group">
+            <label>${t('internalComment')}</label>
+            <textarea class="form-control" id="q-internal" rows="2">${escapeHtml(question.internalComment || '')}</textarea>
+          </div>
+          <div class="form-group">
+            <label>${t('externalComment')}</label>
+            <textarea class="form-control" id="q-external" rows="2">${escapeHtml(question.externalComment || '')}</textarea>
+          </div>
+        `;
+        const container = document.getElementById('options-container');
+        opts.forEach((opt, i) => {
+          container.appendChild(createOptionRow(i, opt));
+        });
+        questionFormContainer.querySelector('.add-option-btn').addEventListener('click', () => {
+          const newOpt = { text: '', translation: '', correct: false };
+          container.appendChild(createOptionRow(container.children.length, newOpt));
+        });
+
+        let saveTimeout;
+        const scheduleSave = () => {
+          clearTimeout(saveTimeout);
+          saveTimeout = setTimeout(saveQuestion, 500);
+        };
+        ['input', 'change'].forEach(ev => {
+          questionFormContainer.addEventListener(ev, scheduleSave);
+        });
+      }
+
+      function createOptionRow(index, opt) {
+        const row = document.createElement('div');
+        row.className = 'option-row';
+        row.innerHTML = `
+          <div class="option-fields">
+            <textarea class="form-control option-text" rows="2" data-opt-index="${index}" data-opt-field="text">${escapeHtml(opt.text || '')}</textarea>
+            <textarea class="form-control option-text" rows="2" data-opt-index="${index}" data-opt-field="translation" placeholder="${t('questionTranslation')}">${escapeHtml(opt.translation || '')}</textarea>
+          </div>
+          <div class="option-correct">
+            <label class="form-check-label small">${t('correct')}</label>
+            <input type="checkbox" class="form-check-input" data-opt-index="${index}" ${opt.correct ? 'checked' : ''} />
+          </div>
+          <button type="button" class="btn btn-sm btn-outline-danger remove-option-btn" data-opt-index="${index}" title="${t('delete')}"><i class="fas fa-times"></i></button>
+        `;
+        const removeBtn = row.querySelector('.remove-option-btn');
+        removeBtn.addEventListener('click', () => {
+          const container = document.getElementById('options-container');
+          if (container && container.children.length > 2 && confirm(t('confirmDelete'))) {
+            row.remove();
+          }
+        });
+        return row;
+      }
+
+      function getQuestionFormData() {
+        const opts = [];
+        document.querySelectorAll('#options-container .option-row').forEach(row => {
+          const textEl = row.querySelector('[data-opt-field="text"]');
+          const transEl = row.querySelector('[data-opt-field="translation"]');
+          const correctEl = row.querySelector('.form-check-input');
+          opts.push({
+            text: textEl ? textEl.value : '',
+            translation: transEl ? transEl.value : '',
+            correct: correctEl ? correctEl.checked : false
+          });
+        });
+        return {
+          questionId: document.getElementById('q-id')?.value?.trim() || '',
+          isReady: document.getElementById('q-ready')?.checked !== false,
+          questionText: document.getElementById('q-text')?.value ?? '',
+          questionTranslation: document.getElementById('q-text-trans')?.value ?? '',
+          options: opts.length >= 2 ? opts : [{ text: '', translation: '', correct: false }, { text: '', translation: '', correct: false }],
+          singleChoice: document.getElementById('q-single')?.checked !== false,
+          internalComment: document.getElementById('q-internal')?.value ?? '',
+          externalComment: document.getElementById('q-external')?.value ?? ''
+        };
+      }
+
+      function saveQuestion() {
+        const questionId = state.selectedQuestionId;
+        if (!questionId) return;
+        const question = state.questions.find(q => q.id === questionId);
+        if (!question) return;
+        const data = getQuestionFormData();
+        Object.assign(question, data);
+        saveStatus.textContent = t('saving');
+        saveStatus.className = 'save-status saving';
+        dbPut('questions', question).then(() => {
+          const idx = state.questions.findIndex(q => q.id === question.id);
+          if (idx >= 0) state.questions[idx] = question;
+          saveStatus.textContent = t('saved');
+          saveStatus.className = 'save-status saved';
+          renderQuestions();
+          setTimeout(() => { saveStatus.textContent = ''; }, 2000);
+        });
+      }
+
+      // ========== Selection ==========
+      function selectProject(projectId) {
+        state.selectedProjectId = projectId;
+        state.selectedTestId = null;
+        state.selectedQuestionId = null;
+        renderProjects();
+        renderTests();
+        renderQuestions();
+        renderContent();
+        saveState();
+      }
+
+      function selectTest(testId) {
+        state.selectedTestId = testId;
+        state.selectedQuestionId = null;
+        renderTests();
+        renderQuestions();
+        renderContent();
+        saveState();
+      }
+
+      function selectQuestion(questionId) {
+        state.selectedQuestionId = questionId;
+        renderQuestions();
+        renderContent();
+        saveState();
+      }
+
+      // ========== CRUD ==========
+      async function addProject() {
+        const name = prompt(t('enterName'), t('newProjectName'));
+        if (!name || !name.trim()) return;
+        const project = { id: generateId(), name: name.trim(), order: state.projects.length, createdAt: Date.now() };
+        await dbAdd('projects', project);
+        state.projects.push(project);
+        renderProjects();
+        selectProject(project.id);
+      }
+
+      async function renameProject(projectId) {
+        const project = state.projects.find(p => p.id === projectId);
+        if (!project) return;
+        const name = prompt(t('enterName'), project.name);
+        if (!name || !name.trim()) return;
+        project.name = name.trim();
+        await dbPut('projects', project);
+        renderProjects();
+        renderContentPath();
+      }
+
+      async function deleteProject(projectId) {
+        if (!confirm(t('confirmDelete'))) return;
+        const testsToDelete = state.tests.filter(t => t.projectId === projectId);
+        for (const test of testsToDelete) {
+          const questionsToDelete = state.questions.filter(q => q.testId === test.id);
+          for (const q of questionsToDelete) await dbDelete('questions', q.id);
+          await dbDelete('tests', test.id);
+        }
+        await dbDelete('projects', projectId);
+        state.questions = state.questions.filter(q => !testsToDelete.some(t => t.id === q.testId));
+        state.tests = state.tests.filter(t => t.projectId !== projectId);
+        state.projects = state.projects.filter(p => p.id !== projectId);
+        if (state.selectedProjectId === projectId) {
+          state.selectedProjectId = null;
+          state.selectedTestId = null;
+          state.selectedQuestionId = null;
+        }
+        renderProjects();
+        renderTests();
+        renderQuestions();
+        renderContent();
+      }
+
+      async function addTest() {
+        if (!state.selectedProjectId) return;
+        const name = prompt(t('enterName'), t('newTestName'));
+        if (!name || !name.trim()) return;
+        const testsInProject = state.tests.filter(t => t.projectId === state.selectedProjectId);
+        const test = { id: generateId(), projectId: state.selectedProjectId, name: name.trim(), order: testsInProject.length, createdAt: Date.now() };
+        await dbAdd('tests', test);
+        state.tests.push(test);
+        renderTests();
+        selectTest(test.id);
+      }
+
+      async function renameTest(testId) {
+        const test = state.tests.find(t => t.id === testId);
+        if (!test) return;
+        const name = prompt(t('enterName'), test.name);
+        if (!name || !name.trim()) return;
+        test.name = name.trim();
+        await dbPut('tests', test);
+        renderTests();
+        renderContentPath();
+      }
+
+      async function deleteTest(testId) {
+        if (!confirm(t('confirmDelete'))) return;
+        const questionsToDelete = state.questions.filter(q => q.testId === testId);
+        for (const q of questionsToDelete) await dbDelete('questions', q.id);
+        await dbDelete('tests', testId);
+        state.questions = state.questions.filter(q => q.testId !== testId);
+        state.tests = state.tests.filter(t => t.id !== testId);
+        if (state.selectedTestId === testId) {
+          state.selectedTestId = null;
+          state.selectedQuestionId = null;
+        }
+        renderTests();
+        renderQuestions();
+        renderContent();
+      }
+
+      async function addQuestion() {
+        if (!state.selectedTestId) return;
+        const questionsInTest = state.questions.filter(q => q.testId === state.selectedTestId);
+        const question = {
+          id: generateId(),
+          testId: state.selectedTestId,
+          questionId: generateQuestionId(),
+          questionText: '',
+          questionTranslation: '',
+          options: [{ text: '', translation: '', correct: false }, { text: '', translation: '', correct: false }],
+          singleChoice: true,
+          internalComment: '',
+          externalComment: '',
+          isReady: false,
+          order: questionsInTest.length,
+          createdAt: Date.now(),
+          updatedAt: Date.now()
+        };
+        await dbAdd('questions', question);
+        state.questions.push(question);
+        renderQuestions();
+        selectQuestion(question.id);
+      }
+
+      async function deleteQuestion(questionId) {
+        if (!confirm(t('confirmDelete'))) return;
+        await dbDelete('questions', questionId);
+        state.questions = state.questions.filter(q => q.id !== questionId);
+        if (state.selectedQuestionId === questionId) state.selectedQuestionId = null;
+        renderQuestions();
+        renderContent();
+      }
+
+      // ========== Search ==========
+      function getQuestionsForSearch() {
+        const scope = document.getElementById('search-scope').value;
+        if (scope === 'test' && state.selectedTestId) {
+          return state.questions.filter(q => q.testId === state.selectedTestId);
+        }
+        if (scope === 'project' && state.selectedProjectId) {
+          const testIds = state.tests.filter(t => t.projectId === state.selectedProjectId).map(t => t.id);
+          return state.questions.filter(q => testIds.includes(q.testId));
+        }
+        return state.questions;
+      }
+
+      function questionMatchesQuery(q, queryLower) {
+        const str = (s) => (s || '').toLowerCase();
+        if (str(q.questionText).includes(queryLower)) return true;
+        if (str(q.questionTranslation).includes(queryLower)) return true;
+        if (str(q.internalComment).includes(queryLower)) return true;
+        if (str(q.externalComment).includes(queryLower)) return true;
+        if (q.options && q.options.some(o => str(o.text).includes(queryLower) || str(o.translation).includes(queryLower))) return true;
+        return false;
+      }
+
+      function getSearchPreview(question, query) {
+        const queryLower = query.toLowerCase();
+        const fields = [
+          question.questionText,
+          question.questionTranslation,
+          question.internalComment,
+          question.externalComment,
+          ...(question.options || []).flatMap(o => [o.text, o.translation])
+        ].filter(Boolean).join(' ');
+        const idx = fields.toLowerCase().indexOf(queryLower);
+        if (idx === -1) return fields.slice(0, 80) + (fields.length > 80 ? '…' : '');
+        const start = Math.max(0, idx - 25);
+        const end = Math.min(fields.length, idx + query.length + 55);
+        let preview = fields.slice(start, end);
+        if (start > 0) preview = '…' + preview;
+        if (end < fields.length) preview += '…';
+        const regex = new RegExp(`(${escapeRegex(query)})`, 'gi');
+        return escapeHtml(preview).replace(regex, '<mark>$1</mark>');
+      }
+
+      function performSearch() {
+        const query = document.getElementById('search-input').value.trim();
+        if (!query) return;
+        const queryLower = query.toLowerCase();
+        const candidates = getQuestionsForSearch();
+        const results = candidates.filter(q => questionMatchesQuery(q, queryLower));
+        const project = state.projects.find(p => p.id === state.selectedProjectId);
+        const test = state.tests.find(t => t.id === state.selectedTestId);
+
+        if (results.length === 0) {
+          searchResultsEl.innerHTML = `<div class="empty-state">${t('noResults')}</div>`;
+        } else {
+          searchResultsEl.innerHTML = results.map(q => {
+            const tObj = state.tests.find(t => t.id === q.testId);
+            const pObj = state.projects.find(p => p.id === tObj?.projectId);
+            return `
+              <div class="search-result-item" data-project-id="${pObj?.id || ''}" data-test-id="${tObj?.id || ''}" data-question-id="${q.id}">
+                <div class="search-result-path">${escapeHtml(pObj?.name || '')} / ${escapeHtml(tObj?.name || '')} / ${escapeHtml(q.questionId || q.id)}</div>
+                <div class="search-result-preview">${getSearchPreview(q, query)}</div>
+              </div>
+            `;
+          }).join('');
+          searchResultsEl.querySelectorAll('.search-result-item').forEach(item => {
+            item.addEventListener('click', () => {
+              state.selectedProjectId = item.dataset.projectId || null;
+              state.selectedTestId = item.dataset.testId || null;
+              state.selectedQuestionId = item.dataset.questionId || null;
+              renderProjects();
+              renderTests();
+              renderQuestions();
+              renderContent();
+              saveState();
+              searchModal.hide();
+            });
+          });
+        }
+        searchModal.show();
+      }
+
+      // ========== Export / Import ==========
+      function exportTestJson(test) {
+        const questions = state.questions.filter(q => q.testId === test.id).sort((a, b) => (a.questionId || '').localeCompare(b.questionId || ''));
+        const payload = { version: 1, test: { ...test }, questions };
+        const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = (test.name || 'test').replace(/[^a-zA-Z0-9-_]/g, '_') + '.json';
+        a.click();
+        URL.revokeObjectURL(a.href);
+      }
+
+      function importTestJson(test) {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'application/json,.json';
+        input.onchange = async (e) => {
+          const file = e.target.files[0];
+          if (!file) return;
+          try {
+            const text = await file.text();
+            const data = JSON.parse(text);
+            const importedTest = data.test;
+            const importedQuestions = Array.isArray(data.questions) ? data.questions : [];
+            if (!importedTest || !importedTest.id) return;
+            importedTest.id = generateId();
+            importedTest.projectId = state.selectedProjectId;
+            importedTest.order = state.tests.filter(t => t.projectId === state.selectedProjectId).length;
+            await dbAdd('tests', importedTest);
+            state.tests.push(importedTest);
+            for (const q of importedQuestions) {
+              const newQ = { ...q, id: generateId(), testId: importedTest.id };
+              newQ.order = state.questions.filter(x => x.testId === importedTest.id).length;
+              await dbAdd('questions', newQ);
+              state.questions.push(newQ);
+            }
+            renderTests();
+            renderQuestions();
+            selectTest(importedTest.id);
+          } catch (err) {
+            console.error(err);
+            alert('Invalid JSON');
+          }
+        };
+        input.click();
+      }
+
+      function getTestQuestionsSorted(test) {
+        return state.questions.filter(q => q.testId === test.id).sort((a, b) => (a.questionId || '').localeCompare(b.questionId || ''));
+      }
+
+      function exportRendered(test, format, withAnswers, langOpt) {
+        const questions = getTestQuestionsSorted(test);
+        const langPrimary = langOpt === 'primary' || langOpt === 'bilingual-primary' || langOpt === 'bilingual-secondary';
+        const langSecondary = langOpt === 'secondary' || langOpt === 'bilingual-primary' || langOpt === 'bilingual-secondary';
+        const bilingual = langOpt.startsWith('bilingual');
+        const primaryFirst = langOpt === 'bilingual-primary';
+
+        function textBlock(q, withExtComment) {
+          const lines = [];
+          questions.forEach((qu, i) => {
+            const n = i + 1;
+            if (bilingual) {
+              const top = primaryFirst ? (qu.questionText || '') : (qu.questionTranslation || '');
+              const bottom = primaryFirst ? (qu.questionTranslation || '') : (qu.questionText || '');
+              lines.push(`${n}. ${top}`);
+              if (bottom) lines.push(`   ${bottom}`);
+            } else if (langOpt === 'primary') {
+              lines.push(`${n}. ${qu.questionText || ''}`);
+            } else {
+              lines.push(`${n}. ${qu.questionTranslation || ''}`);
+            }
+            (qu.options || []).forEach((o, j) => {
+              const letter = String.fromCharCode(65 + j);
+              if (bilingual) {
+                const top = primaryFirst ? (o.text || '') : (o.translation || '');
+                const bottom = primaryFirst ? (o.translation || '') : (o.text || '');
+                lines.push(`   ${letter}) ${top}`);
+                if (bottom) lines.push(`      ${bottom}`);
+              } else if (langOpt === 'primary') {
+                lines.push(`   ${letter}) ${o.text || ''}`);
+              } else {
+                lines.push(`   ${letter}) ${o.translation || ''}`);
+              }
+              if (withAnswers && o.correct) lines.push(`      [CORRECT]`);
+            });
+            if (withAnswers && qu.externalComment) lines.push(`   Comment: ${qu.externalComment}`);
+          });
+          return lines.join('\n');
+        }
+
+        const title = test.name || 'Quiz';
+        let content;
+        if (format === 'txt') {
+          content = title + '\n\n' + textBlock(null, withAnswers);
+        } else {
+          const css = (test.exportCss != null && test.exportCss.trim() !== '') ? test.exportCss : DEFAULT_EXPORT_CSS;
+          const bodyParts = [];
+          bodyParts.push(`<h1 class="quiz-title">${escapeHtml(title)}</h1>`);
+          questions.forEach((qu, i) => {
+            const n = i + 1;
+            let qHtml = '';
+            if (bilingual) {
+              const top = primaryFirst ? (qu.questionText || '') : (qu.questionTranslation || '');
+              const bottom = primaryFirst ? (qu.questionTranslation || '') : (qu.questionText || '');
+              qHtml += `<div class="question-text primary-lang">${n}. ${escapeHtml(top)}</div>`;
+              if (bottom) qHtml += `<div class="secondary-lang">${escapeHtml(bottom)}</div>`;
+            } else if (langOpt === 'primary') {
+              qHtml += `<div class="question-text">${n}. ${escapeHtml(qu.questionText || '')}</div>`;
+            } else {
+              qHtml += `<div class="question-text">${n}. ${escapeHtml(qu.questionTranslation || '')}</div>`;
+            }
+            qHtml += '<ul class="options-list">';
+            (qu.options || []).forEach((o, j) => {
+              const letter = String.fromCharCode(65 + j);
+              if (bilingual) {
+                const top = primaryFirst ? (o.text || '') : (o.translation || '');
+                const bottom = primaryFirst ? (o.translation || '') : (o.text || '');
+                const correctClass = withAnswers && o.correct ? ' correct-option' : '';
+                qHtml += `<li class="primary-lang${correctClass}">${letter}) ${escapeHtml(top)}</li>`;
+                if (bottom) qHtml += `<li class="secondary-lang">${escapeHtml(bottom)}</li>`;
+              } else {
+                const text = langOpt === 'primary' ? (o.text || '') : (o.translation || '');
+                const correctClass = withAnswers && o.correct ? ' correct-option' : '';
+                qHtml += `<li class="${correctClass}">${letter}) ${escapeHtml(text)}</li>`;
+              }
+            });
+            qHtml += '</ul>';
+            if (withAnswers && qu.externalComment) {
+              qHtml += `<div class="external-comment">${escapeHtml(qu.externalComment)}</div>`;
+            }
+            bodyParts.push(`<div class="question-block">${qHtml}</div>`);
+          });
+          var et = '<' + '/'; // avoid </ in source so HTML parser does not close script early
+          content = '<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>' + escapeHtml(title) + et + 'title><style>\n' + css + '\n' + et + 'style>' + et + 'head><body>\n' + bodyParts.join('\n') + '\n' + et + 'body>' + et + 'html>';
+        }
+
+        const blob = new Blob([content], { type: format === 'html' ? 'text/html' : 'text/plain' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = (test.name || 'quiz').replace(/[^a-zA-Z0-9-_]/g, '_') + (withAnswers ? '_with_answers' : '') + (format === 'html' ? '.html' : '.txt');
+        a.click();
+        URL.revokeObjectURL(a.href);
+      }
+
+      // ========== State persistence & collapse ==========
+      function saveState() {
+        localStorage.setItem('quiz_builder_state', JSON.stringify({
+          selectedProjectId: state.selectedProjectId,
+          selectedTestId: state.selectedTestId,
+          selectedQuestionId: state.selectedQuestionId
+        }));
+      }
+
+      function loadState() {
+        try {
+          const saved = localStorage.getItem('quiz_builder_state');
+          if (saved) {
+            const parsed = JSON.parse(saved);
+            state.selectedProjectId = parsed.selectedProjectId;
+            state.selectedTestId = parsed.selectedTestId;
+            state.selectedQuestionId = parsed.selectedQuestionId;
+          }
+        } catch (e) {}
+      }
+
+      function setupCollapseButtons() {
+        document.querySelectorAll('.collapse-btn').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const targetId = btn.dataset.target;
+            const col = document.getElementById(targetId);
+            if (col) col.classList.toggle('collapsed');
+            const collapseState = {};
+            document.querySelectorAll('.nav-column').forEach(c => {
+              collapseState[c.id] = c.classList.contains('collapsed');
+            });
+            localStorage.setItem('quiz_builder_collapse', JSON.stringify(collapseState));
+          });
+        });
+        try {
+          const saved = localStorage.getItem('quiz_builder_collapse');
+          if (saved) {
+            const st = JSON.parse(saved);
+            Object.entries(st).forEach(([id, collapsed]) => {
+              const col = document.getElementById(id);
+              if (col && collapsed) col.classList.add('collapsed');
+            });
+          }
+        } catch (e) {}
+      }
+
+      // ========== Init ==========
+      async function init() {
+        await openDB();
+        state.projects = await dbGetAll('projects');
+        state.tests = await dbGetAll('tests');
+        state.questions = await dbGetAll('questions');
+        loadState();
+        if (state.selectedProjectId && !state.projects.find(p => p.id === state.selectedProjectId)) state.selectedProjectId = null;
+        if (state.selectedTestId && !state.tests.find(t => t.id === state.selectedTestId)) state.selectedTestId = null;
+        if (state.selectedQuestionId && !state.questions.find(q => q.id === state.selectedQuestionId)) state.selectedQuestionId = null;
+
+        document.getElementById('lang-switcher').value = currentLanguage;
+        applyI18n();
+        applyTheme(currentTheme);
+
+        renderProjects();
+        renderTests();
+        renderQuestions();
+        renderContent();
+        setupCollapseButtons();
+
+        document.getElementById('lang-switcher').addEventListener('change', (e) => {
+          currentLanguage = e.target.value;
+          localStorage.setItem('app_lang', currentLanguage);
+          applyI18n();
+          renderProjects();
+          renderTests();
+          renderQuestions();
+          renderContent();
+        });
+        document.getElementById('theme-switcher').addEventListener('click', () => {
+          currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
+          applyTheme(currentTheme);
+        });
+        document.getElementById('search-input').addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') performSearch();
+        });
+        addProjectBtn.addEventListener('click', addProject);
+        addTestBtn.addEventListener('click', addTest);
+        addQuestionBtn.addEventListener('click', addQuestion);
+      }
+
+      document.addEventListener('DOMContentLoaded', init);
+    </script>
