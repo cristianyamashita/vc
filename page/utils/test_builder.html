@@ -413,6 +413,8 @@
           delete: 'Delete',
           moveUp: 'Move up',
           moveDown: 'Move down',
+          preview: 'Preview (TXT)',
+          copy: 'Copy',
           enterName: 'Enter name:',
           questionType: 'Question type',
           questionTypeMultipleChoice: 'Multiple choice',
@@ -481,6 +483,8 @@
           delete: 'Excluir',
           moveUp: 'Subir',
           moveDown: 'Descer',
+          preview: 'Pré-visualização (TXT)',
+          copy: 'Copiar',
           enterName: 'Digite o nome:',
           questionType: 'Tipo de pergunta',
           questionTypeMultipleChoice: 'Múltipla escolha',
@@ -549,6 +553,8 @@
           delete: '削除',
           moveUp: '上へ',
           moveDown: '下へ',
+          preview: 'プレビュー (TXT)',
+          copy: 'コピー',
           enterName: '名前を入力:',
           questionType: '質問タイプ',
           questionTypeMultipleChoice: '多肢選択',
@@ -1082,6 +1088,13 @@
               <button type="button" class="btn btn-outline-primary" id="q-move-btn">${t('moveQuestion')}</button>
             </div>
           </div>
+          <div class="form-group border-top pt-3 mt-3">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <label class="mb-0">${t('preview')}</label>
+              <button type="button" class="btn btn-sm btn-outline-secondary" id="question-preview-copy">${t('copy')}</button>
+            </div>
+            <pre id="question-preview-text" class="question-preview p-2 border rounded bg-light text-dark" style="max-height: 12rem; overflow: auto; white-space: pre-wrap; font-size: 0.85rem;"></pre>
+          </div>
         `;
         const moveSectionSelect = document.getElementById('q-move-section');
         const sectionsInTest = state.sections.filter(s => s.testId === state.selectedTestId).sort((a, b) => (a.sectionId || '').localeCompare(b.sectionId || '', undefined, { numeric: true }) || (a.order - b.order));
@@ -1137,14 +1150,60 @@
         }
         typeSelect.addEventListener('change', () => { toggleTypeVisibility(); scheduleSave(); });
 
+        function buildQuestionPreviewText() {
+          const questionText = document.getElementById('q-text')?.value ?? '';
+          const questionType = document.getElementById('q-type')?.value;
+          const lines = [];
+          questionText.split('\n').forEach(l => lines.push(l));
+          if (questionType === 'text') {
+            lines.push('Answer:');
+            const modelContent = document.getElementById('q-text-answer')?.value ?? '';
+            const modelLines = modelContent.split('\n');
+            const numLines = Math.max(1, modelLines.length);
+            for (let i = 0; i < numLines; i++) lines.push('   ' + (modelLines[i] || ''));
+          } else {
+            document.querySelectorAll('#options-container .option-row').forEach((row, j) => {
+              const textEl = row.querySelector('[data-opt-field="text"]');
+              const text = textEl ? textEl.value : '';
+              const letter = String.fromCharCode(65 + j);
+              const optLines = text.split('\n');
+              lines.push(letter + ') ' + (optLines[0] || ''));
+              for (let i = 1; i < optLines.length; i++) lines.push('   ' + optLines[i]);
+            });
+          }
+          return lines.join('\n');
+        }
+        function updateQuestionPreview() {
+          const el = document.getElementById('question-preview-text');
+          if (el) el.textContent = buildQuestionPreviewText();
+        }
+        document.getElementById('question-preview-copy')?.addEventListener('click', () => {
+          const text = buildQuestionPreviewText();
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(() => { saveStatus.textContent = t('copy'); saveStatus.className = 'save-status saved'; setTimeout(() => { saveStatus.textContent = ''; }, 1500); });
+          } else {
+            const ta = document.createElement('textarea');
+            ta.value = text;
+            ta.style.position = 'fixed'; ta.style.opacity = '0';
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand('copy');
+            document.body.removeChild(ta);
+            saveStatus.textContent = t('copy');
+            saveStatus.className = 'save-status saved';
+            setTimeout(() => { saveStatus.textContent = ''; }, 1500);
+          }
+        });
+
         let saveTimeout;
         const scheduleSave = () => {
           clearTimeout(saveTimeout);
-          saveTimeout = setTimeout(saveQuestion, 500);
+          saveTimeout = setTimeout(() => { saveQuestion(); updateQuestionPreview(); }, 500);
         };
         ['input', 'change'].forEach(ev => {
           questionFormContainer.addEventListener(ev, scheduleSave);
         });
+        updateQuestionPreview();
       }
 
       function createOptionRow(index, opt) {
