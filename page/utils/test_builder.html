@@ -411,6 +411,8 @@
           newTestName: 'New Test',
           rename: 'Rename',
           delete: 'Delete',
+          moveUp: 'Move up',
+          moveDown: 'Move down',
           enterName: 'Enter name:',
           questionType: 'Question type',
           questionTypeMultipleChoice: 'Multiple choice',
@@ -477,6 +479,8 @@
           newTestName: 'Novo Teste',
           rename: 'Renomear',
           delete: 'Excluir',
+          moveUp: 'Subir',
+          moveDown: 'Descer',
           enterName: 'Digite o nome:',
           questionType: 'Tipo de pergunta',
           questionTypeMultipleChoice: 'Múltipla escolha',
@@ -543,6 +547,8 @@
           newTestName: '新規テスト',
           rename: '名前変更',
           delete: '削除',
+          moveUp: '上へ',
+          moveDown: '下へ',
           enterName: '名前を入力:',
           questionType: '質問タイプ',
           questionTypeMultipleChoice: '多肢選択',
@@ -1153,6 +1159,10 @@
             <label class="form-check-label small">${t('noTranslation')}</label>
             <input type="checkbox" class="form-check-input" data-opt-field="noTranslation" data-opt-index="${index}" ${noTrans ? 'checked' : ''} />
           </div>
+          <div class="option-order-btns d-flex flex-column gap-1">
+            <button type="button" class="btn btn-sm btn-outline-secondary option-move-up" title="${t('moveUp')}"><i class="fas fa-chevron-up"></i></button>
+            <button type="button" class="btn btn-sm btn-outline-secondary option-move-down" title="${t('moveDown')}"><i class="fas fa-chevron-down"></i></button>
+          </div>
           <button type="button" class="btn btn-sm btn-outline-danger remove-option-btn" data-opt-index="${index}" title="${t('delete')}"><i class="fas fa-times"></i></button>
         `;
         const noTranslationEl = row.querySelector('[data-opt-field="noTranslation"]');
@@ -1160,11 +1170,28 @@
         noTranslationEl.addEventListener('change', () => {
           translationWrap.style.display = noTranslationEl.checked ? 'none' : 'block';
         });
+        const container = document.getElementById('options-container');
+        row.querySelector('.option-move-up').addEventListener('click', (e) => {
+          e.stopPropagation();
+          const prev = row.previousElementSibling;
+          if (prev && container) {
+            container.insertBefore(row, prev);
+            questionFormContainer.dispatchEvent(new Event('change'));
+          }
+        });
+        row.querySelector('.option-move-down').addEventListener('click', (e) => {
+          e.stopPropagation();
+          const next = row.nextElementSibling;
+          if (next && container) {
+            container.insertBefore(row, next.nextElementSibling);
+            questionFormContainer.dispatchEvent(new Event('change'));
+          }
+        });
         const removeBtn = row.querySelector('.remove-option-btn');
         removeBtn.addEventListener('click', () => {
-          const container = document.getElementById('options-container');
           if (container && container.children.length > 2 && confirm(t('confirmDelete'))) {
             row.remove();
+            questionFormContainer.dispatchEvent(new Event('change'));
           }
         });
         return row;
