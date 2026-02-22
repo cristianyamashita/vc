@@ -287,7 +287,7 @@
         <div class="column-header">
           <div class="column-title">
             <i class="fas fa-layer-group"></i>
-            <span class="column-title-text" data-i18n="sections">Sections</span>
+            <span class="column-title-text"><span id="sections-total-prefix">(0) </span><span data-i18n="sections">Sections</span></span>
           </div>
           <button class="collapse-btn" data-target="sections-column" title="Toggle"><i class="fas fa-chevron-left"></i></button>
         </div>
@@ -837,6 +837,11 @@
       }
 
       function renderSections() {
+        const totalQuestions = state.selectedTestId
+          ? state.questions.filter(q => q.testId === state.selectedTestId && !q.disabled).length
+          : 0;
+        const prefixEl = document.getElementById('sections-total-prefix');
+        if (prefixEl) prefixEl.textContent = '(' + totalQuestions + ') ';
         sectionsList.innerHTML = '';
         const filtered = state.sections.filter(s => s.testId === state.selectedTestId);
         const sorted = filtered.sort((a, b) => (a.sectionId || '').localeCompare(b.sectionId || '', undefined, { numeric: true }) || (a.order - b.order));
@@ -1463,6 +1468,7 @@
         };
         await dbAdd('questions', question);
         state.questions.push(question);
+        renderSections();
         renderQuestions();
         selectQuestion(question.id);
       }
@@ -1472,6 +1478,7 @@
         await dbDelete('questions', questionId);
         state.questions = state.questions.filter(q => q.id !== questionId);
         if (state.selectedQuestionId === questionId) state.selectedQuestionId = null;
+        renderSections();
         renderQuestions();
         renderContent();
       }
