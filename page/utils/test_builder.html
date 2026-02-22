@@ -843,11 +843,14 @@
       }
 
       function renderSections() {
-        const totalQuestions = state.selectedTestId
-          ? state.questions.filter(q => q.testId === state.selectedTestId && !q.disabled).length
-          : 0;
+        const testQuestions = state.selectedTestId
+          ? state.questions.filter(q => q.testId === state.selectedTestId)
+          : [];
+        const ready = testQuestions.filter(q => q.isReady !== false).length;
+        const nonDisabled = testQuestions.filter(q => !q.disabled).length;
+        const total = testQuestions.length;
         const prefixEl = document.getElementById('sections-total-prefix');
-        if (prefixEl) prefixEl.textContent = '(' + totalQuestions + ') ';
+        if (prefixEl) prefixEl.textContent = '(' + ready + ' / ' + nonDisabled + ' / ' + total + ') ';
         sectionsList.innerHTML = '';
         const filtered = state.sections.filter(s => s.testId === state.selectedTestId);
         const sorted = filtered.sort((a, b) => (a.sectionId || '').localeCompare(b.sectionId || '', undefined, { numeric: true }) || (a.order - b.order));
