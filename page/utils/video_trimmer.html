@@ -1,0 +1,1364 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Video Trimmer</title>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --bg-top: #091018;
+      --bg-bottom: #0d1117;
+      --bg-glow-1: rgba(71, 193, 255, 0.2);
+      --bg-glow-2: rgba(61, 220, 151, 0.15);
+      --panel: rgba(15, 23, 35, 0.9);
+      --panel-strong: #121a28;
+      --border: rgba(148, 163, 184, 0.18);
+      --text: #e5edf7;
+      --muted: #93a4bb;
+      --accent: #47c1ff;
+      --accent-strong: #2e90fa;
+      --accent-soft: rgba(71, 193, 255, 0.18);
+      --success: #3ddc97;
+      --danger: #ff6b81;
+      --shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+      --radius: 22px;
+    }
+
+    html[data-theme='light'] {
+      --bg: #eef4fb;
+      --bg-top: #fdfefe;
+      --bg-bottom: #e9f0f7;
+      --bg-glow-1: rgba(46, 144, 250, 0.16);
+      --bg-glow-2: rgba(61, 220, 151, 0.12);
+      --panel: rgba(255, 255, 255, 0.82);
+      --panel-strong: #f8fbff;
+      --border: rgba(53, 75, 108, 0.16);
+      --text: #16202f;
+      --muted: #5e6c81;
+      --accent: #147df5;
+      --accent-strong: #147df5;
+      --accent-soft: rgba(20, 125, 245, 0.12);
+      --success: #1f9d65;
+      --danger: #d6455d;
+      --shadow: 0 24px 60px rgba(19, 38, 67, 0.12);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, var(--bg-glow-1), transparent 28%),
+        radial-gradient(circle at top right, var(--bg-glow-2), transparent 24%),
+        linear-gradient(180deg, var(--bg-top) 0%, var(--bg-bottom) 100%);
+      padding: 24px;
+    }
+
+    .shell {
+      max-width: 1180px;
+      margin: 0 auto;
+      display: grid;
+      gap: 20px;
+    }
+
+    .hero,
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(12px);
+    }
+
+    .hero {
+      padding: 28px;
+      display: grid;
+      gap: 16px;
+    }
+
+    .hero-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .toolbar {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      width: fit-content;
+      padding: 6px 12px;
+      border-radius: 999px;
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--accent);
+      background: var(--accent-soft);
+      border: 1px solid rgba(71, 193, 255, 0.24);
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(28px, 5vw, 52px);
+      line-height: 0.98;
+      letter-spacing: -0.04em;
+    }
+
+    .sub {
+      margin: 0;
+      color: var(--muted);
+      max-width: 760px;
+      font-size: 16px;
+    }
+
+    .workspace {
+      display: grid;
+      grid-template-columns: minmax(0, 1.6fr) minmax(320px, 0.95fr);
+      gap: 20px;
+    }
+
+    .panel {
+      padding: 20px;
+    }
+
+    .upload-zone {
+      position: relative;
+      border: 1.5px dashed rgba(148, 163, 184, 0.35);
+      border-radius: 18px;
+      background: linear-gradient(180deg, rgba(18, 26, 40, 0.9), rgba(12, 18, 28, 0.95));
+      padding: 22px;
+      display: grid;
+      gap: 10px;
+      place-items: center;
+      text-align: center;
+      min-height: 170px;
+      transition: border-color 0.2s ease, transform 0.2s ease, background 0.2s ease;
+      cursor: pointer;
+    }
+
+    .upload-zone.dragover {
+      border-color: var(--accent);
+      background: linear-gradient(180deg, rgba(15, 41, 63, 0.95), rgba(10, 23, 34, 0.98));
+      transform: translateY(-1px);
+    }
+
+    .upload-zone strong {
+      font-size: 20px;
+    }
+
+    .upload-zone span {
+      color: var(--muted);
+      max-width: 500px;
+    }
+
+    #videoInput {
+      display: none;
+    }
+
+    .video-frame {
+      margin-top: 18px;
+      border-radius: 18px;
+      overflow: hidden;
+      background: #030712;
+      border: 1px solid var(--border);
+      min-height: 220px;
+      display: grid;
+      place-items: center;
+    }
+
+    video {
+      width: 100%;
+      max-height: 62vh;
+      background: #000;
+      display: none;
+    }
+
+    .video-empty {
+      padding: 36px 20px;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    .control-grid {
+      margin-top: 18px;
+      display: grid;
+      gap: 16px;
+    }
+
+    .buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    button {
+      border: 0;
+      border-radius: 14px;
+      padding: 12px 16px;
+      font: inherit;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.16s ease, opacity 0.16s ease, background 0.16s ease;
+    }
+
+    button:hover:not(:disabled) {
+      transform: translateY(-1px);
+    }
+
+    button:disabled {
+      cursor: not-allowed;
+      opacity: 0.45;
+    }
+
+    .primary {
+      color: #03111e;
+      background: linear-gradient(135deg, var(--accent), #84f7d2);
+    }
+
+    .secondary {
+      color: var(--text);
+      background: #182234;
+      border: 1px solid rgba(148, 163, 184, 0.16);
+    }
+
+    html[data-theme='light'] .secondary,
+    html[data-theme='light'] .select {
+      background: #ffffff;
+      border-color: rgba(53, 75, 108, 0.16);
+      color: var(--text);
+    }
+
+    .danger {
+      color: #fff;
+      background: rgba(255, 107, 129, 0.18);
+      border: 1px solid rgba(255, 107, 129, 0.32);
+    }
+
+    .range-card {
+      background: var(--panel-strong);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 18px;
+      display: grid;
+      gap: 14px;
+    }
+
+    .range-head,
+    .stats,
+    .side-stats {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .range-title {
+      font-weight: 700;
+      font-size: 15px;
+    }
+
+    .selection-badge {
+      padding: 8px 12px;
+      border-radius: 999px;
+      font-size: 13px;
+      color: var(--accent);
+      background: var(--accent-soft);
+      border: 1px solid rgba(71, 193, 255, 0.2);
+    }
+
+    .timeline {
+      position: relative;
+      height: 54px;
+      display: grid;
+      align-items: center;
+    }
+
+    .slider-track,
+    .slider-fill {
+      position: absolute;
+      left: 0;
+      right: 0;
+      height: 8px;
+      border-radius: 999px;
+    }
+
+    .slider-track {
+      background: rgba(148, 163, 184, 0.16);
+    }
+
+    .slider-fill {
+      background: linear-gradient(90deg, var(--accent-strong), #84f7d2);
+      left: 0%;
+      right: 0%;
+    }
+
+    .timeline input[type="range"] {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      margin: 0;
+      background: none;
+      pointer-events: none;
+      -webkit-appearance: none;
+      appearance: none;
+    }
+
+    .timeline input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #fff;
+      border: 3px solid var(--accent-strong);
+      box-shadow: 0 6px 20px rgba(46, 144, 250, 0.4);
+      pointer-events: auto;
+      cursor: pointer;
+    }
+
+    .timeline input[type="range"]::-moz-range-thumb {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #fff;
+      border: 3px solid var(--accent-strong);
+      box-shadow: 0 6px 20px rgba(46, 144, 250, 0.4);
+      pointer-events: auto;
+      cursor: pointer;
+    }
+
+    .timeline input[type="range"]::-webkit-slider-runnable-track,
+    .timeline input[type="range"]::-moz-range-track {
+      height: 8px;
+      background: transparent;
+    }
+
+    .marker-row {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .marker {
+      padding: 12px;
+      border-radius: 14px;
+      background: rgba(148, 163, 184, 0.08);
+      border: 1px solid rgba(148, 163, 184, 0.12);
+    }
+
+    .marker small,
+    .stat small,
+    .status small {
+      display: block;
+      color: var(--muted);
+      margin-bottom: 6px;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .marker strong,
+    .stat strong {
+      font-size: 18px;
+    }
+
+    .status {
+      background: linear-gradient(180deg, rgba(24, 34, 52, 0.95), rgba(18, 26, 40, 0.95));
+      border-radius: 18px;
+      border: 1px solid var(--border);
+      padding: 18px;
+      display: grid;
+      gap: 12px;
+    }
+
+    html[data-theme='light'] .status,
+    html[data-theme='light'] .side-card,
+    html[data-theme='light'] .range-card {
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.97), rgba(247, 250, 255, 0.97));
+    }
+
+    .status p {
+      margin: 0;
+      line-height: 1.5;
+    }
+
+    .progress {
+      width: 100%;
+      height: 10px;
+      border-radius: 999px;
+      overflow: hidden;
+      background: rgba(148, 163, 184, 0.16);
+    }
+
+    .progress > div {
+      width: 0%;
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent-strong), var(--success));
+      transition: width 0.15s linear;
+    }
+
+    .side-panel {
+      display: grid;
+      gap: 18px;
+      align-content: start;
+    }
+
+    .side-card {
+      background: linear-gradient(180deg, rgba(18, 26, 40, 0.96), rgba(11, 17, 25, 0.98));
+      border-radius: 18px;
+      border: 1px solid var(--border);
+      padding: 18px;
+      display: grid;
+      gap: 14px;
+    }
+
+    .side-card h2 {
+      margin: 0;
+      font-size: 18px;
+    }
+
+    .side-card p,
+    .side-card li {
+      color: var(--muted);
+      margin: 0;
+      line-height: 1.5;
+    }
+
+    .side-card ul {
+      margin: 0;
+      padding-left: 18px;
+      display: grid;
+      gap: 8px;
+    }
+
+    .field-stack {
+      display: grid;
+      gap: 8px;
+    }
+
+    .field-stack label {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+    }
+
+    .select {
+      width: 100%;
+      border: 1px solid rgba(148, 163, 184, 0.16);
+      border-radius: 14px;
+      padding: 12px 14px;
+      font: inherit;
+      color: var(--text);
+      background: #182234;
+      outline: none;
+    }
+
+    .download-link {
+      display: none;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      text-decoration: none;
+      border-radius: 14px;
+      padding: 14px 16px;
+      font-weight: 700;
+      color: #03111e;
+      background: linear-gradient(135deg, #ffd166, #ff9f43);
+    }
+
+    .log-panel {
+      background: #09111b;
+      border: 1px solid rgba(148, 163, 184, 0.14);
+      border-radius: 16px;
+      min-height: 220px;
+      max-height: 320px;
+      overflow: auto;
+      padding: 12px;
+      font: 12px/1.45 "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+    }
+
+    html[data-theme='light'] .log-panel {
+      background: #f7fbff;
+    }
+
+    .log-line {
+      white-space: pre-wrap;
+      word-break: break-word;
+      color: #c8d5e6;
+      padding: 4px 0;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.06);
+    }
+
+    .log-line:last-child {
+      border-bottom: 0;
+    }
+
+    .log-time {
+      color: #7ca3cf;
+      margin-right: 8px;
+    }
+
+    .log-info {
+      color: #c8d5e6;
+    }
+
+    .log-warn {
+      color: #ffd166;
+    }
+
+    .log-error {
+      color: #ff8b9a;
+    }
+
+    .log-success {
+      color: #7ef0bc;
+    }
+
+    .pill-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .pill {
+      padding: 8px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      color: var(--muted);
+      border: 1px solid rgba(148, 163, 184, 0.14);
+      background: rgba(148, 163, 184, 0.08);
+    }
+
+    @media (max-width: 960px) {
+      body {
+        padding: 16px;
+      }
+
+      .workspace {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .hero,
+      .panel {
+        padding: 16px;
+      }
+
+      .marker-row {
+        grid-template-columns: 1fr;
+      }
+
+      .buttons,
+      .stats,
+      .side-stats,
+      .range-head {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      button,
+      .download-link {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <section class="hero">
+      <div class="hero-top">
+        <span class="eyebrow" data-i18n="eyebrow">Utils / Media</span>
+        <div class="toolbar">
+          <select id="lang-switcher" class="select" style="width: auto">
+            <option value="en">English</option>
+            <option value="pt">Português</option>
+            <option value="ja">日本語</option>
+          </select>
+          <button class="secondary" id="theme-switcher" type="button" data-i18n="themeDark">Dark</button>
+        </div>
+      </div>
+      <div>
+        <h1 data-i18n="title">Video Trimmer</h1>
+        <p class="sub" data-i18n="subtitle">Upload a video, choose the exact start and end with a double slider, preview only that section, then export the trimmed result directly in the browser.</p>
+      </div>
+      <div class="pill-row">
+        <span class="pill" data-i18n="pillDragDrop">Drag and drop</span>
+        <span class="pill" data-i18n="pillPlaySegment">Play selected segment</span>
+        <span class="pill" data-i18n="pillBrowserExport">Browser-side export</span>
+      </div>
+    </section>
+
+    <section class="workspace">
+      <div class="panel">
+        <label class="upload-zone" id="uploadZone" for="videoInput">
+          <strong data-i18n="uploadTitle">Select or drop a video here</strong>
+          <span data-i18n="uploadHint">Supports common browser video formats like MP4, WebM and MOV. Nothing is uploaded to a server.</span>
+          <button class="secondary" type="button" id="chooseFileBtn" data-i18n="chooseVideo">Choose video</button>
+        </label>
+        <input id="videoInput" type="file" accept="video/*" />
+
+        <div class="video-frame">
+          <div class="video-empty" id="videoEmpty" data-i18n="noVideoSelected">No video selected yet.</div>
+          <video id="video" controls playsinline preload="metadata"></video>
+        </div>
+
+        <div class="control-grid">
+          <div class="buttons">
+            <button class="secondary" id="playPauseBtn" disabled type="button" data-i18n="play">Play</button>
+            <button class="secondary" id="previewBtn" disabled type="button" data-i18n="previewSelection">Preview Selection</button>
+            <button class="secondary" id="jumpStartBtn" disabled type="button" data-i18n="goToStart">Go to Start</button>
+            <button class="secondary" id="jumpEndBtn" disabled type="button" data-i18n="goToEnd">Go to End</button>
+            <button class="danger" id="resetBtn" disabled type="button" data-i18n="resetSelection">Reset Selection</button>
+          </div>
+
+          <div class="range-card">
+            <div class="range-head">
+              <div class="range-title" data-i18n="trimRange">Trim Range</div>
+              <div class="selection-badge" id="selectionBadge">Selected: 00:00</div>
+            </div>
+
+            <div class="timeline">
+              <div class="slider-track"></div>
+              <div class="slider-fill" id="sliderFill"></div>
+              <input id="startRange" type="range" min="0" max="100" step="0.01" value="0" />
+              <input id="endRange" type="range" min="0" max="100" step="0.01" value="100" />
+            </div>
+
+            <div class="marker-row">
+              <div class="marker">
+                <small data-i18n="start">Start</small>
+                <strong id="startTimeLabel">00:00</strong>
+              </div>
+              <div class="marker">
+                <small data-i18n="current">Current</small>
+                <strong id="currentTimeLabel">00:00</strong>
+              </div>
+              <div class="marker">
+                <small data-i18n="end">End</small>
+                <strong id="endTimeLabel">00:00</strong>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <aside class="side-panel">
+        <div class="side-card">
+          <h2 data-i18n="fileSection">File</h2>
+          <div class="side-stats">
+            <div class="stat">
+              <small data-i18n="name">Name</small>
+              <strong id="fileNameLabel">-</strong>
+            </div>
+            <div class="stat">
+              <small data-i18n="duration">Duration</small>
+              <strong id="durationLabel">00:00</strong>
+            </div>
+          </div>
+          <div class="side-stats">
+            <div class="stat">
+              <small data-i18n="format">Format</small>
+              <strong id="formatLabel">-</strong>
+            </div>
+            <div class="stat">
+              <small data-i18n="size">Size</small>
+              <strong id="sizeLabel">-</strong>
+            </div>
+          </div>
+        </div>
+
+        <div class="status">
+          <div>
+            <small data-i18n="status">Status</small>
+            <p id="statusText">Load a video to start trimming.</p>
+          </div>
+          <div class="field-stack">
+            <label for="outputFormatSelect" data-i18n="outputFormat">Output Format</label>
+            <select id="outputFormatSelect" class="select">
+              <option value="mp4" data-i18n="formatMp4">MP4</option>
+              <option value="webm" data-i18n="formatWebm">WEBM</option>
+            </select>
+          </div>
+          <div class="progress" aria-hidden="true">
+            <div id="progressBar"></div>
+          </div>
+          <button class="primary" id="exportBtn" disabled type="button" data-i18n="exportTrimmed">Export Trimmed Video</button>
+          <a id="downloadLink" class="download-link" download data-i18n="downloadExported">Download Exported Video</a>
+        </div>
+
+        <div class="side-card">
+          <h2 data-i18n="howItWorks">How it works</h2>
+          <ul>
+            <li data-i18n="help1">Drop a video or choose it from your device.</li>
+            <li data-i18n="help2">Use the two handles to define the cut start and end.</li>
+            <li data-i18n="help3">Preview the selected segment before exporting.</li>
+            <li data-i18n="help4">Export first tries the browser-native path for speed, then falls back to FFmpeg only if needed.</li>
+          </ul>
+        </div>
+
+        <div class="side-card">
+          <div class="range-head">
+            <h2 data-i18n="exportLog">Export Log</h2>
+            <button class="secondary" id="clearLogBtn" type="button" data-i18n="clearLog">Clear Log</button>
+          </div>
+          <div class="log-panel" id="logPanel" aria-live="polite"></div>
+        </div>
+      </aside>
+    </section>
+  </div>
+
+  <script type="module">
+    import { FFmpeg } from 'https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.10/dist/esm/index.js';
+    import { fetchFile, toBlobURL } from 'https://cdn.jsdelivr.net/npm/@ffmpeg/util@0.12.1/dist/esm/index.js';
+
+    const uploadZone = document.getElementById('uploadZone');
+    const chooseFileBtn = document.getElementById('chooseFileBtn');
+    const videoInput = document.getElementById('videoInput');
+    const video = document.getElementById('video');
+    const videoEmpty = document.getElementById('videoEmpty');
+    const startRange = document.getElementById('startRange');
+    const endRange = document.getElementById('endRange');
+    const sliderFill = document.getElementById('sliderFill');
+    const playPauseBtn = document.getElementById('playPauseBtn');
+    const previewBtn = document.getElementById('previewBtn');
+    const jumpStartBtn = document.getElementById('jumpStartBtn');
+    const jumpEndBtn = document.getElementById('jumpEndBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const exportBtn = document.getElementById('exportBtn');
+    const langSwitcher = document.getElementById('lang-switcher');
+    const themeSwitcher = document.getElementById('theme-switcher');
+    const outputFormatSelect = document.getElementById('outputFormatSelect');
+    const clearLogBtn = document.getElementById('clearLogBtn');
+    const downloadLink = document.getElementById('downloadLink');
+    const logPanel = document.getElementById('logPanel');
+    const statusText = document.getElementById('statusText');
+    const progressBar = document.getElementById('progressBar');
+    const selectionBadge = document.getElementById('selectionBadge');
+    const startTimeLabel = document.getElementById('startTimeLabel');
+    const currentTimeLabel = document.getElementById('currentTimeLabel');
+    const endTimeLabel = document.getElementById('endTimeLabel');
+    const fileNameLabel = document.getElementById('fileNameLabel');
+    const durationLabel = document.getElementById('durationLabel');
+    const formatLabel = document.getElementById('formatLabel');
+    const sizeLabel = document.getElementById('sizeLabel');
+
+    const ffmpeg = new FFmpeg();
+    const ffmpegPackageBaseURL = 'https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.10/dist/esm';
+    const ffmpegCoreBaseURL = 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/esm';
+    const outputFormatStorageKey = 'videoTrimmer.outputFormat';
+    const i18n = {
+      en: {
+        eyebrow: 'Utils / Media', title: 'Video Trimmer', subtitle: 'Upload a video, choose the exact start and end with a double slider, preview only that section, then export the trimmed result directly in the browser.', pillDragDrop: 'Drag and drop', pillPlaySegment: 'Play selected segment', pillBrowserExport: 'Browser-side export', uploadTitle: 'Select or drop a video here', uploadHint: 'Supports common browser video formats like MP4, WebM and MOV. Nothing is uploaded to a server.', chooseVideo: 'Choose video', noVideoSelected: 'No video selected yet.', play: 'Play', pause: 'Pause', previewSelection: 'Preview Selection', goToStart: 'Go to Start', goToEnd: 'Go to End', resetSelection: 'Reset Selection', trimRange: 'Trim Range', start: 'Start', current: 'Current', end: 'End', fileSection: 'File', name: 'Name', duration: 'Duration', format: 'Format', size: 'Size', status: 'Status', outputFormat: 'Output Format', formatMp4: 'MP4', formatWebm: 'WEBM', exportTrimmed: 'Export Trimmed Video', downloadExported: 'Download Exported Video', howItWorks: 'How it works', help1: 'Drop a video or choose it from your device.', help2: 'Use the two handles to define the cut start and end.', help3: 'Preview the selected segment before exporting.', help4: 'Export first tries the browser-native path for speed, then falls back to FFmpeg only if needed.', exportLog: 'Export Log', clearLog: 'Clear Log', themeDark: 'Dark', themeLight: 'Light', selectedLabel: 'Selected: {time}', readyStart: 'Load a video to start trimming.', previewFinished: 'Preview finished. Ready to export.', validVideoOnly: 'Please choose a valid video file.', ffmpegLoading: 'Loading FFmpeg engine. First load may take a few seconds.', ffmpegReady: 'FFmpeg ready.', ffmpegLoadFailed: 'FFmpeg load failed: {error}', videoLoadedAdjust: 'Video loaded. Adjust the start and end points.', videoLoadedLog: 'Video loaded: {name} ({size}, {type}).', metadataReadyLog: 'Metadata ready. Duration: {duration}.', selectionReset: 'Selection reset to full video.', previewingSegment: 'Previewing selected segment.', selectLongerSegment: 'Please select a longer segment before exporting.', exportRequestedLog: 'Export requested for range {start} to {end}.', nativeExportSelectedLog: 'Native export selected with {mimeType}.', tempPlayerSeekedLog: 'Temporary player seeked to {time}.', captureUnavailable: 'captureStream is not available in this browser.', mediaRecorderUnavailable: 'MediaRecorder is not available in this browser.', mediaRecorderFormatUnavailable: 'No supported MediaRecorder output format is available for {format}.', nativeCaptureStartedLog: 'Native capture started with {tracks} video track(s).', nativeChunkReceivedLog: 'Native chunk received: {size}.', stoppingNativeRecorderLog: 'Stopping native recorder: {reason}.', recordingSegment: 'Recording selected segment... {elapsed} / {duration}', tempPlayerPlayingLog: 'Temporary export player is playing.', nativeExportNoData: 'Native export finished without output data.', nativeExportCompletedLog: 'Native export completed: {size}.', ffmpegPreparing: 'Preparing video data for FFmpeg fallback...', ffmpegInputWrittenLog: 'Input written to FFmpeg FS as {fileName}.', ffmpegTryCopyLog: 'Trying FFmpeg stream copy to {fileName}.', ffmpegCopySuccessLog: 'FFmpeg stream copy succeeded: {size}.', ffmpegCopyFailedLog: 'FFmpeg stream copy failed: {error}', ffmpegTryingReencodeLog: 'Trying FFmpeg re-encode fallback.', ffmpegReencodeSucceededLog: 'FFmpeg re-encode succeeded: {size}.', ffmpegProgress: 'FFmpeg export progress: {progress}%', ffmpegLogPrefix: 'FFmpeg: {message}', mp4UsesFFmpeg: 'MP4 export is configured to use FFmpeg for broader compatibility.', nativeExportFailedLog: 'Native export failed: {error}', exportComplete: 'Export complete via {mode}. Use the download button to save the trimmed video.', exportFailed: 'Export failed: {error}', logCleared: 'Log cleared.', outputFormatChanged: 'Output format changed to {format}.', readyWithFormat: 'Video Trimmer ready. Output format: {format}.', stopReasonEnd: 'selected end reached', stopReasonTimeout: 'safety timeout reached', modeNative: 'native', modeFfmpegCopy: 'ffmpeg-copy', modeFfmpegEncode: 'ffmpeg-encode'
+      },
+      pt: {
+        eyebrow: 'Utilitários / Mídia', title: 'Cortador de Vídeo', subtitle: 'Envie um vídeo, escolha o início e o fim com um slider duplo, visualize apenas esse trecho e exporte o resultado diretamente no navegador.', pillDragDrop: 'Arrastar e soltar', pillPlaySegment: 'Reproduzir trecho selecionado', pillBrowserExport: 'Exportação no navegador', uploadTitle: 'Selecione ou solte um vídeo aqui', uploadHint: 'Suporta formatos comuns do navegador como MP4, WebM e MOV. Nada é enviado para um servidor.', chooseVideo: 'Escolher vídeo', noVideoSelected: 'Nenhum vídeo selecionado ainda.', play: 'Play', pause: 'Pausar', previewSelection: 'Prévia da Seleção', goToStart: 'Ir para o Início', goToEnd: 'Ir para o Fim', resetSelection: 'Resetar Seleção', trimRange: 'Faixa de Corte', start: 'Início', current: 'Atual', end: 'Fim', fileSection: 'Arquivo', name: 'Nome', duration: 'Duração', format: 'Formato', size: 'Tamanho', status: 'Status', outputFormat: 'Formato de Saída', formatMp4: 'MP4', formatWebm: 'WEBM', exportTrimmed: 'Exportar Vídeo Cortado', downloadExported: 'Baixar Vídeo Exportado', howItWorks: 'Como funciona', help1: 'Solte um vídeo ou escolha do seu dispositivo.', help2: 'Use as duas alças para definir o início e o fim do corte.', help3: 'Visualize o trecho selecionado antes de exportar.', help4: 'A exportação tenta primeiro o caminho nativo do navegador por velocidade e só usa FFmpeg se necessário.', exportLog: 'Log de Exportação', clearLog: 'Limpar Log', themeDark: 'Escuro', themeLight: 'Claro', selectedLabel: 'Selecionado: {time}', readyStart: 'Carregue um vídeo para começar o corte.', previewFinished: 'Prévia finalizada. Pronto para exportar.', validVideoOnly: 'Escolha um arquivo de vídeo válido.', ffmpegLoading: 'Carregando o motor FFmpeg. Na primeira vez pode levar alguns segundos.', ffmpegReady: 'FFmpeg pronto.', ffmpegLoadFailed: 'Falha ao carregar FFmpeg: {error}', videoLoadedAdjust: 'Vídeo carregado. Ajuste os pontos de início e fim.', videoLoadedLog: 'Vídeo carregado: {name} ({size}, {type}).', metadataReadyLog: 'Metadados prontos. Duração: {duration}.', selectionReset: 'Seleção resetada para o vídeo inteiro.', previewingSegment: 'Visualizando o trecho selecionado.', selectLongerSegment: 'Selecione um trecho maior antes de exportar.', exportRequestedLog: 'Exportação solicitada para a faixa {start} até {end}.', nativeExportSelectedLog: 'Exportação nativa selecionada com {mimeType}.', tempPlayerSeekedLog: 'Player temporário posicionado em {time}.', captureUnavailable: 'captureStream não está disponível neste navegador.', mediaRecorderUnavailable: 'MediaRecorder não está disponível neste navegador.', mediaRecorderFormatUnavailable: 'Não há formato suportado pelo MediaRecorder para {format}.', nativeCaptureStartedLog: 'Captura nativa iniciada com {tracks} faixa(s) de vídeo.', nativeChunkReceivedLog: 'Chunk nativo recebido: {size}.', stoppingNativeRecorderLog: 'Parando gravador nativo: {reason}.', recordingSegment: 'Gravando trecho selecionado... {elapsed} / {duration}', tempPlayerPlayingLog: 'O player temporário de exportação está reproduzindo.', nativeExportNoData: 'A exportação nativa terminou sem gerar dados.', nativeExportCompletedLog: 'Exportação nativa concluída: {size}.', ffmpegPreparing: 'Preparando dados do vídeo para o fallback com FFmpeg...', ffmpegInputWrittenLog: 'Entrada gravada no sistema de arquivos do FFmpeg como {fileName}.', ffmpegTryCopyLog: 'Tentando cópia direta do FFmpeg para {fileName}.', ffmpegCopySuccessLog: 'Cópia direta do FFmpeg concluída: {size}.', ffmpegCopyFailedLog: 'Falha na cópia direta do FFmpeg: {error}', ffmpegTryingReencodeLog: 'Tentando fallback com reencode no FFmpeg.', ffmpegReencodeSucceededLog: 'Reencode do FFmpeg concluído: {size}.', ffmpegProgress: 'Progresso da exportação FFmpeg: {progress}%', ffmpegLogPrefix: 'FFmpeg: {message}', mp4UsesFFmpeg: 'A exportação em MP4 está configurada para usar FFmpeg por compatibilidade mais ampla.', nativeExportFailedLog: 'A exportação nativa falhou: {error}', exportComplete: 'Exportação concluída via {mode}. Use o botão de download para salvar o vídeo.', exportFailed: 'Falha na exportação: {error}', logCleared: 'Log limpo.', outputFormatChanged: 'Formato de saída alterado para {format}.', readyWithFormat: 'Cortador de Vídeo pronto. Formato de saída: {format}.', stopReasonEnd: 'fim selecionado alcançado', stopReasonTimeout: 'tempo limite de segurança alcançado', modeNative: 'nativo', modeFfmpegCopy: 'ffmpeg-copy', modeFfmpegEncode: 'ffmpeg-encode'
+      },
+      ja: {
+        eyebrow: 'ユーティリティ / メディア', title: '動画トリマー', subtitle: '動画をアップロードし、二重スライダーで開始と終了を選び、その区間だけをプレビューしてブラウザ上で書き出します。', pillDragDrop: 'ドラッグ＆ドロップ', pillPlaySegment: '選択区間を再生', pillBrowserExport: 'ブラウザ内で書き出し', uploadTitle: 'ここに動画を選択またはドロップ', uploadHint: 'MP4、WebM、MOV など一般的なブラウザ対応動画形式をサポートします。サーバーには送信されません。', chooseVideo: '動画を選択', noVideoSelected: 'まだ動画が選択されていません。', play: '再生', pause: '一時停止', previewSelection: '選択範囲をプレビュー', goToStart: '開始位置へ', goToEnd: '終了位置へ', resetSelection: '選択をリセット', trimRange: 'トリミング範囲', start: '開始', current: '現在', end: '終了', fileSection: 'ファイル', name: '名前', duration: '長さ', format: '形式', size: 'サイズ', status: 'ステータス', outputFormat: '出力形式', formatMp4: 'MP4', formatWebm: 'WEBM', exportTrimmed: 'トリミングした動画を書き出し', downloadExported: '書き出した動画をダウンロード', howItWorks: '使い方', help1: '動画をドロップするか、端末から選択します。', help2: '2つのハンドルで切り出しの開始と終了を指定します。', help3: '書き出し前に選択した区間をプレビューします。', help4: '書き出しはまず高速なブラウザネイティブ方式を試し、必要な場合のみ FFmpeg にフォールバックします。', exportLog: '書き出しログ', clearLog: 'ログを消去', themeDark: 'ダーク', themeLight: 'ライト', selectedLabel: '選択中: {time}', readyStart: 'トリミングを始めるには動画を読み込んでください。', previewFinished: 'プレビューが完了しました。書き出し可能です。', validVideoOnly: '有効な動画ファイルを選択してください。', ffmpegLoading: 'FFmpeg エンジンを読み込み中です。初回は数秒かかる場合があります。', ffmpegReady: 'FFmpeg の準備ができました。', ffmpegLoadFailed: 'FFmpeg の読み込みに失敗しました: {error}', videoLoadedAdjust: '動画を読み込みました。開始位置と終了位置を調整してください。', videoLoadedLog: '動画を読み込みました: {name} ({size}, {type}).', metadataReadyLog: 'メタデータを取得しました。長さ: {duration}。', selectionReset: '選択範囲を動画全体にリセットしました。', previewingSegment: '選択区間をプレビュー中です。', selectLongerSegment: '書き出し前にもう少し長い区間を選択してください。', exportRequestedLog: '{start} から {end} までの書き出しを開始しました。', nativeExportSelectedLog: '{mimeType} でネイティブ書き出しを選択しました。', tempPlayerSeekedLog: '一時プレイヤーを {time} に移動しました。', captureUnavailable: 'このブラウザでは captureStream が利用できません。', mediaRecorderUnavailable: 'このブラウザでは MediaRecorder が利用できません。', mediaRecorderFormatUnavailable: '{format} で利用可能な MediaRecorder 出力形式がありません。', nativeCaptureStartedLog: '{tracks} 本の映像トラックでネイティブキャプチャを開始しました。', nativeChunkReceivedLog: 'ネイティブチャンクを受信: {size}。', stoppingNativeRecorderLog: 'ネイティブレコーダーを停止: {reason}。', recordingSegment: '選択区間を録画中... {elapsed} / {duration}', tempPlayerPlayingLog: '一時書き出しプレイヤーが再生中です。', nativeExportNoData: 'ネイティブ書き出しがデータなしで終了しました。', nativeExportCompletedLog: 'ネイティブ書き出し完了: {size}。', ffmpegPreparing: 'FFmpeg フォールバック用に動画データを準備しています...', ffmpegInputWrittenLog: '入力を FFmpeg ファイルシステムへ {fileName} として書き込みました。', ffmpegTryCopyLog: '{fileName} への FFmpeg ストリームコピーを試しています。', ffmpegCopySuccessLog: 'FFmpeg ストリームコピー成功: {size}。', ffmpegCopyFailedLog: 'FFmpeg ストリームコピー失敗: {error}', ffmpegTryingReencodeLog: 'FFmpeg 再エンコードのフォールバックを試しています。', ffmpegReencodeSucceededLog: 'FFmpeg 再エンコード成功: {size}。', ffmpegProgress: 'FFmpeg 書き出し進捗: {progress}%', ffmpegLogPrefix: 'FFmpeg: {message}', mp4UsesFFmpeg: 'MP4 書き出しは互換性のため FFmpeg を使用する設定です。', nativeExportFailedLog: 'ネイティブ書き出しに失敗しました: {error}', exportComplete: '{mode} で書き出し完了。ダウンロードボタンで保存してください。', exportFailed: '書き出し失敗: {error}', logCleared: 'ログを消去しました。', outputFormatChanged: '出力形式を {format} に変更しました。', readyWithFormat: '動画トリマーの準備ができました。出力形式: {format}。', stopReasonEnd: '選択した終了位置に到達', stopReasonTimeout: '安全タイムアウトに到達', modeNative: 'ネイティブ', modeFfmpegCopy: 'ffmpeg-copy', modeFfmpegEncode: 'ffmpeg-encode'
+      }
+    };
+
+    let currentLanguage = localStorage.getItem('app_lang') || 'en';
+    let currentTheme = localStorage.getItem('app_theme') || 'dark';
+    let ffmpegLoaded = false;
+    let ffmpegProgressBound = false;
+    let currentFile = null;
+    let currentUrl = '';
+    let exportedUrl = '';
+    let selectedStart = 0;
+    let selectedEnd = 0;
+    let previewMode = false;
+    let segmentStopTimer = null;
+    let activeProgressTimer = null;
+
+    function t(key, vars = {}) {
+      const template = (i18n[currentLanguage] && i18n[currentLanguage][key]) || i18n.en[key] || key;
+      return template.replace(/\{(\w+)\}/g, (_, name) => `${vars[name] ?? ''}`);
+    }
+
+    function getPreferredOutputFormat() {
+      return outputFormatSelect.value === 'webm' ? 'webm' : 'mp4';
+    }
+
+    function loadSavedOutputFormat() {
+      const savedFormat = localStorage.getItem(outputFormatStorageKey);
+      if (savedFormat === 'mp4' || savedFormat === 'webm') {
+        outputFormatSelect.value = savedFormat;
+      }
+    }
+
+    function applyTheme(theme) {
+      currentTheme = theme === 'light' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', currentTheme);
+      localStorage.setItem('app_theme', currentTheme);
+      themeSwitcher.textContent = currentTheme === 'light' ? t('themeLight') : t('themeDark');
+    }
+
+    function applyI18n() {
+      document.documentElement.lang = currentLanguage;
+      document.querySelectorAll('[data-i18n]').forEach((element) => {
+        const key = element.getAttribute('data-i18n');
+        element.textContent = t(key);
+      });
+      document.title = t('title');
+      themeSwitcher.textContent = currentTheme === 'light' ? t('themeLight') : t('themeDark');
+      if (!currentFile) {
+        statusText.textContent = t('readyStart');
+      }
+      updateTimelineUI();
+    }
+
+    function appendLog(message, type = 'info') {
+      const line = document.createElement('div');
+      const time = new Date().toLocaleTimeString();
+      line.className = `log-line log-${type}`;
+      line.innerHTML = `<span class="log-time">${time}</span><span>${message}</span>`;
+      logPanel.appendChild(line);
+      while (logPanel.childElementCount > 150) {
+        logPanel.removeChild(logPanel.firstElementChild);
+      }
+      logPanel.scrollTop = logPanel.scrollHeight;
+    }
+
+    function formatTime(seconds) {
+      if (!Number.isFinite(seconds) || seconds < 0) return '00:00';
+      const totalSeconds = Math.floor(seconds);
+      const hours = Math.floor(totalSeconds / 3600);
+      const minutes = Math.floor((totalSeconds % 3600) / 60);
+      const secs = totalSeconds % 60;
+      if (hours > 0) {
+        return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+      }
+      return `${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    }
+
+    function formatBytes(bytes) {
+      if (!Number.isFinite(bytes) || bytes <= 0) return '-';
+      const units = ['B', 'KB', 'MB', 'GB'];
+      let size = bytes;
+      let unitIndex = 0;
+      while (size >= 1024 && unitIndex < units.length - 1) {
+        size /= 1024;
+        unitIndex += 1;
+      }
+      return `${size.toFixed(size >= 10 || unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
+    }
+
+    function setStatus(message, progress = null, logType = null) {
+      statusText.textContent = message;
+      if (typeof progress === 'number') progressBar.style.width = `${Math.max(0, Math.min(100, progress))}%`;
+      if (logType) appendLog(message, logType);
+    }
+
+    function clearProgressTimer() {
+      if (activeProgressTimer) {
+        clearInterval(activeProgressTimer);
+        activeProgressTimer = null;
+      }
+    }
+
+    function updateExportProgress(progress, message = null) {
+      progressBar.style.width = `${Math.max(0, Math.min(100, progress))}%`;
+      if (message) statusText.textContent = message;
+    }
+
+    function toggleControls(enabled) {
+      playPauseBtn.disabled = !enabled;
+      previewBtn.disabled = !enabled;
+      jumpStartBtn.disabled = !enabled;
+      jumpEndBtn.disabled = !enabled;
+      resetBtn.disabled = !enabled;
+      exportBtn.disabled = !enabled;
+      startRange.disabled = !enabled;
+      endRange.disabled = !enabled;
+    }
+
+    function clampSelection() {
+      if (!video.duration) return;
+      const duration = video.duration;
+      const minGap = Math.min(0.1, duration);
+      let start = Number(startRange.value);
+      let end = Number(endRange.value);
+      if (start > end - minGap) start = Math.max(0, end - minGap);
+      if (end < start + minGap) end = Math.min(duration, start + minGap);
+      selectedStart = Math.max(0, Math.min(start, duration));
+      selectedEnd = Math.max(selectedStart + Math.min(minGap, duration), Math.min(end, duration));
+      startRange.value = selectedStart;
+      endRange.value = selectedEnd;
+      updateTimelineUI();
+    }
+
+    function updateTimelineUI() {
+      const duration = video.duration || 0;
+      const startPercent = duration ? (selectedStart / duration) * 100 : 0;
+      const endPercent = duration ? (selectedEnd / duration) * 100 : 0;
+      sliderFill.style.left = `${startPercent}%`;
+      sliderFill.style.right = `${100 - endPercent}%`;
+      startTimeLabel.textContent = formatTime(selectedStart);
+      endTimeLabel.textContent = formatTime(selectedEnd);
+      currentTimeLabel.textContent = formatTime(video.currentTime || 0);
+      selectionBadge.textContent = t('selectedLabel', { time: formatTime(Math.max(0, selectedEnd - selectedStart)) });
+    }
+
+    function stopSegmentPlayback() {
+      previewMode = false;
+      if (segmentStopTimer) {
+        cancelAnimationFrame(segmentStopTimer);
+        segmentStopTimer = null;
+      }
+    }
+
+    function monitorSegmentEnd() {
+      stopSegmentPlayback();
+      previewMode = true;
+      const tick = () => {
+        if (!previewMode) return;
+        if (video.currentTime >= selectedEnd) {
+          video.pause();
+          video.currentTime = selectedStart;
+          stopSegmentPlayback();
+          updateTimelineUI();
+          playPauseBtn.textContent = t('play');
+          setStatus(t('previewFinished'), null, 'info');
+          return;
+        }
+        segmentStopTimer = requestAnimationFrame(tick);
+      };
+      segmentStopTimer = requestAnimationFrame(tick);
+    }
+
+    function revokeExportUrl() {
+      if (exportedUrl) {
+        URL.revokeObjectURL(exportedUrl);
+        exportedUrl = '';
+      }
+      downloadLink.style.display = 'none';
+      downloadLink.removeAttribute('href');
+    }
+
+    async function safeDeleteFile(path) {
+      try {
+        await ffmpeg.deleteFile(path);
+      } catch (error) {
+        console.warn(`Could not delete temporary file: ${path}`, error);
+      }
+    }
+
+    function getFastCopyTarget(inputExtension, targetFormat) {
+      if (targetFormat === 'webm' && inputExtension === 'webm') return { fileName: 'trimmed-fast.webm', mimeType: 'video/webm', downloadExtension: 'webm' };
+      if (targetFormat === 'mp4' && ['mp4', 'm4v', 'mov'].includes(inputExtension)) return { fileName: 'trimmed-fast.mp4', mimeType: 'video/mp4', downloadExtension: 'mp4' };
+      return null;
+    }
+
+    function buildDownloadName(baseName, extension) {
+      return `${baseName || 'video'}-trimmed.${extension}`;
+    }
+
+    function getRecorderMimeType(targetFormat) {
+      const preferredTypes = targetFormat === 'mp4' ? ['video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'video/mp4;codecs=h264,aac', 'video/mp4'] : ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm'];
+      for (const mimeType of preferredTypes) {
+        if (window.MediaRecorder?.isTypeSupported?.(mimeType)) return mimeType;
+      }
+      return '';
+    }
+
+    function waitForMediaEvent(element, eventName) {
+      return new Promise((resolve, reject) => {
+        const onSuccess = () => {
+          cleanup();
+          resolve();
+        };
+        const onError = () => {
+          cleanup();
+          reject(new Error(`Media event failed: ${eventName}`));
+        };
+        const cleanup = () => {
+          element.removeEventListener(eventName, onSuccess);
+          element.removeEventListener('error', onError);
+        };
+        element.addEventListener(eventName, onSuccess, { once: true });
+        element.addEventListener('error', onError, { once: true });
+      });
+    }
+
+    async function seekVideo(element, time) {
+      const targetTime = Math.max(0, time);
+      if (Math.abs((element.currentTime || 0) - targetTime) < 0.03) return;
+      const seekPromise = waitForMediaEvent(element, 'seeked');
+      element.currentTime = targetTime;
+      await seekPromise;
+    }
+
+    function cleanupTemporaryVideo(element, stream = null) {
+      clearProgressTimer();
+      try { element.pause(); } catch (error) { console.warn('Failed to pause temporary video', error); }
+      stream?.getTracks?.().forEach((track) => track.stop());
+      element.removeAttribute('src');
+      element.load();
+      element.remove();
+    }
+
+    async function exportSelectedSegmentNatively() {
+      if (!window.MediaRecorder) throw new Error(t('mediaRecorderUnavailable'));
+      const targetFormat = getPreferredOutputFormat();
+      const mimeType = getRecorderMimeType(targetFormat);
+      if (!mimeType) throw new Error(t('mediaRecorderFormatUnavailable', { format: targetFormat.toUpperCase() }));
+      appendLog(t('nativeExportSelectedLog', { mimeType }), 'info');
+      const temporaryVideo = document.createElement('video');
+      temporaryVideo.src = currentUrl;
+      temporaryVideo.playsInline = true;
+      temporaryVideo.preload = 'auto';
+      temporaryVideo.muted = true;
+      temporaryVideo.style.position = 'fixed';
+      temporaryVideo.style.width = '1px';
+      temporaryVideo.style.height = '1px';
+      temporaryVideo.style.opacity = '0';
+      temporaryVideo.style.pointerEvents = 'none';
+      document.body.appendChild(temporaryVideo);
+      await waitForMediaEvent(temporaryVideo, 'loadedmetadata');
+      await seekVideo(temporaryVideo, selectedStart);
+      appendLog(t('tempPlayerSeekedLog', { time: formatTime(selectedStart) }), 'info');
+      const stream = temporaryVideo.captureStream?.() || temporaryVideo.mozCaptureStream?.();
+      if (!stream) {
+        cleanupTemporaryVideo(temporaryVideo);
+        throw new Error(t('captureUnavailable'));
+      }
+      appendLog(t('nativeCaptureStartedLog', { tracks: stream.getVideoTracks().length }), 'info');
+      const recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 6_000_000 });
+      const chunks = [];
+      const clipDuration = Math.max(0.1, selectedEnd - selectedStart);
+      const clipDurationMs = Math.round(clipDuration * 1000);
+      let stopRequested = false;
+      recorder.addEventListener('dataavailable', (event) => {
+        if (event.data && event.data.size > 0) {
+          chunks.push(event.data);
+          appendLog(t('nativeChunkReceivedLog', { size: formatBytes(event.data.size) }), 'info');
+        }
+      });
+      const stopPromise = new Promise((resolve, reject) => {
+        recorder.addEventListener('stop', resolve, { once: true });
+        recorder.addEventListener('error', (event) => reject(event.error || new Error('MediaRecorder error.')), { once: true });
+      });
+      const requestStop = (reason) => {
+        if (stopRequested || recorder.state === 'inactive') return;
+        stopRequested = true;
+        appendLog(t('stoppingNativeRecorderLog', { reason }), 'warn');
+        temporaryVideo.pause();
+        recorder.stop();
+      };
+      const startedAt = performance.now();
+      activeProgressTimer = setInterval(() => {
+        const elapsed = (performance.now() - startedAt) / 1000;
+        const progress = 18 + Math.min(72, (elapsed / clipDuration) * 72);
+        updateExportProgress(progress, t('recordingSegment', { elapsed: formatTime(elapsed), duration: formatTime(clipDuration) }));
+      }, 120);
+      temporaryVideo.addEventListener('timeupdate', () => {
+        if (temporaryVideo.currentTime >= selectedEnd - 0.03) requestStop(t('stopReasonEnd'));
+      });
+      recorder.start(250);
+      setStatus(t('recordingSegment', { elapsed: formatTime(0), duration: formatTime(clipDuration) }), 18, 'info');
+      await temporaryVideo.play();
+      appendLog(t('tempPlayerPlayingLog'), 'success');
+      const hardTimeout = window.setTimeout(() => requestStop(t('stopReasonTimeout')), clipDurationMs + 2500);
+      try {
+        await stopPromise;
+      } finally {
+        window.clearTimeout(hardTimeout);
+        clearProgressTimer();
+      }
+      if (!chunks.length) {
+        cleanupTemporaryVideo(temporaryVideo, stream);
+        throw new Error(t('nativeExportNoData'));
+      }
+      const blob = new Blob(chunks, { type: mimeType });
+      appendLog(t('nativeExportCompletedLog', { size: formatBytes(blob.size) }), 'success');
+      cleanupTemporaryVideo(temporaryVideo, stream);
+      return { blob, mode: 'native', extension: mimeType.includes('webm') ? 'webm' : 'mp4' };
+    }
+
+    async function exportSelectedSegmentWithFFmpeg() {
+      await ensureFFmpegLoaded();
+      const clipDuration = Math.max(0.05, selectedEnd - selectedStart);
+      const inputExtension = (currentFile.name.split('.').pop() || 'mp4').toLowerCase();
+      const safeInputExt = /^[a-z0-9]+$/.test(inputExtension) ? inputExtension : 'mp4';
+      const inputFileName = `input.${safeInputExt}`;
+      const baseName = currentFile.name.replace(/\.[^.]+$/, '') || 'video';
+      const targetFormat = getPreferredOutputFormat();
+      const fastCopyTarget = getFastCopyTarget(safeInputExt, targetFormat);
+      const fallbackOutputFileName = targetFormat === 'webm' ? 'trimmed-output.webm' : 'trimmed-output.mp4';
+      const ffmpegTimeoutMs = Math.max(12000, Math.ceil(clipDuration * 2500));
+      setStatus(t('ffmpegPreparing'), 12, 'warn');
+      await ffmpeg.writeFile(inputFileName, await fetchFile(currentFile));
+      appendLog(t('ffmpegInputWrittenLog', { fileName: inputFileName }), 'info');
+      let result = null;
+      if (fastCopyTarget) {
+        try {
+          appendLog(t('ffmpegTryCopyLog', { fileName: fastCopyTarget.fileName }), 'warn');
+          await ffmpeg.exec(['-ss', selectedStart.toFixed(3), '-t', clipDuration.toFixed(3), '-i', inputFileName, '-avoid_negative_ts', 'make_zero', '-c', 'copy', fastCopyTarget.fileName], ffmpegTimeoutMs);
+          const data = await ffmpeg.readFile(fastCopyTarget.fileName);
+          result = { blob: new Blob([data.slice().buffer], { type: fastCopyTarget.mimeType }), mode: 'ffmpeg-copy', extension: fastCopyTarget.downloadExtension, downloadName: buildDownloadName(baseName, fastCopyTarget.downloadExtension) };
+          appendLog(t('ffmpegCopySuccessLog', { size: formatBytes(result.blob.size) }), 'success');
+          await safeDeleteFile(fastCopyTarget.fileName);
+        } catch (error) {
+          appendLog(t('ffmpegCopyFailedLog', { error: error.message || error }), 'warn');
+          await safeDeleteFile(fastCopyTarget.fileName);
+        }
+      }
+      if (!result) {
+        appendLog(t('ffmpegTryingReencodeLog'), 'warn');
+        const ffmpegArgs = targetFormat === 'webm' ? ['-ss', selectedStart.toFixed(3), '-t', clipDuration.toFixed(3), '-i', inputFileName, '-c:v', 'libvpx-vp9', '-b:v', '0', '-crf', '36', '-deadline', 'realtime', '-cpu-used', '8', '-c:a', 'libopus', fallbackOutputFileName] : ['-ss', selectedStart.toFixed(3), '-t', clipDuration.toFixed(3), '-i', inputFileName, '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '28', '-c:a', 'aac', '-movflags', '+faststart', fallbackOutputFileName];
+        await ffmpeg.exec(ffmpegArgs, ffmpegTimeoutMs);
+        const data = await ffmpeg.readFile(fallbackOutputFileName);
+        result = { blob: new Blob([data.slice().buffer], { type: targetFormat === 'webm' ? 'video/webm' : 'video/mp4' }), mode: 'ffmpeg-encode', extension: targetFormat, downloadName: buildDownloadName(baseName, targetFormat) };
+        appendLog(t('ffmpegReencodeSucceededLog', { size: formatBytes(result.blob.size) }), 'success');
+        await safeDeleteFile(fallbackOutputFileName);
+      }
+      await safeDeleteFile(inputFileName);
+      return result;
+    }
+
+    async function ensureFFmpegLoaded() {
+      if (ffmpegLoaded) return;
+      setStatus(t('ffmpegLoading'), 8, 'info');
+      try {
+        await ffmpeg.load({ classWorkerURL: await toBlobURL(`${ffmpegPackageBaseURL}/worker.js`, 'text/javascript'), coreURL: await toBlobURL(`${ffmpegCoreBaseURL}/ffmpeg-core.js`, 'text/javascript'), wasmURL: await toBlobURL(`${ffmpegCoreBaseURL}/ffmpeg-core.wasm`, 'application/wasm') });
+        if (!ffmpegProgressBound) {
+          ffmpeg.on('progress', ({ progress }) => updateExportProgress(Math.round(progress * 100), t('ffmpegProgress', { progress: Math.round(progress * 100) })));
+          ffmpeg.on('log', ({ message }) => { if (message) appendLog(t('ffmpegLogPrefix', { message }), 'info'); });
+          ffmpegProgressBound = true;
+        }
+        ffmpegLoaded = true;
+        setStatus(t('ffmpegReady'), 0, 'success');
+      } catch (error) {
+        ffmpeg.terminate();
+        appendLog(t('ffmpegLoadFailed', { error: error.message || error }), 'error');
+        throw error;
+      }
+    }
+
+    function clearCurrentVideo() {
+      stopSegmentPlayback();
+      clearProgressTimer();
+      revokeExportUrl();
+      video.pause();
+      if (currentUrl) {
+        URL.revokeObjectURL(currentUrl);
+        currentUrl = '';
+      }
+      video.removeAttribute('src');
+      video.load();
+      video.style.display = 'none';
+      videoEmpty.style.display = 'block';
+      currentFile = null;
+      selectedStart = 0;
+      selectedEnd = 0;
+      startRange.value = 0;
+      endRange.value = 100;
+      fileNameLabel.textContent = '-';
+      durationLabel.textContent = '00:00';
+      formatLabel.textContent = '-';
+      sizeLabel.textContent = '-';
+      updateTimelineUI();
+      toggleControls(false);
+      playPauseBtn.textContent = t('play');
+      setStatus(t('readyStart'), 0);
+    }
+
+    function loadSelectedFile(file) {
+      if (!file || !file.type.startsWith('video/')) {
+        setStatus(t('validVideoOnly'), 0, 'warn');
+        return;
+      }
+      clearCurrentVideo();
+      currentFile = file;
+      currentUrl = URL.createObjectURL(file);
+      video.src = currentUrl;
+      video.style.display = 'block';
+      videoEmpty.style.display = 'none';
+      fileNameLabel.textContent = file.name;
+      formatLabel.textContent = file.type.replace('video/', '').toUpperCase() || 'VIDEO';
+      sizeLabel.textContent = formatBytes(file.size);
+      appendLog(t('videoLoadedLog', { name: file.name, size: formatBytes(file.size), type: file.type || 'unknown type' }), 'success');
+      setStatus(t('videoLoadedAdjust'), 0, 'info');
+    }
+
+    uploadZone.addEventListener('click', (event) => {
+      if (event.target !== chooseFileBtn) videoInput.click();
+    });
+    chooseFileBtn.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      videoInput.click();
+    });
+    videoInput.addEventListener('change', (event) => {
+      const [file] = event.target.files || [];
+      if (file) loadSelectedFile(file);
+    });
+    ['dragenter', 'dragover'].forEach((eventName) => uploadZone.addEventListener(eventName, (event) => {
+      event.preventDefault();
+      uploadZone.classList.add('dragover');
+    }));
+    ['dragleave', 'dragend', 'drop'].forEach((eventName) => uploadZone.addEventListener(eventName, (event) => {
+      event.preventDefault();
+      uploadZone.classList.remove('dragover');
+    }));
+    uploadZone.addEventListener('drop', (event) => {
+      const [file] = event.dataTransfer?.files || [];
+      if (file) loadSelectedFile(file);
+    });
+    video.addEventListener('loadedmetadata', () => {
+      const duration = video.duration || 0;
+      startRange.max = duration;
+      endRange.max = duration;
+      startRange.value = 0;
+      endRange.value = duration;
+      selectedStart = 0;
+      selectedEnd = duration;
+      durationLabel.textContent = formatTime(duration);
+      updateTimelineUI();
+      toggleControls(duration > 0);
+      appendLog(t('metadataReadyLog', { duration: formatTime(duration) }), 'info');
+    });
+    video.addEventListener('timeupdate', () => {
+      if (previewMode && video.currentTime < selectedStart) video.currentTime = selectedStart;
+      updateTimelineUI();
+    });
+    video.addEventListener('play', () => {
+      playPauseBtn.textContent = t('pause');
+    });
+    video.addEventListener('pause', () => {
+      if (!previewMode) playPauseBtn.textContent = t('play');
+    });
+    startRange.addEventListener('input', () => {
+      clampSelection();
+      revokeExportUrl();
+      if (!video.paused) video.currentTime = selectedStart;
+    });
+    endRange.addEventListener('input', () => {
+      clampSelection();
+      revokeExportUrl();
+    });
+    playPauseBtn.addEventListener('click', async () => {
+      if (!currentFile) return;
+      if (video.paused) {
+        if (video.currentTime < selectedStart || video.currentTime >= selectedEnd) video.currentTime = selectedStart;
+        await video.play();
+        monitorSegmentEnd();
+      } else {
+        stopSegmentPlayback();
+        video.pause();
+        playPauseBtn.textContent = t('play');
+      }
+    });
+    previewBtn.addEventListener('click', async () => {
+      if (!currentFile) return;
+      video.currentTime = selectedStart;
+      await video.play();
+      monitorSegmentEnd();
+      setStatus(t('previewingSegment'), null, 'info');
+    });
+    jumpStartBtn.addEventListener('click', () => {
+      video.currentTime = selectedStart;
+      updateTimelineUI();
+    });
+    jumpEndBtn.addEventListener('click', () => {
+      video.currentTime = Math.max(selectedStart, selectedEnd - 0.05);
+      updateTimelineUI();
+    });
+    resetBtn.addEventListener('click', () => {
+      if (!video.duration) return;
+      startRange.value = 0;
+      endRange.value = video.duration;
+      selectedStart = 0;
+      selectedEnd = video.duration;
+      revokeExportUrl();
+      updateTimelineUI();
+      setStatus(t('selectionReset'), 0, 'info');
+    });
+    exportBtn.addEventListener('click', async () => {
+      if (!currentFile || !video.duration) return;
+      if (selectedEnd - selectedStart <= 0.05) {
+        setStatus(t('selectLongerSegment'), 0, 'warn');
+        return;
+      }
+      exportBtn.disabled = true;
+      revokeExportUrl();
+      clearProgressTimer();
+      appendLog(t('exportRequestedLog', { start: formatTime(selectedStart), end: formatTime(selectedEnd) }), 'info');
+      try {
+        const baseName = currentFile.name.replace(/\.[^.]+$/, '') || 'video';
+        let exportResult;
+        try {
+          if (getPreferredOutputFormat() === 'webm') {
+            exportResult = await exportSelectedSegmentNatively();
+          } else {
+            throw new Error(t('mp4UsesFFmpeg'));
+          }
+        } catch (nativeError) {
+          appendLog(t('nativeExportFailedLog', { error: nativeError.message || nativeError }), 'warn');
+          exportResult = await exportSelectedSegmentWithFFmpeg();
+        }
+        exportedUrl = URL.createObjectURL(exportResult.blob);
+        downloadLink.href = exportedUrl;
+        downloadLink.download = exportResult.downloadName || buildDownloadName(baseName, exportResult.extension || 'webm');
+        downloadLink.style.display = 'flex';
+        const modeLabel = exportResult.mode === 'native' ? t('modeNative') : exportResult.mode === 'ffmpeg-copy' ? t('modeFfmpegCopy') : t('modeFfmpegEncode');
+        setStatus(t('exportComplete', { mode: modeLabel }), 100, 'success');
+      } catch (error) {
+        console.error(error);
+        clearProgressTimer();
+        setStatus(t('exportFailed', { error: error.message || error }), 0, 'error');
+      } finally {
+        clearProgressTimer();
+        exportBtn.disabled = false;
+      }
+    });
+    clearLogBtn.addEventListener('click', () => {
+      logPanel.innerHTML = '';
+      appendLog(t('logCleared'), 'info');
+    });
+    outputFormatSelect.addEventListener('change', () => {
+      const selectedFormat = getPreferredOutputFormat();
+      localStorage.setItem(outputFormatStorageKey, selectedFormat);
+      appendLog(t('outputFormatChanged', { format: selectedFormat.toUpperCase() }), 'info');
+    });
+    langSwitcher.addEventListener('change', (event) => {
+      currentLanguage = event.target.value;
+      localStorage.setItem('app_lang', currentLanguage);
+      applyI18n();
+    });
+    themeSwitcher.addEventListener('click', () => {
+      applyTheme(currentTheme === 'dark' ? 'light' : 'dark');
+    });
+    window.addEventListener('beforeunload', () => {
+      stopSegmentPlayback();
+      clearProgressTimer();
+      revokeExportUrl();
+      if (currentUrl) URL.revokeObjectURL(currentUrl);
+    });
+    toggleControls(false);
+    langSwitcher.value = currentLanguage;
+    loadSavedOutputFormat();
+    applyTheme(currentTheme);
+    applyI18n();
+    updateTimelineUI();
+    appendLog(t('readyWithFormat', { format: getPreferredOutputFormat().toUpperCase() }), 'info');
+  </script>
+</body>
+</html>
