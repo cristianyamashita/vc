@@ -44,12 +44,38 @@
 
   .hud {
     position: fixed;
-    inset: 12px auto auto 12px;
+    inset: 8px 10px auto 10px;
     z-index: 5;
-    width: min(460px, calc(100vw - 24px));
-    display: grid;
-    gap: 8px;
     pointer-events: none;
+  }
+
+  .topbar {
+    position: fixed;
+    left: 10px;
+    top: 8px;
+    width: min(520px, calc(50vw - 28px));
+  }
+
+  .shop {
+    position: fixed;
+    left: 50%;
+    top: 8px;
+    transform: translateX(-50%);
+    width: min(420px, calc(42vw - 20px));
+  }
+
+  .details {
+    position: fixed;
+    left: 10px;
+    top: 116px;
+    width: min(420px, calc(50vw - 28px));
+  }
+
+  .help {
+    position: fixed;
+    right: 10px;
+    top: 8px;
+    width: min(310px, calc(28vw - 16px));
   }
 
   .topbar,
@@ -250,12 +276,28 @@
   @media (max-width: 720px) {
     .hud {
       inset: 8px 8px auto 8px;
+      width: calc(100vw - 16px);
+    }
+
+    .topbar,
+    .shop,
+    .details,
+    .help {
+      position: static;
       width: auto;
+      min-width: 0;
+      transform: none;
+    }
+
+    .hud {
+      display: grid;
+      gap: 8px;
     }
 
     .topbar { padding: 8px; }
     h1 { font-size: 16px; }
-    .shop-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .shop-title [data-i18n="shopHint"] { display: none; }
+    .shop-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
     .tower-card { min-height: 64px; padding: 5px; }
     .tower-card .name { display: none; }
     .help { display: none; }
@@ -364,6 +406,7 @@
       base: 'Base',
       kills: 'Kills',
       start: 'Start',
+      running: 'Running',
       pause: 'Pause',
       resume: 'Resume',
       speed: 'Speed x1',
@@ -396,6 +439,8 @@
       sand: 'Sand',
       stone: 'Stone',
       iron: 'Iron',
+      titanium: 'Titanium',
+      indestructible: 'Indestructible',
       tank: 'Tank',
       buggy: 'Buggy',
       apc: 'APC',
@@ -409,6 +454,7 @@
       base: '基地',
       kills: '撃破',
       start: '開始',
+      running: '進行中',
       pause: '一時停止',
       resume: '再開',
       speed: '速度 x1',
@@ -441,6 +487,8 @@
       sand: '砂',
       stone: '石',
       iron: '鉄',
+      titanium: 'チタン',
+      indestructible: '破壊不能',
       tank: '戦車',
       buggy: 'バギー',
       apc: '装甲車',
@@ -454,6 +502,7 @@
       base: 'Base',
       kills: 'Abates',
       start: 'Iniciar',
+      running: 'Rodando',
       pause: 'Pausar',
       resume: 'Continuar',
       speed: 'Velocidade x1',
@@ -486,6 +535,8 @@
       sand: 'Areia',
       stone: 'Pedra',
       iron: 'Ferro',
+      titanium: 'Titânio',
+      indestructible: 'Indestrutível',
       tank: 'Tanque',
       buggy: 'Buggy',
       apc: 'Blindado',
@@ -494,7 +545,7 @@
   };
 
   const towerDefs = [
-    { id: 'barrier', i18n: 'barrier', icon: '🧱', cost: 32, range: 0, damage: 0, rate: 0, hp: 260, color: '#a8794f', barrier: true },
+    { id: 'barrier', i18n: 'barrier', icon: '🧱', cost: 32, range: 0, damage: 0, rate: 0, hp: 360, color: '#a8794f', barrier: true },
     { id: 'machineGun', i18n: 'machineGun', icon: '▥', cost: 70, range: 170, damage: 8, rate: .12, hp: 120, color: '#e7c567', bullet: 'bullet' },
     { id: 'mortar', i18n: 'mortar', icon: '◒', cost: 120, range: 250, damage: 38, rate: .95, hp: 100, color: '#b2c66b', splash: 54, bullet: 'shell' },
     { id: 'rocket', i18n: 'rocket', icon: '◆', cost: 165, range: 300, damage: 58, rate: 1.2, hp: 112, color: '#f17b56', splash: 44, bullet: 'rocket' },
@@ -503,17 +554,22 @@
   ];
 
   const barrierMaterials = [
-    { key: 'wood', hp: 260, color: '#a8794f', cost: 30 },
-    { key: 'sand', hp: 380, color: '#d6bc73', cost: 60 },
-    { key: 'stone', hp: 560, color: '#8e9690', cost: 95 },
-    { key: 'iron', hp: 820, color: '#8aa4ad', cost: 150 }
+    { key: 'wood', hp: 360, color: '#a8794f', cost: 30 },
+    { key: 'sand', hp: 540, color: '#d6bc73', cost: 60 },
+    { key: 'stone', hp: 780, color: '#8e9690', cost: 95 },
+    { key: 'iron', hp: 1120, color: '#8aa4ad', cost: 150 },
+    { key: 'titanium', hp: 1120, color: '#d5e7ee', cost: 1000, invincible: true }
   ];
 
+  const waveSupplyValue = () => towerDefs
+    .filter(def => !def.barrier)
+    .reduce((sum, def) => sum + def.cost, 0);
+
   const enemyDefs = [
-    { key: 'buggy', hp: 58, speed: 52, reward: 18, damage: 7, range: 95, color: '#ce5747', scale: .82 },
-    { key: 'apc', hp: 105, speed: 36, reward: 29, damage: 12, range: 120, color: '#9ba861', scale: 1 },
-    { key: 'tank', hp: 185, speed: 27, reward: 44, damage: 20, range: 145, color: '#6e8c62', scale: 1.14 },
-    { key: 'artillery', hp: 135, speed: 22, reward: 54, damage: 32, range: 220, color: '#bd8a50', scale: 1.05 }
+    { key: 'buggy', rank: 'A', hp: 58, speed: 52, reward: 18, damage: 7, range: 95, color: '#ce5747', accent: '#ffd27a', scale: .82, weight: 1, shape: 'scout' },
+    { key: 'apc', rank: 'B', hp: 105, speed: 36, reward: 29, damage: 12, range: 120, color: '#8fb06b', accent: '#d8d7d0', scale: 1, weight: 2, shape: 'apc' },
+    { key: 'tank', rank: 'C', hp: 185, speed: 27, reward: 44, damage: 20, range: 145, color: '#5f8f71', accent: '#f0c44e', scale: 1.14, weight: 3, shape: 'tank', crushBarriers: true },
+    { key: 'artillery', rank: 'D', hp: 135, speed: 22, reward: 54, damage: 32, range: 220, color: '#bd8a50', accent: '#f6f0dc', scale: 1.05, weight: 4, shape: 'artillery', crushBarriers: true }
   ];
 
   const state = {
@@ -548,6 +604,9 @@
     h: 1,
     last: performance.now()
   };
+
+  let audioCtx = null;
+  const soundTimers = new Map();
 
   const svg = (body, viewBox = '0 0 128 128') => {
     const source = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${viewBox}">${body}</svg>`;
@@ -601,6 +660,47 @@
   const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
   const money = v => Math.max(0, Math.floor(v));
   const t = key => I18N[state.lang][key] || I18N.en[key] || key;
+  const angleDiff = (to, from) => Math.atan2(Math.sin(to - from), Math.cos(to - from));
+
+  function smoothAngle(current, target, dt, turnRate = 5.8) {
+    const step = 1 - Math.exp(-turnRate * dt);
+    return current + angleDiff(target, current) * step;
+  }
+
+  function unlockAudio() {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContext) return;
+    if (!audioCtx) audioCtx = new AudioContext();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+  }
+
+  function playShot(kind) {
+    if (!audioCtx || audioCtx.state !== 'running') return;
+    const now = audioCtx.currentTime;
+    const configs = {
+      bullet: { type: 'square', f1: 760, f2: 220, dur: .045, gain: .020, gap: .045 },
+      shell: { type: 'sawtooth', f1: 190, f2: 72, dur: .13, gain: .034, gap: .12 },
+      rocket: { type: 'sawtooth', f1: 330, f2: 110, dur: .11, gain: .030, gap: .12 },
+      missile: { type: 'triangle', f1: 520, f2: 160, dur: .12, gain: .026, gap: .14 },
+      slug: { type: 'square', f1: 130, f2: 55, dur: .16, gain: .045, gap: .18 },
+      enemy: { type: 'square', f1: 250, f2: 90, dur: .075, gain: .018, gap: .09 }
+    };
+    const cfg = configs[kind] || configs.bullet;
+    if ((soundTimers.get(kind) || 0) > now) return;
+    soundTimers.set(kind, now + cfg.gap);
+
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = cfg.type;
+    osc.frequency.setValueAtTime(cfg.f1, now);
+    osc.frequency.exponentialRampToValueAtTime(Math.max(1, cfg.f2), now + cfg.dur);
+    gain.gain.setValueAtTime(cfg.gain, now);
+    gain.gain.exponentialRampToValueAtTime(.0001, now + cfg.dur);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start(now);
+    osc.stop(now + cfg.dur + .02);
+  }
 
   function resize() {
     state.dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -669,13 +769,15 @@
     els.base.textContent = Math.max(0, Math.ceil(state.baseHp));
     els.kills.textContent = state.kills;
     els.pauseBtn.textContent = state.running && state.manualPause ? t('resume') : t('pause');
-    els.startBtn.textContent = state.running ? t('restart') : t('start');
+    els.startBtn.textContent = state.gameOver ? t('restart') : state.running ? t('running') : t('start');
+    els.startBtn.disabled = state.running && !state.gameOver;
     els.speedBtn.textContent = `${t('speed').replace('x1', '')}x${state.speedScale}`;
   }
 
   function beginDrag(id, event) {
     const def = towerDefs.find(item => item.id === id);
     if (!def) return;
+    unlockAudio();
     event.preventDefault();
     state.drag = { id, x: event.clientX, y: event.clientY };
     state.modePause = true;
@@ -738,9 +840,10 @@
       return;
     }
     const def = towerDefs.find(item => item.id === tower.id);
+    const material = def.barrier ? barrierMaterials[tower.material] : null;
     const value = saleValue(tower);
-    els.detailName.textContent = def.barrier ? `${t(def.i18n)} ${t(barrierMaterials[tower.material].key)}` : `${t(def.i18n)} Lv.${tower.level}`;
-    els.detailHp.textContent = `${Math.ceil(tower.hp)}/${Math.ceil(tower.maxHp)}`;
+    els.detailName.textContent = def.barrier ? `${t(def.i18n)} ${t(material.key)}` : `${t(def.i18n)} Lv.${tower.level}`;
+    els.detailHp.textContent = material?.invincible ? t('indestructible') : `${Math.ceil(tower.hp)}/${Math.ceil(tower.maxHp)}`;
     els.detailValue.textContent = money(value);
     els.detailDamage.textContent = def.barrier ? '-' : Math.ceil(towerDamage(tower));
     els.detailRange.textContent = def.barrier ? '-' : Math.ceil(towerRange(tower));
@@ -748,12 +851,14 @@
     els.repairBtn.textContent = `${t('repair')} ${repairCost(tower)}`;
     els.sellBtn.textContent = `${t('sell')} ${money(value)}`;
     els.upgradeBtn.disabled = state.coins < upgradeCost(tower) || (def.barrier && tower.material >= barrierMaterials.length - 1);
-    els.repairBtn.disabled = tower.hp >= tower.maxHp || state.coins < repairCost(tower);
+    els.repairBtn.disabled = material?.invincible || tower.hp >= tower.maxHp || state.coins < repairCost(tower);
     els.details.classList.add('active');
   }
 
   function saleValue(tower) {
-    const healthFactor = clamp(tower.hp / tower.maxHp, 0, 1);
+    const def = towerDefs.find(item => item.id === tower.id);
+    const material = def?.barrier ? barrierMaterials[tower.material] : null;
+    const healthFactor = material?.invincible ? 1 : clamp(tower.hp / tower.maxHp, 0, 1);
     return tower.totalSpent * (.34 + .46 * healthFactor);
   }
 
@@ -766,6 +871,9 @@
   }
 
   function repairCost(tower) {
+    const def = towerDefs.find(item => item.id === tower.id);
+    const material = def?.barrier ? barrierMaterials[tower.material] : null;
+    if (material?.invincible) return 0;
     return Math.ceil((tower.maxHp - tower.hp) * .28);
   }
 
@@ -792,18 +900,33 @@
     if (state.coins < cost || cost <= 0) return showToast(t('noCoins'));
     state.coins -= cost;
     tower.totalSpent += cost;
+    applyTowerUpgrade(tower);
+    updateHud();
+    updateDetails();
+  }
+
+  function applyTowerUpgrade(tower) {
+    if (!tower || tower.hp <= 0) return;
+    const def = towerDefs.find(item => item.id === tower.id);
+    if (!def) return;
     if (def.barrier) {
+      if (tower.material >= barrierMaterials.length - 1) return;
+      const healthRatio = tower.maxHp > 0 ? tower.hp / tower.maxHp : 1;
       tower.material += 1;
       const material = barrierMaterials[tower.material];
-      const healthRatio = tower.hp / tower.maxHp;
       tower.maxHp = material.hp;
-      tower.hp = Math.max(tower.hp, tower.maxHp * healthRatio + material.hp * .22);
-    } else {
-      tower.level += 1;
-      tower.maxHp += 22;
-      tower.hp = Math.min(tower.maxHp, tower.hp + 36);
+      tower.hp = material.invincible ? tower.maxHp : Math.max(tower.hp, tower.maxHp * healthRatio + material.hp * .22);
+      return;
     }
-    updateHud();
+    tower.level += 1;
+    tower.maxHp += 22;
+    tower.hp = Math.min(tower.maxHp, tower.hp + 36);
+  }
+
+  function upgradeAllTowers(levels = 1) {
+    for (let i = 0; i < levels; i++) {
+      for (const tower of state.towers) applyTowerUpgrade(tower);
+    }
     updateDetails();
   }
 
@@ -836,6 +959,7 @@
   }
 
   function startGame(reset = false) {
+    unlockAudio();
     if (reset) resetGame();
     state.running = true;
     state.manualPause = false;
@@ -903,6 +1027,8 @@
       x: state.w + 52 + (plan.column || 0) * 18,
       y: clamp(y, state.lane.top + 32, state.lane.bottom - 32),
       targetY: clamp(y, state.lane.top + 32, state.lane.bottom - 32),
+      angle: Math.PI,
+      label: `${def.rank}${Math.min(3, 1 + Math.floor((state.wave - 1) / 4))}`,
       hp: def.hp * scale,
       maxHp: def.hp * scale,
       speed: def.speed * (1 + state.wave * .035),
@@ -943,16 +1069,20 @@
 
     if (state.waveActive && state.spawnQueue.length === 0 && state.enemies.length === 0) {
       state.waveActive = false;
+      const previousLevel = state.level;
       state.wave += 1;
-      state.coins += 48 + state.wave * 8;
+      state.coins += 48 + state.wave * 8 + waveSupplyValue();
       showToast(t('waveClear'));
       buildWave();
+      if (state.level > previousLevel) upgradeAllTowers(state.level - previousLevel);
       updateHud();
     }
   }
 
   function updateEnemies(dt) {
     for (const enemy of state.enemies) {
+      const oldX = enemy.x;
+      const oldY = enemy.y;
       enemy.wobble += dt * 4;
       enemy.range = enemyAttackRange(enemy.def);
       enemy.strafeTimer -= dt;
@@ -969,14 +1099,27 @@
         enemy.cool -= dt;
         if (enemy.cool <= 0) {
           enemy.cool = Math.max(.36, .95 - state.wave * .018) + Math.random() * .42;
-          attackTarget.hp -= enemy.damage;
-          state.enemyShots.push({ x1: enemy.x - 18, y1: enemy.y - 8, x2: attackTarget.x, y2: attackTarget.y, life: .16 });
+          if (!isInvincibleBarrier(attackTarget)) attackTarget.hp -= enemy.damage;
+          state.enemyShots.push({
+            x1: enemy.x + Math.cos(enemy.angle) * 30,
+            y1: enemy.y + Math.sin(enemy.angle) * 30,
+            x2: attackTarget.x,
+            y2: attackTarget.y,
+            life: .16
+          });
+          playShot('enemy');
           burst(attackTarget.x, attackTarget.y, '#f26b5e', 4);
         }
       }
 
       const moveFactor = obstacle && Math.abs(obstacle.y - enemy.y) < 34 ? .18 : attackTarget ? .68 : 1;
       enemy.x -= enemy.speed * moveFactor * dt;
+      const mx = enemy.x - oldX;
+      const my = enemy.y - oldY;
+      if (Math.hypot(mx, my) > .05) {
+        const targetAngle = Math.atan2(my * .55, mx);
+        enemy.angle = smoothAngle(enemy.angle, targetAngle, dt);
+      }
 
       if (enemy.x < 8) {
         enemy.dead = true;
@@ -987,11 +1130,16 @@
     }
   }
 
+  function isInvincibleBarrier(tower) {
+    if (!tower || tower.id !== 'barrier') return false;
+    return !!barrierMaterials[tower.material]?.invincible;
+  }
+
   function findObstacle(enemy) {
     let best = null;
     let bestDx = Infinity;
     for (const tower of state.towers) {
-      if (tower.hp <= 0) continue;
+      if (tower.hp <= 0 || tower.id !== 'barrier') continue;
       const dx = enemy.x - tower.x;
       const dy = Math.abs(enemy.y - tower.y);
       if (dx > -8 && dx < enemy.range && dy < 36 && dx < bestDx) {
@@ -1011,7 +1159,12 @@
       if (dx < -45) continue;
       const d = Math.hypot(dx, enemy.y - tower.y);
       if (d < enemy.range) {
-        const score = d + (tower.id === 'barrier' ? 40 : 0) + tower.hp * .04;
+        if (isInvincibleBarrier(tower)) continue;
+        if (tower.id === 'barrier' && !enemy.def.crushBarriers && hasRouteAround(tower)) continue;
+        const barrierBias = tower.id === 'barrier'
+          ? (enemy.def.crushBarriers ? -90 : 170)
+          : 0;
+        const score = d + barrierBias + tower.hp * (tower.id === 'barrier' ? .022 : .04);
         if (score < bestScore) {
           best = tower;
           bestScore = score;
@@ -1019,6 +1172,21 @@
       }
     }
     return best;
+  }
+
+  function hasRouteAround(tower) {
+    const top = state.lane.top + 34;
+    const bottom = state.lane.bottom - 34;
+    const intervals = state.towers
+      .filter(item => item.hp > 0 && item.id === 'barrier' && Math.abs(item.x - tower.x) < 82)
+      .map(item => [item.y - 42, item.y + 42])
+      .sort((a, b) => a[0] - b[0]);
+    let cursor = top;
+    for (const [a, b] of intervals) {
+      if (a - cursor > 48) return true;
+      cursor = Math.max(cursor, b);
+    }
+    return bottom - cursor > 48;
   }
 
   function updateEnemyTargetY(enemy, obstacle, attackTarget, dt) {
@@ -1078,6 +1246,7 @@
     const damage = towerDamage(tower);
     if (def.id === 'cannon') {
       state.enemyShots.push({ x1: tower.x, y1: tower.y, x2: target.x, y2: target.y, life: .12, color: '#f6f0dc' });
+      playShot('slug');
       target.hp -= damage;
       burst(target.x, target.y, '#f6f0dc', 10);
       return;
@@ -1095,6 +1264,7 @@
       vy: Math.sin(tower.angle) * speed,
       life: 3
     });
+    playShot(def.bullet);
   }
 
   function updateBullets(dt) {
@@ -1258,6 +1428,16 @@
           ctx.lineTo(18, y);
           ctx.stroke();
         }
+        if (mat.invincible) {
+          ctx.strokeStyle = 'rgba(246, 240, 220, .82)';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(-14, -20);
+          ctx.lineTo(14, 20);
+          ctx.moveTo(14, -20);
+          ctx.lineTo(-14, 20);
+          ctx.stroke();
+        }
       } else {
         ctx.fillStyle = '#232623';
         ctx.beginPath();
@@ -1274,7 +1454,7 @@
         ctx.fillText(tower.level, -4, 4);
       }
       ctx.restore();
-      drawHp(tower.x - 22, tower.y + 30, 44, tower.hp / tower.maxHp);
+      drawHp(tower.x - 22, tower.y + 30, 44, isInvincibleBarrier(tower) ? 1 : tower.hp / tower.maxHp);
     }
   }
 
@@ -1282,15 +1462,76 @@
     for (const enemy of state.enemies) {
       ctx.save();
       ctx.translate(enemy.x, enemy.y);
+      ctx.rotate(enemy.angle);
       ctx.scale(enemy.def.scale, enemy.def.scale);
-      ctx.drawImage(images.vehicle, -42, -31, 84, 62);
-      ctx.globalCompositeOperation = 'source-atop';
-      ctx.fillStyle = enemy.def.color;
-      ctx.globalAlpha = .42;
-      ctx.fillRect(-42, -31, 84, 62);
+      drawEnemyVehicle(enemy);
       ctx.restore();
+      drawEnemyLabel(enemy);
       drawHp(enemy.x - 28, enemy.y + 29, 56, enemy.hp / enemy.maxHp);
     }
+  }
+
+  function drawEnemyVehicle(enemy) {
+    const def = enemy.def;
+    ctx.fillStyle = 'rgba(0, 0, 0, .30)';
+    ctx.beginPath();
+    ctx.ellipse(-4, 18, 42, 12, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = '#161a17';
+    roundRect(-30, -23, 58, 11, 5, true);
+    roundRect(-30, 12, 58, 11, 5, true);
+
+    ctx.fillStyle = def.color;
+    if (def.shape === 'scout') {
+      ctx.beginPath();
+      ctx.moveTo(38, 0);
+      ctx.lineTo(12, -18);
+      ctx.lineTo(-30, -15);
+      ctx.lineTo(-36, 0);
+      ctx.lineTo(-30, 15);
+      ctx.lineTo(12, 18);
+      ctx.closePath();
+      ctx.fill();
+    } else {
+      roundRect(-34, -18, 70, 36, def.shape === 'tank' ? 5 : 8, true);
+      if (def.shape === 'artillery') {
+        ctx.fillStyle = 'rgba(246, 240, 220, .18)';
+        roundRect(-26, -13, 42, 26, 6, true);
+      }
+    }
+
+    ctx.strokeStyle = 'rgba(0, 0, 0, .55)';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+
+    ctx.fillStyle = '#252b24';
+    ctx.beginPath();
+    ctx.arc(5, 0, def.shape === 'scout' ? 10 : 13, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = def.accent;
+    roundRect(2, -4, def.shape === 'artillery' ? 45 : 35, 8, 3, true);
+    if (def.shape === 'tank' || def.shape === 'artillery') {
+      ctx.fillStyle = 'rgba(246, 240, 220, .30)';
+      roundRect(-18, -8, 18, 16, 4, true);
+    }
+  }
+
+  function drawEnemyLabel(enemy) {
+    ctx.save();
+    ctx.translate(enemy.x, enemy.y - 30 * enemy.def.scale);
+    ctx.fillStyle = 'rgba(10, 12, 11, .78)';
+    roundRect(-13, -9, 26, 17, 6, true);
+    ctx.strokeStyle = enemy.def.accent;
+    ctx.lineWidth = 1.5;
+    roundRect(-13, -9, 26, 17, 6, false);
+    ctx.fillStyle = '#f6f0dc';
+    ctx.font = 'bold 11px system-ui';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(enemy.label, 0, 0);
+    ctx.restore();
   }
 
   function drawBullets() {
@@ -1417,6 +1658,7 @@
     state.modePause = false;
   });
   canvas.addEventListener('pointerdown', event => {
+    unlockAudio();
     if (state.drag) return;
     const pos = pointerPos(event);
     let found = null;
@@ -1434,7 +1676,11 @@
     }
   });
 
-  els.startBtn.addEventListener('click', () => startGame(state.running));
+  els.startBtn.addEventListener('click', () => {
+    if (state.running && !state.gameOver) return;
+    if (state.gameOver) resetGame();
+    startGame(false);
+  });
   els.overlayStart.addEventListener('click', () => {
     if (state.gameOver) resetGame();
     startGame(false);
