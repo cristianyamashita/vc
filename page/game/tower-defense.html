@@ -252,6 +252,19 @@
   .center h2 { margin: 0 0 8px; font-size: 22px; }
   .center p { margin: 0 0 12px; color: var(--muted); }
 
+  .difficulty-picker {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 7px;
+    margin: 14px 0;
+  }
+
+  .difficulty-btn.active {
+    background: rgba(240, 196, 78, .26);
+    border-color: rgba(240, 196, 78, .82);
+    color: #ffe79a;
+  }
+
   .toast {
     position: fixed;
     left: 50%;
@@ -319,6 +332,7 @@
       <span class="pill"><span data-i18n="coins">Coins</span>: <span id="coins">0</span></span>
       <span class="pill"><span data-i18n="base">Base</span>: <span id="base">0</span></span>
       <span class="pill"><span data-i18n="kills">Kills</span>: <span id="kills">0</span></span>
+      <span class="pill"><span data-i18n="difficulty">Difficulty</span>: <span id="difficulty">Normal</span></span>
     </div>
     <div class="actions">
       <button id="startBtn" class="primary" data-i18n="start">Start</button>
@@ -362,6 +376,11 @@
 <div id="overlay" class="center active">
   <h2 data-i18n="introTitle">Hold the corridor</h2>
   <p data-i18n="introText">Attackers come from the right. Build weapons and barriers on the left, earn coins, and survive wider lanes every few waves.</p>
+  <div id="difficultyPicker" class="difficulty-picker" aria-label="Difficulty">
+    <button class="difficulty-btn" data-difficulty="easy" data-i18n="difficultyEasy">Easy</button>
+    <button class="difficulty-btn active" data-difficulty="normal" data-i18n="difficultyNormal">Normal</button>
+    <button class="difficulty-btn" data-difficulty="hard" data-i18n="difficultyHard">Hard</button>
+  </div>
   <button id="overlayStart" class="primary" data-i18n="start">Start</button>
 </div>
 
@@ -375,6 +394,7 @@
   const els = {
     wave: document.getElementById('wave'),
     level: document.getElementById('level'),
+    difficulty: document.getElementById('difficulty'),
     coins: document.getElementById('coins'),
     base: document.getElementById('base'),
     kills: document.getElementById('kills'),
@@ -402,6 +422,10 @@
       title: 'Iron Lane Defense',
       wave: 'Wave',
       level: 'Level',
+      difficulty: 'Difficulty',
+      difficultyEasy: 'Easy',
+      difficultyNormal: 'Normal',
+      difficultyHard: 'Hard',
       coins: 'Coins',
       base: 'Base',
       kills: 'Kills',
@@ -450,6 +474,10 @@
       title: 'アイアンレーン防衛',
       wave: 'ウェーブ',
       level: 'レベル',
+      difficulty: '難易度',
+      difficultyEasy: '易しい',
+      difficultyNormal: '普通',
+      difficultyHard: '難しい',
       coins: 'コイン',
       base: '基地',
       kills: '撃破',
@@ -498,6 +526,10 @@
       title: 'Defesa do Corredor de Ferro',
       wave: 'Onda',
       level: 'Nível',
+      difficulty: 'Dificuldade',
+      difficultyEasy: 'Fácil',
+      difficultyNormal: 'Normal',
+      difficultyHard: 'Difícil',
       coins: 'Moedas',
       base: 'Base',
       kills: 'Abates',
@@ -578,6 +610,7 @@
     manualPause: true,
     modePause: false,
     gameOver: false,
+    difficulty: 'normal',
     coins: 180,
     baseHp: 100,
     wave: 1,
@@ -661,6 +694,15 @@
   const money = v => Math.max(0, Math.floor(v));
   const t = key => I18N[state.lang][key] || I18N.en[key] || key;
   const angleDiff = (to, from) => Math.atan2(Math.sin(to - from), Math.cos(to - from));
+  const difficultyLabel = key => t(`difficulty${key.charAt(0).toUpperCase()}${key.slice(1)}`);
+
+  function hasEasyTowerBonuses() {
+    return state.difficulty === 'easy';
+  }
+
+  function hasProgressionBonuses() {
+    return state.difficulty !== 'hard';
+  }
 
   function smoothAngle(current, target, dt, turnRate = 5.8) {
     const step = 1 - Math.exp(-turnRate * dt);
@@ -739,9 +781,23 @@
       btn.classList.toggle('active', btn.dataset.lang === state.lang);
     });
     document.title = t('title');
+    updateDifficultyButtons();
     renderShop();
     updateDetails();
     updateHud();
+  }
+
+  function setDifficulty(difficulty) {
+    if (state.running && !state.gameOver) return;
+    state.difficulty = ['easy', 'normal', 'hard'].includes(difficulty) ? difficulty : 'normal';
+    updateDifficultyButtons();
+    updateHud();
+  }
+
+  function updateDifficultyButtons() {
+    document.querySelectorAll('.difficulty-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.difficulty === state.difficulty);
+    });
   }
 
   function renderShop() {
@@ -765,6 +821,7 @@
   function updateHud() {
     els.wave.textContent = state.wave;
     els.level.textContent = state.level;
+    els.difficulty.textContent = difficultyLabel(state.difficulty);
     els.coins.textContent = money(state.coins);
     els.base.textContent = Math.max(0, Math.ceil(state.baseHp));
     els.kills.textContent = state.kills;
@@ -884,6 +941,7 @@
 
   function towerRange(tower) {
     const def = towerDefs.find(item => item.id === tower.id);
+    if (hasEasyTowerBonuses() && def.id === 'missile') return def.range * 2 ** (tower.level - 1);
     return def.range * (1 + (tower.level - 1) * .10);
   }
 
@@ -919,8 +977,11 @@
       return;
     }
     tower.level += 1;
-    tower.maxHp += 22;
-    tower.hp = Math.min(tower.maxHp, tower.hp + 36);
+    const healthRatio = tower.maxHp > 0 ? tower.hp / tower.maxHp : 1;
+    tower.maxHp = hasEasyTowerBonuses() && def.id === 'machineGun' ? tower.maxHp * 2 : tower.maxHp + 22;
+    tower.hp = hasEasyTowerBonuses() && def.id === 'machineGun'
+      ? Math.max(tower.hp, tower.maxHp * healthRatio)
+      : Math.min(tower.maxHp, tower.hp + 36);
   }
 
   function upgradeAllTowers(levels = 1) {
@@ -1071,10 +1132,10 @@
       state.waveActive = false;
       const previousLevel = state.level;
       state.wave += 1;
-      state.coins += 48 + state.wave * 8 + waveSupplyValue();
+      state.coins += 48 + state.wave * 8 + (hasProgressionBonuses() ? waveSupplyValue() : 0);
       showToast(t('waveClear'));
       buildWave();
-      if (state.level > previousLevel) upgradeAllTowers(state.level - previousLevel);
+      if (hasProgressionBonuses() && state.level > previousLevel) upgradeAllTowers(state.level - previousLevel);
       updateHud();
     }
   }
@@ -1412,8 +1473,9 @@
       if (state.selectedTower === tower) {
         ctx.strokeStyle = '#f0c44e';
         ctx.lineWidth = 2;
+        const range = def.barrier ? 30 : towerRange(tower);
         ctx.beginPath();
-        ctx.arc(0, 0, def.barrier ? 30 : towerRange(tower), 0, Math.PI * 2);
+        ctx.arc(0, 0, range, 0, Math.PI * 2);
         ctx.stroke();
       }
       if (def.barrier) {
@@ -1697,6 +1759,7 @@
   els.upgradeBtn.addEventListener('click', upgradeSelected);
   els.repairBtn.addEventListener('click', repairSelected);
   els.sellBtn.addEventListener('click', sellSelected);
+  document.querySelectorAll('.difficulty-btn').forEach(btn => btn.addEventListener('click', () => setDifficulty(btn.dataset.difficulty)));
   document.querySelectorAll('.lang-btn').forEach(btn => btn.addEventListener('click', () => setLanguage(btn.dataset.lang)));
   window.addEventListener('keydown', event => {
     if (event.key.toLowerCase() === 'p') {
