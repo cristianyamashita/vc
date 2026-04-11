@@ -1,0 +1,984 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Signal City</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23151d1b'/%3E%3Crect x='6' y='4' width='20' height='24' rx='4' fill='%23222b29'/%3E%3Ccircle cx='16' cy='10' r='4' fill='%23df5b50'/%3E%3Ccircle cx='16' cy='16' r='4' fill='%23e6bf47'/%3E%3Ccircle cx='16' cy='22' r='4' fill='%2367c56d'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --ink: #eef7f1;
+    --muted: #b8c9c0;
+    --panel: rgba(15, 24, 22, .86);
+    --panel-2: rgba(28, 41, 38, .76);
+    --border: rgba(238, 247, 241, .18);
+    --accent: #f0c851;
+    --green: #65d178;
+    --red: #e95e55;
+    --road: #283231;
+    --shadow: 0 14px 42px rgba(0,0,0,.34);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; overflow: hidden; }
+  body {
+    background: #1b2925;
+    color: var(--ink);
+    font-family: "Noto Sans JP", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    touch-action: none;
+    user-select: none;
+  }
+
+  #game {
+    width: 100vw;
+    height: 100vh;
+    display: block;
+    background: #20352f;
+  }
+
+  .topbar {
+    position: fixed;
+    z-index: 5;
+    left: 12px;
+    right: 12px;
+    top: 12px;
+    min-height: 74px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    padding: 10px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: linear-gradient(180deg, var(--panel), rgba(7, 10, 10, .82));
+    box-shadow: var(--shadow);
+    backdrop-filter: blur(12px);
+  }
+
+  h1 {
+    margin: 0;
+    font-size: 18px;
+    line-height: 1.1;
+    min-width: 128px;
+  }
+
+  .pill {
+    min-height: 34px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px 9px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: rgba(255,255,255,.08);
+    font-weight: 800;
+    color: var(--ink);
+  }
+
+  .flow-pill {
+    min-width: 112px;
+  }
+
+  button {
+    min-height: 34px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 7px 10px;
+    background: rgba(255,255,255,.10);
+    color: var(--ink);
+    font: inherit;
+    font-weight: 800;
+    cursor: pointer;
+  }
+
+  button:hover { border-color: rgba(240, 200, 81, .72); }
+  button.primary {
+    background: linear-gradient(180deg, #f3da75, #c9912f);
+    color: #17140c;
+  }
+  button.active {
+    background: rgba(240, 200, 81, .23);
+    color: #ffe89a;
+  }
+
+  .tip {
+    position: fixed;
+    z-index: 5;
+    left: 12px;
+    bottom: 12px;
+    max-width: min(560px, calc(100vw - 24px));
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--panel);
+    color: var(--muted);
+    box-shadow: var(--shadow);
+    backdrop-filter: blur(10px);
+    font-size: 13px;
+  }
+
+  .toast {
+    position: fixed;
+    z-index: 6;
+    left: 50%;
+    top: 104px;
+    transform: translateX(-50%);
+    padding: 10px 12px;
+    min-width: min(360px, calc(100vw - 32px));
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: rgba(12, 18, 17, .9);
+    text-align: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .2s;
+  }
+
+  .toast.show { opacity: 1; }
+
+  @media (max-width: 720px) {
+    .topbar {
+      left: 8px;
+      right: 8px;
+      top: 8px;
+      gap: 7px;
+      padding: 8px;
+    }
+    h1 { font-size: 16px; min-width: 100%; }
+    .pill, button { min-height: 31px; padding: 5px 7px; font-size: 12px; }
+    .tip { display: none; }
+  }
+</style>
+</head>
+<body>
+<canvas id="game" aria-label="Signal City traffic light game"></canvas>
+
+<div class="topbar">
+  <h1 data-i18n="title">Signal City</h1>
+  <span class="pill"><span data-i18n="score">Score</span>: <span id="score">0</span></span>
+  <span class="pill"><span data-i18n="level">Level</span>: <span id="level">1</span></span>
+  <span class="pill"><span data-i18n="cars">Cars</span>: <span id="cars">0</span></span>
+  <span class="pill flow-pill"><span data-i18n="flow">Flow</span>: <span id="flow">100%</span></span>
+  <button id="startBtn" class="primary" data-i18n="start">Start</button>
+  <button id="pauseBtn" data-i18n="pause">Pause</button>
+  <button id="nextBtn" data-i18n="next">Next level</button>
+  <button class="lang active" data-lang="en">EN</button>
+  <button class="lang" data-lang="ja">JA</button>
+  <button class="lang" data-lang="pt">PT</button>
+</div>
+
+<div class="tip" data-i18n="tip">Click a traffic light to request a change. It turns yellow first, then opens the other direction. Keep traffic flowing to score.</div>
+<div id="toast" class="toast"></div>
+
+<script>
+(() => {
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  const els = {
+    score: document.getElementById('score'),
+    level: document.getElementById('level'),
+    cars: document.getElementById('cars'),
+    flow: document.getElementById('flow'),
+    startBtn: document.getElementById('startBtn'),
+    pauseBtn: document.getElementById('pauseBtn'),
+    nextBtn: document.getElementById('nextBtn'),
+    toast: document.getElementById('toast')
+  };
+
+  const I18N = {
+    en: {
+      title: 'Signal City',
+      score: 'Score',
+      level: 'Level',
+      cars: 'Cars',
+      flow: 'Flow',
+      start: 'Start',
+      restart: 'Restart',
+      pause: 'Pause',
+      resume: 'Resume',
+      next: 'Next level',
+      tip: 'Click a traffic light to request a change. It turns yellow first, then opens the other direction. Keep traffic flowing to score.',
+      clear: 'Level clear',
+      jam: 'Traffic jam',
+      yellow: 'Changing signal'
+    },
+    ja: {
+      title: 'シグナルシティ',
+      score: 'スコア',
+      level: 'レベル',
+      cars: '車',
+      flow: '流れ',
+      start: '開始',
+      restart: '再開',
+      pause: '一時停止',
+      resume: '再開',
+      next: '次のレベル',
+      tip: '信号をクリックすると変更を予約します。先に黄色になり、その後もう一方の方向が開きます。流れを保って得点を伸ばしましょう。',
+      clear: 'レベルクリア',
+      jam: '渋滞',
+      yellow: '信号変更中'
+    },
+    pt: {
+      title: 'Cidade dos Semáforos',
+      score: 'Pontos',
+      level: 'Fase',
+      cars: 'Carros',
+      flow: 'Fluxo',
+      start: 'Iniciar',
+      restart: 'Reiniciar',
+      pause: 'Pausar',
+      resume: 'Continuar',
+      next: 'Próxima fase',
+      tip: 'Clique em um semáforo para pedir a troca. Ele fica amarelo primeiro, depois abre a outra direção. Mantenha o trânsito fluindo para pontuar.',
+      clear: 'Fase concluída',
+      jam: 'Engarrafamento',
+      yellow: 'Trocando semáforo'
+    }
+  };
+
+  const state = {
+    lang: 'en',
+    running: false,
+    paused: true,
+    level: 1,
+    score: 0,
+    flow: 1,
+    spawnTimer: 0,
+    cars: [],
+    lights: [],
+    roads: [],
+    nodes: [],
+    blocks: [],
+    grid: 4,
+    roadW: 64,
+    lane: 12,
+    laneGap: 10,
+    dpr: 1,
+    w: 1,
+    h: 1,
+    last: performance.now(),
+    time: 0
+  };
+
+  const carColors = ['#ef6262', '#f0c851', '#58b7ef', '#67c56d', '#d985ef', '#f28a4b', '#e9f0ee', '#66d1c6'];
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const t = key => I18N[state.lang][key] || I18N.en[key] || key;
+
+  function resize() {
+    state.dpr = Math.min(window.devicePixelRatio || 1, 2);
+    state.w = window.innerWidth;
+    state.h = window.innerHeight;
+    canvas.width = Math.floor(state.w * state.dpr);
+    canvas.height = Math.floor(state.h * state.dpr);
+    canvas.style.width = state.w + 'px';
+    canvas.style.height = state.h + 'px';
+    ctx.setTransform(state.dpr, 0, 0, state.dpr, 0, 0);
+    buildCity();
+  }
+
+  function setLanguage(lang) {
+    state.lang = I18N[lang] ? lang : 'en';
+    document.documentElement.lang = state.lang;
+    document.title = t('title');
+    localStorage.setItem('app_lang', state.lang);
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+      el.textContent = t(el.dataset.i18n);
+    });
+    document.querySelectorAll('.lang').forEach(btn => btn.classList.toggle('active', btn.dataset.lang === state.lang));
+    updateHud();
+  }
+
+  function levelGrid() {
+    return Math.min(7, 4 + Math.floor((state.level - 1) / 2));
+  }
+
+  function buildCity() {
+    state.grid = levelGrid();
+    state.roadW = clamp(88 - state.grid * 3, 64, 82);
+    state.laneGap = Math.max(11, state.roadW * .2);
+    state.lane = state.laneGap * 1.5;
+    const marginX = Math.max(42, state.w * .07);
+    const top = Math.max(110, state.h * .15);
+    const bottom = state.h - 56;
+    const usableH = Math.max(260, bottom - top);
+    const usableW = Math.max(320, state.w - marginX * 2);
+    const step = Math.min(usableW, usableH) / (state.grid - 1);
+    const cityW = step * (state.grid - 1);
+    const cityH = step * (state.grid - 1);
+    const left = (state.w - cityW) / 2;
+    const cityTop = top + (usableH - cityH) / 2;
+
+    state.nodes = [];
+    for (let y = 0; y < state.grid; y++) {
+      for (let x = 0; x < state.grid; x++) {
+        state.nodes.push({ x: left + x * step, y: cityTop + y * step, gx: x, gy: y });
+      }
+    }
+
+    state.roads = [];
+    for (let y = 0; y < state.grid; y++) {
+      for (let x = 0; x < state.grid - 1; x++) {
+        state.roads.push({ a: node(x, y), b: node(x + 1, y), dir: 'h', health: 1 });
+      }
+    }
+    for (let y = 0; y < state.grid - 1; y++) {
+      for (let x = 0; x < state.grid; x++) {
+        state.roads.push({ a: node(x, y), b: node(x, y + 1), dir: 'v', health: 1 });
+      }
+    }
+
+    state.blocks = [];
+    for (let y = 0; y < state.grid - 1; y++) {
+      for (let x = 0; x < state.grid - 1; x++) {
+        const a = node(x, y);
+        const b = node(x + 1, y + 1);
+        state.blocks.push({
+          x: a.x + state.roadW / 2,
+          y: a.y + state.roadW / 2,
+          w: b.x - a.x - state.roadW,
+          h: b.y - a.y - state.roadW,
+          seed: (x * 17 + y * 31 + state.level * 13) % 97
+        });
+      }
+    }
+
+    const old = new Map(state.lights.map(light => [`${light.gx},${light.gy}`, light]));
+    state.lights = [];
+    for (let y = 1; y < state.grid - 1; y++) {
+      for (let x = 1; x < state.grid - 1; x++) {
+        const prev = old.get(`${x},${y}`);
+        const n = node(x, y);
+        state.lights.push({
+          gx: x,
+          gy: y,
+          x: n.x,
+          y: n.y,
+          green: prev ? prev.green : ((x + y) % 2 ? 'h' : 'v'),
+          next: null,
+          yellow: 0,
+          yellowDuration: 2.4
+        });
+      }
+    }
+
+    for (const car of state.cars) {
+      car.x = car.y = null;
+    }
+  }
+
+  function node(gx, gy) {
+    return state.nodes[gy * state.grid + gx];
+  }
+
+  function nodeIndex(n) {
+    return n.gy * state.grid + n.gx;
+  }
+
+  function updateHud() {
+    els.score.textContent = Math.round(state.score);
+    els.level.textContent = state.level;
+    els.cars.textContent = state.cars.length;
+    els.flow.textContent = `${Math.round(state.flow * 100)}%`;
+    els.startBtn.textContent = state.running ? t('restart') : t('start');
+    els.pauseBtn.textContent = state.running && state.paused ? t('resume') : t('pause');
+  }
+
+  function resetLevel(nextLevel = false) {
+    if (nextLevel) state.level += 1;
+    state.running = true;
+    state.paused = false;
+    state.score = nextLevel ? state.score + 150 : 0;
+    state.flow = 1;
+    state.spawnTimer = .2;
+    state.cars = [];
+    buildCity();
+    updateHud();
+  }
+
+  function requestLight(light) {
+    if (light.yellow > 0) return;
+    light.next = light.green === 'h' ? 'v' : 'h';
+    light.yellowDuration = 2.2 + Math.random() * .8;
+    light.yellow = light.yellowDuration;
+    showToast(t('yellow'));
+  }
+
+  function update(dt) {
+    state.time += dt;
+    if (!state.running || state.paused) return;
+
+    for (const light of state.lights) {
+      if (light.yellow > 0) {
+        light.yellow -= dt;
+        if (light.yellow <= 0) {
+          light.green = light.next || (light.green === 'h' ? 'v' : 'h');
+          light.next = null;
+          light.yellow = 0;
+        }
+      }
+    }
+
+    state.spawnTimer -= dt;
+    const targetCars = 8 + state.level * 5 + state.grid * state.grid;
+    if (state.spawnTimer <= 0 && state.cars.length < targetCars) {
+      spawnCar();
+      state.spawnTimer = Math.max(.22, 1.15 - state.level * .07) * (.7 + Math.random() * .8);
+    }
+
+    updateCars(dt);
+    scoreTraffic(dt);
+    updateHud();
+  }
+
+  function spawnCar() {
+    const side = Math.floor(Math.random() * 4);
+    let from;
+    let to;
+    if (side === 0) {
+      const y = Math.floor(Math.random() * state.grid);
+      from = node(0, y); to = node(1, y);
+    } else if (side === 1) {
+      const y = Math.floor(Math.random() * state.grid);
+      from = node(state.grid - 1, y); to = node(state.grid - 2, y);
+    } else if (side === 2) {
+      const x = Math.floor(Math.random() * state.grid);
+      from = node(x, 0); to = node(x, 1);
+    } else {
+      const x = Math.floor(Math.random() * state.grid);
+      from = node(x, state.grid - 1); to = node(x, state.grid - 2);
+    }
+    const car = {
+      id: Math.random(),
+      from,
+      to,
+      progress: .04,
+      speed: 54 + Math.random() * 34 + state.level * 2,
+      len: 18 + Math.random() * 14,
+      width: 11 + Math.random() * 3,
+      color: carColors[Math.floor(Math.random() * carColors.length)],
+      turn: 'straight',
+      plannedTo: null,
+      laneChoice: 'outer',
+      blink: 0,
+      wait: 0,
+      x: from.x,
+      y: from.y,
+      exiting: false
+    };
+    chooseNextTurn(car);
+    state.cars.push(car);
+  }
+
+  function updateCars(dt) {
+    for (const car of state.cars) {
+      const dirInfo = carDirection(car);
+      const len = dirInfo.len;
+      const dir = dirInfo.dir;
+      const stopLine = stopLineFor(len);
+      const nearStop = car.progress >= stopLine;
+      const front = findFrontCar(car);
+      const blockedByFront = front && front.progress - car.progress < (car.len + front.len + 14) / len;
+      const light = lightAt(car.to);
+      const lightBlocked = nearStop && light && !canPassLight(light, dir, car);
+      const turnBlocked = nearStop && !hasSpaceForTurn(car);
+
+      let canMove = !blockedByFront && !lightBlocked && !turnBlocked;
+      if (!canMove) {
+        car.wait += dt;
+        if ((lightBlocked || turnBlocked) && car.progress > stopLine) car.progress = stopLine;
+      } else {
+        car.wait = Math.max(0, car.wait - dt * 1.5);
+        car.progress += (car.speed * dt) / len;
+      }
+
+      car.blink = Math.max(0, car.blink - dt);
+      if (car.progress >= 1) advanceCar(car);
+      setCarPosition(car, laneOffsetFor(carDirection(car).dir, car));
+    }
+    state.cars = state.cars.filter(car => !car.done);
+  }
+
+  function stopLineFor(segmentLength) {
+    return Math.max(.52, 1 - (state.roadW * 1.08) / segmentLength);
+  }
+
+  function carDirection(car) {
+    const dx = car.to.x - car.from.x;
+    const dy = car.to.y - car.from.y;
+    const len = Math.hypot(dx, dy) || 1;
+    return { dir: { x: dx / len, y: dy / len }, len };
+  }
+
+  function laneOffsetFor(dir, car) {
+    const side = directionSide(dir);
+    const base = car.laneChoice === 'center' ? state.laneGap * .5 : state.laneGap * 1.5;
+    const offset = base * side;
+    if (Math.abs(dir.x) > .5) return { x: 0, y: offset };
+    return { x: offset, y: 0 };
+  }
+
+  function directionSide(dir) {
+    if (Math.abs(dir.x) > .5) return dir.x > 0 ? 1 : -1;
+    return dir.y > 0 ? -1 : 1;
+  }
+
+  function setCarPosition(car, offset) {
+    car.x = lerp(car.from.x, car.to.x, car.progress) + offset.x;
+    car.y = lerp(car.from.y, car.to.y, car.progress) + offset.y;
+  }
+
+  function lightAt(n) {
+    return state.lights.find(light => light.gx === n.gx && light.gy === n.gy);
+  }
+
+  function canPassLight(light, dir, car) {
+    if (light.yellow > 0) return false;
+    const axis = Math.abs(dir.x) > .5 ? 'h' : 'v';
+    if (car.turn !== 'straight' && car.wait > 4.2 && Math.random() < .04) return true;
+    return light.green === axis;
+  }
+
+  function findFrontCar(car) {
+    let best = null;
+    for (const other of state.cars) {
+      if (other === car) continue;
+      if (other.from !== car.from || other.to !== car.to) continue;
+      if (other.laneChoice !== car.laneChoice) continue;
+      if (other.progress > car.progress && (!best || other.progress < best.progress)) best = other;
+    }
+    return best;
+  }
+
+  function hasSpaceForTurn(car) {
+    if (car.turn === 'straight') return true;
+    const next = car.plannedTo || plannedNextNode(car);
+    if (!next) return true;
+    for (const other of state.cars) {
+      if (other.from === car.to && other.to === next && other.progress < .18 && other.laneChoice === car.laneChoice) return false;
+      if (car.turn === 'left' && blocksLeftTurn(car, other)) return false;
+    }
+    return true;
+  }
+
+  function blocksLeftTurn(car, other) {
+    if (!isOncoming(car, other) || other.progress <= .66) return false;
+    return other.turn === 'straight';
+  }
+
+  function isOncoming(car, other) {
+    if (other.to !== car.to) return false;
+    const gx = car.to.gx + (car.to.gx - car.from.gx);
+    const gy = car.to.gy + (car.to.gy - car.from.gy);
+    return gx >= 0 && gy >= 0 && gx < state.grid && gy < state.grid && other.from === node(gx, gy);
+  }
+
+  function plannedNextNode(car) {
+    const dir = { x: Math.sign(car.to.gx - car.from.gx), y: Math.sign(car.to.gy - car.from.gy) };
+    const options = neighborOptions(car.to, car.from);
+    if (options.length === 0) return null;
+    let desired = null;
+    if (car.turn === 'straight') {
+      desired = options.find(n => Math.sign(n.gx - car.to.gx) === dir.x && Math.sign(n.gy - car.to.gy) === dir.y);
+    } else if (car.turn === 'right') {
+      const right = rightTurnVector(dir);
+      desired = options.find(n => Math.sign(n.gx - car.to.gx) === right.x && Math.sign(n.gy - car.to.gy) === right.y);
+    } else {
+      const left = leftTurnVector(dir);
+      desired = options.find(n => Math.sign(n.gx - car.to.gx) === left.x && Math.sign(n.gy - car.to.gy) === left.y);
+    }
+    return desired || options[Math.floor(Math.random() * options.length)];
+  }
+
+  function rightTurnVector(dir) {
+    return { x: -dir.y, y: dir.x };
+  }
+
+  function leftTurnVector(dir) {
+    return { x: dir.y, y: -dir.x };
+  }
+
+  function advanceCar(car) {
+    if (isEdge(car.to) && Math.random() < .55) {
+      car.done = true;
+      return;
+    }
+    const next = car.plannedTo || plannedNextNode(car);
+    if (!next) {
+      car.done = true;
+      return;
+    }
+    car.from = car.to;
+    car.to = next;
+    car.progress = .02;
+    chooseNextTurn(car);
+  }
+
+  function chooseNextTurn(car) {
+    const roll = Math.random();
+    car.turn = roll < .58 ? 'straight' : roll < .78 ? 'right' : 'left';
+    car.plannedTo = plannedNextNode(car);
+    car.laneChoice = chooseLaneForTurn(car);
+    car.blink = car.turn === 'straight' ? 0 : 999;
+  }
+
+  function chooseLaneForTurn(car) {
+    if (car.turn === 'right') return 'outer';
+    if (car.turn === 'left') return 'center';
+    return Math.random() < .55 ? 'outer' : 'center';
+  }
+
+  function neighborOptions(n, previous) {
+    const options = [];
+    const dirs = [[1,0],[-1,0],[0,1],[0,-1]];
+    for (const [dx, dy] of dirs) {
+      const gx = n.gx + dx;
+      const gy = n.gy + dy;
+      if (gx < 0 || gy < 0 || gx >= state.grid || gy >= state.grid) continue;
+      const candidate = node(gx, gy);
+      if (previous && candidate.gx === previous.gx && candidate.gy === previous.gy && Math.random() < .82) continue;
+      options.push(candidate);
+    }
+    return options;
+  }
+
+  function isEdge(n) {
+    return n.gx === 0 || n.gy === 0 || n.gx === state.grid - 1 || n.gy === state.grid - 1;
+  }
+
+  function scoreTraffic(dt) {
+    let waiting = 0;
+    for (const car of state.cars) if (car.wait > .25) waiting += 1;
+    const ratio = state.cars.length ? waiting / state.cars.length : 0;
+    state.flow = clamp(1 - ratio, 0, 1);
+    const delta = (state.flow > .7 ? 18 : state.flow > .45 ? 4 : -28) * dt;
+    state.score = Math.max(0, state.score + delta);
+    if (state.score > state.level * 520 + 460) {
+      showToast(t('clear'));
+      resetLevel(true);
+    } else if (ratio > .55 && Math.random() < dt * .8) {
+      showToast(t('jam'));
+    }
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, state.w, state.h);
+    drawGround();
+    drawBlocks();
+    drawRoads();
+    drawLights();
+    drawCars();
+    if (!state.running) drawIntro();
+    if (state.paused && state.running) drawPaused();
+  }
+
+  function drawGround() {
+    const g = ctx.createLinearGradient(0, 0, state.w, state.h);
+    g.addColorStop(0, '#27453a');
+    g.addColorStop(.55, '#20382f');
+    g.addColorStop(1, '#182a26');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, state.w, state.h);
+    ctx.fillStyle = 'rgba(255,255,255,.025)';
+    for (let x = -80; x < state.w + 120; x += 70) {
+      ctx.fillRect(x + (state.time * 4) % 70, 0, 2, state.h);
+    }
+  }
+
+  function drawBlocks() {
+    for (const block of state.blocks) {
+      const park = block.seed % 5 === 0;
+      ctx.fillStyle = park ? '#376d49' : '#344f57';
+      roundRect(block.x, block.y, block.w, block.h, 7, true);
+      ctx.strokeStyle = 'rgba(255,255,255,.10)';
+      ctx.lineWidth = 1;
+      roundRect(block.x, block.y, block.w, block.h, 7, false);
+      if (park) {
+        drawTrees(block);
+      } else {
+        drawBuildings(block);
+      }
+    }
+  }
+
+  function drawTrees(block) {
+    for (let i = 0; i < 7; i++) {
+      const x = block.x + 16 + ((block.seed * (i + 3) * 17) % Math.max(20, block.w - 32));
+      const y = block.y + 16 + ((block.seed * (i + 5) * 23) % Math.max(20, block.h - 32));
+      ctx.fillStyle = 'rgba(0,0,0,.18)';
+      ctx.beginPath();
+      ctx.ellipse(x + 2, y + 4, 9, 5, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = i % 2 ? '#63aa59' : '#4f984b';
+      ctx.beginPath();
+      ctx.arc(x, y, 8 + (i % 3), 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  function drawBuildings(block) {
+    const cols = Math.max(2, Math.floor(block.w / 44));
+    const rows = Math.max(2, Math.floor(block.h / 42));
+    const pad = 9;
+    for (let y = 0; y < rows; y++) {
+      for (let x = 0; x < cols; x++) {
+        const bw = (block.w - pad * (cols + 1)) / cols;
+        const bh = (block.h - pad * (rows + 1)) / rows;
+        const bx = block.x + pad + x * (bw + pad);
+        const by = block.y + pad + y * (bh + pad);
+        const shade = (block.seed + x * 11 + y * 7) % 30;
+        ctx.fillStyle = `rgb(${66 + shade}, ${83 + shade}, ${92 + shade})`;
+        roundRect(bx, by, bw, bh, 5, true);
+        ctx.fillStyle = 'rgba(246, 232, 153, .42)';
+        for (let wx = bx + 7; wx < bx + bw - 7; wx += 12) {
+          ctx.fillRect(wx, by + 7, 5, 4);
+        }
+      }
+    }
+  }
+
+  function drawRoads() {
+    for (const road of state.roads) {
+      const waiting = roadWaiting(road);
+      road.health = clamp(1 - waiting * .18, 0, 1);
+      const color = road.health > .68 ? '#65d178' : road.health > .38 ? '#f0c851' : '#e95e55';
+      ctx.strokeStyle = color;
+      ctx.lineWidth = state.roadW + 8;
+      ctx.globalAlpha = .18 + (1 - road.health) * .18;
+      ctx.beginPath();
+      ctx.moveTo(road.a.x, road.a.y);
+      ctx.lineTo(road.b.x, road.b.y);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+      ctx.strokeStyle = '#283231';
+      ctx.lineWidth = state.roadW;
+      ctx.beginPath();
+      ctx.moveTo(road.a.x, road.a.y);
+      ctx.lineTo(road.b.x, road.b.y);
+      ctx.stroke();
+      ctx.strokeStyle = 'rgba(255,255,255,.25)';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([12, 16]);
+      ctx.beginPath();
+      ctx.moveTo(road.a.x, road.a.y);
+      ctx.lineTo(road.b.x, road.b.y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.strokeStyle = 'rgba(240, 200, 81, .78)';
+      ctx.lineWidth = 2;
+      drawRoadStripe(road, 0, []);
+      ctx.strokeStyle = 'rgba(255,255,255,.32)';
+      ctx.lineWidth = 1.5;
+      drawRoadStripe(road, state.laneGap, [9, 13]);
+      drawRoadStripe(road, -state.laneGap, [9, 13]);
+      ctx.setLineDash([]);
+    }
+    for (const n of state.nodes) {
+      ctx.fillStyle = '#283231';
+      ctx.beginPath();
+      ctx.arc(n.x, n.y, state.roadW * .52, 0, Math.PI * 2);
+      ctx.fill();
+      if (n.gx > 0 && n.gx < state.grid - 1 && n.gy > 0 && n.gy < state.grid - 1) {
+        drawStopLines(n);
+      }
+    }
+  }
+
+  function drawStopLines(n) {
+    const r = state.roadW * .58;
+    ctx.strokeStyle = 'rgba(255,255,255,.55)';
+    ctx.lineWidth = 3;
+    ctx.setLineDash([]);
+    ctx.beginPath();
+    ctx.moveTo(n.x - r, n.y - state.roadW * .48);
+    ctx.lineTo(n.x - r, n.y + state.roadW * .48);
+    ctx.moveTo(n.x + r, n.y - state.roadW * .48);
+    ctx.lineTo(n.x + r, n.y + state.roadW * .48);
+    ctx.moveTo(n.x - state.roadW * .48, n.y - r);
+    ctx.lineTo(n.x + state.roadW * .48, n.y - r);
+    ctx.moveTo(n.x - state.roadW * .48, n.y + r);
+    ctx.lineTo(n.x + state.roadW * .48, n.y + r);
+    ctx.stroke();
+  }
+
+  function drawRoadStripe(road, offset, dash) {
+    const dx = road.b.x - road.a.x;
+    const dy = road.b.y - road.a.y;
+    const len = Math.hypot(dx, dy) || 1;
+    const nx = -dy / len;
+    const ny = dx / len;
+    ctx.setLineDash(dash);
+    ctx.beginPath();
+    ctx.moveTo(road.a.x + nx * offset, road.a.y + ny * offset);
+    ctx.lineTo(road.b.x + nx * offset, road.b.y + ny * offset);
+    ctx.stroke();
+  }
+
+  function roadWaiting(road) {
+    let count = 0;
+    for (const car of state.cars) {
+      if ((car.from === road.a && car.to === road.b) || (car.from === road.b && car.to === road.a)) {
+        if (car.wait > .3) count += 1;
+      }
+    }
+    return count;
+  }
+
+  function drawLights() {
+    for (const light of state.lights) {
+      const yellow = light.yellow > 0;
+      ctx.save();
+      ctx.translate(light.x, light.y);
+      ctx.fillStyle = yellow ? '#e6bf47' : '#121716';
+      ctx.strokeStyle = yellow ? '#ffe184' : 'rgba(255,255,255,.22)';
+      ctx.lineWidth = 2;
+      roundRect(-18, -18, 36, 36, 8, true);
+      roundRect(-18, -18, 36, 36, 8, false);
+      ctx.fillStyle = yellow ? '#1b1810' : (light.green === 'h' ? '#65d178' : '#e95e55');
+      drawArrow(-11, 0, Math.PI);
+      ctx.fillStyle = yellow ? '#1b1810' : (light.green === 'h' ? '#65d178' : '#e95e55');
+      drawArrow(11, 0, 0);
+      ctx.fillStyle = yellow ? '#1b1810' : (light.green === 'v' ? '#65d178' : '#e95e55');
+      drawArrow(0, -11, -Math.PI / 2);
+      ctx.fillStyle = yellow ? '#1b1810' : (light.green === 'v' ? '#65d178' : '#e95e55');
+      drawArrow(0, 11, Math.PI / 2);
+      if (yellow) {
+        ctx.fillStyle = 'rgba(255, 241, 169, .75)';
+        ctx.font = 'bold 10px system-ui';
+        ctx.textAlign = 'center';
+        ctx.fillText(Math.ceil(light.yellow), 0, 4);
+      }
+      ctx.restore();
+    }
+  }
+
+  function drawArrow(x, y, angle) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(angle);
+    ctx.beginPath();
+    ctx.moveTo(7, 0);
+    ctx.lineTo(-4, -5);
+    ctx.lineTo(-2, 0);
+    ctx.lineTo(-4, 5);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawCars() {
+    const sorted = [...state.cars].sort((a, b) => a.y - b.y);
+    for (const car of sorted) {
+      const dx = car.to.x - car.from.x;
+      const dy = car.to.y - car.from.y;
+      const angle = Math.atan2(dy, dx);
+      ctx.save();
+      ctx.translate(car.x, car.y);
+      ctx.rotate(angle);
+      ctx.fillStyle = 'rgba(0,0,0,.22)';
+      roundRect(-car.len / 2 + 2, -car.width / 2 + 4, car.len, car.width, 4, true);
+      ctx.fillStyle = car.color;
+      roundRect(-car.len / 2, -car.width / 2, car.len, car.width, 4, true);
+      ctx.fillStyle = 'rgba(255,255,255,.58)';
+      roundRect(-car.len * .18, -car.width / 2 + 2, car.len * .22, car.width - 4, 3, true);
+      ctx.fillStyle = '#ffe89a';
+      ctx.fillRect(car.len / 2 - 3, -car.width / 2 + 1, 2, 3);
+      ctx.fillRect(car.len / 2 - 3, car.width / 2 - 4, 2, 3);
+      if (car.turn !== 'straight' && Math.floor(state.time * 5) % 2 === 0) {
+        ctx.fillStyle = '#ffc84d';
+        const side = car.turn === 'right' ? 1 : -1;
+        ctx.fillRect(car.len / 2 - 4, side * (car.width / 2 - 2), 4, 3 * side);
+      }
+      if (car.wait > 2) {
+        ctx.fillStyle = 'rgba(233, 94, 85, .85)';
+        ctx.beginPath();
+        ctx.arc(-car.len / 2, 0, 3, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+  }
+
+  function drawIntro() {
+    ctx.fillStyle = 'rgba(8, 12, 11, .52)';
+    ctx.fillRect(0, 0, state.w, state.h);
+    ctx.fillStyle = '#eef7f1';
+    ctx.textAlign = 'center';
+    ctx.font = 'bold 28px system-ui';
+    ctx.fillText(t('title'), state.w / 2, state.h / 2 - 16);
+    ctx.fillStyle = '#b8c9c0';
+    ctx.font = '15px system-ui';
+    ctx.fillText(t('tip'), state.w / 2, state.h / 2 + 18);
+  }
+
+  function drawPaused() {
+    ctx.fillStyle = 'rgba(8, 12, 11, .20)';
+    ctx.fillRect(0, 0, state.w, state.h);
+  }
+
+  function roundRect(x, y, w, h, r, fill) {
+    r = Math.min(r, Math.abs(w) / 2, Math.abs(h) / 2);
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    ctx.lineTo(x + r, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    if (fill) ctx.fill(); else ctx.stroke();
+  }
+
+  function showToast(text) {
+    els.toast.textContent = text;
+    els.toast.classList.add('show');
+    clearTimeout(showToast.timer);
+    showToast.timer = setTimeout(() => els.toast.classList.remove('show'), 1200);
+  }
+
+  function loop(now) {
+    const dt = Math.min(.05, (now - state.last) / 1000);
+    state.last = now;
+    update(dt);
+    draw();
+    requestAnimationFrame(loop);
+  }
+
+  canvas.addEventListener('pointerdown', event => {
+    const rect = canvas.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+    for (const light of state.lights) {
+      if (Math.hypot(light.x - x, light.y - y) < 25) {
+        requestLight(light);
+        return;
+      }
+    }
+  });
+
+  els.startBtn.addEventListener('click', () => resetLevel(false));
+  els.pauseBtn.addEventListener('click', () => {
+    if (!state.running) return;
+    state.paused = !state.paused;
+    updateHud();
+  });
+  els.nextBtn.addEventListener('click', () => resetLevel(true));
+  document.querySelectorAll('.lang').forEach(btn => btn.addEventListener('click', () => setLanguage(btn.dataset.lang)));
+  window.addEventListener('resize', resize);
+  window.addEventListener('keydown', event => {
+    if (event.key.toLowerCase() === 'p') {
+      state.paused = !state.paused;
+      updateHud();
+    }
+  });
+
+  resize();
+  setLanguage(localStorage.getItem('app_lang') || (I18N[(navigator.language || '').slice(0, 2)] ? (navigator.language || '').slice(0, 2) : 'en'));
+  updateHud();
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
