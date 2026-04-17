@@ -5,6 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Whiteboard</title>
   <link rel="stylesheet" href="https://cristianyamashita.github.io/vc/page/assets/fontawesome/css/all.min.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Amatic+SC:wght@400;700&family=Caveat:wght@400;700&family=Gloria+Hallelujah&family=Indie+Flower&family=Kalam:wght@400;700&family=Patrick+Hand&family=Permanent+Marker&family=Shadows+Into+Light&display=swap" rel="stylesheet">
   <style>
     /* Ensure local Font Awesome webfonts are available to canvas */
  
@@ -115,6 +118,12 @@
     }
     .tab.active { outline: 2px solid var(--accent); background: rgba(124,140,255,0.16); }
     .tab .close { background: transparent; border: none; color: inherit; cursor: pointer; }
+    body.theme-light .tab {
+      color: #0f1220;
+      background: rgba(15,18,32,0.04);
+      border-color: rgba(15,18,32,0.14);
+    }
+    body.theme-light .tab.active { background: rgba(124,140,255,0.14); }
 
     .sidebar {
       grid-area: sidebar;
@@ -130,17 +139,58 @@
       background: radial-gradient(1200px 800px at 90% 110%, rgba(124,140,255,0.08), transparent 60%), transparent;
       overflow: hidden;
     }
-    #viewport { position: absolute; inset: 0; transform-origin: 0 0; }
+    #viewport {
+      position: absolute; inset: 0; transform-origin: 0 0;
+      outline: 1px solid rgba(255,255,255,0.22);
+      box-shadow: inset 0 0 0 1px rgba(15,18,32,0.18);
+    }
     canvas#grid { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
     canvas#board { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
     canvas#overlay { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+    canvas#board, canvas#overlay { image-rendering: auto; }
     body.theme-light .stage { background: #ffffff; }
+    body.space-pan .stage { cursor: grab; }
+    body.space-pan .stage:active { cursor: grabbing; }
+    body.theme-light #viewport {
+      outline-color: rgba(15,18,32,0.22);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.7);
+    }
+
+    .canvas-expand-btn {
+      position: absolute;
+      z-index: 25;
+      width: 30px;
+      height: 30px;
+      border-radius: 8px;
+      border: 1px solid rgba(255,255,255,0.28);
+      background: rgba(22,26,46,0.78);
+      color: var(--text);
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+      font: 700 18px/1 ui-sans-serif, system-ui, sans-serif;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.22);
+      pointer-events: auto;
+    }
+    .canvas-expand-btn:hover { background: rgba(124,140,255,0.86); }
+    .canvas-expand-btn[data-expand="top"] { left: 50%; top: 0; transform: translate(-50%, -50%) scale(var(--inverse-zoom, 1)); }
+    .canvas-expand-btn[data-expand="right"] { right: 0; top: 50%; transform: translate(50%, -50%) scale(var(--inverse-zoom, 1)); }
+    .canvas-expand-btn[data-expand="bottom"] { left: 50%; bottom: 0; transform: translate(-50%, 50%) scale(var(--inverse-zoom, 1)); }
+    .canvas-expand-btn[data-expand="left"] { left: 0; top: 50%; transform: translate(-50%, -50%) scale(var(--inverse-zoom, 1)); }
+    body.theme-light .canvas-expand-btn {
+      border-color: rgba(15,18,32,0.22);
+      background: rgba(255,255,255,0.86);
+      color: #0f1220;
+      box-shadow: 0 4px 12px rgba(15,18,32,0.14);
+    }
 
     .floating-input {
       position: absolute; z-index: 20; background: transparent; color: var(--text);
       border: 1px dashed var(--accent);
       min-width: 80px; min-height: 28px; padding: 4px 6px; outline: none;
       font: 24px/1.2 "Helvetica Neue", Arial, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: geometricPrecision;
       user-select: text; pointer-events: auto; caret-color: var(--text);
       background: rgba(0,0,0,0.25);
       white-space: pre-wrap;
@@ -250,6 +300,10 @@
         <canvas id="grid"></canvas>
         <canvas id="board"></canvas>
         <canvas id="overlay"></canvas>
+        <button class="canvas-expand-btn" data-expand="top" title="Expand canvas up" aria-label="Expand canvas up">+</button>
+        <button class="canvas-expand-btn" data-expand="right" title="Expand canvas right" aria-label="Expand canvas right">+</button>
+        <button class="canvas-expand-btn" data-expand="bottom" title="Expand canvas down" aria-label="Expand canvas down">+</button>
+        <button class="canvas-expand-btn" data-expand="left" title="Expand canvas left" aria-label="Expand canvas left">+</button>
         <div id="selectionBox" class="selection-rect hidden">
           <div class="handle nw" data-dir="nw"></div>
           <div class="handle ne" data-dir="ne"></div>
@@ -355,13 +409,25 @@
       <div class="group" id="textOpts" hidden>
         <label id="lblFont">Font</label>
         <select id="fontFamily">
-          <option value="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif">System UI</option>
-          <option value="Arial, Helvetica, sans-serif">Arial</option>
-          <option value="Times New Roman, Times, serif">Times New Roman</option>
-          <option value="Georgia, serif">Georgia</option>
-          <option value="Helvetica, Arial, sans-serif">Helvetica</option>
-          <option value="Courier New, Courier, monospace">Courier New</option>
-          <option value="&quot;Noto Sans JP&quot;, system-ui, sans-serif">日本語 (Noto Sans JP)</option>
+          <optgroup id="fontGroupStandard" label="Standard">
+            <option value="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif">System UI</option>
+            <option value="Arial, Helvetica, sans-serif">Arial</option>
+            <option value="Times New Roman, Times, serif">Times New Roman</option>
+            <option value="Georgia, serif">Georgia</option>
+            <option value="Helvetica, Arial, sans-serif">Helvetica</option>
+            <option value="Courier New, Courier, monospace">Courier New</option>
+            <option value="&quot;Noto Sans JP&quot;, system-ui, sans-serif">日本語 (Noto Sans JP)</option>
+          </optgroup>
+          <optgroup id="fontGroupHandwriting" label="Handwriting">
+            <option value="&quot;Caveat&quot;, cursive">Caveat</option>
+            <option value="&quot;Patrick Hand&quot;, cursive">Patrick Hand</option>
+            <option value="&quot;Kalam&quot;, cursive">Kalam</option>
+            <option value="&quot;Indie Flower&quot;, cursive">Indie Flower</option>
+            <option value="&quot;Shadows Into Light&quot;, cursive">Shadows Into Light</option>
+            <option value="&quot;Gloria Hallelujah&quot;, cursive">Gloria Hallelujah</option>
+            <option value="&quot;Permanent Marker&quot;, cursive">Permanent Marker</option>
+            <option value="&quot;Amatic SC&quot;, cursive">Amatic SC</option>
+          </optgroup>
         </select>
         <label id="lblAlign">Align</label>
         <select id="textAlign">
@@ -391,6 +457,8 @@
         <input type="range" id="zoom" min="0.25" max="4" step="0.05" value="1" />
         <button id="zoomInBtn">+</button>
         <button id="zoomResetBtn">Reset</button>
+        <button id="centerCanvasBtn">Center</button>
+        <button id="originCanvasBtn">0,0</button>
       </div>
     </aside>
     <footer class="bottombar" id="tabsBar">
@@ -407,21 +475,21 @@
         Text: 'Text', Icons: 'Icons', SelectMove: 'Select/Move', Undo: 'Undo', Redo: 'Redo', Import: 'Import', Export: 'Export', Fullscreen: 'Fullscreen',
         Color: 'Color', Size: 'Size', Fill: 'Fill', Opacity: 'Opacity', Font: 'Font', Arrowheads: 'Arrowheads', Radius: 'Radius', Recent: 'Recent',
         Smooth: 'Smooth', Grid: 'Grid', GridSize: 'Grid Size', Align: 'Align', Bold: 'Bold', Italic: 'Italic', GridType: 'Grid Type', Sides: 'Sides', Points: 'Points', Inner: 'Inner',
-        Theme: 'Theme', Dark: 'Dark', Light: 'Light', Autosave: 'Autosave', SaveNow: 'Save now', ArrowSize: 'Arrow Size', Dashed: 'Dashed', Dash: 'Dash'
+        Theme: 'Theme', Dark: 'Dark', Light: 'Light', Autosave: 'Autosave', SaveNow: 'Save now', ArrowSize: 'Arrow Size', Dashed: 'Dashed', Dash: 'Dash', FontStandard: 'Standard', FontHandwriting: 'Handwriting'
       },
       ja: {
         Pen: 'ペン', Marker: 'マーカー', Eraser: '消しゴム', Line: '直線', Rectangle: '四角形', Ellipse: '楕円', Triangle: '三角形', Polygon: '多角形', Star: '星', Eyedropper: 'スポイト', Hand: 'ハンド',
         Text: 'テキスト', Icons: 'アイコン', SelectMove: '選択/移動', Undo: '元に戻す', Redo: 'やり直し', Import: 'インポート', Export: 'エクスポート', Fullscreen: '全画面',
         Color: '色', Size: 'サイズ', Fill: '塗り', Opacity: '不透明度', Font: 'フォント', Arrowheads: '矢じり', Radius: '角丸', Recent: '最近',
         Smooth: 'スムージング', Grid: 'グリッド', GridSize: 'グリッドサイズ', Align: '配置', Bold: '太字', Italic: '斜体', GridType: 'グリッドタイプ', Sides: '辺数', Points: '点数', Inner: '内側',
-        Theme: 'テーマ', Dark: 'ダーク', Light: 'ライト', Autosave: '自動保存', SaveNow: '今すぐ保存', ArrowSize: '矢じりサイズ', Dashed: '破線', Dash: 'ダッシュ'
+        Theme: 'テーマ', Dark: 'ダーク', Light: 'ライト', Autosave: '自動保存', SaveNow: '今すぐ保存', ArrowSize: '矢じりサイズ', Dashed: '破線', Dash: 'ダッシュ', FontStandard: '標準', FontHandwriting: '手書き'
       },
       pt: {
         Pen: 'Caneta', Marker: 'Marcador', Eraser: 'Borracha', Line: 'Linha', Rectangle: 'Retângulo', Ellipse: 'Elipse', Triangle: 'Triângulo', Polygon: 'Polígono', Star: 'Estrela', Eyedropper: 'Conta-gotas', Hand: 'Mão',
         Text: 'Texto', Icons: 'Ícones', SelectMove: 'Selecionar/Mover', Undo: 'Desfazer', Redo: 'Refazer', Import: 'Importar', Export: 'Exportar', Fullscreen: 'Tela cheia',
         Color: 'Cor', Size: 'Tamanho', Fill: 'Preenchimento', Opacity: 'Opacidade', Font: 'Fonte', Arrowheads: 'Pontas de seta', Radius: 'Raio', Recent: 'Recentes',
-        Smooth: 'Suavizar', Grid: 'Grade', GridSize: 'Tamanho da grade', Alinhar: 'Alinhar', Bold: 'Negrito', Italic: 'Itálico', GridType: 'Tipo de grade', Sides: 'Lados', Points: 'Pontos', Inner: 'Interno',
-        Theme: 'Tema', Dark: 'Escuro', Light: 'Claro', Autosave: 'Auto salvar', SaveNow: 'Salvar agora', ArrowSize: 'Tam. seta', Dashed: 'Tracejado', Dash: 'Traço'
+        Smooth: 'Suavizar', Grid: 'Grade', GridSize: 'Tamanho da grade', Align: 'Alinhar', Bold: 'Negrito', Italic: 'Itálico', GridType: 'Tipo de grade', Sides: 'Lados', Points: 'Pontos', Inner: 'Interno',
+        Theme: 'Tema', Dark: 'Escuro', Light: 'Claro', Autosave: 'Auto salvar', SaveNow: 'Salvar agora', ArrowSize: 'Tam. seta', Dashed: 'Tracejado', Dash: 'Traço', FontStandard: 'Padrão', FontHandwriting: 'Escrita à mão'
       }
     };
 
@@ -502,6 +570,7 @@
     const PREF_ZOOM_KEY = 'whiteboard_pref_zoom';
     const TABS_META_KEY = 'whiteboard_tabs_meta';
     const TAB_PREFIX = 'whiteboard_tab_';
+    const AUTOSAVE_META_KEY = 'whiteboard_autosave_meta';
     // Per-tool size preferences
     const PREF_TOOL_SIZES_KEY = 'whiteboard_pref_tool_sizes';
     const TOOLS_WITH_SIZE = ['pen','marker','eraser','line','rect','ellipse','triangle','polygon','star','text','icon'];
@@ -528,18 +597,25 @@
     // State
     let tool = 'pen';
     let drawing = false;
+    let spacePan = false;
+    let spacePanning = false;
+    let suppressTextClick = false;
     let startX = 0, startY = 0;
     let lastX = 0, lastY = 0;
     let dpr = 1;
     let viewScale = 1;
     let viewOffsetX = 0;
     let viewOffsetY = 0;
+    let canvasLogicalWidth = 0;
+    let canvasLogicalHeight = 0;
     let tabs = [];
     let activeTabId = null;
 
     let history = [];
     let future = [];
     const HISTORY_LIMIT = 30;
+    const MAX_CANVAS_PIXELS = 32000000;
+    const MAX_CANVAS_SIDE = 12000;
 
     // Selection floating buffer
     let selection = null; // { x,y,w,h, canvas, offsetX, offsetY, moving, resizing, handle, rotating, rotation }
@@ -549,26 +625,142 @@
     const recentColors = [];
 
     function setCanvasSize() {
-      dpr = Math.max(1, window.devicePixelRatio || 1);
+      const nextDpr = Math.max(1, window.devicePixelRatio || 1);
       const rect = stage.getBoundingClientRect();
+      const minW = Math.max(1, Math.ceil(rect.width));
+      const minH = Math.max(1, Math.ceil(rect.height));
+      const targetW = Math.max(canvasLogicalWidth || minW, minW);
+      const targetH = Math.max(canvasLogicalHeight || minH, minH);
+      resizeCanvasWorld(targetW, targetH, 0, 0, nextDpr);
+    }
+
+    function clampCanvasSize(width, height, scale=dpr) {
+      width = Math.max(1, Math.min(Math.ceil(width), Math.floor(MAX_CANVAS_SIDE / scale)));
+      height = Math.max(1, Math.min(Math.ceil(height), Math.floor(MAX_CANVAS_SIDE / scale)));
+      const maxLogicalPixels = Math.floor(MAX_CANVAS_PIXELS / (scale * scale));
+      if (width * height <= maxLogicalPixels) return { width, height };
+      const ratio = Math.sqrt(maxLogicalPixels / (width * height));
+      return {
+        width: Math.max(1, Math.floor(width * ratio)),
+        height: Math.max(1, Math.floor(height * ratio))
+      };
+    }
+
+    function resizeCanvasWorld(width, height, shiftX=0, shiftY=0, nextDpr=dpr) {
+      const clamped = clampCanvasSize(width, height, nextDpr);
+      width = clamped.width;
+      height = clamped.height;
+      shiftX = Math.round(shiftX);
+      shiftY = Math.round(shiftY);
+      shiftX = Math.max(0, Math.min(shiftX, width - canvasLogicalWidth));
+      shiftY = Math.max(0, Math.min(shiftY, height - canvasLogicalHeight));
+      const oldW = canvasLogicalWidth || 0;
+      const oldH = canvasLogicalHeight || 0;
+      const oldBoard = oldW && oldH ? document.createElement('canvas') : null;
+      if (oldBoard) {
+        oldBoard.width = board.width;
+        oldBoard.height = board.height;
+        oldBoard.getContext('2d').drawImage(board, 0, 0);
+      }
+
+      dpr = nextDpr;
+      canvasLogicalWidth = width;
+      canvasLogicalHeight = height;
+      viewport.style.width = width + 'px';
+      viewport.style.height = height + 'px';
       [grid, board, overlay].forEach(c => {
-        c.width = Math.floor(rect.width * dpr);
-        c.height = Math.floor(rect.height * dpr);
-        c.style.width = rect.width + 'px';
-        c.style.height = rect.height + 'px';
+        c.width = Math.floor(width * dpr);
+        c.height = Math.floor(height * dpr);
+        c.style.width = width + 'px';
+        c.style.height = height + 'px';
       });
       gctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       octx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      [gctx, ctx, octx].forEach(context => {
+        context.imageSmoothingEnabled = true;
+        context.imageSmoothingQuality = 'high';
+      });
+
+      if (oldBoard) {
+        ctx.drawImage(oldBoard, 0, 0, oldBoard.width, oldBoard.height, shiftX, shiftY, oldW, oldH);
+      }
+      if (shiftX || shiftY) {
+        viewOffsetX -= shiftX * viewScale;
+        viewOffsetY -= shiftY * viewScale;
+        if (selection) {
+          selection.x += shiftX;
+          selection.y += shiftY;
+          if (selection.cx !== undefined) selection.cx += shiftX;
+          if (selection.cy !== undefined) selection.cy += shiftY;
+        }
+        if (iconPlaceAt) {
+          iconPlaceAt.x += shiftX;
+          iconPlaceAt.y += shiftY;
+        }
+      }
       drawGrid();
       redraw();
+      updateViewportTransform();
+    }
+
+    function resetCanvasToStageSize(resetHistory=false) {
+      const rect = stage.getBoundingClientRect();
+      viewOffsetX = 0;
+      viewOffsetY = 0;
+      resizeCanvasWorld(Math.max(1, Math.ceil(rect.width)), Math.max(1, Math.ceil(rect.height)), 0, 0);
+      ctx.clearRect(0, 0, canvasLogicalWidth, canvasLogicalHeight);
+      clearOverlay();
+      if (resetHistory) {
+        history = [];
+        future = [];
+        pushHistory();
+      }
+    }
+
+    function expandCanvas(direction) {
+      const rect = stage.getBoundingClientRect();
+      if (!rect.width || !rect.height) return false;
+      const growX = Math.max(1, Math.ceil(rect.width / viewScale));
+      const growY = Math.max(1, Math.ceil(rect.height / viewScale));
+      const growLeft = direction === 'left' ? growX : 0;
+      const growRight = direction === 'right' ? growX : 0;
+      const growTop = direction === 'top' ? growY : 0;
+      const growBottom = direction === 'bottom' ? growY : 0;
+      const maxSide = Math.floor(MAX_CANVAS_SIDE / dpr);
+      const maxLogicalPixels = Math.floor(MAX_CANVAS_PIXELS / (dpr * dpr));
+      let targetWidth = canvasLogicalWidth + growLeft + growRight;
+      let targetHeight = canvasLogicalHeight + growTop + growBottom;
+      if (growLeft || growRight) {
+        const maxWidthByPixels = Math.floor(maxLogicalPixels / Math.max(1, canvasLogicalHeight));
+        targetWidth = Math.min(targetWidth, maxSide, maxWidthByPixels);
+        targetHeight = canvasLogicalHeight;
+      }
+      if (growTop || growBottom) {
+        const maxHeightByPixels = Math.floor(maxLogicalPixels / Math.max(1, canvasLogicalWidth));
+        targetHeight = Math.min(targetHeight, maxSide, maxHeightByPixels);
+        targetWidth = canvasLogicalWidth;
+      }
+      if (targetWidth <= canvasLogicalWidth && targetHeight <= canvasLogicalHeight) {
+        statusEl.textContent = 'Canvas limit reached';
+        return false;
+      }
+      resizeCanvasWorld(
+        targetWidth,
+        targetHeight,
+        growLeft ? targetWidth - canvasLogicalWidth : 0,
+        growTop ? targetHeight - canvasLogicalHeight : 0
+      );
+      constrainViewport();
+      return true;
     }
 
     function drawGrid() {
       gctx.clearRect(0, 0, grid.width, grid.height);
       if (!gridToggle.checked) return;
       const size = parseInt(gridSizeEl.value, 10) || 24;
-      const rect = stage.getBoundingClientRect();
+      const width = canvasLogicalWidth || stage.getBoundingClientRect().width;
+      const height = canvasLogicalHeight || stage.getBoundingClientRect().height;
       const isLight = document.body.classList.contains('theme-light');
       gctx.save();
       const color = isLight ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.06)';
@@ -576,16 +768,16 @@
       gctx.fillStyle = color;
       if (gridTypeEl.value === 'lines') {
         gctx.lineWidth = 1;
-        for (let x = 0; x <= rect.width; x += size) {
-          gctx.beginPath(); gctx.moveTo(x + 0.5, 0); gctx.lineTo(x + 0.5, rect.height); gctx.stroke();
+        for (let x = 0; x <= width; x += size) {
+          gctx.beginPath(); gctx.moveTo(x + 0.5, 0); gctx.lineTo(x + 0.5, height); gctx.stroke();
         }
-        for (let y = 0; y <= rect.height; y += size) {
-          gctx.beginPath(); gctx.moveTo(0, y + 0.5); gctx.lineTo(rect.width, y + 0.5); gctx.stroke();
+        for (let y = 0; y <= height; y += size) {
+          gctx.beginPath(); gctx.moveTo(0, y + 0.5); gctx.lineTo(width, y + 0.5); gctx.stroke();
         }
       } else {
         const r = 1.2;
-        for (let x = 0; x <= rect.width; x += size) {
-          for (let y = 0; y <= rect.height; y += size) {
+        for (let x = 0; x <= width; x += size) {
+          for (let y = 0; y <= height; y += size) {
             gctx.beginPath(); gctx.arc(x, y, r, 0, Math.PI*2); gctx.fill();
           }
         }
@@ -593,10 +785,33 @@
       gctx.restore();
     }
 
+    function captureSnapshot() {
+      return {
+        data: ctx.getImageData(0, 0, board.width, board.height),
+        logicalWidth: canvasLogicalWidth,
+        logicalHeight: canvasLogicalHeight,
+        dpr
+      };
+    }
+
+    function restoreSnapshot(snapshot) {
+      const data = snapshot?.data || snapshot;
+      if (!data) return;
+      const logicalWidth = snapshot?.logicalWidth || Math.round(data.width / dpr);
+      const logicalHeight = snapshot?.logicalHeight || Math.round(data.height / dpr);
+      const snapshotDpr = snapshot?.dpr || dpr;
+      if (logicalWidth !== canvasLogicalWidth || logicalHeight !== canvasLogicalHeight || snapshotDpr !== dpr) {
+        resizeCanvasWorld(logicalWidth, logicalHeight, 0, 0, snapshotDpr);
+      }
+      ctx.clearRect(0, 0, canvasLogicalWidth, canvasLogicalHeight);
+      ctx.putImageData(data, 0, 0);
+      drawGrid();
+      redraw();
+    }
+
     function pushHistory() {
       try {
-        const snapshot = ctx.getImageData(0, 0, board.width, board.height);
-        history.push(snapshot);
+        history.push(captureSnapshot());
         if (history.length > HISTORY_LIMIT) history.shift();
         future = [];
         updateUndoRedoButtons();
@@ -605,25 +820,21 @@
     }
 
     function undo() {
-      if (!history.length) return;
-      const current = ctx.getImageData(0, 0, board.width, board.height);
+      if (history.length < 2) return;
+      const current = history.pop();
       future.push(current);
-      const prev = history.pop();
-      ctx.putImageData(prev, 0, 0);
+      restoreSnapshot(history[history.length - 1]);
       updateUndoRedoButtons();
-      redraw();
     }
     function redo() {
       if (!future.length) return;
-      const current = ctx.getImageData(0, 0, board.width, board.height);
-      history.push(current);
       const next = future.pop();
-      ctx.putImageData(next, 0, 0);
+      history.push(next);
+      restoreSnapshot(next);
       updateUndoRedoButtons();
-      redraw();
     }
     function updateUndoRedoButtons() {
-      undoBtn.style.opacity = history.length ? 1 : 0.5;
+      undoBtn.style.opacity = history.length > 1 ? 1 : 0.5;
       redoBtn.style.opacity = future.length ? 1 : 0.5;
     }
 
@@ -788,6 +999,15 @@
       const x = (evt.clientX - rect.left - viewOffsetX) / viewScale;
       const y = (evt.clientY - rect.top - viewOffsetY) / viewScale;
       return { x, y };
+    }
+
+    function getInteractionTool() {
+      return (spacePan || spacePanning) ? 'hand' : tool;
+    }
+
+    function isEditingText() {
+      const active = document.activeElement;
+      return !!(active && active.classList && active.classList.contains('floating-input'));
     }
 
     // Cursor preview
@@ -1118,18 +1338,19 @@
     }
 
     function beginStroke(x, y) {
+      const activeTool = getInteractionTool();
       startX = lastX = x; startY = lastY = y;
-      if (tool === 'pen' || tool === 'marker' || tool === 'eraser') {
+      if (activeTool === 'pen' || activeTool === 'marker' || activeTool === 'eraser') {
         drawing = true;
-        if (tool !== 'eraser') strokePoints = [{ x, y }]; else strokePoints = [];
+        if (activeTool !== 'eraser') strokePoints = [{ x, y }]; else strokePoints = [];
         ctx.save();
         ctx.lineCap = 'round'; ctx.lineJoin = 'round';
         ctx.lineWidth = parseInt(sizeEl.value, 10);
-        if (tool === 'eraser') {
+        if (activeTool === 'eraser') {
           ctx.globalCompositeOperation = 'destination-out';
           ctx.strokeStyle = 'rgba(0,0,0,1)';
           ctx.globalAlpha = 1;
-        } else if (tool === 'marker') {
+        } else if (activeTool === 'marker') {
           ctx.globalCompositeOperation = 'source-over';
           ctx.strokeStyle = colorEl.value; ctx.globalAlpha = Math.min(1, parseFloat(opacityEl.value || '1') * 0.4);
         } else { // pen
@@ -1138,30 +1359,35 @@
         }
         applyDash(ctx);
         ctx.beginPath(); ctx.moveTo(x, y);
-      } else if (tool === 'line' || tool === 'rect' || tool === 'ellipse' || tool === 'triangle' || tool === 'polygon' || tool === 'star') {
+      } else if (activeTool === 'line' || activeTool === 'rect' || activeTool === 'ellipse' || activeTool === 'triangle' || activeTool === 'polygon' || activeTool === 'star') {
         drawing = true; // previews will render until mouseup
-      } else if (tool === 'text') {
+      } else if (activeTool === 'text') {
         // handled by click event to ensure position is precise and focus works
-      } else if (tool === 'icon') {
+      } else if (activeTool === 'icon') {
         // wait for icon click then place at x,y
         iconPlaceAt = { x, y };
-      } else if (tool === 'select') {
+      } else if (activeTool === 'select') {
         drawing = true;
         beginSelection(x, y);
-      } else if (tool === 'eyedropper') {
+      } else if (activeTool === 'eyedropper') {
         pickColorAt(x, y);
-      } else if (tool === 'hand') {
+      } else if (activeTool === 'hand') {
+        if (spacePan) {
+          spacePanning = true;
+          suppressTextClick = true;
+        }
         drawing = true; startX = x; startY = y;
       }
     }
 
     function moveStroke(x, y, evt) {
+      const activeTool = getInteractionTool();
       if (!drawing) { drawCursorPreview(x, y); return; }
-      if (tool === 'pen' || tool === 'marker' || tool === 'eraser') {
+      if (activeTool === 'pen' || activeTool === 'marker' || activeTool === 'eraser') {
         ctx.lineTo(x, y); ctx.stroke();
         lastX = x; lastY = y;
-        if (tool !== 'eraser') strokePoints.push({ x, y });
-      } else if (tool === 'line') {
+        if (activeTool !== 'eraser') strokePoints.push({ x, y });
+      } else if (activeTool === 'line') {
         const constraint = evt.shiftKey;
         let dx = x - startX, dy = y - startY;
         if (constraint) {
@@ -1172,25 +1398,25 @@
           x = startX + dx; y = startY + dy;
         }
         linePreview(startX, startY, x, y);
-      } else if (tool === 'rect') {
+      } else if (activeTool === 'rect') {
         shapePreviewRect(startX, startY, x, y);
-      } else if (tool === 'ellipse') {
+      } else if (activeTool === 'ellipse') {
         shapePreviewEllipse(startX, startY, x, y);
-      } else if (tool === 'triangle') {
+      } else if (activeTool === 'triangle') {
         shapePreviewTriangle(startX, startY, x, y);
-      } else if (tool === 'polygon') {
+      } else if (activeTool === 'polygon') {
         shapePreviewPolygon(startX, startY, x, y);
-      } else if (tool === 'star') {
+      } else if (activeTool === 'star') {
         shapePreviewStar(startX, startY, x, y);
-      } else if (tool === 'select' && selection?.moving) {
+      } else if (activeTool === 'select' && selection?.moving) {
         moveSelection(x, y);
-      } else if (tool === 'select' && selection && !selection.moving && !selection.resizing) {
+      } else if (activeTool === 'select' && selection && !selection.moving && !selection.resizing) {
         updateSelectionBox(startX, startY, x, y);
-      } else if (tool === 'select' && selection?.resizing) {
+      } else if (activeTool === 'select' && selection?.resizing) {
         resizeSelection(x, y);
-      } else if (tool === 'select' && selection?.rotating) {
+      } else if (activeTool === 'select' && selection?.rotating) {
         updateRotation(x, y);
-      } else if (tool === 'hand') {
+      } else if (activeTool === 'hand') {
         const dx = (evt.movementX || (x - startX)) * 1; 
         const dy = (evt.movementY || (y - startY)) * 1;
         viewOffsetX += dx; viewOffsetY += dy;
@@ -1201,18 +1427,19 @@
     }
 
     function endStroke(x, y, evt) {
+      const activeTool = getInteractionTool();
       if (!drawing) return; drawing = false;
-      if (tool === 'pen' || tool === 'marker' || tool === 'eraser') {
+      if (activeTool === 'pen' || activeTool === 'marker' || activeTool === 'eraser') {
         ctx.closePath();
         // If smoothing enabled for pen/marker, redraw the stroke smoothed
-        if (smoothingToggle.checked && tool !== 'eraser' && strokePoints.length > 2) {
+        if (smoothingToggle.checked && activeTool !== 'eraser' && strokePoints.length > 2) {
           const pts = smoothStroke(strokePoints);
           ctx.restore();
           // redraw onto context
           ctx.save();
           ctx.globalCompositeOperation = 'source-over';
           ctx.strokeStyle = colorEl.value;
-          ctx.globalAlpha = tool === 'marker' ? Math.min(1, parseFloat(opacityEl.value || '1') * 0.4) : parseFloat(opacityEl.value || '1');
+          ctx.globalAlpha = activeTool === 'marker' ? Math.min(1, parseFloat(opacityEl.value || '1') * 0.4) : parseFloat(opacityEl.value || '1');
           ctx.lineCap = 'round'; ctx.lineJoin = 'round';
           ctx.lineWidth = parseInt(sizeEl.value, 10);
           applyDash(ctx);
@@ -1228,28 +1455,29 @@
           ctx.restore();
         }
         pushHistory();
-      } else if (tool === 'line') {
+      } else if (activeTool === 'line') {
         commitLine(startX, startY, x, y);
-      } else if (tool === 'rect') {
+      } else if (activeTool === 'rect') {
         commitRect(startX, startY, x, y);
-      } else if (tool === 'ellipse') {
+      } else if (activeTool === 'ellipse') {
         commitEllipse(startX, startY, x, y);
-      } else if (tool === 'triangle') {
+      } else if (activeTool === 'triangle') {
         commitTriangle(startX, startY, x, y);
-      } else if (tool === 'polygon') {
+      } else if (activeTool === 'polygon') {
         commitPolygon(startX, startY, x, y);
-      } else if (tool === 'star') {
+      } else if (activeTool === 'star') {
         commitStar(startX, startY, x, y);
-      } else if (tool === 'select' && selection && !selection.moving && !selection.resizing && !selection.rotating) {
+      } else if (activeTool === 'select' && selection && !selection.moving && !selection.resizing && !selection.rotating) {
         finalizeSelectionBox();
-      } else if (tool === 'select' && selection && selection.resizing) {
+      } else if (activeTool === 'select' && selection && selection.resizing) {
         finalizeSelectionResize();
-      } else if (tool === 'select' && selection && selection.rotating) {
+      } else if (activeTool === 'select' && selection && selection.rotating) {
         finalizeSelectionRotate();
-      } else if (tool === 'hand') {
+      } else if (activeTool === 'hand') {
         constrainViewport();
         updateViewportTransform();
       }
+      spacePanning = false;
     }
 
     function createTextInput(x, y) {
@@ -1267,7 +1495,14 @@
       if (document.body.classList.contains('theme-light')) {
         input.style.color = '#0f1220';
       }
-      stage.appendChild(input);
+      viewport.appendChild(input);
+      const loadTextFont = (fontSize, weight, style) => {
+        if (!document.fonts?.load) return Promise.resolve();
+        const selectedFace = document.fonts.load(`${style} ${weight} ${fontSize}px ${fontFamilyEl.value}`);
+        const regularFace = document.fonts.load(`normal 400 ${fontSize}px ${fontFamilyEl.value}`);
+        return Promise.all([selectedFace, regularFace]).catch(() => {});
+      };
+      loadTextFont(textPx, weight, style);
       setTimeout(() => {
         input.focus();
         const sel = window.getSelection();
@@ -1276,17 +1511,21 @@
         range.collapse(false);
         sel.removeAllRanges(); sel.addRange(range);
       }, 0);
-      const finish = () => {
+      let finishing = false;
+      const finish = async () => {
+        if (finishing) return;
+        finishing = true;
         const text = input.innerText.trim();
-        const rect = input.getBoundingClientRect();
-        const stageRect = stage.getBoundingClientRect();
-        const ox = rect.left - stageRect.left; const oy = rect.top - stageRect.top;
+        const ox = parseFloat(input.style.left) || 0;
+        const oy = parseFloat(input.style.top) || 0;
+        const inputWidth = input.offsetWidth || input.getBoundingClientRect().width / viewScale;
         if (text) {
           ctx.save();
           ctx.fillStyle = colorEl.value; ctx.globalAlpha = parseFloat(opacityEl.value || '1');
           const textPx2 = parseInt(sizeEl.value, 10);
           const weight2 = textBoldEl.checked ? 'bold' : 'normal';
           const style2 = textItalicEl.checked ? 'italic' : 'normal';
+          await loadTextFont(textPx2, weight2, style2);
           ctx.font = `${style2} ${weight2} ${textPx2}px ${fontFamilyEl.value}`;
           ctx.textBaseline = 'top';
           ctx.textAlign = textAlignEl.value;
@@ -1294,8 +1533,8 @@
           const lh = Math.round(textPx2 * 1.2);
           lines.forEach((line, idx) => {
             let tx = ox;
-            if (textAlignEl.value === 'center') tx = ox + rect.width / 2;
-            if (textAlignEl.value === 'right') tx = ox + rect.width;
+            if (textAlignEl.value === 'center') tx = ox + inputWidth / 2;
+            if (textAlignEl.value === 'right') tx = ox + inputWidth;
             ctx.fillText(line, tx, oy + idx * lh);
           });
           ctx.restore(); pushHistory();
@@ -1493,8 +1732,10 @@
 
     // Events
     function pointerDown(e) {
+      board.setPointerCapture?.(e.pointerId);
       const p = getPos(e);
-      if (tool === 'select' && selection && (selection.moving || selection.resizing || selection.rotating)) {
+      const activeTool = getInteractionTool();
+      if (activeTool === 'select' && selection && (selection.moving || selection.resizing || selection.rotating)) {
         drawing = true; startX = p.x; startY = p.y;
       } else {
         beginStroke(p.x, p.y);
@@ -1505,8 +1746,10 @@
       moveStroke(p.x, p.y, e);
     }
     function pointerUp(e) {
+      try { board.releasePointerCapture?.(e.pointerId); } catch {}
       const p = getPos(e);
-      if (tool === 'select' && selection && selection.moving && drawing) {
+      const activeTool = getInteractionTool();
+      if (activeTool === 'select' && selection && selection.moving && drawing) {
         drawing = false; commitSelectionMove();
       } else {
         endStroke(p.x, p.y, e);
@@ -1520,7 +1763,13 @@
 
     // For text tool, create the editor on precise click location
     board.addEventListener('click', (e) => {
-      if (tool !== 'text') return;
+      if (suppressTextClick) {
+        suppressTextClick = false;
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+      if (tool !== 'text' || spacePan || spacePanning) return;
       const p = getPos(e);
       createTextInput(p.x, p.y);
       e.stopPropagation();
@@ -1540,6 +1789,18 @@
       if (btn.id === 'exportBtn') { doExport(); return; }
       if (btn.id === 'fullscreenBtn') { toggleFullscreen(); return; }
       if (btn.dataset.tool) setTool(btn.dataset.tool);
+    });
+
+    qsa('.canvas-expand-btn').forEach(btn => {
+      btn.addEventListener('pointerdown', e => e.stopPropagation());
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (expandCanvas(btn.dataset.expand)) {
+          statusEl.textContent = 'Canvas expanded';
+          pushHistory();
+        }
+      });
     });
 
     // Hex conversion helper for swatches
@@ -1636,9 +1897,12 @@
     function saveToStorage() {
       try {
         const data = board.toDataURL('image/png');
+        const meta = JSON.stringify({ width: canvasLogicalWidth, height: canvasLogicalHeight });
         localStorage.setItem('whiteboard_autosave', data);
+        localStorage.setItem(AUTOSAVE_META_KEY, meta);
         if (activeTabId) {
           localStorage.setItem(TAB_PREFIX + activeTabId, data);
+          localStorage.setItem(TAB_PREFIX + activeTabId + ':meta', meta);
         }
         statusEl.textContent = 'Saved';
       } catch {}
@@ -1646,15 +1910,34 @@
     function loadFromStorage() {
       const data = activeTabId ? localStorage.getItem(TAB_PREFIX + activeTabId) : localStorage.getItem('whiteboard_autosave');
       if (!data) return;
-      const img = new Image(); img.onload = () => { ctx.drawImage(img, 0, 0, board.width / dpr, board.height / dpr); pushHistory(); }; img.src = data;
+      const metaRaw = activeTabId ? localStorage.getItem(TAB_PREFIX + activeTabId + ':meta') : localStorage.getItem(AUTOSAVE_META_KEY);
+      let meta = null;
+      try { meta = metaRaw ? JSON.parse(metaRaw) : null; } catch {}
+      const img = new Image(); img.onload = () => {
+        const rect = stage.getBoundingClientRect();
+        const requestedWidth = Math.max(Math.ceil(rect.width), Math.ceil(meta?.width || img.naturalWidth / dpr));
+        const requestedHeight = Math.max(Math.ceil(rect.height), Math.ceil(meta?.height || img.naturalHeight / dpr));
+        const clamped = clampCanvasSize(requestedWidth, requestedHeight);
+        const width = clamped.width;
+        const height = clamped.height;
+        resizeCanvasWorld(width, height, 0, 0);
+        ctx.clearRect(0, 0, canvasLogicalWidth, canvasLogicalHeight);
+        ctx.drawImage(img, 0, 0, width, height);
+        pushHistory();
+      }; img.src = data;
     }
     saveNowBtn.addEventListener('click', () => { saveToStorage(); });
 
     // Clear all
     clearBtn.addEventListener('click', () => {
-      ctx.clearRect(0, 0, board.width, board.height);
-      pushHistory();
-      if (activeTabId) localStorage.removeItem(TAB_PREFIX + activeTabId);
+      if (activeTabId) {
+        localStorage.removeItem(TAB_PREFIX + activeTabId);
+        localStorage.removeItem(TAB_PREFIX + activeTabId + ':meta');
+      } else {
+        localStorage.removeItem('whiteboard_autosave');
+        localStorage.removeItem(AUTOSAVE_META_KEY);
+      }
+      resetCanvasToStageSize(true);
     });
 
     // Import/export
@@ -1757,7 +2040,9 @@
       const text = cd.getData('text');
       if (text) {
         const rect = stage.getBoundingClientRect();
-        createTextInput(rect.width/2 - 40, rect.height/2 - 12);
+        const x = (rect.width / 2 - viewOffsetX) / viewScale - 40;
+        const y = (rect.height / 2 - viewOffsetY) / viewScale - 12;
+        createTextInput(x, y);
         const el = qs('.floating-input');
         if (el) {
           el.innerText = text;
@@ -1793,12 +2078,19 @@
 
     // Keyboard shortcuts
     window.addEventListener('keydown', (e) => {
-      const active = document.activeElement;
-      if (active && active.classList && active.classList.contains('floating-input')) {
+      if (isEditingText()) {
         // Let typing go to the editor; editor handles Enter/Escape itself
         return;
       }
       const mod = e.metaKey || e.ctrlKey;
+      if (!mod && e.code === 'Space' && !drawing) {
+        e.preventDefault();
+        if (e.repeat) return;
+        spacePan = true;
+        document.body.classList.add('space-pan');
+        statusEl.textContent = 'Hold Space: pan';
+        return;
+      }
       if (mod && e.key.toLowerCase() === 'z') { e.preventDefault(); if (e.shiftKey) redo(); else undo(); return; }
       if (mod && e.key.toLowerCase() === 's') { e.preventDefault(); doExport(); return; }
       if (mod && e.key.toLowerCase() === 'c') { e.preventDefault(); copySelection(); return; }
@@ -1837,6 +2129,22 @@
           if (selection && selection.canvas) { selection = null; hideSelectionBox(); clearOverlay(); pushHistory(); }
         }
       }
+    });
+
+    window.addEventListener('keyup', (e) => {
+      if (e.code !== 'Space' || isEditingText()) return;
+      spacePan = false;
+      document.body.classList.remove('space-pan');
+      if (!spacePanning) {
+        const btn = qsa('.tool-btn', toolbar).find(b => b.dataset.tool === tool);
+        statusEl.textContent = `Tool: ${btn ? btn.getAttribute('data-title') : tool}`;
+      }
+    });
+
+    window.addEventListener('blur', () => {
+      spacePan = false;
+      spacePanning = false;
+      document.body.classList.remove('space-pan');
     });
 
     function copySelection() {
@@ -1905,6 +2213,8 @@
       qs('#lblGridType').textContent = S.GridType;
       qs('#lblGridSize').textContent = S.GridSize;
       qs('#lblAlign').textContent = S.Align;
+      qs('#fontGroupStandard').label = S.FontStandard;
+      qs('#fontGroupHandwriting').label = S.FontHandwriting;
       qs('#lblBold').textContent = S.Bold;
       qs('#lblItalic').textContent = S.Italic;
       qs('#lblTheme').textContent = S.Theme;
@@ -1979,9 +2289,24 @@
       updateViewportTransform();
       try { localStorage.setItem(PREF_ZOOM_KEY, String(viewScale)); } catch {}
     }
+    function centerCanvas() {
+      const rect = stage.getBoundingClientRect();
+      viewOffsetX = Math.round((rect.width - canvasLogicalWidth * viewScale) / 2);
+      viewOffsetY = Math.round((rect.height - canvasLogicalHeight * viewScale) / 2);
+      constrainViewport();
+      updateViewportTransform();
+    }
+    function goToCanvasOrigin() {
+      viewOffsetX = 0;
+      viewOffsetY = 0;
+      constrainViewport();
+      updateViewportTransform();
+    }
     qs('#zoomInBtn').addEventListener('click', () => applyZoom(viewScale + 0.1));
     qs('#zoomOutBtn').addEventListener('click', () => applyZoom(viewScale - 0.1));
     qs('#zoomResetBtn').addEventListener('click', () => { viewOffsetX = 0; viewOffsetY = 0; applyZoom(1); });
+    qs('#centerCanvasBtn').addEventListener('click', centerCanvas);
+    qs('#originCanvasBtn').addEventListener('click', goToCanvasOrigin);
     if (zoomInput) zoomInput.addEventListener('input', () => applyZoom(parseFloat(zoomInput.value)));
     stage.addEventListener('wheel', (e) => {
       if (e.ctrlKey || e.metaKey) {
@@ -1999,17 +2324,18 @@
       }
     }, { passive: false });
 
-    // Load saved zoom
-    try { const zv = parseFloat(localStorage.getItem(PREF_ZOOM_KEY) || '1'); if (!Number.isNaN(zv)) applyZoom(zv); else applyZoom(1); } catch { applyZoom(1); }
+    // Start each session at 100% so a fresh canvas matches the visible stage.
+    applyZoom(1);
 
     function updateViewportTransform() {
       viewport.style.transform = `translate(${Math.round(viewOffsetX)}px, ${Math.round(viewOffsetY)}px) scale(${viewScale})`;
+      viewport.style.setProperty('--inverse-zoom', String(1 / viewScale));
     }
 
     function constrainViewport(recenter=false) {
       const rect = stage.getBoundingClientRect();
-      const contentW = rect.width * viewScale;
-      const contentH = rect.height * viewScale;
+      const contentW = canvasLogicalWidth * viewScale;
+      const contentH = canvasLogicalHeight * viewScale;
       const minX = -contentW + 50; // keep some margin
       const minY = -contentH + 50;
       const maxX = rect.width - 50;
@@ -2056,16 +2382,17 @@
       const idx = tabs.findIndex(t => t.id === id); if (idx === -1) return;
       tabs.splice(idx, 1);
       localStorage.removeItem(TAB_PREFIX + id);
+      localStorage.removeItem(TAB_PREFIX + id + ':meta');
       if (activeTabId === id) {
         activeTabId = tabs[0]?.id || null;
-        ctx.clearRect(0, 0, board.width, board.height);
+        resetCanvasToStageSize(true);
         if (activeTabId) loadFromStorage();
       }
       renderTabs(); persistTabs();
     }
     function switchTab(id, loadExisting=true) {
       activeTabId = id;
-      ctx.clearRect(0, 0, board.width, board.height);
+      resetCanvasToStageSize(true);
       if (loadExisting) loadFromStorage();
       renderTabs(); persistTabs();
     }
