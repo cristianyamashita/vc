@@ -185,7 +185,7 @@
             clear: 'Clear',
             select_all: 'Select All',
             invert: 'Invert',
-            checkbox_hint_prefix: 'Toggle the checkboxes to set bits (1, 2, 4, 8, ...',
+            checkbox_hint_prefix: 'Toggle the checkboxes to set bits (',
             none: 'None',
             select_bits_range: 'Select bits range',
           },
@@ -199,7 +199,7 @@
             clear: 'Limpar',
             select_all: 'Selecionar tudo',
             invert: 'Inverter',
-            checkbox_hint_prefix: 'Use as caixas para marcar os bits (1, 2, 4, 8, ...',
+            checkbox_hint_prefix: 'Use as caixas para marcar os bits (',
             none: 'Nenhum',
             select_bits_range: 'Selecionar intervalo de bits',
           },
@@ -213,7 +213,7 @@
             clear: 'クリア',
             select_all: '全選択',
             invert: '反転',
-            checkbox_hint_prefix: 'チェックでビットを設定 (1, 2, 4, 8, ...',
+            checkbox_hint_prefix: 'チェックでビットを設定 (',
             none: 'なし',
             select_bits_range: 'ビット範囲を選択',
           },
@@ -286,7 +286,7 @@
           const checkboxHint = document.getElementById('checkbox-hint');
           if (binaryLabel) binaryLabel.innerText = (lang.binary_label || '').replace('{{bits}}', String(MAX_BITS));
           if (rangeHint) rangeHint.innerText = `${lang.range_hint_prefix} ${maxValueForBits(MAX_BITS).toString()}`;
-          if (checkboxHint) checkboxHint.innerText = `${lang.checkbox_hint_prefix} ${pow2(MAX_BITS - 1).toString()})`;
+          if (checkboxHint) checkboxHint.innerText = `${lang.checkbox_hint_prefix}${pow2(MAX_BITS - 1).toString()}, ..., 8, 4, 2, 1)`;
         };
 
         const setDecimalValue = (value) => {
@@ -322,9 +322,9 @@
         };
 
         const renderCheckboxes = () => {
-          // Ascending order: 2^0, 2^1, ...
+          // Descending order: 2^(MAX_BITS - 1), ..., 2^1, 2^0
           const row = document.createDocumentFragment();
-          for (let i = 0; i < MAX_BITS; i++) {
+          for (let i = MAX_BITS - 1; i >= 0; i--) {
             const col = document.createElement('div');
             col.className = 'col-6 col-sm-4 col-md-3 col-lg-2';
 
@@ -423,5 +423,4 @@
     </script>
   </body>
   </html>
-
 
