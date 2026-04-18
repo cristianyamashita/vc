@@ -1,0 +1,1051 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>River Strike</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg-top: #08111f;
+      --bg-bottom: #02060d;
+      --frame: #d4b35f;
+      --frame-shadow: #5c4613;
+      --text: #f7f1cc;
+      --subtle: #b6c7c0;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      min-height: 100%;
+    }
+
+    body {
+      display: grid;
+      place-items: center;
+      padding: 20px;
+      background:
+        radial-gradient(circle at top, rgba(32, 66, 112, 0.28), transparent 32%),
+        linear-gradient(180deg, var(--bg-top), var(--bg-bottom));
+      color: var(--text);
+      font-family: "Courier New", Courier, monospace;
+    }
+
+    .game-shell {
+      width: min(100%, 900px);
+      text-align: center;
+    }
+
+    .game-header {
+      margin-bottom: 14px;
+    }
+
+    .game-header h1 {
+      margin: 0 0 8px;
+      font-size: clamp(1.8rem, 5vw, 2.8rem);
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      text-shadow: 0 0 8px rgba(248, 206, 97, 0.45);
+    }
+
+    .game-header p {
+      margin: 0;
+      color: var(--subtle);
+      font-size: 0.95rem;
+    }
+
+    .canvas-frame {
+      display: inline-block;
+      padding: 14px;
+      border: 4px solid var(--frame);
+      box-shadow:
+        0 0 0 4px var(--frame-shadow),
+        0 24px 60px rgba(0, 0, 0, 0.45);
+      background:
+        linear-gradient(135deg, rgba(32, 20, 6, 0.95), rgba(75, 51, 11, 0.88));
+    }
+
+    canvas {
+      display: block;
+      width: min(96vw, 640px);
+      height: auto;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+      background: #000;
+    }
+
+    @media (max-width: 560px) {
+      body {
+        padding: 10px;
+      }
+
+      .canvas-frame {
+        padding: 8px;
+      }
+
+      .game-header p {
+        font-size: 0.85rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="game-shell">
+    <header class="game-header">
+      <h1>River Strike</h1>
+      <p>Arrow keys move. Space fires. Enter starts or restarts.</p>
+    </header>
+
+    <section class="canvas-frame" aria-label="River Strike game area">
+      <canvas id="gameCanvas" width="640" height="720"></canvas>
+    </section>
+  </main>
+
+  <script>
+/*
+  River Strike is a self-contained retro river shooter built with one canvas.
+  The river shape is generated procedurally from layered sine waves, while the
+  game loop updates player movement, enemy spawning, bullets, explosions,
+  scoring, fuel, and state transitions using requestAnimationFrame.
+*/
+
+(function () {
+  "use strict";
+
+  const CONFIG = {
+    canvas: {
+      width: 640,
+      height: 720,
+    },
+    hud: {
+      height: 108,
+    },
+    player: {
+      width: 28,
+      height: 24,
+      speed: 260,
+      verticalSpeed: 165,
+      fireCooldown: 0.18,
+      lives: 3,
+      invulnerability: 2.1,
+      respawnDelay: 1.15,
+    },
+    bullet: {
+      speed: 480,
+      width: 4,
+      height: 12,
+    },
+    fuel: {
+      max: 200,
+      drainPerSecond: 5.5,
+      lowWarningThreshold: 50,
+      rewardOnDepot: 56,
+    },
+    river: {
+      baseWidth: 300,
+      minWidth: 220,
+      maxWidth: 390,
+      widthWaveA: 56,
+      widthWaveB: 28,
+      centerWaveA: 92,
+      centerWaveB: 42,
+      centerWaveC: 24,
+      sampleStep: 16,
+      bankMargin: 10,
+    },
+    scoring: {
+      distanceMultiplier: 0.6,
+      boat: 80,
+      helicopter: 130,
+      jet: 220,
+      fuelDepot: 90,
+    },
+    difficulty: {
+      scrollBase: 150,
+      scrollIncrease: 15,
+      maxLevel: 10,
+      introSpeedFactor: 0.6,
+      introRampSeconds: 28,
+    },
+    spawns: {
+      boat: { base: 1.55, min: 0.52, unlock: 0 },
+      helicopter: { base: 2.8, min: 0.95, unlock: 8 },
+      jet: { base: 5.4, min: 1.8, unlock: 20 },
+      fuelDepot: { base: 7.2, min: 3.2, unlock: 6 },
+    },
+    colors: {
+      sky: "#3f49e8",
+      water: "#4f59ff",
+      waterHighlight: "#7080ff",
+      bank: "#24cf10",
+      bankShadow: "#1f9915",
+      grass: "#24cf10",
+      grassAlt: "#24cf10",
+      text: "#f7f1cc",
+      warning: "#ff5f57",
+      hudAccent: "#f5e66f",
+      bullet: "#fff1a6",
+      player: "#fff2b2",
+      playerAccent: "#fff2b2",
+      hudBg: "#d0d0d0",
+      hudBorder: "#1f1f1f",
+      hudTextDark: "#111111",
+      hudTextLight: "#fff7a0",
+    },
+  };
+
+  class InputHandler {
+    constructor() {
+      this.keys = new Set();
+      this.justPressed = new Set();
+
+      window.addEventListener("keydown", (event) => {
+        const code = event.code;
+
+        if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Space", "Enter"].includes(code)) {
+          event.preventDefault();
+        }
+
+        if (!this.keys.has(code)) {
+          this.justPressed.add(code);
+        }
+
+        this.keys.add(code);
+      });
+
+      window.addEventListener("keyup", (event) => {
+        this.keys.delete(event.code);
+      });
+    }
+
+    isDown(code) {
+      return this.keys.has(code);
+    }
+
+    consume(code) {
+      if (this.justPressed.has(code)) {
+        this.justPressed.delete(code);
+        return true;
+      }
+
+      return false;
+    }
+
+    endFrame() {
+      this.justPressed.clear();
+    }
+  }
+
+  class AudioManager {
+    constructor() {
+      this.context = null;
+      this.masterGain = null;
+      this.enabled = false;
+    }
+
+    unlock() {
+      if (this.enabled) {
+        return;
+      }
+
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContextClass) {
+        return;
+      }
+
+      this.context = new AudioContextClass();
+      this.masterGain = this.context.createGain();
+      this.masterGain.gain.value = 0.045;
+      this.masterGain.connect(this.context.destination);
+      this.enabled = true;
+    }
+
+    beep({ frequency, duration, type = "square", volume = 1, slideTo = null }) {
+      if (!this.enabled || !this.context || !this.masterGain) {
+        return;
+      }
+
+      if (this.context.state === "suspended") {
+        this.context.resume().catch(() => {});
+      }
+
+      const now = this.context.currentTime;
+      const oscillator = this.context.createOscillator();
+      const gainNode = this.context.createGain();
+
+      oscillator.type = type;
+      oscillator.frequency.setValueAtTime(frequency, now);
+      if (slideTo !== null) {
+        oscillator.frequency.linearRampToValueAtTime(slideTo, now + duration);
+      }
+
+      gainNode.gain.setValueAtTime(volume, now);
+      gainNode.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+
+      oscillator.connect(gainNode);
+      gainNode.connect(this.masterGain);
+      oscillator.start(now);
+      oscillator.stop(now + duration);
+    }
+
+    shoot() {
+      this.beep({ frequency: 520, duration: 0.07, volume: 0.7, slideTo: 410 });
+    }
+
+    explosion() {
+      this.beep({ frequency: 180, duration: 0.22, type: "sawtooth", volume: 1.2, slideTo: 60 });
+    }
+
+    fuel() {
+      this.beep({ frequency: 320, duration: 0.2, type: "triangle", volume: 0.95, slideTo: 460 });
+    }
+
+    gameOver() {
+      this.beep({ frequency: 240, duration: 0.35, type: "square", volume: 0.8, slideTo: 110 });
+    }
+  }
+
+  class River {
+    constructor(game) {
+      this.game = game;
+    }
+
+    getProfile(screenY) {
+      const worldY = screenY - this.game.cameraDistance;
+      const difficulty = this.game.getDifficulty();
+      const centerOffset =
+        Math.sin(worldY * 0.0022) * CONFIG.river.centerWaveA +
+        Math.sin(worldY * 0.0051 + 1.7) * CONFIG.river.centerWaveB +
+        Math.sin(worldY * 0.0011 + 3.9) * CONFIG.river.centerWaveC;
+      const widthOffset =
+        Math.sin(worldY * 0.0017 + 0.6) * CONFIG.river.widthWaveA +
+        Math.sin(worldY * 0.0039 + 2.1) * CONFIG.river.widthWaveB -
+        difficulty * 5;
+      const center = CONFIG.canvas.width * 0.5 + centerOffset;
+      const width = clamp(CONFIG.river.baseWidth + widthOffset, CONFIG.river.minWidth, CONFIG.river.maxWidth);
+      const left = clamp(center - width * 0.5, 26, CONFIG.canvas.width - 26);
+      const right = clamp(center + width * 0.5, 26, CONFIG.canvas.width - 26);
+
+      return { center, width, left, right };
+    }
+
+    containsPoint(x, y, margin = 0) {
+      const profile = this.getProfile(y);
+      return x > profile.left + margin && x < profile.right - margin;
+    }
+
+    playerTouchesBank(player) {
+      const halfWidth = player.width * 0.46;
+      const halfHeight = player.height * 0.46;
+      const samplePoints = [
+        { x: player.x, y: player.y - halfHeight },
+        { x: player.x - halfWidth, y: player.y },
+        { x: player.x + halfWidth, y: player.y },
+        { x: player.x, y: player.y + halfHeight },
+      ];
+
+      return samplePoints.some((point) => !this.containsPoint(point.x, point.y, CONFIG.river.bankMargin));
+    }
+
+    getSpawnX(y, margin = 24) {
+      const profile = this.getProfile(y);
+      return randomRange(profile.left + margin, profile.right - margin);
+    }
+
+    draw(ctx) {
+      const leftPoints = [];
+      const rightPoints = [];
+      const step = CONFIG.river.sampleStep;
+      const playHeight = this.game.getPlayAreaHeight();
+
+      ctx.fillStyle = CONFIG.colors.water;
+      ctx.fillRect(0, 0, CONFIG.canvas.width, playHeight);
+
+      for (let y = 0; y <= playHeight + step; y += step) {
+        const profile = this.getProfile(y);
+        leftPoints.push({ x: profile.left, y });
+        rightPoints.push({ x: profile.right, y });
+
+        const stripeSeed = Math.floor((y - this.game.cameraDistance) / 48);
+        const notch = stripeSeed % 5 === 0 ? 18 : 0;
+        ctx.fillStyle = CONFIG.colors.grass;
+        ctx.fillRect(0, y, Math.max(0, profile.left), step + 1);
+        ctx.fillRect(profile.right, y, CONFIG.canvas.width - profile.right, step + 1);
+
+        ctx.fillStyle = CONFIG.colors.bankShadow;
+        ctx.fillRect(Math.max(0, profile.left - 14 - notch), y, 14 + notch, step + 1);
+        ctx.fillRect(profile.right, y, 14 + notch, step + 1);
+      }
+
+      ctx.beginPath();
+      ctx.moveTo(leftPoints[0].x, leftPoints[0].y);
+      for (let index = 1; index < leftPoints.length; index += 1) {
+        ctx.lineTo(leftPoints[index].x, leftPoints[index].y);
+      }
+      for (let index = rightPoints.length - 1; index >= 0; index -= 1) {
+        ctx.lineTo(rightPoints[index].x, rightPoints[index].y);
+      }
+      ctx.closePath();
+      ctx.fillStyle = CONFIG.colors.water;
+      ctx.fill();
+
+      ctx.strokeStyle = CONFIG.colors.bankShadow;
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      leftPoints.forEach((point, index) => {
+        if (index === 0) ctx.moveTo(point.x, point.y);
+        else ctx.lineTo(point.x, point.y);
+      });
+      ctx.stroke();
+
+      ctx.beginPath();
+      rightPoints.forEach((point, index) => {
+        if (index === 0) ctx.moveTo(point.x, point.y);
+        else ctx.lineTo(point.x, point.y);
+      });
+      ctx.stroke();
+
+      this.drawWaterDetails(ctx);
+    }
+
+    drawWaterDetails(ctx) {
+      const playHeight = this.game.getPlayAreaHeight();
+      for (let index = 0; index < 10; index += 1) {
+        const y = (index * 82 - (this.game.cameraDistance * 0.75) % 82) % (playHeight + 30) - 20;
+        const profile = this.getProfile(y);
+        const x = profile.center + Math.sin((this.game.cameraDistance + index * 77) * 0.012) * (profile.width * 0.16);
+        ctx.fillStyle = CONFIG.colors.waterHighlight;
+        ctx.fillRect(x - 9, y, 18, 2);
+      }
+    }
+  }
+
+  class Bullet {
+    constructor(x, y) {
+      this.x = x;
+      this.y = y;
+      this.width = CONFIG.bullet.width;
+      this.height = CONFIG.bullet.height;
+      this.speed = CONFIG.bullet.speed;
+      this.isAlive = true;
+    }
+
+    update(deltaTime) {
+      this.y -= this.speed * deltaTime;
+      if (this.y + this.height < 0) this.isAlive = false;
+    }
+
+    draw(ctx) {
+      ctx.fillStyle = CONFIG.colors.bullet;
+      ctx.fillRect(this.x - this.width * 0.5, this.y - this.height, this.width, this.height);
+    }
+
+    getBounds() {
+      return {
+        x: this.x - this.width * 0.5,
+        y: this.y - this.height,
+        width: this.width,
+        height: this.height,
+      };
+    }
+  }
+
+  class Explosion {
+    constructor(x, y, colorSet = ["#ffd166", "#ff7b00", "#ffffff"]) {
+      this.particles = [];
+      for (let index = 0; index < 14; index += 1) {
+        const angle = Math.PI * 2 * (index / 14) + Math.random() * 0.3;
+        const speed = randomRange(40, 160);
+        const maxLife = randomRange(0.28, 0.58);
+        this.particles.push({
+          x,
+          y,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          life: maxLife,
+          maxLife,
+          size: randomRange(2, 5),
+          color: colorSet[index % colorSet.length],
+        });
+      }
+    }
+
+    update(deltaTime) {
+      this.particles.forEach((particle) => {
+        particle.life -= deltaTime;
+        particle.x += particle.vx * deltaTime;
+        particle.y += particle.vy * deltaTime;
+        particle.vx *= 0.96;
+        particle.vy *= 0.96;
+      });
+      this.particles = this.particles.filter((particle) => particle.life > 0);
+    }
+
+    draw(ctx) {
+      this.particles.forEach((particle) => {
+        const alpha = particle.life / particle.maxLife;
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = particle.color;
+        ctx.fillRect(particle.x, particle.y, particle.size, particle.size);
+        ctx.globalAlpha = 1;
+      });
+    }
+
+    get isAlive() {
+      return this.particles.length > 0;
+    }
+  }
+
+  class Enemy {
+    constructor(game, type, x, y) {
+      this.game = game;
+      this.type = type;
+      this.x = x;
+      this.y = y;
+      this.vx = 0;
+      this.speed = 0;
+      this.width = 26;
+      this.height = 18;
+      this.points = 50;
+      this.health = 1;
+      this.fuelReward = 0;
+      this.isAlive = true;
+      this.anim = Math.random() * Math.PI * 2;
+      this.configure();
+    }
+
+    configure() {
+      if (this.type === "boat") {
+        this.width = 30;
+        this.height = 16;
+        this.points = CONFIG.scoring.boat;
+        this.speed = randomRange(-8, 15);
+        this.vx = randomRange(-18, 18);
+      } else if (this.type === "helicopter") {
+        this.width = 34;
+        this.height = 18;
+        this.points = CONFIG.scoring.helicopter;
+        this.speed = randomRange(18, 44);
+        this.vx = randomRange(-28, 28);
+      } else if (this.type === "jet") {
+        this.width = 36;
+        this.height = 14;
+        this.points = CONFIG.scoring.jet;
+        this.speed = randomRange(155, 220);
+        this.vx = Math.random() < 0.5 ? randomRange(-85, -45) : randomRange(45, 85);
+      } else if (this.type === "fuelDepot") {
+        this.width = 34;
+        this.height = 24;
+        this.points = CONFIG.scoring.fuelDepot;
+        this.speed = 0;
+        this.vx = randomRange(-10, 10);
+        this.fuelReward = CONFIG.fuel.rewardOnDepot;
+      }
+    }
+
+    update(deltaTime) {
+      this.anim += deltaTime * 8;
+      const scroll = this.game.scrollSpeed + this.speed;
+      this.y += scroll * deltaTime;
+      this.x += this.vx * deltaTime;
+
+      if (this.type === "boat" || this.type === "fuelDepot") {
+        this.vx += Math.sin(this.anim) * 4 * deltaTime;
+        const profile = this.game.river.getProfile(this.y);
+        const leftLimit = profile.left + this.width * 0.5 + 10;
+        const rightLimit = profile.right - this.width * 0.5 - 10;
+        if (this.x < leftLimit || this.x > rightLimit) {
+          this.vx *= -0.9;
+          this.x = clamp(this.x, leftLimit, rightLimit);
+        }
+      }
+
+      if (this.type === "helicopter") {
+        this.x += Math.sin(this.anim * 1.8) * 20 * deltaTime;
+        const profile = this.game.river.getProfile(this.y);
+        this.x = clamp(this.x, profile.left + 22, profile.right - 22);
+      }
+
+      if (this.type === "jet" && (this.x < -50 || this.x > CONFIG.canvas.width + 50)) {
+        this.isAlive = false;
+      }
+
+      if (this.y > this.game.getPlayAreaHeight() + 60) {
+        this.isAlive = false;
+      }
+    }
+
+    draw(ctx) {
+      ctx.save();
+      ctx.translate(this.x, this.y);
+
+      if (this.type === "boat") {
+        ctx.fillStyle = "#ef6f57";
+        ctx.fillRect(-16, 2, 32, 4);
+        ctx.fillStyle = "#f4f4f4";
+        ctx.fillRect(-11, 4, 22, 4);
+        ctx.fillStyle = "#111111";
+        ctx.fillRect(-5, -2, 10, 4);
+      } else if (this.type === "helicopter") {
+        ctx.fillStyle = "#5e78ff";
+        ctx.fillRect(-11, -4, 22, 10);
+        ctx.fillRect(11, -1, 8, 4);
+        ctx.fillStyle = "#111111";
+        ctx.fillRect(-18, -10, 36, 3);
+        ctx.fillRect(-7, 7, 3, 6);
+        ctx.fillRect(4, 7, 3, 6);
+      } else if (this.type === "jet") {
+        ctx.fillStyle = "#ff8a72";
+        ctx.fillRect(-14, -2, 28, 4);
+        ctx.fillRect(-4, -9, 8, 18);
+        ctx.fillStyle = "#111111";
+        ctx.fillRect(-7, -10, 14, 4);
+      } else if (this.type === "fuelDepot") {
+        ctx.fillStyle = "#f4f4f4";
+        ctx.fillRect(-10, -18, 20, 36);
+        ctx.fillStyle = "#ef8f8f";
+        ctx.fillRect(-7, -15, 14, 30);
+        ctx.fillStyle = "#244cff";
+        ctx.font = "bold 8px Courier New";
+        ctx.textAlign = "center";
+        ctx.fillText("F", 0, -7);
+        ctx.fillText("U", 0, -1);
+        ctx.fillText("E", 0, 5);
+        ctx.fillText("L", 0, 11);
+      }
+
+      ctx.restore();
+    }
+
+    damage() {
+      this.health -= 1;
+      if (this.health <= 0) this.isAlive = false;
+    }
+
+    getBounds() {
+      return {
+        x: this.x - this.width * 0.5,
+        y: this.y - this.height * 0.5,
+        width: this.width,
+        height: this.height,
+      };
+    }
+  }
+
+  class Player {
+    constructor(game) {
+      this.game = game;
+      this.width = CONFIG.player.width;
+      this.height = CONFIG.player.height;
+      this.reset();
+    }
+
+    reset() {
+      this.x = CONFIG.canvas.width * 0.5;
+      this.y = this.game.getPlayAreaHeight() - 56;
+      this.fireCooldown = 0;
+      this.invulnerabilityTimer = CONFIG.player.invulnerability;
+      this.respawnTimer = 0;
+      this.isActive = true;
+    }
+
+    update(deltaTime, input) {
+      if (this.respawnTimer > 0) {
+        this.respawnTimer -= deltaTime;
+        if (this.respawnTimer <= 0) this.reset();
+        return;
+      }
+
+      if (!this.isActive) return;
+
+      const moveX = (input.isDown("ArrowRight") ? 1 : 0) - (input.isDown("ArrowLeft") ? 1 : 0);
+      const moveY = (input.isDown("ArrowDown") ? 1 : 0) - (input.isDown("ArrowUp") ? 1 : 0);
+      this.x += moveX * CONFIG.player.speed * deltaTime;
+      this.y += moveY * CONFIG.player.verticalSpeed * deltaTime;
+
+      this.x = clamp(this.x, 18, CONFIG.canvas.width - 18);
+      this.y = clamp(this.y, this.game.getPlayAreaHeight() - 130, this.game.getPlayAreaHeight() - 32);
+
+      if (this.fireCooldown > 0) this.fireCooldown -= deltaTime;
+
+      if (input.isDown("Space") && this.fireCooldown <= 0) {
+        this.fireCooldown = CONFIG.player.fireCooldown;
+        this.game.bullets.push(new Bullet(this.x, this.y - this.height * 0.6));
+        this.game.audio.shoot();
+      }
+
+      if (this.invulnerabilityTimer > 0) this.invulnerabilityTimer -= deltaTime;
+    }
+
+    draw(ctx) {
+      if (!this.isActive || this.respawnTimer > 0) return;
+      if (this.invulnerabilityTimer > 0 && Math.floor(this.invulnerabilityTimer * 14) % 2 === 0) return;
+
+      ctx.save();
+      ctx.translate(this.x, this.y);
+      ctx.fillStyle = CONFIG.colors.player;
+      ctx.fillRect(-14, 0, 28, 4);
+      ctx.fillRect(-4, -10, 8, 22);
+      ctx.fillRect(-8, 9, 16, 4);
+      ctx.fillStyle = "#111111";
+      ctx.fillRect(-7, -11, 14, 5);
+      ctx.restore();
+    }
+
+    crash() {
+      if (this.invulnerabilityTimer > 0 || this.respawnTimer > 0 || !this.isActive) return;
+
+      this.isActive = false;
+      this.game.spawnExplosion(this.x, this.y, ["#ffef8d", "#ff6b35", "#ffffff"]);
+      this.game.audio.explosion();
+      this.game.lives -= 1;
+
+      if (this.game.lives <= 0) {
+        this.game.triggerGameOver();
+        return;
+      }
+
+      this.respawnTimer = CONFIG.player.respawnDelay;
+    }
+
+    getBounds() {
+      return {
+        x: this.x - this.width * 0.45,
+        y: this.y - this.height * 0.55,
+        width: this.width * 0.9,
+        height: this.height * 0.95,
+      };
+    }
+  }
+
+  class Game {
+    constructor(canvas) {
+      this.canvas = canvas;
+      this.ctx = canvas.getContext("2d");
+      this.ctx.imageSmoothingEnabled = false;
+      this.input = new InputHandler();
+      this.audio = new AudioManager();
+      this.river = new River(this);
+      this.state = "start";
+      this.lastTime = 0;
+      this.cameraDistance = 0;
+      this.distance = 0;
+      this.elapsed = 0;
+      this.scrollSpeed = CONFIG.difficulty.scrollBase;
+      this.score = 0;
+      this.fuel = CONFIG.fuel.max;
+      this.lowFuelFlash = 0;
+      this.lives = CONFIG.player.lives;
+      this.player = new Player(this);
+      this.bullets = [];
+      this.enemies = [];
+      this.explosions = [];
+      this.spawnTimers = {};
+      this.initializeSpawnTimers();
+
+      requestAnimationFrame((timestamp) => this.loop(timestamp));
+    }
+
+    getPlayAreaHeight() {
+      return CONFIG.canvas.height - CONFIG.hud.height;
+    }
+
+    initializeSpawnTimers() {
+      Object.keys(CONFIG.spawns).forEach((key) => {
+        this.spawnTimers[key] = CONFIG.spawns[key].base * randomRange(0.75, 1.25);
+      });
+    }
+
+    startGame() {
+      this.audio.unlock();
+      this.state = "playing";
+      this.cameraDistance = 0;
+      this.distance = 0;
+      this.elapsed = 0;
+      this.scrollSpeed = CONFIG.difficulty.scrollBase;
+      this.score = 0;
+      this.fuel = CONFIG.fuel.max;
+      this.lowFuelFlash = 0;
+      this.lives = CONFIG.player.lives;
+      this.player = new Player(this);
+      this.bullets = [];
+      this.enemies = [];
+      this.explosions = [];
+      this.initializeSpawnTimers();
+    }
+
+    triggerGameOver() {
+      this.state = "gameover";
+      this.audio.gameOver();
+    }
+
+    getDifficulty() {
+      return Math.min(CONFIG.difficulty.maxLevel, this.elapsed * 0.18 + this.distance * 0.018);
+    }
+
+    getSpeedRamp() {
+      const progress = clamp(this.elapsed / CONFIG.difficulty.introRampSeconds, 0, 1);
+      return CONFIG.difficulty.introSpeedFactor + (1 - CONFIG.difficulty.introSpeedFactor) * progress;
+    }
+
+    spawnExplosion(x, y, colors) {
+      this.explosions.push(new Explosion(x, y, colors));
+    }
+
+    spawnEnemy(type) {
+      let x;
+      const y = -34;
+
+      if (type === "jet") {
+        x = Math.random() < 0.5
+          ? randomRange(30, Math.max(120, CONFIG.canvas.width * 0.28))
+          : randomRange(Math.min(CONFIG.canvas.width - 120, CONFIG.canvas.width * 0.72), CONFIG.canvas.width - 30);
+      } else {
+        x = this.river.getSpawnX(y, type === "fuelDepot" ? 28 : 24);
+      }
+
+      this.enemies.push(new Enemy(this, type, x, y));
+    }
+
+    updateSpawns(deltaTime) {
+      Object.entries(CONFIG.spawns).forEach(([type, spawnConfig]) => {
+        if (this.elapsed < spawnConfig.unlock) return;
+
+        this.spawnTimers[type] -= deltaTime;
+        if (this.spawnTimers[type] <= 0) {
+          this.spawnEnemy(type);
+          const intervalScale = 1 + this.getDifficulty() * 0.12;
+          const nextTime = Math.max(spawnConfig.min, spawnConfig.base / intervalScale);
+          this.spawnTimers[type] = nextTime * randomRange(0.75, 1.25);
+        }
+      });
+    }
+
+    update(deltaTime) {
+      if (this.state !== "playing") {
+        this.cameraDistance += 44 * deltaTime;
+        return;
+      }
+
+      this.elapsed += deltaTime;
+      this.scrollSpeed =
+        (CONFIG.difficulty.scrollBase + this.getDifficulty() * CONFIG.difficulty.scrollIncrease) * this.getSpeedRamp();
+      this.cameraDistance += this.scrollSpeed * deltaTime;
+      this.distance += this.scrollSpeed * deltaTime * 0.02;
+      this.score += this.scrollSpeed * deltaTime * CONFIG.scoring.distanceMultiplier;
+      this.fuel -= CONFIG.fuel.drainPerSecond * (1 + this.getDifficulty() * 0.03) * deltaTime;
+      this.lowFuelFlash += deltaTime;
+
+      if (this.fuel <= 0) {
+        this.fuel = 0;
+        this.player.crash();
+        if (this.state === "playing") this.triggerGameOver();
+        return;
+      }
+
+      this.player.update(deltaTime, this.input);
+      this.updateSpawns(deltaTime);
+      this.bullets.forEach((bullet) => bullet.update(deltaTime));
+      this.enemies.forEach((enemy) => enemy.update(deltaTime));
+      this.explosions.forEach((explosion) => explosion.update(deltaTime));
+      this.handleCollisions();
+
+      this.bullets = this.bullets.filter((bullet) => bullet.isAlive);
+      this.enemies = this.enemies.filter((enemy) => enemy.isAlive);
+      this.explosions = this.explosions.filter((explosion) => explosion.isAlive);
+
+      if (this.player.isActive && this.player.respawnTimer <= 0 && this.river.playerTouchesBank(this.player)) {
+        this.player.crash();
+      }
+    }
+
+    handleCollisions() {
+      const playerBounds = this.player.getBounds();
+
+      this.bullets.forEach((bullet) => {
+        const bulletBounds = bullet.getBounds();
+        this.enemies.forEach((enemy) => {
+          if (!enemy.isAlive || !bullet.isAlive) return;
+
+          if (rectanglesIntersect(bulletBounds, enemy.getBounds())) {
+            bullet.isAlive = false;
+            enemy.damage();
+
+            if (!enemy.isAlive) {
+              this.score += enemy.points;
+              this.spawnExplosion(enemy.x, enemy.y, ["#ffe066", "#ff8c42", "#fff2a8"]);
+              this.audio.explosion();
+
+              if (enemy.fuelReward > 0) {
+                this.fuel = clamp(this.fuel + enemy.fuelReward, 0, CONFIG.fuel.max);
+                this.audio.fuel();
+              }
+            }
+          }
+        });
+      });
+
+      if (!this.player.isActive || this.player.respawnTimer > 0) return;
+
+      this.enemies.forEach((enemy) => {
+        if (enemy.isAlive && rectanglesIntersect(playerBounds, enemy.getBounds())) {
+          enemy.isAlive = false;
+          this.spawnExplosion(enemy.x, enemy.y, ["#ffd166", "#ff8c42", "#ffffff"]);
+          this.player.crash();
+        }
+      });
+    }
+
+    render() {
+      this.ctx.fillStyle = CONFIG.colors.hudBg;
+      this.ctx.fillRect(0, 0, CONFIG.canvas.width, CONFIG.canvas.height);
+      this.river.draw(this.ctx);
+      this.enemies.forEach((enemy) => enemy.draw(this.ctx));
+      this.bullets.forEach((bullet) => bullet.draw(this.ctx));
+      this.explosions.forEach((explosion) => explosion.draw(this.ctx));
+      this.player.draw(this.ctx);
+      this.drawHud();
+      this.drawOverlay();
+    }
+
+    drawHud() {
+      const ctx = this.ctx;
+      const hudTop = this.getPlayAreaHeight();
+      ctx.save();
+      ctx.fillStyle = CONFIG.colors.hudBg;
+      ctx.fillRect(0, hudTop, CONFIG.canvas.width, CONFIG.hud.height);
+      ctx.strokeStyle = CONFIG.colors.hudBorder;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(0, hudTop);
+      ctx.lineTo(CONFIG.canvas.width, hudTop);
+      ctx.stroke();
+
+      ctx.font = "bold 18px Courier New";
+      ctx.fillStyle = CONFIG.colors.hudTextLight;
+      ctx.textAlign = "left";
+      ctx.fillText("P1", 14, hudTop + 28);
+      ctx.fillText(`${Math.floor(this.score).toString().padStart(5, "0")}`, 82, hudTop + 28);
+
+      ctx.fillStyle = CONFIG.colors.hudTextDark;
+      ctx.fillText("HI", CONFIG.canvas.width * 0.5 - 18, hudTop + 28);
+      ctx.fillText(`${Math.max(Math.floor(this.score), 5580).toString().padStart(5, "0")}`, CONFIG.canvas.width - 120, hudTop + 28);
+
+      ctx.font = "bold 22px Courier New";
+      ctx.fillStyle = CONFIG.colors.hudTextDark;
+      ctx.fillText(`GAME ${Math.max(this.lives, 0)}`, 24, hudTop + 56);
+      ctx.fillText("F", 272, hudTop + 72);
+      ctx.fillText("E", 313, hudTop + 72);
+
+      ctx.strokeStyle = CONFIG.colors.hudBorder;
+      ctx.strokeRect(255, hudTop + 38, 118, 38);
+      ctx.fillStyle = CONFIG.colors.hudBorder;
+      ctx.fillRect(311, hudTop + 41, 6, 32);
+
+      const fuelRatio = this.fuel / CONFIG.fuel.max;
+      const lowFuel = this.fuel <= CONFIG.fuel.lowWarningThreshold;
+      const fuelColor = lowFuel && Math.floor(this.lowFuelFlash * 6) % 2 === 0 ? CONFIG.colors.warning : CONFIG.colors.hudTextDark;
+      ctx.fillStyle = fuelColor;
+      ctx.fillRect(259, hudTop + 42, 108 * fuelRatio, 30);
+
+      ctx.fillStyle = CONFIG.colors.hudTextLight;
+      ctx.fillText("BRIDGE", CONFIG.canvas.width * 0.5 + 28, hudTop + 56);
+      this.drawLifeIcons(ctx, CONFIG.canvas.width * 0.5 + 74, hudTop + 76);
+
+      if (this.player.respawnTimer > 0 && this.state === "playing") {
+        ctx.textAlign = "center";
+        ctx.fillStyle = CONFIG.colors.warning;
+        ctx.fillText("RESPAWNING", CONFIG.canvas.width * 0.5, hudTop - 18);
+      }
+
+      if (lowFuel && this.state === "playing") {
+        ctx.textAlign = "center";
+        ctx.fillStyle = fuelColor;
+        ctx.fillText("LOW FUEL", CONFIG.canvas.width * 0.5, 108);
+      }
+
+      ctx.restore();
+    }
+
+    drawLifeIcons(ctx, startX, startY) {
+      const remaining = Math.max(this.lives - 1, 0);
+      for (let index = 0; index < remaining; index += 1) {
+        const x = startX + index * 24;
+        ctx.fillStyle = CONFIG.colors.hudTextLight;
+        ctx.fillRect(x - 8, startY, 16, 3);
+        ctx.fillRect(x - 2, startY - 7, 4, 15);
+        ctx.fillRect(x - 5, startY + 6, 10, 3);
+      }
+    }
+
+    drawOverlay() {
+      const ctx = this.ctx;
+      const playHeight = this.getPlayAreaHeight();
+      if (this.state !== "start" && this.state !== "gameover") return;
+
+      ctx.save();
+      ctx.fillStyle = "rgba(0, 0, 0, 0.65)";
+      ctx.fillRect(64, 120, CONFIG.canvas.width - 128, playHeight - 220);
+      ctx.strokeStyle = CONFIG.colors.hudTextLight;
+      ctx.lineWidth = 3;
+      ctx.strokeRect(64, 120, CONFIG.canvas.width - 128, playHeight - 220);
+
+      ctx.textAlign = "center";
+      ctx.fillStyle = CONFIG.colors.hudTextLight;
+      ctx.font = "bold 34px Courier New";
+      ctx.fillText("RIVER STRIKE", CONFIG.canvas.width * 0.5, 205);
+
+      ctx.font = "bold 18px Courier New";
+      if (this.state === "start") {
+        ctx.fillText("PRESS ENTER TO LAUNCH", CONFIG.canvas.width * 0.5, 258);
+        ctx.fillText("ARROWS MOVE   SPACE FIRES", CONFIG.canvas.width * 0.5, 294);
+        ctx.fillText("DESTROY FUEL DEPOTS TO REFILL", CONFIG.canvas.width * 0.5, 330);
+        ctx.fillText("DON'T TOUCH THE BANKS", CONFIG.canvas.width * 0.5, 366);
+      } else {
+        ctx.fillText("GAME OVER", CONFIG.canvas.width * 0.5, 258);
+        ctx.fillText(`FINAL SCORE ${Math.floor(this.score)}`, CONFIG.canvas.width * 0.5, 294);
+        ctx.fillText(`DISTANCE ${Math.floor(this.distance)}`, CONFIG.canvas.width * 0.5, 330);
+        ctx.fillText("PRESS ENTER TO RESTART", CONFIG.canvas.width * 0.5, 366);
+      }
+
+      ctx.restore();
+    }
+
+    loop(timestamp) {
+      const deltaTime = Math.min(0.033, (timestamp - this.lastTime) / 1000 || 0);
+      this.lastTime = timestamp;
+
+      if (this.input.consume("Enter") && (this.state === "start" || this.state === "gameover")) {
+        this.startGame();
+      }
+
+      this.update(deltaTime);
+      this.render();
+      this.input.endFrame();
+      requestAnimationFrame((nextTimestamp) => this.loop(nextTimestamp));
+    }
+  }
+
+  function rectanglesIntersect(a, b) {
+    return a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y;
+  }
+
+  function clamp(value, min, max) {
+    return Math.max(min, Math.min(max, value));
+  }
+
+  function randomRange(min, max) {
+    return min + Math.random() * (max - min);
+  }
+
+  const canvas = document.getElementById("gameCanvas");
+  if (canvas) new Game(canvas);
+})();
+  </script>
+</body>
+</html>
