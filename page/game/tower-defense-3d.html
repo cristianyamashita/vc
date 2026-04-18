@@ -285,6 +285,13 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
   const difficultyLabel = key => t(`difficulty${key.charAt(0).toUpperCase()}${key.slice(1)}`);
   function hasEasyTowerBonuses() { return state.difficulty === 'easy'; }
   function hasProgressionBonuses() { return state.difficulty !== 'hard'; }
+  const easyTowerHealthUpgradeMultipliers = {
+    machineGun: 2,
+    mortar: 1.9,
+    rocket: 1.75,
+    missile: 1.6,
+    cannon: 1.5
+  };
   function smoothAngle(current, target, dt, turnRate = 5.8) {
     return current + angleDiff(target, current) * (1 - Math.exp(-turnRate * dt));
   }
@@ -940,8 +947,9 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
     }
     tower.level += 1;
     const hr = tower.maxHp > 0 ? tower.hp / tower.maxHp : 1;
-    tower.maxHp = hasEasyTowerBonuses() && def.id === 'machineGun' ? tower.maxHp * 2 : tower.maxHp + 22;
-    tower.hp = hasEasyTowerBonuses() && def.id === 'machineGun'
+    const easyHealthMultiplier = hasEasyTowerBonuses() ? easyTowerHealthUpgradeMultipliers[def.id] : null;
+    tower.maxHp = easyHealthMultiplier ? tower.maxHp * easyHealthMultiplier : tower.maxHp + 22;
+    tower.hp = easyHealthMultiplier
       ? Math.max(tower.hp, tower.maxHp * hr) : Math.min(tower.maxHp, tower.hp + 36);
   }
 
