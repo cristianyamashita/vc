@@ -314,6 +314,44 @@
     .handle.sw { left: -5px; bottom: -5px; cursor: nesw-resize; }
     .handle.se { right: -5px; bottom: -5px; cursor: nwse-resize; }
     .handle.rot { left: 50%; top: -22px; transform: translateX(-50%); width: 12px; height: 12px; border-radius: 50%; cursor: grab; }
+    .selection-actions {
+      position: absolute;
+      left: 50%;
+      bottom: -42px;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 8px;
+      padding: 5px;
+      border-radius: 8px;
+      background: rgba(22,26,46,0.92);
+      border: 1px solid rgba(255,255,255,0.16);
+      box-shadow: 0 8px 20px rgba(0,0,0,0.28);
+      pointer-events: auto;
+      white-space: nowrap;
+    }
+    .selection-actions button {
+      min-height: 28px;
+      padding: 4px 10px;
+      border-radius: 8px;
+      border: 1px solid rgba(255,255,255,0.16);
+      background: rgba(255,255,255,0.08);
+      color: var(--text);
+      cursor: pointer;
+      font: 700 12px/1 ui-sans-serif, system-ui, sans-serif;
+    }
+    .selection-actions button:hover { background: rgba(255,255,255,0.14); }
+    .selection-actions .apply { background: rgba(77,226,207,0.18); border-color: rgba(77,226,207,0.5); }
+    body.theme-light .selection-actions {
+      background: rgba(255,255,255,0.94);
+      border-color: rgba(15,18,32,0.16);
+      box-shadow: 0 8px 20px rgba(15,18,32,0.16);
+    }
+    body.theme-light .selection-actions button {
+      border-color: rgba(15,18,32,0.16);
+      background: rgba(15,18,32,0.04);
+      color: #0f1220;
+    }
+    body.theme-light .selection-actions .apply { background: rgba(0,150,136,0.12); border-color: rgba(0,150,136,0.35); }
 
     .native-font-select {
       position: absolute;
@@ -522,6 +560,10 @@
           <div class="handle sw" data-dir="sw"></div>
           <div class="handle se" data-dir="se"></div>
           <div class="handle rot" data-dir="rot"></div>
+          <div id="selectionActions" class="selection-actions hidden">
+            <button type="button" class="apply" id="applySelectionBtn">Apply</button>
+            <button type="button" id="cancelSelectionBtn">Cancel</button>
+          </div>
         </div>
         <div id="iconPicker" class="icon-picker hidden">
           <button data-ic="fa-star" title="star"><i class="fa-solid fa-star"></i></button>
@@ -694,21 +736,21 @@
         Text: 'Text', Icons: 'Icons', SelectMove: 'Select/Move', Undo: 'Undo', Redo: 'Redo', Import: 'Import', Export: 'Export', Fullscreen: 'Fullscreen',
         Color: 'Color', Size: 'Size', Fill: 'Fill', Opacity: 'Opacity', Font: 'Font', Arrowheads: 'Arrowheads', Radius: 'Radius', Recent: 'Recent',
         Smooth: 'Smooth', Grid: 'Grid', GridSize: 'Grid Size', Align: 'Align', Bold: 'Bold', Italic: 'Italic', GridType: 'Grid Type', Sides: 'Sides', Points: 'Points', Inner: 'Inner',
-        Theme: 'Theme', Dark: 'Dark', Light: 'Light', Autosave: 'Autosave', SaveNow: 'Save now', ArrowSize: 'Arrow Size', Dashed: 'Dashed', Dash: 'Dash', FontStandard: 'Standard', FontHandwriting: 'Handwriting', FontPreviewSample: 'Quick note'
+        Theme: 'Theme', Dark: 'Dark', Light: 'Light', Autosave: 'Autosave', SaveNow: 'Save now', ArrowSize: 'Arrow Size', Dashed: 'Dashed', Dash: 'Dash', FontStandard: 'Standard', FontHandwriting: 'Handwriting', FontPreviewSample: 'Quick note', Apply: 'Apply', Cancel: 'Cancel', ImageReady: 'Image ready: move, resize, rotate, then Apply', ImageApplied: 'Image applied', ImageCanceled: 'Image canceled', CouldNotPasteImage: 'Could not paste image', NothingToPaste: 'Nothing to paste (no image/text found)'
       },
       ja: {
         Pen: 'ペン', Marker: 'マーカー', Eraser: '消しゴム', Line: '直線', Rectangle: '四角形', Ellipse: '楕円', Triangle: '三角形', Polygon: '多角形', Star: '星', Eyedropper: 'スポイト', Hand: 'ハンド',
         Text: 'テキスト', Icons: 'アイコン', SelectMove: '選択/移動', Undo: '元に戻す', Redo: 'やり直し', Import: 'インポート', Export: 'エクスポート', Fullscreen: '全画面',
         Color: '色', Size: 'サイズ', Fill: '塗り', Opacity: '不透明度', Font: 'フォント', Arrowheads: '矢じり', Radius: '角丸', Recent: '最近',
         Smooth: 'スムージング', Grid: 'グリッド', GridSize: 'グリッドサイズ', Align: '配置', Bold: '太字', Italic: '斜体', GridType: 'グリッドタイプ', Sides: '辺数', Points: '点数', Inner: '内側',
-        Theme: 'テーマ', Dark: 'ダーク', Light: 'ライト', Autosave: '自動保存', SaveNow: '今すぐ保存', ArrowSize: '矢じりサイズ', Dashed: '破線', Dash: 'ダッシュ', FontStandard: '標準', FontHandwriting: '手書き', FontPreviewSample: 'メモ'
+        Theme: 'テーマ', Dark: 'ダーク', Light: 'ライト', Autosave: '自動保存', SaveNow: '今すぐ保存', ArrowSize: '矢じりサイズ', Dashed: '破線', Dash: 'ダッシュ', FontStandard: '標準', FontHandwriting: '手書き', FontPreviewSample: 'メモ', Apply: '適用', Cancel: 'キャンセル', ImageReady: '画像を移動・サイズ変更・回転してから適用', ImageApplied: '画像を適用しました', ImageCanceled: '画像をキャンセルしました', CouldNotPasteImage: '画像を貼り付けできませんでした', NothingToPaste: '貼り付ける画像/テキストがありません'
       },
       pt: {
         Pen: 'Caneta', Marker: 'Marcador', Eraser: 'Borracha', Line: 'Linha', Rectangle: 'Retângulo', Ellipse: 'Elipse', Triangle: 'Triângulo', Polygon: 'Polígono', Star: 'Estrela', Eyedropper: 'Conta-gotas', Hand: 'Mão',
         Text: 'Texto', Icons: 'Ícones', SelectMove: 'Selecionar/Mover', Undo: 'Desfazer', Redo: 'Refazer', Import: 'Importar', Export: 'Exportar', Fullscreen: 'Tela cheia',
         Color: 'Cor', Size: 'Tamanho', Fill: 'Preenchimento', Opacity: 'Opacidade', Font: 'Fonte', Arrowheads: 'Pontas de seta', Radius: 'Raio', Recent: 'Recentes',
         Smooth: 'Suavizar', Grid: 'Grade', GridSize: 'Tamanho da grade', Align: 'Alinhar', Bold: 'Negrito', Italic: 'Itálico', GridType: 'Tipo de grade', Sides: 'Lados', Points: 'Pontos', Inner: 'Interno',
-        Theme: 'Tema', Dark: 'Escuro', Light: 'Claro', Autosave: 'Auto salvar', SaveNow: 'Salvar agora', ArrowSize: 'Tam. seta', Dashed: 'Tracejado', Dash: 'Traço', FontStandard: 'Padrão', FontHandwriting: 'Escrita à mão', FontPreviewSample: 'Nota rápida'
+        Theme: 'Tema', Dark: 'Escuro', Light: 'Claro', Autosave: 'Auto salvar', SaveNow: 'Salvar agora', ArrowSize: 'Tam. seta', Dashed: 'Tracejado', Dash: 'Traço', FontStandard: 'Padrão', FontHandwriting: 'Escrita à mão', FontPreviewSample: 'Nota rápida', Apply: 'Aplicar', Cancel: 'Cancelar', ImageReady: 'Imagem pronta: mova, redimensione, gire e aplique', ImageApplied: 'Imagem aplicada', ImageCanceled: 'Imagem cancelada', CouldNotPasteImage: 'Não foi possível colar a imagem', NothingToPaste: 'Nada para colar (sem imagem/texto)'
       }
     };
 
@@ -722,6 +764,9 @@
     const viewport = qs('#viewport');
     const toolbar = qs('#toolbar');
     const selectionBox = qs('#selectionBox');
+    const selectionActions = qs('#selectionActions');
+    const applySelectionBtn = qs('#applySelectionBtn');
+    const cancelSelectionBtn = qs('#cancelSelectionBtn');
     const iconPicker = qs('#iconPicker');
 
     const colorEl = qs('#color');
@@ -794,6 +839,9 @@
     const TABS_META_KEY = 'whiteboard_tabs_meta';
     const TAB_PREFIX = 'whiteboard_tab_';
     const AUTOSAVE_META_KEY = 'whiteboard_autosave_meta';
+    const WHITEBOARD_DB_NAME = 'whiteboard-db';
+    const WHITEBOARD_DB_VERSION = 1;
+    const WHITEBOARD_STORE = 'boards';
     // Per-tool size preferences
     const PREF_TOOL_SIZES_KEY = 'whiteboard_pref_tool_sizes';
     const TOOLS_WITH_SIZE = ['pen','marker','eraser','line','rect','ellipse','triangle','polygon','star','text','icon'];
@@ -927,7 +975,7 @@
       updateViewportTransform();
     }
 
-    function resetCanvasToStageSize(resetHistory=false) {
+    function resetCanvasToStageSize(resetHistory=false, persistHistory=true) {
       const rect = stage.getBoundingClientRect();
       viewOffsetX = 0;
       viewOffsetY = 0;
@@ -937,7 +985,7 @@
       if (resetHistory) {
         history = [];
         future = [];
-        pushHistory();
+        pushHistory(persistHistory);
       }
     }
 
@@ -1032,14 +1080,81 @@
       redraw();
     }
 
-    function pushHistory() {
+    function pushHistory(persist=true) {
       try {
         history.push(captureSnapshot());
         if (history.length > HISTORY_LIMIT) history.shift();
         future = [];
         updateUndoRedoButtons();
-        if (autosaveToggle.checked) saveToStorage();
+        if (persist && autosaveToggle.checked) saveToStorage();
       } catch (e) { /* ignore if too large */ }
+    }
+
+    function boardStorageKey(id=activeTabId) {
+      return id ? TAB_PREFIX + id : 'whiteboard_autosave';
+    }
+
+    function boardMetaKey(id=activeTabId) {
+      return id ? TAB_PREFIX + id + ':meta' : AUTOSAVE_META_KEY;
+    }
+
+    function openWhiteboardDB() {
+      return new Promise((resolve, reject) => {
+        if (!window.indexedDB) {
+          reject(new Error('IndexedDB unavailable'));
+          return;
+        }
+        const req = indexedDB.open(WHITEBOARD_DB_NAME, WHITEBOARD_DB_VERSION);
+        req.onupgradeneeded = () => {
+          const db = req.result;
+          if (!db.objectStoreNames.contains(WHITEBOARD_STORE)) {
+            db.createObjectStore(WHITEBOARD_STORE, { keyPath: 'id' });
+          }
+        };
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error || new Error('IndexedDB open failed'));
+      });
+    }
+
+    async function putBoardRecord(record) {
+      const db = await openWhiteboardDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(WHITEBOARD_STORE, 'readwrite');
+        tx.objectStore(WHITEBOARD_STORE).put(record);
+        tx.oncomplete = () => { db.close(); resolve(); };
+        tx.onerror = () => { db.close(); reject(tx.error || new Error('IndexedDB write failed')); };
+      });
+    }
+
+    async function getBoardRecord(id) {
+      const db = await openWhiteboardDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(WHITEBOARD_STORE, 'readonly');
+        const req = tx.objectStore(WHITEBOARD_STORE).get(id);
+        req.onsuccess = () => resolve(req.result || null);
+        req.onerror = () => reject(req.error || new Error('IndexedDB read failed'));
+        tx.oncomplete = () => db.close();
+        tx.onerror = () => { db.close(); reject(tx.error || new Error('IndexedDB transaction failed')); };
+      });
+    }
+
+    async function deleteBoardRecord(id) {
+      const db = await openWhiteboardDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(WHITEBOARD_STORE, 'readwrite');
+        tx.objectStore(WHITEBOARD_STORE).delete(id);
+        tx.oncomplete = () => { db.close(); resolve(); };
+        tx.onerror = () => { db.close(); reject(tx.error || new Error('IndexedDB delete failed')); };
+      });
+    }
+
+    function canvasToBlob(canvas, type='image/png') {
+      return new Promise((resolve, reject) => {
+        canvas.toBlob(blob => {
+          if (blob) resolve(blob);
+          else reject(new Error('Canvas export failed'));
+        }, type);
+      });
     }
 
     function undo() {
@@ -1832,8 +1947,12 @@
       selectionBox.style.top = y + 'px';
       selectionBox.style.width = w + 'px';
       selectionBox.style.height = h + 'px';
+      selectionActions.classList.toggle('hidden', !selection?.pendingPaste);
     }
-    function hideSelectionBox() { selectionBox.classList.add('hidden'); }
+    function hideSelectionBox() {
+      selectionBox.classList.add('hidden');
+      selectionActions.classList.add('hidden');
+    }
 
     function finalizeSelectionBox() {
       const rect = selectionBox.getBoundingClientRect();
@@ -1872,6 +1991,7 @@
       selectionBox.style.top = (selection.y + dy) + 'px';
       selectionBox.style.width = w + 'px';
       selectionBox.style.height = h + 'px';
+      selectionActions.classList.toggle('hidden', !selection.pendingPaste);
     }
 
     function moveSelection(mx, my) {
@@ -1880,12 +2000,33 @@
       drawSelectionOverlay();
     }
 
-    function commitSelectionMove() {
+    function normalizeSelectionTransform() {
       if (!selection || !selection.canvas) return;
       const nx = Math.round(selection.x + (selection.offsetX||0));
       const ny = Math.round(selection.y + (selection.offsetY||0));
       const w = Math.max(1, Math.round(selection.w + (selection.resizeW||0)));
       const h = Math.max(1, Math.round(selection.h + (selection.resizeH||0)));
+      selection.x = nx;
+      selection.y = ny;
+      selection.w = w;
+      selection.h = h;
+      selection.offsetX = 0;
+      selection.offsetY = 0;
+      selection.resizeW = 0;
+      selection.resizeH = 0;
+      selection.moving = !!selection.pendingPaste;
+      selection.resizing = false;
+      selection.rotating = false;
+      drawSelectionOverlay();
+    }
+
+    function commitSelectionMove() {
+      if (!selection || !selection.canvas) return;
+      normalizeSelectionTransform();
+      const nx = selection.x;
+      const ny = selection.y;
+      const w = selection.w;
+      const h = selection.h;
       const angle = selection.rotation || 0;
       ctx.save();
       ctx.translate(nx + w/2, ny + h/2);
@@ -1901,17 +2042,42 @@
       e.stopPropagation(); e.preventDefault();
       if (!selection) return;
       const dir = handle.dataset.dir;
-      drawing = true; startX = e.clientX - stage.getBoundingClientRect().left; startY = e.clientY - stage.getBoundingClientRect().top;
+      try { handle.setPointerCapture?.(e.pointerId); } catch {}
+      const p = getPos(e);
+      drawing = true; startX = p.x; startY = p.y;
       if (dir === 'rot') {
         selection.rotating = true; selection.handle = 'rot';
-        const rect = selectionBox.getBoundingClientRect();
-        const stageRect = stage.getBoundingClientRect();
-        selection.cx = rect.left - stageRect.left + rect.width/2;
-        selection.cy = rect.top - stageRect.top + rect.height/2;
+        const dx = selection.offsetX || 0;
+        const dy = selection.offsetY || 0;
+        const w = Math.max(1, Math.round(selection.w + (selection.resizeW || 0)));
+        const h = Math.max(1, Math.round(selection.h + (selection.resizeH || 0)));
+        selection.cx = selection.x + dx + w / 2;
+        selection.cy = selection.y + dy + h / 2;
         selection.startAngle = Math.atan2(startY - selection.cy, startX - selection.cx) - (selection.rotation || 0);
       } else {
         selection.resizing = true; selection.handle = dir; selection.orig = { x: selection.x, y: selection.y, w: selection.w, h: selection.h };
       }
+    });
+    selectionBox.addEventListener('pointermove', (e) => {
+      if (!drawing || !selection || (!selection.resizing && !selection.rotating)) return;
+      e.stopPropagation();
+      const p = getPos(e);
+      if (selection.resizing) resizeSelection(p.x, p.y);
+      if (selection.rotating) updateRotation(p.x, p.y);
+    });
+    selectionBox.addEventListener('pointerup', (e) => {
+      if (!drawing || !selection || (!selection.resizing && !selection.rotating)) return;
+      e.stopPropagation();
+      try { e.target.releasePointerCapture?.(e.pointerId); } catch {}
+      const p = getPos(e);
+      if (selection.resizing) {
+        drawing = false;
+        finalizeSelectionResize();
+      } else if (selection.rotating) {
+        drawing = false;
+        finalizeSelectionRotate();
+      }
+      spacePanning = false;
     });
     function resizeSelection(x, y) {
       if (!selection || !selection.resizing) return;
@@ -1926,12 +2092,11 @@
     }
     function finalizeSelectionResize() {
       if (!selection) return;
-      const nx = Math.round(selection.x + (selection.offsetX||0));
-      const ny = Math.round(selection.y + (selection.offsetY||0));
-      const nw = Math.max(1, Math.round(selection.w + (selection.resizeW||0)));
-      const nh = Math.max(1, Math.round(selection.h + (selection.resizeH||0)));
-      ctx.drawImage(selection.canvas, 0, 0, selection.canvas.width, selection.canvas.height, nx, ny, nw, nh);
-      selection = null; hideSelectionBox(); clearOverlay(); pushHistory();
+      if (selection.pendingPaste) {
+        normalizeSelectionTransform();
+        return;
+      }
+      commitSelectionMove();
     }
     function updateRotation(x, y) {
       if (!selection || !selection.rotating) return;
@@ -1941,8 +2106,40 @@
     }
     function finalizeSelectionRotate() {
       if (!selection) return;
+      if (selection.pendingPaste) {
+        normalizeSelectionTransform();
+        return;
+      }
       commitSelectionMove();
     }
+
+    function applyPendingSelection() {
+      if (!selection || !selection.pendingPaste) return;
+      commitSelectionMove();
+      statusEl.textContent = STRINGS[lang]?.ImageApplied || 'Image applied';
+    }
+
+    function cancelPendingSelection() {
+      if (!selection || !selection.pendingPaste) return;
+      selection = null;
+      hideSelectionBox();
+      clearOverlay();
+      statusEl.textContent = STRINGS[lang]?.ImageCanceled || 'Image canceled';
+    }
+
+    selectionActions.addEventListener('pointerdown', e => {
+      e.stopPropagation();
+    });
+    applySelectionBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      applyPendingSelection();
+    });
+    cancelSelectionBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      cancelPendingSelection();
+    });
 
     // Eyedropper
     function pickColorAt(x, y) {
@@ -2048,7 +2245,8 @@
       const p = getPos(e);
       const activeTool = getInteractionTool();
       if (activeTool === 'select' && selection && selection.moving && drawing) {
-        drawing = false; commitSelectionMove();
+        drawing = false;
+        if (selection.pendingPaste) normalizeSelectionTransform(); else commitSelectionMove();
       } else {
         endStroke(p.x, p.y, e);
       }
@@ -2226,42 +2424,77 @@
     });
 
     // Autosave
-    function saveToStorage() {
+    async function saveToStorage(id=activeTabId) {
+      const key = boardStorageKey(id);
+      const meta = { width: canvasLogicalWidth, height: canvasLogicalHeight, dpr, updatedAt: Date.now() };
       try {
-        const data = board.toDataURL('image/png');
-        const meta = JSON.stringify({ width: canvasLogicalWidth, height: canvasLogicalHeight });
-        localStorage.setItem('whiteboard_autosave', data);
-        localStorage.setItem(AUTOSAVE_META_KEY, meta);
-        if (activeTabId) {
-          localStorage.setItem(TAB_PREFIX + activeTabId, data);
-          localStorage.setItem(TAB_PREFIX + activeTabId + ':meta', meta);
-        }
+        const blob = await canvasToBlob(board, 'image/png');
+        await putBoardRecord({ id: key, blob, meta });
+        localStorage.setItem(boardMetaKey(id), JSON.stringify(meta));
         statusEl.textContent = 'Saved';
-      } catch {}
+      } catch {
+        try {
+          const data = board.toDataURL('image/png');
+          localStorage.setItem(key, data);
+          localStorage.setItem(boardMetaKey(id), JSON.stringify(meta));
+          statusEl.textContent = 'Saved';
+        } catch {}
+      }
     }
-    function loadFromStorage() {
-      const data = activeTabId ? localStorage.getItem(TAB_PREFIX + activeTabId) : localStorage.getItem('whiteboard_autosave');
-      if (!data) return;
-      const metaRaw = activeTabId ? localStorage.getItem(TAB_PREFIX + activeTabId + ':meta') : localStorage.getItem(AUTOSAVE_META_KEY);
+
+    async function loadImageSource(source, meta=null) {
+      if (!source) return false;
+      return new Promise(resolve => {
+        const img = new Image();
+        let objectUrl = null;
+        img.onload = () => {
+          if (objectUrl) URL.revokeObjectURL(objectUrl);
+          const rect = stage.getBoundingClientRect();
+          const requestedWidth = Math.max(Math.ceil(rect.width), Math.ceil(meta?.width || img.naturalWidth / dpr));
+          const requestedHeight = Math.max(Math.ceil(rect.height), Math.ceil(meta?.height || img.naturalHeight / dpr));
+          const clamped = clampCanvasSize(requestedWidth, requestedHeight);
+          const width = clamped.width;
+          const height = clamped.height;
+          resizeCanvasWorld(width, height, 0, 0);
+          ctx.clearRect(0, 0, canvasLogicalWidth, canvasLogicalHeight);
+          ctx.drawImage(img, 0, 0, width, height);
+          pushHistory(false);
+          resolve(true);
+        };
+        img.onerror = () => {
+          if (objectUrl) URL.revokeObjectURL(objectUrl);
+          resolve(false);
+        };
+        if (source instanceof Blob) {
+          objectUrl = URL.createObjectURL(source);
+          img.src = objectUrl;
+        } else {
+          img.src = source;
+        }
+      });
+    }
+
+    async function loadFromStorage(id=activeTabId) {
+      const key = boardStorageKey(id);
+      try {
+        const record = await getBoardRecord(key);
+        if (record?.blob && await loadImageSource(record.blob, record.meta)) return true;
+      } catch {}
+
+      const data = localStorage.getItem(key);
+      if (!data) return false;
+      const metaRaw = localStorage.getItem(boardMetaKey(id));
       let meta = null;
       try { meta = metaRaw ? JSON.parse(metaRaw) : null; } catch {}
-      const img = new Image(); img.onload = () => {
-        const rect = stage.getBoundingClientRect();
-        const requestedWidth = Math.max(Math.ceil(rect.width), Math.ceil(meta?.width || img.naturalWidth / dpr));
-        const requestedHeight = Math.max(Math.ceil(rect.height), Math.ceil(meta?.height || img.naturalHeight / dpr));
-        const clamped = clampCanvasSize(requestedWidth, requestedHeight);
-        const width = clamped.width;
-        const height = clamped.height;
-        resizeCanvasWorld(width, height, 0, 0);
-        ctx.clearRect(0, 0, canvasLogicalWidth, canvasLogicalHeight);
-        ctx.drawImage(img, 0, 0, width, height);
-        pushHistory();
-      }; img.src = data;
+      const loaded = await loadImageSource(data, meta);
+      if (loaded && autosaveToggle.checked) saveToStorage(id);
+      return loaded;
     }
     saveNowBtn.addEventListener('click', () => { saveToStorage(); });
 
     // Clear all
     clearBtn.addEventListener('click', () => {
+      const key = boardStorageKey();
       if (activeTabId) {
         localStorage.removeItem(TAB_PREFIX + activeTabId);
         localStorage.removeItem(TAB_PREFIX + activeTabId + ':meta');
@@ -2269,6 +2502,7 @@
         localStorage.removeItem('whiteboard_autosave');
         localStorage.removeItem(AUTOSAVE_META_KEY);
       }
+      deleteBoardRecord(key).catch(() => {});
       resetCanvasToStageSize(true);
     });
 
@@ -2276,6 +2510,44 @@
     function drawImageOnBoard(img, x=0, y=0, scale=1) {
       const w = img.width / dpr * scale; const h = img.height / dpr * scale;
       ctx.drawImage(img, x, y, w, h); pushHistory();
+    }
+
+    function createPendingImageSelection(img) {
+      const sourceWidth = Math.max(1, img.naturalWidth || img.width || 1);
+      const sourceHeight = Math.max(1, img.naturalHeight || img.height || 1);
+      const c = document.createElement('canvas');
+      c.width = sourceWidth;
+      c.height = sourceHeight;
+      c.getContext('2d').drawImage(img, 0, 0, sourceWidth, sourceHeight);
+
+      const rect = stage.getBoundingClientRect();
+      const visibleW = Math.max(1, rect.width / viewScale);
+      const visibleH = Math.max(1, rect.height / viewScale);
+      const baseW = sourceWidth / dpr;
+      const baseH = sourceHeight / dpr;
+      const fitScale = Math.min(1, (visibleW * 0.72) / baseW, (visibleH * 0.72) / baseH);
+      const w = Math.max(1, Math.round(baseW * fitScale));
+      const h = Math.max(1, Math.round(baseH * fitScale));
+      const centerX = (rect.width / 2 - viewOffsetX) / viewScale;
+      const centerY = (rect.height / 2 - viewOffsetY) / viewScale;
+
+      selection = {
+        x: Math.round(centerX - w / 2),
+        y: Math.round(centerY - h / 2),
+        w,
+        h,
+        canvas: c,
+        moving: true,
+        resizing: false,
+        rotating: false,
+        rotation: 0,
+        offsetX: 0,
+        offsetY: 0,
+        pendingPaste: true
+      };
+      setTool('select');
+      drawSelectionOverlay();
+      statusEl.textContent = STRINGS[lang]?.ImageReady || 'Image ready: move, resize, rotate, then Apply';
     }
 
     fileInput.addEventListener('change', async () => {
@@ -2312,14 +2584,28 @@
       const cd = e.clipboardData;
       if (!cd) return;
 
+      const pasteImageFromUrl = (url, revoke=false) => {
+        const img = new Image();
+        if (!url.startsWith('blob:') && !url.startsWith('data:')) img.crossOrigin = 'anonymous';
+        img.onload = () => {
+          createPendingImageSelection(img);
+          if (revoke) URL.revokeObjectURL(url);
+        };
+        img.onerror = () => {
+          if (revoke) URL.revokeObjectURL(url);
+          statusEl.textContent = STRINGS[lang]?.CouldNotPasteImage || 'Could not paste image';
+        };
+        img.src = url;
+      };
+
       // 1) Image files via clipboardData.files
       if (cd.files && cd.files.length) {
         for (const file of cd.files) {
           if (file.type && file.type.startsWith('image/')) {
             const url = URL.createObjectURL(file);
-            const img = new Image();
-            img.onload = () => { drawImageOnBoard(img, 20, 20, 1); URL.revokeObjectURL(url); };
-            img.src = url; return;
+            pasteImageFromUrl(url, true);
+            e.preventDefault();
+            return;
           }
         }
       }
@@ -2331,9 +2617,9 @@
           const file = it.getAsFile();
           if (file) {
             const url = URL.createObjectURL(file);
-            const img = new Image();
-            img.onload = () => { drawImageOnBoard(img, 20, 20, 1); URL.revokeObjectURL(url); };
-            img.src = url; return;
+            pasteImageFromUrl(url, true);
+            e.preventDefault();
+            return;
           }
         }
       }
@@ -2341,10 +2627,8 @@
       // 3) URL that points to an image
       const possibleUrl = cd.getData('text/uri-list') || cd.getData('text/plain');
       if (possibleUrl && /^https?:\/\/.+\.(png|jpe?g|gif|webp|bmp)(\?.*)?$/i.test(possibleUrl.trim())) {
-        const img = new Image();
-        img.crossOrigin = 'anonymous';
-        img.onload = () => { drawImageOnBoard(img, 20, 20, 1); };
-        img.src = possibleUrl.trim();
+        pasteImageFromUrl(possibleUrl.trim());
+        e.preventDefault();
         return;
       }
 
@@ -2353,18 +2637,16 @@
       if (html) {
         const m = html.match(/<img[^>]+src=["']([^"']+)["']/i);
         if (m && m[1]) {
-          const imgUrl = m[1];
-          const img = new Image();
-          img.crossOrigin = 'anonymous';
-          img.onload = () => { drawImageOnBoard(img, 20, 20, 1); };
-          img.src = imgUrl; return;
+          pasteImageFromUrl(m[1]);
+          e.preventDefault();
+          return;
         }
         // data URL fallback
         const dm = html.match(/src=["'](data:image\/[^"']+)["']/i);
         if (dm && dm[1]) {
-          const img = new Image();
-          img.onload = () => { drawImageOnBoard(img, 20, 20, 1); };
-          img.src = dm[1]; return;
+          pasteImageFromUrl(dm[1]);
+          e.preventDefault();
+          return;
         }
       }
 
@@ -2393,14 +2675,19 @@
             if (imgType) {
               const blob = await item.getType(imgType);
               const url = URL.createObjectURL(blob);
-              const img = new Image();
-              img.onload = () => { drawImageOnBoard(img, 20, 20, 1); URL.revokeObjectURL(url); };
-              img.src = url; return;
+              pasteImageFromUrl(url, true);
+              e.preventDefault();
+              return;
             }
           }
         }
       } catch {}
-      statusEl.textContent = 'Nothing to paste (no image/text found)';
+      if (internalClipboard) {
+        pasteSelection();
+        e.preventDefault();
+        return;
+      }
+      statusEl.textContent = STRINGS[lang]?.NothingToPaste || 'Nothing to paste (no image/text found)';
     });
 
     // Fullscreen
@@ -2427,7 +2714,7 @@
       if (mod && e.key.toLowerCase() === 's') { e.preventDefault(); doExport(); return; }
       if (mod && e.key.toLowerCase() === 'c') { e.preventDefault(); copySelection(); return; }
       if (mod && e.key.toLowerCase() === 'x') { e.preventDefault(); cutSelection(); return; }
-      if (mod && e.key.toLowerCase() === 'v') { e.preventDefault(); pasteSelection(); return; }
+      if (mod && e.key.toLowerCase() === 'v') { return; }
 
       if (!mod) {
         const k = e.key.toLowerCase();
@@ -2456,9 +2743,13 @@
           sizeVal.textContent = sizeEl.value;
           setToolSize(tool, parseInt(sizeEl.value,10));
         }
-        if (k === 'escape' || k === 'esc') { selection = null; hideSelectionBox(); clearOverlay(); }
+        if (k === 'escape' || k === 'esc') {
+          if (selection?.pendingPaste) cancelPendingSelection();
+          else { selection = null; hideSelectionBox(); clearOverlay(); }
+        }
         if (k === 'delete' || k === 'backspace') {
-          if (selection && selection.canvas) { selection = null; hideSelectionBox(); clearOverlay(); pushHistory(); }
+          if (selection?.pendingPaste) cancelPendingSelection();
+          else if (selection && selection.canvas) { selection = null; hideSelectionBox(); clearOverlay(); pushHistory(); }
         }
       }
     });
@@ -2556,6 +2847,8 @@
       qs('#lblSides').textContent = S.Sides;
       qs('#lblPoints').textContent = S.Points;
       qs('#lblInner').textContent = S.Inner;
+      applySelectionBtn.textContent = S.Apply;
+      cancelSelectionBtn.textContent = S.Cancel;
       buildFontPicker();
     }
 
@@ -2565,8 +2858,9 @@
     window.addEventListener('resize', setCanvasSize);
 
     // Init
+    autosaveToggle.checked = localStorage.getItem(PREF_AUTOSAVE_KEY) !== '0';
     setCanvasSize();
-    pushHistory();
+    pushHistory(false);
     loadToolSizes();
     loadToolColors();
     loadToolOpacities();
@@ -2609,7 +2903,7 @@
       const vArrSz = localStorage.getItem(PREF_ARROW_SIZE_KEY); if (vArrSz) { arrowSizeEl.value = vArrSz; }
       const vDash = localStorage.getItem(PREF_DASH_KEY); if (vDash) { dashToggle.checked = vDash === '1'; }
       const vDashLen = localStorage.getItem(PREF_DASH_LEN_KEY); if (vDashLen) { dashLenEl.value = vDashLen; }
-      const vAutosave = localStorage.getItem(PREF_AUTOSAVE_KEY); if (vAutosave) { autosaveToggle.checked = vAutosave === '1'; }
+      const vAutosave = localStorage.getItem(PREF_AUTOSAVE_KEY); if (vAutosave) { autosaveToggle.checked = vAutosave !== '0'; }
       loadRecentColors();
       drawGrid();
     } catch {}
@@ -2717,16 +3011,17 @@
       tabs.splice(idx, 1);
       localStorage.removeItem(TAB_PREFIX + id);
       localStorage.removeItem(TAB_PREFIX + id + ':meta');
+      deleteBoardRecord(boardStorageKey(id)).catch(() => {});
       if (activeTabId === id) {
         activeTabId = tabs[0]?.id || null;
-        resetCanvasToStageSize(true);
+        resetCanvasToStageSize(true, false);
         if (activeTabId) loadFromStorage();
       }
       renderTabs(); persistTabs();
     }
     function switchTab(id, loadExisting=true) {
       activeTabId = id;
-      resetCanvasToStageSize(true);
+      resetCanvasToStageSize(true, false);
       if (loadExisting) loadFromStorage();
       renderTabs(); persistTabs();
     }
