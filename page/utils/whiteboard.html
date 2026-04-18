@@ -129,8 +129,96 @@
       grid-area: sidebar;
       background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02));
       border-left: 1px solid rgba(255,255,255,0.08);
-      display: flex; flex-direction: column; gap: 12px;
-      padding: 10px 12px; overflow: auto;
+      display: flex; flex-direction: column; gap: 16px;
+      padding: 14px 14px 18px; overflow: auto;
+    }
+    .sidebar > .group {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px 12px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+    .sidebar > .group:last-child { border-bottom: 0; padding-bottom: 0; }
+    .sidebar .group[hidden] { display: none; }
+    .sidebar .group > label {
+      flex: 0 0 100%;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      line-height: 1.2;
+    }
+    .sidebar .group input[type="range"] {
+      flex: 1 1 160px;
+      min-width: 140px;
+    }
+    .sidebar .group select,
+    .sidebar .group .font-picker {
+      flex: 1 1 100%;
+      min-width: 0;
+    }
+    .sidebar .group button,
+    .sidebar .group select,
+    .sidebar .group input[type="color"] {
+      min-height: 30px;
+      border-radius: 8px;
+    }
+    .sidebar .group button {
+      border: 1px solid rgba(255,255,255,0.14);
+      background-color: rgba(255,255,255,0.06);
+      color: var(--text);
+      cursor: pointer;
+    }
+    .sidebar .group button:hover { background-color: rgba(255,255,255,0.1); }
+    .sidebar .group input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      margin: 0;
+    }
+    .sidebar .group input[type="color"] {
+      width: 44px;
+      padding: 2px;
+      border: 1px solid rgba(255,255,255,0.14);
+      background: rgba(255,255,255,0.06);
+    }
+    .sidebar #colorGroup > button {
+      width: 26px;
+      height: 26px;
+      min-height: 26px;
+      padding: 0;
+      border-color: rgba(255,255,255,0.3);
+    }
+    .sidebar #opacityGroup {
+      flex: 1 1 100%;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px 12px;
+      margin-top: 4px;
+      padding-top: 12px;
+      border-top: 1px solid rgba(255,255,255,0.08);
+    }
+    .sidebar #opacityGroup > label { flex: 0 0 100%; }
+    .sidebar #status {
+      padding: 2px 0 12px;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      line-height: 1.35;
+    }
+    body.theme-light .sidebar > .group,
+    body.theme-light .sidebar #opacityGroup,
+    body.theme-light .sidebar #status {
+      border-color: rgba(15,18,32,0.1);
+    }
+    body.theme-light .sidebar .group button {
+      border-color: rgba(15,18,32,0.16);
+      background-color: rgba(15,18,32,0.04);
+      color: #0f1220;
+    }
+    body.theme-light .sidebar .group button:hover { background-color: rgba(15,18,32,0.08); }
+    body.theme-light .sidebar .group input[type="color"] {
+      border-color: rgba(15,18,32,0.16);
+      background: rgba(15,18,32,0.04);
     }
 
     .stage {
@@ -226,6 +314,130 @@
     .handle.sw { left: -5px; bottom: -5px; cursor: nesw-resize; }
     .handle.se { right: -5px; bottom: -5px; cursor: nwse-resize; }
     .handle.rot { left: 50%; top: -22px; transform: translateX(-50%); width: 12px; height: 12px; border-radius: 50%; cursor: grab; }
+
+    .native-font-select {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      opacity: 0;
+      pointer-events: none;
+    }
+    .font-picker { position: relative; width: 100%; }
+    .font-picker-btn {
+      width: 100%;
+      min-height: 44px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto auto;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 8px;
+      border-radius: 8px;
+      border: 1px solid rgba(255,255,255,0.14);
+      background: rgba(255,255,255,0.06);
+      color: var(--text);
+      cursor: pointer;
+      text-align: left;
+    }
+    .font-picker-btn::after {
+      content: "▾";
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .font-picker-name {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 13px;
+    }
+    .font-picker-sample {
+      min-width: 74px;
+      color: var(--text);
+      font-size: 21px;
+      line-height: 1;
+      text-align: right;
+      white-space: nowrap;
+    }
+    .font-picker-menu {
+      position: absolute;
+      inset-inline: 0;
+      top: calc(100% + 6px);
+      z-index: 40;
+      max-height: 320px;
+      overflow: auto;
+      padding: 6px;
+      border-radius: 8px;
+      border: 1px solid rgba(255,255,255,0.16);
+      background: var(--panel-2);
+      box-shadow: 0 14px 32px rgba(0,0,0,0.36);
+    }
+    .font-picker-group {
+      padding: 6px 6px 4px;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0;
+      text-transform: uppercase;
+    }
+    .font-picker-group.handwriting {
+      color: var(--accent-2);
+      border-top: 1px solid rgba(255,255,255,0.12);
+      margin-top: 4px;
+    }
+    .font-option {
+      width: 100%;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 8px;
+      margin: 2px 0;
+      padding: 7px 8px;
+      border: 1px solid transparent;
+      border-radius: 8px;
+      background: transparent;
+      color: var(--text);
+      cursor: pointer;
+      text-align: left;
+    }
+    .font-option:hover,
+    .font-option[aria-selected="true"] {
+      border-color: rgba(124,140,255,0.5);
+      background: rgba(124,140,255,0.16);
+    }
+    .font-option.handwriting {
+      background: rgba(77,226,207,0.08);
+    }
+    .font-option-name {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 13px;
+    }
+    .font-option-sample {
+      max-width: 126px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 22px;
+      line-height: 1;
+    }
+    body.theme-light .font-picker-btn {
+      border-color: rgba(15,18,32,0.16);
+      background: rgba(15,18,32,0.04);
+      color: #0f1220;
+    }
+    body.theme-light .font-picker-sample,
+    body.theme-light .font-option {
+      color: #0f1220;
+    }
+    body.theme-light .font-picker-menu {
+      border-color: rgba(15,18,32,0.16);
+      background: #ffffff;
+      box-shadow: 0 14px 32px rgba(15,18,32,0.16);
+    }
+    body.theme-light .font-picker-group.handwriting { border-top-color: rgba(15,18,32,0.12); }
+    body.theme-light .font-option.handwriting { background: rgba(0,150,136,0.08); }
     
   </style>
 </head>
@@ -408,7 +620,7 @@
       </div>
       <div class="group" id="textOpts" hidden>
         <label id="lblFont">Font</label>
-        <select id="fontFamily">
+        <select id="fontFamily" class="native-font-select" aria-hidden="true" tabindex="-1">
           <optgroup id="fontGroupStandard" label="Standard">
             <option value="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif">System UI</option>
             <option value="Arial, Helvetica, sans-serif">Arial</option>
@@ -429,6 +641,13 @@
             <option value="&quot;Amatic SC&quot;, cursive">Amatic SC</option>
           </optgroup>
         </select>
+        <div class="font-picker" id="fontPicker">
+          <button type="button" class="font-picker-btn" id="fontPickerBtn" aria-haspopup="listbox" aria-expanded="false">
+            <span class="font-picker-name" id="fontPickerName">System UI</span>
+            <span class="font-picker-sample" id="fontPickerSample">Aa</span>
+          </button>
+          <div class="font-picker-menu hidden" id="fontPickerMenu" role="listbox" aria-labelledby="lblFont"></div>
+        </div>
         <label id="lblAlign">Align</label>
         <select id="textAlign">
           <option value="left">Left</option>
@@ -475,21 +694,21 @@
         Text: 'Text', Icons: 'Icons', SelectMove: 'Select/Move', Undo: 'Undo', Redo: 'Redo', Import: 'Import', Export: 'Export', Fullscreen: 'Fullscreen',
         Color: 'Color', Size: 'Size', Fill: 'Fill', Opacity: 'Opacity', Font: 'Font', Arrowheads: 'Arrowheads', Radius: 'Radius', Recent: 'Recent',
         Smooth: 'Smooth', Grid: 'Grid', GridSize: 'Grid Size', Align: 'Align', Bold: 'Bold', Italic: 'Italic', GridType: 'Grid Type', Sides: 'Sides', Points: 'Points', Inner: 'Inner',
-        Theme: 'Theme', Dark: 'Dark', Light: 'Light', Autosave: 'Autosave', SaveNow: 'Save now', ArrowSize: 'Arrow Size', Dashed: 'Dashed', Dash: 'Dash', FontStandard: 'Standard', FontHandwriting: 'Handwriting'
+        Theme: 'Theme', Dark: 'Dark', Light: 'Light', Autosave: 'Autosave', SaveNow: 'Save now', ArrowSize: 'Arrow Size', Dashed: 'Dashed', Dash: 'Dash', FontStandard: 'Standard', FontHandwriting: 'Handwriting', FontPreviewSample: 'Quick note'
       },
       ja: {
         Pen: 'ペン', Marker: 'マーカー', Eraser: '消しゴム', Line: '直線', Rectangle: '四角形', Ellipse: '楕円', Triangle: '三角形', Polygon: '多角形', Star: '星', Eyedropper: 'スポイト', Hand: 'ハンド',
         Text: 'テキスト', Icons: 'アイコン', SelectMove: '選択/移動', Undo: '元に戻す', Redo: 'やり直し', Import: 'インポート', Export: 'エクスポート', Fullscreen: '全画面',
         Color: '色', Size: 'サイズ', Fill: '塗り', Opacity: '不透明度', Font: 'フォント', Arrowheads: '矢じり', Radius: '角丸', Recent: '最近',
         Smooth: 'スムージング', Grid: 'グリッド', GridSize: 'グリッドサイズ', Align: '配置', Bold: '太字', Italic: '斜体', GridType: 'グリッドタイプ', Sides: '辺数', Points: '点数', Inner: '内側',
-        Theme: 'テーマ', Dark: 'ダーク', Light: 'ライト', Autosave: '自動保存', SaveNow: '今すぐ保存', ArrowSize: '矢じりサイズ', Dashed: '破線', Dash: 'ダッシュ', FontStandard: '標準', FontHandwriting: '手書き'
+        Theme: 'テーマ', Dark: 'ダーク', Light: 'ライト', Autosave: '自動保存', SaveNow: '今すぐ保存', ArrowSize: '矢じりサイズ', Dashed: '破線', Dash: 'ダッシュ', FontStandard: '標準', FontHandwriting: '手書き', FontPreviewSample: 'メモ'
       },
       pt: {
         Pen: 'Caneta', Marker: 'Marcador', Eraser: 'Borracha', Line: 'Linha', Rectangle: 'Retângulo', Ellipse: 'Elipse', Triangle: 'Triângulo', Polygon: 'Polígono', Star: 'Estrela', Eyedropper: 'Conta-gotas', Hand: 'Mão',
         Text: 'Texto', Icons: 'Ícones', SelectMove: 'Selecionar/Mover', Undo: 'Desfazer', Redo: 'Refazer', Import: 'Importar', Export: 'Exportar', Fullscreen: 'Tela cheia',
         Color: 'Cor', Size: 'Tamanho', Fill: 'Preenchimento', Opacity: 'Opacidade', Font: 'Fonte', Arrowheads: 'Pontas de seta', Radius: 'Raio', Recent: 'Recentes',
         Smooth: 'Suavizar', Grid: 'Grade', GridSize: 'Tamanho da grade', Align: 'Alinhar', Bold: 'Negrito', Italic: 'Itálico', GridType: 'Tipo de grade', Sides: 'Lados', Points: 'Pontos', Inner: 'Interno',
-        Theme: 'Tema', Dark: 'Escuro', Light: 'Claro', Autosave: 'Auto salvar', SaveNow: 'Salvar agora', ArrowSize: 'Tam. seta', Dashed: 'Tracejado', Dash: 'Traço', FontStandard: 'Padrão', FontHandwriting: 'Escrita à mão'
+        Theme: 'Tema', Dark: 'Escuro', Light: 'Claro', Autosave: 'Auto salvar', SaveNow: 'Salvar agora', ArrowSize: 'Tam. seta', Dashed: 'Tracejado', Dash: 'Traço', FontStandard: 'Padrão', FontHandwriting: 'Escrita à mão', FontPreviewSample: 'Nota rápida'
       }
     };
 
@@ -511,6 +730,10 @@
     const fillToggle = qs('#fillToggle');
     const opacityEl = qs('#opacity');
     const fontFamilyEl = qs('#fontFamily');
+    const fontPickerBtn = qs('#fontPickerBtn');
+    const fontPickerName = qs('#fontPickerName');
+    const fontPickerSample = qs('#fontPickerSample');
+    const fontPickerMenu = qs('#fontPickerMenu');
     const langEl = qs('#lang');
     const recentColorsEl = qs('#recentColors');
     const arrowheadsToggle = qs('#arrowheadsToggle');
@@ -1730,6 +1953,81 @@
       } catch {}
     }
 
+    function getFontSampleText() {
+      return STRINGS[lang]?.FontPreviewSample || 'Quick note';
+    }
+
+    function getSelectedFontOption() {
+      return qsa('option', fontFamilyEl).find(opt => opt.value === fontFamilyEl.value) || fontFamilyEl.options[0];
+    }
+
+    function isHandwritingOption(option) {
+      return option?.parentElement?.id === 'fontGroupHandwriting';
+    }
+
+    function syncFontPickerSelection() {
+      const selected = getSelectedFontOption();
+      if (!selected) return;
+      const sampleText = getFontSampleText();
+      fontPickerName.textContent = selected.textContent;
+      fontPickerSample.textContent = sampleText;
+      fontPickerSample.style.fontFamily = selected.value;
+      qsa('.font-option', fontPickerMenu).forEach(btn => {
+        const selectedOption = btn.dataset.value === fontFamilyEl.value;
+        btn.setAttribute('aria-selected', selectedOption ? 'true' : 'false');
+      });
+    }
+
+    function closeFontPicker() {
+      fontPickerMenu.classList.add('hidden');
+      fontPickerBtn.setAttribute('aria-expanded', 'false');
+    }
+
+    function setFontFamily(value, persist=false) {
+      fontFamilyEl.value = value;
+      syncFontPickerSelection();
+      if (persist) {
+        try { localStorage.setItem(PREF_FONT_KEY, fontFamilyEl.value); } catch {}
+      }
+    }
+
+    function buildFontPicker() {
+      fontPickerMenu.innerHTML = '';
+      qsa('optgroup', fontFamilyEl).forEach(group => {
+        const isHandwritingGroup = group.id === 'fontGroupHandwriting';
+        const heading = document.createElement('div');
+        heading.className = `font-picker-group${isHandwritingGroup ? ' handwriting' : ''}`;
+        heading.textContent = group.label;
+        fontPickerMenu.appendChild(heading);
+
+        qsa('option', group).forEach(option => {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = `font-option${isHandwritingOption(option) ? ' handwriting' : ''}`;
+          btn.dataset.value = option.value;
+          btn.setAttribute('role', 'option');
+          btn.setAttribute('aria-selected', option.value === fontFamilyEl.value ? 'true' : 'false');
+
+          const name = document.createElement('span');
+          name.className = 'font-option-name';
+          name.textContent = option.textContent;
+
+          const sample = document.createElement('span');
+          sample.className = 'font-option-sample';
+          sample.textContent = getFontSampleText();
+          sample.style.fontFamily = option.value;
+
+          btn.append(name, sample);
+          btn.addEventListener('click', () => {
+            setFontFamily(option.value, true);
+            closeFontPicker();
+          });
+          fontPickerMenu.appendChild(btn);
+        });
+      });
+      syncFontPickerSelection();
+    }
+
     // Events
     function pointerDown(e) {
       board.setPointerCapture?.(e.pointerId);
@@ -1870,7 +2168,41 @@
     fillToggle.addEventListener('change', () => { try { localStorage.setItem(PREF_FILL_KEY, fillToggle.checked ? '1' : '0'); } catch {} });
     cornerRadiusEl.addEventListener('input', () => { try { localStorage.setItem(PREF_RADIUS_KEY, cornerRadiusEl.value); } catch {} });
     smoothingToggle.addEventListener('change', () => { try { localStorage.setItem(PREF_SMOOTH_KEY, smoothingToggle.checked ? '1' : '0'); } catch {} });
-    fontFamilyEl.addEventListener('change', () => { try { localStorage.setItem(PREF_FONT_KEY, fontFamilyEl.value); } catch {} });
+    fontFamilyEl.addEventListener('change', () => setFontFamily(fontFamilyEl.value, true));
+    fontPickerBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const open = fontPickerMenu.classList.toggle('hidden');
+      fontPickerBtn.setAttribute('aria-expanded', open ? 'false' : 'true');
+      if (!open) {
+        const selected = qs('.font-option[aria-selected="true"]', fontPickerMenu);
+        selected?.scrollIntoView({ block: 'nearest' });
+      }
+    });
+    fontPickerMenu.addEventListener('click', (e) => e.stopPropagation());
+    fontPickerBtn.addEventListener('keydown', (e) => {
+      if (e.key !== 'ArrowDown' && e.key !== 'Enter' && e.key !== ' ') return;
+      e.preventDefault();
+      fontPickerMenu.classList.remove('hidden');
+      fontPickerBtn.setAttribute('aria-expanded', 'true');
+      (qs('.font-option[aria-selected="true"]', fontPickerMenu) || qs('.font-option', fontPickerMenu))?.focus();
+    });
+    fontPickerMenu.addEventListener('keydown', (e) => {
+      const options = qsa('.font-option', fontPickerMenu);
+      const idx = options.indexOf(document.activeElement);
+      if (e.key === 'Escape') {
+        closeFontPicker();
+        fontPickerBtn.focus();
+      } else if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        options[Math.min(options.length - 1, idx + 1)]?.focus();
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        options[Math.max(0, idx - 1)]?.focus();
+      }
+    });
+    document.addEventListener('click', (e) => {
+      if (!fontPickerBtn.contains(e.target) && !fontPickerMenu.contains(e.target)) closeFontPicker();
+    });
     textAlignEl.addEventListener('change', () => { try { localStorage.setItem(PREF_ALIGN_KEY, textAlignEl.value); } catch {} });
     textBoldEl.addEventListener('change', () => { try { localStorage.setItem(PREF_BOLD_KEY, textBoldEl.checked ? '1' : '0'); } catch {} });
     textItalicEl.addEventListener('change', () => { try { localStorage.setItem(PREF_ITALIC_KEY, textItalicEl.checked ? '1' : '0'); } catch {} });
@@ -2224,6 +2556,7 @@
       qs('#lblSides').textContent = S.Sides;
       qs('#lblPoints').textContent = S.Points;
       qs('#lblInner').textContent = S.Inner;
+      buildFontPicker();
     }
 
     langEl.addEventListener('change', () => { lang = langEl.value; applyLang(); try { localStorage.setItem(PREF_LANG_KEY, lang); } catch {} });
@@ -2266,7 +2599,7 @@
       const vGrid = localStorage.getItem(PREF_GRID_KEY); if (vGrid) { gridToggle.checked = vGrid === '1'; }
       const vGridType = localStorage.getItem(PREF_GRID_TYPE_KEY); if (vGridType) { gridTypeEl.value = vGridType; }
       const vGridSize = localStorage.getItem(PREF_GRID_SIZE_KEY); if (vGridSize) { gridSizeEl.value = vGridSize; }
-      const vFont = localStorage.getItem(PREF_FONT_KEY); if (vFont) { fontFamilyEl.value = vFont; }
+      const vFont = localStorage.getItem(PREF_FONT_KEY); if (vFont && qsa('option', fontFamilyEl).some(opt => opt.value === vFont)) { fontFamilyEl.value = vFont; }
       const vAlign = localStorage.getItem(PREF_ALIGN_KEY); if (vAlign) { textAlignEl.value = vAlign; }
       const vBold = localStorage.getItem(PREF_BOLD_KEY); if (vBold) { textBoldEl.checked = vBold === '1'; }
       const vItalic = localStorage.getItem(PREF_ITALIC_KEY); if (vItalic) { textItalicEl.checked = vItalic === '1'; }
@@ -2280,6 +2613,7 @@
       loadRecentColors();
       drawGrid();
     } catch {}
+    syncFontPickerSelection();
 
     // Viewport zoom controls
     function applyZoom(z) {
