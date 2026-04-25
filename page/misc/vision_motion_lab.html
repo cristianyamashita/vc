@@ -1,0 +1,2183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Vision Motion Lab</title>
+  <style>
+    :root {
+      --bg: #0c1316;
+      --bg-soft: #162126;
+      --panel: rgba(14, 24, 28, 0.86);
+      --panel-strong: rgba(20, 34, 39, 0.96);
+      --border: rgba(167, 216, 214, 0.18);
+      --text: #eef7f5;
+      --muted: #9db4b0;
+      --accent: #56f0c0;
+      --accent-strong: #1dc995;
+      --warm: #ffc96b;
+      --danger: #ff7b74;
+      --info: #7dd3fc;
+      --shadow: 0 24px 80px rgba(0, 0, 0, 0.34);
+      --radius: 24px;
+      --radius-sm: 16px;
+      --grid: rgba(255, 255, 255, 0.04);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      min-height: 100%;
+      background:
+        radial-gradient(circle at top left, rgba(86, 240, 192, 0.12), transparent 30%),
+        radial-gradient(circle at bottom right, rgba(255, 201, 107, 0.14), transparent 28%),
+        linear-gradient(160deg, #091014 0%, #10191d 42%, #081114 100%);
+      color: var(--text);
+      font-family: "Space Grotesk", "Segoe UI", sans-serif;
+    }
+
+    body {
+      padding: 24px;
+      background-image:
+        radial-gradient(circle at 1px 1px, var(--grid) 1px, transparent 0),
+        radial-gradient(circle at top left, rgba(86, 240, 192, 0.12), transparent 30%),
+        radial-gradient(circle at bottom right, rgba(255, 201, 107, 0.14), transparent 28%),
+        linear-gradient(160deg, #091014 0%, #10191d 42%, #081114 100%);
+      background-size: 22px 22px, auto, auto, auto;
+    }
+
+    button,
+    select {
+      font: inherit;
+    }
+
+    .app-shell {
+      width: min(1380px, 100%);
+      margin: 0 auto;
+      display: grid;
+      gap: 20px;
+    }
+
+    .hero,
+    .card,
+    .viewport-panel,
+    .status-grid {
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(20px);
+    }
+
+    .hero {
+      position: relative;
+      overflow: hidden;
+      padding: 30px;
+      border-radius: var(--radius);
+      background:
+        linear-gradient(135deg, rgba(86, 240, 192, 0.15), transparent 32%),
+        linear-gradient(315deg, rgba(255, 201, 107, 0.14), transparent 30%),
+        var(--panel);
+    }
+
+    .hero::after {
+      content: "";
+      position: absolute;
+      inset: auto -60px -60px auto;
+      width: 220px;
+      height: 220px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(86, 240, 192, 0.22), transparent 72%);
+      pointer-events: none;
+    }
+
+    .lang-selector {
+      position: absolute;
+      top: 18px;
+      right: 18px;
+      z-index: 2;
+      display: flex;
+      gap: 6px;
+      padding: 4px;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: rgba(4, 11, 14, 0.48);
+    }
+
+    .lang-selector button {
+      min-width: 42px;
+      min-height: 34px;
+      padding: 0 10px;
+      color: var(--muted);
+      background: transparent;
+      border: 1px solid transparent;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .lang-selector button:hover {
+      color: var(--text);
+      border-color: rgba(255, 255, 255, 0.12);
+    }
+
+    .lang-selector button.active {
+      color: #06241c;
+      background: var(--accent);
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      color: var(--warm);
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .hero h1 {
+      margin: 16px 0 10px;
+      font-size: clamp(2.4rem, 6vw, 4.6rem);
+      line-height: 0.96;
+      letter-spacing: -0.04em;
+      max-width: 760px;
+    }
+
+    .hero p {
+      margin: 0;
+      max-width: 760px;
+      color: var(--muted);
+      font-size: 1rem;
+    }
+
+    .hero-grid {
+      margin-top: 22px;
+      display: grid;
+      grid-template-columns: minmax(0, 1.3fr) minmax(300px, 0.9fr);
+      gap: 18px;
+      align-items: start;
+    }
+
+    .card {
+      background: var(--panel);
+      border-radius: var(--radius-sm);
+      padding: 18px;
+    }
+
+    .note-card {
+      display: grid;
+      gap: 12px;
+      align-content: start;
+      min-height: 100%;
+    }
+
+    .note-card strong {
+      color: var(--accent);
+    }
+
+    .instructions {
+      display: grid;
+      gap: 10px;
+      margin: 0;
+      padding-left: 18px;
+      color: var(--muted);
+    }
+
+    .controls {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+      align-items: end;
+    }
+
+    .field {
+      display: grid;
+      gap: 8px;
+    }
+
+    .field label {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+    }
+
+    .field select {
+      width: 100%;
+      min-height: 48px;
+      padding: 0 14px;
+      color: var(--text);
+      border-radius: 14px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    .button-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .button-row button {
+      min-height: 48px;
+      padding: 0 18px;
+      border-radius: 14px;
+      border: 1px solid transparent;
+      cursor: pointer;
+      transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+    }
+
+    .button-row button:hover:not(:disabled) {
+      transform: translateY(-1px);
+    }
+
+    .button-row button:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+
+    .primary-btn {
+      color: #06241c;
+      background: linear-gradient(135deg, var(--accent), #88ffd8);
+      box-shadow: 0 12px 26px rgba(29, 201, 149, 0.28);
+    }
+
+    .secondary-btn {
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.05);
+      border-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .pill-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .pill {
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.07);
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .main-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.85fr);
+      gap: 20px;
+      align-items: start;
+    }
+
+    .viewport-panel {
+      position: relative;
+      border-radius: var(--radius);
+      padding: 18px;
+      background: var(--panel);
+      overflow: hidden;
+    }
+
+    .viewport-topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+    }
+
+    .viewport-topbar h2,
+    .status-grid h2,
+    .presentation-card h2 {
+      margin: 0;
+      font-size: 1rem;
+      letter-spacing: 0.02em;
+    }
+
+    .live-indicator {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      font-size: 12px;
+      color: var(--muted);
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .live-indicator::before {
+      content: "";
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--danger);
+      box-shadow: 0 0 0 0 rgba(255, 123, 116, 0.4);
+    }
+
+    .live-indicator.active::before {
+      background: var(--accent);
+      animation: pulse 1.6s infinite;
+    }
+
+    @keyframes pulse {
+      0% {
+        box-shadow: 0 0 0 0 rgba(86, 240, 192, 0.5);
+      }
+      70% {
+        box-shadow: 0 0 0 12px rgba(86, 240, 192, 0);
+      }
+      100% {
+        box-shadow: 0 0 0 0 rgba(86, 240, 192, 0);
+      }
+    }
+
+    .stage {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 4 / 3;
+      border-radius: 20px;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      background:
+        radial-gradient(circle at top, rgba(125, 211, 252, 0.12), transparent 28%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.03));
+    }
+
+    .stage::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      pointer-events: none;
+      border-radius: 20px;
+    }
+
+    .mirror-layer {
+      position: absolute;
+      inset: 0;
+      transform: scaleX(-1);
+      transform-origin: center;
+    }
+
+    video,
+    canvas {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    video {
+      background: #020405;
+    }
+
+    canvas {
+      pointer-events: none;
+    }
+
+    .cursor-dot,
+    .target-circle {
+      position: absolute;
+      translate: -50% -50%;
+      border-radius: 50%;
+      pointer-events: none;
+      transition: left 0.05s linear, top 0.05s linear, background 0.18s ease, box-shadow 0.18s ease;
+    }
+
+    .cursor-dot {
+      width: 20px;
+      height: 20px;
+      left: 50%;
+      top: 50%;
+      background: radial-gradient(circle at 35% 35%, #ffffff, var(--accent));
+      box-shadow: 0 0 24px rgba(86, 240, 192, 0.6);
+      opacity: 0;
+    }
+
+    .cursor-dot.visible {
+      opacity: 1;
+    }
+
+    .target-circle {
+      width: 72px;
+      height: 72px;
+      left: 78%;
+      top: 38%;
+      border: 3px dashed rgba(255, 201, 107, 0.85);
+      background: rgba(255, 201, 107, 0.12);
+      box-shadow: 0 0 40px rgba(255, 201, 107, 0.16);
+    }
+
+    .target-circle.active {
+      background: rgba(86, 240, 192, 0.18);
+      border-color: rgba(86, 240, 192, 0.9);
+      box-shadow: 0 0 40px rgba(86, 240, 192, 0.3);
+    }
+
+    .overlay-banner {
+      position: absolute;
+      left: 18px;
+      right: 18px;
+      bottom: 18px;
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      pointer-events: none;
+    }
+
+    .overlay-badge {
+      padding: 10px 12px;
+      border-radius: 14px;
+      background: rgba(7, 14, 17, 0.74);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      color: var(--text);
+      font-size: 13px;
+      box-shadow: 0 14px 30px rgba(0, 0, 0, 0.18);
+    }
+
+    .status-grid {
+      display: grid;
+      gap: 16px;
+      border-radius: var(--radius);
+      padding: 18px;
+      background: var(--panel);
+    }
+
+    .status-card {
+      display: grid;
+      gap: 10px;
+      padding: 16px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .status-card h3 {
+      margin: 0;
+      font-size: 0.92rem;
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    .status-value {
+      font-size: 1.05rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    .status-value.small {
+      font-size: 0.95rem;
+      font-weight: 600;
+      line-height: 1.45;
+      color: var(--muted);
+      white-space: pre-line;
+    }
+
+    .status-chip-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .status-chip {
+      padding: 7px 10px;
+      border-radius: 999px;
+      background: rgba(86, 240, 192, 0.12);
+      color: var(--accent);
+      font-size: 12px;
+    }
+
+    .presentation-card {
+      display: grid;
+      gap: 14px;
+    }
+
+    .slide-preview {
+      min-height: 210px;
+      border-radius: 20px;
+      padding: 20px;
+      background:
+        linear-gradient(135deg, rgba(86, 240, 192, 0.14), transparent 32%),
+        linear-gradient(315deg, rgba(255, 201, 107, 0.14), transparent 24%),
+        rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      display: grid;
+      align-content: space-between;
+    }
+
+    .slide-preview .slide-number {
+      color: var(--warm);
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+
+    .slide-preview .slide-title {
+      font-size: clamp(1.6rem, 3vw, 2.2rem);
+      font-weight: 700;
+      line-height: 1.04;
+      max-width: 320px;
+      letter-spacing: -0.04em;
+    }
+
+    .slide-preview .slide-caption {
+      color: var(--muted);
+      max-width: 340px;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    @media (max-width: 1080px) {
+      .hero-grid,
+      .main-grid,
+      .controls {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 720px) {
+      body {
+        padding: 14px;
+      }
+
+      .hero,
+      .viewport-panel,
+      .status-grid {
+        padding: 16px;
+        border-radius: 20px;
+      }
+
+      .hero h1 {
+        font-size: 2.3rem;
+      }
+
+      .lang-selector {
+        position: static;
+        margin-bottom: 12px;
+        width: fit-content;
+      }
+
+      .overlay-banner {
+        left: 12px;
+        right: 12px;
+        bottom: 12px;
+      }
+    }
+  </style>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
+</head>
+<body>
+  <div class="app-shell">
+    <section class="hero">
+      <div class="lang-selector" aria-label="Language selector">
+        <button type="button" data-lang="en" class="active">EN</button>
+        <button type="button" data-lang="pt">PT</button>
+        <button type="button" data-lang="ja">JA</button>
+      </div>
+
+      <div class="eyebrow" data-i18n="eyebrow">MediaPipe Tasks Vision Webcam Demo</div>
+      <h1 data-i18n="heroTitle">Vision Motion Lab</h1>
+      <p data-i18n="heroIntro">Real-time hand, body, and face landmark tracking in one plain HTML file. Start the camera, pick a mode, and test gesture-driven interactions directly in the browser.</p>
+
+      <div class="hero-grid">
+        <div class="card">
+          <div class="controls">
+            <div class="field">
+              <label for="modeSelect" data-i18n="detectionModeLabel">Detection Mode</label>
+              <select id="modeSelect">
+                <option value="hand" data-i18n="modeHand">Hand Tracking</option>
+                <option value="pose" data-i18n="modePose">Body Pose Tracking</option>
+                <option value="face" data-i18n="modeFace">Face Tracking</option>
+                <option value="combined" data-i18n="modeCombined">Combined Mode</option>
+                <option value="presentation" data-i18n="modePresentation">Presentation Control</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label data-i18n="cameraControlsLabel">Camera Controls</label>
+              <div class="button-row">
+                <button id="startButton" class="primary-btn" type="button" data-i18n="startCameraButton">Start Camera</button>
+                <button id="stopButton" class="secondary-btn" type="button" disabled data-i18n="stopCameraButton">Stop Camera</button>
+              </div>
+            </div>
+
+            <div class="field">
+              <label data-i18n="quickNotesLabel">Quick Notes</label>
+              <div class="pill-list">
+                <div class="pill" data-i18n="pillMirror">Mirror preview enabled</div>
+                <div class="pill" data-i18n="pillResolution">640 x 480 target</div>
+                <div class="pill" data-i18n="pillSingleFile">Single-file app</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <aside class="card note-card">
+          <div>
+            <strong data-i18n="webcamNoteLabel">Webcam note:</strong>
+            <span data-i18n="webcamNoteText">camera access usually requires localhost or HTTPS. Opening this file with file:// may fail in many browsers.</span>
+          </div>
+          <ol class="instructions">
+            <li data-i18n="instruction1">Choose a detection mode before or after starting the camera.</li>
+            <li data-i18n="instruction2">Allow webcam access when prompted.</li>
+            <li data-i18n="instruction3">Use one hand for gestures, full body for pose, or center your face for face tracking.</li>
+            <li data-i18n="instruction4">Switch out of combined mode if your frame rate drops too far.</li>
+          </ol>
+        </aside>
+      </div>
+    </section>
+
+    <section class="main-grid">
+      <div class="viewport-panel">
+        <div class="viewport-topbar">
+          <h2 data-i18n="liveDetectionTitle">Live Detection View</h2>
+          <div id="liveIndicator" class="live-indicator">Camera idle</div>
+        </div>
+
+        <div class="stage" id="stage">
+          <div class="mirror-layer">
+            <video id="webcam" autoplay playsinline muted></video>
+            <canvas id="overlay"></canvas>
+            <div id="cursorDot" class="cursor-dot"></div>
+            <div id="targetCircle" class="target-circle"></div>
+          </div>
+
+          <div class="overlay-banner">
+            <div id="detectionBadge" class="overlay-badge">Detection inactive</div>
+            <div id="targetBadge" class="overlay-badge">Target waiting</div>
+          </div>
+        </div>
+      </div>
+
+      <aside class="status-grid">
+        <h2 data-i18n="statusPanelTitle">Status Panel</h2>
+
+        <div class="status-card">
+          <h3 data-i18n="sessionTitle">Session</h3>
+          <div id="cameraStatus" class="status-value">Camera stopped</div>
+          <div id="selectedMode" class="status-value small">Selected mode: Hand Tracking</div>
+          <div class="status-chip-row">
+            <div id="fpsChip" class="status-chip">FPS: --</div>
+            <div id="perfChip" class="status-chip">Performance: Waiting</div>
+          </div>
+        </div>
+
+        <div class="status-card">
+          <h3 data-i18n="detectionStatusTitle">Detection Status</h3>
+          <div id="detectionStatus" class="status-value">Detection inactive</div>
+          <div id="modeSummary" class="status-value small">Start the camera to begin landmark tracking.</div>
+        </div>
+
+        <div class="status-card">
+          <h3 data-i18n="currentInterpretationTitle">Current Interpretation</h3>
+          <div id="currentState" class="status-value">Waiting</div>
+          <div id="statusDetails" class="status-value small">No active model output.</div>
+        </div>
+
+        <div class="status-card">
+          <h3 data-i18n="keyCoordinatesTitle">Key Coordinates</h3>
+          <div id="coordinateOutput" class="status-value small">Coordinates will appear here when landmarks are detected.</div>
+        </div>
+
+        <div id="presentationCard" class="status-card presentation-card hidden">
+          <h2 data-i18n="presentationPreviewTitle">Presentation Control Preview</h2>
+          <div class="slide-preview">
+            <div class="slide-number" id="slideNumber">Slide 01</div>
+            <div class="slide-title" id="slideTitle">Gesture-Controlled Demo Deck</div>
+            <div class="slide-caption" id="slideCaption">Swipe with the index finger to move between mock slides. Open hand pauses. Thumb up confirms.</div>
+          </div>
+          <div id="presentationCommand" class="status-value">Command: Waiting for gesture</div>
+        </div>
+      </aside>
+    </section>
+  </div>
+
+  <script type="module">
+    import {
+      FaceLandmarker,
+      FilesetResolver,
+      HandLandmarker,
+      PoseLandmarker,
+    } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14";
+
+    const MODEL_URLS = {
+      hand: "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task",
+      pose: "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task",
+      face: "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",
+    };
+
+    const HAND_CONNECTIONS = [
+      [0, 1], [1, 2], [2, 3], [3, 4],
+      [0, 5], [5, 6], [6, 7], [7, 8],
+      [5, 9], [9, 10], [10, 11], [11, 12],
+      [9, 13], [13, 14], [14, 15], [15, 16],
+      [13, 17], [17, 18], [18, 19], [19, 20],
+      [0, 17],
+    ];
+
+    const POSE_CONNECTIONS = [
+      [0, 1], [0, 4], [1, 2], [2, 3], [4, 5], [5, 6], [9, 10],
+      [11, 12], [11, 13], [13, 15], [15, 17], [15, 19], [15, 21],
+      [12, 14], [14, 16], [16, 18], [16, 20], [16, 22], [11, 23],
+      [12, 24], [23, 24], [23, 25], [24, 26], [25, 27], [26, 28],
+      [27, 29], [28, 30], [29, 31], [30, 32], [27, 31], [28, 32],
+    ];
+
+    const FACE_OUTLINE_CONNECTIONS = [
+      [10, 338], [338, 297], [297, 332], [332, 284], [284, 251], [251, 389],
+      [389, 356], [356, 454], [454, 323], [323, 361], [361, 288], [288, 397],
+      [397, 365], [365, 379], [379, 378], [378, 400], [400, 377], [377, 152],
+      [152, 148], [148, 176], [176, 149], [149, 150], [150, 136], [136, 172],
+      [172, 58], [58, 132], [132, 93], [93, 234], [234, 127], [127, 162],
+      [162, 21], [21, 54], [54, 103], [103, 67], [67, 109], [109, 10],
+    ];
+
+    const slidesByLanguage = {
+      en: [
+        {
+          title: "Gesture-Controlled Demo Deck",
+          caption: "Swipe with the index finger to move between mock slides. Open hand pauses. Thumb up confirms.",
+        },
+        {
+          title: "Hand Landmark Navigation",
+          caption: "Index fingertip motion controls the on-screen cursor and powers the swipe detector.",
+        },
+        {
+          title: "Pose and Face Insights",
+          caption: "Switch modes to compare body posture states with simple face-direction heuristics.",
+        },
+        {
+          title: "Performance Safeguards",
+          caption: "Combined mode skips some frames to keep the demo responsive on regular laptops.",
+        },
+        {
+          title: "Pure Browser Setup",
+          caption: "Everything here runs with HTML, CSS, JavaScript, CDN imports, and a webcam stream.",
+        },
+      ],
+      pt: [
+        {
+          title: "Deck de Demonstração por Gestos",
+          caption: "Deslize com o dedo indicador para trocar os slides fictícios. Mão aberta pausa. Polegar para cima confirma.",
+        },
+        {
+          title: "Navegação por Pontos da Mão",
+          caption: "O movimento da ponta do indicador controla o cursor na tela e alimenta o detector de swipe.",
+        },
+        {
+          title: "Leituras de Corpo e Rosto",
+          caption: "Troque de modo para comparar posturas do corpo com heurísticas simples de direção do rosto.",
+        },
+        {
+          title: "Proteções de Performance",
+          caption: "O modo combinado pula alguns frames para manter a demo responsiva em notebooks comuns.",
+        },
+        {
+          title: "Configuração 100% no Navegador",
+          caption: "Tudo aqui roda com HTML, CSS, JavaScript, imports via CDN e uma stream de webcam.",
+        },
+      ],
+      ja: [
+        {
+          title: "ジェスチャー操作デモデッキ",
+          caption: "人差し指をスワイプして仮想スライドを切り替えます。開いた手で一時停止、親指を上げると確認です。",
+        },
+        {
+          title: "手のランドマーク操作",
+          caption: "人差し指の先端の動きが画面上のカーソルを動かし、スワイプ検出にも使われます。",
+        },
+        {
+          title: "姿勢と顔のインサイト",
+          caption: "モードを切り替えて、体の姿勢判定と顔向きの簡易ヒューリスティクスを比較できます。",
+        },
+        {
+          title: "パフォーマンス保護",
+          caption: "通常のノートPCでも快適さを保つため、複合モードでは一部のフレームを間引きます。",
+        },
+        {
+          title: "ブラウザだけで完結",
+          caption: "このページは HTML、CSS、JavaScript、CDN 読み込み、そしてウェブカメラ映像だけで動作します。",
+        },
+      ],
+    };
+
+    const modeLabelKeys = {
+      hand: "modeHand",
+      pose: "modePose",
+      face: "modeFace",
+      combined: "modeCombined",
+      presentation: "modePresentation",
+    };
+
+    const i18n = {
+      en: {
+        pageTitle: "Vision Motion Lab",
+        eyebrow: "MediaPipe Tasks Vision Webcam Demo",
+        heroTitle: "Vision Motion Lab",
+        heroIntro: "Real-time hand, body, and face landmark tracking in one plain HTML file. Start the camera, pick a mode, and test gesture-driven interactions directly in the browser.",
+        detectionModeLabel: "Detection Mode",
+        modeHand: "Hand Tracking",
+        modePose: "Body Pose Tracking",
+        modeFace: "Face Tracking",
+        modeCombined: "Combined Mode",
+        modePresentation: "Presentation Control",
+        cameraControlsLabel: "Camera Controls",
+        startCameraButton: "Start Camera",
+        stopCameraButton: "Stop Camera",
+        quickNotesLabel: "Quick Notes",
+        pillMirror: "Mirror preview enabled",
+        pillResolution: "640 x 480 target",
+        pillSingleFile: "Single-file app",
+        webcamNoteLabel: "Webcam note:",
+        webcamNoteText: "camera access usually requires localhost or HTTPS. Opening this file with file:// may fail in many browsers.",
+        instruction1: "Choose a detection mode before or after starting the camera.",
+        instruction2: "Allow webcam access when prompted.",
+        instruction3: "Use one hand for gestures, full body for pose, or center your face for face tracking.",
+        instruction4: "Switch out of combined mode if your frame rate drops too far.",
+        liveDetectionTitle: "Live Detection View",
+        statusPanelTitle: "Status Panel",
+        sessionTitle: "Session",
+        detectionStatusTitle: "Detection Status",
+        currentInterpretationTitle: "Current Interpretation",
+        keyCoordinatesTitle: "Key Coordinates",
+        presentationPreviewTitle: "Presentation Control Preview",
+        selectedModePrefix: "Selected mode",
+        slideLabel: "Slide",
+        commandLabel: "Command",
+        commandWaiting: "Waiting for gesture",
+        commandPause: "Pause",
+        commandConfirm: "Confirm",
+        commandNextSlide: "Next slide",
+        commandPreviousSlide: "Previous slide",
+        cameraIdle: "Camera idle",
+        cameraLive: "Camera live",
+        cameraStopped: "Camera stopped",
+        cameraRunning: "Camera running",
+        startingCamera: "Starting camera...",
+        detectionInactive: "Detection inactive",
+        noActiveModelOutput: "No active model output.",
+        startCameraHint: "Start the camera to begin landmark tracking.",
+        coordinatesPlaceholder: "Coordinates will appear here when landmarks are detected.",
+        waiting: "Waiting",
+        targetWaiting: "Target waiting",
+        targetTouched: "Target touched",
+        poseModeActive: "Pose mode active",
+        faceModeActive: "Face mode active",
+        presentationModeActive: "Presentation mode",
+        trySingleMode: "Try a single mode",
+        combinedModeActive: "Combined mode active",
+        noDetectionsYet: "No detections yet",
+        secureContextWarning: "This page is not on localhost or HTTPS. Webcam access may be blocked by the browser.",
+        secureContextRunningWarning: "This page is not running on localhost or HTTPS. Camera access may be blocked.",
+        unsupportedBrowser: "Unsupported browser",
+        browserUnsupported: "Webcam access is not supported in this browser.",
+        browserSupportHint: "Use a recent browser with navigator.mediaDevices.getUserMedia support.",
+        modelsReady: "Models ready",
+        detectionLoopRunning: "Detection loop is running.",
+        cameraStartFailed: "Camera start failed",
+        permissionDenied: "Camera permission was denied. Allow access and try again.",
+        noWebcamFound: "No webcam was found on this device.",
+        webcamBusy: "The webcam is already in use by another application.",
+        unableToStartCamera: "Unable to start the camera.",
+        switchingMode: "Switching to {mode}...",
+        failedInitializeMode: "Failed to initialize the selected mode: {error}",
+        fpsPlaceholder: "FPS: --",
+        fpsValue: "FPS: {fps}",
+        performanceValue: "Performance: {value}",
+        performanceWaiting: "Waiting",
+        performanceSmooth: "Smooth",
+        performanceModerate: "Moderate",
+        performanceLow: "Low",
+        handStatusPrefix: "Hand",
+        poseStatusPrefix: "Pose",
+        faceStatusPrefix: "Face",
+        none: "None",
+        unknown: "Unknown",
+        leftHand: "Left",
+        rightHand: "Right",
+        handDetected: "Hand detected",
+        noHandDetected: "No hand detected",
+        placeHandInFrame: "Place one hand inside the frame.",
+        waitingForHand: "Waiting for hand",
+        noHandLandmarks: "No hand landmarks available.",
+        handTrackingIdle: "Hand tracking idle",
+        handDetectedSummary: "{count} hand(s) detected. Primary hand: {handedness}.",
+        handDetectedDetails: "Detected hand: {handedness}. Cursor follows the index fingertip.",
+        gestureOpenHand: "Open hand",
+        gestureClosedFist: "Closed fist",
+        gestureIndexUp: "Index finger pointing up",
+        gesturePeace: "Peace sign / V sign",
+        gestureThumbUp: "Thumb up",
+        gestureHandDetected: "Hand detected",
+        poseDetected: "Pose detected",
+        noPoseDetected: "No pose detected",
+        moveBodyIntoFrame: "Move your full body farther into frame.",
+        waitingForPose: "Waiting for pose",
+        noPoseLandmarks: "No pose landmarks available.",
+        poseLandmarksPlaceholder: "Pose landmarks: --",
+        poseTrackingIdle: "Pose tracking idle",
+        poseRealtimeSummary: "Body pose landmarks are updating in real time.",
+        poseDetails: "Pose state uses wrist-to-shoulder and hip-to-knee comparisons.",
+        postureStanding: "Standing",
+        postureSquatLike: "Squat-like position",
+        postureArmsRaised: "Arms raised",
+        postureLeftHandRaised: "Left hand raised",
+        postureRightHandRaised: "Right hand raised",
+        faceDetected: "Face detected",
+        noFaceDetected: "No face detected",
+        centerFaceInFrame: "Center your face in the frame.",
+        waitingForFace: "Waiting for face",
+        noFaceLandmarks: "No face landmarks available.",
+        faceCenterPlaceholder: "Face center: --",
+        faceTrackingIdle: "Face tracking idle",
+        faceRealtimeSummary: "Face landmarks and face-direction heuristics are active.",
+        faceDetails: "Face direction is estimated from nose, cheek, and eye positions.",
+        faceCentered: "Face centered",
+        lookingLeft: "Looking left",
+        lookingRight: "Looking right",
+        lookingUp: "Looking up",
+        lookingDown: "Looking down",
+        mouthOpenSuffix: " + Mouth open",
+        notCenteredSuffix: " + Not centered",
+        presentationSummary: "Presentation control uses the same hand model with gesture and swipe interpretation.",
+        presentationDetails: "Command state: {command}. Swipe left for next, right for previous.",
+        combinedTracking: "Combined tracking",
+        combinedWarning: "Low performance detected. Switch to a single detection mode for smoother tracking.",
+        combinedSummary: "Combined tracking active.",
+        combinedCurrentState: "Hand: {hand} | Pose: {pose} | Face: {face}",
+        combinedDetails: "Hand status: {hand}. Pose status: {pose}. Face status: {face}.",
+        combinedModeWarningBadge: "Combined mode warning",
+        combinedModeLiveBadge: "Combined mode live",
+        commandBadge: "Command: {command}",
+        coordIndexTip: "Index fingertip",
+        coordHandedness: "Handedness",
+        coordNose: "Nose",
+        coordLeftShoulder: "Left shoulder",
+        coordRightShoulder: "Right shoulder",
+        coordLeftElbow: "Left elbow",
+        coordRightElbow: "Right elbow",
+        coordLeftWrist: "Left wrist",
+        coordRightWrist: "Right wrist",
+        coordLeftHip: "Left hip",
+        coordRightHip: "Right hip",
+        coordLeftKnee: "Left knee",
+        coordRightKnee: "Right knee",
+        coordLeftAnkle: "Left ankle",
+        coordRightAnkle: "Right ankle",
+        coordFaceCenter: "Face center",
+        coordNoseTip: "Nose tip",
+        coordLeftEye: "Left eye",
+        coordRightEye: "Right eye",
+        coordUpperLip: "Upper lip",
+        coordLowerLip: "Lower lip"
+      },
+      pt: {
+        pageTitle: "Vision Motion Lab",
+        eyebrow: "Demo de Webcam com MediaPipe Tasks Vision",
+        heroTitle: "Vision Motion Lab",
+        heroIntro: "Detecção em tempo real de pontos da mão, corpo e rosto em um único arquivo HTML. Inicie a câmera, escolha um modo e teste interações por gestos diretamente no navegador.",
+        detectionModeLabel: "Modo de Detecção",
+        modeHand: "Rastreamento de Mão",
+        modePose: "Rastreamento Corporal",
+        modeFace: "Rastreamento Facial",
+        modeCombined: "Modo Combinado",
+        modePresentation: "Controle de Apresentação",
+        cameraControlsLabel: "Controles da Câmera",
+        startCameraButton: "Iniciar Câmera",
+        stopCameraButton: "Parar Câmera",
+        quickNotesLabel: "Notas Rápidas",
+        pillMirror: "Prévia espelhada ativada",
+        pillResolution: "Alvo de 640 x 480",
+        pillSingleFile: "App em arquivo único",
+        webcamNoteLabel: "Nota da webcam:",
+        webcamNoteText: "o acesso à câmera normalmente exige localhost ou HTTPS. Abrir este arquivo com file:// pode falhar em muitos navegadores.",
+        instruction1: "Escolha um modo de detecção antes ou depois de iniciar a câmera.",
+        instruction2: "Permita o acesso à webcam quando o navegador solicitar.",
+        instruction3: "Use uma mão para gestos, o corpo inteiro para pose ou centralize o rosto para rastreamento facial.",
+        instruction4: "Saia do modo combinado se a taxa de quadros cair demais.",
+        liveDetectionTitle: "Visualização ao Vivo",
+        statusPanelTitle: "Painel de Status",
+        sessionTitle: "Sessão",
+        detectionStatusTitle: "Status da Detecção",
+        currentInterpretationTitle: "Interpretação Atual",
+        keyCoordinatesTitle: "Coordenadas Principais",
+        presentationPreviewTitle: "Prévia do Controle de Apresentação",
+        selectedModePrefix: "Modo selecionado",
+        slideLabel: "Slide",
+        commandLabel: "Comando",
+        commandWaiting: "Aguardando gesto",
+        commandPause: "Pausar",
+        commandConfirm: "Confirmar",
+        commandNextSlide: "Próximo slide",
+        commandPreviousSlide: "Slide anterior",
+        cameraIdle: "Câmera inativa",
+        cameraLive: "Câmera ao vivo",
+        cameraStopped: "Câmera parada",
+        cameraRunning: "Câmera em execução",
+        startingCamera: "Iniciando câmera...",
+        detectionInactive: "Detecção inativa",
+        noActiveModelOutput: "Nenhuma saída ativa do modelo.",
+        startCameraHint: "Inicie a câmera para começar o rastreamento.",
+        coordinatesPlaceholder: "As coordenadas aparecerão aqui quando os pontos forem detectados.",
+        waiting: "Aguardando",
+        targetWaiting: "Alvo aguardando",
+        targetTouched: "Alvo tocado",
+        poseModeActive: "Modo de pose ativo",
+        faceModeActive: "Modo facial ativo",
+        presentationModeActive: "Modo apresentação",
+        trySingleMode: "Tente um modo único",
+        combinedModeActive: "Modo combinado ativo",
+        noDetectionsYet: "Ainda sem detecções",
+        secureContextWarning: "Esta página não está em localhost nem HTTPS. O acesso à webcam pode ser bloqueado pelo navegador.",
+        secureContextRunningWarning: "Esta página não está rodando em localhost nem HTTPS. O acesso à câmera pode ser bloqueado.",
+        unsupportedBrowser: "Navegador sem suporte",
+        browserUnsupported: "O acesso à webcam não é suportado neste navegador.",
+        browserSupportHint: "Use um navegador recente com suporte a navigator.mediaDevices.getUserMedia.",
+        modelsReady: "Modelos prontos",
+        detectionLoopRunning: "O loop de detecção está em execução.",
+        cameraStartFailed: "Falha ao iniciar a câmera",
+        permissionDenied: "A permissão da câmera foi negada. Permita o acesso e tente novamente.",
+        noWebcamFound: "Nenhuma webcam foi encontrada neste dispositivo.",
+        webcamBusy: "A webcam já está em uso por outro aplicativo.",
+        unableToStartCamera: "Não foi possível iniciar a câmera.",
+        switchingMode: "Trocando para {mode}...",
+        failedInitializeMode: "Falha ao inicializar o modo selecionado: {error}",
+        fpsPlaceholder: "FPS: --",
+        fpsValue: "FPS: {fps}",
+        performanceValue: "Desempenho: {value}",
+        performanceWaiting: "Aguardando",
+        performanceSmooth: "Suave",
+        performanceModerate: "Moderado",
+        performanceLow: "Baixo",
+        handStatusPrefix: "Mão",
+        poseStatusPrefix: "Pose",
+        faceStatusPrefix: "Rosto",
+        none: "Nenhum",
+        unknown: "Desconhecido",
+        leftHand: "Esquerda",
+        rightHand: "Direita",
+        handDetected: "Mão detectada",
+        noHandDetected: "Nenhuma mão detectada",
+        placeHandInFrame: "Coloque uma mão dentro do quadro.",
+        waitingForHand: "Aguardando mão",
+        noHandLandmarks: "Nenhum ponto da mão disponível.",
+        handTrackingIdle: "Rastreamento de mão inativo",
+        handDetectedSummary: "{count} mão(s) detectada(s). Mão principal: {handedness}.",
+        handDetectedDetails: "Mão detectada: {handedness}. O cursor segue a ponta do indicador.",
+        gestureOpenHand: "Mão aberta",
+        gestureClosedFist: "Punho fechado",
+        gestureIndexUp: "Indicador apontando para cima",
+        gesturePeace: "Sinal de paz / V",
+        gestureThumbUp: "Polegar para cima",
+        gestureHandDetected: "Mão detectada",
+        poseDetected: "Pose detectada",
+        noPoseDetected: "Nenhuma pose detectada",
+        moveBodyIntoFrame: "Afaste-se um pouco para enquadrar o corpo inteiro.",
+        waitingForPose: "Aguardando pose",
+        noPoseLandmarks: "Nenhum ponto de pose disponível.",
+        poseLandmarksPlaceholder: "Pontos de pose: --",
+        poseTrackingIdle: "Rastreamento corporal inativo",
+        poseRealtimeSummary: "Os pontos corporais estão sendo atualizados em tempo real.",
+        poseDetails: "O estado da pose usa comparações entre punhos e ombros, além de quadris e joelhos.",
+        postureStanding: "Em pé",
+        postureSquatLike: "Posição de agachamento",
+        postureArmsRaised: "Braços levantados",
+        postureLeftHandRaised: "Mão esquerda levantada",
+        postureRightHandRaised: "Mão direita levantada",
+        faceDetected: "Rosto detectado",
+        noFaceDetected: "Nenhum rosto detectado",
+        centerFaceInFrame: "Centralize o rosto no enquadramento.",
+        waitingForFace: "Aguardando rosto",
+        noFaceLandmarks: "Nenhum ponto facial disponível.",
+        faceCenterPlaceholder: "Centro do rosto: --",
+        faceTrackingIdle: "Rastreamento facial inativo",
+        faceRealtimeSummary: "Os pontos faciais e as heurísticas de direção estão ativas.",
+        faceDetails: "A direção do rosto é estimada com base no nariz, bochechas e olhos.",
+        faceCentered: "Rosto centralizado",
+        lookingLeft: "Olhando para a esquerda",
+        lookingRight: "Olhando para a direita",
+        lookingUp: "Olhando para cima",
+        lookingDown: "Olhando para baixo",
+        mouthOpenSuffix: " + Boca aberta",
+        notCenteredSuffix: " + Fora do centro",
+        presentationSummary: "O controle de apresentação usa o mesmo modelo de mão com interpretação de gesto e swipe.",
+        presentationDetails: "Estado do comando: {command}. Deslize à esquerda para avançar e à direita para voltar.",
+        combinedTracking: "Rastreamento combinado",
+        combinedWarning: "Desempenho baixo detectado. Troque para um modo único para maior fluidez.",
+        combinedSummary: "Rastreamento combinado ativo.",
+        combinedCurrentState: "Mão: {hand} | Pose: {pose} | Rosto: {face}",
+        combinedDetails: "Status da mão: {hand}. Status da pose: {pose}. Status do rosto: {face}.",
+        combinedModeWarningBadge: "Aviso do modo combinado",
+        combinedModeLiveBadge: "Modo combinado ativo",
+        commandBadge: "Comando: {command}",
+        coordIndexTip: "Ponta do indicador",
+        coordHandedness: "Lado da mão",
+        coordNose: "Nariz",
+        coordLeftShoulder: "Ombro esquerdo",
+        coordRightShoulder: "Ombro direito",
+        coordLeftElbow: "Cotovelo esquerdo",
+        coordRightElbow: "Cotovelo direito",
+        coordLeftWrist: "Pulso esquerdo",
+        coordRightWrist: "Pulso direito",
+        coordLeftHip: "Quadril esquerdo",
+        coordRightHip: "Quadril direito",
+        coordLeftKnee: "Joelho esquerdo",
+        coordRightKnee: "Joelho direito",
+        coordLeftAnkle: "Tornozelo esquerdo",
+        coordRightAnkle: "Tornozelo direito",
+        coordFaceCenter: "Centro do rosto",
+        coordNoseTip: "Ponta do nariz",
+        coordLeftEye: "Olho esquerdo",
+        coordRightEye: "Olho direito",
+        coordUpperLip: "Lábio superior",
+        coordLowerLip: "Lábio inferior"
+      },
+      ja: {
+        pageTitle: "Vision Motion Lab",
+        eyebrow: "MediaPipe Tasks Vision ウェブカメラデモ",
+        heroTitle: "Vision Motion Lab",
+        heroIntro: "手・体・顔のランドマークをリアルタイムで追跡する単一 HTML ファイルのデモです。カメラを開始し、モードを選んで、ブラウザ上でジェスチャー操作を試せます。",
+        detectionModeLabel: "検出モード",
+        modeHand: "手の追跡",
+        modePose: "体の姿勢追跡",
+        modeFace: "顔の追跡",
+        modeCombined: "複合モード",
+        modePresentation: "プレゼン操作",
+        cameraControlsLabel: "カメラ操作",
+        startCameraButton: "カメラ開始",
+        stopCameraButton: "カメラ停止",
+        quickNotesLabel: "クイックメモ",
+        pillMirror: "ミラー表示を有効化",
+        pillResolution: "640 x 480 を目標",
+        pillSingleFile: "単一ファイルアプリ",
+        webcamNoteLabel: "ウェブカメラの注意:",
+        webcamNoteText: "カメラアクセスには通常 localhost または HTTPS が必要です。file:// で開くと多くのブラウザで失敗する場合があります。",
+        instruction1: "カメラ開始の前でも後でも検出モードを選べます。",
+        instruction2: "ブラウザが求めたらウェブカメラの利用を許可してください。",
+        instruction3: "ジェスチャーでは片手、ポーズでは全身、顔追跡では顔を中央に入れてください。",
+        instruction4: "フレームレートが落ちたら複合モードを解除してください。",
+        liveDetectionTitle: "ライブ検出ビュー",
+        statusPanelTitle: "ステータスパネル",
+        sessionTitle: "セッション",
+        detectionStatusTitle: "検出ステータス",
+        currentInterpretationTitle: "現在の解釈",
+        keyCoordinatesTitle: "主要座標",
+        presentationPreviewTitle: "プレゼン操作プレビュー",
+        selectedModePrefix: "選択中のモード",
+        slideLabel: "スライド",
+        commandLabel: "コマンド",
+        commandWaiting: "ジェスチャー待機中",
+        commandPause: "一時停止",
+        commandConfirm: "確認",
+        commandNextSlide: "次のスライド",
+        commandPreviousSlide: "前のスライド",
+        cameraIdle: "カメラ停止中",
+        cameraLive: "カメラ作動中",
+        cameraStopped: "カメラ停止",
+        cameraRunning: "カメラ稼働中",
+        startingCamera: "カメラを開始しています...",
+        detectionInactive: "検出停止中",
+        noActiveModelOutput: "モデル出力はまだありません。",
+        startCameraHint: "カメラを開始するとランドマーク追跡が始まります。",
+        coordinatesPlaceholder: "ランドマークが検出されるとここに座標が表示されます。",
+        waiting: "待機中",
+        targetWaiting: "ターゲット待機中",
+        targetTouched: "ターゲットに触れました",
+        poseModeActive: "ポーズモード有効",
+        faceModeActive: "顔モード有効",
+        presentationModeActive: "プレゼンモード",
+        trySingleMode: "単独モードを試す",
+        combinedModeActive: "複合モード有効",
+        noDetectionsYet: "まだ検出はありません",
+        secureContextWarning: "このページは localhost または HTTPS で動作していません。ブラウザによりカメラアクセスがブロックされる可能性があります。",
+        secureContextRunningWarning: "このページは localhost または HTTPS で実行されていません。カメラアクセスがブロックされる可能性があります。",
+        unsupportedBrowser: "未対応のブラウザ",
+        browserUnsupported: "このブラウザではウェブカメラアクセスがサポートされていません。",
+        browserSupportHint: "navigator.mediaDevices.getUserMedia に対応した新しいブラウザを使用してください。",
+        modelsReady: "モデル準備完了",
+        detectionLoopRunning: "検出ループを実行中です。",
+        cameraStartFailed: "カメラの開始に失敗しました",
+        permissionDenied: "カメラの許可が拒否されました。許可してから再試行してください。",
+        noWebcamFound: "このデバイスではウェブカメラが見つかりませんでした。",
+        webcamBusy: "ウェブカメラは別のアプリで使用中です。",
+        unableToStartCamera: "カメラを開始できませんでした。",
+        switchingMode: "{mode} に切り替え中...",
+        failedInitializeMode: "選択したモードの初期化に失敗しました: {error}",
+        fpsPlaceholder: "FPS: --",
+        fpsValue: "FPS: {fps}",
+        performanceValue: "性能: {value}",
+        performanceWaiting: "待機中",
+        performanceSmooth: "快適",
+        performanceModerate: "中程度",
+        performanceLow: "低下",
+        handStatusPrefix: "手",
+        poseStatusPrefix: "姿勢",
+        faceStatusPrefix: "顔",
+        none: "なし",
+        unknown: "不明",
+        leftHand: "左",
+        rightHand: "右",
+        handDetected: "手を検出",
+        noHandDetected: "手を検出できません",
+        placeHandInFrame: "片手をフレーム内に入れてください。",
+        waitingForHand: "手を待機中",
+        noHandLandmarks: "手のランドマークがありません。",
+        handTrackingIdle: "手の追跡は停止中",
+        handDetectedSummary: "{count} 本の手を検出。主な手: {handedness}。",
+        handDetectedDetails: "検出した手: {handedness}。カーソルは人差し指の先端を追従します。",
+        gestureOpenHand: "開いた手",
+        gestureClosedFist: "握りこぶし",
+        gestureIndexUp: "人差し指を上に向ける",
+        gesturePeace: "ピースサイン / V サイン",
+        gestureThumbUp: "サムズアップ",
+        gestureHandDetected: "手を検出",
+        poseDetected: "姿勢を検出",
+        noPoseDetected: "姿勢を検出できません",
+        moveBodyIntoFrame: "全身が入るように少し下がってください。",
+        waitingForPose: "姿勢を待機中",
+        noPoseLandmarks: "姿勢ランドマークがありません。",
+        poseLandmarksPlaceholder: "姿勢ランドマーク: --",
+        poseTrackingIdle: "姿勢追跡は停止中",
+        poseRealtimeSummary: "体のランドマークをリアルタイムで更新しています。",
+        poseDetails: "姿勢状態は手首と肩、腰と膝の比較で判定しています。",
+        postureStanding: "立っている",
+        postureSquatLike: "しゃがみ姿勢",
+        postureArmsRaised: "両腕を上げている",
+        postureLeftHandRaised: "左手を上げている",
+        postureRightHandRaised: "右手を上げている",
+        faceDetected: "顔を検出",
+        noFaceDetected: "顔を検出できません",
+        centerFaceInFrame: "顔をフレーム中央に入れてください。",
+        waitingForFace: "顔を待機中",
+        noFaceLandmarks: "顔ランドマークがありません。",
+        faceCenterPlaceholder: "顔の中心: --",
+        faceTrackingIdle: "顔追跡は停止中",
+        faceRealtimeSummary: "顔ランドマークと顔向きのヒューリスティクスが有効です。",
+        faceDetails: "顔の向きは鼻、頬、目の位置から推定しています。",
+        faceCentered: "顔が中央",
+        lookingLeft: "左を向いている",
+        lookingRight: "右を向いている",
+        lookingUp: "上を向いている",
+        lookingDown: "下を向いている",
+        mouthOpenSuffix: " + 口が開いている",
+        notCenteredSuffix: " + 中央から外れている",
+        presentationSummary: "プレゼン操作では同じ手のモデルを使ってジェスチャーとスワイプを解釈します。",
+        presentationDetails: "コマンド状態: {command}。左スワイプで次、右スワイプで前に戻ります。",
+        combinedTracking: "複合追跡",
+        combinedWarning: "パフォーマンス低下を検出しました。より滑らかにするには単独モードへ切り替えてください。",
+        combinedSummary: "複合追跡が有効です。",
+        combinedCurrentState: "手: {hand} | 姿勢: {pose} | 顔: {face}",
+        combinedDetails: "手の状態: {hand}。姿勢の状態: {pose}。顔の状態: {face}。",
+        combinedModeWarningBadge: "複合モード警告",
+        combinedModeLiveBadge: "複合モード稼働中",
+        commandBadge: "コマンド: {command}",
+        coordIndexTip: "人差し指先端",
+        coordHandedness: "利き手",
+        coordNose: "鼻",
+        coordLeftShoulder: "左肩",
+        coordRightShoulder: "右肩",
+        coordLeftElbow: "左ひじ",
+        coordRightElbow: "右ひじ",
+        coordLeftWrist: "左手首",
+        coordRightWrist: "右手首",
+        coordLeftHip: "左腰",
+        coordRightHip: "右腰",
+        coordLeftKnee: "左ひざ",
+        coordRightKnee: "右ひざ",
+        coordLeftAnkle: "左足首",
+        coordRightAnkle: "右足首",
+        coordFaceCenter: "顔の中心",
+        coordNoseTip: "鼻先",
+        coordLeftEye: "左目",
+        coordRightEye: "右目",
+        coordUpperLip: "上唇",
+        coordLowerLip: "下唇"
+      }
+    };
+
+    const elements = {
+      video: document.getElementById("webcam"),
+      canvas: document.getElementById("overlay"),
+      stage: document.getElementById("stage"),
+      modeSelect: document.getElementById("modeSelect"),
+      startButton: document.getElementById("startButton"),
+      stopButton: document.getElementById("stopButton"),
+      liveIndicator: document.getElementById("liveIndicator"),
+      cameraStatus: document.getElementById("cameraStatus"),
+      selectedMode: document.getElementById("selectedMode"),
+      detectionStatus: document.getElementById("detectionStatus"),
+      modeSummary: document.getElementById("modeSummary"),
+      currentState: document.getElementById("currentState"),
+      statusDetails: document.getElementById("statusDetails"),
+      coordinateOutput: document.getElementById("coordinateOutput"),
+      detectionBadge: document.getElementById("detectionBadge"),
+      targetBadge: document.getElementById("targetBadge"),
+      cursorDot: document.getElementById("cursorDot"),
+      targetCircle: document.getElementById("targetCircle"),
+      fpsChip: document.getElementById("fpsChip"),
+      perfChip: document.getElementById("perfChip"),
+      presentationCard: document.getElementById("presentationCard"),
+      slideNumber: document.getElementById("slideNumber"),
+      slideTitle: document.getElementById("slideTitle"),
+      slideCaption: document.getElementById("slideCaption"),
+      presentationCommand: document.getElementById("presentationCommand"),
+      langButtons: Array.from(document.querySelectorAll(".lang-selector button"))
+    };
+
+    const canvasContext = elements.canvas.getContext("2d");
+    let currentLanguage = localStorage.getItem("app_lang") || "en";
+
+    const appState = {
+      stream: null,
+      animationFrameId: 0,
+      visionResolver: null,
+      handLandmarker: null,
+      poseLandmarker: null,
+      faceLandmarker: null,
+      cameraRunning: false,
+      activeMode: elements.modeSelect.value,
+      lastVideoTime: -1,
+      loopCount: 0,
+      frameCount: 0,
+      fps: 0,
+      fpsTime: performance.now(),
+      lastPerfLevel: "performanceWaiting",
+      targetTouched: false,
+      lastResults: {
+        hand: null,
+        pose: null,
+        face: null
+      },
+      slideIndex: 0,
+      lastPresentationCommandKey: "commandWaiting",
+      handMotion: [],
+      commandCooldownUntil: 0
+    };
+
+    function t(key, vars = {}) {
+      const template = (i18n[currentLanguage] && i18n[currentLanguage][key]) || i18n.en[key] || key;
+      return template.replace(/\{(\w+)\}/g, (_, name) => String(vars[name] ?? ""));
+    }
+
+    function applyTranslations() {
+      document.documentElement.lang = currentLanguage;
+      document.title = t("pageTitle");
+      document.querySelectorAll("[data-i18n]").forEach((element) => {
+        element.textContent = t(element.dataset.i18n);
+      });
+      elements.langButtons.forEach((button) => {
+        button.classList.toggle("active", button.dataset.lang === currentLanguage);
+      });
+    }
+
+    function isSecureOrLocalhost() {
+      return window.isSecureContext || location.hostname === "localhost" || location.hostname === "127.0.0.1";
+    }
+
+    function clamp(value, min, max) {
+      return Math.min(max, Math.max(min, value));
+    }
+
+    function getModeLabel(mode) {
+      return t(modeLabelKeys[mode] || mode);
+    }
+
+    function getSlides() {
+      return slidesByLanguage[currentLanguage] || slidesByLanguage.en;
+    }
+
+    function getHandednessLabel(value) {
+      const normalized = String(value || "").toLowerCase();
+      if (normalized.includes("left")) {
+        return t("leftHand");
+      }
+      if (normalized.includes("right")) {
+        return t("rightHand");
+      }
+      return value || t("unknown");
+    }
+
+    function formatPoint(point, labelKey) {
+      if (!point) {
+        return `${t(labelKey)}: --`;
+      }
+      return `${t(labelKey)}: x ${point.x.toFixed(3)}, y ${point.y.toFixed(3)}`;
+    }
+
+    function midpoint(a, b) {
+      return {
+        x: (a.x + b.x) / 2,
+        y: (a.y + b.y) / 2
+      };
+    }
+
+    function drawPoint(point, color, radius = 4) {
+      canvasContext.beginPath();
+      canvasContext.arc(point.x * elements.canvas.width, point.y * elements.canvas.height, radius, 0, Math.PI * 2);
+      canvasContext.fillStyle = color;
+      canvasContext.fill();
+    }
+
+    function drawConnections(landmarks, connections, color, width = 2) {
+      canvasContext.strokeStyle = color;
+      canvasContext.lineWidth = width;
+      canvasContext.beginPath();
+      for (const [startIndex, endIndex] of connections) {
+        const start = landmarks[startIndex];
+        const end = landmarks[endIndex];
+        if (!start || !end) {
+          continue;
+        }
+        canvasContext.moveTo(start.x * elements.canvas.width, start.y * elements.canvas.height);
+        canvasContext.lineTo(end.x * elements.canvas.width, end.y * elements.canvas.height);
+      }
+      canvasContext.stroke();
+    }
+
+    function drawLandmarks(landmarks, color, radius = 3) {
+      for (const point of landmarks) {
+        drawPoint(point, color, radius);
+      }
+    }
+
+    async function ensureVisionResolver() {
+      if (!appState.visionResolver) {
+        appState.visionResolver = await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm");
+      }
+      return appState.visionResolver;
+    }
+
+    async function ensureModelsForMode(mode) {
+      const vision = await ensureVisionResolver();
+      const needsHand = mode === "hand" || mode === "combined" || mode === "presentation";
+      const needsPose = mode === "pose" || mode === "combined";
+      const needsFace = mode === "face" || mode === "combined";
+
+      if (needsHand && !appState.handLandmarker) {
+        appState.handLandmarker = await HandLandmarker.createFromOptions(vision, {
+          baseOptions: { modelAssetPath: MODEL_URLS.hand },
+          runningMode: "VIDEO",
+          numHands: 2
+        });
+      }
+
+      if (needsPose && !appState.poseLandmarker) {
+        appState.poseLandmarker = await PoseLandmarker.createFromOptions(vision, {
+          baseOptions: { modelAssetPath: MODEL_URLS.pose },
+          runningMode: "VIDEO",
+          numPoses: 1
+        });
+      }
+
+      if (needsFace && !appState.faceLandmarker) {
+        appState.faceLandmarker = await FaceLandmarker.createFromOptions(vision, {
+          baseOptions: { modelAssetPath: MODEL_URLS.face },
+          runningMode: "VIDEO",
+          numFaces: 1,
+          outputFaceBlendshapes: false,
+          outputFacialTransformationMatrixes: false
+        });
+      }
+    }
+
+    function resizeCanvasToVideo() {
+      const videoWidth = elements.video.videoWidth || 640;
+      const videoHeight = elements.video.videoHeight || 480;
+      if (elements.canvas.width !== videoWidth || elements.canvas.height !== videoHeight) {
+        elements.canvas.width = videoWidth;
+        elements.canvas.height = videoHeight;
+      }
+    }
+
+    function updateStatusUI({ detectionStatus, summary, currentState, details, coords, badge, targetText }) {
+      elements.detectionStatus.textContent = detectionStatus;
+      elements.modeSummary.textContent = summary;
+      elements.currentState.textContent = currentState;
+      elements.statusDetails.textContent = details;
+      elements.coordinateOutput.textContent = coords;
+      elements.detectionBadge.textContent = badge;
+      elements.targetBadge.textContent = targetText;
+    }
+
+    function updatePresentationPreview() {
+      const slides = getSlides();
+      const slide = slides[appState.slideIndex] || slides[0];
+      elements.slideNumber.textContent = `${t("slideLabel")} ${String(appState.slideIndex + 1).padStart(2, "0")}`;
+      elements.slideTitle.textContent = slide.title;
+      elements.slideCaption.textContent = slide.caption;
+      elements.presentationCommand.textContent = `${t("commandLabel")}: ${t(appState.lastPresentationCommandKey)}`;
+    }
+
+    function updateTargetIndicator(touched) {
+      appState.targetTouched = touched;
+      elements.targetCircle.classList.toggle("active", touched);
+      elements.targetBadge.textContent = touched ? t("targetTouched") : t("targetWaiting");
+    }
+
+    function moveCursor(normalizedPoint) {
+      if (!normalizedPoint) {
+        elements.cursorDot.classList.remove("visible");
+        return;
+      }
+
+      const left = clamp(normalizedPoint.x * 100, 0, 100);
+      const top = clamp(normalizedPoint.y * 100, 0, 100);
+      elements.cursorDot.style.left = `${left}%`;
+      elements.cursorDot.style.top = `${top}%`;
+      elements.cursorDot.classList.add("visible");
+
+      const targetX = parseFloat(elements.targetCircle.style.left || "78") / 100;
+      const targetY = parseFloat(elements.targetCircle.style.top || "38") / 100;
+      const targetRadiusX = (elements.targetCircle.offsetWidth / elements.stage.clientWidth) / 2;
+      const targetRadiusY = (elements.targetCircle.offsetHeight / elements.stage.clientHeight) / 2;
+      const touched = Math.abs(normalizedPoint.x - targetX) <= targetRadiusX && Math.abs(normalizedPoint.y - targetY) <= targetRadiusY;
+      updateTargetIndicator(touched);
+    }
+
+    function isFingerExtended(landmarks, tipIndex, pipIndex) {
+      return landmarks[tipIndex].y < landmarks[pipIndex].y;
+    }
+
+    function classifyHandGesture(landmarks) {
+      const thumbTip = landmarks[4];
+      const thumbIp = landmarks[3];
+      const thumbMcp = landmarks[2];
+      const indexExtended = isFingerExtended(landmarks, 8, 6);
+      const middleExtended = isFingerExtended(landmarks, 12, 10);
+      const ringExtended = isFingerExtended(landmarks, 16, 14);
+      const pinkyExtended = isFingerExtended(landmarks, 20, 18);
+      const thumbExtended = Math.abs(thumbTip.x - thumbMcp.x) > 0.09 || thumbTip.y < thumbIp.y;
+      const extendedCount = [indexExtended, middleExtended, ringExtended, pinkyExtended].filter(Boolean).length + (thumbExtended ? 1 : 0);
+
+      if (extendedCount >= 4) {
+        return "gestureOpenHand";
+      }
+      if (!thumbExtended && !indexExtended && !middleExtended && !ringExtended && !pinkyExtended) {
+        return "gestureClosedFist";
+      }
+      if (indexExtended && !middleExtended && !ringExtended && !pinkyExtended) {
+        return "gestureIndexUp";
+      }
+      if (indexExtended && middleExtended && !ringExtended && !pinkyExtended) {
+        return "gesturePeace";
+      }
+      if (thumbExtended && !indexExtended && !middleExtended && !ringExtended && !pinkyExtended && thumbTip.y < thumbIp.y) {
+        return "gestureThumbUp";
+      }
+      return "gestureHandDetected";
+    }
+
+    function summarizeHand(handResult) {
+      if (!handResult || !handResult.landmarks || handResult.landmarks.length === 0) {
+        moveCursor(null);
+        return {
+          status: t("noHandDetected"),
+          summary: t("placeHandInFrame"),
+          currentState: t("waitingForHand"),
+          details: t("noHandLandmarks"),
+          coords: `${t("coordIndexTip")}: --\n${t("coordHandedness")}: --`,
+          badge: t("handTrackingIdle"),
+          gestureKey: "none",
+          gestureLabel: t("none"),
+          handedness: t("unknown"),
+          fingertip: null
+        };
+      }
+
+      const landmarks = handResult.landmarks[0];
+      const handedness = getHandednessLabel(handResult.handednesses?.[0]?.[0]?.displayName || handResult.handednesses?.[0]?.[0]?.categoryName);
+      const fingertip = landmarks[8];
+      const gestureKey = classifyHandGesture(landmarks);
+      const gestureLabel = t(gestureKey);
+      moveCursor(fingertip);
+
+      return {
+        status: t("handDetected"),
+        summary: t("handDetectedSummary", { count: handResult.landmarks.length, handedness }),
+        currentState: gestureLabel,
+        details: t("handDetectedDetails", { handedness }),
+        coords: `${formatPoint(fingertip, "coordIndexTip")}\n${t("coordHandedness")}: ${handedness}`,
+        badge: `${t("handStatusPrefix")}: ${gestureLabel}`,
+        gestureKey,
+        gestureLabel,
+        handedness,
+        fingertip
+      };
+    }
+
+    function summarizePose(poseResult) {
+      if (!poseResult || !poseResult.landmarks || poseResult.landmarks.length === 0) {
+        return {
+          status: t("noPoseDetected"),
+          summary: t("moveBodyIntoFrame"),
+          currentState: t("waitingForPose"),
+          details: t("noPoseLandmarks"),
+          coords: t("poseLandmarksPlaceholder"),
+          badge: t("poseTrackingIdle"),
+          postureKey: "none",
+          postureLabel: t("none")
+        };
+      }
+
+      const landmarks = poseResult.landmarks[0];
+      const nose = landmarks[0];
+      const leftShoulder = landmarks[11];
+      const rightShoulder = landmarks[12];
+      const leftElbow = landmarks[13];
+      const rightElbow = landmarks[14];
+      const leftWrist = landmarks[15];
+      const rightWrist = landmarks[16];
+      const leftHip = landmarks[23];
+      const rightHip = landmarks[24];
+      const leftKnee = landmarks[25];
+      const rightKnee = landmarks[26];
+      const leftAnkle = landmarks[27];
+      const rightAnkle = landmarks[28];
+
+      const leftRaised = leftWrist.y < leftShoulder.y;
+      const rightRaised = rightWrist.y < rightShoulder.y;
+      const hipY = (leftHip.y + rightHip.y) / 2;
+      const kneeY = (leftKnee.y + rightKnee.y) / 2;
+      const squatLike = Math.abs(kneeY - hipY) < 0.14 && nose.y > 0.23;
+
+      let postureKey = "postureStanding";
+      if (squatLike) {
+        postureKey = "postureSquatLike";
+      } else if (leftRaised && rightRaised) {
+        postureKey = "postureArmsRaised";
+      } else if (leftRaised) {
+        postureKey = "postureLeftHandRaised";
+      } else if (rightRaised) {
+        postureKey = "postureRightHandRaised";
+      }
+
+      const postureLabel = t(postureKey);
+      const coordLines = [
+        formatPoint(nose, "coordNose"),
+        formatPoint(leftShoulder, "coordLeftShoulder"),
+        formatPoint(rightShoulder, "coordRightShoulder"),
+        formatPoint(leftElbow, "coordLeftElbow"),
+        formatPoint(rightElbow, "coordRightElbow"),
+        formatPoint(leftWrist, "coordLeftWrist"),
+        formatPoint(rightWrist, "coordRightWrist"),
+        formatPoint(leftHip, "coordLeftHip"),
+        formatPoint(rightHip, "coordRightHip"),
+        formatPoint(leftKnee, "coordLeftKnee"),
+        formatPoint(rightKnee, "coordRightKnee"),
+        formatPoint(leftAnkle, "coordLeftAnkle"),
+        formatPoint(rightAnkle, "coordRightAnkle")
+      ];
+
+      return {
+        status: t("poseDetected"),
+        summary: t("poseRealtimeSummary"),
+        currentState: postureLabel,
+        details: t("poseDetails"),
+        coords: coordLines.join("\n"),
+        badge: `${t("poseStatusPrefix")}: ${postureLabel}`,
+        postureKey,
+        postureLabel
+      };
+    }
+
+    function summarizeFace(faceResult) {
+      if (!faceResult || !faceResult.faceLandmarks || faceResult.faceLandmarks.length === 0) {
+        return {
+          status: t("noFaceDetected"),
+          summary: t("centerFaceInFrame"),
+          currentState: t("waitingForFace"),
+          details: t("noFaceLandmarks"),
+          coords: t("faceCenterPlaceholder"),
+          badge: t("faceTrackingIdle"),
+          faceStateKey: "none",
+          faceStateLabel: t("none")
+        };
+      }
+
+      const landmarks = faceResult.faceLandmarks[0];
+      const noseTip = landmarks[1];
+      const leftCheek = landmarks[234];
+      const rightCheek = landmarks[454];
+      const forehead = landmarks[10];
+      const chin = landmarks[152];
+      const upperLip = landmarks[13];
+      const lowerLip = landmarks[14];
+      const leftEyeOuter = landmarks[33];
+      const rightEyeOuter = landmarks[263];
+      const eyesMid = midpoint(leftEyeOuter, rightEyeOuter);
+      const faceCenter = midpoint(forehead, chin);
+      const faceMidX = (leftCheek.x + rightCheek.x) / 2;
+      const faceHeight = Math.abs(chin.y - forehead.y) || 0.001;
+      const mouthGap = Math.abs(lowerLip.y - upperLip.y);
+
+      let faceState = t("faceCentered");
+      if (noseTip.x < faceMidX - 0.03) {
+        faceState = t("lookingLeft");
+      } else if (noseTip.x > faceMidX + 0.03) {
+        faceState = t("lookingRight");
+      } else if (noseTip.y < eyesMid.y - 0.03) {
+        faceState = t("lookingUp");
+      } else if (noseTip.y > eyesMid.y + 0.08) {
+        faceState = t("lookingDown");
+      }
+
+      if (mouthGap > faceHeight * 0.08) {
+        faceState += t("mouthOpenSuffix");
+      }
+      if (Math.abs(faceCenter.x - 0.5) > 0.16 || Math.abs(faceCenter.y - 0.48) > 0.18) {
+        faceState += t("notCenteredSuffix");
+      }
+
+      const coordLines = [
+        formatPoint(faceCenter, "coordFaceCenter"),
+        formatPoint(noseTip, "coordNoseTip"),
+        formatPoint(leftEyeOuter, "coordLeftEye"),
+        formatPoint(rightEyeOuter, "coordRightEye"),
+        formatPoint(upperLip, "coordUpperLip"),
+        formatPoint(lowerLip, "coordLowerLip")
+      ];
+
+      return {
+        status: t("faceDetected"),
+        summary: t("faceRealtimeSummary"),
+        currentState: faceState,
+        details: t("faceDetails"),
+        coords: coordLines.join("\n"),
+        badge: `${t("faceStatusPrefix")}: ${faceState}`,
+        faceStateKey: faceState,
+        faceStateLabel: faceState
+      };
+    }
+
+    function maybeUpdatePresentationCommand(gestureKey, fingertip) {
+      const now = performance.now();
+      if (gestureKey === "gestureOpenHand") {
+        appState.lastPresentationCommandKey = "commandPause";
+        appState.commandCooldownUntil = now + 350;
+        updatePresentationPreview();
+        return;
+      }
+
+      if (gestureKey === "gestureThumbUp") {
+        appState.lastPresentationCommandKey = "commandConfirm";
+        appState.commandCooldownUntil = now + 350;
+        updatePresentationPreview();
+        return;
+      }
+
+      if (!fingertip) {
+        return;
+      }
+
+      appState.handMotion.push({ time: now, x: fingertip.x, y: fingertip.y });
+      appState.handMotion = appState.handMotion.filter((entry) => now - entry.time <= 450);
+
+      if (now < appState.commandCooldownUntil || appState.handMotion.length < 3) {
+        return;
+      }
+
+      const first = appState.handMotion[0];
+      const last = appState.handMotion[appState.handMotion.length - 1];
+      const deltaX = last.x - first.x;
+      const deltaY = Math.abs(last.y - first.y);
+
+      if (Math.abs(deltaX) > 0.16 && deltaY < 0.12) {
+        if (deltaX < 0) {
+          appState.slideIndex = Math.min(getSlides().length - 1, appState.slideIndex + 1);
+          appState.lastPresentationCommandKey = "commandNextSlide";
+        } else {
+          appState.slideIndex = Math.max(0, appState.slideIndex - 1);
+          appState.lastPresentationCommandKey = "commandPreviousSlide";
+        }
+        appState.commandCooldownUntil = now + 650;
+        appState.handMotion = [];
+        updatePresentationPreview();
+      }
+    }
+
+    function drawHandResults(handResult) {
+      if (!handResult?.landmarks?.length) {
+        return;
+      }
+      for (const landmarks of handResult.landmarks) {
+        drawConnections(landmarks, HAND_CONNECTIONS, "rgba(86, 240, 192, 0.85)", 2.5);
+        drawLandmarks(landmarks, "rgba(255, 255, 255, 0.95)", 3.6);
+      }
+    }
+
+    function drawPoseResults(poseResult) {
+      if (!poseResult?.landmarks?.length) {
+        return;
+      }
+      for (const landmarks of poseResult.landmarks) {
+        drawConnections(landmarks, POSE_CONNECTIONS, "rgba(125, 211, 252, 0.86)", 2.2);
+        drawLandmarks(landmarks, "rgba(255, 201, 107, 0.94)", 3.4);
+      }
+    }
+
+    function drawFaceResults(faceResult) {
+      if (!faceResult?.faceLandmarks?.length) {
+        return;
+      }
+      for (const landmarks of faceResult.faceLandmarks) {
+        drawConnections(landmarks, FACE_OUTLINE_CONNECTIONS, "rgba(255, 123, 116, 0.92)", 1.8);
+        for (const pointIndex of [1, 10, 13, 14, 33, 152, 234, 263, 454]) {
+          drawPoint(landmarks[pointIndex], "rgba(255, 255, 255, 0.96)", 3.1);
+        }
+      }
+    }
+
+    function renderPerformanceChips() {
+      elements.fpsChip.textContent = appState.fps > 0 ? t("fpsValue", { fps: appState.fps.toFixed(1) }) : t("fpsPlaceholder");
+      elements.perfChip.textContent = t("performanceValue", { value: t(appState.lastPerfLevel) });
+    }
+
+    function updatePerformance(now) {
+      appState.frameCount += 1;
+      const elapsed = now - appState.fpsTime;
+      if (elapsed >= 500) {
+        appState.fps = (appState.frameCount * 1000) / elapsed;
+        appState.frameCount = 0;
+        appState.fpsTime = now;
+
+        let perfKey = "performanceSmooth";
+        if (appState.fps < 12) {
+          perfKey = "performanceLow";
+        } else if (appState.fps < 20) {
+          perfKey = "performanceModerate";
+        }
+        appState.lastPerfLevel = perfKey;
+        renderPerformanceChips();
+      }
+    }
+
+    function clearCanvas() {
+      canvasContext.clearRect(0, 0, elements.canvas.width, elements.canvas.height);
+    }
+
+    function resetVisualState() {
+      clearCanvas();
+      moveCursor(null);
+      updateTargetIndicator(false);
+    }
+
+    function syncModeUI() {
+      const modeLabel = getModeLabel(appState.activeMode);
+      elements.selectedMode.textContent = `${t("selectedModePrefix")}: ${modeLabel}`;
+      elements.presentationCard.classList.toggle("hidden", appState.activeMode !== "presentation");
+      elements.targetCircle.classList.toggle("hidden", !(appState.activeMode === "hand" || appState.activeMode === "presentation"));
+      elements.cursorDot.classList.toggle("hidden", !(appState.activeMode === "hand" || appState.activeMode === "presentation"));
+      if (appState.activeMode !== "hand" && appState.activeMode !== "presentation") {
+        moveCursor(null);
+        updateTargetIndicator(false);
+      }
+    }
+
+    function renderStoppedUI() {
+      elements.liveIndicator.textContent = t("cameraIdle");
+      elements.liveIndicator.classList.remove("active");
+      elements.cameraStatus.textContent = t("cameraStopped");
+      elements.detectionStatus.textContent = t("detectionInactive");
+      elements.modeSummary.textContent = isSecureOrLocalhost() ? t("startCameraHint") : t("secureContextWarning");
+      elements.currentState.textContent = t("waiting");
+      elements.statusDetails.textContent = t("noActiveModelOutput");
+      elements.coordinateOutput.textContent = t("coordinatesPlaceholder");
+      elements.detectionBadge.textContent = t("detectionInactive");
+      elements.targetBadge.textContent = t("targetWaiting");
+      appState.fps = 0;
+      appState.lastPerfLevel = "performanceWaiting";
+      renderPerformanceChips();
+    }
+
+    function applyLanguage() {
+      applyTranslations();
+      updatePresentationPreview();
+      syncModeUI();
+      renderPerformanceChips();
+
+      if (!appState.cameraRunning) {
+        renderStoppedUI();
+      } else {
+        elements.liveIndicator.textContent = t("cameraLive");
+        elements.cameraStatus.textContent = t("cameraRunning");
+      }
+    }
+
+    function setLanguage(language) {
+      currentLanguage = i18n[language] ? language : "en";
+      localStorage.setItem("app_lang", currentLanguage);
+      applyLanguage();
+    }
+
+    async function runDetectionLoop() {
+      if (!appState.cameraRunning) {
+        return;
+      }
+
+      const video = elements.video;
+      const now = performance.now();
+
+      if (video.readyState < 2) {
+        appState.animationFrameId = requestAnimationFrame(runDetectionLoop);
+        return;
+      }
+
+      if (video.currentTime === appState.lastVideoTime) {
+        appState.animationFrameId = requestAnimationFrame(runDetectionLoop);
+        return;
+      }
+
+      appState.lastVideoTime = video.currentTime;
+      appState.loopCount += 1;
+      resizeCanvasToVideo();
+      clearCanvas();
+
+      const mode = appState.activeMode;
+      const shouldDetectHand = mode === "hand" || mode === "combined" || mode === "presentation";
+      const shouldDetectPose = mode === "pose" || mode === "combined";
+      const shouldDetectFace = mode === "face" || mode === "combined";
+      const combinedFrame = mode === "combined";
+
+      if (shouldDetectHand && appState.handLandmarker) {
+        const skipHand = combinedFrame && appState.loopCount % 2 === 1;
+        if (!skipHand) {
+          appState.lastResults.hand = appState.handLandmarker.detectForVideo(video, now);
+        }
+      }
+
+      if (shouldDetectPose && appState.poseLandmarker) {
+        const skipPose = combinedFrame && appState.frameCount % 2 === 1;
+        if (!skipPose) {
+          appState.lastResults.pose = appState.poseLandmarker.detectForVideo(video, now);
+        }
+      }
+
+      if (shouldDetectFace && appState.faceLandmarker) {
+        const skipFace = combinedFrame && appState.frameCount % 3 !== 0;
+        if (!skipFace) {
+          appState.lastResults.face = appState.faceLandmarker.detectForVideo(video, now);
+        }
+      }
+
+      drawHandResults(appState.lastResults.hand);
+      drawPoseResults(appState.lastResults.pose);
+      drawFaceResults(appState.lastResults.face);
+
+      if (mode === "hand") {
+        const handSummary = summarizeHand(appState.lastResults.hand);
+        updateStatusUI({
+          detectionStatus: handSummary.status,
+          summary: handSummary.summary,
+          currentState: handSummary.currentState,
+          details: handSummary.details,
+          coords: handSummary.coords,
+          badge: handSummary.badge,
+          targetText: appState.targetTouched ? t("targetTouched") : t("targetWaiting")
+        });
+      } else if (mode === "pose") {
+        const poseSummary = summarizePose(appState.lastResults.pose);
+        updateStatusUI({
+          detectionStatus: poseSummary.status,
+          summary: poseSummary.summary,
+          currentState: poseSummary.currentState,
+          details: poseSummary.details,
+          coords: poseSummary.coords,
+          badge: poseSummary.badge,
+          targetText: t("poseModeActive")
+        });
+      } else if (mode === "face") {
+        const faceSummary = summarizeFace(appState.lastResults.face);
+        updateStatusUI({
+          detectionStatus: faceSummary.status,
+          summary: faceSummary.summary,
+          currentState: faceSummary.currentState,
+          details: faceSummary.details,
+          coords: faceSummary.coords,
+          badge: faceSummary.badge,
+          targetText: t("faceModeActive")
+        });
+      } else if (mode === "presentation") {
+        const handSummary = summarizeHand(appState.lastResults.hand);
+        maybeUpdatePresentationCommand(handSummary.gestureKey, handSummary.fingertip);
+        updateStatusUI({
+          detectionStatus: handSummary.status,
+          summary: t("presentationSummary"),
+          currentState: handSummary.gestureLabel,
+          details: t("presentationDetails", { command: t(appState.lastPresentationCommandKey) }),
+          coords: handSummary.coords,
+          badge: t("commandBadge", { command: t(appState.lastPresentationCommandKey) }),
+          targetText: appState.targetTouched ? t("targetTouched") : t("presentationModeActive")
+        });
+      } else {
+        const handSummary = summarizeHand(appState.lastResults.hand);
+        const poseSummary = summarizePose(appState.lastResults.pose);
+        const faceSummary = summarizeFace(appState.lastResults.face);
+        const combinedWarning = appState.fps > 0 && appState.fps < 12 ? t("combinedWarning") : t("combinedSummary");
+
+        updateStatusUI({
+          detectionStatus: t("combinedTracking"),
+          summary: combinedWarning,
+          currentState: t("combinedCurrentState", {
+            hand: handSummary.gestureLabel,
+            pose: poseSummary.postureLabel,
+            face: faceSummary.faceStateLabel
+          }),
+          details: t("combinedDetails", {
+            hand: handSummary.status,
+            pose: poseSummary.status,
+            face: faceSummary.status
+          }),
+          coords: [
+            handSummary.coords,
+            poseSummary.coords.split("\n").slice(0, 5).join("\n"),
+            faceSummary.coords
+          ].join("\n\n"),
+          badge: appState.fps > 0 && appState.fps < 12 ? t("combinedModeWarningBadge") : t("combinedModeLiveBadge"),
+          targetText: appState.fps > 0 && appState.fps < 12 ? t("trySingleMode") : t("combinedModeActive")
+        });
+      }
+
+      updatePerformance(now);
+      appState.animationFrameId = requestAnimationFrame(runDetectionLoop);
+    }
+
+    async function startCamera() {
+      if (!navigator.mediaDevices?.getUserMedia) {
+        elements.cameraStatus.textContent = t("browserUnsupported");
+        elements.detectionStatus.textContent = t("unsupportedBrowser");
+        elements.modeSummary.textContent = t("browserSupportHint");
+        return;
+      }
+
+      if (!isSecureOrLocalhost()) {
+        elements.cameraStatus.textContent = t("secureContextRunningWarning");
+      }
+
+      try {
+        elements.startButton.disabled = true;
+        elements.cameraStatus.textContent = t("startingCamera");
+        await ensureModelsForMode(appState.activeMode);
+
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            width: { ideal: 640 },
+            height: { ideal: 480 },
+            facingMode: "user"
+          },
+          audio: false
+        });
+
+        appState.stream = stream;
+        elements.video.srcObject = stream;
+        await elements.video.play();
+        resizeCanvasToVideo();
+
+        appState.cameraRunning = true;
+        appState.lastVideoTime = -1;
+        appState.fps = 0;
+        appState.frameCount = 0;
+        appState.fpsTime = performance.now();
+        appState.lastPerfLevel = "performanceWaiting";
+
+        elements.startButton.disabled = true;
+        elements.stopButton.disabled = false;
+        elements.liveIndicator.textContent = t("cameraLive");
+        elements.liveIndicator.classList.add("active");
+        elements.cameraStatus.textContent = t("cameraRunning");
+        elements.detectionStatus.textContent = t("modelsReady");
+        elements.modeSummary.textContent = t("detectionLoopRunning");
+        renderPerformanceChips();
+        runDetectionLoop();
+      } catch (error) {
+        const message = error && typeof error === "object" && "name" in error ? error.name : "UnknownError";
+        let friendlyMessage = t("unableToStartCamera");
+        if (message === "NotAllowedError") {
+          friendlyMessage = t("permissionDenied");
+        } else if (message === "NotFoundError") {
+          friendlyMessage = t("noWebcamFound");
+        } else if (message === "NotReadableError") {
+          friendlyMessage = t("webcamBusy");
+        }
+        elements.cameraStatus.textContent = friendlyMessage;
+        elements.detectionStatus.textContent = t("cameraStartFailed");
+        elements.modeSummary.textContent = String(error?.message || friendlyMessage);
+        elements.startButton.disabled = false;
+        elements.stopButton.disabled = true;
+        elements.liveIndicator.textContent = t("cameraIdle");
+        elements.liveIndicator.classList.remove("active");
+      }
+    }
+
+    function stopCamera() {
+      appState.cameraRunning = false;
+      cancelAnimationFrame(appState.animationFrameId);
+      appState.animationFrameId = 0;
+
+      if (appState.stream) {
+        for (const track of appState.stream.getTracks()) {
+          track.stop();
+        }
+        appState.stream = null;
+      }
+
+      elements.video.srcObject = null;
+      elements.startButton.disabled = false;
+      elements.stopButton.disabled = true;
+      appState.handMotion = [];
+      appState.lastPresentationCommandKey = "commandWaiting";
+      updatePresentationPreview();
+      resetVisualState();
+      renderStoppedUI();
+    }
+
+    async function handleModeChange() {
+      appState.activeMode = elements.modeSelect.value;
+      syncModeUI();
+
+      if (!appState.cameraRunning) {
+        return;
+      }
+
+      try {
+        elements.modeSummary.textContent = t("switchingMode", { mode: getModeLabel(appState.activeMode) });
+        await ensureModelsForMode(appState.activeMode);
+      } catch (error) {
+        elements.modeSummary.textContent = t("failedInitializeMode", { error: String(error?.message || error) });
+      }
+    }
+
+    function initializeUI() {
+      syncModeUI();
+      updatePresentationPreview();
+      applyLanguage();
+    }
+
+    elements.startButton.addEventListener("click", startCamera);
+    elements.stopButton.addEventListener("click", stopCamera);
+    elements.modeSelect.addEventListener("change", handleModeChange);
+    elements.langButtons.forEach((button) => {
+      button.addEventListener("click", () => setLanguage(button.dataset.lang));
+    });
+    window.addEventListener("resize", resizeCanvasToVideo);
+    window.addEventListener("beforeunload", stopCamera);
+
+    initializeUI();
+  </script>
+</body>
+</html>
