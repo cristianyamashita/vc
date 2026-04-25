@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -96,6 +96,18 @@
     background: rgba(255, 106, 97, .22);
   }
 
+  .langs {
+    display: inline-flex;
+    gap: 5px;
+    margin-left: auto;
+  }
+  .lang-btn { min-height: 34px; padding: 6px 9px; font-size: 12px; font-weight: 900; }
+  .lang-btn.active {
+    color: #251807;
+    background: linear-gradient(180deg, #ffe28a, #e6a93c);
+    border-color: rgba(255, 255, 255, .35);
+  }
+
   .toast {
     position: fixed;
     z-index: 5;
@@ -142,6 +154,7 @@
       padding: 7px;
     }
     h1 { width: 100%; min-width: 0; font-size: 16px; }
+    .langs { margin-left: 0; }
     .pill, button { min-height: 30px; padding: 5px 7px; font-size: 12px; }
     .help { display: none; }
     .toast { top: 104px; }
@@ -152,21 +165,128 @@
 <canvas id="game" aria-label="Traffic Jam Pickup"></canvas>
 
 <div class="hud">
-  <h1>Traffic Jam Pickup</h1>
-  <span class="pill">Fase <span id="level">1</span></span>
-  <span class="pill">Coins <span id="coins">0</span></span>
-  <span class="pill">Restantes <span id="remaining">0</span></span>
-  <span class="pill">Vagas <span id="slots">0</span></span>
-  <button id="pauseBtn">Pausar</button>
-  <button id="restartBtn">Reiniciar</button>
-  <button id="nextBtn" class="primary" hidden>Próxima</button>
-  <button id="resetBtn" class="danger">Reset</button>
+  <h1 data-i18n="title">Traffic Jam Pickup</h1>
+  <span class="pill"><span data-i18n="pillLevel">Level</span> <span id="level">1</span></span>
+  <span class="pill"><span data-i18n="pillCoins">Coins</span> <span id="coins">0</span></span>
+  <span class="pill"><span data-i18n="pillRemaining">Left</span> <span id="remaining">0</span></span>
+  <span class="pill"><span data-i18n="pillSlots">Bays</span> <span id="slots">0</span></span>
+  <button type="button" id="pauseBtn" data-i18n="pause">Pause</button>
+  <button type="button" id="restartBtn" data-i18n="restart">Restart</button>
+  <button type="button" id="nextBtn" class="primary" hidden data-i18n="next">Next</button>
+  <button type="button" id="resetBtn" class="danger" data-i18n="reset">Reset</button>
+  <div class="langs" aria-label="Language">
+    <button type="button" class="lang-btn active" data-lang="en">EN</button>
+    <button type="button" class="lang-btn" data-lang="ja">JA</button>
+    <button type="button" class="lang-btn" data-lang="pt">PT</button>
+  </div>
 </div>
 <div id="toast" class="toast"></div>
-<div class="help">Leve veículos para as vagas de embarque. Só o primeiro passageiro da fila entra, e apenas em veículo da mesma cor; veículos cheios saem pela estrada.</div>
+<div class="help" data-i18n="help">Guide vehicles to boarding bays. Only the first passenger in line may board a matching color vehicle; full vehicles leave on the main road.</div>
 
 <script>
 (() => {
+  const I18N = {
+    en: {
+      title: 'Traffic Jam Pickup',
+      pillLevel: 'Level',
+      pillCoins: 'Coins',
+      pillRemaining: 'Left',
+      pillSlots: 'Bays',
+      pause: 'Pause',
+      resume: 'Resume',
+      restart: 'Restart',
+      next: 'Next',
+      reset: 'Reset',
+      help: 'Guide vehicles to boarding bays. Only the first passenger in line may board a matching color vehicle; full vehicles leave on the main road.',
+      levelIntro: 'Stage {level}: clear {count} vehicles.',
+      needCoins: 'Not enough coins. It costs {cost}.',
+      bayUnlocked: 'Bay unlocked for this stage.',
+      noRoute: 'No clear route to a bay right now.',
+      vehicleReady: '{type} is ready to board.',
+      blocked: 'Blocked: another vehicle is in the way.',
+      toastLevelComplete: 'Stage clear! +{n} coins.',
+      vehicleFull: '{type} is full.',
+      typeCar: 'Car',
+      typeVan: 'Van',
+      typeBus: 'Bus',
+      queueLevel: 'Lv.{level}',
+      remainingLabel: 'LEFT',
+      unlockCost: '{n} coins',
+      bayFree: 'OPEN',
+      bayExtra: 'EXTRA',
+      wonTitle: 'Stage clear!',
+      pausedTitle: 'Paused',
+      wonSub: 'You earned {n} coins.',
+      pauseSub: 'Tap Resume to continue.'
+    },
+    ja: {
+      title: '交通渋滞ピックアップ',
+      pillLevel: 'ステージ',
+      pillCoins: 'コイン',
+      pillRemaining: '残り',
+      pillSlots: '乗降枠',
+      pause: '一時停止',
+      resume: '再開',
+      restart: 'やり直し',
+      next: '次へ',
+      reset: 'リセット',
+      help: '車を乗降エリアへ導きます。先頭の乗客だけが乗れ、同じ色の車にのみ。満席の車は幹線道路へ出ます。',
+      levelIntro: 'ステージ{level}：車を{count}台空けてください。',
+      needCoins: 'コインが足りません。{cost} 必要です。',
+      bayUnlocked: 'このステージで乗降枠が解放されました。',
+      noRoute: '今は乗降枠へのルートがありません。',
+      vehicleReady: '{type}、乗車の準備ができました。',
+      blocked: '手前に他の車があります。',
+      toastLevelComplete: 'ステージクリア！+{n} コイン',
+      vehicleFull: '{type}は満員です。',
+      typeCar: '車',
+      typeVan: 'バン',
+      typeBus: 'バス',
+      queueLevel: 'Lv.{level}',
+      remainingLabel: '残り',
+      unlockCost: '{n} コイン',
+      bayFree: '空',
+      bayExtra: '追加',
+      wonTitle: 'ステージクリア！',
+      pausedTitle: '一時停止中',
+      wonSub: 'コインを {n} 枚獲得。',
+      pauseSub: '再開をタップして戻る。'
+    },
+    pt: {
+      title: 'Traffic Jam Pickup',
+      pillLevel: 'Fase',
+      pillCoins: 'Moedas',
+      pillRemaining: 'Restantes',
+      pillSlots: 'Vagas',
+      pause: 'Pausar',
+      resume: 'Continuar',
+      restart: 'Reiniciar',
+      next: 'Próxima',
+      reset: 'Reset',
+      help: 'Leve veículos para as vagas de embarque. Só o primeiro passageiro da fila entra, e apenas em veículo da mesma cor; veículos cheios saem pela estrada.',
+      levelIntro: 'Fase {level}: libere {count} veículos.',
+      needCoins: 'Faltam moedas. Custa {cost}.',
+      bayUnlocked: 'Vaga liberada nesta fase.',
+      noRoute: 'Sem rota livre para uma vaga agora.',
+      vehicleReady: '{type} pronto para embarque.',
+      blocked: 'Bloqueado: tem outro veículo na frente.',
+      toastLevelComplete: 'Fase completa! +{n} moedas.',
+      vehicleFull: '{type} cheio.',
+      typeCar: 'Carro',
+      typeVan: 'Van',
+      typeBus: 'Ônibus',
+      queueLevel: 'Nível {level}',
+      remainingLabel: 'RESTANTES',
+      unlockCost: '{n} moedas',
+      bayFree: 'LIVRE',
+      bayExtra: 'EXTRA',
+      wonTitle: 'Fase completa!',
+      pausedTitle: 'Pausado',
+      wonSub: 'Você ganhou {n} moedas.',
+      pauseSub: 'Toque em Continuar para voltar.'
+    }
+  };
+
   const canvas = document.getElementById('game');
   const ctx = canvas.getContext('2d');
   const els = {
@@ -181,6 +301,44 @@
     toast: document.getElementById('toast')
   };
 
+  const lang = {
+    current: (() => {
+      const s = localStorage.getItem('trafficPickupLang') || 'en';
+      return I18N[s] ? s : 'en';
+    })()
+  };
+
+  const typeDefs = {
+    car: { labelKey: 'typeCar', capacity: 4, length: .86, width: .62 },
+    van: { labelKey: 'typeVan', capacity: 8, length: 1.05, width: .66 },
+    bus: { labelKey: 'typeBus', capacity: 18, length: 1.25, width: .72 }
+  };
+
+  function t(key) {
+    return I18N[lang.current][key] || I18N.en[key] || key;
+  }
+
+  function typeLabel(vehicleType) {
+    return t(typeDefs[vehicleType].labelKey);
+  }
+
+  function setLanguage(code) {
+    lang.current = I18N[code] ? code : 'en';
+    localStorage.setItem('trafficPickupLang', lang.current);
+    const htmlLang = lang.current === 'pt' ? 'pt-BR' : lang.current === 'ja' ? 'ja' : 'en';
+    document.documentElement.lang = htmlLang;
+    document.title = t('title');
+    canvas.setAttribute('aria-label', t('title'));
+    document.querySelectorAll('[data-i18n]').forEach((el) => {
+      const k = el.dataset.i18n;
+      if (I18N[lang.current][k]) el.textContent = I18N[lang.current][k];
+    });
+    document.querySelectorAll('.lang-btn').forEach((btn) => {
+      btn.classList.toggle('active', btn.dataset.lang === lang.current);
+    });
+    syncHud();
+  }
+
   const STORAGE = 'trafficPickupSave:v3';
   const EXTRA_BAY_LIMIT = 2;
   const colors = [
@@ -190,11 +348,6 @@
     { id: 'green', name: 'verde', car: '#37d645', dark: '#16851f' },
     { id: 'pink', name: 'rosa', car: '#f35bad', dark: '#a51d68' }
   ];
-  const typeDefs = {
-    car: { label: 'Carro', capacity: 4, length: .86, width: .62 },
-    van: { label: 'Van', capacity: 8, length: 1.05, width: .66 },
-    bus: { label: 'Ônibus', capacity: 18, length: 1.25, width: .72 }
-  };
   const dirs = [
     { id: 'up', dx: 0, dy: -1 },
     { id: 'down', dx: 0, dy: 1 },
@@ -584,7 +737,11 @@
     placeVehicles();
     els.nextBtn.hidden = true;
     syncHud();
-    showToast(`Fase ${level}: libere ${game.vehicles.length} veículos.`);
+    showToast(
+      t('levelIntro')
+        .replace('{level}', String(level))
+        .replace('{count}', String(game.vehicles.length))
+    );
   }
 
   function syncHud() {
@@ -592,7 +749,7 @@
     els.coins.textContent = state.coins;
     els.remaining.textContent = game ? game.remaining : 0;
     els.slots.textContent = game ? `${game.bays.filter(b => b.unlocked).length}/${game.bays.length}` : `-`;
-    els.pauseBtn.textContent = game && game.paused ? 'Continuar' : 'Pausar';
+    els.pauseBtn.textContent = game && game.paused ? t('resume') : t('pause');
   }
 
   function showToast(text) {
@@ -626,14 +783,14 @@
     if (!bay || bay.unlocked) return;
     const cost = unlockCost();
     if (state.coins < cost) {
-      showToast(`Faltam coins. Custa ${cost}.`);
+      showToast(t('needCoins').replace('{cost}', String(cost)));
       return;
     }
     state.coins -= cost;
     bay.unlocked = true;
     save();
     syncHud();
-    showToast('Vaga liberada nesta fase.');
+    showToast(t('bayUnlocked'));
   }
 
   function parkForBoarding(vehicle) {
@@ -643,7 +800,7 @@
       .find(choice => !routeConflicts(choice.route, vehicle));
     if (!bayChoice) {
       vehicle.blockedFlash = 1;
-      showToast('Sem rota livre para uma vaga agora.');
+      showToast(t('noRoute'));
       return false;
     }
     const bay = bayChoice.bay;
@@ -653,7 +810,7 @@
     vehicle.boardT = 0;
     vehicle.route = bayChoice.route;
     vehicle.routeDone = 'boarding';
-    showToast(`${typeDefs[vehicle.type].label} pronto para embarque.`);
+    showToast(t('vehicleReady').replace('{type}', typeLabel(vehicle.type)));
     return true;
   }
 
@@ -676,7 +833,7 @@
       return;
     }
     vehicle.blockedFlash = 1;
-    showToast('Bloqueado: tem outro veículo na frente.');
+    showToast(t('blocked'));
   }
 
   function boardNextPassenger(vehicle) {
@@ -861,7 +1018,7 @@
     save();
     els.nextBtn.hidden = false;
     syncHud();
-    showToast(`Fase completa! +${game.earned} coins.`);
+    showToast(t('toastLevelComplete').replace('{n}', String(game.earned)));
   }
 
   function update(dt) {
@@ -878,7 +1035,7 @@
           } else if (v.load >= v.capacity) {
             v.state = 'full';
             v.boardT = .28;
-            showToast(`${typeDefs[v.type].label} cheio.`);
+            showToast(t('vehicleFull').replace('{type}', typeLabel(v.type)));
           }
         }
       }
@@ -1071,8 +1228,9 @@
     ctx.lineWidth = 5;
     ctx.strokeStyle = '#1a6f26';
     ctx.fillStyle = '#ffffff';
-    ctx.strokeText(`Nível ${game.level}`, W / 2, s.y + s.h - 52);
-    ctx.fillText(`Nível ${game.level}`, W / 2, s.y + s.h - 52);
+    const levelStr = t('queueLevel').replace('{level}', String(game.level));
+    ctx.strokeText(levelStr, W / 2, s.y + s.h - 52);
+    ctx.fillText(levelStr, W / 2, s.y + s.h - 52);
 
     fillRoundRect(24, s.y + s.h - 92, 148, 62, 8, '#467ee7', 'rgba(255,255,255,.45)');
     ctx.font = '900 28px system-ui';
@@ -1083,7 +1241,7 @@
     ctx.strokeText(String(game.remaining), 98, s.y + s.h - 56);
     ctx.fillText(String(game.remaining), 98, s.y + s.h - 56);
     ctx.font = '800 12px system-ui';
-    ctx.fillText('RESTANTES', 98, s.y + s.h - 36);
+    ctx.fillText(t('remainingLabel'), 98, s.y + s.h - 36);
   }
 
   function passengerQueuePositions() {
@@ -1167,12 +1325,12 @@
         ctx.textBaseline = 'middle';
         ctx.fillText('+', r.x + r.w / 2, r.y + r.h / 2 - 10);
         ctx.font = '800 11px system-ui';
-        ctx.fillText(`${unlockCost()} coins`, r.x + r.w / 2, r.y + r.h / 2 + 22);
+        ctx.fillText(t('unlockCost').replace('{n}', String(unlockCost())), r.x + r.w / 2, r.y + r.h / 2 + 22);
       } else if (!b.occupant) {
         ctx.fillStyle = 'rgba(32,45,60,.62)';
         ctx.font = '800 11px system-ui';
         ctx.textAlign = 'center';
-        ctx.fillText(b.index < game.openBayCount ? 'LIVRE' : 'EXTRA', r.x + r.w / 2, r.y + r.h / 2 + 4);
+        ctx.fillText(b.index < game.openBayCount ? t('bayFree') : t('bayExtra'), r.x + r.w / 2, r.y + r.h / 2 + 4);
       }
       ctx.restore();
     });
@@ -1250,10 +1408,14 @@
       ctx.fillStyle = '#fff';
       ctx.font = '900 25px system-ui';
       ctx.textAlign = 'center';
-      ctx.fillText(game.won ? 'Fase completa!' : 'Pausado', W / 2, H / 2 - 18);
+      ctx.fillText(game.won ? t('wonTitle') : t('pausedTitle'), W / 2, H / 2 - 18);
       ctx.font = '700 15px system-ui';
       ctx.fillStyle = '#cdd7e4';
-      ctx.fillText(game.won ? `Você ganhou ${game.earned} coins.` : 'Toque em Continuar para voltar.', W / 2, H / 2 + 18);
+      ctx.fillText(
+        game.won ? t('wonSub').replace('{n}', String(game.earned)) : t('pauseSub'),
+        W / 2,
+        H / 2 + 18
+      );
     }
   }
 
@@ -1267,6 +1429,10 @@
 
   canvas.addEventListener('pointerdown', handlePointer);
   window.addEventListener('resize', resize);
+  document.querySelectorAll('.lang-btn').forEach((btn) => {
+    btn.addEventListener('click', () => setLanguage(btn.dataset.lang));
+  });
+  setLanguage(lang.current);
   els.pauseBtn.addEventListener('click', () => {
     game.paused = !game.paused;
     syncHud();
