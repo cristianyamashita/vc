@@ -1,0 +1,1288 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Traffic Jam Pickup</title>
+<style>
+  :root {
+    --ink: #f8fbff;
+    --muted: #c4ccd8;
+    --panel: rgba(20, 27, 38, .88);
+    --panel-2: rgba(255, 255, 255, .12);
+    --border: rgba(255, 255, 255, .22);
+    --accent: #ffd15c;
+    --good: #44d27d;
+    --bad: #ff6a61;
+    --road: #8390a2;
+    --lot: #cbd6e4;
+    --shop: #e24261;
+    --shadow: 0 14px 42px rgba(15, 24, 35, .35);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; overflow: hidden; }
+  body {
+    color: var(--ink);
+    font-family: "Noto Sans JP", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background:
+      radial-gradient(circle at 12% 10%, rgba(88, 224, 106, .75), transparent 19%),
+      radial-gradient(circle at 92% 0%, rgba(31, 111, 230, .85), transparent 27%),
+      linear-gradient(145deg, #2d9b8f, #133780 72%);
+    touch-action: none;
+    user-select: none;
+  }
+
+  canvas {
+    width: 100vw;
+    height: 100vh;
+    display: block;
+  }
+
+  .hud {
+    position: fixed;
+    z-index: 4;
+    left: 12px;
+    right: 12px;
+    top: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    padding: 9px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: linear-gradient(180deg, var(--panel), rgba(10, 14, 20, .84));
+    box-shadow: var(--shadow);
+    backdrop-filter: blur(12px);
+  }
+
+  h1 {
+    margin: 0 8px 0 0;
+    min-width: 174px;
+    font-size: 18px;
+    line-height: 1.1;
+  }
+
+  .pill, button {
+    min-height: 34px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--ink);
+    font: inherit;
+    font-weight: 850;
+  }
+
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px 9px;
+    background: var(--panel-2);
+  }
+
+  button {
+    padding: 7px 10px;
+    background: rgba(255, 255, 255, .12);
+    cursor: pointer;
+  }
+
+  button:hover { border-color: rgba(255, 209, 92, .75); }
+  button.primary {
+    color: #251807;
+    background: linear-gradient(180deg, #ffe28a, #e6a93c);
+  }
+  button.danger {
+    background: rgba(255, 106, 97, .22);
+  }
+
+  .toast {
+    position: fixed;
+    z-index: 5;
+    left: 50%;
+    top: 74px;
+    transform: translateX(-50%);
+    width: min(420px, calc(100vw - 28px));
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: rgba(11, 18, 27, .92);
+    box-shadow: var(--shadow);
+    text-align: center;
+    font-weight: 800;
+    opacity: 0;
+    transition: opacity .2s ease;
+    pointer-events: none;
+  }
+  .toast.show { opacity: 1; }
+
+  .help {
+    position: fixed;
+    z-index: 3;
+    left: 12px;
+    bottom: 12px;
+    width: min(560px, calc(100vw - 24px));
+    padding: 9px 11px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: rgba(18, 27, 39, .78);
+    color: var(--muted);
+    font-size: 12px;
+    box-shadow: var(--shadow);
+    backdrop-filter: blur(10px);
+    pointer-events: none;
+  }
+
+  @media (max-width: 720px) {
+    .hud {
+      left: 8px;
+      right: 8px;
+      top: 8px;
+      gap: 6px;
+      padding: 7px;
+    }
+    h1 { width: 100%; min-width: 0; font-size: 16px; }
+    .pill, button { min-height: 30px; padding: 5px 7px; font-size: 12px; }
+    .help { display: none; }
+    .toast { top: 104px; }
+  }
+</style>
+</head>
+<body>
+<canvas id="game" aria-label="Traffic Jam Pickup"></canvas>
+
+<div class="hud">
+  <h1>Traffic Jam Pickup</h1>
+  <span class="pill">Fase <span id="level">1</span></span>
+  <span class="pill">Coins <span id="coins">0</span></span>
+  <span class="pill">Restantes <span id="remaining">0</span></span>
+  <span class="pill">Vagas <span id="slots">0</span></span>
+  <button id="pauseBtn">Pausar</button>
+  <button id="restartBtn">Reiniciar</button>
+  <button id="nextBtn" class="primary" hidden>Próxima</button>
+  <button id="resetBtn" class="danger">Reset</button>
+</div>
+<div id="toast" class="toast"></div>
+<div class="help">Leve veículos para as vagas de embarque. Só o primeiro passageiro da fila entra, e apenas em veículo da mesma cor; veículos cheios saem pela estrada.</div>
+
+<script>
+(() => {
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  const els = {
+    level: document.getElementById('level'),
+    coins: document.getElementById('coins'),
+    remaining: document.getElementById('remaining'),
+    slots: document.getElementById('slots'),
+    pauseBtn: document.getElementById('pauseBtn'),
+    restartBtn: document.getElementById('restartBtn'),
+    nextBtn: document.getElementById('nextBtn'),
+    resetBtn: document.getElementById('resetBtn'),
+    toast: document.getElementById('toast')
+  };
+
+  const STORAGE = 'trafficPickupSave:v3';
+  const EXTRA_BAY_LIMIT = 2;
+  const colors = [
+    { id: 'blue', name: 'azul', car: '#1688ed', dark: '#0b4f9c' },
+    { id: 'yellow', name: 'amarelo', car: '#f4d33c', dark: '#a9840a' },
+    { id: 'red', name: 'vermelho', car: '#f24d50', dark: '#aa202a' },
+    { id: 'green', name: 'verde', car: '#37d645', dark: '#16851f' },
+    { id: 'pink', name: 'rosa', car: '#f35bad', dark: '#a51d68' }
+  ];
+  const typeDefs = {
+    car: { label: 'Carro', capacity: 4, length: .86, width: .62 },
+    van: { label: 'Van', capacity: 8, length: 1.05, width: .66 },
+    bus: { label: 'Ônibus', capacity: 18, length: 1.25, width: .72 }
+  };
+  const dirs = [
+    { id: 'up', dx: 0, dy: -1 },
+    { id: 'down', dx: 0, dy: 1 },
+    { id: 'left', dx: -1, dy: 0 },
+    { id: 'right', dx: 1, dy: 0 }
+  ];
+
+  let dpr = 1;
+  let W = 0;
+  let H = 0;
+  let layout = {};
+  let state = loadSave();
+  let game = null;
+  let pointer = { x: 0, y: 0, down: false };
+  let toastTimer = 0;
+  let last = performance.now();
+
+  function loadSave() {
+    try {
+      const parsed = JSON.parse(localStorage.getItem(STORAGE)) ||
+        JSON.parse(localStorage.getItem('trafficPickupSave:v2')) ||
+        JSON.parse(localStorage.getItem('trafficPickupSave:v1'));
+      if (parsed && Number.isFinite(parsed.level)) {
+        return {
+          level: Math.max(1, parsed.level),
+          coins: Math.max(0, parsed.coins || 0)
+        };
+      }
+    } catch (err) {}
+    return { level: 1, coins: 12 };
+  }
+
+  function save() {
+    localStorage.setItem(STORAGE, JSON.stringify(state));
+  }
+
+  function seeded(seed) {
+    let t = seed >>> 0;
+    return () => {
+      t += 0x6D2B79F5;
+      let r = Math.imul(t ^ t >>> 15, 1 | t);
+      r ^= r + Math.imul(r ^ r >>> 7, 61 | r);
+      return ((r ^ r >>> 14) >>> 0) / 4294967296;
+    };
+  }
+
+  function randInt(rng, min, max) {
+    return Math.floor(rng() * (max - min + 1)) + min;
+  }
+
+  function clamp(v, min, max) {
+    return Math.max(min, Math.min(max, v));
+  }
+
+  function dirVector(dir) {
+    return dirs.find(d => d.id === dir) || dirs[0];
+  }
+
+  function dirAngle(dir) {
+    if (dir === 'right') return 0;
+    if (dir === 'down') return Math.PI / 2;
+    if (dir === 'left') return Math.PI;
+    return -Math.PI / 2;
+  }
+
+  function angleBetween(a, b) {
+    return Math.atan2(b.y - a.y, b.x - a.x);
+  }
+
+  function lerpAngle(a, b, t) {
+    const delta = Math.atan2(Math.sin(b - a), Math.cos(b - a));
+    return a + delta * t;
+  }
+
+  function resize() {
+    dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+    W = window.innerWidth;
+    H = window.innerHeight;
+    canvas.width = Math.floor(W * dpr);
+    canvas.height = Math.floor(H * dpr);
+    canvas.style.width = W + 'px';
+    canvas.style.height = H + 'px';
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    computeLayout();
+    if (game) placeVehicles();
+  }
+
+  function computeLayout() {
+    const hudH = W < 720 ? 132 : 82;
+    const shopH = clamp(H * .23, 136, 194);
+    const bayH = clamp(H * .13, 82, 116);
+    const roadH = clamp(H * .09, 46, 74);
+    const roadY = hudH + shopH + bayH;
+    const ringLane = roadH;
+    const ringGap = clamp(Math.min(W, H) * .026, 18, 32);
+    const lotTop = roadY + roadH + ringGap;
+    const lotH = Math.max(260, H - lotTop - 18);
+    const cols = W < 760 ? 8 : W < 1100 ? 10 : 12;
+    const rows = W < 760 ? 6 : 7;
+    const pad = W < 760 ? 16 : 34;
+    const ringSpaceX = (ringLane / 2 + ringGap) * 2;
+    const ringSpaceY = ringLane / 2 + ringGap;
+    const cell = Math.min((W - pad * 2 - ringSpaceX) / cols, (lotH - ringSpaceY) / rows);
+    const gridW = cell * cols;
+    const gridH = cell * rows;
+    const gridX = (W - gridW) / 2;
+    const gridY = lotTop + Math.max(0, (lotH - gridH - ringSpaceY) / 2);
+    layout = {
+      hudH,
+      shop: { x: 0, y: hudH, w: W, h: shopH },
+      bays: { x: 0, y: hudH + shopH, w: W, h: bayH },
+      road: { x: 0, y: roadY, w: W, h: roadH },
+      grid: { x: gridX, y: gridY, w: gridW, h: gridH, cols, rows, cell },
+      ring: {
+        lane: ringLane,
+        gap: ringGap,
+        top: roadY + roadH / 2,
+        bottom: gridY + gridH + ringGap,
+        left: gridX - ringGap,
+        right: gridX + gridW + ringGap
+      },
+      exitPad: cell * 1.4
+    };
+  }
+
+  function vehicleCountFor(level) {
+    return Math.min(6 + Math.floor((level - 1) * 1.45), layout.grid.cols * layout.grid.rows - 3, 38);
+  }
+
+  function openBayCountFor(colorCount) {
+    return clamp(colorCount, 2, 5);
+  }
+
+  function totalBayCountFor(colorCount) {
+    return openBayCountFor(colorCount) + EXTRA_BAY_LIMIT;
+  }
+
+  function createLevel(level) {
+    const rng = seeded(911 + level * 8171);
+    const count = vehicleCountFor(level);
+    const maxColors = clamp(2 + Math.floor(level / 3), 2, colors.length);
+    const openBayCount = openBayCountFor(maxColors);
+    const totalBayCount = totalBayCountFor(maxColors);
+    let attempt = 0;
+    let vehicles = [];
+    let solution = [];
+
+    do {
+      const attemptRng = seeded(911 + level * 8171 + attempt * 4099);
+      vehicles = buildVehicleSet(level, count, maxColors, attemptRng);
+      solution = solveVehicles(vehicles);
+      attempt++;
+    } while (!solution && attempt < 80);
+
+    if (!solution) {
+      vehicles = buildFallbackVehicleSet(level, count, maxColors, rng);
+      solution = solveVehicles(vehicles);
+    }
+
+    vehicles.forEach((v, index) => {
+      v.order = solution ? solution.indexOf(v.id) + 1 : index + 1;
+    });
+    tuneVehicleColorsForQueue(vehicles, solution || vehicles.map(v => v.id), maxColors, rng);
+
+    const passengers = buildPassengerQueue(vehicles, solution || vehicles.map(v => v.id), rng, openBayCount);
+
+    return {
+      level,
+      rng,
+      vehicles,
+      passengers,
+      remaining: passengers.length,
+      escaped: 0,
+      paused: false,
+      won: false,
+      earned: 0,
+      colorCount: maxColors,
+      openBayCount,
+      totalBayCount,
+      bays: Array.from({ length: totalBayCount }, (_, i) => ({
+        index: i,
+        unlocked: i < openBayCount,
+        occupant: null
+      })),
+      solution: solution || vehicles.map(v => v.id)
+    };
+  }
+
+  function tuneVehicleColorsForQueue(vehicles, solution, maxColors, rng) {
+    const available = colors.slice(0, maxColors);
+    const first = vehicles.find(v => v.id === solution[0]);
+    if (first) first.color = available[randInt(rng, 0, available.length - 1)];
+    for (let i = 1; i < solution.length; i++) {
+      const prev = vehicles.find(v => v.id === solution[i - 1]);
+      const current = vehicles.find(v => v.id === solution[i]);
+      if (!current) continue;
+      if (rng() < .22 && prev) {
+        current.color = prev.color;
+      } else {
+        const options = available.filter(c => !prev || c.id !== prev.color.id);
+        current.color = options[randInt(rng, 0, options.length - 1)] || available[0];
+      }
+    }
+  }
+
+  function buildPassengerQueue(vehicles, solution, rng, openBayCount) {
+    const ordered = solution.map(id => vehicles.find(v => v.id === id)).filter(Boolean)
+      .map(v => ({ vehicle: v, remaining: v.capacity }));
+    const passengers = [];
+    const active = [];
+    let cursor = 0;
+    let lastColor = null;
+
+    while (active.length < openBayCount && cursor < ordered.length) active.push(ordered[cursor++]);
+    while (active.length) {
+      const candidates = active.filter(item => item.remaining > 0);
+      const varied = candidates.filter(item => item.vehicle.color.id !== lastColor);
+      const pool = varied.length ? varied : candidates;
+      const item = pool[randInt(rng, 0, pool.length - 1)];
+      const maxChunk = Math.min(item.remaining, item.vehicle.type === 'bus' ? 4 : 3);
+      const chunk = randInt(rng, 1, maxChunk);
+      for (let i = 0; i < chunk; i++) {
+        passengers.push({
+          color: item.vehicle.color,
+          state: 'waiting',
+          x: 0,
+          y: 0,
+          tx: 0,
+          ty: 0,
+          pulse: 0,
+          vehicleId: null
+        });
+      }
+      item.remaining -= chunk;
+      lastColor = item.vehicle.color.id;
+      for (let i = active.length - 1; i >= 0; i--) {
+        if (active[i].remaining <= 0) {
+          active.splice(i, 1);
+          if (cursor < ordered.length) active.push(ordered[cursor++]);
+        }
+      }
+    }
+    return passengers;
+  }
+
+  function buildVehicleSet(level, count, maxColors, rng) {
+    const vehicles = [];
+    const cells = [];
+    const cols = layout.grid.cols;
+    const rows = layout.grid.rows;
+    let clusterCols = Math.min(cols, Math.max(3, Math.ceil(Math.sqrt(count * 1.35))));
+    let clusterRows = Math.min(rows, Math.max(3, Math.ceil(count / clusterCols) + 1));
+    while (clusterCols * clusterRows < count && clusterCols < cols) clusterCols++;
+    while (clusterCols * clusterRows < count && clusterRows < rows) clusterRows++;
+    const startX = randInt(rng, 0, Math.max(0, cols - clusterCols));
+    const startY = randInt(rng, 0, Math.max(0, rows - clusterRows));
+
+    for (let y = startY; y < startY + clusterRows; y++) {
+      for (let x = startX; x < startX + clusterCols; x++) cells.push({ x, y });
+    }
+    cells.sort(() => rng() - .5);
+
+    for (let i = 0; i < count; i++) {
+      const c = cells[i];
+      const typeRoll = rng();
+      const type = level < 3 ? (typeRoll < .76 ? 'car' : 'van') : typeRoll < .54 ? 'car' : typeRoll < .82 ? 'van' : 'bus';
+      const color = colors[randInt(rng, 0, maxColors - 1)];
+      const capacity = type === 'bus' ? randInt(rng, 16, 20) : typeDefs[type].capacity;
+      const dir = dirs[randInt(rng, 0, dirs.length - 1)].id;
+      vehicles.push({
+        id: i + 1,
+        x: c.x,
+        y: c.y,
+        px: 0,
+        py: 0,
+        tx: 0,
+        ty: 0,
+        dir,
+        angle: dirAngle(dir),
+        type,
+        color,
+        capacity,
+        order: 0,
+        state: 'parked',
+        blockedFlash: 0,
+        exitT: 0,
+        boardT: 0,
+        load: 0,
+        route: [],
+        routeDone: null,
+        towT: 0,
+        bayIndex: -1
+      });
+    }
+    return vehicles;
+  }
+
+  function buildFallbackVehicleSet(level, count, maxColors, rng) {
+    const vehicles = [];
+    const cols = layout.grid.cols;
+    const rows = layout.grid.rows;
+    for (let i = 0; i < count; i++) {
+      const ring = Math.floor(i / 4);
+      const side = i % 4;
+      const x = side === 0 ? ring : side === 1 ? cols - 1 - ring : randInt(rng, ring, cols - 1 - ring);
+      const y = side === 2 ? ring : side === 3 ? rows - 1 - ring : randInt(rng, ring, rows - 1 - ring);
+      const dir = side === 0 ? 'left' : side === 1 ? 'right' : side === 2 ? 'up' : 'down';
+      const typeRoll = rng();
+      const type = level < 3 ? (typeRoll < .78 ? 'car' : 'van') : typeRoll < .56 ? 'car' : typeRoll < .84 ? 'van' : 'bus';
+      const color = colors[randInt(rng, 0, maxColors - 1)];
+      vehicles.push({
+        id: i + 1,
+        x: clamp(x, 0, cols - 1),
+        y: clamp(y, 0, rows - 1),
+        px: 0,
+        py: 0,
+        tx: 0,
+        ty: 0,
+        dir,
+        angle: dirAngle(dir),
+        type,
+        color,
+        capacity: type === 'bus' ? randInt(rng, 16, 20) : typeDefs[type].capacity,
+        order: i + 1,
+        state: 'parked',
+        blockedFlash: 0,
+        exitT: 0,
+        boardT: 0,
+        load: 0,
+        route: [],
+        routeDone: null,
+        towT: 0,
+        bayIndex: -1
+      });
+    }
+    return vehicles;
+  }
+
+  function solveVehicles(vehicles) {
+    const remaining = vehicles.map(v => ({ id: v.id, x: v.x, y: v.y, dir: v.dir }));
+    const solution = [];
+    while (remaining.length) {
+      const nextIndex = remaining.findIndex(v => rayIsClear(v, remaining));
+      if (nextIndex === -1) return null;
+      solution.push(remaining[nextIndex].id);
+      remaining.splice(nextIndex, 1);
+    }
+    return solution;
+  }
+
+  function rayIsClear(vehicle, vehicles) {
+    const dir = dirs.find(d => d.id === vehicle.dir);
+    return !vehicles.some(other => {
+      if (other.id === vehicle.id) return false;
+      const sameCol = other.x === vehicle.x;
+      const sameRow = other.y === vehicle.y;
+      if (dir.dx > 0) return sameRow && other.x > vehicle.x;
+      if (dir.dx < 0) return sameRow && other.x < vehicle.x;
+      if (dir.dy > 0) return sameCol && other.y > vehicle.y;
+      return sameCol && other.y < vehicle.y;
+    });
+  }
+
+  function placeVehicles() {
+    const g = layout.grid;
+    game.vehicles.forEach(v => {
+      if (v.state === 'exited' || v.route.length) return;
+      if (v.state === 'boarding' || v.state === 'full') {
+        const b = bayRect(v.bayIndex);
+        v.tx = b.x + b.w / 2;
+        v.ty = b.y + b.h / 2;
+        v.angle = Math.PI / 2;
+      } else {
+        v.tx = g.x + (v.x + .5) * g.cell;
+        v.ty = g.y + (v.y + .5) * g.cell;
+        v.angle = dirAngle(v.dir);
+      }
+      if (!v.px && !v.py) {
+        v.px = v.tx;
+        v.py = v.ty;
+      }
+    });
+  }
+
+  function startLevel(level) {
+    game = createLevel(level);
+    placeVehicles();
+    els.nextBtn.hidden = true;
+    syncHud();
+    showToast(`Fase ${level}: libere ${game.vehicles.length} veículos.`);
+  }
+
+  function syncHud() {
+    els.level.textContent = state.level;
+    els.coins.textContent = state.coins;
+    els.remaining.textContent = game ? game.remaining : 0;
+    els.slots.textContent = game ? `${game.bays.filter(b => b.unlocked).length}/${game.bays.length}` : `-`;
+    els.pauseBtn.textContent = game && game.paused ? 'Continuar' : 'Pausar';
+  }
+
+  function showToast(text) {
+    els.toast.textContent = text;
+    els.toast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => els.toast.classList.remove('show'), 1500);
+  }
+
+  function isPathClear(vehicle) {
+    return rayIsClear(vehicle, game.vehicles.filter(v => v.state === 'parked'));
+  }
+
+  function bayRect(index) {
+    const area = layout.bays;
+    const count = game ? game.totalBayCount : totalBayCountFor(2);
+    const w = Math.min(102, Math.max(62, W / (count + 5.2)));
+    const gap = Math.min(14, W * .012);
+    const total = w * count + gap * (count - 1);
+    const x = (W - total) / 2 + index * (w + gap);
+    return { x, y: area.y + 16, w, h: area.h - 28 };
+  }
+
+  function unlockCost() {
+    const unlockedExtras = game ? game.bays.filter((b, i) => i >= game.openBayCount && b.unlocked).length : 0;
+    return 10 + unlockedExtras * 8;
+  }
+
+  function buyBay(index) {
+    const bay = game.bays[index];
+    if (!bay || bay.unlocked) return;
+    const cost = unlockCost();
+    if (state.coins < cost) {
+      showToast(`Faltam coins. Custa ${cost}.`);
+      return;
+    }
+    state.coins -= cost;
+    bay.unlocked = true;
+    save();
+    syncHud();
+    showToast('Vaga liberada nesta fase.');
+  }
+
+  function parkForBoarding(vehicle) {
+    const bayChoice = game.bays
+      .filter(b => b.unlocked && !b.occupant)
+      .map(b => ({ bay: b, route: routeFromGridToBay(vehicle, b.index) }))
+      .find(choice => !routeConflicts(choice.route, vehicle));
+    if (!bayChoice) {
+      vehicle.blockedFlash = 1;
+      showToast('Sem rota livre para uma vaga agora.');
+      return false;
+    }
+    const bay = bayChoice.bay;
+    bay.occupant = vehicle.id;
+    vehicle.state = 'routing';
+    vehicle.bayIndex = bay.index;
+    vehicle.boardT = 0;
+    vehicle.route = bayChoice.route;
+    vehicle.routeDone = 'boarding';
+    showToast(`${typeDefs[vehicle.type].label} pronto para embarque.`);
+    return true;
+  }
+
+  function exitLoadedVehicle(vehicle) {
+    const route = routeFromBayToRoad(vehicle);
+    if (routeConflicts(route, vehicle)) return false;
+    const bay = game.bays[vehicle.bayIndex];
+    if (bay) bay.occupant = null;
+    vehicle.state = 'routing';
+    vehicle.exitT = 0;
+    vehicle.route = route;
+    vehicle.routeDone = 'exited';
+    return true;
+  }
+
+  function tryMoveVehicle(vehicle) {
+    if (!vehicle || game.paused || game.won || vehicle.state !== 'parked') return;
+    if (isPathClear(vehicle)) {
+      parkForBoarding(vehicle);
+      return;
+    }
+    vehicle.blockedFlash = 1;
+    showToast('Bloqueado: tem outro veículo na frente.');
+  }
+
+  function boardNextPassenger(vehicle) {
+    const next = game.passengers.find(p => p.state === 'waiting');
+    if (!next || next.color.id !== vehicle.color.id || vehicle.load >= vehicle.capacity) return false;
+    next.state = 'boarding';
+    next.vehicleId = vehicle.id;
+    next.tx = vehicle.px;
+    next.ty = vehicle.py;
+    next.pulse = 1;
+    vehicle.load++;
+    game.remaining--;
+    syncHud();
+    return true;
+  }
+
+  function routeFromGridToBay(vehicle, bayIndex) {
+    const g = layout.grid;
+    const cell = g.cell;
+    const d = dirVector(vehicle.dir);
+    const ring = layout.ring;
+    const bay = bayRect(bayIndex);
+    const bayCenter = { x: bay.x + bay.w / 2, y: bay.y + bay.h / 2 };
+    const roadY = layout.road.y + layout.road.h / 2;
+    let side = 'top';
+    let edge = { x: vehicle.px, y: ring.top };
+    if (d.dx < 0) { side = 'left'; edge = { x: ring.left, y: vehicle.py }; }
+    if (d.dx > 0) { side = 'right'; edge = { x: ring.right, y: vehicle.py }; }
+    if (d.dy < 0) { side = 'top'; edge = { x: vehicle.px, y: ring.top }; }
+    if (d.dy > 0) { side = 'bottom'; edge = { x: vehicle.px, y: ring.bottom }; }
+
+    const points = [{ x: edge.x, y: edge.y, angle: dirAngle(vehicle.dir) }];
+    let current = edge;
+    if (side === 'bottom') {
+      const viaRight = Math.abs(edge.x - ring.right) + Math.abs(ring.right - bayCenter.x);
+      const viaLeft = Math.abs(edge.x - ring.left) + Math.abs(ring.left - bayCenter.x);
+      const sideX = viaRight <= viaLeft ? ring.right : ring.left;
+      points.push({ x: sideX, y: ring.bottom, angle: sideX > edge.x ? 0 : Math.PI });
+      points.push({ x: sideX, y: ring.top, angle: -Math.PI / 2 });
+      current = { x: sideX, y: ring.top };
+    } else if (side === 'left' || side === 'right') {
+      points.push({ x: edge.x, y: ring.top, angle: -Math.PI / 2 });
+      current = { x: edge.x, y: ring.top };
+    }
+    points.push({ x: bayCenter.x, y: ring.top, angle: bayCenter.x >= current.x ? 0 : Math.PI });
+    points.push({ x: bayCenter.x, y: roadY, angle: -Math.PI / 2 });
+    points.push({ x: bayCenter.x, y: bayCenter.y, angle: Math.PI / 2 });
+    return compactRoute(points);
+  }
+
+  function routeFromBayToRoad(vehicle) {
+    const roadY = layout.road.y + layout.road.h / 2;
+    const roadPoint = { x: vehicle.px, y: roadY };
+    return compactRoute([
+      { x: roadPoint.x, y: roadPoint.y, angle: Math.PI / 2 },
+      { x: W + layout.grid.cell * 2.5, y: roadPoint.y, angle: 0 }
+    ]);
+  }
+
+  function compactRoute(points) {
+    return points.filter((p, index, list) => {
+      if (index === 0) return true;
+      const prev = list[index - 1];
+      return Math.hypot(p.x - prev.x, p.y - prev.y) > 2;
+    });
+  }
+
+  function routeConflicts(route, ignoreVehicle) {
+    const start = { x: ignoreVehicle.px, y: ignoreVehicle.py };
+    const routeLine = [start, ...route];
+    const safeGap = layout.grid.cell * .72;
+    return game.vehicles.some(v => {
+      if (v === ignoreVehicle || v.state !== 'routing' || !v.route.length) return false;
+      const activeLine = [{ x: v.px, y: v.py }, ...v.route];
+      return polylinesTooClose(routeLine, activeLine, safeGap);
+    });
+  }
+
+  function polylinesTooClose(a, b, gap) {
+    for (let i = 0; i < a.length - 1; i++) {
+      for (let j = 0; j < b.length - 1; j++) {
+        if (segmentDistance(a[i], a[i + 1], b[j], b[j + 1]) < gap) return true;
+      }
+    }
+    return false;
+  }
+
+  function segmentDistance(a, b, c, d) {
+    if (segmentsIntersect(a, b, c, d)) return 0;
+    return Math.min(
+      pointSegmentDistance(a, c, d),
+      pointSegmentDistance(b, c, d),
+      pointSegmentDistance(c, a, b),
+      pointSegmentDistance(d, a, b)
+    );
+  }
+
+  function pointSegmentDistance(p, a, b) {
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const len = dx * dx + dy * dy || 1;
+    const t = clamp(((p.x - a.x) * dx + (p.y - a.y) * dy) / len, 0, 1);
+    const x = a.x + dx * t;
+    const y = a.y + dy * t;
+    return Math.hypot(p.x - x, p.y - y);
+  }
+
+  function segmentsIntersect(a, b, c, d) {
+    const o1 = orientation(a, b, c);
+    const o2 = orientation(a, b, d);
+    const o3 = orientation(c, d, a);
+    const o4 = orientation(c, d, b);
+    return o1 !== o2 && o3 !== o4;
+  }
+
+  function orientation(a, b, c) {
+    const value = (b.y - a.y) * (c.x - b.x) - (b.x - a.x) * (c.y - b.y);
+    if (Math.abs(value) < .001) return 0;
+    return value > 0 ? 1 : 2;
+  }
+
+  function hitVehicle(x, y) {
+    for (let i = game.vehicles.length - 1; i >= 0; i--) {
+      const v = game.vehicles[i];
+      if (v.state === 'exited' || v.state === 'routing') continue;
+      if (pointInVehicle(x, y, v)) return v;
+    }
+    return null;
+  }
+
+  function hitBay(x, y) {
+    for (const b of game.bays) {
+      const r = bayRect(b.index);
+      if (x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h) return b;
+    }
+    return null;
+  }
+
+  function vehicleDims(v) {
+    const cell = layout.grid.cell;
+    const def = typeDefs[v.type];
+    return { w: cell * def.length, h: cell * def.width };
+  }
+
+  function pointInVehicle(x, y, v) {
+    const dims = vehicleDims(v);
+    const wobble = v.blockedFlash > 0 ? Math.sin(v.blockedFlash * 42) * 4 : 0;
+    const dx = x - v.px - wobble;
+    const dy = y - v.py;
+    const cos = Math.cos(-v.angle);
+    const sin = Math.sin(-v.angle);
+    const lx = dx * cos - dy * sin;
+    const ly = dx * sin + dy * cos;
+    return Math.abs(lx) <= dims.w / 2 && Math.abs(ly) <= dims.h / 2;
+  }
+
+  function pointerPos(ev) {
+    const rect = canvas.getBoundingClientRect();
+    const touch = ev.changedTouches ? ev.changedTouches[0] : ev;
+    return { x: touch.clientX - rect.left, y: touch.clientY - rect.top };
+  }
+
+  function handlePointer(ev) {
+    ev.preventDefault();
+    if (!game) return;
+    const p = pointerPos(ev);
+    const bay = hitBay(p.x, p.y);
+    if (bay && !bay.unlocked) {
+      buyBay(bay.index);
+      return;
+    }
+    const v = hitVehicle(p.x, p.y);
+    if (v) tryMoveVehicle(v);
+  }
+
+  function completeLevel() {
+    if (game.won) return;
+    game.won = true;
+    game.earned = 10 + Math.floor(state.level * 2.5) + game.vehicles.length;
+    state.coins += game.earned;
+    state.level++;
+    save();
+    els.nextBtn.hidden = false;
+    syncHud();
+    showToast(`Fase completa! +${game.earned} coins.`);
+  }
+
+  function update(dt) {
+    if (!game || game.paused) return;
+    updatePassengerTargets();
+    for (const v of game.vehicles) {
+      v.blockedFlash = Math.max(0, v.blockedFlash - dt * 2.6);
+      updateVehicleRoute(v, dt);
+      if (v.state === 'boarding') {
+        v.boardT -= dt;
+        if (v.boardT <= 0) {
+          if (boardNextPassenger(v)) {
+            v.boardT = .22;
+          } else if (v.load >= v.capacity) {
+            v.state = 'full';
+            v.boardT = .28;
+            showToast(`${typeDefs[v.type].label} cheio.`);
+          }
+        }
+      }
+      if (v.state === 'full') {
+        v.boardT -= dt;
+        if (v.boardT <= 0) exitLoadedVehicle(v);
+      }
+    }
+    for (const p of game.passengers) {
+      p.pulse = Math.max(0, p.pulse - dt * 3);
+      p.x += (p.tx - p.x) * Math.min(1, dt * 10);
+      p.y += (p.ty - p.y) * Math.min(1, dt * 10);
+      if (p.state === 'boarding' && Math.hypot(p.tx - p.x, p.ty - p.y) < 4) p.state = 'seated';
+    }
+    if (!game.won && game.remaining <= 0 && game.vehicles.every(v => v.state === 'exited')) {
+      completeLevel();
+    }
+  }
+
+  function updateVehicleRoute(v, dt) {
+    if (!v.route.length) return;
+    const target = v.route[0];
+    const dx = target.x - v.px;
+    const dy = target.y - v.py;
+    const dist = Math.hypot(dx, dy);
+    const speed = layout.grid.cell * 5.6;
+    v.angle = lerpAngle(v.angle, target.angle, Math.min(1, dt * 7));
+    if (dist <= speed * dt || dist < 2) {
+      v.px = target.x;
+      v.py = target.y;
+      v.angle = target.angle;
+      v.route.shift();
+      if (!v.route.length) finishVehicleRoute(v);
+      return;
+    }
+    v.px += (dx / dist) * speed * dt;
+    v.py += (dy / dist) * speed * dt;
+  }
+
+  function finishVehicleRoute(v) {
+    if (v.routeDone === 'boarding') {
+      v.state = 'boarding';
+      v.boardT = 0;
+      v.angle = Math.PI / 2;
+      v.tx = v.px;
+      v.ty = v.py;
+    } else if (v.routeDone === 'exited') {
+      v.state = 'exited';
+      game.escaped++;
+    }
+    v.routeDone = null;
+  }
+
+  function updatePassengerTargets() {
+    const positions = passengerQueuePositions();
+    let waitingIndex = 0;
+    for (const p of game.passengers) {
+      if (p.state === 'waiting') {
+        const pos = positions[Math.min(waitingIndex, positions.length - 1)];
+        p.tx = pos.x;
+        p.ty = pos.y;
+        if (!p.x && !p.y) {
+          p.x = p.tx;
+          p.y = p.ty;
+        }
+        waitingIndex++;
+      }
+    }
+  }
+
+  function drawRoundRect(x, y, w, h, r) {
+    const rr = Math.min(r, w / 2, h / 2);
+    ctx.beginPath();
+    ctx.moveTo(x + rr, y);
+    ctx.arcTo(x + w, y, x + w, y + h, rr);
+    ctx.arcTo(x + w, y + h, x, y + h, rr);
+    ctx.arcTo(x, y + h, x, y, rr);
+    ctx.arcTo(x, y, x + w, y, rr);
+    ctx.closePath();
+  }
+
+  function fillRoundRect(x, y, w, h, r, fill, stroke) {
+    drawRoundRect(x, y, w, h, r);
+    ctx.fillStyle = fill;
+    ctx.fill();
+    if (stroke) {
+      ctx.strokeStyle = stroke;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+  }
+
+  function drawBackground() {
+    ctx.clearRect(0, 0, W, H);
+    ctx.fillStyle = '#a7d39b';
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#e8edf5';
+    ctx.fillRect(0, layout.hudH, W, layout.shop.h + layout.bays.h);
+
+    ctx.save();
+    ctx.strokeStyle = 'rgba(135, 150, 170, .24)';
+    ctx.lineWidth = 2;
+    const tile = 30;
+    for (let x = 0; x < W; x += tile) {
+      ctx.beginPath();
+      ctx.moveTo(x, layout.hudH);
+      ctx.lineTo(x, layout.road.y);
+      ctx.stroke();
+    }
+    for (let y = layout.hudH; y < layout.road.y; y += tile) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(W, y);
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    const s = layout.shop;
+    fillRoundRect(24, s.y + 12, W - 48, s.h - 22, 22, '#f6f7fb', 'rgba(65, 75, 90, .12)');
+    ctx.strokeStyle = 'rgba(94, 110, 130, .22)';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(64, s.y + s.h - 24);
+    ctx.lineTo(W - 64, s.y + s.h - 24);
+    ctx.stroke();
+
+    drawPassengerQueue();
+    drawBays();
+
+    const r = layout.road;
+    ctx.fillStyle = '#8b96a7';
+    ctx.fillRect(0, r.y, W, r.h);
+    ctx.strokeStyle = 'rgba(255,255,255,.72)';
+    ctx.lineWidth = 4;
+    ctx.setLineDash([16, 14]);
+    ctx.beginPath();
+    ctx.moveTo(0, r.y + r.h / 2);
+    ctx.lineTo(W, r.y + r.h / 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    drawPerimeterRoads();
+
+    const g = layout.grid;
+    ctx.fillStyle = '#cfd9e5';
+    fillRoundRect(g.x - 16, g.y - 16, g.w + 32, g.h + 32, 8, '#cbd5e2');
+  }
+
+  function drawPerimeterRoads() {
+    const ring = layout.ring;
+    const lane = ring.lane;
+    ctx.fillStyle = '#8b96a7';
+    fillRoundRect(ring.left - lane / 2, ring.bottom - lane / 2, ring.right - ring.left + lane, lane, 8, '#8b96a7');
+    fillRoundRect(ring.left - lane / 2, ring.top - lane / 2, lane, ring.bottom - ring.top + lane, 8, '#8b96a7');
+    fillRoundRect(ring.right - lane / 2, ring.top - lane / 2, lane, ring.bottom - ring.top + lane, 8, '#8b96a7');
+
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255,255,255,.66)';
+    ctx.lineWidth = 3;
+    ctx.setLineDash([12, 12]);
+    ctx.beginPath();
+    ctx.moveTo(ring.left, ring.top);
+    ctx.lineTo(ring.right, ring.top);
+    ctx.lineTo(ring.right, ring.bottom);
+    ctx.lineTo(ring.left, ring.bottom);
+    ctx.closePath();
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.restore();
+  }
+
+  function drawPassengerQueue() {
+    const s = layout.shop;
+    const positions = passengerQueuePositions();
+    const visibleCount = Math.min(80, game.passengers.filter(p => p.state === 'waiting' || p.state === 'boarding').length);
+    ctx.strokeStyle = 'rgba(66,76,110,.35)';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    positions.slice(0, visibleCount).forEach((pos, index) => {
+      if (index === 0) ctx.moveTo(pos.x, pos.y + 6);
+      else ctx.lineTo(pos.x, pos.y + 6);
+    });
+    ctx.stroke();
+    if (visibleCount) drawQueueHeadArrow(positions[0].x, positions[0].y);
+    game.passengers.filter(p => p.state === 'waiting' || p.state === 'boarding').slice(0, 80).forEach(p => {
+      drawPerson(p.x || positions[0].x, p.y || positions[0].y, p.color);
+    });
+    ctx.font = '900 28px system-ui';
+    ctx.textAlign = 'center';
+    ctx.lineWidth = 5;
+    ctx.strokeStyle = '#1a6f26';
+    ctx.fillStyle = '#ffffff';
+    ctx.strokeText(`Nível ${game.level}`, W / 2, s.y + s.h - 52);
+    ctx.fillText(`Nível ${game.level}`, W / 2, s.y + s.h - 52);
+
+    fillRoundRect(24, s.y + s.h - 92, 148, 62, 8, '#467ee7', 'rgba(255,255,255,.45)');
+    ctx.font = '900 28px system-ui';
+    ctx.fillStyle = '#fff';
+    ctx.strokeStyle = 'rgba(40,55,90,.45)';
+    ctx.lineWidth = 4;
+    ctx.textAlign = 'center';
+    ctx.strokeText(String(game.remaining), 98, s.y + s.h - 56);
+    ctx.fillText(String(game.remaining), 98, s.y + s.h - 56);
+    ctx.font = '800 12px system-ui';
+    ctx.fillText('RESTANTES', 98, s.y + s.h - 36);
+  }
+
+  function passengerQueuePositions() {
+    const s = layout.shop;
+    const right = clamp(W - 190, 300, W - 96);
+    const left = W < 720 ? 96 : 190;
+    const baseY = s.y + s.h - 38;
+    const step = W < 720 ? 13 : 17;
+    const rowGap = step * 1.25;
+    const perRow = Math.max(8, Math.floor((right - left) / step));
+    return Array.from({ length: 90 }, (_, i) => {
+      const row = Math.floor(i / perRow);
+      const offset = i % perRow;
+      const x = row % 2 === 0 ? right - offset * step : left + offset * step;
+      return { x, y: baseY - row * rowGap };
+    });
+  }
+
+  function drawQueueHeadArrow(x, y) {
+    ctx.save();
+    ctx.translate(x + 22, y - 4);
+    ctx.fillStyle = '#ffffff';
+    ctx.strokeStyle = '#1f7a32';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(0, 20);
+    ctx.lineTo(0, -10);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(0, 24);
+    ctx.lineTo(-9, 8);
+    ctx.lineTo(9, 8);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawPerson(x, y, color) {
+    ctx.fillStyle = 'rgba(0,0,0,.18)';
+    ctx.beginPath();
+    ctx.ellipse(x + 2, y + 12, 8, 3, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = color.car;
+    ctx.strokeStyle = color.dark;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(x, y - 5, 6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    fillRoundRect(x - 6, y, 12, 18, 6, color.car, color.dark);
+    ctx.strokeStyle = color.dark;
+    ctx.beginPath();
+    ctx.moveTo(x - 3, y + 17);
+    ctx.lineTo(x - 5, y + 26);
+    ctx.moveTo(x + 3, y + 17);
+    ctx.lineTo(x + 5, y + 26);
+    ctx.stroke();
+  }
+
+  function drawBays() {
+    game.bays.forEach(b => {
+      const r = bayRect(b.index);
+      ctx.save();
+      ctx.setLineDash([8, 8]);
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = b.unlocked ? 'rgba(74, 197, 95, .88)' : 'rgba(255,255,255,.8)';
+      ctx.fillStyle = b.unlocked ? 'rgba(74,197,95,.14)' : 'rgba(86,94,111,.16)';
+      drawRoundRect(r.x, r.y, r.w, r.h, 8);
+      ctx.fill();
+      ctx.stroke();
+      ctx.setLineDash([]);
+      if (!b.unlocked) {
+        ctx.fillStyle = '#4fc763';
+        ctx.beginPath();
+        ctx.arc(r.x + r.w / 2, r.y + r.h / 2 - 8, 16, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#fff';
+        ctx.font = '900 28px system-ui';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('+', r.x + r.w / 2, r.y + r.h / 2 - 10);
+        ctx.font = '800 11px system-ui';
+        ctx.fillText(`${unlockCost()} coins`, r.x + r.w / 2, r.y + r.h / 2 + 22);
+      } else if (!b.occupant) {
+        ctx.fillStyle = 'rgba(32,45,60,.62)';
+        ctx.font = '800 11px system-ui';
+        ctx.textAlign = 'center';
+        ctx.fillText(b.index < game.openBayCount ? 'LIVRE' : 'EXTRA', r.x + r.w / 2, r.y + r.h / 2 + 4);
+      }
+      ctx.restore();
+    });
+  }
+
+  function drawVehicle(v) {
+    const dims = vehicleDims(v);
+    const blocked = v.blockedFlash > 0;
+    const wobble = blocked ? Math.sin(v.blockedFlash * 42) * 4 : 0;
+    ctx.save();
+    ctx.translate(v.px + wobble, v.py);
+    ctx.rotate(v.angle);
+    ctx.shadowColor = 'rgba(0,0,0,.28)';
+    ctx.shadowBlur = 9;
+    ctx.shadowOffsetY = 5;
+    fillRoundRect(-dims.w / 2, -dims.h / 2, dims.w, dims.h, 9, blocked ? '#fff' : v.color.car, v.color.dark);
+    ctx.shadowColor = 'transparent';
+
+    ctx.fillStyle = 'rgba(255,255,255,.72)';
+    const winW = Math.max(12, dims.w / 6.4);
+    for (let x = -dims.w * .32; x < dims.w * .22; x += winW + 5) {
+      fillRoundRect(x, -dims.h * .28, winW, dims.h * .22, 3, 'rgba(202,233,255,.82)');
+    }
+    fillRoundRect(dims.w * .24, -dims.h * .30, dims.w * .15, dims.h * .60, 3, 'rgba(202,233,255,.62)');
+    drawArrowLocal(dims.w, dims.h);
+    ctx.fillStyle = 'rgba(0,0,0,.48)';
+    ctx.font = '900 11px system-ui';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(`${v.load || 0}/${v.capacity}`, dims.w * .30, dims.h * .30);
+    ctx.restore();
+
+    if (v.state === 'boarding' || v.state === 'full') {
+      const barW = Math.max(36, dims.w * .72);
+      const barX = v.px - barW / 2;
+      const barY = v.py - Math.max(dims.w, dims.h) * .55;
+      fillRoundRect(barX, barY, barW, 6, 3, 'rgba(0,0,0,.28)');
+      fillRoundRect(barX, barY, barW * clamp((v.load || 0) / v.capacity, 0, 1), 6, 3, v.state === 'full' ? '#44d27d' : '#ffd15c');
+    }
+  }
+
+  function drawArrowLocal(w, h) {
+    const size = Math.min(w, h) * .42;
+    ctx.save();
+    ctx.fillStyle = '#fff';
+    ctx.strokeStyle = 'rgba(45,55,70,.38)';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(size, 0);
+    ctx.lineTo(size * .2, -size * .55);
+    ctx.lineTo(size * .2, -size * .18);
+    ctx.lineTo(-size, -size * .18);
+    ctx.lineTo(-size, size * .18);
+    ctx.lineTo(size * .2, size * .18);
+    ctx.lineTo(size * .2, size * .55);
+    ctx.closePath();
+    ctx.stroke();
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function draw() {
+    if (!game) return;
+    drawBackground();
+    game.vehicles.filter(v => v.state !== 'exited').sort((a, b) => {
+      if ((a.state === 'boarding' || a.state === 'full') && b.state === 'parked') return 1;
+      if ((b.state === 'boarding' || b.state === 'full') && a.state === 'parked') return -1;
+      return a.y - b.y || a.x - b.x;
+    }).forEach(drawVehicle);
+
+    if (game.paused || game.won) {
+      ctx.fillStyle = 'rgba(6, 10, 16, .55)';
+      ctx.fillRect(0, 0, W, H);
+      fillRoundRect(W / 2 - 170, H / 2 - 72, 340, 144, 8, 'rgba(18, 28, 42, .92)', 'rgba(255,255,255,.22)');
+      ctx.fillStyle = '#fff';
+      ctx.font = '900 25px system-ui';
+      ctx.textAlign = 'center';
+      ctx.fillText(game.won ? 'Fase completa!' : 'Pausado', W / 2, H / 2 - 18);
+      ctx.font = '700 15px system-ui';
+      ctx.fillStyle = '#cdd7e4';
+      ctx.fillText(game.won ? `Você ganhou ${game.earned} coins.` : 'Toque em Continuar para voltar.', W / 2, H / 2 + 18);
+    }
+  }
+
+  function loop(now) {
+    const dt = Math.min(.05, (now - last) / 1000);
+    last = now;
+    update(dt);
+    draw();
+    requestAnimationFrame(loop);
+  }
+
+  canvas.addEventListener('pointerdown', handlePointer);
+  window.addEventListener('resize', resize);
+  els.pauseBtn.addEventListener('click', () => {
+    game.paused = !game.paused;
+    syncHud();
+  });
+  els.restartBtn.addEventListener('click', () => startLevel(state.level));
+  els.nextBtn.addEventListener('click', () => startLevel(state.level));
+  els.resetBtn.addEventListener('click', () => {
+    state = { level: 1, coins: 12 };
+    save();
+    startLevel(1);
+  });
+
+  resize();
+  startLevel(state.level);
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,949 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>UFO Tank Shooter 3D</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23091718'/%3E%3Cpath d='M5 22h22v5H5z' fill='%236fbf73'/%3E%3Cpath d='M11 16h10v6H11z' fill='%2388a56a'/%3E%3Cpath d='M15 13h13v3H15z' fill='%23ffd166'/%3E%3Cellipse cx='16' cy='9' rx='11' ry='4' fill='%237fd8ff'/%3E%3C/svg%3E">
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.module.js"
+}}
+</script>
+<style>
+  :root {
+    --ink: #f7f1df;
+    --muted: #c7c0a6;
+    --panel: rgba(9, 17, 24, .78);
+    --panel-strong: rgba(7, 10, 14, .94);
+    --line: rgba(247, 241, 223, .18);
+    --accent: #ffd166;
+    --accent-2: #7fd8ff;
+    --good: #6fbf73;
+    --bad: #ff5c6c;
+    --shadow: 0 18px 45px rgba(0, 0, 0, .38);
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    overflow: hidden;
+    background: #091118;
+    color: var(--ink);
+    font-family: "Noto Sans JP", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    user-select: none;
+  }
+  #c {
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    height: 100vh;
+    display: block;
+  }
+  .hud {
+    position: fixed;
+    left: 12px;
+    top: 10px;
+    z-index: 5;
+    width: min(620px, calc(100vw - 24px));
+    display: grid;
+    gap: 8px;
+    pointer-events: none;
+  }
+  .bar, .help, .status {
+    pointer-events: auto;
+    background: linear-gradient(180deg, rgba(14, 25, 34, .86), var(--panel));
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    box-shadow: var(--shadow);
+    backdrop-filter: blur(12px);
+  }
+  .bar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 9px;
+  }
+  h1 {
+    margin: 0;
+    font-size: 18px;
+    line-height: 1.15;
+    min-width: 190px;
+  }
+  .pill {
+    min-height: 30px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 8px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, .07);
+    font-size: 12px;
+    font-weight: 800;
+    white-space: nowrap;
+  }
+  .meter {
+    width: 110px;
+    height: 10px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, .12);
+  }
+  .meter > i {
+    display: block;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, var(--good), #e8d35a, var(--bad));
+    transform-origin: left center;
+  }
+  button {
+    min-height: 32px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: rgba(247, 241, 223, .10);
+    color: var(--ink);
+    padding: 6px 10px;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 900;
+    cursor: pointer;
+  }
+  button:hover { border-color: rgba(255, 209, 102, .72); }
+  button.primary {
+    color: #17120a;
+    background: linear-gradient(180deg, #ffe08a, #d59633);
+    border-color: rgba(255, 255, 255, .28);
+  }
+  .langs { display: inline-flex; gap: 5px; margin-left: auto; }
+  .lang-btn.active { color: #081018; background: var(--accent-2); }
+  .help {
+    max-width: 580px;
+    padding: 8px 10px;
+    color: var(--muted);
+    font-size: 12px;
+  }
+  .status {
+    width: min(360px, calc(100vw - 24px));
+    padding: 8px 10px;
+    color: var(--muted);
+    font-size: 12px;
+  }
+  .crosshair {
+    position: fixed;
+    left: 50%;
+    top: 42%;
+    z-index: 4;
+    width: 34px;
+    height: 34px;
+    margin: -17px 0 0 -17px;
+    pointer-events: none;
+    opacity: .72;
+  }
+  .crosshair::before, .crosshair::after {
+    content: "";
+    position: absolute;
+    background: rgba(255, 209, 102, .9);
+    box-shadow: 0 0 12px rgba(255, 209, 102, .8);
+  }
+  .crosshair::before { left: 16px; top: 0; width: 2px; height: 34px; }
+  .crosshair::after { left: 0; top: 16px; width: 34px; height: 2px; }
+  .overlay {
+    position: fixed;
+    left: 50%;
+    top: 50%;
+    z-index: 7;
+    transform: translate(-50%, -50%);
+    width: min(520px, calc(100vw - 28px));
+    display: none;
+    padding: 18px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--panel-strong);
+    box-shadow: var(--shadow);
+    text-align: center;
+  }
+  .overlay.active { display: block; }
+  .overlay h2 { margin: 0 0 8px; font-size: 25px; }
+  .overlay p { margin: 0 0 14px; color: var(--muted); }
+  .overlay-actions { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px; }
+  .touch {
+    position: fixed;
+    inset: auto 12px 12px;
+    z-index: 6;
+    display: none;
+    justify-content: space-between;
+    pointer-events: none;
+  }
+  .pad, .fire-pad { pointer-events: auto; display: grid; gap: 6px; }
+  .pad { grid-template-columns: repeat(3, 42px); grid-template-rows: repeat(3, 42px); }
+  .pad button, .fire-pad button { width: 42px; height: 42px; padding: 0; }
+  .pad .up { grid-column: 2; }
+  .pad .left { grid-column: 1; grid-row: 2; }
+  .pad .right { grid-column: 3; grid-row: 2; }
+  .pad .down { grid-column: 2; grid-row: 3; }
+  .fire-pad button { width: 76px; height: 76px; border-radius: 50%; background: rgba(255, 92, 108, .28); }
+  @media (hover: none), (max-width: 760px) {
+    .hud { left: 8px; top: 8px; width: calc(100vw - 16px); }
+    h1 { width: 100%; min-width: 0; font-size: 16px; }
+    .langs { margin-left: 0; }
+    .help { display: none; }
+    .touch { display: flex; }
+    .crosshair { top: 45%; }
+  }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div class="crosshair" aria-hidden="true"></div>
+
+<main class="hud">
+  <div class="bar">
+    <h1 data-i18n="title">UFO Tank Shooter 3D</h1>
+    <span class="pill"><span data-i18n="score">Score</span> <b id="score">0</b></span>
+    <span class="pill"><span data-i18n="wave">Wave</span> <b id="wave">1</b></span>
+    <span class="pill"><span data-i18n="ammo">Ammo</span> <b id="ammo">40</b></span>
+    <span class="pill"><span data-i18n="armor">Armor</span> <span class="meter"><i id="armorBar"></i></span></span>
+    <button id="startBtn" class="primary" data-i18n="start">Start</button>
+    <button id="pauseBtn" data-i18n="pause">Pause</button>
+    <div class="langs" aria-label="Language">
+      <button class="lang-btn active" data-lang="en">EN</button>
+      <button class="lang-btn" data-lang="ja">JA</button>
+      <button class="lang-btn" data-lang="pt">PT</button>
+    </div>
+  </div>
+  <div class="help" data-i18n="help">W/S move forward and back. A or &lt; turns left. D or &gt; turns right. Aim with the mouse. Click or press Space to fire.</div>
+  <div class="status" id="status" data-i18n="statusReady">Ready the cannon.</div>
+</main>
+
+<section id="overlay" class="overlay active">
+  <h2 data-i18n="introTitle">Defend the desert sky</h2>
+  <p data-i18n="introText">Pilot a low-poly tank, track the saucers flying overhead, and knock them out before their tractor beams tear through your armor.</p>
+  <div class="overlay-actions">
+    <button id="overlayStart" class="primary" data-i18n="start">Start</button>
+    <button id="howBtn" data-i18n="how">How to play</button>
+  </div>
+</section>
+
+<div class="touch" aria-hidden="true">
+  <div class="pad">
+    <button class="touch-key up" data-key="KeyW">▲</button>
+    <button class="touch-key left" data-key="KeyA">◀</button>
+    <button class="touch-key right" data-key="KeyD">▶</button>
+    <button class="touch-key down" data-key="KeyS">▼</button>
+  </div>
+  <div class="fire-pad">
+    <button id="touchFire" data-i18n="fire">Fire</button>
+  </div>
+</div>
+
+<script type="module">
+import * as THREE from 'three';
+
+(() => {
+  const I18N = {
+    en: {
+      title: 'UFO Tank Shooter 3D', score: 'Score', wave: 'Wave', ammo: 'Ammo', armor: 'Armor',
+      start: 'Start', restart: 'Restart', pause: 'Pause', resume: 'Resume', fire: 'Fire', how: 'How to play',
+      help: 'W/S move forward and back. A or < turns left. D or > turns right. Aim with the mouse. Click or press Space to fire.',
+      introTitle: 'Defend the desert sky',
+      introText: 'Pilot a low-poly tank, track the saucers flying overhead, and knock them out before their tractor beams tear through your armor.',
+      statusReady: 'Ready the cannon.',
+      statusHow: 'Tip: keep moving. UFO beams lock on faster when you stand still.',
+      statusWave: 'Wave {wave}: {count} UFOs inbound.',
+      statusClear: 'Wave clear. Fresh shells loaded.',
+      statusHit: 'Direct hit.',
+      statusLowAmmo: 'Low ammo. Finish the wave for a resupply.',
+      statusGameOver: 'Tank disabled. The sky belongs to the saucers.',
+      statusPaused: 'Paused.'
+    },
+    ja: {
+      title: 'UFOタンクシューター 3D', score: 'スコア', wave: 'ウェーブ', ammo: '弾薬', armor: '装甲',
+      start: '開始', restart: '再開', pause: '一時停止', resume: '続行', fire: '発射', how: '遊び方',
+      help: 'W/Sで前進・後退。Aまたは<で左旋回。Dまたは>で右旋回。マウスで照準。クリックまたはスペースで発射。',
+      introTitle: '砂漠の空を守れ',
+      introText: 'ローポリの戦車を操縦し、上空を飛ぶ円盤を追尾して、トラクタービームで装甲を破られる前に撃墜しましょう。',
+      statusReady: '砲塔準備完了。',
+      statusHow: 'ヒント：動き続けよう。停止しているとUFOのビームが早くロックします。',
+      statusWave: 'ウェーブ {wave}: UFO {count} 機接近。',
+      statusClear: 'ウェーブクリア。弾薬を補給しました。',
+      statusHit: '直撃。',
+      statusLowAmmo: '弾薬わずか。ウェーブを終えると補給されます。',
+      statusGameOver: '戦車大破。空は円盤に制圧されました。',
+      statusPaused: '一時停止中。'
+    },
+    pt: {
+      title: 'Tanque Contra OVNIs 3D', score: 'Pontos', wave: 'Onda', ammo: 'Munição', armor: 'Blindagem',
+      start: 'Iniciar', restart: 'Reiniciar', pause: 'Pausar', resume: 'Continuar', fire: 'Atirar', how: 'Como jogar',
+      help: 'W/S movem para frente e para trás. A ou < gira à esquerda. D ou > gira à direita. Mire com o mouse. Clique ou pressione Espaço para atirar.',
+      introTitle: 'Defenda o céu do deserto',
+      introText: 'Pilote um tanque low-poly, acompanhe os discos voadores no alto e derrube-os antes que os raios tratores destruam sua blindagem.',
+      statusReady: 'Canhão pronto.',
+      statusHow: 'Dica: continue em movimento. Os raios dos OVNIs travam mais rápido quando você fica parado.',
+      statusWave: 'Onda {wave}: {count} OVNIs chegando.',
+      statusClear: 'Onda concluída. Munição recarregada.',
+      statusHit: 'Acerto direto.',
+      statusLowAmmo: 'Pouca munição. Termine a onda para reabastecer.',
+      statusGameOver: 'Tanque desativado. O céu pertence aos discos.',
+      statusPaused: 'Pausado.'
+    }
+  };
+
+  const canvas = document.getElementById('c');
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x091118);
+  scene.fog = new THREE.Fog(0x091118, 28, 95);
+
+  const camera = new THREE.PerspectiveCamera(58, 1, .1, 160);
+  const clock = new THREE.Clock();
+  const raycaster = new THREE.Raycaster();
+  const mouse = new THREE.Vector2(0, -.08);
+  const aimPoint = new THREE.Vector3(0, 9.5, -18);
+  const tmp = new THREE.Vector3();
+
+  const els = {
+    score: document.getElementById('score'),
+    wave: document.getElementById('wave'),
+    ammo: document.getElementById('ammo'),
+    armorBar: document.getElementById('armorBar'),
+    startBtn: document.getElementById('startBtn'),
+    pauseBtn: document.getElementById('pauseBtn'),
+    overlay: document.getElementById('overlay'),
+    overlayStart: document.getElementById('overlayStart'),
+    howBtn: document.getElementById('howBtn'),
+    status: document.getElementById('status'),
+    crosshair: document.querySelector('.crosshair')
+  };
+
+  const materials = {
+    sand: new THREE.MeshStandardMaterial({ color: 0xb99355, roughness: .92, metalness: .02 }),
+    darkSand: new THREE.MeshStandardMaterial({ color: 0x6f5a39, roughness: .95 }),
+    tank: new THREE.MeshStandardMaterial({ color: 0x6f8f55, roughness: .72, metalness: .08 }),
+    tankDark: new THREE.MeshStandardMaterial({ color: 0x354733, roughness: .78, metalness: .12 }),
+    barrel: new THREE.MeshStandardMaterial({ color: 0x27333a, roughness: .58, metalness: .28 }),
+    shell: new THREE.MeshStandardMaterial({ color: 0xffd166, roughness: .28, metalness: .2, emissive: 0x9f5d13, emissiveIntensity: 1.2 }),
+    ufo: new THREE.MeshStandardMaterial({ color: 0x9fb9c9, roughness: .36, metalness: .58, flatShading: true }),
+    ufoDark: new THREE.MeshStandardMaterial({ color: 0x37505c, roughness: .48, metalness: .35, flatShading: true }),
+    glass: new THREE.MeshStandardMaterial({ color: 0x7fd8ff, roughness: .18, metalness: .08, transparent: true, opacity: .72, emissive: 0x1e9ab4, emissiveIntensity: .38, flatShading: true }),
+    beam: new THREE.MeshBasicMaterial({ color: 0x7fd8ff, transparent: true, opacity: .28, depthWrite: false }),
+    red: new THREE.MeshStandardMaterial({ color: 0xff5c6c, emissive: 0x6a1018, emissiveIntensity: .9 }),
+    spark: new THREE.MeshBasicMaterial({ color: 0xffd166 }),
+    city: new THREE.MeshStandardMaterial({ color: 0x263848, roughness: .8, metalness: .05 })
+  };
+
+  const state = {
+    running: false,
+    paused: false,
+    gameOver: false,
+    lang: localStorage.getItem('ufoTankLang') || 'en',
+    score: 0,
+    wave: 1,
+    ammo: 40,
+    armor: 100,
+    nextWaveTimer: 0,
+    fireCooldown: 0,
+    keys: new Set(),
+    pointerDown: false
+  };
+
+  const world = {
+    tank: null,
+    turretPivot: null,
+    barrelPivot: null,
+    muzzle: null,
+    ufoGroup: new THREE.Group(),
+    projectiles: [],
+    ufos: [],
+    particles: [],
+    beams: []
+  };
+  scene.add(world.ufoGroup);
+
+  setupScene();
+  createTank();
+  spawnWave();
+  setLanguage(state.lang);
+  resetGame(false);
+  addEvents();
+  resize();
+  animate();
+
+  function setupScene() {
+    const hemi = new THREE.HemisphereLight(0xb8e7ff, 0x3d2b1d, 1.2);
+    scene.add(hemi);
+    const sun = new THREE.DirectionalLight(0xffdf9a, 2.6);
+    sun.position.set(-22, 34, 18);
+    sun.castShadow = true;
+    sun.shadow.mapSize.set(2048, 2048);
+    sun.shadow.camera.left = -42;
+    sun.shadow.camera.right = 42;
+    sun.shadow.camera.top = 42;
+    sun.shadow.camera.bottom = -42;
+    scene.add(sun);
+    const moon = new THREE.PointLight(0x7fd8ff, 1.1, 65);
+    moon.position.set(18, 16, -28);
+    scene.add(moon);
+
+    const ground = new THREE.Mesh(new THREE.PlaneGeometry(90, 90, 12, 12), materials.sand);
+    ground.rotation.x = -Math.PI / 2;
+    ground.receiveShadow = true;
+    scene.add(ground);
+
+    const grid = new THREE.GridHelper(72, 24, 0xffd166, 0x5d533f);
+    grid.position.y = .018;
+    grid.material.transparent = true;
+    grid.material.opacity = .2;
+    scene.add(grid);
+
+    for (let i = 0; i < 46; i++) {
+      const rock = new THREE.Mesh(
+        new THREE.DodecahedronGeometry(rand(.18, .7), 0),
+        i % 5 ? materials.darkSand : materials.city
+      );
+      rock.position.set(rand(-38, 38), .16, rand(-39, 31));
+      if (Math.abs(rock.position.x) < 7 && Math.abs(rock.position.z) < 9) rock.position.x += 12;
+      rock.rotation.set(rand(0, Math.PI), rand(0, Math.PI), rand(0, Math.PI));
+      rock.scale.y = rand(.25, .85);
+      rock.castShadow = true;
+      rock.receiveShadow = true;
+      scene.add(rock);
+    }
+
+    for (let i = 0; i < 18; i++) {
+      const mountain = new THREE.Mesh(new THREE.ConeGeometry(rand(2.2, 5.8), rand(5, 13), 5), materials.darkSand);
+      const side = i % 2 ? -1 : 1;
+      mountain.position.set(side * rand(28, 46), mountain.geometry.parameters.height / 2 - .4, rand(-48, 38));
+      mountain.rotation.y = rand(0, Math.PI);
+      mountain.castShadow = true;
+      mountain.receiveShadow = true;
+      scene.add(mountain);
+    }
+
+    const city = new THREE.Group();
+    for (let i = 0; i < 10; i++) {
+      const h = rand(1.4, 4.8);
+      const b = new THREE.Mesh(new THREE.BoxGeometry(rand(1, 2.2), h, rand(1, 2.3)), materials.city);
+      b.position.set(-11 + i * 2.4, h / 2, 23 + rand(-1.2, 1.2));
+      b.castShadow = true;
+      b.receiveShadow = true;
+      city.add(b);
+      const light = new THREE.PointLight(0xffd166, .45, 5);
+      light.position.copy(b.position).add(new THREE.Vector3(0, h * .55, .3));
+      city.add(light);
+    }
+    scene.add(city);
+
+    const stars = new THREE.Group();
+    const starMat = new THREE.MeshBasicMaterial({ color: 0xf7f1df });
+    for (let i = 0; i < 90; i++) {
+      const star = new THREE.Mesh(new THREE.TetrahedronGeometry(rand(.035, .09), 0), starMat);
+      star.position.set(rand(-70, 70), rand(24, 56), rand(-74, 24));
+      stars.add(star);
+    }
+    scene.add(stars);
+  }
+
+  function createTank() {
+    const tank = new THREE.Group();
+    const base = new THREE.Mesh(new THREE.BoxGeometry(3.4, .8, 4.4), materials.tankDark);
+    base.position.y = .62;
+    base.castShadow = true;
+    base.receiveShadow = true;
+    tank.add(base);
+
+    const hull = new THREE.Mesh(new THREE.BoxGeometry(2.6, .9, 3.15), materials.tank);
+    hull.position.y = 1.16;
+    hull.castShadow = true;
+    tank.add(hull);
+
+    for (const x of [-1.95, 1.95]) {
+      const tread = new THREE.Mesh(new THREE.BoxGeometry(.48, .62, 4.7), materials.tankDark);
+      tread.position.set(x, .46, 0);
+      tread.castShadow = true;
+      tank.add(tread);
+      for (let z = -1.7; z <= 1.7; z += .85) {
+        const wheel = new THREE.Mesh(new THREE.CylinderGeometry(.28, .28, .16, 8), materials.barrel);
+        wheel.rotation.z = Math.PI / 2;
+        wheel.position.set(x, .39, z);
+        wheel.castShadow = true;
+        tank.add(wheel);
+      }
+    }
+
+    const turretPivot = new THREE.Group();
+    turretPivot.position.y = 1.82;
+    const turret = new THREE.Mesh(new THREE.CylinderGeometry(.92, 1.1, .65, 8), materials.tank);
+    turret.castShadow = true;
+    turretPivot.add(turret);
+
+    const barrelPivot = new THREE.Group();
+    barrelPivot.position.set(0, .12, -1);
+    const barrel = new THREE.Mesh(new THREE.CylinderGeometry(.15, .19, 3.25, 8), materials.barrel);
+    barrel.rotation.x = Math.PI / 2;
+    barrel.position.z = -1.55;
+    barrel.castShadow = true;
+    barrelPivot.add(barrel);
+    const muzzle = new THREE.Object3D();
+    muzzle.position.set(0, 0, -3.25);
+    barrelPivot.add(muzzle);
+    turretPivot.add(barrelPivot);
+    tank.add(turretPivot);
+
+    tank.position.set(0, 0, 12);
+    scene.add(tank);
+    world.tank = tank;
+    world.turretPivot = turretPivot;
+    world.barrelPivot = barrelPivot;
+    world.muzzle = muzzle;
+  }
+
+  function createUfo(index) {
+    const ufo = new THREE.Group();
+    const saucer = new THREE.Mesh(new THREE.CylinderGeometry(1.7, 2.8, .52, 14), materials.ufo);
+    saucer.castShadow = true;
+    ufo.add(saucer);
+    const rim = new THREE.Mesh(new THREE.TorusGeometry(2.35, .12, 6, 14), materials.ufoDark);
+    rim.rotation.x = Math.PI / 2;
+    ufo.add(rim);
+    const dome = new THREE.Mesh(new THREE.SphereGeometry(1.05, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2), materials.glass);
+    dome.position.y = .32;
+    dome.castShadow = true;
+    ufo.add(dome);
+    const core = new THREE.PointLight(0x7fd8ff, 1.6, 11);
+    core.position.y = -.2;
+    ufo.add(core);
+
+    for (let i = 0; i < 6; i++) {
+      const lamp = new THREE.Mesh(new THREE.SphereGeometry(.13, 8, 5), i % 2 ? materials.shell : materials.red);
+      const a = i / 6 * Math.PI * 2;
+      lamp.position.set(Math.cos(a) * 2.05, -.28, Math.sin(a) * 2.05);
+      ufo.add(lamp);
+    }
+
+    const beam = new THREE.Mesh(new THREE.ConeGeometry(1.25, 8.5, 16, 1, true), materials.beam.clone());
+    beam.position.y = -4.55;
+    beam.visible = false;
+    ufo.add(beam);
+
+    const side = index % 2 ? -1 : 1;
+    const data = {
+      mesh: ufo,
+      beam,
+      hp: 2 + Math.floor(state.wave / 3),
+      speed: rand(4.6, 6.9) + state.wave * .25,
+      drift: rand(.6, 1.6),
+      phase: rand(0, 9),
+      beamTimer: rand(.5, 2.4),
+      damageTimer: 0
+    };
+    ufo.position.set(side * rand(10, 20), rand(8.5, 13), rand(-22, 3));
+    data.direction = side * -1;
+    world.ufoGroup.add(ufo);
+    return data;
+  }
+
+  function spawnWave() {
+    clearUfos();
+    const count = Math.min(5 + state.wave, 14);
+    for (let i = 0; i < count; i++) {
+      const ufo = createUfo(i);
+      ufo.mesh.position.x += i * 2.2 * (i % 2 ? 1 : -1);
+      world.ufos.push(ufo);
+    }
+    state.nextWaveTimer = 0;
+    setStatus(t('statusWave').replace('{wave}', state.wave).replace('{count}', count));
+  }
+
+  function resetGame(showOverlay = true) {
+    state.running = false;
+    state.paused = false;
+    state.gameOver = false;
+    state.score = 0;
+    state.wave = 1;
+    state.ammo = 40;
+    state.armor = 100;
+    state.fireCooldown = 0;
+    world.tank.position.set(0, 0, 12);
+    world.tank.rotation.y = 0;
+    clearProjectiles();
+    clearParticles();
+    spawnWave();
+    if (showOverlay) els.overlay.classList.add('active');
+    updateHud();
+  }
+
+  function startGame() {
+    if (state.gameOver) resetGame(false);
+    state.running = true;
+    state.paused = false;
+    els.overlay.classList.remove('active');
+    els.startBtn.textContent = t('restart');
+    els.pauseBtn.textContent = t('pause');
+    setStatus(t('statusWave').replace('{wave}', state.wave).replace('{count}', world.ufos.length));
+  }
+
+  function update(dt) {
+    if (!state.running || state.paused || state.gameOver) return;
+    state.fireCooldown = Math.max(0, state.fireCooldown - dt);
+    updateTank(dt);
+    updateAim();
+    updateProjectiles(dt);
+    updateUfos(dt);
+    updateParticles(dt);
+
+    if (world.ufos.length === 0) {
+      state.nextWaveTimer += dt;
+      if (state.nextWaveTimer === dt) {
+        state.score += 100 + state.wave * 20;
+        state.ammo = Math.min(55, 38 + state.wave * 3);
+        setStatus(t('statusClear'));
+      }
+      if (state.nextWaveTimer > 2.2) {
+        state.wave += 1;
+        spawnWave();
+      }
+    }
+    if (state.armor <= 0) gameOver();
+    updateHud();
+  }
+
+  function updateTank(dt) {
+    const forward = (state.keys.has('KeyW') || state.keys.has('ArrowUp') ? 1 : 0) - (state.keys.has('KeyS') || state.keys.has('ArrowDown') ? 1 : 0);
+    const turn = (isTurningRight() ? 1 : 0) - (isTurningLeft() ? 1 : 0);
+    const speed = 11;
+    const turnSpeed = 2.65;
+    if (turn !== 0) {
+      world.tank.rotation.y -= turn * turnSpeed * dt;
+    }
+    if (forward !== 0) {
+      getTankForward(tmp).multiplyScalar(forward);
+      world.tank.position.addScaledVector(tmp, speed * dt);
+    }
+    world.tank.position.x = THREE.MathUtils.clamp(world.tank.position.x, -22, 22);
+    world.tank.position.z = THREE.MathUtils.clamp(world.tank.position.z, -5, 20);
+  }
+
+  function updateAim() {
+    raycaster.setFromCamera(mouse, camera);
+    const hits = raycaster.intersectObjects(world.ufoGroup.children, true);
+    if (hits.length) {
+      aimPoint.copy(hits[0].point);
+    } else {
+      aimPoint.copy(raycaster.ray.origin).addScaledVector(raycaster.ray.direction, 70);
+    }
+    const localTarget = aimPoint.clone();
+    world.tank.worldToLocal(localTarget);
+    const yaw = Math.atan2(localTarget.x, localTarget.z);
+    world.turretPivot.rotation.y = yaw + Math.PI;
+    const muzzleWorld = new THREE.Vector3();
+    world.muzzle.getWorldPosition(muzzleWorld);
+    const dist = Math.hypot(aimPoint.x - muzzleWorld.x, aimPoint.z - muzzleWorld.z);
+    const pitch = Math.atan2(aimPoint.y - muzzleWorld.y, Math.max(.1, dist));
+    world.barrelPivot.rotation.x = THREE.MathUtils.clamp(pitch, .08, 1.12);
+  }
+
+  function fire() {
+    if (!state.running || state.paused || state.gameOver || state.fireCooldown > 0 || state.ammo <= 0) {
+      if (state.ammo <= 0) setStatus(t('statusLowAmmo'));
+      return;
+    }
+    state.fireCooldown = .23;
+    state.ammo -= 1;
+    updateAim();
+    const pos = new THREE.Vector3();
+    world.muzzle.getWorldPosition(pos);
+    const dir = aimPoint.clone().sub(pos).normalize();
+    const shell = new THREE.Mesh(new THREE.SphereGeometry(.18, 10, 8), materials.shell);
+    shell.position.copy(pos);
+    shell.castShadow = true;
+    scene.add(shell);
+    world.projectiles.push({ mesh: shell, velocity: dir.multiplyScalar(42), life: 2.4 });
+    spawnMuzzleFlash(pos);
+  }
+
+  function updateProjectiles(dt) {
+    for (let i = world.projectiles.length - 1; i >= 0; i--) {
+      const p = world.projectiles[i];
+      p.life -= dt;
+      p.mesh.position.addScaledVector(p.velocity, dt);
+      p.velocity.y -= 1.2 * dt;
+      let removed = p.life <= 0 || p.mesh.position.y < 0 || Math.abs(p.mesh.position.x) > 58 || Math.abs(p.mesh.position.z) > 58;
+      for (let j = world.ufos.length - 1; j >= 0 && !removed; j--) {
+        const ufo = world.ufos[j];
+        if (p.mesh.position.distanceTo(ufo.mesh.position) < 2.25) {
+          ufo.hp -= 1;
+          spawnExplosion(p.mesh.position, ufo.hp <= 0 ? 22 : 8);
+          scene.remove(p.mesh);
+          world.projectiles.splice(i, 1);
+          removed = true;
+          setStatus(t('statusHit'));
+          if (ufo.hp <= 0) destroyUfo(j);
+        }
+      }
+      if (!removed && p.life <= 0) {
+        scene.remove(p.mesh);
+        world.projectiles.splice(i, 1);
+      }
+    }
+  }
+
+  function updateUfos(dt) {
+    const tankPos = world.tank.position;
+    for (let i = world.ufos.length - 1; i >= 0; i--) {
+      const u = world.ufos[i];
+      const m = u.mesh;
+      u.phase += dt;
+      m.position.x += u.direction * u.speed * dt;
+      m.position.z += Math.sin(u.phase * u.drift) * dt * 3;
+      m.position.y += Math.sin(u.phase * 2.1) * dt * .45;
+      m.rotation.y += dt * 1.8;
+      m.rotation.z = Math.sin(u.phase * 1.5) * .08;
+      if (m.position.x > 35) u.direction = -1;
+      if (m.position.x < -35) u.direction = 1;
+
+      const horizontal = Math.hypot(m.position.x - tankPos.x, m.position.z - tankPos.z);
+      u.beamTimer -= dt;
+      const beaming = horizontal < 8.5 && u.beamTimer < 0;
+      u.beam.visible = beaming;
+      if (beaming) {
+        u.beam.material.opacity = .18 + Math.sin(performance.now() * .012) * .08;
+        state.armor -= dt * (7 + state.wave * .9);
+        u.damageTimer += dt;
+        if (u.damageTimer > .08) {
+          u.damageTimer = 0;
+          spawnSpark(new THREE.Vector3(tankPos.x + rand(-1.5, 1.5), 1.2, tankPos.z + rand(-1.4, 1.4)), 1);
+        }
+      }
+      if (u.beamTimer < -2.1) {
+        u.beamTimer = rand(1.2, 3.1);
+      }
+    }
+  }
+
+  function updateParticles(dt) {
+    for (let i = world.particles.length - 1; i >= 0; i--) {
+      const p = world.particles[i];
+      p.life -= dt;
+      p.mesh.position.addScaledVector(p.velocity, dt);
+      p.velocity.y -= p.gravity * dt;
+      p.mesh.scale.multiplyScalar(1 + dt * p.grow);
+      if (p.life <= 0) {
+        scene.remove(p.mesh);
+        world.particles.splice(i, 1);
+      }
+    }
+  }
+
+  function destroyUfo(index) {
+    const ufo = world.ufos[index];
+    spawnExplosion(ufo.mesh.position, 32);
+    world.ufoGroup.remove(ufo.mesh);
+    world.ufos.splice(index, 1);
+    state.score += 250 + state.wave * 30;
+  }
+
+  function spawnMuzzleFlash(pos) {
+    for (let i = 0; i < 5; i++) spawnSpark(pos, .45, 0xffd166);
+  }
+
+  function spawnExplosion(pos, count) {
+    for (let i = 0; i < count; i++) spawnSpark(pos, rand(.7, 1.6), i % 3 ? 0xffd166 : 0x7fd8ff);
+  }
+
+  function spawnSpark(pos, scale = 1, color = 0xffd166) {
+    const mat = new THREE.MeshBasicMaterial({ color });
+    const mesh = new THREE.Mesh(new THREE.TetrahedronGeometry(rand(.08, .2) * scale, 0), mat);
+    mesh.position.copy(pos);
+    scene.add(mesh);
+    world.particles.push({
+      mesh,
+      velocity: new THREE.Vector3(rand(-5, 5), rand(1, 7), rand(-5, 5)).multiplyScalar(scale),
+      life: rand(.32, .86),
+      gravity: rand(3, 8),
+      grow: rand(.2, 1.8)
+    });
+  }
+
+  function gameOver() {
+    state.gameOver = true;
+    state.running = false;
+    state.armor = 0;
+    els.overlay.classList.add('active');
+    els.overlay.querySelector('h2').textContent = t('statusGameOver');
+    els.overlay.querySelector('p').textContent = t('introText');
+    els.overlayStart.textContent = t('restart');
+    els.startBtn.textContent = t('restart');
+    setStatus(t('statusGameOver'));
+  }
+
+  function clearUfos() {
+    for (const ufo of world.ufos) world.ufoGroup.remove(ufo.mesh);
+    world.ufos.length = 0;
+  }
+
+  function clearProjectiles() {
+    for (const p of world.projectiles) scene.remove(p.mesh);
+    world.projectiles.length = 0;
+  }
+
+  function clearParticles() {
+    for (const p of world.particles) scene.remove(p.mesh);
+    world.particles.length = 0;
+  }
+
+  function updateHud() {
+    els.score.textContent = state.score;
+    els.wave.textContent = state.wave;
+    els.ammo.textContent = state.ammo;
+    els.armorBar.style.transform = `scaleX(${THREE.MathUtils.clamp(state.armor / 100, 0, 1)})`;
+  }
+
+  function addEvents() {
+    window.addEventListener('resize', resize);
+    window.addEventListener('keydown', (event) => {
+      if (event.code === 'Space') {
+        event.preventDefault();
+        fire();
+      } else if (event.code === 'KeyP') {
+        togglePause();
+      } else {
+        state.keys.add(event.code);
+        state.keys.add(event.key);
+      }
+    });
+    window.addEventListener('keyup', (event) => {
+      state.keys.delete(event.code);
+      state.keys.delete(event.key);
+    });
+    window.addEventListener('pointermove', (event) => {
+      setPointerAim(event);
+    });
+    window.addEventListener('pointerdown', (event) => {
+      setPointerAim(event);
+      state.pointerDown = true;
+      if (!event.target.closest('button')) fire();
+    });
+    window.addEventListener('pointerup', () => { state.pointerDown = false; });
+
+    els.startBtn.addEventListener('click', () => {
+      resetGame(false);
+      startGame();
+    });
+    els.overlayStart.addEventListener('click', () => {
+      if (state.gameOver) resetGame(false);
+      startGame();
+    });
+    els.pauseBtn.addEventListener('click', togglePause);
+    els.howBtn.addEventListener('click', () => setStatus(t('statusHow')));
+
+    document.querySelectorAll('.lang-btn').forEach((button) => {
+      button.addEventListener('click', () => setLanguage(button.dataset.lang));
+    });
+    document.querySelectorAll('.touch-key').forEach((button) => {
+      const code = button.dataset.key;
+      button.addEventListener('pointerdown', (event) => {
+        event.preventDefault();
+        state.keys.add(code);
+      });
+      button.addEventListener('pointerup', () => state.keys.delete(code));
+      button.addEventListener('pointerleave', () => state.keys.delete(code));
+      button.addEventListener('pointercancel', () => state.keys.delete(code));
+    });
+    document.getElementById('touchFire').addEventListener('pointerdown', (event) => {
+      event.preventDefault();
+      fire();
+    });
+  }
+
+  function setPointerAim(event) {
+    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+    mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+    els.crosshair.style.left = `${event.clientX}px`;
+    els.crosshair.style.top = `${event.clientY}px`;
+  }
+
+  function isTurningLeft() {
+    return state.keys.has('KeyA') || state.keys.has('ArrowLeft') || state.keys.has('Comma') || state.keys.has('<') || state.keys.has(',');
+  }
+
+  function isTurningRight() {
+    return state.keys.has('KeyD') || state.keys.has('ArrowRight') || state.keys.has('Period') || state.keys.has('>') || state.keys.has('.');
+  }
+
+  function getTankForward(target) {
+    return target.set(-Math.sin(world.tank.rotation.y), 0, -Math.cos(world.tank.rotation.y));
+  }
+
+  function togglePause() {
+    if (!state.running || state.gameOver) return;
+    state.paused = !state.paused;
+    els.pauseBtn.textContent = state.paused ? t('resume') : t('pause');
+    setStatus(state.paused ? t('statusPaused') : t('statusReady'));
+  }
+
+  function setLanguage(lang) {
+    state.lang = I18N[lang] ? lang : 'en';
+    localStorage.setItem('ufoTankLang', state.lang);
+    document.documentElement.lang = state.lang;
+    document.querySelectorAll('[data-i18n]').forEach((el) => {
+      const key = el.dataset.i18n;
+      if (I18N[state.lang][key]) el.textContent = I18N[state.lang][key];
+    });
+    document.querySelectorAll('.lang-btn').forEach((button) => button.classList.toggle('active', button.dataset.lang === state.lang));
+    els.startBtn.textContent = state.running ? t('restart') : t('start');
+    els.pauseBtn.textContent = state.paused ? t('resume') : t('pause');
+    if (!state.running && !state.gameOver) {
+      els.overlay.querySelector('h2').textContent = t('introTitle');
+      els.overlay.querySelector('p').textContent = t('introText');
+      els.overlayStart.textContent = t('start');
+      setStatus(t('statusReady'));
+    }
+  }
+
+  function setStatus(text) {
+    els.status.textContent = text;
+  }
+
+  function t(key) {
+    return I18N[state.lang][key] || I18N.en[key] || key;
+  }
+
+  function resize() {
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+  }
+
+  function animate() {
+    requestAnimationFrame(animate);
+    const dt = Math.min(clock.getDelta(), .033);
+    update(dt);
+    const forward = getTankForward(new THREE.Vector3());
+    const desired = world.tank.position.clone()
+      .addScaledVector(forward, -17)
+      .add(new THREE.Vector3(0, 10.5, 0));
+    const lookAtPoint = world.tank.position.clone()
+      .addScaledVector(forward, 16)
+      .add(new THREE.Vector3(0, 5.2, 0));
+    camera.position.lerp(desired, 1 - Math.pow(.001, dt));
+    camera.lookAt(lookAtPoint);
+    renderer.render(scene, camera);
+  }
+
+  function rand(min, max) {
+    return min + Math.random() * (max - min);
+  }
+})();
+</script>
+</body>
+</html>
