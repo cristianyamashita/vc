@@ -296,6 +296,13 @@
       flex-wrap: wrap;
     }
 
+    .viewport-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
     .viewport-topbar h2,
     .status-grid h2,
     .presentation-card h2 {
@@ -330,6 +337,21 @@
       animation: pulse 1.6s infinite;
     }
 
+    .fullscreen-btn {
+      min-height: 38px;
+      padding: 0 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.05);
+      cursor: pointer;
+    }
+
+    .fullscreen-btn:hover {
+      border-color: rgba(86, 240, 192, 0.42);
+      background: rgba(86, 240, 192, 0.1);
+    }
+
     @keyframes pulse {
       0% {
         box-shadow: 0 0 0 0 rgba(86, 240, 192, 0.5);
@@ -354,6 +376,19 @@
         linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.03));
     }
 
+    .stage:fullscreen {
+      width: 100vw;
+      height: 100vh;
+      aspect-ratio: auto;
+      border: 0;
+      border-radius: 0;
+      background: #020405;
+    }
+
+    .stage:fullscreen::after {
+      border-radius: 0;
+    }
+
     .stage::after {
       content: "";
       position: absolute;
@@ -372,6 +407,8 @@
 
     video,
     canvas {
+      position: absolute;
+      inset: 0;
       width: 100%;
       height: 100%;
       object-fit: cover;
@@ -380,14 +417,17 @@
 
     video {
       background: #020405;
+      z-index: 0;
     }
 
     canvas {
       pointer-events: none;
+      z-index: 1;
     }
 
     .cursor-dot,
     .target-circle {
+      z-index: 2;
       position: absolute;
       translate: -50% -50%;
       border-radius: 50%;
@@ -613,6 +653,9 @@
                 <option value="face" data-i18n="modeFace">Face Tracking</option>
                 <option value="combined" data-i18n="modeCombined">Combined Mode</option>
                 <option value="presentation" data-i18n="modePresentation">Presentation Control</option>
+                <option value="objectGrab" data-i18n="modeObjectGrab">Pinch Objects</option>
+                <option value="textDrag" data-i18n="modeTextDrag">Drag Text</option>
+                <option value="landmarkMap" data-i18n="modeLandmarkMap">Color Landmark Map</option>
               </select>
             </div>
 
@@ -654,7 +697,10 @@
       <div class="viewport-panel">
         <div class="viewport-topbar">
           <h2 data-i18n="liveDetectionTitle">Live Detection View</h2>
-          <div id="liveIndicator" class="live-indicator">Camera idle</div>
+          <div class="viewport-actions">
+            <button id="fullscreenButton" class="fullscreen-btn" type="button" data-i18n="enterFullscreenButton">Full screen</button>
+            <div id="liveIndicator" class="live-indicator">Camera idle</div>
+          </div>
         </div>
 
         <div class="stage" id="stage">
@@ -736,6 +782,15 @@
       [9, 13], [13, 14], [14, 15], [15, 16],
       [13, 17], [17, 18], [18, 19], [19, 20],
       [0, 17],
+    ];
+
+    const FINGER_GROUPS = [
+      { indexes: [0], color: "rgba(255, 255, 255, 0.98)" },
+      { indexes: [1, 2, 3, 4], color: "rgba(255, 123, 116, 0.98)" },
+      { indexes: [5, 6, 7, 8], color: "rgba(86, 240, 192, 0.98)" },
+      { indexes: [9, 10, 11, 12], color: "rgba(125, 211, 252, 0.98)" },
+      { indexes: [13, 14, 15, 16], color: "rgba(255, 201, 107, 0.98)" },
+      { indexes: [17, 18, 19, 20], color: "rgba(199, 146, 234, 0.98)" },
     ];
 
     const POSE_CONNECTIONS = [
@@ -830,6 +885,9 @@
       face: "modeFace",
       combined: "modeCombined",
       presentation: "modePresentation",
+      objectGrab: "modeObjectGrab",
+      textDrag: "modeTextDrag",
+      landmarkMap: "modeLandmarkMap",
     };
 
     const i18n = {
@@ -844,6 +902,9 @@
         modeFace: "Face Tracking",
         modeCombined: "Combined Mode",
         modePresentation: "Presentation Control",
+        modeObjectGrab: "Pinch Objects",
+        modeTextDrag: "Drag Text",
+        modeLandmarkMap: "Color Landmark Map",
         cameraControlsLabel: "Camera Controls",
         startCameraButton: "Start Camera",
         stopCameraButton: "Stop Camera",
@@ -858,6 +919,8 @@
         instruction3: "Use one hand for gestures, full body for pose, or center your face for face tracking.",
         instruction4: "Switch out of combined mode if your frame rate drops too far.",
         liveDetectionTitle: "Live Detection View",
+        enterFullscreenButton: "Full screen",
+        exitFullscreenButton: "Exit full screen",
         statusPanelTitle: "Status Panel",
         sessionTitle: "Session",
         detectionStatusTitle: "Detection Status",
@@ -887,6 +950,9 @@
         poseModeActive: "Pose mode active",
         faceModeActive: "Face mode active",
         presentationModeActive: "Presentation mode",
+        objectGrabModeActive: "Pinch an object",
+        textDragModeActive: "Pinch and drag",
+        landmarkMapModeActive: "Color map live",
         trySingleMode: "Try a single mode",
         combinedModeActive: "Combined mode active",
         noDetectionsYet: "No detections yet",
@@ -964,6 +1030,17 @@
         notCenteredSuffix: " + Not centered",
         presentationSummary: "Presentation control uses the same hand model with gesture and swipe interpretation.",
         presentationDetails: "Command state: {command}. Swipe left for next, right for previous.",
+        objectGrabSummary: "Pinch the thumb and index finger over a shape to grab it. Open the pinch to release.",
+        objectGrabDetails: "Grabbed object: {object}. Pinch distance: {distance}.",
+        objectGrabNoObject: "None",
+        objectGrabbed: "Holding {object}",
+        objectReleased: "Object released",
+        textDragSummary: "Pinch near the text and move your hand up or down to reposition it.",
+        textDragDetails: "Text offset: {offset}%. Pinch distance: {distance}.",
+        textDragHolding: "Dragging text",
+        textDragReleased: "Text released",
+        landmarkMapSummary: "Every detected hand and face point is rendered with rotating color groups.",
+        landmarkMapDetails: "Hand points: {handCount}. Face points: {faceCount}.",
         combinedTracking: "Combined tracking",
         combinedWarning: "Low performance detected. Switch to a single detection mode for smoother tracking.",
         combinedSummary: "Combined tracking active.",
@@ -1005,6 +1082,9 @@
         modeFace: "Rastreamento Facial",
         modeCombined: "Modo Combinado",
         modePresentation: "Controle de Apresentação",
+        modeObjectGrab: "Objetos por Pinça",
+        modeTextDrag: "Arrastar Texto",
+        modeLandmarkMap: "Mapa Colorido de Pontos",
         cameraControlsLabel: "Controles da Câmera",
         startCameraButton: "Iniciar Câmera",
         stopCameraButton: "Parar Câmera",
@@ -1019,6 +1099,8 @@
         instruction3: "Use uma mão para gestos, o corpo inteiro para pose ou centralize o rosto para rastreamento facial.",
         instruction4: "Saia do modo combinado se a taxa de quadros cair demais.",
         liveDetectionTitle: "Visualização ao Vivo",
+        enterFullscreenButton: "Tela cheia",
+        exitFullscreenButton: "Sair da tela cheia",
         statusPanelTitle: "Painel de Status",
         sessionTitle: "Sessão",
         detectionStatusTitle: "Status da Detecção",
@@ -1048,6 +1130,9 @@
         poseModeActive: "Modo de pose ativo",
         faceModeActive: "Modo facial ativo",
         presentationModeActive: "Modo apresentação",
+        objectGrabModeActive: "Faça pinça no objeto",
+        textDragModeActive: "Faça pinça e arraste",
+        landmarkMapModeActive: "Mapa colorido ao vivo",
         trySingleMode: "Tente um modo único",
         combinedModeActive: "Modo combinado ativo",
         noDetectionsYet: "Ainda sem detecções",
@@ -1125,6 +1210,17 @@
         notCenteredSuffix: " + Fora do centro",
         presentationSummary: "O controle de apresentação usa o mesmo modelo de mão com interpretação de gesto e swipe.",
         presentationDetails: "Estado do comando: {command}. Deslize à esquerda para avançar e à direita para voltar.",
+        objectGrabSummary: "Feche polegar e indicador sobre uma forma para pegar. Abra a pinça para soltar.",
+        objectGrabDetails: "Objeto segurado: {object}. Distância da pinça: {distance}.",
+        objectGrabNoObject: "Nenhum",
+        objectGrabbed: "Segurando {object}",
+        objectReleased: "Objeto solto",
+        textDragSummary: "Faça pinça perto do texto e mova a mão para cima ou para baixo para reposicionar.",
+        textDragDetails: "Deslocamento do texto: {offset}%. Distância da pinça: {distance}.",
+        textDragHolding: "Arrastando texto",
+        textDragReleased: "Texto solto",
+        landmarkMapSummary: "Todos os pontos detectados da mão e do rosto são renderizados com grupos de cores alternadas.",
+        landmarkMapDetails: "Pontos da mão: {handCount}. Pontos do rosto: {faceCount}.",
         combinedTracking: "Rastreamento combinado",
         combinedWarning: "Desempenho baixo detectado. Troque para um modo único para maior fluidez.",
         combinedSummary: "Rastreamento combinado ativo.",
@@ -1166,6 +1262,9 @@
         modeFace: "顔の追跡",
         modeCombined: "複合モード",
         modePresentation: "プレゼン操作",
+        modeObjectGrab: "ピンチでオブジェクト",
+        modeTextDrag: "テキスト移動",
+        modeLandmarkMap: "カラーランドマーク",
         cameraControlsLabel: "カメラ操作",
         startCameraButton: "カメラ開始",
         stopCameraButton: "カメラ停止",
@@ -1180,6 +1279,8 @@
         instruction3: "ジェスチャーでは片手、ポーズでは全身、顔追跡では顔を中央に入れてください。",
         instruction4: "フレームレートが落ちたら複合モードを解除してください。",
         liveDetectionTitle: "ライブ検出ビュー",
+        enterFullscreenButton: "全画面",
+        exitFullscreenButton: "全画面終了",
         statusPanelTitle: "ステータスパネル",
         sessionTitle: "セッション",
         detectionStatusTitle: "検出ステータス",
@@ -1209,6 +1310,9 @@
         poseModeActive: "ポーズモード有効",
         faceModeActive: "顔モード有効",
         presentationModeActive: "プレゼンモード",
+        objectGrabModeActive: "オブジェクトをピンチ",
+        textDragModeActive: "ピンチしてドラッグ",
+        landmarkMapModeActive: "カラーマップ稼働中",
         trySingleMode: "単独モードを試す",
         combinedModeActive: "複合モード有効",
         noDetectionsYet: "まだ検出はありません",
@@ -1286,6 +1390,17 @@
         notCenteredSuffix: " + 中央から外れている",
         presentationSummary: "プレゼン操作では同じ手のモデルを使ってジェスチャーとスワイプを解釈します。",
         presentationDetails: "コマンド状態: {command}。左スワイプで次、右スワイプで前に戻ります。",
+        objectGrabSummary: "親指と人差し指を図形の上で閉じるとつかみ、開くと離します。",
+        objectGrabDetails: "保持中のオブジェクト: {object}。ピンチ距離: {distance}。",
+        objectGrabNoObject: "なし",
+        objectGrabbed: "{object} を保持中",
+        objectReleased: "オブジェクトを離しました",
+        textDragSummary: "テキストの近くでピンチし、手を上下に動かして位置を変えます。",
+        textDragDetails: "テキスト位置: {offset}%。ピンチ距離: {distance}。",
+        textDragHolding: "テキストをドラッグ中",
+        textDragReleased: "テキストを離しました",
+        landmarkMapSummary: "検出された手と顔の全ポイントを色分けして表示します。",
+        landmarkMapDetails: "手のポイント: {handCount}。顔のポイント: {faceCount}。",
         combinedTracking: "複合追跡",
         combinedWarning: "パフォーマンス低下を検出しました。より滑らかにするには単独モードへ切り替えてください。",
         combinedSummary: "複合追跡が有効です。",
@@ -1325,6 +1440,7 @@
       modeSelect: document.getElementById("modeSelect"),
       startButton: document.getElementById("startButton"),
       stopButton: document.getElementById("stopButton"),
+      fullscreenButton: document.getElementById("fullscreenButton"),
       liveIndicator: document.getElementById("liveIndicator"),
       cameraStatus: document.getElementById("cameraStatus"),
       selectedMode: document.getElementById("selectedMode"),
@@ -1374,7 +1490,22 @@
       slideIndex: 0,
       lastPresentationCommandKey: "commandWaiting",
       handMotion: [],
-      commandCooldownUntil: 0
+      commandCooldownUntil: 0,
+      grabMode: {
+        activeObjectId: null,
+        lastStateKey: "objectReleased",
+        objects: [
+          { id: "orb", label: "Orb", x: 0.26, y: 0.35, size: 0.11, color: "rgba(86, 240, 192, 0.9)" },
+          { id: "tile", label: "Tile", x: 0.54, y: 0.55, size: 0.13, color: "rgba(255, 201, 107, 0.9)" },
+          { id: "gem", label: "Gem", x: 0.75, y: 0.31, size: 0.1, color: "rgba(255, 123, 116, 0.9)" },
+        ]
+      },
+      textDrag: {
+        dragging: false,
+        y: 0.5,
+        grabOffsetY: 0,
+        lastStateKey: "textDragReleased"
+      }
     };
 
     function t(key, vars = {}) {
@@ -1434,6 +1565,35 @@
       };
     }
 
+    function distanceBetween(a, b) {
+      if (!a || !b) {
+        return Infinity;
+      }
+      return Math.hypot(a.x - b.x, a.y - b.y);
+    }
+
+    function getPrimaryHandLandmarks(handResult) {
+      return handResult?.landmarks?.[0] || null;
+    }
+
+    function getPinchInfo(handResult) {
+      const landmarks = getPrimaryHandLandmarks(handResult);
+      if (!landmarks) {
+        return { active: false, released: true, distance: Infinity, center: null };
+      }
+
+      const thumbTip = landmarks[4];
+      const indexTip = landmarks[8];
+      const pinchDistance = distanceBetween(thumbTip, indexTip);
+      return {
+        active: pinchDistance < 0.055,
+        released: pinchDistance > 0.085,
+        distance: pinchDistance,
+        center: midpoint(thumbTip, indexTip),
+        indexTip
+      };
+    }
+
     function drawPoint(point, color, radius = 4) {
       canvasContext.beginPath();
       canvasContext.arc(point.x * elements.canvas.width, point.y * elements.canvas.height, radius, 0, Math.PI * 2);
@@ -1463,6 +1623,129 @@
       }
     }
 
+    function drawLabeledObject(object, isActive) {
+      const width = elements.canvas.width;
+      const height = elements.canvas.height;
+      const x = object.x * width;
+      const y = object.y * height;
+      const radius = object.size * Math.min(width, height);
+
+      canvasContext.save();
+      canvasContext.shadowColor = object.color;
+      canvasContext.shadowBlur = isActive ? 28 : 16;
+      canvasContext.fillStyle = object.color;
+
+      if (object.id === "tile") {
+        canvasContext.beginPath();
+        canvasContext.roundRect(x - radius, y - radius, radius * 2, radius * 2, 18);
+        canvasContext.fill();
+      } else if (object.id === "gem") {
+        canvasContext.beginPath();
+        canvasContext.moveTo(x, y - radius);
+        canvasContext.lineTo(x + radius * 0.9, y);
+        canvasContext.lineTo(x, y + radius);
+        canvasContext.lineTo(x - radius * 0.9, y);
+        canvasContext.closePath();
+        canvasContext.fill();
+      } else {
+        canvasContext.beginPath();
+        canvasContext.arc(x, y, radius, 0, Math.PI * 2);
+        canvasContext.fill();
+      }
+
+      canvasContext.shadowBlur = 0;
+      canvasContext.lineWidth = isActive ? 4 : 2;
+      canvasContext.strokeStyle = isActive ? "rgba(255, 255, 255, 0.96)" : "rgba(255, 255, 255, 0.38)";
+      canvasContext.stroke();
+      canvasContext.translate(x, y);
+      canvasContext.scale(-1, 1);
+      canvasContext.fillStyle = "rgba(6, 20, 22, 0.88)";
+      canvasContext.font = "700 18px Space Grotesk, Segoe UI, sans-serif";
+      canvasContext.textAlign = "center";
+      canvasContext.textBaseline = "middle";
+      canvasContext.fillText(object.label, 0, 0);
+      canvasContext.restore();
+    }
+
+    function drawGrabObjects() {
+      for (const object of appState.grabMode.objects) {
+        drawLabeledObject(object, appState.grabMode.activeObjectId === object.id);
+      }
+    }
+
+    function drawDragText(isActive = false) {
+      const width = elements.canvas.width;
+      const height = elements.canvas.height;
+      const x = width * 0.5;
+      const y = appState.textDrag.y * height;
+      const lines = [
+        "const gesture = \"pinch\";",
+        "overlay.text.move(upDown);",
+        "release_when_fingers_open();"
+      ];
+
+      canvasContext.save();
+      canvasContext.textAlign = "center";
+      canvasContext.textBaseline = "middle";
+      canvasContext.font = "700 24px Space Grotesk, Segoe UI, sans-serif";
+      canvasContext.shadowColor = isActive ? "rgba(86, 240, 192, 0.9)" : "rgba(0, 0, 0, 0.8)";
+      canvasContext.shadowBlur = isActive ? 22 : 14;
+      canvasContext.lineWidth = 7;
+      canvasContext.translate(x, y);
+      canvasContext.scale(-1, 1);
+      canvasContext.strokeStyle = "rgba(4, 11, 14, 0.9)";
+      canvasContext.fillStyle = isActive ? "rgba(86, 240, 192, 0.98)" : "rgba(255, 255, 255, 0.96)";
+      lines.forEach((line, index) => {
+        const lineY = (index - 1) * 34;
+        canvasContext.strokeText(line, 0, lineY);
+        canvasContext.fillText(line, 0, lineY);
+      });
+      canvasContext.restore();
+    }
+
+    function drawColoredHandLandmarks(handResult) {
+      if (!handResult?.landmarks?.length) {
+        return 0;
+      }
+
+      let pointCount = 0;
+      for (const landmarks of handResult.landmarks) {
+        drawConnections(landmarks, HAND_CONNECTIONS, "rgba(255, 255, 255, 0.26)", 1.6);
+        for (const group of FINGER_GROUPS) {
+          for (const index of group.indexes) {
+            if (landmarks[index]) {
+              drawPoint(landmarks[index], group.color, index % 4 === 0 ? 4.4 : 3.4);
+              pointCount += 1;
+            }
+          }
+        }
+      }
+      return pointCount;
+    }
+
+    function drawColoredFaceLandmarks(faceResult) {
+      if (!faceResult?.faceLandmarks?.length) {
+        return 0;
+      }
+
+      let pointCount = 0;
+      const colors = [
+        "rgba(86, 240, 192, 0.88)",
+        "rgba(125, 211, 252, 0.88)",
+        "rgba(255, 201, 107, 0.9)",
+        "rgba(255, 123, 116, 0.88)",
+        "rgba(199, 146, 234, 0.88)",
+      ];
+      for (const landmarks of faceResult.faceLandmarks) {
+        drawConnections(landmarks, FACE_OUTLINE_CONNECTIONS, "rgba(255, 255, 255, 0.3)", 1.4);
+        landmarks.forEach((point, index) => {
+          drawPoint(point, colors[index % colors.length], index % 17 === 0 ? 2.4 : 1.55);
+          pointCount += 1;
+        });
+      }
+      return pointCount;
+    }
+
     async function ensureVisionResolver() {
       if (!appState.visionResolver) {
         appState.visionResolver = await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm");
@@ -1472,9 +1755,9 @@
 
     async function ensureModelsForMode(mode) {
       const vision = await ensureVisionResolver();
-      const needsHand = mode === "hand" || mode === "combined" || mode === "presentation";
+      const needsHand = mode === "hand" || mode === "combined" || mode === "presentation" || mode === "objectGrab" || mode === "textDrag" || mode === "landmarkMap";
       const needsPose = mode === "pose" || mode === "combined";
-      const needsFace = mode === "face" || mode === "combined";
+      const needsFace = mode === "face" || mode === "combined" || mode === "landmarkMap";
 
       if (needsHand && !appState.handLandmarker) {
         appState.handLandmarker = await HandLandmarker.createFromOptions(vision, {
@@ -1555,6 +1838,78 @@
       const targetRadiusY = (elements.targetCircle.offsetHeight / elements.stage.clientHeight) / 2;
       const touched = Math.abs(normalizedPoint.x - targetX) <= targetRadiusX && Math.abs(normalizedPoint.y - targetY) <= targetRadiusY;
       updateTargetIndicator(touched);
+    }
+
+    function findGrabObjectAt(point) {
+      if (!point) {
+        return null;
+      }
+
+      return appState.grabMode.objects.find((object) => distanceBetween(point, object) <= object.size * 1.25) || null;
+    }
+
+    function updateObjectGrabMode(handResult) {
+      const pinch = getPinchInfo(handResult);
+      moveCursor(pinch.center || null);
+
+      if (pinch.released) {
+        appState.grabMode.activeObjectId = null;
+        appState.grabMode.lastStateKey = "objectReleased";
+      } else if (pinch.active && !appState.grabMode.activeObjectId) {
+        const targetObject = findGrabObjectAt(pinch.center);
+        if (targetObject) {
+          appState.grabMode.activeObjectId = targetObject.id;
+          appState.grabMode.lastStateKey = "objectGrabbed";
+        }
+      }
+
+      const activeObject = appState.grabMode.objects.find((object) => object.id === appState.grabMode.activeObjectId);
+      if (activeObject && pinch.center) {
+        activeObject.x = clamp(pinch.center.x, activeObject.size, 1 - activeObject.size);
+        activeObject.y = clamp(pinch.center.y, activeObject.size, 1 - activeObject.size);
+      }
+
+      drawGrabObjects();
+      const label = activeObject?.label || t("objectGrabNoObject");
+      const state = activeObject ? t("objectGrabbed", { object: label }) : t(appState.grabMode.lastStateKey);
+      return {
+        state,
+        details: t("objectGrabDetails", {
+          object: label,
+          distance: Number.isFinite(pinch.distance) ? pinch.distance.toFixed(3) : "--"
+        }),
+        coords: pinch.center ? formatPoint(pinch.center, "coordIndexTip") : t("noHandLandmarks"),
+        badge: activeObject ? state : t("objectGrabModeActive")
+      };
+    }
+
+    function updateTextDragMode(handResult) {
+      const pinch = getPinchInfo(handResult);
+      moveCursor(pinch.center || null);
+
+      if (pinch.released) {
+        appState.textDrag.dragging = false;
+        appState.textDrag.lastStateKey = "textDragReleased";
+      } else if (pinch.active && pinch.center && !appState.textDrag.dragging && Math.abs(pinch.center.y - appState.textDrag.y) < 0.16) {
+        appState.textDrag.dragging = true;
+        appState.textDrag.grabOffsetY = appState.textDrag.y - pinch.center.y;
+        appState.textDrag.lastStateKey = "textDragHolding";
+      }
+
+      if (appState.textDrag.dragging && pinch.center) {
+        appState.textDrag.y = clamp(pinch.center.y + appState.textDrag.grabOffsetY, 0.16, 0.84);
+      }
+
+      drawDragText(appState.textDrag.dragging);
+      return {
+        state: t(appState.textDrag.lastStateKey),
+        details: t("textDragDetails", {
+          offset: Math.round(appState.textDrag.y * 100),
+          distance: Number.isFinite(pinch.distance) ? pinch.distance.toFixed(3) : "--"
+        }),
+        coords: pinch.center ? formatPoint(pinch.center, "coordIndexTip") : t("noHandLandmarks"),
+        badge: appState.textDrag.dragging ? t("textDragHolding") : t("textDragModeActive")
+      };
     }
 
     function isFingerExtended(landmarks, tipIndex, pipIndex) {
@@ -1855,6 +2210,25 @@
       elements.perfChip.textContent = t("performanceValue", { value: t(appState.lastPerfLevel) });
     }
 
+    function updateFullscreenButton() {
+      const isFullscreen = document.fullscreenElement === elements.stage;
+      elements.fullscreenButton.textContent = t(isFullscreen ? "exitFullscreenButton" : "enterFullscreenButton");
+    }
+
+    async function toggleFullscreen() {
+      try {
+        if (document.fullscreenElement) {
+          await document.exitFullscreen();
+        } else {
+          await elements.stage.requestFullscreen();
+        }
+        resizeCanvasToVideo();
+        updateFullscreenButton();
+      } catch (error) {
+        elements.modeSummary.textContent = String(error?.message || error);
+      }
+    }
+
     function updatePerformance(now) {
       appState.frameCount += 1;
       const elapsed = now - appState.fpsTime;
@@ -1889,8 +2263,8 @@
       elements.selectedMode.textContent = `${t("selectedModePrefix")}: ${modeLabel}`;
       elements.presentationCard.classList.toggle("hidden", appState.activeMode !== "presentation");
       elements.targetCircle.classList.toggle("hidden", !(appState.activeMode === "hand" || appState.activeMode === "presentation"));
-      elements.cursorDot.classList.toggle("hidden", !(appState.activeMode === "hand" || appState.activeMode === "presentation"));
-      if (appState.activeMode !== "hand" && appState.activeMode !== "presentation") {
+      elements.cursorDot.classList.toggle("hidden", !(appState.activeMode === "hand" || appState.activeMode === "presentation" || appState.activeMode === "objectGrab" || appState.activeMode === "textDrag"));
+      if (!(appState.activeMode === "hand" || appState.activeMode === "presentation" || appState.activeMode === "objectGrab" || appState.activeMode === "textDrag")) {
         moveCursor(null);
         updateTargetIndicator(false);
       }
@@ -1917,6 +2291,7 @@
       updatePresentationPreview();
       syncModeUI();
       renderPerformanceChips();
+      updateFullscreenButton();
 
       if (!appState.cameraRunning) {
         renderStoppedUI();
@@ -1956,9 +2331,9 @@
       clearCanvas();
 
       const mode = appState.activeMode;
-      const shouldDetectHand = mode === "hand" || mode === "combined" || mode === "presentation";
+      const shouldDetectHand = mode === "hand" || mode === "combined" || mode === "presentation" || mode === "objectGrab" || mode === "textDrag" || mode === "landmarkMap";
       const shouldDetectPose = mode === "pose" || mode === "combined";
-      const shouldDetectFace = mode === "face" || mode === "combined";
+      const shouldDetectFace = mode === "face" || mode === "combined" || mode === "landmarkMap";
       const combinedFrame = mode === "combined";
 
       if (shouldDetectHand && appState.handLandmarker) {
@@ -1982,9 +2357,15 @@
         }
       }
 
-      drawHandResults(appState.lastResults.hand);
-      drawPoseResults(appState.lastResults.pose);
-      drawFaceResults(appState.lastResults.face);
+      if (mode === "hand" || mode === "presentation" || mode === "objectGrab" || mode === "textDrag" || mode === "combined") {
+        drawHandResults(appState.lastResults.hand);
+      }
+      if (mode === "pose" || mode === "combined") {
+        drawPoseResults(appState.lastResults.pose);
+      }
+      if (mode === "face" || mode === "combined") {
+        drawFaceResults(appState.lastResults.face);
+      }
 
       if (mode === "hand") {
         const handSummary = summarizeHand(appState.lastResults.hand);
@@ -2030,6 +2411,45 @@
           coords: handSummary.coords,
           badge: t("commandBadge", { command: t(appState.lastPresentationCommandKey) }),
           targetText: appState.targetTouched ? t("targetTouched") : t("presentationModeActive")
+        });
+      } else if (mode === "objectGrab") {
+        const handSummary = summarizeHand(appState.lastResults.hand);
+        const objectState = updateObjectGrabMode(appState.lastResults.hand);
+        updateStatusUI({
+          detectionStatus: handSummary.status,
+          summary: t("objectGrabSummary"),
+          currentState: objectState.state,
+          details: objectState.details,
+          coords: objectState.coords,
+          badge: objectState.badge,
+          targetText: t("objectGrabModeActive")
+        });
+      } else if (mode === "textDrag") {
+        const handSummary = summarizeHand(appState.lastResults.hand);
+        const textState = updateTextDragMode(appState.lastResults.hand);
+        updateStatusUI({
+          detectionStatus: handSummary.status,
+          summary: t("textDragSummary"),
+          currentState: textState.state,
+          details: textState.details,
+          coords: textState.coords,
+          badge: textState.badge,
+          targetText: t("textDragModeActive")
+        });
+      } else if (mode === "landmarkMap") {
+        const handSummary = summarizeHand(appState.lastResults.hand);
+        moveCursor(null);
+        const handPointCount = drawColoredHandLandmarks(appState.lastResults.hand);
+        const facePointCount = drawColoredFaceLandmarks(appState.lastResults.face);
+        const faceSummary = summarizeFace(appState.lastResults.face);
+        updateStatusUI({
+          detectionStatus: handPointCount + facePointCount > 0 ? t("modelsReady") : t("noDetectionsYet"),
+          summary: t("landmarkMapSummary"),
+          currentState: `${t("handStatusPrefix")}: ${handPointCount} | ${t("faceStatusPrefix")}: ${facePointCount}`,
+          details: t("landmarkMapDetails", { handCount: handPointCount, faceCount: facePointCount }),
+          coords: [handSummary.coords, faceSummary.coords].join("\n\n"),
+          badge: t("landmarkMapModeActive"),
+          targetText: t("landmarkMapModeActive")
         });
       } else {
         const handSummary = summarizeHand(appState.lastResults.hand);
@@ -2177,10 +2597,12 @@
 
     elements.startButton.addEventListener("click", startCamera);
     elements.stopButton.addEventListener("click", stopCamera);
+    elements.fullscreenButton.addEventListener("click", toggleFullscreen);
     elements.modeSelect.addEventListener("change", handleModeChange);
     elements.langButtons.forEach((button) => {
       button.addEventListener("click", () => setLanguage(button.dataset.lang));
     });
+    document.addEventListener("fullscreenchange", updateFullscreenButton);
     window.addEventListener("resize", resizeCanvasToVideo);
     window.addEventListener("beforeunload", stopCamera);
 
