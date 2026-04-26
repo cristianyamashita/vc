@@ -1,0 +1,2071 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Vision Tetris</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #091017;
+      --bg-accent: #14263d;
+      --panel: rgba(10, 18, 28, 0.8);
+      --panel-strong: rgba(10, 20, 32, 0.94);
+      --panel-soft: rgba(255, 255, 255, 0.04);
+      --border: rgba(134, 200, 255, 0.18);
+      --text: #ebf5ff;
+      --muted: #9cb2c9;
+      --accent: #79f0d4;
+      --accent-strong: #2fc4eb;
+      --accent-warm: #ffbe6f;
+      --danger: #ff7d7d;
+      --shadow: 0 30px 70px rgba(0, 0, 0, 0.32);
+      --video-tint: rgba(8, 14, 23, 0.52);
+      --grid-line: rgba(255, 255, 255, 0.06);
+      --playfield: rgba(7, 13, 22, 0.78);
+      --playfield-glow: rgba(47, 196, 235, 0.16);
+    }
+
+    body[data-theme="light"] {
+      color-scheme: light;
+      --bg: #f4efe7;
+      --bg-accent: #d4ecff;
+      --panel: rgba(255, 250, 243, 0.82);
+      --panel-strong: rgba(255, 248, 239, 0.95);
+      --panel-soft: rgba(31, 53, 84, 0.05);
+      --border: rgba(45, 111, 168, 0.16);
+      --text: #1b2b3e;
+      --muted: #617286;
+      --accent: #129c8f;
+      --accent-strong: #2b75d6;
+      --accent-warm: #d88a2d;
+      --danger: #da5757;
+      --shadow: 0 24px 60px rgba(24, 62, 104, 0.12);
+      --video-tint: rgba(244, 239, 231, 0.26);
+      --grid-line: rgba(27, 43, 62, 0.08);
+      --playfield: rgba(255, 255, 255, 0.6);
+      --playfield-glow: rgba(43, 117, 214, 0.12);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      min-height: 100%;
+      font-family: "Space Grotesk", "Segoe UI", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(121, 240, 212, 0.18), transparent 26%),
+        radial-gradient(circle at bottom right, rgba(43, 117, 214, 0.16), transparent 32%),
+        linear-gradient(145deg, var(--bg) 0%, var(--bg-accent) 100%);
+    }
+
+    body {
+      padding: 22px;
+    }
+
+    button,
+    select {
+      font: inherit;
+    }
+
+    .app-shell {
+      width: min(1380px, 100%);
+      margin: 0 auto;
+      display: grid;
+      gap: 20px;
+    }
+
+    .hero,
+    .card,
+    .stage-panel,
+    .status-panel {
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(18px);
+    }
+
+    .hero {
+      position: relative;
+      overflow: hidden;
+      border-radius: 28px;
+      padding: 28px;
+      background:
+        linear-gradient(135deg, rgba(121, 240, 212, 0.14), transparent 30%),
+        linear-gradient(315deg, rgba(255, 190, 111, 0.12), transparent 26%),
+        var(--panel);
+    }
+
+    .hero::after {
+      content: "";
+      position: absolute;
+      right: -40px;
+      bottom: -60px;
+      width: 220px;
+      height: 220px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(47, 196, 235, 0.2), transparent 68%);
+      pointer-events: none;
+    }
+
+    .toolbar {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 18px;
+    }
+
+    .selector-group {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      padding: 4px;
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      position: relative;
+      z-index: 1;
+    }
+
+    .selector-group button {
+      min-width: 44px;
+      min-height: 36px;
+      padding: 0 12px;
+      border: 1px solid transparent;
+      border-radius: 10px;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+    }
+
+    .selector-group button:hover {
+      color: var(--text);
+      border-color: rgba(255, 255, 255, 0.14);
+    }
+
+    .selector-group button.active {
+      color: #07201d;
+      background: linear-gradient(135deg, var(--accent), #b7ffee);
+    }
+
+    body[data-theme="light"] .selector-group button.active {
+      color: #ffffff;
+      background: linear-gradient(135deg, var(--accent-strong), var(--accent));
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      gap: 10px;
+      align-items: center;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      color: var(--accent-warm);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-size: 12px;
+    }
+
+    h1 {
+      margin: 16px 0 10px;
+      max-width: 820px;
+      font-size: clamp(2.5rem, 6vw, 4.8rem);
+      line-height: 0.96;
+      letter-spacing: -0.05em;
+    }
+
+    .hero p {
+      margin: 0;
+      max-width: 760px;
+      color: var(--muted);
+      font-size: 1rem;
+    }
+
+    .hero-grid {
+      margin-top: 22px;
+      display: grid;
+      grid-template-columns: minmax(0, 1.3fr) minmax(320px, 0.9fr);
+      gap: 18px;
+      align-items: start;
+    }
+
+    .card {
+      background: var(--panel);
+      border-radius: 22px;
+      padding: 18px;
+    }
+
+    .controls-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+      align-items: end;
+    }
+
+    .field {
+      display: grid;
+      gap: 8px;
+    }
+
+    .field label {
+      font-size: 12px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .field select {
+      min-height: 48px;
+      border-radius: 14px;
+      padding: 0 14px;
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .button-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .button-row button,
+    .full-btn {
+      min-height: 46px;
+      padding: 0 16px;
+      border-radius: 14px;
+      border: 1px solid transparent;
+      cursor: pointer;
+      transition: transform 0.18s ease, background 0.18s ease, border-color 0.18s ease;
+    }
+
+    .button-row button:hover:not(:disabled),
+    .full-btn:hover {
+      transform: translateY(-1px);
+    }
+
+    .button-row button:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+
+    .primary-btn {
+      color: #08251f;
+      background: linear-gradient(135deg, var(--accent), #b4fff0);
+      box-shadow: 0 14px 28px rgba(18, 156, 143, 0.2);
+    }
+
+    .secondary-btn,
+    .full-btn {
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.05);
+      border-color: rgba(255, 255, 255, 0.12);
+    }
+
+    .pill-list {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .pill {
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .note-list {
+      margin: 0;
+      padding-left: 18px;
+      display: grid;
+      gap: 10px;
+      color: var(--muted);
+    }
+
+    .main-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.4fr) minmax(320px, 0.82fr);
+      gap: 20px;
+      align-items: start;
+    }
+
+    .stage-panel,
+    .status-panel {
+      background: var(--panel);
+      border-radius: 28px;
+      padding: 18px;
+    }
+
+    .panel-topbar {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+    }
+
+    .panel-topbar h2,
+    .status-panel h2 {
+      margin: 0;
+      font-size: 1rem;
+      letter-spacing: 0.02em;
+    }
+
+    .live-indicator {
+      display: inline-flex;
+      gap: 8px;
+      align-items: center;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .live-indicator::before {
+      content: "";
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--danger);
+      box-shadow: 0 0 0 0 rgba(255, 125, 125, 0.42);
+    }
+
+    .live-indicator.active::before {
+      background: var(--accent);
+      animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+      0% {
+        box-shadow: 0 0 0 0 rgba(121, 240, 212, 0.45);
+      }
+      70% {
+        box-shadow: 0 0 0 12px rgba(121, 240, 212, 0);
+      }
+      100% {
+        box-shadow: 0 0 0 0 rgba(121, 240, 212, 0);
+      }
+    }
+
+    .stage {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 16 / 10;
+      overflow: hidden;
+      border-radius: 24px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      background:
+        radial-gradient(circle at top, rgba(47, 196, 235, 0.12), transparent 30%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.02));
+    }
+
+    .stage:fullscreen {
+      width: 100vw;
+      height: 100vh;
+      aspect-ratio: auto;
+      border-radius: 0;
+      border: 0;
+    }
+
+    .video-layer,
+    .board-layer,
+    .hud-layer {
+      position: absolute;
+      inset: 0;
+    }
+
+    .video-layer {
+      transform: scaleX(-1);
+      transform-origin: center;
+    }
+
+    video,
+    canvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+      object-fit: cover;
+    }
+
+    video {
+      background: #02060a;
+      z-index: 0;
+    }
+
+    #handCanvas,
+    #boardCanvas {
+      pointer-events: none;
+    }
+
+    #handCanvas {
+      z-index: 1;
+    }
+
+    #boardCanvas {
+      z-index: 2;
+    }
+
+    .video-shade {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(180deg, var(--video-tint), transparent 42%, rgba(0, 0, 0, 0.26));
+      z-index: 0;
+    }
+
+    .cursor-dot,
+    .grab-ring {
+      position: absolute;
+      translate: -50% -50%;
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 3;
+      opacity: 0;
+      transition: left 0.05s linear, top 0.05s linear, opacity 0.12s ease;
+    }
+
+    .cursor-dot.visible,
+    .grab-ring.visible {
+      opacity: 1;
+    }
+
+    .cursor-dot {
+      width: 18px;
+      height: 18px;
+      background: radial-gradient(circle at 35% 35%, #ffffff, var(--accent));
+      box-shadow: 0 0 24px rgba(121, 240, 212, 0.56);
+    }
+
+    .grab-ring {
+      width: 72px;
+      height: 72px;
+      border: 3px dashed rgba(255, 190, 111, 0.88);
+      background: rgba(255, 190, 111, 0.08);
+      box-shadow: 0 0 34px rgba(255, 190, 111, 0.16);
+    }
+
+    .grab-ring.active {
+      border-color: rgba(121, 240, 212, 0.92);
+      background: rgba(121, 240, 212, 0.12);
+      box-shadow: 0 0 34px rgba(121, 240, 212, 0.24);
+    }
+
+    .overlay-banner {
+      position: absolute;
+      left: 18px;
+      right: 18px;
+      bottom: 18px;
+      display: flex;
+      gap: 12px;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      pointer-events: none;
+      z-index: 4;
+    }
+
+    .overlay-badge {
+      padding: 10px 12px;
+      border-radius: 14px;
+      background: rgba(7, 14, 22, 0.72);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      color: #eef7ff;
+      font-size: 13px;
+      box-shadow: 0 14px 28px rgba(0, 0, 0, 0.18);
+    }
+
+    body[data-theme="light"] .overlay-badge {
+      color: #163151;
+      background: rgba(255, 250, 243, 0.84);
+    }
+
+    .status-panel {
+      display: grid;
+      gap: 16px;
+    }
+
+    .status-card {
+      display: grid;
+      gap: 10px;
+      padding: 16px;
+      border-radius: 20px;
+      background: var(--panel-soft);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .status-card h3 {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.92rem;
+      font-weight: 600;
+    }
+
+    .status-value {
+      font-size: 1.04rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    .status-value.small {
+      font-size: 0.95rem;
+      line-height: 1.45;
+      color: var(--muted);
+      white-space: pre-line;
+      font-weight: 600;
+    }
+
+    .status-chip-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .status-chip {
+      padding: 7px 10px;
+      border-radius: 999px;
+      background: rgba(121, 240, 212, 0.12);
+      color: var(--accent);
+      font-size: 12px;
+    }
+
+    .controls-mini {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      text-align: center;
+    }
+
+    .controls-mini span {
+      display: grid;
+      place-items: center;
+      min-height: 34px;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      color: var(--muted);
+    }
+
+    .controls-mini .wide {
+      grid-column: 1 / 4;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    @media (max-width: 1120px) {
+      .hero-grid,
+      .main-grid,
+      .controls-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 720px) {
+      body {
+        padding: 14px;
+      }
+
+      .hero,
+      .stage-panel,
+      .status-panel {
+        border-radius: 22px;
+        padding: 16px;
+      }
+
+      .overlay-banner {
+        left: 12px;
+        right: 12px;
+        bottom: 12px;
+      }
+
+      .toolbar {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+    }
+  </style>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-NWZDZ906DJ"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-NWZDZ906DJ');
+  </script>
+</head>
+<body data-theme="dark">
+  <div class="app-shell">
+    <section class="hero">
+      <div class="toolbar">
+        <div class="selector-group" aria-label="Language selector">
+          <button type="button" data-lang="en" class="active">EN</button>
+          <button type="button" data-lang="pt">PT</button>
+          <button type="button" data-lang="ja">JA</button>
+        </div>
+
+        <div class="selector-group" aria-label="Theme selector">
+          <button type="button" data-theme-btn="dark" class="active" data-i18n="themeDarkShort">Dark</button>
+          <button type="button" data-theme-btn="light" data-i18n="themeLightShort">Light</button>
+        </div>
+      </div>
+
+      <div class="eyebrow" data-i18n="eyebrow">Camera + pinch-driven Tetris</div>
+      <h1 data-i18n="heroTitle">Vision Tetris</h1>
+      <p data-i18n="heroIntro">The piece keeps falling, but your hand can grab it with a pinch, drag it sideways or down, and nudge it with an open palm swipe.</p>
+
+      <div class="hero-grid">
+        <div class="card">
+          <div class="controls-grid">
+            <div class="field">
+              <label for="speedSelect" data-i18n="speedLabel">Starting Speed</label>
+              <select id="speedSelect">
+                <option value="0" data-i18n="speedEasy">Easy</option>
+                <option value="2" data-i18n="speedNormal" selected>Normal</option>
+                <option value="4" data-i18n="speedFast">Fast</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label data-i18n="gameControlsLabel">Game Controls</label>
+              <div class="button-row">
+                <button id="startGameButton" class="primary-btn" type="button" data-i18n="startGameButton">Start Game</button>
+                <button id="pauseGameButton" class="secondary-btn" type="button" data-i18n="pauseGameButton">Pause</button>
+              </div>
+            </div>
+
+            <div class="field">
+              <label data-i18n="cameraControlsLabel">Camera Controls</label>
+              <div class="button-row">
+                <button id="startCameraButton" class="primary-btn" type="button" data-i18n="startCameraButton">Start Camera</button>
+                <button id="stopCameraButton" class="secondary-btn" type="button" disabled data-i18n="stopCameraButton">Stop Camera</button>
+              </div>
+            </div>
+
+            <div class="field">
+              <label data-i18n="quickNotesLabel">Quick Notes</label>
+              <div class="pill-list">
+                <div class="pill" data-i18n="pillPinch">Pinch to grab</div>
+                <div class="pill" data-i18n="pillPalm">Open palm nudges</div>
+                <div class="pill" data-i18n="pillTheme">Light and dark themes</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <aside class="card">
+          <ol class="note-list">
+            <li data-i18n="instruction1">Start the game first or just let the camera come online later.</li>
+            <li data-i18n="instruction2">Pinch over the falling piece to hold it, then drag left, right, or down.</li>
+            <li data-i18n="instruction3">Keep your palm open and sweep sideways to nudge the piece one column.</li>
+            <li data-i18n="instruction4">Webcam access usually needs localhost or HTTPS in modern browsers.</li>
+          </ol>
+        </aside>
+      </div>
+    </section>
+
+    <section class="main-grid">
+      <div class="stage-panel">
+        <div class="panel-topbar">
+          <h2 data-i18n="liveStageTitle">Live Stage</h2>
+          <div class="button-row">
+            <button id="fullscreenButton" class="full-btn" type="button" data-i18n="enterFullscreenButton">Full screen</button>
+            <div id="liveIndicator" class="live-indicator" data-i18n="cameraIdle">Camera idle</div>
+          </div>
+        </div>
+
+        <div id="stage" class="stage">
+          <div class="video-layer">
+            <video id="webcam" autoplay playsinline muted></video>
+            <div class="video-shade"></div>
+            <canvas id="handCanvas"></canvas>
+          </div>
+          <div class="board-layer">
+            <canvas id="boardCanvas"></canvas>
+          </div>
+          <div class="hud-layer">
+            <div id="cursorDot" class="cursor-dot"></div>
+            <div id="grabRing" class="grab-ring"></div>
+            <div class="overlay-banner">
+              <div id="gestureBadge" class="overlay-badge">Gesture waiting</div>
+              <div id="grabBadge" class="overlay-badge">Piece free</div>
+              <div id="gameBadge" class="overlay-badge">Game idle</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <aside class="status-panel">
+        <h2 data-i18n="statusPanelTitle">Control Panel</h2>
+
+        <div class="status-card">
+          <h3 data-i18n="sessionTitle">Session</h3>
+          <div id="cameraStatus" class="status-value">Camera stopped</div>
+          <div id="gameStatus" class="status-value small">Game ready. Press start when you want the first piece.</div>
+          <div class="status-chip-row">
+            <div id="fpsChip" class="status-chip">FPS: --</div>
+            <div id="themeChip" class="status-chip">Theme: Dark</div>
+            <div id="levelChip" class="status-chip">Level 1</div>
+          </div>
+        </div>
+
+        <div class="status-card">
+          <h3 data-i18n="scoreboardTitle">Scoreboard</h3>
+          <div id="scoreValue" class="status-value">0</div>
+          <div id="scoreDetails" class="status-value small">Lines 0
+Level 1
+Best move: none yet</div>
+        </div>
+
+        <div class="status-card">
+          <h3 data-i18n="handStatusTitle">Hand Status</h3>
+          <div id="handState" class="status-value">Waiting</div>
+          <div id="handDetails" class="status-value small">Start the camera to enable pinch controls.</div>
+        </div>
+
+        <div class="status-card">
+          <h3 data-i18n="controlsLegendTitle">Fallback Keys</h3>
+          <div class="controls-mini">
+            <span data-i18n="keyRotate">Up: Rotate</span>
+            <span data-i18n="keyLeft">Left</span>
+            <span data-i18n="keyRight">Right</span>
+            <span data-i18n="keyDown">Down</span>
+            <span class="wide" data-i18n="keySpace">Space: Hard drop</span>
+          </div>
+        </div>
+
+        <div class="status-card">
+          <h3 data-i18n="nextPieceTitle">Next Piece</h3>
+          <div id="nextPieceLabel" class="status-value">T</div>
+          <div id="nextPieceDetails" class="status-value small">Preview updates every time a new block enters.</div>
+        </div>
+      </aside>
+    </section>
+  </div>
+
+  <script type="module">
+    import { FilesetResolver, HandLandmarker } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14";
+
+    const COLS = 10;
+    const ROWS = 20;
+    const MODEL_URL = "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task";
+    const HAND_CONNECTIONS = [
+      [0, 1], [1, 2], [2, 3], [3, 4],
+      [0, 5], [5, 6], [6, 7], [7, 8],
+      [5, 9], [9, 10], [10, 11], [11, 12],
+      [9, 13], [13, 14], [14, 15], [15, 16],
+      [13, 17], [17, 18], [18, 19], [19, 20],
+      [0, 17],
+    ];
+
+    const PIECES = {
+      I: [[1, 1, 1, 1]],
+      O: [[1, 1], [1, 1]],
+      T: [[0, 1, 0], [1, 1, 1]],
+      L: [[0, 0, 1], [1, 1, 1]],
+      J: [[1, 0, 0], [1, 1, 1]],
+      S: [[0, 1, 1], [1, 1, 0]],
+      Z: [[1, 1, 0], [0, 1, 1]],
+    };
+
+    const COLORS = {
+      I: "#53e5ff",
+      O: "#ffcf61",
+      T: "#d291ff",
+      L: "#61a6ff",
+      J: "#ff954e",
+      S: "#74f8aa",
+      Z: "#ff6f7f",
+    };
+
+    const i18n = {
+      en: {
+        pageTitle: "Vision Tetris",
+        eyebrow: "Camera + pinch-driven Tetris",
+        heroTitle: "Vision Tetris",
+        heroIntro: "The piece keeps falling, but your hand can grab it with a pinch, drag it sideways or down, and rotate it by opening and closing the hand twice.",
+        themeDarkShort: "Dark",
+        themeLightShort: "Light",
+        speedLabel: "Starting Speed",
+        speedEasy: "Easy",
+        speedNormal: "Normal",
+        speedFast: "Fast",
+        gameControlsLabel: "Game Controls",
+        startGameButton: "Start Game",
+        restartGameButton: "Restart Game",
+        pauseGameButton: "Pause",
+        resumeGameButton: "Resume",
+        cameraControlsLabel: "Camera Controls",
+        startCameraButton: "Start Camera",
+        stopCameraButton: "Stop Camera",
+        quickNotesLabel: "Quick Notes",
+        pillPinch: "Pinch to grab",
+        pillPalm: "Open-close rotate",
+        pillTheme: "Light and dark themes",
+        instruction1: "Start the game first or just let the camera come online later.",
+        instruction2: "Pinch over the falling piece to hold it, then drag left, right, or down.",
+        instruction3: "Rotate by opening and closing the hand twice with short stable holds.",
+        instruction4: "Webcam access usually needs localhost or HTTPS in modern browsers.",
+        liveStageTitle: "Live Stage",
+        enterFullscreenButton: "Full screen",
+        exitFullscreenButton: "Exit full screen",
+        statusPanelTitle: "Control Panel",
+        sessionTitle: "Session",
+        scoreboardTitle: "Scoreboard",
+        handStatusTitle: "Hand Status",
+        controlsLegendTitle: "Fallback Keys",
+        nextPieceTitle: "Next Piece",
+        keyRotate: "Up: Rotate",
+        keyLeft: "Left",
+        keyRight: "Right",
+        keyDown: "Down",
+        keySpace: "Space: Hard drop",
+        cameraIdle: "Camera idle",
+        cameraLive: "Camera live",
+        cameraStopped: "Camera stopped",
+        cameraStarting: "Starting camera...",
+        cameraRunning: "Camera running",
+        gameReady: "Game ready. Press start when you want the first piece.",
+        gameRunning: "Piece falling. Use the keyboard or your hand.",
+        gamePaused: "Game paused. Resume to keep the stack moving.",
+        gameOver: "Game over. Start again to reset the stack.",
+        gameIdleBadge: "Game idle",
+        gameRunningBadge: "Game live",
+        gamePausedBadge: "Game paused",
+        gameOverBadge: "Game over",
+        gestureWaiting: "Gesture waiting",
+        gesturePinch: "Pinch active",
+        gestureOpenPalm: "Open palm",
+        gestureClosedFist: "Closed fist",
+        gesturePointing: "Pointing",
+        gestureDetected: "Hand detected",
+        gestureNone: "Waiting",
+        handPrompt: "Start the camera to enable pinch controls.",
+        handMissing: "No hand detected in frame.",
+        handPinchHelp: "Pinch near the active piece to grab it.",
+        handDragHelp: "Dragging piece. Lower motion speeds up the drop.",
+        handRotateHelp: "Open and close your hand twice with short stable holds to rotate the active piece.",
+        pieceFree: "Piece free",
+        pieceHeld: "Piece held",
+        pieceReleased: "Piece released",
+        pieceRotated: "Piece rotated",
+        pieceDropHelp: "Only downward drag is accepted while grabbed.",
+        scoreDetails: "Lines {lines}\nLevel {level}\nBest move: {move}",
+        bestMoveNone: "none yet",
+        levelChip: "Level {level}",
+        fpsPlaceholder: "FPS: --",
+        fpsValue: "FPS: {fps}",
+        themeChip: "Theme: {theme}",
+        themeDark: "Dark",
+        themeLight: "Light",
+        nextPieceDetails: "Preview updates every time a new block enters.",
+        nextPieceFallback: "Waiting",
+        secureContextWarning: "This page is not on localhost or HTTPS. Webcam access may be blocked.",
+        unsupportedBrowser: "Browser webcam access is not available.",
+        permissionDenied: "Camera permission was denied.",
+        noWebcamFound: "No webcam was found.",
+        webcamBusy: "The webcam is already in use.",
+        unableToStartCamera: "Unable to start the camera.",
+        linesLabel: "Lines",
+        levelLabel: "Level",
+        dragMove: "dragging",
+        rotateMove: "hand rotate",
+        gravityMove: "gravity",
+      },
+      pt: {
+        pageTitle: "Vision Tetris",
+        eyebrow: "Tetris com câmera e pinça",
+        heroTitle: "Vision Tetris",
+        heroIntro: "A peça continua caindo, mas sua mão pode pegá-la com uma pinça, arrastar para os lados ou para baixo e girá-la ao abrir e fechar a mão duas vezes.",
+        themeDarkShort: "Escuro",
+        themeLightShort: "Claro",
+        speedLabel: "Velocidade Inicial",
+        speedEasy: "Fácil",
+        speedNormal: "Normal",
+        speedFast: "Rápido",
+        gameControlsLabel: "Controles do Jogo",
+        startGameButton: "Iniciar Jogo",
+        restartGameButton: "Reiniciar Jogo",
+        pauseGameButton: "Pausar",
+        resumeGameButton: "Continuar",
+        cameraControlsLabel: "Controles da Câmera",
+        startCameraButton: "Iniciar Câmera",
+        stopCameraButton: "Parar Câmera",
+        quickNotesLabel: "Notas Rápidas",
+        pillPinch: "Pinça para pegar",
+        pillPalm: "Abrir e fechar gira",
+        pillTheme: "Temas claro e escuro",
+        instruction1: "Inicie o jogo primeiro ou ligue a câmera depois, como preferir.",
+        instruction2: "Faça pinça sobre a peça ativa para segurá-la e arraste para a esquerda, direita ou para baixo.",
+        instruction3: "Gire abrindo e fechando a mão duas vezes com pequenas pausas estáveis.",
+        instruction4: "O acesso à webcam normalmente exige localhost ou HTTPS nos navegadores modernos.",
+        liveStageTitle: "Palco Ao Vivo",
+        enterFullscreenButton: "Tela cheia",
+        exitFullscreenButton: "Sair da tela cheia",
+        statusPanelTitle: "Painel de Controle",
+        sessionTitle: "Sessão",
+        scoreboardTitle: "Placar",
+        handStatusTitle: "Status da Mão",
+        controlsLegendTitle: "Teclas de Apoio",
+        nextPieceTitle: "Próxima Peça",
+        keyRotate: "Cima: Girar",
+        keyLeft: "Esquerda",
+        keyRight: "Direita",
+        keyDown: "Baixo",
+        keySpace: "Espaço: Queda rápida",
+        cameraIdle: "Câmera inativa",
+        cameraLive: "Câmera ao vivo",
+        cameraStopped: "Câmera parada",
+        cameraStarting: "Iniciando câmera...",
+        cameraRunning: "Câmera em execução",
+        gameReady: "Jogo pronto. Pressione iniciar quando quiser a primeira peça.",
+        gameRunning: "Peça caindo. Use teclado ou mão.",
+        gamePaused: "Jogo pausado. Continue para manter a pilha em movimento.",
+        gameOver: "Fim de jogo. Inicie de novo para resetar a pilha.",
+        gameIdleBadge: "Jogo parado",
+        gameRunningBadge: "Jogo ativo",
+        gamePausedBadge: "Jogo pausado",
+        gameOverBadge: "Fim de jogo",
+        gestureWaiting: "Aguardando gesto",
+        gesturePinch: "Pinça ativa",
+        gestureOpenPalm: "Palma aberta",
+        gestureClosedFist: "Punho fechado",
+        gesturePointing: "Apontando",
+        gestureDetected: "Mão detectada",
+        gestureNone: "Aguardando",
+        handPrompt: "Inicie a câmera para ativar os controles por pinça.",
+        handMissing: "Nenhuma mão detectada no quadro.",
+        handPinchHelp: "Faça pinça perto da peça ativa para pegá-la.",
+        handDragHelp: "Arrastando peça. Mover para baixo acelera a queda.",
+        handRotateHelp: "Abra e feche a mão duas vezes com pequenas pausas estáveis para girar a peça ativa.",
+        pieceFree: "Peça livre",
+        pieceHeld: "Peça segurada",
+        pieceReleased: "Peça solta",
+        pieceRotated: "Peça girada",
+        pieceDropHelp: "Enquanto segura, apenas arrasto para baixo é aceito.",
+        scoreDetails: "Linhas {lines}\nNível {level}\nMelhor movimento: {move}",
+        bestMoveNone: "ainda nenhum",
+        levelChip: "Nível {level}",
+        fpsPlaceholder: "FPS: --",
+        fpsValue: "FPS: {fps}",
+        themeChip: "Tema: {theme}",
+        themeDark: "Escuro",
+        themeLight: "Claro",
+        nextPieceDetails: "A prévia atualiza sempre que uma nova peça entra.",
+        nextPieceFallback: "Aguardando",
+        secureContextWarning: "Esta página não está em localhost nem HTTPS. O acesso à webcam pode ser bloqueado.",
+        unsupportedBrowser: "O acesso à webcam não está disponível neste navegador.",
+        permissionDenied: "A permissão da câmera foi negada.",
+        noWebcamFound: "Nenhuma webcam foi encontrada.",
+        webcamBusy: "A webcam já está em uso.",
+        unableToStartCamera: "Não foi possível iniciar a câmera.",
+        linesLabel: "Linhas",
+        levelLabel: "Nível",
+        dragMove: "arrasto",
+        rotateMove: "giro com a mão",
+        gravityMove: "gravidade",
+      },
+      ja: {
+        pageTitle: "Vision Tetris",
+        eyebrow: "カメラとピンチで遊ぶテトリス",
+        heroTitle: "Vision Tetris",
+        heroIntro: "ピースは通常どおり落下しますが、手のピンチでつかみ、左右や下にドラッグし、手を2回開閉することで回転できます。",
+        themeDarkShort: "ダーク",
+        themeLightShort: "ライト",
+        speedLabel: "開始スピード",
+        speedEasy: "やさしい",
+        speedNormal: "標準",
+        speedFast: "速い",
+        gameControlsLabel: "ゲーム操作",
+        startGameButton: "ゲーム開始",
+        restartGameButton: "ゲーム再開",
+        pauseGameButton: "一時停止",
+        resumeGameButton: "再開",
+        cameraControlsLabel: "カメラ操作",
+        startCameraButton: "カメラ開始",
+        stopCameraButton: "カメラ停止",
+        quickNotesLabel: "クイックメモ",
+        pillPinch: "ピンチでつかむ",
+        pillPalm: "開閉で回転",
+        pillTheme: "ライトとダークテーマ",
+        instruction1: "先にゲームを始めても、あとでカメラを有効にしても構いません。",
+        instruction2: "落下中のピースの上でピンチすると保持でき、左右または下にドラッグできます。",
+        instruction3: "手を2回開閉し、それぞれを少し安定させると回転します。",
+        instruction4: "最近のブラウザではウェブカメラの使用に localhost または HTTPS が必要です。",
+        liveStageTitle: "ライブステージ",
+        enterFullscreenButton: "全画面",
+        exitFullscreenButton: "全画面終了",
+        statusPanelTitle: "コントロールパネル",
+        sessionTitle: "セッション",
+        scoreboardTitle: "スコア",
+        handStatusTitle: "手の状態",
+        controlsLegendTitle: "補助キー",
+        nextPieceTitle: "次のピース",
+        keyRotate: "上: 回転",
+        keyLeft: "左",
+        keyRight: "右",
+        keyDown: "下",
+        keySpace: "Space: ハードドロップ",
+        cameraIdle: "カメラ待機中",
+        cameraLive: "カメラ稼働中",
+        cameraStopped: "カメラ停止",
+        cameraStarting: "カメラを起動しています...",
+        cameraRunning: "カメラ動作中",
+        gameReady: "ゲーム準備完了。最初のピースを出したい時に開始してください。",
+        gameRunning: "ピース落下中。キーボードか手を使えます。",
+        gamePaused: "ゲームは一時停止中です。再開すると落下が続きます。",
+        gameOver: "ゲームオーバー。もう一度開始して積み上がりをリセットします。",
+        gameIdleBadge: "ゲーム待機",
+        gameRunningBadge: "ゲーム進行中",
+        gamePausedBadge: "ゲーム一時停止",
+        gameOverBadge: "ゲームオーバー",
+        gestureWaiting: "ジェスチャー待機中",
+        gesturePinch: "ピンチ中",
+        gestureOpenPalm: "開いた手",
+        gestureClosedFist: "握りこぶし",
+        gesturePointing: "指差し",
+        gestureDetected: "手を検出",
+        gestureNone: "待機中",
+        handPrompt: "カメラを開始するとピンチ操作が有効になります。",
+        handMissing: "フレーム内に手が見つかりません。",
+        handPinchHelp: "落下中のピースの近くでピンチするとつかめます。",
+        handDragHelp: "ピースをドラッグ中。下方向へ動かすほど落下が速くなります。",
+        handRotateHelp: "手を2回開閉し、それぞれを少し安定させるとアクティブなピースを回転できます。",
+        pieceFree: "ピース未保持",
+        pieceHeld: "ピース保持中",
+        pieceReleased: "ピースを離しました",
+        pieceRotated: "ピースを回転しました",
+        pieceDropHelp: "保持中は下方向へのドラッグのみ受け付けます。",
+        scoreDetails: "ライン {lines}\nレベル {level}\nベスト操作: {move}",
+        bestMoveNone: "まだありません",
+        levelChip: "レベル {level}",
+        fpsPlaceholder: "FPS: --",
+        fpsValue: "FPS: {fps}",
+        themeChip: "テーマ: {theme}",
+        themeDark: "ダーク",
+        themeLight: "ライト",
+        nextPieceDetails: "新しいピースが入るたびにプレビューが更新されます。",
+        nextPieceFallback: "待機中",
+        secureContextWarning: "このページは localhost または HTTPS ではありません。ウェブカメラがブロックされる可能性があります。",
+        unsupportedBrowser: "このブラウザではウェブカメラを利用できません。",
+        permissionDenied: "カメラ権限が拒否されました。",
+        noWebcamFound: "ウェブカメラが見つかりません。",
+        webcamBusy: "ウェブカメラは他のアプリで使用中です。",
+        unableToStartCamera: "カメラを開始できませんでした。",
+        linesLabel: "ライン",
+        levelLabel: "レベル",
+        dragMove: "ドラッグ",
+        rotateMove: "手で回転",
+        gravityMove: "重力",
+      },
+    };
+
+    const elements = {
+      body: document.body,
+      stage: document.getElementById("stage"),
+      video: document.getElementById("webcam"),
+      handCanvas: document.getElementById("handCanvas"),
+      boardCanvas: document.getElementById("boardCanvas"),
+      startGameButton: document.getElementById("startGameButton"),
+      pauseGameButton: document.getElementById("pauseGameButton"),
+      startCameraButton: document.getElementById("startCameraButton"),
+      stopCameraButton: document.getElementById("stopCameraButton"),
+      fullscreenButton: document.getElementById("fullscreenButton"),
+      speedSelect: document.getElementById("speedSelect"),
+      liveIndicator: document.getElementById("liveIndicator"),
+      cameraStatus: document.getElementById("cameraStatus"),
+      gameStatus: document.getElementById("gameStatus"),
+      fpsChip: document.getElementById("fpsChip"),
+      themeChip: document.getElementById("themeChip"),
+      levelChip: document.getElementById("levelChip"),
+      scoreValue: document.getElementById("scoreValue"),
+      scoreDetails: document.getElementById("scoreDetails"),
+      handState: document.getElementById("handState"),
+      handDetails: document.getElementById("handDetails"),
+      nextPieceLabel: document.getElementById("nextPieceLabel"),
+      nextPieceDetails: document.getElementById("nextPieceDetails"),
+      gestureBadge: document.getElementById("gestureBadge"),
+      grabBadge: document.getElementById("grabBadge"),
+      gameBadge: document.getElementById("gameBadge"),
+      cursorDot: document.getElementById("cursorDot"),
+      grabRing: document.getElementById("grabRing"),
+      langButtons: Array.from(document.querySelectorAll("[data-lang]")),
+      themeButtons: Array.from(document.querySelectorAll("[data-theme-btn]")),
+    };
+
+    const handContext = elements.handCanvas.getContext("2d");
+    const boardContext = elements.boardCanvas.getContext("2d");
+
+    const appState = {
+      currentLanguage: localStorage.getItem("vision_tetris_lang") || "en",
+      currentTheme: localStorage.getItem("vision_tetris_theme") || "dark",
+      stream: null,
+      animationFrameId: 0,
+      detectionFrameId: 0,
+      visionResolver: null,
+      handLandmarker: null,
+      cameraRunning: false,
+      board: createGrid(),
+      currentPiece: null,
+      nextPiece: null,
+      score: 0,
+      lines: 0,
+      level: 1,
+      gameStarted: false,
+      paused: false,
+      gameOver: false,
+      dropCounter: 0,
+      lastGameTime: 0,
+      lastVideoTime: -1,
+      frameCount: 0,
+      fps: 0,
+      fpsTime: performance.now(),
+      boardRect: { x: 0, y: 0, width: 0, height: 0, block: 0 },
+      hand: {
+        result: null,
+        gestureKey: "gestureNone",
+        gestureLabelKey: "gestureWaiting",
+        pinchActive: false,
+        pinchReleased: true,
+        pinchDistance: Infinity,
+        rawPoint: null,
+        point: null,
+        lastSeenAt: 0,
+        candidateGestureKey: "gestureNone",
+        candidateGestureFrames: 0,
+        confirmedGestureKey: "gestureNone",
+        stablePoseKey: "gestureNone",
+        rotateAlternations: 0,
+        rotateLastPoseKey: "gestureNone",
+        rotatePatternExpiresAt: 0,
+        rotateCooldownUntil: 0,
+      },
+      grab: {
+        active: false,
+        offsetCol: 0,
+        offsetRow: 0,
+        lastStateKey: "pieceFree",
+      },
+      lastMoveKey: "bestMoveNone",
+    };
+
+    function t(key, vars = {}) {
+      const source = i18n[appState.currentLanguage] || i18n.en;
+      const template = source[key] || i18n.en[key] || key;
+      return template.replace(/\{(\w+)\}/g, (_, name) => String(vars[name] ?? ""));
+    }
+
+    function createGrid() {
+      return Array.from({ length: ROWS }, () => Array(COLS).fill(0));
+    }
+
+    function cloneShape(shape) {
+      return shape.map((row) => row.slice());
+    }
+
+    function createPiece() {
+      const types = Object.keys(PIECES);
+      const type = types[Math.floor(Math.random() * types.length)];
+      return {
+        type,
+        color: COLORS[type],
+        shape: cloneShape(PIECES[type]),
+        x: 0,
+        y: 0,
+      };
+    }
+
+    function clamp(value, min, max) {
+      return Math.min(max, Math.max(min, value));
+    }
+
+    function isSecureOrLocalhost() {
+      return window.isSecureContext || location.hostname === "localhost" || location.hostname === "127.0.0.1";
+    }
+
+    function rotateShape(shape) {
+      return shape[0].map((_, columnIndex) => shape.map((row) => row[columnIndex]).reverse());
+    }
+
+    function getPieceCells(piece) {
+      const cells = [];
+      piece.shape.forEach((row, y) => {
+        row.forEach((value, x) => {
+          if (value) {
+            cells.push({ x: piece.x + x, y: piece.y + y });
+          }
+        });
+      });
+      return cells;
+    }
+
+    function hasCollision(shape, x, y) {
+      for (let row = 0; row < shape.length; row += 1) {
+        for (let column = 0; column < shape[row].length; column += 1) {
+          if (!shape[row][column]) {
+            continue;
+          }
+          const nextX = x + column;
+          const nextY = y + row;
+          if (nextX < 0 || nextX >= COLS || nextY >= ROWS) {
+            return true;
+          }
+          if (nextY >= 0 && appState.board[nextY][nextX]) {
+            return true;
+          }
+        }
+      }
+      return false;
+    }
+
+    function spawnPiece() {
+      if (!appState.nextPiece) {
+        appState.nextPiece = createPiece();
+      }
+      appState.currentPiece = appState.nextPiece;
+      appState.nextPiece = createPiece();
+      appState.currentPiece.x = Math.floor(COLS / 2) - Math.floor(appState.currentPiece.shape[0].length / 2);
+      appState.currentPiece.y = 0;
+      if (hasCollision(appState.currentPiece.shape, appState.currentPiece.x, appState.currentPiece.y)) {
+        appState.gameOver = true;
+        appState.paused = false;
+      }
+      updateNextPieceUI();
+    }
+
+    function lockPiece() {
+      if (!appState.currentPiece) {
+        return;
+      }
+      appState.currentPiece.shape.forEach((row, y) => {
+        row.forEach((value, x) => {
+          if (value) {
+            const targetY = appState.currentPiece.y + y;
+            const targetX = appState.currentPiece.x + x;
+            if (targetY >= 0 && targetY < ROWS && targetX >= 0 && targetX < COLS) {
+              appState.board[targetY][targetX] = appState.currentPiece.color;
+            }
+          }
+        });
+      });
+      clearLines();
+      appState.grab.active = false;
+      appState.grab.lastStateKey = "pieceReleased";
+      spawnPiece();
+    }
+
+    function clearLines() {
+      let cleared = 0;
+      for (let row = ROWS - 1; row >= 0; row -= 1) {
+        if (appState.board[row].every(Boolean)) {
+          appState.board.splice(row, 1);
+          appState.board.unshift(Array(COLS).fill(0));
+          cleared += 1;
+          row += 1;
+        }
+      }
+
+      if (cleared > 0) {
+        appState.lines += cleared;
+        const lineScores = [0, 40, 100, 300, 1200];
+        appState.score += lineScores[cleared] * appState.level;
+        appState.level = Math.floor((Number(elements.speedSelect.value) + appState.lines) / 10) + 1;
+      }
+    }
+
+    function movePiece(deltaX, deltaY, moveKey = "gravityMove") {
+      if (!appState.currentPiece || appState.gameOver) {
+        return false;
+      }
+
+      const nextX = appState.currentPiece.x + deltaX;
+      const nextY = appState.currentPiece.y + deltaY;
+      if (hasCollision(appState.currentPiece.shape, nextX, nextY)) {
+        return false;
+      }
+
+      appState.currentPiece.x = nextX;
+      appState.currentPiece.y = nextY;
+      appState.lastMoveKey = moveKey;
+      return true;
+    }
+
+    function rotatePiece() {
+      if (!appState.currentPiece || appState.gameOver || appState.paused) {
+        return false;
+      }
+      const rotated = rotateShape(appState.currentPiece.shape);
+      if (!hasCollision(rotated, appState.currentPiece.x, appState.currentPiece.y)) {
+        appState.currentPiece.shape = rotated;
+        appState.lastMoveKey = "rotateMove";
+        return true;
+      }
+      return false;
+    }
+
+    function hardDrop() {
+      if (!appState.currentPiece || appState.gameOver || appState.paused) {
+        return;
+      }
+      while (movePiece(0, 1, "gravityMove")) {
+        // keep dropping
+      }
+      lockPiece();
+    }
+
+    function startGame() {
+      appState.board = createGrid();
+      appState.currentPiece = null;
+      appState.nextPiece = null;
+      appState.score = 0;
+      appState.lines = 0;
+      appState.level = Number(elements.speedSelect.value) + 1;
+      appState.dropCounter = 0;
+      appState.lastGameTime = 0;
+      appState.gameStarted = true;
+      appState.paused = false;
+      appState.gameOver = false;
+      appState.grab.active = false;
+      appState.grab.lastStateKey = "pieceFree";
+      appState.lastMoveKey = "bestMoveNone";
+      spawnPiece();
+      updateGameUI();
+      elements.startGameButton.textContent = t("restartGameButton");
+      elements.pauseGameButton.textContent = t("pauseGameButton");
+      if (!appState.animationFrameId) {
+        appState.animationFrameId = requestAnimationFrame(gameLoop);
+      }
+    }
+
+    function togglePause() {
+      if (!appState.gameStarted || appState.gameOver) {
+        return;
+      }
+      appState.paused = !appState.paused;
+      elements.pauseGameButton.textContent = t(appState.paused ? "resumeGameButton" : "pauseGameButton");
+      updateGameUI();
+    }
+
+    function getDropInterval() {
+      return Math.max(180, 940 - (appState.level - 1) * 70);
+    }
+
+    function gameLoop(timestamp = 0) {
+      if (!appState.gameStarted) {
+        appState.animationFrameId = requestAnimationFrame(gameLoop);
+        drawBoard();
+        return;
+      }
+
+      const delta = timestamp - appState.lastGameTime;
+      appState.lastGameTime = timestamp;
+
+      if (!appState.paused && !appState.gameOver) {
+        appState.dropCounter += delta;
+        if (appState.dropCounter >= getDropInterval()) {
+          if (!movePiece(0, 1, "gravityMove")) {
+            lockPiece();
+          }
+          appState.dropCounter = 0;
+        }
+      }
+
+      drawBoard();
+      updateGameUI();
+      appState.animationFrameId = requestAnimationFrame(gameLoop);
+    }
+
+    function resizeCanvases() {
+      const videoWidth = elements.video.videoWidth || 1280;
+      const videoHeight = elements.video.videoHeight || 720;
+      if (elements.handCanvas.width !== videoWidth || elements.handCanvas.height !== videoHeight) {
+        elements.handCanvas.width = videoWidth;
+        elements.handCanvas.height = videoHeight;
+      }
+      if (elements.boardCanvas.width !== videoWidth || elements.boardCanvas.height !== videoHeight) {
+        elements.boardCanvas.width = videoWidth;
+        elements.boardCanvas.height = videoHeight;
+      }
+      const block = Math.min(videoHeight * 0.043, videoWidth * 0.052);
+      const playfieldWidth = block * COLS;
+      const playfieldHeight = block * ROWS;
+      appState.boardRect = {
+        x: Math.round((videoWidth - playfieldWidth) / 2),
+        y: Math.round((videoHeight - playfieldHeight) / 2),
+        width: playfieldWidth,
+        height: playfieldHeight,
+        block,
+      };
+    }
+
+    function drawRoundedRect(context, x, y, width, height, radius) {
+      context.beginPath();
+      context.roundRect(x, y, width, height, radius);
+      context.fill();
+    }
+
+    function drawBlock(context, x, y, color, blockSize) {
+      context.fillStyle = color;
+      drawRoundedRect(context, x + 1.5, y + 1.5, blockSize - 3, blockSize - 3, 7);
+      context.fillStyle = "rgba(255, 255, 255, 0.12)";
+      drawRoundedRect(context, x + 4, y + 4, blockSize - 12, Math.max(6, blockSize * 0.24), 5);
+    }
+
+    function drawBoard() {
+      boardContext.clearRect(0, 0, elements.boardCanvas.width, elements.boardCanvas.height);
+      const { x, y, width, height, block } = appState.boardRect;
+
+      boardContext.save();
+      boardContext.fillStyle = getComputedStyle(document.body).getPropertyValue("--playfield");
+      drawRoundedRect(boardContext, x - 14, y - 14, width + 28, height + 28, 24);
+      boardContext.strokeStyle = getComputedStyle(document.body).getPropertyValue("--border");
+      boardContext.lineWidth = 1.4;
+      boardContext.strokeRect(x, y, width, height);
+
+      boardContext.fillStyle = getComputedStyle(document.body).getPropertyValue("--playfield-glow");
+      drawRoundedRect(boardContext, x - 2, y - 2, width + 4, height + 4, 20);
+
+      boardContext.strokeStyle = getComputedStyle(document.body).getPropertyValue("--grid-line");
+      boardContext.lineWidth = 1;
+      for (let col = 1; col < COLS; col += 1) {
+        const columnX = x + col * block;
+        boardContext.beginPath();
+        boardContext.moveTo(columnX, y);
+        boardContext.lineTo(columnX, y + height);
+        boardContext.stroke();
+      }
+      for (let row = 1; row < ROWS; row += 1) {
+        const rowY = y + row * block;
+        boardContext.beginPath();
+        boardContext.moveTo(x, rowY);
+        boardContext.lineTo(x + width, rowY);
+        boardContext.stroke();
+      }
+
+      appState.board.forEach((row, rowIndex) => {
+        row.forEach((cell, colIndex) => {
+          if (!cell) {
+            return;
+          }
+          drawBlock(boardContext, x + colIndex * block, y + rowIndex * block, cell, block);
+        });
+      });
+
+      if (appState.currentPiece) {
+        appState.currentPiece.shape.forEach((row, rowIndex) => {
+          row.forEach((value, colIndex) => {
+            if (!value) {
+              return;
+            }
+            drawBlock(
+              boardContext,
+              x + (appState.currentPiece.x + colIndex) * block,
+              y + (appState.currentPiece.y + rowIndex) * block,
+              appState.currentPiece.color,
+              block,
+            );
+          });
+        });
+      }
+
+      boardContext.fillStyle = "rgba(255, 255, 255, 0.94)";
+      boardContext.font = "700 18px Space Grotesk, Segoe UI, sans-serif";
+      boardContext.fillText("VISION", x - 6, y - 24);
+      boardContext.fillText("TETRIS", x + width - 72, y - 24);
+
+      if (appState.paused && !appState.gameOver && appState.gameStarted) {
+        boardContext.fillStyle = "rgba(0, 0, 0, 0.44)";
+        boardContext.fillRect(x, y, width, height);
+        boardContext.fillStyle = "rgba(255, 255, 255, 0.96)";
+        boardContext.font = "700 36px Space Grotesk, Segoe UI, sans-serif";
+        boardContext.textAlign = "center";
+        boardContext.fillText(t("gamePausedBadge"), x + width / 2, y + height / 2);
+        boardContext.textAlign = "start";
+      }
+
+      if (appState.gameOver) {
+        boardContext.fillStyle = "rgba(0, 0, 0, 0.54)";
+        boardContext.fillRect(x, y, width, height);
+        boardContext.fillStyle = "rgba(255, 255, 255, 0.97)";
+        boardContext.font = "700 34px Space Grotesk, Segoe UI, sans-serif";
+        boardContext.textAlign = "center";
+        boardContext.fillText(t("gameOverBadge"), x + width / 2, y + height / 2 - 8);
+        boardContext.font = "500 18px Space Grotesk, Segoe UI, sans-serif";
+        boardContext.fillText(t("startGameButton"), x + width / 2, y + height / 2 + 24);
+        boardContext.textAlign = "start";
+      }
+      boardContext.restore();
+    }
+
+    function drawHandPoint(point, color, radius = 4) {
+      handContext.beginPath();
+      handContext.arc(point.x * elements.handCanvas.width, point.y * elements.handCanvas.height, radius, 0, Math.PI * 2);
+      handContext.fillStyle = color;
+      handContext.fill();
+    }
+
+    function drawHandConnections(landmarks) {
+      handContext.strokeStyle = "rgba(121, 240, 212, 0.9)";
+      handContext.lineWidth = 2.4;
+      handContext.beginPath();
+      for (const [startIndex, endIndex] of HAND_CONNECTIONS) {
+        const start = landmarks[startIndex];
+        const end = landmarks[endIndex];
+        if (!start || !end) {
+          continue;
+        }
+        handContext.moveTo(start.x * elements.handCanvas.width, start.y * elements.handCanvas.height);
+        handContext.lineTo(end.x * elements.handCanvas.width, end.y * elements.handCanvas.height);
+      }
+      handContext.stroke();
+    }
+
+    function midpoint(a, b) {
+      return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+    }
+
+    function distanceBetween(a, b) {
+      return Math.hypot(a.x - b.x, a.y - b.y);
+    }
+
+    function isFingerExtended(landmarks, tipIndex, pipIndex) {
+      return landmarks[tipIndex].y < landmarks[pipIndex].y;
+    }
+
+    function classifyGesture(landmarks) {
+      const thumbTip = landmarks[4];
+      const thumbIp = landmarks[3];
+      const thumbMcp = landmarks[2];
+      const indexExtended = isFingerExtended(landmarks, 8, 6);
+      const middleExtended = isFingerExtended(landmarks, 12, 10);
+      const ringExtended = isFingerExtended(landmarks, 16, 14);
+      const pinkyExtended = isFingerExtended(landmarks, 20, 18);
+      const thumbExtended = Math.abs(thumbTip.x - thumbMcp.x) > 0.09 || thumbTip.y < thumbIp.y;
+      const extendedCount = [indexExtended, middleExtended, ringExtended, pinkyExtended].filter(Boolean).length + (thumbExtended ? 1 : 0);
+
+      if (extendedCount >= 3) {
+        return "gestureOpenPalm";
+      }
+      if (extendedCount <= 1) {
+        return "gestureClosedFist";
+      }
+      if (indexExtended && !middleExtended && !ringExtended && !pinkyExtended) {
+        return "gesturePointing";
+      }
+      return "gestureDetected";
+    }
+
+    function getScreenPoint(point) {
+      return { x: 1 - point.x, y: point.y };
+    }
+
+    function updateCursor(point, pinchActive) {
+      if (!point) {
+        elements.cursorDot.classList.remove("visible");
+        elements.grabRing.classList.remove("visible", "active");
+        return;
+      }
+      elements.cursorDot.style.left = `${clamp(point.x * 100, 0, 100)}%`;
+      elements.cursorDot.style.top = `${clamp(point.y * 100, 0, 100)}%`;
+      elements.grabRing.style.left = `${clamp(point.x * 100, 0, 100)}%`;
+      elements.grabRing.style.top = `${clamp(point.y * 100, 0, 100)}%`;
+      elements.cursorDot.classList.add("visible");
+      elements.grabRing.classList.add("visible");
+      elements.grabRing.classList.toggle("active", pinchActive);
+    }
+
+    function getBoardCellFromPoint(point) {
+      const { x, y, block } = appState.boardRect;
+      return {
+        col: Math.floor((point.x * elements.boardCanvas.width - x) / block),
+        row: Math.floor((point.y * elements.boardCanvas.height - y) / block),
+      };
+    }
+
+    function tryGrabPiece(point) {
+      if (!appState.currentPiece || !point) {
+        return;
+      }
+
+      const targetCell = getBoardCellFromPoint(point);
+      const localCell = getPieceCells(appState.currentPiece).find((cell) => cell.x === targetCell.col && cell.y === targetCell.row);
+      if (!localCell) {
+        return;
+      }
+
+      appState.grab.active = true;
+      appState.grab.offsetCol = targetCell.col - appState.currentPiece.x;
+      appState.grab.offsetRow = targetCell.row - appState.currentPiece.y;
+      appState.grab.lastStateKey = "pieceHeld";
+    }
+
+    function applyGrabMovement(point) {
+      if (!appState.grab.active || !appState.currentPiece || !point) {
+        return;
+      }
+
+      const targetCell = getBoardCellFromPoint(point);
+      const desiredX = clamp(targetCell.col - appState.grab.offsetCol, -2, COLS - 1);
+      const desiredY = Math.max(appState.currentPiece.y, targetCell.row - appState.grab.offsetRow);
+
+      if (!hasCollision(appState.currentPiece.shape, desiredX, desiredY)) {
+        appState.currentPiece.x = desiredX;
+        appState.currentPiece.y = desiredY;
+        appState.lastMoveKey = "dragMove";
+        return;
+      }
+
+      if (!hasCollision(appState.currentPiece.shape, desiredX, appState.currentPiece.y)) {
+        appState.currentPiece.x = desiredX;
+        appState.lastMoveKey = "dragMove";
+      }
+      if (!hasCollision(appState.currentPiece.shape, appState.currentPiece.x, desiredY)) {
+        appState.currentPiece.y = desiredY;
+        appState.lastMoveKey = "dragMove";
+      }
+    }
+
+    function updateConfirmedGesture(gestureKey) {
+      if (gestureKey === appState.hand.candidateGestureKey) {
+        appState.hand.candidateGestureFrames += 1;
+      } else {
+        appState.hand.candidateGestureKey = gestureKey;
+        appState.hand.candidateGestureFrames = 1;
+      }
+
+      if (appState.hand.candidateGestureFrames >= 4) {
+        appState.hand.confirmedGestureKey = gestureKey;
+      }
+    }
+
+    function maybeApplyRotateSequence(gestureKey, now) {
+      if (!appState.currentPiece || appState.gameOver || appState.paused || now < appState.hand.rotateCooldownUntil) {
+        return;
+      }
+
+      if (gestureKey !== "gestureOpenPalm" && gestureKey !== "gestureClosedFist") {
+        return;
+      }
+
+      if (now > appState.hand.rotatePatternExpiresAt) {
+        appState.hand.rotateAlternations = 0;
+        appState.hand.rotateLastPoseKey = "gestureNone";
+      }
+
+      if (gestureKey === appState.hand.rotateLastPoseKey) {
+        return;
+      }
+
+      if (appState.hand.rotateLastPoseKey === "gestureNone") {
+        appState.hand.rotateLastPoseKey = gestureKey;
+        appState.hand.rotateAlternations = 0;
+        appState.hand.rotatePatternExpiresAt = now + 1800;
+        return;
+      }
+
+      appState.hand.rotateLastPoseKey = gestureKey;
+      appState.hand.rotateAlternations += 1;
+      appState.hand.rotatePatternExpiresAt = now + 1800;
+
+      if (appState.hand.rotateAlternations >= 3) {
+        if (rotatePiece()) {
+          appState.grab.lastStateKey = "pieceRotated";
+        }
+        appState.hand.rotateAlternations = 0;
+        appState.hand.rotateLastPoseKey = "gestureNone";
+        appState.hand.rotatePatternExpiresAt = 0;
+        appState.hand.rotateCooldownUntil = now + 550;
+      }
+    }
+
+    function updateHandStatus() {
+      const gestureLabel = t(appState.hand.gestureLabelKey);
+      elements.handState.textContent = gestureLabel;
+
+      if (!appState.cameraRunning) {
+        elements.handDetails.textContent = isSecureOrLocalhost() ? t("handPrompt") : t("secureContextWarning");
+        elements.gestureBadge.textContent = t("gestureWaiting");
+        elements.grabBadge.textContent = t("pieceFree");
+        return;
+      }
+
+      if (!appState.hand.result?.landmarks?.length) {
+        elements.handDetails.textContent = t("handMissing");
+        elements.gestureBadge.textContent = t("gestureWaiting");
+        elements.grabBadge.textContent = t(appState.grab.lastStateKey);
+        return;
+      }
+
+      if (appState.grab.active) {
+        elements.handDetails.textContent = `${t("handDragHelp")} ${t("pieceDropHelp")}`;
+      } else if (appState.hand.gestureLabelKey === "gestureClosedFist") {
+        elements.handDetails.textContent = t("handRotateHelp");
+      } else if (appState.hand.pinchActive) {
+        elements.handDetails.textContent = t("handPinchHelp");
+      } else {
+        elements.handDetails.textContent = `${t("handPinchHelp")} ${t("handRotateHelp")}`;
+      }
+
+      elements.gestureBadge.textContent = gestureLabel;
+      elements.grabBadge.textContent = t(appState.grab.lastStateKey);
+    }
+
+    function updateScoreUI() {
+      elements.scoreValue.textContent = String(appState.score);
+      elements.scoreDetails.textContent = t("scoreDetails", {
+        lines: appState.lines,
+        level: appState.level,
+        move: t(appState.lastMoveKey),
+      });
+      elements.levelChip.textContent = t("levelChip", { level: appState.level });
+    }
+
+    function updateNextPieceUI() {
+      elements.nextPieceLabel.textContent = appState.nextPiece?.type || t("nextPieceFallback");
+      elements.nextPieceDetails.textContent = t("nextPieceDetails");
+    }
+
+    function updateGameUI() {
+      updateScoreUI();
+      if (!appState.gameStarted) {
+        elements.gameStatus.textContent = t("gameReady");
+        elements.gameBadge.textContent = t("gameIdleBadge");
+      } else if (appState.gameOver) {
+        elements.gameStatus.textContent = t("gameOver");
+        elements.gameBadge.textContent = t("gameOverBadge");
+      } else if (appState.paused) {
+        elements.gameStatus.textContent = t("gamePaused");
+        elements.gameBadge.textContent = t("gamePausedBadge");
+      } else {
+        elements.gameStatus.textContent = t("gameRunning");
+        elements.gameBadge.textContent = t("gameRunningBadge");
+      }
+      updateHandStatus();
+    }
+
+    function updateFps(now) {
+      appState.frameCount += 1;
+      const elapsed = now - appState.fpsTime;
+      if (elapsed >= 500) {
+        appState.fps = (appState.frameCount * 1000) / elapsed;
+        appState.frameCount = 0;
+        appState.fpsTime = now;
+        elements.fpsChip.textContent = t("fpsValue", { fps: appState.fps.toFixed(1) });
+      }
+    }
+
+    async function ensureHandLandmarker() {
+      if (!appState.visionResolver) {
+        appState.visionResolver = await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm");
+      }
+      if (!appState.handLandmarker) {
+        appState.handLandmarker = await HandLandmarker.createFromOptions(appState.visionResolver, {
+          baseOptions: { modelAssetPath: MODEL_URL },
+          runningMode: "VIDEO",
+          numHands: 1,
+        });
+      }
+    }
+
+    async function detectionLoop() {
+      if (!appState.cameraRunning) {
+        return;
+      }
+
+      if (elements.video.readyState < 2 || elements.video.currentTime === appState.lastVideoTime) {
+        appState.detectionFrameId = requestAnimationFrame(detectionLoop);
+        return;
+      }
+
+      appState.lastVideoTime = elements.video.currentTime;
+      resizeCanvases();
+      handContext.clearRect(0, 0, elements.handCanvas.width, elements.handCanvas.height);
+      const now = performance.now();
+      appState.hand.result = appState.handLandmarker.detectForVideo(elements.video, now);
+      appState.hand.gestureLabelKey = "gestureWaiting";
+      appState.hand.pinchActive = false;
+      appState.hand.pinchReleased = true;
+      appState.hand.point = null;
+
+      const landmarks = appState.hand.result?.landmarks?.[0];
+      if (landmarks) {
+        drawHandConnections(landmarks);
+        landmarks.forEach((point, index) => drawHandPoint(point, index % 4 === 0 ? "rgba(255,255,255,0.96)" : "rgba(121,240,212,0.95)", index % 4 === 0 ? 4.3 : 3.3));
+        const thumbTip = landmarks[4];
+        const indexTip = landmarks[8];
+        const pinchCenter = midpoint(thumbTip, indexTip);
+        const pinchDistance = distanceBetween(thumbTip, indexTip);
+        const screenPoint = getScreenPoint(pinchCenter);
+        const rawGestureKey = classifyGesture(landmarks);
+        const interactionGestureKey = pinchDistance < 0.055 ? "gesturePinch" : rawGestureKey;
+
+        updateConfirmedGesture(interactionGestureKey);
+
+        appState.hand.gestureKey = rawGestureKey;
+        appState.hand.stablePoseKey = appState.hand.confirmedGestureKey;
+        appState.hand.gestureLabelKey = appState.hand.confirmedGestureKey === "gestureNone" ? "gestureDetected" : appState.hand.confirmedGestureKey;
+        appState.hand.pinchActive = pinchDistance < 0.055;
+        appState.hand.pinchReleased = pinchDistance > 0.085;
+        appState.hand.pinchDistance = pinchDistance;
+        appState.hand.rawPoint = pinchCenter;
+        appState.hand.point = screenPoint;
+        appState.hand.lastSeenAt = now;
+        updateCursor(screenPoint, appState.hand.pinchActive);
+
+        if (appState.gameStarted && !appState.paused && !appState.gameOver && appState.currentPiece) {
+          if (appState.hand.pinchReleased) {
+            if (appState.grab.active) {
+              appState.grab.lastStateKey = "pieceReleased";
+            }
+            appState.grab.active = false;
+          } else if (appState.hand.pinchActive && !appState.grab.active) {
+            tryGrabPiece(screenPoint);
+          }
+
+          if (appState.grab.active) {
+            applyGrabMovement(screenPoint);
+          }
+          maybeApplyRotateSequence(appState.hand.stablePoseKey, now);
+        }
+      } else {
+        appState.hand.gestureKey = "gestureNone";
+        appState.hand.gestureLabelKey = "gestureNone";
+        appState.hand.candidateGestureKey = "gestureNone";
+        appState.hand.candidateGestureFrames = 0;
+        appState.hand.confirmedGestureKey = "gestureNone";
+        appState.hand.stablePoseKey = "gestureNone";
+        appState.hand.rotateAlternations = 0;
+        appState.hand.rotateLastPoseKey = "gestureNone";
+        appState.hand.rotatePatternExpiresAt = 0;
+        updateCursor(null, false);
+        if (appState.grab.active) {
+          appState.grab.active = false;
+          appState.grab.lastStateKey = "pieceReleased";
+        }
+      }
+
+      updateFps(now);
+      updateHandStatus();
+      drawBoard();
+      appState.detectionFrameId = requestAnimationFrame(detectionLoop);
+    }
+
+    async function startCamera() {
+      if (!navigator.mediaDevices?.getUserMedia) {
+        elements.cameraStatus.textContent = t("unsupportedBrowser");
+        return;
+      }
+
+      elements.startCameraButton.disabled = true;
+      elements.cameraStatus.textContent = t("cameraStarting");
+
+      try {
+        await ensureHandLandmarker();
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+            facingMode: "user",
+          },
+          audio: false,
+        });
+
+        appState.stream = stream;
+        elements.video.srcObject = stream;
+        await elements.video.play();
+        appState.cameraRunning = true;
+        appState.lastVideoTime = -1;
+        elements.stopCameraButton.disabled = false;
+        elements.liveIndicator.textContent = t("cameraLive");
+        elements.liveIndicator.classList.add("active");
+        elements.cameraStatus.textContent = t("cameraRunning");
+        resizeCanvases();
+        drawBoard();
+        appState.detectionFrameId = requestAnimationFrame(detectionLoop);
+      } catch (error) {
+        const errorName = error && typeof error === "object" && "name" in error ? error.name : "UnknownError";
+        let message = t("unableToStartCamera");
+        if (errorName === "NotAllowedError") {
+          message = t("permissionDenied");
+        } else if (errorName === "NotFoundError") {
+          message = t("noWebcamFound");
+        } else if (errorName === "NotReadableError") {
+          message = t("webcamBusy");
+        }
+        elements.cameraStatus.textContent = message;
+        elements.startCameraButton.disabled = false;
+        elements.stopCameraButton.disabled = true;
+      }
+      updateHandStatus();
+    }
+
+    function stopCamera() {
+      cancelAnimationFrame(appState.detectionFrameId);
+      appState.detectionFrameId = 0;
+      appState.cameraRunning = false;
+      appState.hand.result = null;
+      appState.hand.candidateGestureKey = "gestureNone";
+      appState.hand.candidateGestureFrames = 0;
+      appState.hand.confirmedGestureKey = "gestureNone";
+      appState.hand.stablePoseKey = "gestureNone";
+      appState.hand.rotateAlternations = 0;
+      appState.hand.rotateLastPoseKey = "gestureNone";
+      appState.hand.rotatePatternExpiresAt = 0;
+      appState.grab.active = false;
+      updateCursor(null, false);
+
+      if (appState.stream) {
+        appState.stream.getTracks().forEach((track) => track.stop());
+      }
+      appState.stream = null;
+      elements.video.srcObject = null;
+      handContext.clearRect(0, 0, elements.handCanvas.width, elements.handCanvas.height);
+      elements.startCameraButton.disabled = false;
+      elements.stopCameraButton.disabled = true;
+      elements.liveIndicator.textContent = t("cameraIdle");
+      elements.liveIndicator.classList.remove("active");
+      elements.cameraStatus.textContent = t("cameraStopped");
+      updateHandStatus();
+    }
+
+    async function toggleFullscreen() {
+      try {
+        if (document.fullscreenElement) {
+          await document.exitFullscreen();
+        } else {
+          await elements.stage.requestFullscreen();
+        }
+        applyTranslations();
+      } catch (error) {
+        elements.gameStatus.textContent = String(error?.message || error);
+      }
+    }
+
+    function applyTranslations() {
+      document.documentElement.lang = appState.currentLanguage;
+      document.title = t("pageTitle");
+      document.querySelectorAll("[data-i18n]").forEach((element) => {
+        element.textContent = t(element.dataset.i18n);
+      });
+      elements.langButtons.forEach((button) => {
+        button.classList.toggle("active", button.dataset.lang === appState.currentLanguage);
+      });
+      elements.themeButtons.forEach((button) => {
+        button.classList.toggle("active", button.dataset.themeBtn === appState.currentTheme);
+      });
+      elements.fullscreenButton.textContent = t(document.fullscreenElement ? "exitFullscreenButton" : "enterFullscreenButton");
+      elements.pauseGameButton.textContent = t(appState.paused ? "resumeGameButton" : "pauseGameButton");
+      elements.startGameButton.textContent = t(appState.gameStarted ? "restartGameButton" : "startGameButton");
+      elements.themeChip.textContent = t("themeChip", { theme: t(appState.currentTheme === "dark" ? "themeDark" : "themeLight") });
+      elements.fpsChip.textContent = appState.fps ? t("fpsValue", { fps: appState.fps.toFixed(1) }) : t("fpsPlaceholder");
+      elements.liveIndicator.textContent = t(appState.cameraRunning ? "cameraLive" : "cameraIdle");
+      elements.cameraStatus.textContent = t(appState.cameraRunning ? "cameraRunning" : "cameraStopped");
+      updateNextPieceUI();
+      updateGameUI();
+    }
+
+    function setLanguage(language) {
+      appState.currentLanguage = i18n[language] ? language : "en";
+      localStorage.setItem("vision_tetris_lang", appState.currentLanguage);
+      applyTranslations();
+    }
+
+    function setTheme(theme) {
+      appState.currentTheme = theme === "light" ? "light" : "dark";
+      localStorage.setItem("vision_tetris_theme", appState.currentTheme);
+      elements.body.dataset.theme = appState.currentTheme;
+      applyTranslations();
+      drawBoard();
+    }
+
+    function handleKeydown(event) {
+      if (!appState.gameStarted || appState.gameOver) {
+        if (event.key === "Enter") {
+          startGame();
+        }
+        return;
+      }
+
+      if (event.key.toLowerCase() === "p") {
+        togglePause();
+        return;
+      }
+
+      if (appState.paused) {
+        return;
+      }
+
+      switch (event.key) {
+        case "ArrowLeft":
+          movePiece(-1, 0, "dragMove");
+          break;
+        case "ArrowRight":
+          movePiece(1, 0, "dragMove");
+          break;
+        case "ArrowDown":
+          if (!movePiece(0, 1, "dragMove")) {
+            lockPiece();
+          }
+          appState.dropCounter = 0;
+          break;
+        case "ArrowUp":
+          rotatePiece();
+          break;
+        case " ":
+          event.preventDefault();
+          hardDrop();
+          break;
+        default:
+          break;
+      }
+    }
+
+    function initialize() {
+      elements.body.dataset.theme = appState.currentTheme;
+      resizeCanvases();
+      updateNextPieceUI();
+      drawBoard();
+      applyTranslations();
+      elements.cameraStatus.textContent = t("cameraStopped");
+      elements.liveIndicator.textContent = t("cameraIdle");
+      elements.pauseGameButton.textContent = t("pauseGameButton");
+      elements.startGameButton.addEventListener("click", startGame);
+      elements.pauseGameButton.addEventListener("click", togglePause);
+      elements.startCameraButton.addEventListener("click", startCamera);
+      elements.stopCameraButton.addEventListener("click", stopCamera);
+      elements.fullscreenButton.addEventListener("click", toggleFullscreen);
+      elements.langButtons.forEach((button) => {
+        button.addEventListener("click", () => setLanguage(button.dataset.lang));
+      });
+      elements.themeButtons.forEach((button) => {
+        button.addEventListener("click", () => setTheme(button.dataset.themeBtn));
+      });
+      document.addEventListener("keydown", handleKeydown);
+      document.addEventListener("fullscreenchange", applyTranslations);
+      window.addEventListener("resize", () => {
+        resizeCanvases();
+        drawBoard();
+      });
+      window.addEventListener("beforeunload", stopCamera);
+      appState.animationFrameId = requestAnimationFrame(gameLoop);
+    }
+
+    initialize();
+  </script>
+</body>
+</html>
