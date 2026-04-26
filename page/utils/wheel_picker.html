@@ -1,0 +1,1352 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wheel Picker</title>
+  <style>
+    :root {
+      --bg-1: #09111c;
+      --bg-2: #101b2d;
+      --panel: rgba(12, 21, 34, 0.86);
+      --panel-strong: rgba(10, 16, 28, 0.94);
+      --ink: #edf4ff;
+      --muted: #9db0c9;
+      --border: rgba(255, 255, 255, 0.12);
+      --accent: #5fb3ff;
+      --accent-strong: #2f8fff;
+      --success: #98f5c1;
+      --danger: #ff8c8c;
+      --input-bg: rgba(5, 12, 22, 0.72);
+      --shadow: 0 24px 70px rgba(0, 0, 0, 0.38);
+      --wheel-shadow: drop-shadow(0 30px 45px rgba(0, 0, 0, 0.35));
+      --pointer: #ffd45a;
+    }
+
+    html[data-theme='light'] {
+      --bg-1: #f4f7fb;
+      --bg-2: #dfe8f4;
+      --panel: rgba(255, 255, 255, 0.88);
+      --panel-strong: rgba(255, 255, 255, 0.95);
+      --ink: #142033;
+      --muted: #55657d;
+      --border: rgba(20, 32, 51, 0.12);
+      --accent: #0c7ee8;
+      --accent-strong: #0066c9;
+      --success: #1d8f55;
+      --danger: #d64545;
+      --input-bg: rgba(238, 243, 251, 0.96);
+      --shadow: 0 24px 70px rgba(45, 73, 108, 0.16);
+      --wheel-shadow: drop-shadow(0 30px 45px rgba(45, 73, 108, 0.18));
+      --pointer: #ff9f1c;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html, body {
+      min-height: 100%;
+    }
+
+    body {
+      margin: 0;
+      font-family: 'Noto Sans JP', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at top left, rgba(95, 179, 255, 0.22), transparent 30%),
+        radial-gradient(circle at bottom right, rgba(255, 164, 93, 0.16), transparent 28%),
+        linear-gradient(180deg, var(--bg-1), var(--bg-2));
+      padding: 18px;
+    }
+
+    button,
+    select,
+    textarea,
+    input {
+      font: inherit;
+    }
+
+    button:focus-visible,
+    select:focus-visible,
+    textarea:focus-visible,
+    input:focus-visible,
+    a:focus-visible {
+      outline: 3px solid color-mix(in srgb, var(--accent) 55%, transparent);
+      outline-offset: 3px;
+    }
+
+    .app-shell {
+      width: min(1600px, 100%);
+      margin: 0 auto;
+      display: grid;
+      gap: 18px;
+    }
+
+    .top-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      padding: 16px 18px;
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      background: var(--panel);
+      backdrop-filter: blur(14px);
+      box-shadow: var(--shadow);
+    }
+
+    .title-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(28px, 4vw, 48px);
+      line-height: 0.98;
+      letter-spacing: -0.03em;
+    }
+
+    .subline {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .lang-selector {
+      display: inline-flex;
+      gap: 6px;
+      padding: 4px;
+      background: var(--panel-strong);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+    }
+
+    .lang-selector a {
+      text-decoration: none;
+      color: var(--muted);
+      padding: 6px 12px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      border: 1px solid transparent;
+    }
+
+    .lang-selector a.active {
+      color: white;
+      background: var(--accent-strong);
+    }
+
+    .icon-btn,
+    .primary-btn,
+    .ghost-btn {
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      cursor: pointer;
+      transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+    }
+
+    .icon-btn:hover,
+    .primary-btn:hover,
+    .ghost-btn:hover {
+      transform: translateY(-1px);
+      border-color: color-mix(in srgb, var(--accent) 50%, var(--border));
+    }
+
+    .icon-btn {
+      min-width: 44px;
+      min-height: 44px;
+      color: var(--ink);
+      background: var(--panel-strong);
+    }
+
+    .primary-btn,
+    .ghost-btn {
+      padding: 12px 18px;
+      font-weight: 700;
+    }
+
+    .primary-btn {
+      color: white;
+      background: linear-gradient(180deg, var(--accent), var(--accent-strong));
+      border-color: transparent;
+    }
+
+    .ghost-btn {
+      color: var(--ink);
+      background: var(--panel-strong);
+    }
+
+    .main-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1.65fr) minmax(320px, 430px);
+      gap: 18px;
+      align-items: stretch;
+    }
+
+    .wheel-panel,
+    .controls-panel {
+      border: 1px solid var(--border);
+      border-radius: 28px;
+      background: var(--panel);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(14px);
+    }
+
+    .wheel-panel {
+      min-height: min(82vh, 980px);
+      display: grid;
+      place-items: center;
+      padding: 20px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .wheel-stage {
+      width: min(100%, 1100px);
+      aspect-ratio: 1.08 / 1;
+      position: relative;
+      display: grid;
+      place-items: center;
+    }
+
+    .wheel-canvas-wrap {
+      width: min(92vh, 100%, 980px);
+      aspect-ratio: 1 / 1;
+      position: relative;
+      filter: var(--wheel-shadow);
+    }
+
+    #wheel {
+      width: 100%;
+      height: 100%;
+      display: block;
+      transform-origin: center center;
+      transition: transform 5.2s cubic-bezier(0.15, 0.88, 0.18, 1);
+    }
+
+    .pointer-wrap {
+      position: absolute;
+      right: max(8px, 1.2%);
+      top: 50%;
+      transform: translateY(-50%);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      z-index: 3;
+      pointer-events: none;
+    }
+
+    .pointer {
+      width: 0;
+      height: 0;
+      border-top: 20px solid transparent;
+      border-bottom: 20px solid transparent;
+      border-right: 34px solid var(--pointer);
+      filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.26));
+    }
+
+    .selection-badge {
+      max-width: min(34vw, 280px);
+      padding: 10px 14px;
+      border-radius: 16px;
+      border: 1px solid var(--border);
+      background: var(--panel-strong);
+      color: var(--ink);
+      font-size: clamp(14px, 1.9vw, 18px);
+      font-weight: 700;
+      text-align: left;
+      box-shadow: 0 12px 28px rgba(0, 0, 0, 0.18);
+      opacity: 0.96;
+    }
+
+    .wheel-footer {
+      position: absolute;
+      left: 22px;
+      right: 22px;
+      bottom: 18px;
+      display: flex;
+      justify-content: space-between;
+      gap: 14px;
+      align-items: end;
+      pointer-events: none;
+    }
+
+    .status-card,
+    .storage-card {
+      padding: 10px 14px;
+      border-radius: 18px;
+      border: 1px solid var(--border);
+      background: color-mix(in srgb, var(--panel-strong) 92%, transparent);
+      max-width: min(46%, 480px);
+    }
+
+    .status-label,
+    .storage-label {
+      color: var(--muted);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 4px;
+    }
+
+    .status-text,
+    .storage-value {
+      font-size: clamp(15px, 1.8vw, 19px);
+      font-weight: 700;
+      word-break: break-word;
+    }
+
+    .controls-panel {
+      display: grid;
+      align-content: start;
+      gap: 14px;
+      padding: 18px;
+    }
+
+    .section-card {
+      border: 1px solid var(--border);
+      border-radius: 22px;
+      background: var(--panel-strong);
+      padding: 16px;
+      display: grid;
+      gap: 12px;
+    }
+
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .section-title {
+      font-size: 18px;
+      font-weight: 800;
+    }
+
+    .section-help {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .control-grid {
+      display: grid;
+      gap: 12px;
+    }
+
+    .field-grid {
+      display: grid;
+      gap: 8px;
+    }
+
+    .field-grid label {
+      font-weight: 700;
+      font-size: 13px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    textarea,
+    select,
+    input[type='text'] {
+      width: 100%;
+      border-radius: 16px;
+      border: 1px solid var(--border);
+      background: var(--input-bg);
+      color: var(--ink);
+      padding: 12px 14px;
+    }
+
+    textarea {
+      min-height: 230px;
+      resize: vertical;
+      line-height: 1.5;
+    }
+
+    .inline-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .result-line {
+      font-size: clamp(18px, 2.2vw, 24px);
+      font-weight: 800;
+    }
+
+    .result-meta {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .items-preview {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+      gap: 8px;
+    }
+
+    .preview-chip {
+      padding: 9px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      font-size: 12px;
+      font-weight: 700;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    .warn-text {
+      color: var(--danger);
+      font-size: 13px;
+      min-height: 1.2em;
+    }
+
+    .ok-text {
+      color: var(--success);
+      font-size: 13px;
+      min-height: 1.2em;
+    }
+
+    @media (max-width: 1200px) {
+      .main-layout {
+        grid-template-columns: 1fr;
+      }
+
+      .wheel-panel {
+        min-height: auto;
+      }
+
+      .wheel-stage {
+        aspect-ratio: auto;
+        width: 100%;
+        min-height: 68vh;
+      }
+
+      .pointer-wrap {
+        right: 4px;
+      }
+    }
+
+    @media (max-width: 820px) {
+      body {
+        padding: 12px;
+      }
+
+      .top-bar {
+        border-radius: 22px;
+        padding: 14px;
+        align-items: start;
+        flex-direction: column;
+      }
+
+      .toolbar {
+        width: 100%;
+        justify-content: space-between;
+      }
+
+      .wheel-canvas-wrap {
+        width: min(100%, 92vw);
+      }
+
+      .pointer-wrap {
+        right: -2px;
+        gap: 8px;
+      }
+
+      .pointer {
+        border-top-width: 14px;
+        border-bottom-width: 14px;
+        border-right-width: 24px;
+      }
+
+      .selection-badge {
+        max-width: 42vw;
+        font-size: 13px;
+        padding: 8px 10px;
+      }
+
+      .wheel-footer {
+        position: static;
+        margin-top: 14px;
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .status-card,
+      .storage-card {
+        max-width: none;
+      }
+    }
+  </style>
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-NWZDZ906DJ"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-NWZDZ906DJ');
+  </script>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="top-bar">
+      <div class="title-wrap">
+        <h1 data-i18n="title">Wheel Picker</h1>
+        <div class="subline" data-i18n="subtitle">Spin a large wheel and save different lists by URL hash.</div>
+      </div>
+      <div class="toolbar">
+        <div class="lang-selector">
+          <a href="#" data-lang="en" class="active">EN</a>
+          <a href="#" data-lang="pt">PT</a>
+          <a href="#" data-lang="ja">JA</a>
+        </div>
+        <button id="theme-toggle-btn" class="icon-btn" type="button" aria-label="Toggle theme">◑</button>
+      </div>
+    </header>
+
+    <main class="main-layout">
+      <section class="wheel-panel">
+        <div class="wheel-stage">
+          <div class="wheel-canvas-wrap">
+            <canvas id="wheel"></canvas>
+          </div>
+          <div class="pointer-wrap" aria-hidden="true">
+            <div class="pointer"></div>
+            <div id="selection-badge" class="selection-badge">Yes</div>
+          </div>
+        </div>
+
+        <div class="wheel-footer">
+          <div class="status-card">
+            <div class="status-label" data-i18n="statusLabel">Status</div>
+            <div id="status-text" class="status-text" data-i18n="readyMessage">Ready to spin.</div>
+          </div>
+          <div class="storage-card">
+            <div class="storage-label" data-i18n="storageLabel">Storage key</div>
+            <div id="storage-scope" class="storage-value">default</div>
+          </div>
+        </div>
+      </section>
+
+      <aside class="controls-panel">
+        <section class="section-card">
+          <div class="section-header">
+            <div class="section-title" data-i18n="spinSection">Spin</div>
+            <button id="spin-button" class="primary-btn" type="button" data-i18n="spin">Spin</button>
+          </div>
+          <div class="inline-actions">
+            <button id="edit-toggle-button" class="ghost-btn" type="button" data-i18n="editItems">Edit items</button>
+            <button id="reset-button" class="ghost-btn" type="button" data-i18n="resetDefaults">Reset defaults</button>
+          </div>
+          <div class="result-line"><span data-i18n="selectedLabel">Selected:</span> <span id="result-value">Yes</span></div>
+          <div id="result-meta" class="result-meta" data-i18n="resultHint">The arrow on the right marks the selected item.</div>
+        </section>
+
+        <section class="section-card">
+          <div class="section-title" data-i18n="paletteSection">Colors</div>
+          <div class="control-grid">
+            <div class="field-grid">
+              <label for="color-theme-select" data-i18n="colorThemeLabel">Color theme</label>
+              <select id="color-theme-select">
+                <option value="white" data-i18n="themeWhite">White</option>
+                <option value="whiteBlack" data-i18n="themeWhiteBlack">White and black</option>
+                <option value="redBlack" data-i18n="themeRedBlack">Red and black</option>
+                <option value="whiteRainbow" data-i18n="themeWhiteRainbow">White and rainbow</option>
+                <option value="multicolor" data-i18n="themeMulticolor">Multicolor</option>
+                <option value="custom" data-i18n="themeCustom">Custom from item prefix</option>
+              </select>
+            </div>
+            <div class="section-help" data-i18n="colorThemeHelp">In custom mode, write items like #c1c1ca:My label or tomato:My label.</div>
+          </div>
+        </section>
+
+        <section class="section-card">
+          <div class="section-title" data-i18n="itemsPreviewTitle">Items preview</div>
+          <div id="items-preview" class="items-preview"></div>
+        </section>
+
+        <section id="editor-card" class="section-card hidden">
+          <div class="section-header">
+            <div class="section-title" data-i18n="editorTitle">Edit wheel items</div>
+            <button id="save-items-button" class="primary-btn" type="button" data-i18n="applyItems">Apply</button>
+          </div>
+          <div class="section-help" data-i18n="editorHelp">One item per line. Minimum 2, maximum 60.</div>
+          <div class="field-grid">
+            <label for="items-textarea" data-i18n="itemsTextareaLabel">Items</label>
+            <textarea id="items-textarea" spellcheck="false">Yes
+No
+Maybe</textarea>
+          </div>
+          <div id="editor-warning" class="warn-text"></div>
+          <div id="editor-status" class="ok-text"></div>
+        </section>
+      </aside>
+    </main>
+  </div>
+
+  <script>
+    const DEFAULT_ITEMS = ['Yes', 'No', 'Maybe'];
+    const DB_NAME = 'wheel_picker_db';
+    const STORE_NAME = 'data';
+    const MAX_ITEMS = 60;
+    const MIN_ITEMS = 2;
+    const BASE_COLORS = ['#ffffff', '#111111', '#d7263d', '#f46036', '#2e294e', '#1b998b', '#c5d86d', '#f4d35e', '#3a86ff', '#8338ec', '#ff006e', '#fb5607'];
+    const RAINBOW_COLORS = ['#ff003c', '#ff8c00', '#ffd500', '#4ad66d', '#1f7aec', '#6f2dbd'];
+    const BLACK_COLORS = ['#111111', '#ffffff'];
+    const RED_BLACK_COLORS = ['#d7263d', '#101010'];
+
+    const translations = {
+      en: {
+        title: 'Wheel Picker',
+        subtitle: 'Spin a large wheel and save different lists by URL hash.',
+        statusLabel: 'Status',
+        storageLabel: 'Storage key',
+        readyMessage: 'Ready to spin.',
+        spinSection: 'Spin',
+        spin: 'Spin',
+        editItems: 'Edit items',
+        closeEditor: 'Close editor',
+        resetDefaults: 'Reset defaults',
+        selectedLabel: 'Selected:',
+        resultHint: 'The arrow on the right marks the selected item.',
+        paletteSection: 'Colors',
+        colorThemeLabel: 'Color theme',
+        colorThemeHelp: 'In custom mode, write items like #c1c1ca:My label or tomato:My label.',
+        themeWhite: 'White',
+        themeWhiteBlack: 'White and black',
+        themeRedBlack: 'Red and black',
+        themeWhiteRainbow: 'White and rainbow',
+        themeMulticolor: 'Multicolor',
+        themeCustom: 'Custom from item prefix',
+        itemsPreviewTitle: 'Items preview',
+        editorTitle: 'Edit wheel items',
+        applyItems: 'Apply',
+        editorHelp: 'One item per line. Minimum 2, maximum 60.',
+        itemsTextareaLabel: 'Items',
+        spinning: 'Spinning...',
+        landedOn: 'Selected item',
+        saved: 'Saved.',
+        resetDone: 'Defaults restored.',
+        editorTooFew: 'Add at least 2 items.',
+        editorTooMany: 'Use at most 60 items.',
+        editorEmptyItem: 'Empty lines are ignored.',
+        editorCustomHint: 'Custom colors only apply in custom theme mode.',
+        invalidColorPrefix: 'Some custom color prefixes are invalid and were ignored.',
+        resetConfirm: 'Replace the current list with the default items?',
+        hashPrefixHint: 'Change the URL hash to save another wheel.',
+        noItemsFallback: 'Need at least 2 items.',
+        spinDisabled: 'Apply a valid list before spinning.'
+      },
+      pt: {
+        title: 'Roleta de Sorteio',
+        subtitle: 'Gire uma roleta grande e salve listas diferentes usando o hash da URL.',
+        statusLabel: 'Status',
+        storageLabel: 'Chave de armazenamento',
+        readyMessage: 'Pronto para girar.',
+        spinSection: 'Sorteio',
+        spin: 'Girar',
+        editItems: 'Editar itens',
+        closeEditor: 'Fechar edição',
+        resetDefaults: 'Restaurar padrão',
+        selectedLabel: 'Selecionado:',
+        resultHint: 'A seta à direita marca o item sorteado.',
+        paletteSection: 'Cores',
+        colorThemeLabel: 'Tema de cores',
+        colorThemeHelp: 'No modo custom, escreva itens como #c1c1ca:Meu texto ou tomato:Meu texto.',
+        themeWhite: 'Branco',
+        themeWhiteBlack: 'Branco e preto',
+        themeRedBlack: 'Vermelho e preto',
+        themeWhiteRainbow: 'Branco e arco-íris',
+        themeMulticolor: 'Colorido',
+        themeCustom: 'Custom pelo prefixo',
+        itemsPreviewTitle: 'Prévia dos itens',
+        editorTitle: 'Editar itens da roleta',
+        applyItems: 'Aplicar',
+        editorHelp: 'Um item por linha. Mínimo 2, máximo 60.',
+        itemsTextareaLabel: 'Itens',
+        spinning: 'Girando...',
+        landedOn: 'Item sorteado',
+        saved: 'Salvo.',
+        resetDone: 'Itens padrão restaurados.',
+        editorTooFew: 'Adicione pelo menos 2 itens.',
+        editorTooMany: 'Use no máximo 60 itens.',
+        editorEmptyItem: 'Linhas vazias são ignoradas.',
+        editorCustomHint: 'Cores customizadas só aparecem no modo custom.',
+        invalidColorPrefix: 'Alguns prefixos de cor custom são inválidos e foram ignorados.',
+        resetConfirm: 'Substituir a lista atual pelos itens padrão?',
+        hashPrefixHint: 'Mude o hash da URL para salvar outra roleta.',
+        noItemsFallback: 'Você precisa de pelo menos 2 itens.',
+        spinDisabled: 'Aplique uma lista válida antes de girar.'
+      },
+      ja: {
+        title: '抽選ルーレット',
+        subtitle: '大きなルーレットを回し、URLハッシュごとに別のリストを保存できます。',
+        statusLabel: '状態',
+        storageLabel: '保存キー',
+        readyMessage: '回転できます。',
+        spinSection: '抽選',
+        spin: '回す',
+        editItems: '項目を編集',
+        closeEditor: '編集を閉じる',
+        resetDefaults: '初期値に戻す',
+        selectedLabel: '選択:',
+        resultHint: '右側の矢印が当選項目を示します。',
+        paletteSection: '色',
+        colorThemeLabel: '配色テーマ',
+        colorThemeHelp: 'custom モードでは #c1c1ca:ラベル や tomato:ラベル のように書けます。',
+        themeWhite: '白',
+        themeWhiteBlack: '白と黒',
+        themeRedBlack: '赤と黒',
+        themeWhiteRainbow: '白と虹色',
+        themeMulticolor: 'カラフル',
+        themeCustom: '接頭辞でカスタム',
+        itemsPreviewTitle: '項目プレビュー',
+        editorTitle: 'ルーレット項目を編集',
+        applyItems: '適用',
+        editorHelp: '1行につき1項目。最小2件、最大60件。',
+        itemsTextareaLabel: '項目',
+        spinning: '回転中...',
+        landedOn: '選ばれた項目',
+        saved: '保存しました。',
+        resetDone: '初期項目に戻しました。',
+        editorTooFew: '少なくとも2項目必要です。',
+        editorTooMany: '60項目までです。',
+        editorEmptyItem: '空行は無視されます。',
+        editorCustomHint: 'カスタム色は custom テーマでのみ適用されます。',
+        invalidColorPrefix: '一部のカスタム色接頭辞は無効だったため無視しました。',
+        resetConfirm: '現在のリストを初期項目に戻しますか？',
+        hashPrefixHint: '別のルーレットを保存するには URL ハッシュを変更してください。',
+        noItemsFallback: '少なくとも2項目必要です。',
+        spinDisabled: '回す前に有効なリストを適用してください。'
+      }
+    };
+
+    const wheelCanvas = document.getElementById('wheel');
+    const wheelCtx = wheelCanvas.getContext('2d');
+    const statusText = document.getElementById('status-text');
+    const storageScope = document.getElementById('storage-scope');
+    const resultValue = document.getElementById('result-value');
+    const resultMeta = document.getElementById('result-meta');
+    const selectionBadge = document.getElementById('selection-badge');
+    const itemsPreview = document.getElementById('items-preview');
+    const wheelCanvasWrap = document.querySelector('.wheel-canvas-wrap');
+    const itemsTextarea = document.getElementById('items-textarea');
+    const editorWarning = document.getElementById('editor-warning');
+    const editorStatus = document.getElementById('editor-status');
+    const colorThemeSelect = document.getElementById('color-theme-select');
+    const spinButton = document.getElementById('spin-button');
+    const editToggleButton = document.getElementById('edit-toggle-button');
+    const saveItemsButton = document.getElementById('save-items-button');
+    const resetButton = document.getElementById('reset-button');
+    const editorCard = document.getElementById('editor-card');
+    const themeToggleButton = document.getElementById('theme-toggle-btn');
+
+    let currentLanguage = localStorage.getItem('app_lang') || 'en';
+    let currentTheme = localStorage.getItem('app_theme') || 'dark';
+    let db = null;
+    let currentItems = DEFAULT_ITEMS.map((label) => createParsedItem(label));
+    let colorTheme = 'white';
+    let isSpinning = false;
+    let currentRotation = 0;
+    let wheelLogicalSize = 0;
+
+    function getPrefix() {
+      const value = String(location.hash || '').replace(/^#/, '').trim();
+      return value || 'default';
+    }
+
+    function keyFor(field) {
+      return `${getPrefix()}:${field}`;
+    }
+
+    function getLang() {
+      return translations[currentLanguage] || translations.en;
+    }
+
+    function applyI18n() {
+      const lang = getLang();
+      document.querySelectorAll('[data-i18n]').forEach((element) => {
+        const key = element.getAttribute('data-i18n');
+        if (lang[key]) {
+          element.textContent = lang[key];
+        }
+      });
+      document.querySelectorAll('.lang-selector a').forEach((anchor) => {
+        anchor.classList.toggle('active', anchor.dataset.lang === currentLanguage);
+      });
+      editToggleButton.textContent = editorCard.classList.contains('hidden') ? lang.editItems : lang.closeEditor;
+      document.title = `${lang.title} - ${getPrefix()}`;
+      resultMeta.textContent = lang.hashPrefixHint;
+      if (!isSpinning) {
+        statusText.textContent = lang.readyMessage;
+      }
+    }
+
+    function applyTheme(theme) {
+      currentTheme = theme;
+      document.documentElement.setAttribute('data-theme', theme);
+      localStorage.setItem('app_theme', theme);
+    }
+
+    function setStorageScopeText() {
+      storageScope.textContent = getPrefix();
+      document.title = `${getLang().title} - ${getPrefix()}`;
+    }
+
+    function openDB() {
+      return new Promise((resolve, reject) => {
+        const request = indexedDB.open(DB_NAME, 1);
+        request.onupgradeneeded = (event) => {
+          const database = event.target.result;
+          if (!database.objectStoreNames.contains(STORE_NAME)) {
+            database.createObjectStore(STORE_NAME);
+          }
+        };
+        request.onsuccess = (event) => {
+          db = event.target.result;
+          resolve(db);
+        };
+        request.onerror = (event) => reject(event.target.error);
+      });
+    }
+
+    function dbGet(key) {
+      return new Promise((resolve) => {
+        if (!db) {
+          resolve(null);
+          return;
+        }
+        const tx = db.transaction(STORE_NAME, 'readonly');
+        const store = tx.objectStore(STORE_NAME);
+        const request = store.get(key);
+        request.onsuccess = () => resolve(request.result == null ? null : request.result);
+        request.onerror = () => resolve(null);
+      });
+    }
+
+    function dbPut(key, value) {
+      return new Promise((resolve) => {
+        if (!db) {
+          resolve();
+          return;
+        }
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        tx.objectStore(STORE_NAME).put(value, key);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => resolve();
+      });
+    }
+
+    function stripColorPrefix(rawText) {
+      const value = String(rawText || '').trim();
+      const match = value.match(/^([^:]{1,32}):(.*)$/);
+      if (!match) {
+        return { label: value, customColor: null, customValid: false, hadPrefix: false };
+      }
+      const prefix = match[1].trim();
+      const label = match[2].trim();
+      if (!label) {
+        return { label: value, customColor: null, customValid: false, hadPrefix: false };
+      }
+      const probe = new Option().style;
+      probe.color = '';
+      probe.color = prefix;
+      const valid = probe.color !== '';
+      return { label, customColor: valid ? prefix : null, customValid: valid, hadPrefix: true };
+    }
+
+    function createParsedItem(rawText) {
+      const parsed = stripColorPrefix(rawText);
+      return {
+        raw: String(rawText || '').trim(),
+        label: parsed.label || String(rawText || '').trim(),
+        customColor: parsed.customColor,
+        customValid: parsed.customValid,
+        hadPrefix: parsed.hadPrefix
+      };
+    }
+
+    function parseItemsText(text) {
+      const lines = String(text || '')
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter((line) => line !== '');
+      return lines.map((line) => createParsedItem(line));
+    }
+
+    function validateItems(items) {
+      const lang = getLang();
+      if (items.length < MIN_ITEMS) {
+        return { valid: false, message: lang.editorTooFew };
+      }
+      if (items.length > MAX_ITEMS) {
+        return { valid: false, message: lang.editorTooMany };
+      }
+      return { valid: true, message: '' };
+    }
+
+    function getContrastColor(backgroundColor) {
+      const probeCanvas = document.createElement('canvas');
+      probeCanvas.width = 1;
+      probeCanvas.height = 1;
+      const probe = probeCanvas.getContext('2d');
+      probe.clearRect(0, 0, 1, 1);
+      probe.fillStyle = '#000000';
+      probe.fillRect(0, 0, 1, 1);
+      probe.fillStyle = backgroundColor;
+      probe.fillRect(0, 0, 1, 1);
+      const [red, green, blue] = probe.getImageData(0, 0, 1, 1).data;
+      const luminance = (0.299 * red + 0.587 * green + 0.114 * blue) / 255;
+      return luminance > 0.62 ? '#111111' : '#ffffff';
+    }
+
+    function getSegmentColor(item, index, total) {
+      switch (colorTheme) {
+        case 'white':
+          return '#ffffff';
+        case 'whiteBlack':
+          return BLACK_COLORS[index % BLACK_COLORS.length];
+        case 'redBlack':
+          return RED_BLACK_COLORS[index % RED_BLACK_COLORS.length];
+        case 'whiteRainbow':
+          return index % 2 === 0 ? '#ffffff' : RAINBOW_COLORS[index % RAINBOW_COLORS.length];
+        case 'multicolor': {
+          const hue = Math.round((360 / total) * index);
+          return `hsl(${hue}deg 84% 60%)`;
+        }
+        case 'custom':
+          return item.customColor || BASE_COLORS[index % BASE_COLORS.length];
+        default:
+          return BASE_COLORS[index % BASE_COLORS.length];
+      }
+    }
+
+    function getSegmentAngleRadians() {
+      return (Math.PI * 2) / currentItems.length;
+    }
+
+    function getSegmentAngleDegrees() {
+      return 360 / currentItems.length;
+    }
+
+    function getStartAngleRadians() {
+      return -getSegmentAngleRadians() / 2;
+    }
+
+    function getStartAngleDegrees() {
+      return -getSegmentAngleDegrees() / 2;
+    }
+
+    function getTargetRotationForIndex(index) {
+      const segmentAngle = getSegmentAngleDegrees();
+      const centerAngle = getStartAngleDegrees() + (index + 0.5) * segmentAngle;
+      return ((-centerAngle % 360) + 360) % 360;
+    }
+
+    function wrapWheelLabel(label, maxCharsPerLine, maxLines) {
+      const words = String(label || '').trim().split(/\s+/).filter(Boolean);
+      if (!words.length) {
+        return [''];
+      }
+
+      const lines = [];
+      let currentLine = '';
+      words.forEach((word) => {
+        const candidate = currentLine ? `${currentLine} ${word}` : word;
+        if (candidate.length <= maxCharsPerLine) {
+          currentLine = candidate;
+          return;
+        }
+
+        if (currentLine) {
+          lines.push(currentLine);
+        }
+
+        if (word.length <= maxCharsPerLine) {
+          currentLine = word;
+          return;
+        }
+
+        let rest = word;
+        while (rest.length > maxCharsPerLine) {
+          lines.push(`${rest.slice(0, Math.max(1, maxCharsPerLine - 1))}…`);
+          rest = rest.slice(Math.max(1, maxCharsPerLine - 1));
+          if (lines.length >= maxLines) {
+            currentLine = '';
+            return;
+          }
+        }
+        currentLine = rest;
+      });
+
+      if (currentLine && lines.length < maxLines) {
+        lines.push(currentLine);
+      }
+
+      if (lines.length > maxLines) {
+        lines.length = maxLines;
+      }
+      if (lines.length === maxLines) {
+        const lastIndex = lines.length - 1;
+        if (lastIndex >= 0 && !lines[lastIndex].endsWith('…') && words.join(' ').length > lines.join(' ').replace(/…/g, '').length) {
+          lines[lastIndex] = `${lines[lastIndex].slice(0, Math.max(1, lines[lastIndex].length - 1))}…`;
+        }
+      }
+      return lines;
+    }
+
+    function measureWheelLabel(ctx, text, fontSize) {
+      ctx.font = `700 ${fontSize}px 'Noto Sans JP', sans-serif`;
+      return ctx.measureText(text).width;
+    }
+
+    function buildWheelLabelLayout(ctx, label, preferredFontSize, minFontSize, maxLabelWidth) {
+      const safeLabel = String(label || '').trim();
+      const shortenedLabel = safeLabel.length > 42 ? `${safeLabel.slice(0, 41)}…` : safeLabel;
+
+      for (let fontSize = preferredFontSize; fontSize >= minFontSize; fontSize -= 1) {
+        if (measureWheelLabel(ctx, shortenedLabel, fontSize) <= maxLabelWidth) {
+          return { fontSize, lines: [shortenedLabel] };
+        }
+      }
+
+      const wrapFontSize = Math.max(minFontSize, preferredFontSize - 1);
+      const maxCharsPerLine = Math.max(6, Math.floor(maxLabelWidth / Math.max(6.5, wrapFontSize * 0.54)));
+      const wrappedLines = wrapWheelLabel(shortenedLabel, maxCharsPerLine, 3);
+
+      for (let fontSize = wrapFontSize; fontSize >= minFontSize; fontSize -= 1) {
+        const fits = wrappedLines.every((line) => measureWheelLabel(ctx, line, fontSize) <= maxLabelWidth);
+        if (fits) {
+          return { fontSize, lines: wrappedLines };
+        }
+      }
+
+      return { fontSize: minFontSize, lines: wrappedLines };
+    }
+
+    function resizeCanvas() {
+      const rect = wheelCanvasWrap.getBoundingClientRect();
+      const size = Math.max(300, Math.floor(Math.min(rect.width, rect.height)));
+      const ratio = window.devicePixelRatio || 1;
+      wheelLogicalSize = size;
+      wheelCanvas.style.width = `${size}px`;
+      wheelCanvas.style.height = `${size}px`;
+      wheelCanvas.width = Math.round(size * ratio);
+      wheelCanvas.height = Math.round(size * ratio);
+      wheelCtx.setTransform(1, 0, 0, 1, 0, 0);
+      wheelCtx.scale(ratio, ratio);
+      drawWheel();
+    }
+
+    function drawWheel() {
+      const width = wheelLogicalSize || wheelCanvas.clientWidth || 300;
+      const height = wheelLogicalSize || wheelCanvas.clientHeight || 300;
+      const radius = Math.min(width, height) / 2 - 12;
+      const hubRadius = radius * 0.14;
+      const centerX = width / 2;
+      const centerY = height / 2;
+      const items = currentItems;
+      const segmentAngle = getSegmentAngleRadians();
+      const startOffset = getStartAngleRadians();
+      const dividerWidth = Math.max(1.5, radius * 0.008);
+
+      wheelCtx.clearRect(0, 0, width, height);
+      wheelCtx.save();
+      wheelCtx.translate(centerX, centerY);
+
+      items.forEach((item, index) => {
+        const startAngle = startOffset + index * segmentAngle;
+        const endAngle = startAngle + segmentAngle;
+        const fill = getSegmentColor(item, index, items.length);
+
+        wheelCtx.beginPath();
+        wheelCtx.moveTo(0, 0);
+        wheelCtx.arc(0, 0, radius, startAngle, endAngle);
+        wheelCtx.closePath();
+        wheelCtx.fillStyle = fill;
+        wheelCtx.fill();
+        wheelCtx.lineWidth = dividerWidth;
+        wheelCtx.strokeStyle = 'rgba(8, 12, 18, 0.42)';
+        wheelCtx.stroke();
+
+        const midAngle = startAngle + segmentAngle / 2;
+        wheelCtx.save();
+        wheelCtx.rotate(midAngle);
+        wheelCtx.textBaseline = 'middle';
+        const arcSpan = radius * segmentAngle;
+        const outerPadding = Math.max(28, radius * 0.085);
+        const radialPosition = radius - outerPadding;
+        const maxLabelWidth = Math.max(72, radialPosition - hubRadius - Math.max(18, radius * 0.06));
+        const preferredFontSize = Math.max(12, Math.min(28, radius * 0.07, maxLabelWidth / Math.max(2.9, item.label.length * 0.41)));
+        const labelLayout = buildWheelLabelLayout(wheelCtx, item.label, preferredFontSize, 11, maxLabelWidth);
+        const fontSize = labelLayout.fontSize;
+        const labelLines = labelLayout.lines;
+        const lineHeight = Math.max(12, fontSize * 1.05);
+        wheelCtx.font = `700 ${fontSize}px 'Noto Sans JP', sans-serif`;
+        wheelCtx.fillStyle = getContrastColor(fill);
+        wheelCtx.translate(radialPosition, 0);
+        wheelCtx.textAlign = 'right';
+        labelLines.forEach((line, lineIndex) => {
+          const offsetY = (lineIndex - (labelLines.length - 1) / 2) * lineHeight;
+          wheelCtx.fillText(line, 0, offsetY, maxLabelWidth);
+        });
+        wheelCtx.restore();
+      });
+
+      wheelCtx.save();
+      wheelCtx.strokeStyle = 'rgba(12, 18, 24, 0.55)';
+      wheelCtx.lineWidth = dividerWidth;
+      for (let index = 0; index < items.length; index += 1) {
+        const angle = startOffset + index * segmentAngle;
+        wheelCtx.beginPath();
+        wheelCtx.moveTo(0, 0);
+        wheelCtx.lineTo(Math.cos(angle) * radius, Math.sin(angle) * radius);
+        wheelCtx.stroke();
+      }
+      wheelCtx.restore();
+
+      wheelCtx.beginPath();
+      wheelCtx.arc(0, 0, radius, 0, Math.PI * 2);
+      wheelCtx.lineWidth = Math.max(4, radius * 0.014);
+      wheelCtx.strokeStyle = 'rgba(255, 255, 255, 0.18)';
+      wheelCtx.stroke();
+
+      wheelCtx.beginPath();
+      wheelCtx.arc(0, 0, hubRadius, 0, Math.PI * 2);
+      wheelCtx.fillStyle = colorTheme === 'whiteBlack' ? '#7d8794' : 'rgba(11, 18, 28, 0.88)';
+      wheelCtx.fill();
+      wheelCtx.lineWidth = 4;
+      wheelCtx.strokeStyle = 'rgba(255, 255, 255, 0.18)';
+      wheelCtx.stroke();
+      wheelCtx.restore();
+    }
+
+    function renderItemsPreview() {
+      itemsPreview.innerHTML = '';
+      currentItems.forEach((item, index) => {
+        const chip = document.createElement('div');
+        const bg = getSegmentColor(item, index, currentItems.length);
+        chip.className = 'preview-chip';
+        chip.textContent = item.label;
+        chip.style.background = bg;
+        chip.style.color = getContrastColor(bg);
+        itemsPreview.appendChild(chip);
+      });
+    }
+
+    async function saveCurrentState() {
+      await Promise.all([
+        dbPut(keyFor('items_text'), itemsTextarea.value),
+        dbPut(keyFor('color_theme'), colorTheme)
+      ]);
+    }
+
+    async function loadCurrentState() {
+      const storedText = await dbGet(keyFor('items_text'));
+      const storedColorTheme = await dbGet(keyFor('color_theme'));
+      itemsTextarea.value = storedText || DEFAULT_ITEMS.join('\n');
+      colorTheme = storedColorTheme || 'white';
+      colorThemeSelect.value = colorTheme;
+      applyItemsFromTextarea({ persist: false, keepStatus: true });
+    }
+
+    function setResult(item) {
+      resultValue.textContent = item.label;
+      selectionBadge.textContent = item.label;
+    }
+
+    function applyItemsFromTextarea(options = {}) {
+      const { persist = true, keepStatus = false } = options;
+      editorWarning.textContent = '';
+      editorStatus.textContent = '';
+
+      const parsedItems = parseItemsText(itemsTextarea.value);
+      const validation = validateItems(parsedItems);
+      if (!validation.valid) {
+        editorWarning.textContent = validation.message;
+        if (!keepStatus) {
+          statusText.textContent = getLang().spinDisabled;
+        }
+        return false;
+      }
+
+      currentItems = parsedItems;
+      drawWheel();
+      renderItemsPreview();
+      setResult(currentItems[0]);
+
+      const invalidCustomColor = currentItems.some((item) => item.hadPrefix && !item.customValid);
+      if (invalidCustomColor) {
+        editorWarning.textContent = getLang().invalidColorPrefix;
+      } else if (colorTheme === 'custom') {
+        editorStatus.textContent = getLang().editorCustomHint;
+      } else {
+        editorStatus.textContent = getLang().saved;
+      }
+
+      if (!keepStatus) {
+        statusText.textContent = getLang().readyMessage;
+      }
+
+      if (persist) {
+        saveCurrentState();
+      }
+      return true;
+    }
+
+    function toggleEditor() {
+      const willShow = editorCard.classList.contains('hidden');
+      editorCard.classList.toggle('hidden');
+      editToggleButton.textContent = willShow ? getLang().closeEditor : getLang().editItems;
+    }
+
+    function chooseWinner(index) {
+      const winner = currentItems[index];
+      setResult(winner);
+      statusText.textContent = `${getLang().landedOn}: ${winner.label}`;
+    }
+
+    function spinWheel() {
+      if (isSpinning) {
+        return;
+      }
+      if (!applyItemsFromTextarea({ persist: true, keepStatus: true })) {
+        return;
+      }
+
+      isSpinning = true;
+      spinButton.disabled = true;
+      saveItemsButton.disabled = true;
+      statusText.textContent = getLang().spinning;
+
+      const winnerIndex = Math.floor(Math.random() * currentItems.length);
+      const segmentAngle = getSegmentAngleDegrees();
+      const jitter = (Math.random() - 0.5) * Math.min(segmentAngle * 0.18, 3);
+      const targetDegrees = getTargetRotationForIndex(winnerIndex) + jitter;
+      const extraTurns = 360 * (6 + Math.floor(Math.random() * 3));
+      const normalizedRotation = ((currentRotation % 360) + 360) % 360;
+      const deltaToTarget = ((targetDegrees - normalizedRotation) + 360) % 360;
+      currentRotation += extraTurns + deltaToTarget;
+      wheelCanvas.style.transform = `rotate(${currentRotation}deg)`;
+
+      window.setTimeout(() => {
+        chooseWinner(winnerIndex);
+        isSpinning = false;
+        spinButton.disabled = false;
+        saveItemsButton.disabled = false;
+      }, 5350);
+    }
+
+    function resetDefaults() {
+      if (!window.confirm(getLang().resetConfirm)) {
+        return;
+      }
+      itemsTextarea.value = DEFAULT_ITEMS.join('\n');
+      colorTheme = 'white';
+      colorThemeSelect.value = colorTheme;
+      applyItemsFromTextarea({ persist: true });
+      statusText.textContent = getLang().resetDone;
+    }
+
+    function handleLanguageClick(event) {
+      event.preventDefault();
+      const lang = event.target.getAttribute('data-lang');
+      if (!lang) {
+        return;
+      }
+      currentLanguage = lang;
+      localStorage.setItem('app_lang', currentLanguage);
+      applyI18n();
+      if (currentItems[0]) {
+        setResult(currentItems[0]);
+      }
+      if (editorWarning.textContent) {
+        applyItemsFromTextarea({ persist: false, keepStatus: true });
+      }
+    }
+
+    function debounce(fn, delay) {
+      let timer = null;
+      return (...args) => {
+        if (timer) {
+          clearTimeout(timer);
+        }
+        timer = setTimeout(() => fn(...args), delay);
+      };
+    }
+
+    const handleTextareaPreview = debounce(() => {
+      const parsedItems = parseItemsText(itemsTextarea.value);
+      const validation = validateItems(parsedItems);
+      if (!validation.valid) {
+        editorWarning.textContent = validation.message;
+        editorStatus.textContent = '';
+        return;
+      }
+      editorWarning.textContent = '';
+      currentItems = parsedItems;
+      drawWheel();
+      renderItemsPreview();
+      setResult(currentItems[0]);
+    }, 120);
+
+    async function init() {
+      await openDB();
+      applyTheme(currentTheme);
+      applyI18n();
+      setStorageScopeText();
+      await loadCurrentState();
+      resizeCanvas();
+      resultMeta.textContent = getLang().hashPrefixHint;
+    }
+
+    document.querySelector('.lang-selector').addEventListener('click', handleLanguageClick);
+    themeToggleButton.addEventListener('click', () => {
+      applyTheme(currentTheme === 'dark' ? 'light' : 'dark');
+      drawWheel();
+      renderItemsPreview();
+    });
+    editToggleButton.addEventListener('click', toggleEditor);
+    saveItemsButton.addEventListener('click', () => applyItemsFromTextarea({ persist: true }));
+    resetButton.addEventListener('click', resetDefaults);
+    spinButton.addEventListener('click', spinWheel);
+    colorThemeSelect.addEventListener('change', () => {
+      colorTheme = colorThemeSelect.value;
+      drawWheel();
+      renderItemsPreview();
+      saveCurrentState();
+      applyItemsFromTextarea({ persist: false, keepStatus: true });
+    });
+    itemsTextarea.addEventListener('input', handleTextareaPreview);
+    window.addEventListener('resize', resizeCanvas);
+    window.addEventListener('hashchange', async () => {
+      setStorageScopeText();
+      await loadCurrentState();
+      drawWheel();
+      renderItemsPreview();
+      applyI18n();
+    });
+
+    init().catch((error) => {
+      console.error(error);
+      statusText.textContent = 'IndexedDB error';
+    });
+  </script>
+</body>
+</html>
