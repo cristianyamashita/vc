@@ -432,6 +432,28 @@
         height: auto;
       }
 
+      .markdown-preview .mermaid-diagram {
+        display: flex;
+        justify-content: center;
+        width: 100%;
+        margin: 1rem 0;
+        overflow: auto;
+        background-color: var(--bg-color);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        padding: 1rem;
+      }
+
+      .markdown-preview .mermaid-diagram svg {
+        max-width: 100%;
+        height: auto;
+      }
+
+      .markdown-preview .mermaid-error {
+        color: #dc3545;
+        white-space: pre-wrap;
+      }
+
       @media (max-width: 900px) {
         .editor-shell.mode-split {
           grid-template-columns: minmax(0, 1fr);
@@ -678,6 +700,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/markdown-it@14.1.0/dist/markdown-it.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
     <script>
       // ============================================
       // i18n Translations
@@ -901,6 +924,7 @@
               .map(block => `<p>${block.replace(/\n/g, '<br>')}</p>`)
               .join('')
           };
+      let markdownRenderId = 0;
 
       // ============================================
       // DOM Elements
@@ -962,6 +986,16 @@
         const icon = themeSwitcher.querySelector('i');
         icon.className = theme === 'light' ? 'fas fa-moon' : 'fas fa-sun';
         localStorage.setItem('app_theme', theme);
+        configureMermaid();
+      };
+
+      const configureMermaid = () => {
+        if (!window.mermaid) return;
+        window.mermaid.initialize({
+          startOnLoad: false,
+          securityLevel: 'strict',
+          theme: currentTheme === 'light' ? 'default' : 'dark'
+        });
       };
 
       // ============================================
@@ -1101,9 +1135,37 @@
         return template.innerHTML;
       };
 
+      const renderMermaidDiagrams = async (renderId) => {
+        if (!window.mermaid || renderId !== markdownRenderId) return;
+
+        const blocks = Array.from(markdownPreview.querySelectorAll('pre > code.language-mermaid'));
+        for (const block of blocks) {
+          if (renderId !== markdownRenderId) return;
+
+          const pre = block.parentElement;
+          const source = block.textContent;
+          const diagram = document.createElement('div');
+          diagram.className = 'mermaid-diagram';
+          diagram.textContent = source;
+          pre.replaceWith(diagram);
+
+          try {
+            const id = `mermaid-${renderId}-${Math.random().toString(36).slice(2)}`;
+            const { svg } = await window.mermaid.render(id, source);
+            if (renderId !== markdownRenderId) return;
+            diagram.innerHTML = svg;
+          } catch (error) {
+            diagram.classList.add('mermaid-error');
+            diagram.textContent = error?.message || String(error);
+          }
+        }
+      };
+
       const renderMarkdownPreview = () => {
         const raw = contentEditor.value || '';
+        const renderId = ++markdownRenderId;
         markdownPreview.innerHTML = sanitizeRenderedHtml(markdown.render(raw));
+        renderMermaidDiagrams(renderId);
       };
 
       const applyViewMode = () => {
@@ -1546,6 +1608,7 @@
         themeSwitcher.addEventListener('click', () => {
           currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
           applyTheme(currentTheme);
+          if (state.viewMode !== 'edit') renderMarkdownPreview();
         });
 
         // Search
