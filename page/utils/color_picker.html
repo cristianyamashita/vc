@@ -1,0 +1,904 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Color Picker</title>
+  <link rel="stylesheet" href="../assets/fontawesome/css/all.min.css" />
+  <style>
+    :root {
+      --bg-1: #111318;
+      --bg-2: #20242d;
+      --panel: rgba(24, 27, 34, 0.88);
+      --panel-strong: rgba(17, 19, 24, 0.95);
+      --ink: #f5f7fb;
+      --muted: #aeb7c6;
+      --border: rgba(255, 255, 255, 0.13);
+      --accent: #38d9a9;
+      --accent-strong: #13b98a;
+      --danger: #ff6b6b;
+      --input-bg: rgba(10, 12, 16, 0.72);
+      --shadow: 0 20px 58px rgba(0, 0, 0, 0.34);
+      --radius: 8px;
+    }
+
+    html[data-theme="light"] {
+      --bg-1: #f6f8fb;
+      --bg-2: #e5ebf2;
+      --panel: rgba(255, 255, 255, 0.9);
+      --panel-strong: rgba(255, 255, 255, 0.98);
+      --ink: #151923;
+      --muted: #5f6978;
+      --border: rgba(20, 25, 35, 0.13);
+      --accent: #087f5b;
+      --accent-strong: #066b4d;
+      --danger: #c92a2a;
+      --input-bg: rgba(246, 248, 251, 0.98);
+      --shadow: 0 20px 52px rgba(35, 48, 66, 0.16);
+    }
+
+    * { box-sizing: border-box; }
+    html, body { min-height: 100%; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      font: 14px/1.5 "Noto Sans JP", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        linear-gradient(135deg, color-mix(in srgb, var(--accent) 18%, transparent), transparent 34%),
+        linear-gradient(315deg, rgba(255, 107, 107, 0.16), transparent 36%),
+        linear-gradient(180deg, var(--bg-1), var(--bg-2));
+      padding: 18px;
+    }
+
+    button, input, select { font: inherit; }
+    button:focus-visible, input:focus-visible, a:focus-visible {
+      outline: 3px solid color-mix(in srgb, var(--accent) 55%, transparent);
+      outline-offset: 3px;
+    }
+
+    .app {
+      width: min(1280px, 100%);
+      margin: 0 auto;
+      display: grid;
+      gap: 18px;
+    }
+
+    .topbar, .panel {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--panel);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(14px);
+    }
+
+    .topbar {
+      min-height: 78px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 16px 18px;
+    }
+
+    h1, h2, h3, p { margin: 0; }
+    h1 {
+      font-size: clamp(28px, 5vw, 54px);
+      line-height: 1;
+      letter-spacing: 0;
+    }
+    .subtitle { margin-top: 6px; color: var(--muted); }
+
+    .toolbar, .lang-selector {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .lang-selector {
+      padding: 4px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--panel-strong);
+    }
+
+    .lang-selector a {
+      min-width: 38px;
+      text-align: center;
+      text-decoration: none;
+      color: var(--muted);
+      padding: 6px 9px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 800;
+      border: 1px solid transparent;
+    }
+
+    .lang-selector a.active {
+      color: #fff;
+      background: var(--accent-strong);
+    }
+
+    .btn {
+      min-height: 40px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--panel-strong);
+      color: var(--ink);
+      cursor: pointer;
+      padding: 9px 12px;
+      font-weight: 750;
+      transition: transform 0.16s ease, border-color 0.16s ease, background 0.16s ease;
+    }
+
+    .btn:hover {
+      transform: translateY(-1px);
+      border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
+    }
+
+    .btn.primary {
+      color: #fff;
+      border-color: transparent;
+      background: linear-gradient(180deg, var(--accent), var(--accent-strong));
+    }
+
+    .btn.icon-btn {
+      width: 38px;
+      min-width: 38px;
+      padding: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 38px;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(320px, 0.92fr) minmax(0, 1.35fr);
+      gap: 18px;
+      align-items: start;
+    }
+
+    .panel { padding: 18px; }
+    .stack { display: grid; gap: 16px; }
+    .section-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    h2 { font-size: 18px; }
+    h3 { font-size: 14px; color: var(--muted); font-weight: 800; }
+
+    .preview-card {
+      min-height: 420px;
+      display: grid;
+      grid-template-rows: minmax(230px, 1fr) auto;
+      overflow: hidden;
+      padding: 0;
+    }
+
+    .preview {
+      display: grid;
+      place-items: center;
+      min-height: 260px;
+      background:
+        linear-gradient(45deg, rgba(255, 255, 255, 0.18) 25%, transparent 25%),
+        linear-gradient(-45deg, rgba(255, 255, 255, 0.18) 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, rgba(255, 255, 255, 0.18) 75%),
+        linear-gradient(-45deg, transparent 75%, rgba(255, 255, 255, 0.18) 75%);
+      background-size: 28px 28px;
+      background-position: 0 0, 0 14px, 14px -14px, -14px 0;
+    }
+
+    .swatch-big {
+      width: min(330px, 70vw);
+      aspect-ratio: 1;
+      border-radius: 50%;
+      border: 1px solid rgba(255, 255, 255, 0.24);
+      box-shadow: 0 28px 70px rgba(0, 0, 0, 0.28);
+      background: #38d9a9;
+    }
+
+    .readout {
+      display: grid;
+      gap: 10px;
+      padding: 16px;
+      background: var(--panel-strong);
+      border-top: 1px solid var(--border);
+    }
+
+    .value-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .value {
+      display: grid;
+      gap: 4px;
+      padding: 10px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--input-bg);
+      min-width: 0;
+    }
+
+    .label {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .code {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-size: 13px;
+    }
+
+    label {
+      display: grid;
+      gap: 7px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    input[type="text"], input[type="number"] {
+      width: 100%;
+      min-height: 42px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--input-bg);
+      color: var(--ink);
+      padding: 9px 11px;
+    }
+
+    input[type="color"] {
+      width: 100%;
+      height: 72px;
+      padding: 0;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: transparent;
+      cursor: pointer;
+    }
+
+    .input-row {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .control {
+      display: grid;
+      grid-template-columns: 36px minmax(0, 1fr) 74px;
+      align-items: center;
+      gap: 10px;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--accent);
+    }
+
+    .range-value {
+      min-height: 38px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--input-bg);
+      color: var(--ink);
+      padding: 8px;
+      text-align: center;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .segmented {
+      display: inline-flex;
+      gap: 4px;
+      padding: 4px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--panel-strong);
+    }
+
+    .segmented button {
+      border: 0;
+      border-radius: 6px;
+      background: transparent;
+      color: var(--muted);
+      padding: 7px 10px;
+      cursor: pointer;
+      font-weight: 800;
+    }
+
+    .segmented button.active {
+      color: #fff;
+      background: var(--accent-strong);
+    }
+
+    .palette-grid, .harmony-grid, .history-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+      gap: 10px;
+    }
+
+    .chip {
+      min-height: 48px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      cursor: pointer;
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14);
+    }
+
+    .harmony-chip {
+      min-height: 78px;
+      display: grid;
+      align-content: end;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      cursor: pointer;
+      background: var(--panel-strong);
+    }
+
+    .harmony-color { min-height: 48px; }
+    .harmony-label {
+      padding: 7px;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 800;
+      text-align: center;
+    }
+
+    .status {
+      min-height: 20px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .error { color: var(--danger); }
+
+    .copy-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    @media (max-width: 860px) {
+      body { padding: 12px; }
+      .topbar { align-items: flex-start; flex-direction: column; }
+      .toolbar { justify-content: flex-start; }
+      .layout { grid-template-columns: 1fr; }
+      .value-grid, .input-row { grid-template-columns: 1fr; }
+      .control { grid-template-columns: 28px minmax(0, 1fr) 64px; }
+    }
+  </style>
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-NWZDZ906DJ"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-NWZDZ906DJ');
+  </script>
+</head>
+<body>
+  <main class="app">
+    <header class="topbar">
+      <div>
+        <h1 data-i18n="title">Color Picker</h1>
+        <p class="subtitle" data-i18n="subtitle">Pick, type, convert, copy, and build palettes from one color.</p>
+      </div>
+      <div class="toolbar">
+        <div class="lang-selector" aria-label="Language">
+          <a href="#" data-lang="en" class="active">EN</a>
+          <a href="#" data-lang="ja">JA</a>
+          <a href="#" data-lang="pt">PT</a>
+        </div>
+        <button class="btn icon-btn" id="themeBtn" type="button" title="Toggle theme" aria-label="Toggle theme"><i class="fas fa-moon"></i></button>
+      </div>
+    </header>
+
+    <section class="layout">
+      <article class="panel preview-card">
+        <div class="preview">
+          <div class="swatch-big" id="bigSwatch"></div>
+        </div>
+        <div class="readout">
+          <div class="value-grid">
+            <div class="value"><span class="label">HEX</span><span class="code" id="hexOut">#38D9A9</span></div>
+            <div class="value"><span class="label">RGB</span><span class="code" id="rgbOut">rgb(56, 217, 169)</span></div>
+            <div class="value"><span class="label">HSL</span><span class="code" id="hslOut">hsl(162, 68%, 54%)</span></div>
+            <div class="value"><span class="label" data-i18n="contrast">Contrast</span><span class="code" id="contrastOut">#111318</span></div>
+          </div>
+          <div class="copy-row">
+            <button class="btn primary" type="button" data-copy="hex" data-i18n="copyHex">Copy HEX</button>
+            <button class="btn" type="button" data-copy="rgb" data-i18n="copyRgb">Copy RGB</button>
+            <button class="btn" type="button" data-copy="hsl" data-i18n="copyHsl">Copy HSL</button>
+          </div>
+          <div class="status" id="status"></div>
+        </div>
+      </article>
+
+      <div class="stack">
+        <article class="panel">
+          <div class="section-title">
+            <h2 data-i18n="chooseTitle">Choose a color</h2>
+            <button class="btn" type="button" id="randomBtn" data-i18n="random">Random</button>
+          </div>
+          <div class="stack">
+            <label>
+              <span data-i18n="nativePicker">Native picker</span>
+              <input type="color" id="colorInput" value="#38d9a9">
+            </label>
+            <label>
+              <span data-i18n="hexInput">Type HEX</span>
+              <input type="text" id="hexInput" value="#38D9A9" spellcheck="false" autocomplete="off">
+            </label>
+            <div class="input-row">
+              <label><span>R</span><input type="number" id="rInput" min="0" max="255" value="56"></label>
+              <label><span>G</span><input type="number" id="gInput" min="0" max="255" value="217"></label>
+              <label><span>B</span><input type="number" id="bInput" min="0" max="255" value="169"></label>
+            </div>
+          </div>
+        </article>
+
+        <article class="panel">
+          <div class="section-title">
+            <h2 data-i18n="slidersTitle">Sliders</h2>
+            <div class="segmented" role="tablist">
+              <button type="button" class="active" data-mode="rgb">RGB</button>
+              <button type="button" data-mode="hsl">HSL</button>
+            </div>
+          </div>
+          <div class="stack" id="rgbControls">
+            <div class="control"><strong>R</strong><input type="range" id="rRange" min="0" max="255" value="56"><span class="range-value" id="rValue">56</span></div>
+            <div class="control"><strong>G</strong><input type="range" id="gRange" min="0" max="255" value="217"><span class="range-value" id="gValue">217</span></div>
+            <div class="control"><strong>B</strong><input type="range" id="bRange" min="0" max="255" value="169"><span class="range-value" id="bValue">169</span></div>
+          </div>
+          <div class="stack" id="hslControls" hidden>
+            <div class="control"><strong>H</strong><input type="range" id="hRange" min="0" max="360" value="162"><span class="range-value" id="hValue">162</span></div>
+            <div class="control"><strong>S</strong><input type="range" id="sRange" min="0" max="100" value="68"><span class="range-value" id="sValue">68%</span></div>
+            <div class="control"><strong>L</strong><input type="range" id="lRange" min="0" max="100" value="54"><span class="range-value" id="lValue">54%</span></div>
+          </div>
+        </article>
+
+        <article class="panel">
+          <div class="section-title">
+            <h2 data-i18n="palettesTitle">Palettes</h2>
+            <h3 data-i18n="clickToApply">Click to apply</h3>
+          </div>
+          <div class="palette-grid" id="paletteGrid"></div>
+        </article>
+
+        <article class="panel">
+          <div class="section-title">
+            <h2 data-i18n="harmonyTitle">Harmony</h2>
+          </div>
+          <div class="harmony-grid" id="harmonyGrid"></div>
+        </article>
+
+        <article class="panel">
+          <div class="section-title">
+            <h2 data-i18n="historyTitle">History</h2>
+            <button class="btn" type="button" id="clearHistoryBtn" data-i18n="clear">Clear</button>
+          </div>
+          <div class="history-grid" id="historyGrid"></div>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    (() => {
+      const $ = (selector) => document.querySelector(selector);
+      const $$ = (selector) => [...document.querySelectorAll(selector)];
+      const LKEY = 'app_lang';
+      const TKEY = 'app_theme';
+      const HKEY = 'color_picker_history_v1';
+
+      const translations = {
+        en: {
+          title: 'Color Picker',
+          subtitle: 'Pick, type, convert, copy, and build palettes from one color.',
+          theme: 'Toggle theme',
+          chooseTitle: 'Choose a color',
+          nativePicker: 'Native picker',
+          hexInput: 'Type HEX',
+          slidersTitle: 'Sliders',
+          palettesTitle: 'Palettes',
+          clickToApply: 'Click to apply',
+          harmonyTitle: 'Harmony',
+          historyTitle: 'History',
+          clear: 'Clear',
+          random: 'Random',
+          contrast: 'Contrast',
+          copyHex: 'Copy HEX',
+          copyRgb: 'Copy RGB',
+          copyHsl: 'Copy HSL',
+          copied: 'Copied',
+          invalidHex: 'Use HEX like #38D9A9 or 38D9A9.',
+          complementary: 'Complement',
+          analogous1: 'Analogous',
+          analogous2: 'Analogous',
+          triadic1: 'Triadic',
+          triadic2: 'Triadic',
+          shade: 'Shade'
+        },
+        ja: {
+          title: 'カラーピッカー',
+          subtitle: '色を選択、入力、変換、コピーし、パレットを作成できます。',
+          theme: 'テーマを切り替え',
+          chooseTitle: '色を選択',
+          nativePicker: '標準ピッカー',
+          hexInput: 'HEXを入力',
+          slidersTitle: 'スライダー',
+          palettesTitle: 'パレット',
+          clickToApply: 'クリックで適用',
+          harmonyTitle: '配色',
+          historyTitle: '履歴',
+          clear: 'クリア',
+          random: 'ランダム',
+          contrast: 'コントラスト',
+          copyHex: 'HEXをコピー',
+          copyRgb: 'RGBをコピー',
+          copyHsl: 'HSLをコピー',
+          copied: 'コピーしました',
+          invalidHex: '#38D9A9 または 38D9A9 の形式で入力してください。',
+          complementary: '補色',
+          analogous1: '類似色',
+          analogous2: '類似色',
+          triadic1: '三角色',
+          triadic2: '三角色',
+          shade: 'シェード'
+        },
+        pt: {
+          title: 'Color Picker',
+          subtitle: 'Escolha, digite, converta, copie e monte paletas a partir de uma cor.',
+          theme: 'Alternar tema',
+          chooseTitle: 'Escolher cor',
+          nativePicker: 'Seletor nativo',
+          hexInput: 'Digitar HEX',
+          slidersTitle: 'Sliders',
+          palettesTitle: 'Paletas',
+          clickToApply: 'Clique para aplicar',
+          harmonyTitle: 'Harmonia',
+          historyTitle: 'Histórico',
+          clear: 'Limpar',
+          random: 'Aleatória',
+          contrast: 'Contraste',
+          copyHex: 'Copiar HEX',
+          copyRgb: 'Copiar RGB',
+          copyHsl: 'Copiar HSL',
+          copied: 'Copiado',
+          invalidHex: 'Use HEX como #38D9A9 ou 38D9A9.',
+          complementary: 'Complementar',
+          analogous1: 'Análoga',
+          analogous2: 'Análoga',
+          triadic1: 'Triádica',
+          triadic2: 'Triádica',
+          shade: 'Sombra'
+        }
+      };
+
+      const els = {
+        themeBtn: $('#themeBtn'),
+        colorInput: $('#colorInput'),
+        hexInput: $('#hexInput'),
+        rInput: $('#rInput'),
+        gInput: $('#gInput'),
+        bInput: $('#bInput'),
+        rRange: $('#rRange'),
+        gRange: $('#gRange'),
+        bRange: $('#bRange'),
+        hRange: $('#hRange'),
+        sRange: $('#sRange'),
+        lRange: $('#lRange'),
+        rValue: $('#rValue'),
+        gValue: $('#gValue'),
+        bValue: $('#bValue'),
+        hValue: $('#hValue'),
+        sValue: $('#sValue'),
+        lValue: $('#lValue'),
+        bigSwatch: $('#bigSwatch'),
+        hexOut: $('#hexOut'),
+        rgbOut: $('#rgbOut'),
+        hslOut: $('#hslOut'),
+        contrastOut: $('#contrastOut'),
+        status: $('#status'),
+        paletteGrid: $('#paletteGrid'),
+        harmonyGrid: $('#harmonyGrid'),
+        historyGrid: $('#historyGrid'),
+        rgbControls: $('#rgbControls'),
+        hslControls: $('#hslControls')
+      };
+
+      const palettes = [
+        '#0B7285', '#38D9A9', '#51CF66', '#FCC419', '#FF922B', '#FF6B6B',
+        '#F06595', '#CC5DE8', '#845EF7', '#5C7CFA', '#339AF0', '#22B8CF',
+        '#101113', '#343A40', '#868E96', '#F8F9FA', '#E9ECEF', '#FFFFFF'
+      ];
+
+      let color = { r: 56, g: 217, b: 169 };
+      let currentLang = localStorage.getItem(LKEY) || (translations[navigator.language.split('-')[0]] ? navigator.language.split('-')[0] : 'en');
+      let history = readHistory();
+
+      function clamp(value, min, max) {
+        const number = Number(value);
+        if (!Number.isFinite(number)) return min;
+        return Math.min(max, Math.max(min, Math.round(number)));
+      }
+
+      function componentToHex(value) {
+        return value.toString(16).padStart(2, '0').toUpperCase();
+      }
+
+      function rgbToHex(rgb) {
+        return `#${componentToHex(rgb.r)}${componentToHex(rgb.g)}${componentToHex(rgb.b)}`;
+      }
+
+      function parseHex(value) {
+        const cleaned = String(value).trim().replace(/^#/, '');
+        if (/^[0-9a-f]{3}$/i.test(cleaned)) {
+          return {
+            r: parseInt(cleaned[0] + cleaned[0], 16),
+            g: parseInt(cleaned[1] + cleaned[1], 16),
+            b: parseInt(cleaned[2] + cleaned[2], 16)
+          };
+        }
+        if (/^[0-9a-f]{6}$/i.test(cleaned)) {
+          return {
+            r: parseInt(cleaned.slice(0, 2), 16),
+            g: parseInt(cleaned.slice(2, 4), 16),
+            b: parseInt(cleaned.slice(4, 6), 16)
+          };
+        }
+        return null;
+      }
+
+      function rgbToHsl({ r, g, b }) {
+        r /= 255; g /= 255; b /= 255;
+        const max = Math.max(r, g, b);
+        const min = Math.min(r, g, b);
+        let h = 0;
+        let s = 0;
+        const l = (max + min) / 2;
+        if (max !== min) {
+          const d = max - min;
+          s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+          if (max === r) h = (g - b) / d + (g < b ? 6 : 0);
+          if (max === g) h = (b - r) / d + 2;
+          if (max === b) h = (r - g) / d + 4;
+          h /= 6;
+        }
+        return { h: Math.round(h * 360), s: Math.round(s * 100), l: Math.round(l * 100) };
+      }
+
+      function hslToRgb({ h, s, l }) {
+        h = (((h % 360) + 360) % 360) / 360;
+        s /= 100;
+        l /= 100;
+        if (s === 0) {
+          const gray = Math.round(l * 255);
+          return { r: gray, g: gray, b: gray };
+        }
+        const hue2rgb = (p, q, t) => {
+          if (t < 0) t += 1;
+          if (t > 1) t -= 1;
+          if (t < 1 / 6) return p + (q - p) * 6 * t;
+          if (t < 1 / 2) return q;
+          if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+          return p;
+        };
+        const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+        const p = 2 * l - q;
+        return {
+          r: Math.round(hue2rgb(p, q, h + 1 / 3) * 255),
+          g: Math.round(hue2rgb(p, q, h) * 255),
+          b: Math.round(hue2rgb(p, q, h - 1 / 3) * 255)
+        };
+      }
+
+      function readableTextColor(rgb) {
+        const linear = [rgb.r, rgb.g, rgb.b].map((value) => {
+          const channel = value / 255;
+          return channel <= 0.03928 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
+        });
+        const luminance = 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2];
+        return luminance > 0.45 ? '#111318' : '#FFFFFF';
+      }
+
+      function setColor(next, options = {}) {
+        color = {
+          r: clamp(next.r, 0, 255),
+          g: clamp(next.g, 0, 255),
+          b: clamp(next.b, 0, 255)
+        };
+        render();
+        if (options.save !== false) {
+          addHistory(rgbToHex(color));
+        }
+      }
+
+      function render() {
+        const hex = rgbToHex(color);
+        const hsl = rgbToHsl(color);
+        const rgbText = `rgb(${color.r}, ${color.g}, ${color.b})`;
+        const hslText = `hsl(${hsl.h}, ${hsl.s}%, ${hsl.l}%)`;
+        const contrast = readableTextColor(color);
+
+        document.documentElement.style.setProperty('--accent', hex);
+        els.bigSwatch.style.background = hex;
+        els.colorInput.value = hex;
+        els.hexInput.value = hex;
+        els.rInput.value = color.r;
+        els.gInput.value = color.g;
+        els.bInput.value = color.b;
+        els.rRange.value = color.r;
+        els.gRange.value = color.g;
+        els.bRange.value = color.b;
+        els.hRange.value = hsl.h;
+        els.sRange.value = hsl.s;
+        els.lRange.value = hsl.l;
+        els.rValue.textContent = color.r;
+        els.gValue.textContent = color.g;
+        els.bValue.textContent = color.b;
+        els.hValue.textContent = hsl.h;
+        els.sValue.textContent = `${hsl.s}%`;
+        els.lValue.textContent = `${hsl.l}%`;
+        els.hexOut.textContent = hex;
+        els.rgbOut.textContent = rgbText;
+        els.hslOut.textContent = hslText;
+        els.contrastOut.textContent = contrast;
+        els.bigSwatch.style.boxShadow = `0 28px 70px color-mix(in srgb, ${hex} 42%, transparent)`;
+        renderHarmony(hsl);
+        renderHistory();
+      }
+
+      function renderPalette() {
+        els.paletteGrid.innerHTML = palettes.map((hex) => `<button class="chip" type="button" data-color="${hex}" style="background:${hex}" title="${hex}"></button>`).join('');
+      }
+
+      function renderHarmony(hsl) {
+        const lang = translations[currentLang];
+        const options = [
+          { label: lang.complementary, h: hsl.h + 180, s: hsl.s, l: hsl.l },
+          { label: lang.analogous1, h: hsl.h - 30, s: hsl.s, l: hsl.l },
+          { label: lang.analogous2, h: hsl.h + 30, s: hsl.s, l: hsl.l },
+          { label: lang.triadic1, h: hsl.h + 120, s: hsl.s, l: hsl.l },
+          { label: lang.triadic2, h: hsl.h + 240, s: hsl.s, l: hsl.l },
+          { label: lang.shade, h: hsl.h, s: hsl.s, l: Math.max(10, hsl.l - 22) }
+        ];
+        els.harmonyGrid.innerHTML = options.map((item) => {
+          const hex = rgbToHex(hslToRgb(item));
+          return `<button class="harmony-chip" type="button" data-color="${hex}" title="${hex}"><span class="harmony-color" style="background:${hex}"></span><span class="harmony-label">${item.label}</span></button>`;
+        }).join('');
+      }
+
+      function readHistory() {
+        try {
+          return JSON.parse(localStorage.getItem(HKEY)) || [];
+        } catch {
+          return [];
+        }
+      }
+
+      function addHistory(hex) {
+        history = [hex, ...history.filter((item) => item !== hex)].slice(0, 18);
+        localStorage.setItem(HKEY, JSON.stringify(history));
+      }
+
+      function renderHistory() {
+        els.historyGrid.innerHTML = history.map((hex) => `<button class="chip" type="button" data-color="${hex}" style="background:${hex}" title="${hex}"></button>`).join('');
+      }
+
+      function applyLanguage(lang) {
+        currentLang = translations[lang] ? lang : 'en';
+        localStorage.setItem(LKEY, currentLang);
+        document.documentElement.lang = currentLang;
+        $$('[data-i18n]').forEach((el) => {
+          const key = el.getAttribute('data-i18n');
+          if (translations[currentLang][key]) el.textContent = translations[currentLang][key];
+        });
+        $$('.lang-selector a').forEach((a) => a.classList.toggle('active', a.dataset.lang === currentLang));
+        els.themeBtn.title = translations[currentLang].theme;
+        els.themeBtn.setAttribute('aria-label', translations[currentLang].theme);
+        renderHarmony(rgbToHsl(color));
+      }
+
+      function applyTheme(theme) {
+        document.documentElement.dataset.theme = theme;
+        localStorage.setItem(TKEY, theme);
+        els.themeBtn.innerHTML = theme === 'light' ? '<i class="fas fa-sun"></i>' : '<i class="fas fa-moon"></i>';
+      }
+
+      async function copyText(text) {
+        try {
+          await navigator.clipboard.writeText(text);
+          els.status.textContent = `${translations[currentLang].copied}: ${text}`;
+          els.status.classList.remove('error');
+        } catch {
+          els.status.textContent = text;
+        }
+      }
+
+      renderPalette();
+      applyTheme(localStorage.getItem(TKEY) || 'dark');
+      applyLanguage(currentLang);
+      setColor(color, { save: false });
+
+      els.themeBtn.addEventListener('click', () => {
+        applyTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark');
+      });
+
+      $('.lang-selector').addEventListener('click', (event) => {
+        event.preventDefault();
+        const lang = event.target.dataset.lang;
+        if (lang) applyLanguage(lang);
+      });
+
+      els.colorInput.addEventListener('input', () => setColor(parseHex(els.colorInput.value)));
+
+      els.hexInput.addEventListener('input', () => {
+        const parsed = parseHex(els.hexInput.value);
+        if (!parsed) {
+          els.status.textContent = translations[currentLang].invalidHex;
+          els.status.classList.add('error');
+          return;
+        }
+        els.status.textContent = '';
+        els.status.classList.remove('error');
+        setColor(parsed);
+      });
+
+      [els.rInput, els.gInput, els.bInput].forEach((input) => {
+        input.addEventListener('input', () => setColor({ r: els.rInput.value, g: els.gInput.value, b: els.bInput.value }));
+      });
+
+      [els.rRange, els.gRange, els.bRange].forEach((input) => {
+        input.addEventListener('input', () => setColor({ r: els.rRange.value, g: els.gRange.value, b: els.bRange.value }));
+      });
+
+      [els.hRange, els.sRange, els.lRange].forEach((input) => {
+        input.addEventListener('input', () => setColor(hslToRgb({ h: Number(els.hRange.value), s: Number(els.sRange.value), l: Number(els.lRange.value) })));
+      });
+
+      $('.segmented').addEventListener('click', (event) => {
+        if (!event.target.dataset.mode) return;
+        $$('.segmented button').forEach((button) => button.classList.toggle('active', button === event.target));
+        const rgbMode = event.target.dataset.mode === 'rgb';
+        els.rgbControls.hidden = !rgbMode;
+        els.hslControls.hidden = rgbMode;
+      });
+
+      document.addEventListener('click', (event) => {
+        const colorButton = event.target.closest('[data-color]');
+        if (colorButton) setColor(parseHex(colorButton.dataset.color));
+        const copyButton = event.target.closest('[data-copy]');
+        if (copyButton) {
+          const type = copyButton.dataset.copy;
+          const hsl = rgbToHsl(color);
+          const value = type === 'hex' ? rgbToHex(color) : type === 'rgb' ? `rgb(${color.r}, ${color.g}, ${color.b})` : `hsl(${hsl.h}, ${hsl.s}%, ${hsl.l}%)`;
+          copyText(value);
+        }
+      });
+
+      $('#randomBtn').addEventListener('click', () => {
+        setColor({ r: Math.random() * 255, g: Math.random() * 255, b: Math.random() * 255 });
+      });
+
+      $('#clearHistoryBtn').addEventListener('click', () => {
+        history = [];
+        localStorage.removeItem(HKEY);
+        renderHistory();
+      });
+    })();
+  </script>
+</body>
+</html>
