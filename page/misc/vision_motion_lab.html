@@ -257,6 +257,11 @@
       border-color: rgba(255, 255, 255, 0.1);
     }
 
+    .secondary-btn.active {
+      color: #06241c;
+      background: linear-gradient(135deg, var(--warm), #ffe5a8);
+    }
+
     .pill-list {
       display: flex;
       flex-wrap: wrap;
@@ -376,6 +381,18 @@
         linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.03));
     }
 
+    .stage::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(circle at 24% 22%, rgba(86, 240, 192, 0.16), transparent 20%),
+        radial-gradient(circle at 76% 68%, rgba(255, 201, 107, 0.14), transparent 24%),
+        linear-gradient(135deg, rgba(4, 11, 14, 0.96), rgba(17, 31, 36, 0.94));
+      pointer-events: none;
+      z-index: 0;
+    }
+
     .stage:fullscreen {
       width: 100vw;
       height: 100vh;
@@ -403,6 +420,7 @@
       inset: 0;
       transform: scaleX(-1);
       transform-origin: center;
+      z-index: 1;
     }
 
     video,
@@ -418,6 +436,11 @@
     video {
       background: #020405;
       z-index: 0;
+      transition: opacity 0.2s ease;
+    }
+
+    .stage.camera-hidden video {
+      opacity: 0;
     }
 
     canvas {
@@ -664,6 +687,7 @@
               <div class="button-row">
                 <button id="startButton" class="primary-btn" type="button" data-i18n="startCameraButton">Start Camera</button>
                 <button id="stopButton" class="secondary-btn" type="button" disabled data-i18n="stopCameraButton">Stop Camera</button>
+                <button id="toggleCameraViewButton" class="secondary-btn" type="button" aria-pressed="false" data-i18n="hideCameraButton">Hide Camera</button>
               </div>
             </div>
 
@@ -908,6 +932,8 @@
         cameraControlsLabel: "Camera Controls",
         startCameraButton: "Start Camera",
         stopCameraButton: "Stop Camera",
+        hideCameraButton: "Hide Camera",
+        showCameraButton: "Show Camera",
         quickNotesLabel: "Quick Notes",
         pillMirror: "Mirror preview enabled",
         pillResolution: "640 x 480 target",
@@ -939,6 +965,7 @@
         cameraLive: "Camera live",
         cameraStopped: "Camera stopped",
         cameraRunning: "Camera running",
+        cameraViewHidden: "Camera running. Video hidden.",
         startingCamera: "Starting camera...",
         detectionInactive: "Detection inactive",
         noActiveModelOutput: "No active model output.",
@@ -1088,6 +1115,8 @@
         cameraControlsLabel: "Controles da Câmera",
         startCameraButton: "Iniciar Câmera",
         stopCameraButton: "Parar Câmera",
+        hideCameraButton: "Ocultar Câmera",
+        showCameraButton: "Mostrar Câmera",
         quickNotesLabel: "Notas Rápidas",
         pillMirror: "Prévia espelhada ativada",
         pillResolution: "Alvo de 640 x 480",
@@ -1119,6 +1148,7 @@
         cameraLive: "Câmera ao vivo",
         cameraStopped: "Câmera parada",
         cameraRunning: "Câmera em execução",
+        cameraViewHidden: "Câmera em execução. Vídeo oculto.",
         startingCamera: "Iniciando câmera...",
         detectionInactive: "Detecção inativa",
         noActiveModelOutput: "Nenhuma saída ativa do modelo.",
@@ -1268,6 +1298,8 @@
         cameraControlsLabel: "カメラ操作",
         startCameraButton: "カメラ開始",
         stopCameraButton: "カメラ停止",
+        hideCameraButton: "カメラ非表示",
+        showCameraButton: "カメラ表示",
         quickNotesLabel: "クイックメモ",
         pillMirror: "ミラー表示を有効化",
         pillResolution: "640 x 480 を目標",
@@ -1299,6 +1331,7 @@
         cameraLive: "カメラ作動中",
         cameraStopped: "カメラ停止",
         cameraRunning: "カメラ稼働中",
+        cameraViewHidden: "カメラ稼働中。映像は非表示です。",
         startingCamera: "カメラを開始しています...",
         detectionInactive: "検出停止中",
         noActiveModelOutput: "モデル出力はまだありません。",
@@ -1440,6 +1473,7 @@
       modeSelect: document.getElementById("modeSelect"),
       startButton: document.getElementById("startButton"),
       stopButton: document.getElementById("stopButton"),
+      toggleCameraViewButton: document.getElementById("toggleCameraViewButton"),
       fullscreenButton: document.getElementById("fullscreenButton"),
       liveIndicator: document.getElementById("liveIndicator"),
       cameraStatus: document.getElementById("cameraStatus"),
@@ -1474,6 +1508,7 @@
       poseLandmarker: null,
       faceLandmarker: null,
       cameraRunning: false,
+      cameraHidden: localStorage.getItem("vision_motion_lab_camera_hidden") === "true",
       activeMode: elements.modeSelect.value,
       lastVideoTime: -1,
       loopCount: 0,
@@ -1522,6 +1557,23 @@
       elements.langButtons.forEach((button) => {
         button.classList.toggle("active", button.dataset.lang === currentLanguage);
       });
+      updateCameraViewUI();
+    }
+
+    function updateCameraViewUI() {
+      elements.stage.classList.toggle("camera-hidden", appState.cameraHidden);
+      elements.toggleCameraViewButton.classList.toggle("active", appState.cameraHidden);
+      elements.toggleCameraViewButton.setAttribute("aria-pressed", String(appState.cameraHidden));
+      elements.toggleCameraViewButton.textContent = t(appState.cameraHidden ? "showCameraButton" : "hideCameraButton");
+      if (appState.cameraRunning) {
+        elements.cameraStatus.textContent = t(appState.cameraHidden ? "cameraViewHidden" : "cameraRunning");
+      }
+    }
+
+    function toggleCameraView() {
+      appState.cameraHidden = !appState.cameraHidden;
+      localStorage.setItem("vision_motion_lab_camera_hidden", String(appState.cameraHidden));
+      updateCameraViewUI();
     }
 
     function isSecureOrLocalhost() {
@@ -2297,7 +2349,7 @@
         renderStoppedUI();
       } else {
         elements.liveIndicator.textContent = t("cameraLive");
-        elements.cameraStatus.textContent = t("cameraRunning");
+        elements.cameraStatus.textContent = t(appState.cameraHidden ? "cameraViewHidden" : "cameraRunning");
       }
     }
 
@@ -2526,7 +2578,7 @@
         elements.stopButton.disabled = false;
         elements.liveIndicator.textContent = t("cameraLive");
         elements.liveIndicator.classList.add("active");
-        elements.cameraStatus.textContent = t("cameraRunning");
+        elements.cameraStatus.textContent = t(appState.cameraHidden ? "cameraViewHidden" : "cameraRunning");
         elements.detectionStatus.textContent = t("modelsReady");
         elements.modeSummary.textContent = t("detectionLoopRunning");
         renderPerformanceChips();
@@ -2597,6 +2649,7 @@
 
     elements.startButton.addEventListener("click", startCamera);
     elements.stopButton.addEventListener("click", stopCamera);
+    elements.toggleCameraViewButton.addEventListener("click", toggleCameraView);
     elements.fullscreenButton.addEventListener("click", toggleFullscreen);
     elements.modeSelect.addEventListener("change", handleModeChange);
     elements.langButtons.forEach((button) => {

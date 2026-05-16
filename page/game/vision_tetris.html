@@ -269,6 +269,11 @@
       border-color: rgba(255, 255, 255, 0.12);
     }
 
+    .secondary-btn.active {
+      color: #08251f;
+      background: linear-gradient(135deg, var(--accent-warm), #ffe3ad);
+    }
+
     .pill-list {
       display: flex;
       gap: 10px;
@@ -372,6 +377,17 @@
         linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.02));
     }
 
+    .stage::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+      background:
+        radial-gradient(circle at 24% 22%, rgba(121, 240, 212, 0.14), transparent 20%),
+        radial-gradient(circle at 74% 68%, rgba(255, 190, 111, 0.12), transparent 24%),
+        linear-gradient(135deg, rgba(4, 9, 15, 0.96), rgba(12, 28, 38, 0.94));
+    }
+
     .stage:fullscreen {
       width: 100vw;
       height: 100vh;
@@ -390,6 +406,7 @@
     .video-layer {
       transform: scaleX(-1);
       transform-origin: center;
+      z-index: 1;
     }
 
     video,
@@ -405,6 +422,7 @@
     video {
       background: #02060a;
       z-index: 0;
+      transition: opacity 0.2s ease;
     }
 
     #handCanvas,
@@ -420,11 +438,25 @@
       z-index: 2;
     }
 
+    .board-layer {
+      z-index: 2;
+    }
+
+    .hud-layer {
+      z-index: 3;
+    }
+
     .video-shade {
       position: absolute;
       inset: 0;
       background: linear-gradient(180deg, var(--video-tint), transparent 42%, rgba(0, 0, 0, 0.26));
       z-index: 0;
+      transition: opacity 0.2s ease;
+    }
+
+    .stage.camera-hidden video,
+    .stage.camera-hidden .video-shade {
+      opacity: 0;
     }
 
     .cursor-dot,
@@ -654,6 +686,7 @@
               <div class="button-row">
                 <button id="startCameraButton" class="primary-btn" type="button" data-i18n="startCameraButton">Start Camera</button>
                 <button id="stopCameraButton" class="secondary-btn" type="button" disabled data-i18n="stopCameraButton">Stop Camera</button>
+                <button id="toggleCameraViewButton" class="secondary-btn" type="button" aria-pressed="false" data-i18n="hideCameraButton">Hide Camera</button>
               </div>
             </div>
 
@@ -813,6 +846,8 @@ Best move: none yet</div>
         cameraControlsLabel: "Camera Controls",
         startCameraButton: "Start Camera",
         stopCameraButton: "Stop Camera",
+        hideCameraButton: "Hide Camera",
+        showCameraButton: "Show Camera",
         quickNotesLabel: "Quick Notes",
         pillPinch: "Pinch to grab",
         pillPalm: "Left hand twist rotates",
@@ -840,6 +875,7 @@ Best move: none yet</div>
         cameraStopped: "Camera stopped",
         cameraStarting: "Starting camera...",
         cameraRunning: "Camera running",
+        cameraViewHidden: "Camera running. Video hidden.",
         gameReady: "Game ready. Press start when you want the first piece.",
         gameRunning: "Piece falling. Use the keyboard or your hand.",
         gamePaused: "Game paused. Resume to keep the stack moving.",
@@ -906,6 +942,8 @@ Best move: none yet</div>
         cameraControlsLabel: "Controles da Câmera",
         startCameraButton: "Iniciar Câmera",
         stopCameraButton: "Parar Câmera",
+        hideCameraButton: "Ocultar Câmera",
+        showCameraButton: "Mostrar Câmera",
         quickNotesLabel: "Notas Rápidas",
         pillPinch: "Pinça para pegar",
         pillPalm: "Mão esquerda gira",
@@ -933,6 +971,7 @@ Best move: none yet</div>
         cameraStopped: "Câmera parada",
         cameraStarting: "Iniciando câmera...",
         cameraRunning: "Câmera em execução",
+        cameraViewHidden: "Câmera em execução. Vídeo oculto.",
         gameReady: "Jogo pronto. Pressione iniciar quando quiser a primeira peça.",
         gameRunning: "Peça caindo. Use teclado ou mão.",
         gamePaused: "Jogo pausado. Continue para manter a pilha em movimento.",
@@ -999,6 +1038,8 @@ Best move: none yet</div>
         cameraControlsLabel: "カメラ操作",
         startCameraButton: "カメラ開始",
         stopCameraButton: "カメラ停止",
+        hideCameraButton: "カメラ非表示",
+        showCameraButton: "カメラ表示",
         quickNotesLabel: "クイックメモ",
         pillPinch: "ピンチでつかむ",
         pillPalm: "左手のひねりで回転",
@@ -1026,6 +1067,7 @@ Best move: none yet</div>
         cameraStopped: "カメラ停止",
         cameraStarting: "カメラを起動しています...",
         cameraRunning: "カメラ動作中",
+        cameraViewHidden: "カメラ動作中。映像は非表示です。",
         gameReady: "ゲーム準備完了。最初のピースを出したい時に開始してください。",
         gameRunning: "ピース落下中。キーボードか手を使えます。",
         gamePaused: "ゲームは一時停止中です。再開すると落下が続きます。",
@@ -1085,6 +1127,7 @@ Best move: none yet</div>
       pauseGameButton: document.getElementById("pauseGameButton"),
       startCameraButton: document.getElementById("startCameraButton"),
       stopCameraButton: document.getElementById("stopCameraButton"),
+      toggleCameraViewButton: document.getElementById("toggleCameraViewButton"),
       fullscreenButton: document.getElementById("fullscreenButton"),
       speedSelect: document.getElementById("speedSelect"),
       liveIndicator: document.getElementById("liveIndicator"),
@@ -1120,6 +1163,7 @@ Best move: none yet</div>
       visionResolver: null,
       handLandmarker: null,
       cameraRunning: false,
+      cameraHidden: localStorage.getItem("vision_tetris_camera_hidden") === "true",
       board: createGrid(),
       currentPiece: null,
       nextPiece: null,
@@ -1974,7 +2018,7 @@ Best move: none yet</div>
         elements.stopCameraButton.disabled = false;
         elements.liveIndicator.textContent = t("cameraLive");
         elements.liveIndicator.classList.add("active");
-        elements.cameraStatus.textContent = t("cameraRunning");
+        elements.cameraStatus.textContent = t(appState.cameraHidden ? "cameraViewHidden" : "cameraRunning");
         resizeCanvases();
         drawBoard();
         appState.detectionFrameId = requestAnimationFrame(detectionLoop);
@@ -2020,6 +2064,22 @@ Best move: none yet</div>
       updateHandStatus();
     }
 
+    function updateCameraViewUI() {
+      elements.stage.classList.toggle("camera-hidden", appState.cameraHidden);
+      elements.toggleCameraViewButton.classList.toggle("active", appState.cameraHidden);
+      elements.toggleCameraViewButton.setAttribute("aria-pressed", String(appState.cameraHidden));
+      elements.toggleCameraViewButton.textContent = t(appState.cameraHidden ? "showCameraButton" : "hideCameraButton");
+      if (appState.cameraRunning) {
+        elements.cameraStatus.textContent = t(appState.cameraHidden ? "cameraViewHidden" : "cameraRunning");
+      }
+    }
+
+    function toggleCameraView() {
+      appState.cameraHidden = !appState.cameraHidden;
+      localStorage.setItem("vision_tetris_camera_hidden", String(appState.cameraHidden));
+      updateCameraViewUI();
+    }
+
     async function toggleFullscreen() {
       try {
         if (document.fullscreenElement) {
@@ -2051,7 +2111,8 @@ Best move: none yet</div>
       elements.themeChip.textContent = t("themeChip", { theme: t(appState.currentTheme === "dark" ? "themeDark" : "themeLight") });
       elements.fpsChip.textContent = appState.fps ? t("fpsValue", { fps: appState.fps.toFixed(1) }) : t("fpsPlaceholder");
       elements.liveIndicator.textContent = t(appState.cameraRunning ? "cameraLive" : "cameraIdle");
-      elements.cameraStatus.textContent = t(appState.cameraRunning ? "cameraRunning" : "cameraStopped");
+      elements.cameraStatus.textContent = t(appState.cameraRunning ? (appState.cameraHidden ? "cameraViewHidden" : "cameraRunning") : "cameraStopped");
+      updateCameraViewUI();
       updateNextPieceUI();
       updateGameUI();
     }
@@ -2125,6 +2186,7 @@ Best move: none yet</div>
       elements.pauseGameButton.addEventListener("click", togglePause);
       elements.startCameraButton.addEventListener("click", startCamera);
       elements.stopCameraButton.addEventListener("click", stopCamera);
+      elements.toggleCameraViewButton.addEventListener("click", toggleCameraView);
       elements.fullscreenButton.addEventListener("click", toggleFullscreen);
       elements.langButtons.forEach((button) => {
         button.addEventListener("click", () => setLanguage(button.dataset.lang));
