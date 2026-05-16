@@ -1,0 +1,1280 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title data-i18n="title">Handwritten Digit OCR</title>
+  <link rel="stylesheet" href="../assets/fontawesome/css/all.min.css" />
+  <script>
+    window.__opencvReady = false;
+    function onOpenCvScriptLoaded() {
+      if (window.cv && cv.getBuildInformation) {
+        window.__opencvReady = true;
+        window.dispatchEvent(new Event('opencv-ready'));
+        return;
+      }
+      if (window.cv) {
+        cv.onRuntimeInitialized = () => {
+          window.__opencvReady = true;
+          window.dispatchEvent(new Event('opencv-ready'));
+        };
+      }
+    }
+  </script>
+  <script async src="https://docs.opencv.org/4.9.0/opencv.js" onload="onOpenCvScriptLoaded()"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.18.0/dist/ort.min.js"></script>
+  <style>
+    :root {
+      --bg-1: #111318;
+      --bg-2: #20242d;
+      --panel: rgba(24, 27, 34, 0.9);
+      --panel-strong: rgba(17, 19, 24, 0.96);
+      --ink: #f5f7fb;
+      --muted: #aeb7c6;
+      --border: rgba(255, 255, 255, 0.13);
+      --accent: #38d9a9;
+      --accent-strong: #13b98a;
+      --danger: #ff6b6b;
+      --warn: #ffd166;
+      --input-bg: rgba(10, 12, 16, 0.72);
+      --shadow: 0 20px 58px rgba(0, 0, 0, 0.34);
+      --radius: 8px;
+    }
+
+    html[data-theme="light"] {
+      --bg-1: #f6f8fb;
+      --bg-2: #e5ebf2;
+      --panel: rgba(255, 255, 255, 0.9);
+      --panel-strong: rgba(255, 255, 255, 0.98);
+      --ink: #151923;
+      --muted: #5f6978;
+      --border: rgba(20, 25, 35, 0.13);
+      --accent: #087f5b;
+      --accent-strong: #066b4d;
+      --danger: #c92a2a;
+      --warn: #9a6700;
+      --input-bg: rgba(246, 248, 251, 0.98);
+      --shadow: 0 20px 52px rgba(35, 48, 66, 0.16);
+    }
+
+    * { box-sizing: border-box; }
+    html, body { min-height: 100%; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      font: 14px/1.5 "Noto Sans JP", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        linear-gradient(135deg, color-mix(in srgb, var(--accent) 18%, transparent), transparent 34%),
+        linear-gradient(315deg, rgba(255, 107, 107, 0.14), transparent 36%),
+        linear-gradient(180deg, var(--bg-1), var(--bg-2));
+      padding: 18px;
+    }
+
+    button, input, select { font: inherit; }
+    button:focus-visible, input:focus-visible, a:focus-visible, select:focus-visible {
+      outline: 3px solid color-mix(in srgb, var(--accent) 55%, transparent);
+      outline-offset: 3px;
+    }
+
+    .app {
+      width: min(1360px, 100%);
+      margin: 0 auto;
+      display: grid;
+      gap: 18px;
+    }
+
+    .topbar, .panel {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--panel);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(14px);
+    }
+
+    .topbar {
+      min-height: 78px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 16px 18px;
+    }
+
+    h1, h2, h3, p { margin: 0; }
+    h1 {
+      font-size: clamp(28px, 5vw, 50px);
+      line-height: 1;
+      letter-spacing: 0;
+    }
+    h2 { font-size: 18px; }
+    h3 { font-size: 14px; color: var(--muted); font-weight: 800; }
+    .subtitle { margin-top: 6px; color: var(--muted); max-width: 760px; }
+
+    .toolbar, .lang-selector, .inline-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .lang-selector {
+      padding: 4px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--panel-strong);
+    }
+
+    .lang-selector a {
+      min-width: 38px;
+      text-align: center;
+      text-decoration: none;
+      color: var(--muted);
+      padding: 6px 9px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 800;
+      border: 1px solid transparent;
+    }
+
+    .lang-selector a.active {
+      color: #fff;
+      background: var(--accent-strong);
+    }
+
+    .btn {
+      min-height: 40px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--panel-strong);
+      color: var(--ink);
+      cursor: pointer;
+      padding: 9px 12px;
+      font-weight: 750;
+      transition: transform 0.16s ease, border-color 0.16s ease, background 0.16s ease;
+    }
+
+    .btn:hover {
+      transform: translateY(-1px);
+      border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
+    }
+
+    .btn.primary {
+      color: #fff;
+      border-color: transparent;
+      background: linear-gradient(180deg, var(--accent), var(--accent-strong));
+    }
+
+    .btn.icon-btn {
+      width: 40px;
+      min-width: 40px;
+      padding: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: minmax(300px, 0.72fr) minmax(0, 1.28fr);
+      gap: 18px;
+      align-items: start;
+    }
+
+    .panel { padding: 18px; }
+    .stack { display: grid; gap: 16px; }
+    .section-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .drop-zone {
+      display: grid;
+      gap: 12px;
+      place-items: center;
+      min-height: 170px;
+      padding: 20px;
+      text-align: center;
+      border: 1px dashed color-mix(in srgb, var(--accent) 45%, var(--border));
+      border-radius: var(--radius);
+      background: var(--input-bg);
+    }
+
+    .drop-zone input { width: min(100%, 340px); }
+    .hint, .status-text, .small { color: var(--muted); }
+    .status-text { min-height: 22px; }
+    .status-text.error { color: var(--danger); }
+    .status-text.ok { color: var(--accent); }
+    .status-text.warn { color: var(--warn); }
+
+    .switch {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--muted);
+      font-weight: 750;
+    }
+    .switch input { accent-color: var(--accent); }
+
+    .canvas-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .canvas-card {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      background: var(--panel-strong);
+    }
+
+    .canvas-card header {
+      min-height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    canvas.preview {
+      display: block;
+      width: 100%;
+      min-height: 220px;
+      max-height: 470px;
+      object-fit: contain;
+      background:
+        linear-gradient(45deg, rgba(255,255,255,.08) 25%, transparent 25%),
+        linear-gradient(-45deg, rgba(255,255,255,.08) 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, rgba(255,255,255,.08) 75%),
+        linear-gradient(-45deg, transparent 75%, rgba(255,255,255,.08) 75%);
+      background-size: 24px 24px;
+      background-position: 0 0, 0 12px, 12px -12px, -12px 0;
+    }
+
+    .results {
+      display: grid;
+      grid-template-columns: minmax(180px, 0.48fr) minmax(0, 1fr);
+      gap: 14px;
+      align-items: stretch;
+    }
+
+    .number-readout {
+      display: grid;
+      align-content: center;
+      gap: 8px;
+      padding: 18px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--panel-strong);
+    }
+
+    .number-readout strong {
+      font-size: clamp(30px, 6vw, 58px);
+      line-height: 1;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      letter-spacing: 0;
+      overflow-wrap: anywhere;
+    }
+
+    .digit-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
+      gap: 10px;
+    }
+
+    .digit-card {
+      display: grid;
+      gap: 8px;
+      padding: 10px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--panel-strong);
+    }
+
+    .digit-card canvas {
+      width: 100%;
+      aspect-ratio: 1;
+      image-rendering: pixelated;
+      background: #000;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+    }
+
+    .digit-meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      font-weight: 800;
+    }
+
+    .debug-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .debug-grid[hidden], .hidden { display: none; }
+
+    .notes {
+      display: grid;
+      gap: 10px;
+      color: var(--muted);
+      border-top: 1px solid var(--border);
+      padding-top: 14px;
+    }
+
+    .notes code {
+      color: var(--ink);
+      background: var(--input-bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 1px 5px;
+    }
+
+    @media (max-width: 980px) {
+      .grid, .results, .canvas-grid, .debug-grid { grid-template-columns: 1fr; }
+      .topbar { align-items: flex-start; flex-direction: column; }
+      .toolbar, .lang-selector { justify-content: flex-start; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div>
+        <h1 data-i18n="title">Handwritten Digit OCR</h1>
+        <p class="subtitle" data-i18n="subtitle">Client-side prototype for straightening a boxed form row, cropping handwritten digits, and recognizing them with MNIST ONNX.</p>
+      </div>
+      <div class="toolbar">
+        <div class="lang-selector" aria-label="Language">
+          <a href="#" data-lang="en" class="active">EN</a>
+          <a href="#" data-lang="ja">JA</a>
+          <a href="#" data-lang="pt">PT</a>
+        </div>
+        <button class="btn icon-btn" type="button" id="themeBtn" data-i18n-title="theme" title="Toggle theme">
+          <i class="fas fa-moon"></i>
+        </button>
+      </div>
+    </header>
+
+    <main class="grid">
+      <section class="panel stack">
+        <div class="section-title">
+          <h2 data-i18n="inputTitle">Input</h2>
+          <label class="switch">
+            <input type="checkbox" id="debugToggle" />
+            <span data-i18n="debugToggle">Show debug steps</span>
+          </label>
+        </div>
+
+        <div class="drop-zone" id="dropZone">
+          <i class="fas fa-file-image" aria-hidden="true" style="font-size: 34px; color: var(--accent);"></i>
+          <div>
+            <strong data-i18n="uploadTitle">Choose a photo of the form row</strong>
+            <p class="hint" data-i18n="uploadHint">Expected shape: C# followed by boxed handwritten digits.</p>
+          </div>
+          <input id="imageInput" type="file" accept="image/*" />
+          <button class="btn primary" type="button" id="processBtn">
+            <i class="fas fa-wand-magic-sparkles"></i>
+            <span data-i18n="process">Process image</span>
+          </button>
+        </div>
+
+        <p id="status" class="status-text" role="status" data-i18n="waiting">Waiting for OpenCV.js and the MNIST model...</p>
+
+        <div class="results">
+          <div class="number-readout">
+            <span class="small" data-i18n="combinedNumber">Combined number</span>
+            <strong id="combinedNumber">-</strong>
+          </div>
+          <div>
+            <h3 data-i18n="digitPreviews">Digit previews</h3>
+            <div id="digitList" class="digit-list" style="margin-top: 10px;"></div>
+          </div>
+        </div>
+
+        <div class="notes">
+          <p data-i18n="modelNote">Place mnist-12.onnx in the same folder as this HTML file. Run through a local server so the browser can fetch the model.</p>
+          <p data-i18n="tuningNote">If detection fails, tune the threshold block size, contour area limits, aspect ratio filters, and inner crop padding in the JavaScript constants.</p>
+        </div>
+      </section>
+
+      <section class="stack">
+        <div class="canvas-grid">
+          <article class="canvas-card">
+            <header>
+              <strong data-i18n="originalImage">Original image</strong>
+            </header>
+            <canvas id="originalCanvas" class="preview"></canvas>
+          </article>
+          <article class="canvas-card">
+            <header>
+              <strong data-i18n="correctedImage">Perspective-corrected image</strong>
+            </header>
+            <canvas id="correctedCanvas" class="preview"></canvas>
+          </article>
+        </div>
+
+        <div id="debugPanel" class="debug-grid" hidden>
+          <article class="canvas-card">
+            <header><strong data-i18n="thresholdImage">Threshold image</strong></header>
+            <canvas id="thresholdCanvas" class="preview"></canvas>
+          </article>
+          <article class="canvas-card">
+            <header><strong data-i18n="boxesImage">Detected boxes</strong></header>
+            <canvas id="boxesCanvas" class="preview"></canvas>
+          </article>
+          <article class="canvas-card">
+            <header><strong data-i18n="normalizedImages">Normalized 28x28</strong></header>
+            <canvas id="normalizedStripCanvas" class="preview"></canvas>
+          </article>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    (() => {
+      const LKEY = 'app_lang';
+      const TKEY = 'app_theme';
+
+      const CONFIG = {
+        maxCanvasSide: 1500,
+        adaptiveBlockSize: 31,
+        adaptiveC: 12,
+        minBoxAreaRatio: 0.004,
+        maxBoxAreaRatio: 0.35,
+        minBoxAspect: 0.45,
+        maxBoxAspect: 1.45,
+        duplicateCenterDistance: 18,
+        innerCropPadding: 0.16,
+        expectedMinCells: 4,
+        targetDigitCount: 6,
+        minGridLineHeightRatio: 0.68,
+        mnistSize: 28,
+        modelPaths: ['mnist-12.onnx', 'mnist.onnx']
+      };
+
+      const translations = {
+        en: {
+          title: 'Handwritten Digit OCR',
+          subtitle: 'Client-side prototype for straightening a boxed form row, cropping handwritten digits, and recognizing them with MNIST ONNX.',
+          theme: 'Toggle theme',
+          inputTitle: 'Input',
+          debugToggle: 'Show debug steps',
+          uploadTitle: 'Choose a photo of the form row',
+          uploadHint: 'Expected shape: C# followed by boxed handwritten digits.',
+          process: 'Process image',
+          waiting: 'Waiting for OpenCV.js and the MNIST model...',
+          opencvReady: 'OpenCV.js is ready. Loading mnist-12.onnx...',
+          ready: 'Ready. Choose an image and process it.',
+          modelError: 'Model could not be loaded. Put mnist-12.onnx next to this HTML file and run through a local server.',
+          noImage: 'Choose an image first.',
+          processing: 'Processing image...',
+          noBoxes: 'No digit boxes were detected. Try a clearer, flatter photo with strong box borders.',
+          done: 'Done.',
+          combinedNumber: 'Combined number',
+          digitPreviews: 'Digit previews',
+          modelNote: 'Place mnist-12.onnx in the same folder as this HTML file. Run through a local server so the browser can fetch the model.',
+          tuningNote: 'If detection fails, tune the threshold block size, contour area limits, aspect ratio filters, and inner crop padding in the JavaScript constants.',
+          originalImage: 'Original image',
+          correctedImage: 'Perspective-corrected image',
+          thresholdImage: 'Threshold image',
+          boxesImage: 'Detected boxes',
+          normalizedImages: 'Normalized 28x28',
+          digit: 'Digit',
+          confidence: 'Confidence',
+          labelIgnored: 'First cell ignored as label',
+          fallbackWarp: 'No full form rectangle found. Using the original image and continuing with box detection.',
+          modelNotReady: 'Model is not ready yet. Detection previews are shown, but recognition needs mnist-12.onnx.'
+        },
+        ja: {
+          title: '手書き数字 OCR',
+          subtitle: '箱付きフォーム行を補正し、手書き数字を切り出して MNIST ONNX で認識するクライアント側プロトタイプです。',
+          theme: 'テーマ切替',
+          inputTitle: '入力',
+          debugToggle: 'デバッグ手順を表示',
+          uploadTitle: 'フォーム行の写真を選択',
+          uploadHint: '想定形式: C# の後に手書き数字の枠が並びます。',
+          process: '画像を処理',
+          waiting: 'OpenCV.js と MNIST モデルを待機中...',
+          opencvReady: 'OpenCV.js の準備ができました。mnist-12.onnx を読み込み中...',
+          ready: '準備完了。画像を選んで処理してください。',
+          modelError: 'モデルを読み込めませんでした。mnist-12.onnx をこの HTML と同じフォルダに置き、ローカルサーバーで開いてください。',
+          noImage: '先に画像を選択してください。',
+          processing: '画像を処理中...',
+          noBoxes: '数字枠を検出できませんでした。枠線がはっきりした、平らで明るい写真を試してください。',
+          done: '完了しました。',
+          combinedNumber: '結合した番号',
+          digitPreviews: '数字プレビュー',
+          modelNote: 'mnist-12.onnx をこの HTML ファイルと同じフォルダに置いてください。ブラウザがモデルを取得できるようにローカルサーバーで実行します。',
+          tuningNote: '検出が失敗する場合は、JavaScript 定数のしきい値ブロックサイズ、輪郭面積、縦横比、内側クロップ余白を調整してください。',
+          originalImage: '元画像',
+          correctedImage: '透視補正画像',
+          thresholdImage: '二値化画像',
+          boxesImage: '検出した枠',
+          normalizedImages: '正規化 28x28',
+          digit: '数字',
+          confidence: '信頼度',
+          labelIgnored: '最初のセルはラベルとして無視',
+          fallbackWarp: 'フォーム全体の矩形が見つかりませんでした。元画像のまま枠検出を続行します。',
+          modelNotReady: 'モデルはまだ準備できていません。検出プレビューは表示できますが、認識には mnist-12.onnx が必要です。'
+        },
+        pt: {
+          title: 'OCR de Dígitos Manuscritos',
+          subtitle: 'Protótipo client-side para endireitar uma linha de formulário, recortar dígitos manuscritos e reconhecer com MNIST ONNX.',
+          theme: 'Alternar tema',
+          inputTitle: 'Entrada',
+          debugToggle: 'Mostrar etapas de debug',
+          uploadTitle: 'Escolha uma foto da linha do formulário',
+          uploadHint: 'Formato esperado: C# seguido por caixas com dígitos manuscritos.',
+          process: 'Processar imagem',
+          waiting: 'Aguardando OpenCV.js e o modelo MNIST...',
+          opencvReady: 'OpenCV.js está pronto. Carregando mnist-12.onnx...',
+          ready: 'Pronto. Escolha uma imagem e processe.',
+          modelError: 'Não foi possível carregar o modelo. Coloque mnist-12.onnx ao lado deste HTML e rode por um servidor local.',
+          noImage: 'Escolha uma imagem primeiro.',
+          processing: 'Processando imagem...',
+          noBoxes: 'Nenhuma caixa de dígito foi detectada. Tente uma foto mais nítida, plana e com bordas fortes.',
+          done: 'Concluído.',
+          combinedNumber: 'Número combinado',
+          digitPreviews: 'Prévia dos dígitos',
+          modelNote: 'Coloque mnist-12.onnx na mesma pasta deste arquivo HTML. Rode por um servidor local para o navegador conseguir buscar o modelo.',
+          tuningNote: 'Se a detecção falhar, ajuste o tamanho do bloco de threshold, limites de área dos contornos, filtros de proporção e padding do recorte interno nas constantes JavaScript.',
+          originalImage: 'Imagem original',
+          correctedImage: 'Imagem corrigida por perspectiva',
+          thresholdImage: 'Imagem binarizada',
+          boxesImage: 'Caixas detectadas',
+          normalizedImages: 'Normalizadas 28x28',
+          digit: 'Dígito',
+          confidence: 'Confiança',
+          labelIgnored: 'Primeira célula ignorada como rótulo',
+          fallbackWarp: 'Não encontrei o retângulo completo do formulário. Vou usar a imagem original e continuar a detecção das caixas.',
+          modelNotReady: 'O modelo ainda não está pronto. As prévias de detecção aparecem, mas o reconhecimento precisa do mnist-12.onnx.'
+        }
+      };
+
+      const $ = (selector, root = document) => root.querySelector(selector);
+      const $$ = (selector, root = document) => Array.from(root.querySelectorAll(selector));
+      const els = {
+        imageInput: $('#imageInput'),
+        processBtn: $('#processBtn'),
+        debugToggle: $('#debugToggle'),
+        debugPanel: $('#debugPanel'),
+        status: $('#status'),
+        originalCanvas: $('#originalCanvas'),
+        correctedCanvas: $('#correctedCanvas'),
+        thresholdCanvas: $('#thresholdCanvas'),
+        boxesCanvas: $('#boxesCanvas'),
+        normalizedStripCanvas: $('#normalizedStripCanvas'),
+        digitList: $('#digitList'),
+        combinedNumber: $('#combinedNumber'),
+        themeBtn: $('#themeBtn')
+      };
+
+      let currentLang = localStorage.getItem(LKEY) || (translations[navigator.language.split('-')[0]] ? navigator.language.split('-')[0] : 'en');
+      let session = null;
+      let originalImageReady = false;
+
+      function t(key) {
+        return translations[currentLang][key] || translations.en[key] || key;
+      }
+
+      function setStatus(message, type = '') {
+        els.status.textContent = message;
+        els.status.className = `status-text ${type}`.trim();
+      }
+
+      function applyLanguage(lang) {
+        currentLang = translations[lang] ? lang : 'en';
+        localStorage.setItem(LKEY, currentLang);
+        document.documentElement.lang = currentLang;
+        document.title = t('title');
+        $$('[data-i18n]').forEach((el) => {
+          const key = el.getAttribute('data-i18n');
+          el.textContent = t(key);
+        });
+        $$('[data-i18n-title]').forEach((el) => {
+          const key = el.getAttribute('data-i18n-title');
+          el.title = t(key);
+          el.setAttribute('aria-label', t(key));
+        });
+        $$('.lang-selector a').forEach((a) => a.classList.toggle('active', a.dataset.lang === currentLang));
+      }
+
+      function applyTheme(theme) {
+        document.documentElement.dataset.theme = theme;
+        localStorage.setItem(TKEY, theme);
+        els.themeBtn.innerHTML = theme === 'light' ? '<i class="fas fa-sun"></i>' : '<i class="fas fa-moon"></i>';
+      }
+
+      function waitForOpenCv() {
+        return new Promise((resolve, reject) => {
+          if (window.__opencvReady && window.cv) {
+            resolve();
+            return;
+          }
+          const timer = window.setTimeout(() => reject(new Error('OpenCV.js timeout')), 30000);
+          window.addEventListener('opencv-ready', () => {
+            window.clearTimeout(timer);
+            resolve();
+          }, { once: true });
+        });
+      }
+
+      async function loadModel() {
+        if (!window.ort) {
+          await new Promise((resolve) => window.addEventListener('load', resolve, { once: true }));
+        }
+        ort.env.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.18.0/dist/';
+        let lastError = null;
+        for (const modelPath of CONFIG.modelPaths) {
+          try {
+            session = await ort.InferenceSession.create(modelPath, { executionProviders: ['wasm'] });
+            return;
+          } catch (error) {
+            lastError = error;
+          }
+        }
+        throw lastError || new Error('Model load failed');
+      }
+
+      function fitCanvasToImage(canvas, width, height) {
+        canvas.width = width;
+        canvas.height = height;
+      }
+
+      function matToCanvas(mat, canvas) {
+        cv.imshow(canvas, mat);
+      }
+
+      function drawImageScaled(img, canvas) {
+        const scale = Math.min(1, CONFIG.maxCanvasSide / Math.max(img.naturalWidth, img.naturalHeight));
+        const width = Math.round(img.naturalWidth * scale);
+        const height = Math.round(img.naturalHeight * scale);
+        fitCanvasToImage(canvas, width, height);
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        ctx.clearRect(0, 0, width, height);
+        ctx.drawImage(img, 0, 0, width, height);
+      }
+
+      function loadImageToCanvas(file, canvas) {
+        return new Promise((resolve, reject) => {
+          const img = new Image();
+          img.onload = () => {
+            URL.revokeObjectURL(img.src);
+            drawImageScaled(img, canvas);
+            originalImageReady = true;
+            resolve(canvas);
+          };
+          img.onerror = () => reject(new Error('Image load failed'));
+          img.src = URL.createObjectURL(file);
+        });
+      }
+
+      function loadImageUrlToCanvas(url, canvas) {
+        return new Promise((resolve, reject) => {
+          const img = new Image();
+          img.onload = () => {
+            drawImageScaled(img, canvas);
+            originalImageReady = true;
+            resolve(canvas);
+          };
+          img.onerror = () => reject(new Error('Image load failed'));
+          img.src = url;
+        });
+      }
+
+      function preprocessImage(srcMat) {
+        const gray = new cv.Mat();
+        const blurred = new cv.Mat();
+        const threshold = new cv.Mat();
+
+        cv.cvtColor(srcMat, gray, cv.COLOR_RGBA2GRAY);
+        cv.GaussianBlur(gray, blurred, new cv.Size(5, 5), 0);
+        cv.adaptiveThreshold(
+          blurred,
+          threshold,
+          255,
+          cv.ADAPTIVE_THRESH_GAUSSIAN_C,
+          cv.THRESH_BINARY_INV,
+          CONFIG.adaptiveBlockSize,
+          CONFIG.adaptiveC
+        );
+
+        gray.delete();
+        blurred.delete();
+        return { threshold };
+      }
+
+      function orderQuadPoints(points) {
+        const sortedBySum = [...points].sort((a, b) => (a.x + a.y) - (b.x + b.y));
+        const sortedByDiff = [...points].sort((a, b) => (a.y - a.x) - (b.y - b.x));
+        return {
+          tl: sortedBySum[0],
+          br: sortedBySum[3],
+          tr: sortedByDiff[0],
+          bl: sortedByDiff[3]
+        };
+      }
+
+      function distance(a, b) {
+        return Math.hypot(a.x - b.x, a.y - b.y);
+      }
+
+      function findAndWarpForm(srcMat, thresholdMat) {
+        const contours = new cv.MatVector();
+        const hierarchy = new cv.Mat();
+        const approx = new cv.Mat();
+        let bestQuad = null;
+        let bestArea = 0;
+
+        cv.findContours(thresholdMat, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+        for (let i = 0; i < contours.size(); i++) {
+          const contour = contours.get(i);
+          const peri = cv.arcLength(contour, true);
+          cv.approxPolyDP(contour, approx, 0.025 * peri, true);
+          const area = cv.contourArea(contour);
+          if (approx.rows === 4 && area > bestArea && area > srcMat.cols * srcMat.rows * 0.08) {
+            bestArea = area;
+            bestQuad = [];
+            for (let j = 0; j < 4; j++) {
+              bestQuad.push({ x: approx.intPtr(j, 0)[0], y: approx.intPtr(j, 0)[1] });
+            }
+          }
+          contour.delete();
+        }
+
+        contours.delete();
+        hierarchy.delete();
+        approx.delete();
+
+        if (!bestQuad) {
+          const copy = srcMat.clone();
+          return { warped: copy, usedPerspective: false };
+        }
+
+        const { tl, tr, br, bl } = orderQuadPoints(bestQuad);
+        const width = Math.max(distance(tl, tr), distance(bl, br));
+        const height = Math.max(distance(tl, bl), distance(tr, br));
+        const targetWidth = Math.max(200, Math.round(width));
+        const targetHeight = Math.max(80, Math.round(height));
+
+        const srcTri = cv.matFromArray(4, 1, cv.CV_32FC2, [tl.x, tl.y, tr.x, tr.y, br.x, br.y, bl.x, bl.y]);
+        const dstTri = cv.matFromArray(4, 1, cv.CV_32FC2, [0, 0, targetWidth - 1, 0, targetWidth - 1, targetHeight - 1, 0, targetHeight - 1]);
+        const matrix = cv.getPerspectiveTransform(srcTri, dstTri);
+        const warped = new cv.Mat();
+        cv.warpPerspective(srcMat, warped, matrix, new cv.Size(targetWidth, targetHeight), cv.INTER_LINEAR, cv.BORDER_CONSTANT, new cv.Scalar());
+
+        srcTri.delete();
+        dstTri.delete();
+        matrix.delete();
+        return { warped, usedPerspective: true };
+      }
+
+      function preprocessWarpForBoxes(warpedMat) {
+        const { threshold } = preprocessImage(warpedMat);
+        const kernel = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(3, 3));
+        cv.morphologyEx(threshold, threshold, cv.MORPH_CLOSE, kernel);
+        kernel.delete();
+        return threshold;
+      }
+
+      function isDuplicateBox(box, boxes) {
+        return boxes.some((existing) => Math.abs((existing.x + existing.w / 2) - (box.x + box.w / 2)) < CONFIG.duplicateCenterDistance);
+      }
+
+      function groupProjectionRuns(values, minValue, minWidth = 1) {
+        const groups = [];
+        let start = -1;
+        let sum = 0;
+        let count = 0;
+
+        values.forEach((value, index) => {
+          if (value >= minValue) {
+            if (start < 0) start = index;
+            sum += index;
+            count++;
+          } else if (start >= 0) {
+            if (count >= minWidth) groups.push({ start, end: index - 1, center: sum / count, width: count });
+            start = -1;
+            sum = 0;
+            count = 0;
+          }
+        });
+
+        if (start >= 0 && count >= minWidth) {
+          groups.push({ start, end: values.length - 1, center: sum / count, width: count });
+        }
+        return groups;
+      }
+
+      function estimateMedian(values) {
+        if (!values.length) return 0;
+        const sorted = [...values].sort((a, b) => a - b);
+        return sorted[Math.floor(sorted.length / 2)];
+      }
+
+      function addMissingGridLines(lines) {
+        if (lines.length < 3) return lines;
+        const gaps = [];
+        for (let i = 1; i < lines.length; i++) gaps.push(lines[i] - lines[i - 1]);
+        const medianGap = estimateMedian(gaps.filter((gap) => gap > 8));
+        if (!medianGap) return lines;
+
+        const completed = [lines[0]];
+        for (let i = 1; i < lines.length; i++) {
+          const previous = completed[completed.length - 1];
+          const gap = lines[i] - previous;
+          if (gap > medianGap * 1.55) {
+            const missing = Math.round(gap / medianGap) - 1;
+            for (let j = 1; j <= missing; j++) completed.push(previous + medianGap * j);
+          }
+          completed.push(lines[i]);
+        }
+        return completed;
+      }
+
+      function mergeCloseLines(lines, minDistance) {
+        const merged = [];
+        lines.forEach((line) => {
+          const previous = merged[merged.length - 1];
+          if (previous && line - previous[previous.length - 1] <= minDistance) {
+            previous.push(line);
+          } else {
+            merged.push([line]);
+          }
+        });
+        return merged.map((group) => Math.round(group.reduce((sum, value) => sum + value, 0) / group.length));
+      }
+
+      function mergeLikelySplitCells(boxes, targetCellCount) {
+        const merged = boxes.map((box) => ({ ...box }));
+        while (merged.length > targetCellCount) {
+          let mergeIndex = 1;
+          let bestWidth = Infinity;
+
+          // Extra cells usually come from a handwritten vertical stroke being
+          // interpreted as a divider. Merge the narrowest adjacent digit pair,
+          // but keep the first C# label cell intact.
+          for (let i = 1; i < merged.length - 1; i++) {
+            const combinedWidth = (merged[i + 1].x + merged[i + 1].w) - merged[i].x;
+            if (combinedWidth < bestWidth) {
+              bestWidth = combinedWidth;
+              mergeIndex = i;
+            }
+          }
+
+          const a = merged[mergeIndex];
+          const b = merged[mergeIndex + 1];
+          const x1 = Math.min(a.x, b.x);
+          const y1 = Math.min(a.y, b.y);
+          const x2 = Math.max(a.x + a.w, b.x + b.w);
+          const y2 = Math.max(a.y + a.h, b.y + b.h);
+          merged.splice(mergeIndex, 2, { x: x1, y: y1, w: x2 - x1, h: y2 - y1 });
+        }
+        return merged;
+      }
+
+      function hasTopAndBottomSupport(mat, x, bounds) {
+        const windowRadius = 2;
+        const topEnd = bounds.y + Math.max(3, Math.round(bounds.height * 0.18));
+        const bottomStart = bounds.y + Math.round(bounds.height * 0.82);
+        let topInk = 0;
+        let bottomInk = 0;
+
+        for (let px = Math.max(0, x - windowRadius); px <= Math.min(mat.cols - 1, x + windowRadius); px++) {
+          for (let y = bounds.y; y < topEnd; y++) {
+            if (mat.ucharPtr(y, px)[0] > 0) topInk++;
+          }
+          for (let y = bottomStart; y < bounds.y + bounds.height; y++) {
+            if (mat.ucharPtr(y, px)[0] > 0) bottomInk++;
+          }
+        }
+
+        return topInk >= 2 && bottomInk >= 2;
+      }
+
+      function detectBoxesFromGrid(warpedMat, thresholdMat) {
+        const vertical = new cv.Mat();
+        const verticalKernel = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(1, Math.max(12, Math.round(warpedMat.rows * CONFIG.minGridLineHeightRatio))));
+        cv.erode(thresholdMat, vertical, verticalKernel);
+        cv.dilate(vertical, vertical, verticalKernel);
+        verticalKernel.delete();
+
+        const bounds = findBinaryBounds(vertical) || findBinaryBounds(thresholdMat);
+        if (!bounds) {
+          vertical.delete();
+          return [];
+        }
+
+        const projection = [];
+        for (let x = 0; x < vertical.cols; x++) {
+          let count = 0;
+          for (let y = bounds.y; y < bounds.y + bounds.height; y++) {
+            if (vertical.ucharPtr(y, x)[0] > 0) count++;
+          }
+          projection.push(count);
+        }
+
+        let groups = [];
+        for (const ratio of [0.64, 0.54, 0.44, 0.34]) {
+          groups = groupProjectionRuns(projection, Math.max(4, bounds.height * ratio));
+          if (groups.length >= CONFIG.expectedMinCells + 1) break;
+        }
+
+        vertical.delete();
+        if (groups.length < 3) return [];
+
+        let lines = groups
+          .map((group) => Math.round(group.center))
+          .sort((a, b) => a - b)
+          .filter((x, index, all) => index === 0 || x - all[index - 1] > 5)
+          .filter((x) => hasTopAndBottomSupport(thresholdMat, x, bounds));
+
+        lines = mergeCloseLines(lines, 8);
+        lines = addMissingGridLines(lines);
+        if (lines.length < 3) return [];
+
+        const boxes = [];
+        for (let i = 0; i < lines.length - 1; i++) {
+          const x1 = Math.max(0, Math.round(lines[i]));
+          const x2 = Math.min(warpedMat.cols - 1, Math.round(lines[i + 1]));
+          const w = x2 - x1;
+          if (w > 8) boxes.push({ x: x1, y: bounds.y, w, h: bounds.height });
+        }
+        return mergeLikelySplitCells(boxes, CONFIG.targetDigitCount + 1);
+      }
+
+      function detectBoxesByContours(warpedMat, thresholdMat) {
+        const contours = new cv.MatVector();
+        const hierarchy = new cv.Mat();
+        const boxes = [];
+        const imageArea = warpedMat.cols * warpedMat.rows;
+
+        cv.findContours(thresholdMat, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+        for (let i = 0; i < contours.size(); i++) {
+          const contour = contours.get(i);
+          const rect = cv.boundingRect(contour);
+          const area = rect.width * rect.height;
+          const aspect = rect.width / Math.max(1, rect.height);
+          const fillsEnoughHeight = rect.height > warpedMat.rows * 0.28;
+          const areaOk = area > imageArea * CONFIG.minBoxAreaRatio && area < imageArea * CONFIG.maxBoxAreaRatio;
+          const aspectOk = aspect >= CONFIG.minBoxAspect && aspect <= CONFIG.maxBoxAspect;
+
+          if (areaOk && aspectOk && fillsEnoughHeight) {
+            const box = { x: rect.x, y: rect.y, w: rect.width, h: rect.height };
+            if (!isDuplicateBox(box, boxes)) boxes.push(box);
+          }
+          contour.delete();
+        }
+
+        contours.delete();
+        hierarchy.delete();
+
+        boxes.sort((a, b) => a.x - b.x);
+        return boxes;
+      }
+
+      function detectBoxes(warpedMat, thresholdMat) {
+        const gridBoxes = detectBoxesFromGrid(warpedMat, thresholdMat);
+        const contourBoxes = detectBoxesByContours(warpedMat, thresholdMat);
+        if (gridBoxes.length >= CONFIG.expectedMinCells && gridBoxes.length >= contourBoxes.length) {
+          return gridBoxes;
+        }
+        return contourBoxes;
+      }
+
+      function cropDigitCells(warpedMat, boxes) {
+        return boxes.slice(1).map((box) => {
+          const padX = Math.round(box.w * CONFIG.innerCropPadding);
+          const padY = Math.round(box.h * CONFIG.innerCropPadding);
+          const x = Math.max(0, box.x + padX);
+          const y = Math.max(0, box.y + padY);
+          const w = Math.min(warpedMat.cols - x, Math.max(1, box.w - padX * 2));
+          const h = Math.min(warpedMat.rows - y, Math.max(1, box.h - padY * 2));
+          const roi = warpedMat.roi(new cv.Rect(x, y, w, h));
+          const crop = roi.clone();
+          roi.delete();
+          return { box, crop };
+        });
+      }
+
+      function findBinaryBounds(binaryMat) {
+        let minX = binaryMat.cols;
+        let minY = binaryMat.rows;
+        let maxX = -1;
+        let maxY = -1;
+
+        // Some OpenCV.js builds do not expose cv.findNonZero, so scan the
+        // 8-bit binary image directly and build the digit bounding box here.
+        for (let y = 0; y < binaryMat.rows; y++) {
+          for (let x = 0; x < binaryMat.cols; x++) {
+            if (binaryMat.ucharPtr(y, x)[0] > 0) {
+              minX = Math.min(minX, x);
+              minY = Math.min(minY, y);
+              maxX = Math.max(maxX, x);
+              maxY = Math.max(maxY, y);
+            }
+          }
+        }
+
+        if (maxX < minX || maxY < minY) return null;
+        return new cv.Rect(minX, minY, maxX - minX + 1, maxY - minY + 1);
+      }
+
+      function centerDigit(binaryMat) {
+        const rect = findBinaryBounds(binaryMat);
+        if (!rect) {
+          const blank = cv.Mat.zeros(CONFIG.mnistSize, CONFIG.mnistSize, cv.CV_8UC1);
+          return blank;
+        }
+
+        const roi = binaryMat.roi(rect);
+        const side = Math.max(rect.width, rect.height);
+        const square = cv.Mat.zeros(side, side, cv.CV_8UC1);
+        const dx = Math.floor((side - rect.width) / 2);
+        const dy = Math.floor((side - rect.height) / 2);
+        const squareRoi = square.roi(new cv.Rect(dx, dy, rect.width, rect.height));
+        roi.copyTo(squareRoi);
+        squareRoi.delete();
+        roi.delete();
+
+        const resizedSide = 20;
+        const resized = new cv.Mat();
+        cv.resize(square, resized, new cv.Size(resizedSide, resizedSide), 0, 0, cv.INTER_AREA);
+        square.delete();
+
+        const output = cv.Mat.zeros(CONFIG.mnistSize, CONFIG.mnistSize, cv.CV_8UC1);
+        const offset = Math.floor((CONFIG.mnistSize - resizedSide) / 2);
+        const outputRoi = output.roi(new cv.Rect(offset, offset, resizedSide, resizedSide));
+        resized.copyTo(outputRoi);
+        outputRoi.delete();
+        resized.delete();
+        return output;
+      }
+
+      function normalizeDigitForMnist(cropMat) {
+        const gray = new cv.Mat();
+        const binary = new cv.Mat();
+        cv.cvtColor(cropMat, gray, cv.COLOR_RGBA2GRAY);
+        cv.GaussianBlur(gray, gray, new cv.Size(3, 3), 0);
+        cv.threshold(gray, binary, 0, 255, cv.THRESH_BINARY_INV + cv.THRESH_OTSU);
+        gray.delete();
+
+        const normalizedMat = centerDigit(binary);
+        binary.delete();
+
+        const data = new Float32Array(CONFIG.mnistSize * CONFIG.mnistSize);
+        for (let y = 0; y < CONFIG.mnistSize; y++) {
+          for (let x = 0; x < CONFIG.mnistSize; x++) {
+            data[y * CONFIG.mnistSize + x] = normalizedMat.ucharPtr(y, x)[0] / 255;
+          }
+        }
+
+        return { data, mat: normalizedMat };
+      }
+
+      function softmax(values) {
+        const max = Math.max(...values);
+        const exps = values.map((v) => Math.exp(v - max));
+        const sum = exps.reduce((acc, v) => acc + v, 0);
+        return exps.map((v) => v / sum);
+      }
+
+      async function runDigitRecognition(normalizedDigits) {
+        if (!session) {
+          return normalizedDigits.map(() => ({ digit: '?', confidence: 0 }));
+        }
+
+        const inputName = session.inputNames[0];
+        const outputName = session.outputNames[0];
+        const results = [];
+
+        for (const item of normalizedDigits) {
+          const tensor = new ort.Tensor('float32', item.data, [1, 1, CONFIG.mnistSize, CONFIG.mnistSize]);
+          const output = await session.run({ [inputName]: tensor });
+          const scores = Array.from(output[outputName].data);
+          const probabilities = softmax(scores);
+          let bestIndex = 0;
+          for (let i = 1; i < probabilities.length; i++) {
+            if (probabilities[i] > probabilities[bestIndex]) bestIndex = i;
+          }
+          results.push({ digit: String(bestIndex), confidence: probabilities[bestIndex] });
+        }
+
+        return results;
+      }
+
+      function drawBoxes(warpedMat, boxes) {
+        const debug = warpedMat.clone();
+        boxes.forEach((box, index) => {
+          const color = index === 0 ? new cv.Scalar(255, 209, 102, 255) : new cv.Scalar(56, 217, 169, 255);
+          cv.rectangle(debug, new cv.Point(box.x, box.y), new cv.Point(box.x + box.w, box.y + box.h), color, 3);
+        });
+        return debug;
+      }
+
+      function drawNormalizedStrip(normalizedDigits) {
+        const size = CONFIG.mnistSize;
+        const gap = 8;
+        const width = Math.max(1, normalizedDigits.length) * size + Math.max(0, normalizedDigits.length - 1) * gap;
+        const height = size;
+        fitCanvasToImage(els.normalizedStripCanvas, width, height);
+        const ctx = els.normalizedStripCanvas.getContext('2d');
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0, 0, width, height);
+        normalizedDigits.forEach((item, index) => {
+          const tmp = document.createElement('canvas');
+          fitCanvasToImage(tmp, size, size);
+          cv.imshow(tmp, item.mat);
+          ctx.drawImage(tmp, index * (size + gap), 0);
+        });
+      }
+
+      function renderDigitCards(normalizedDigits, predictions) {
+        els.digitList.innerHTML = '';
+        const number = predictions.map((result) => result.digit).join('');
+        els.combinedNumber.textContent = number || '-';
+
+        normalizedDigits.forEach((item, index) => {
+          const result = predictions[index] || { digit: '?', confidence: 0 };
+          const card = document.createElement('div');
+          card.className = 'digit-card';
+          const canvas = document.createElement('canvas');
+          fitCanvasToImage(canvas, CONFIG.mnistSize, CONFIG.mnistSize);
+          cv.imshow(canvas, item.mat);
+          const meta = document.createElement('div');
+          meta.className = 'digit-meta';
+          meta.innerHTML = `<span>${t('digit')}: ${result.digit}</span><span>${Math.round(result.confidence * 100)}%</span>`;
+          const caption = document.createElement('small');
+          caption.className = 'small';
+          caption.textContent = `${t('confidence')}: ${(result.confidence * 100).toFixed(1)}%`;
+          card.append(canvas, meta, caption);
+          els.digitList.appendChild(card);
+        });
+      }
+
+      function renderDebugOutput({ threshold, warped, boxes, normalizedDigits }) {
+        matToCanvas(threshold, els.thresholdCanvas);
+        const boxesMat = drawBoxes(warped, boxes);
+        matToCanvas(boxesMat, els.boxesCanvas);
+        boxesMat.delete();
+        drawNormalizedStrip(normalizedDigits);
+      }
+
+      function cleanup(items) {
+        items.forEach((item) => {
+          if (!item) return;
+          if (Array.isArray(item)) cleanup(item);
+          else if (item.mat && typeof item.mat.delete === 'function') item.mat.delete();
+          else if (typeof item.delete === 'function') item.delete();
+          else if (item.crop && typeof item.crop.delete === 'function') item.crop.delete();
+        });
+      }
+
+      async function processCurrentImage() {
+        if (!window.__opencvReady) {
+          setStatus('OpenCV.js is not ready yet.', 'error');
+          return;
+        }
+        if (!originalImageReady) {
+          setStatus(t('noImage'), 'warn');
+          return;
+        }
+
+        setStatus(t('processing'), 'warn');
+        els.digitList.innerHTML = '';
+        els.combinedNumber.textContent = '-';
+
+        const src = cv.imread(els.originalCanvas);
+        const resources = [src];
+
+        try {
+          const pre = preprocessImage(src);
+          resources.push(pre.threshold);
+          const warpResult = findAndWarpForm(src, pre.threshold);
+          resources.push(warpResult.warped);
+          matToCanvas(warpResult.warped, els.correctedCanvas);
+
+          const boxThreshold = preprocessWarpForBoxes(warpResult.warped);
+          resources.push(boxThreshold);
+          const boxes = detectBoxes(warpResult.warped, boxThreshold);
+
+          if (boxes.length < 2) {
+            renderDebugOutput({ threshold: boxThreshold, warped: warpResult.warped, boxes, normalizedDigits: [] });
+            setStatus(t('noBoxes'), 'error');
+            return;
+          }
+
+          const digitCrops = cropDigitCells(warpResult.warped, boxes);
+          resources.push(digitCrops);
+          const normalizedDigits = digitCrops.map((item) => normalizeDigitForMnist(item.crop));
+          resources.push(normalizedDigits.map((item) => item.mat));
+          const predictions = await runDigitRecognition(normalizedDigits);
+
+          renderDigitCards(normalizedDigits, predictions);
+          renderDebugOutput({ threshold: boxThreshold, warped: warpResult.warped, boxes, normalizedDigits });
+
+          const notes = [];
+          if (!warpResult.usedPerspective) notes.push(t('fallbackWarp'));
+          notes.push(t('labelIgnored'));
+          if (!session) notes.push(t('modelNotReady'));
+          setStatus(`${t('done')} ${notes.join(' ')}`, session ? 'ok' : 'warn');
+        } catch (error) {
+          setStatus(error.message || String(error), 'error');
+        } finally {
+          cleanup(resources);
+        }
+      }
+
+      els.imageInput.addEventListener('change', async () => {
+        const file = els.imageInput.files[0];
+        if (!file) return;
+        await loadImageToCanvas(file, els.originalCanvas);
+        setStatus(t('ready'), session ? 'ok' : 'warn');
+      });
+
+      els.processBtn.addEventListener('click', processCurrentImage);
+      els.debugToggle.addEventListener('change', () => {
+        els.debugPanel.hidden = !els.debugToggle.checked;
+      });
+      els.themeBtn.addEventListener('click', () => {
+        applyTheme(document.documentElement.dataset.theme === 'light' ? 'dark' : 'light');
+      });
+      $('.lang-selector').addEventListener('click', (event) => {
+        event.preventDefault();
+        const lang = event.target.dataset.lang;
+        if (lang) applyLanguage(lang);
+      });
+
+      window.handwrittenDigitOcrDebug = {
+        loadImageUrl: (url) => loadImageUrlToCanvas(url, els.originalCanvas),
+        process: processCurrentImage
+      };
+
+      applyTheme(localStorage.getItem(TKEY) || 'dark');
+      applyLanguage(currentLang);
+
+      waitForOpenCv()
+        .then(async () => {
+          setStatus(t('opencvReady'), 'warn');
+          try {
+            await loadModel();
+            setStatus(t('ready'), 'ok');
+          } catch (error) {
+            setStatus(t('modelError'), 'error');
+          }
+        })
+        .catch(() => setStatus('OpenCV.js could not be loaded from the CDN.', 'error'));
+    })();
+  </script>
+</body>
+</html>
