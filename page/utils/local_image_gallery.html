@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="pt" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Local Image Gallery</title>
+  <style>
+    :root {
+      --bg: #101214;
+      --bg-soft: #181c20;
+      --panel: rgba(24, 28, 32, 0.86);
+      --panel-strong: rgba(16, 18, 20, 0.94);
+      --ink: #f6f4ee;
+      --muted: #aeb6bb;
+      --border: rgba(255, 255, 255, 0.13);
+      --accent: #23c39b;
+      --accent-strong: #13a981;
+      --danger: #ff6b6b;
+      --shadow: 0 22px 60px rgba(0, 0, 0, 0.32);
+      --tile: 210px;
+      --radius: 8px;
+    }
+
+    html[data-theme="light"] {
+      --bg: #f5f7f8;
+      --bg-soft: #e5ebed;
+      --panel: rgba(255, 255, 255, 0.88);
+      --panel-strong: rgba(255, 255, 255, 0.98);
+      --ink: #161a1d;
+      --muted: #5d686e;
+      --border: rgba(18, 25, 30, 0.14);
+      --accent: #087f6d;
+      --accent-strong: #056856;
+      --danger: #c92a2a;
+      --shadow: 0 22px 52px rgba(35, 47, 54, 0.14);
+    }
+
+    * { box-sizing: border-box; }
+    html, body { min-height: 100%; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      font: 14px/1.5 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        linear-gradient(135deg, color-mix(in srgb, var(--accent) 18%, transparent), transparent 34%),
+        linear-gradient(315deg, rgba(255, 107, 107, 0.14), transparent 35%),
+        linear-gradient(180deg, var(--bg), var(--bg-soft));
+      background-attachment: fixed;
+    }
+
+    button, input, select { font: inherit; }
+    button:focus-visible,
+    input:focus-visible,
+    select:focus-visible {
+      outline: 3px solid color-mix(in srgb, var(--accent) 52%, transparent);
+      outline-offset: 3px;
+    }
+
+    .app {
+      width: min(1480px, 100%);
+      min-height: 100vh;
+      display: grid;
+      grid-template-rows: auto 1fr;
+      gap: 16px;
+      margin: 0 auto;
+      padding: 16px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--panel);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(16px);
+    }
+
+    .brand {
+      min-width: 0;
+      display: grid;
+      gap: 2px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(22px, 4vw, 42px);
+      line-height: 1;
+      letter-spacing: 0;
+    }
+
+    .status {
+      min-height: 21px;
+      color: var(--muted);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .btn,
+    .chip {
+      min-height: 38px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--panel-strong);
+      color: var(--ink);
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      cursor: pointer;
+      padding: 8px 12px;
+      font-weight: 800;
+      transition: transform 0.16s ease, border-color 0.16s ease, background 0.16s ease;
+    }
+
+    .btn:hover {
+      transform: translateY(-1px);
+      border-color: color-mix(in srgb, var(--accent) 52%, var(--border));
+    }
+
+    .btn.primary {
+      color: #fff;
+      border-color: transparent;
+      background: linear-gradient(180deg, var(--accent), var(--accent-strong));
+    }
+
+    .btn.icon {
+      width: 38px;
+      min-width: 38px;
+      padding: 0;
+      font-size: 16px;
+    }
+
+    .segmented {
+      display: flex;
+      gap: 4px;
+      padding: 4px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--panel-strong);
+    }
+
+    .segmented button {
+      min-width: 38px;
+      min-height: 30px;
+      border: 1px solid transparent;
+      border-radius: 6px;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 850;
+    }
+
+    .segmented button.active {
+      color: #fff;
+      background: var(--accent-strong);
+    }
+
+    .layout-selector button {
+      min-width: 74px;
+    }
+
+    .size-control {
+      width: min(280px, 100%);
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      padding: 0 10px;
+    }
+
+    .size-control span {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .sort-control {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      padding: 0 10px;
+    }
+
+    .sort-control span {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .sort-control select {
+      min-width: 104px;
+      border: 0;
+      background: transparent;
+      color: var(--ink);
+      outline: 0;
+      font-weight: 750;
+      cursor: pointer;
+    }
+
+    .sort-control option {
+      background: var(--panel-strong);
+      color: var(--ink);
+    }
+
+    input[type="range"] {
+      width: 160px;
+      accent-color: var(--accent);
+    }
+
+    .dropzone {
+      min-height: calc(100vh - 120px);
+      display: grid;
+      place-items: center;
+      padding: 30px 16px;
+      border: 1px dashed color-mix(in srgb, var(--accent) 36%, var(--border));
+      border-radius: var(--radius);
+      background: color-mix(in srgb, var(--panel) 74%, transparent);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(16px);
+    }
+
+    .welcome {
+      width: min(680px, 100%);
+      display: grid;
+      gap: 18px;
+      text-align: center;
+      justify-items: center;
+    }
+
+    .welcome h2 {
+      margin: 0;
+      font-size: clamp(30px, 8vw, 76px);
+      line-height: 0.95;
+      letter-spacing: 0;
+    }
+
+    .welcome p {
+      max-width: 520px;
+      margin: 0;
+      color: var(--muted);
+      font-size: 16px;
+    }
+
+    .notice {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .gallery {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--tile)), 1fr));
+      align-content: start;
+      gap: 10px;
+      min-height: calc(100vh - 120px);
+    }
+
+    .gallery.masonry {
+      display: block;
+      column-width: var(--tile);
+      column-gap: 10px;
+    }
+
+    .photo {
+      width: 100%;
+      aspect-ratio: 1;
+      display: block;
+      object-fit: cover;
+      border: 0;
+      border-radius: 4px;
+      background: var(--panel-strong);
+      cursor: zoom-in;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+      transition: transform 0.18s ease, filter 0.18s ease;
+    }
+
+    .gallery.masonry .photo {
+      aspect-ratio: auto;
+      height: auto;
+      margin: 0 0 10px;
+      break-inside: avoid;
+      object-fit: contain;
+    }
+
+    .photo:hover {
+      transform: translateY(-2px);
+      filter: saturate(1.08) contrast(1.03);
+    }
+
+    .empty {
+      min-height: calc(100vh - 120px);
+      display: grid;
+      place-items: center;
+      color: var(--muted);
+      text-align: center;
+      padding: 24px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--panel);
+    }
+
+    .modal {
+      position: fixed;
+      inset: 0;
+      z-index: 20;
+      display: none;
+      place-items: center;
+      padding: 18px;
+      background: rgba(0, 0, 0, 0.9);
+      cursor: zoom-out;
+    }
+
+    .modal.open { display: grid; }
+
+    .modal img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      border-radius: 4px;
+      box-shadow: 0 24px 80px rgba(0, 0, 0, 0.56);
+    }
+
+    .hidden { display: none !important; }
+
+    @media (max-width: 760px) {
+      .app { padding: 10px; }
+      .topbar {
+        align-items: stretch;
+        flex-direction: column;
+      }
+      .toolbar {
+        justify-content: stretch;
+      }
+      .btn.primary,
+      .size-control,
+      .sort-control,
+      .layout-selector,
+      .segmented {
+        flex: 1 1 auto;
+      }
+      .size-control,
+      .sort-control {
+        justify-content: center;
+      }
+      input[type="range"] {
+        width: min(180px, 46vw);
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header class="topbar">
+      <div class="brand">
+        <h1 data-i18n="title">Galeria Local</h1>
+        <div class="status" id="status" data-i18n="statusIdle">Escolha uma pasta para ver as imagens, sem upload.</div>
+      </div>
+      <div class="toolbar">
+        <button class="btn primary" id="pickBtn" type="button" data-i18n="pickFolder">Escolher pasta</button>
+        <label class="chip size-control" for="sizeRange">
+          <span data-i18n="size">Tamanho</span>
+          <input id="sizeRange" type="range" min="110" max="420" step="10" value="210" />
+        </label>
+        <div class="segmented layout-selector" aria-label="Layout">
+          <button type="button" data-layout="grid" data-i18n="layoutGrid">Grid</button>
+          <button type="button" data-layout="masonry" data-i18n="layoutMasonry">Masonry</button>
+        </div>
+        <label class="chip sort-control" for="sortBy">
+          <span data-i18n="sort">Ordenar</span>
+          <select id="sortBy">
+            <option value="name" data-i18n="sortName">Nome</option>
+            <option value="size" data-i18n="sortSize">Tamanho</option>
+            <option value="date" data-i18n="sortDate">Data</option>
+          </select>
+        </label>
+        <button class="btn icon" id="sortDirectionBtn" type="button" aria-label="Crescente" title="Crescente">↑</button>
+        <button class="btn icon" id="themeBtn" type="button" aria-label="Tema" title="Tema">◐</button>
+        <div class="segmented" aria-label="Language">
+          <button type="button" data-lang="pt">PT</button>
+          <button type="button" data-lang="en">EN</button>
+          <button type="button" data-lang="ja">JA</button>
+        </div>
+      </div>
+    </header>
+
+    <section class="dropzone" id="welcome">
+      <div class="welcome">
+        <h2 data-i18n="welcomeTitle">Suas fotos, direto do disco.</h2>
+        <p data-i18n="welcomeText">A página lê apenas a pasta que você permitir. As imagens ficam no seu computador e são mostradas localmente no navegador.</p>
+        <button class="btn primary" id="welcomePickBtn" type="button" data-i18n="pickFolder">Escolher pasta</button>
+        <div class="notice" id="supportNotice"></div>
+      </div>
+    </section>
+
+    <section class="gallery hidden" id="gallery" aria-live="polite"></section>
+    <section class="empty hidden" id="empty" data-i18n="empty">Nenhuma imagem compatível foi encontrada nessa pasta.</section>
+  </main>
+
+  <div class="modal" id="modal" aria-hidden="true">
+    <img id="modalImg" alt="" />
+  </div>
+
+  <input class="hidden" id="folderInput" type="file" accept="image/*" webkitdirectory multiple />
+
+  <script>
+    const translations = {
+      pt: {
+        title: "Galeria Local",
+        statusIdle: "Escolha uma pasta para ver as imagens, sem upload.",
+        pickFolder: "Escolher pasta",
+        size: "Tamanho",
+        layoutGrid: "Grid",
+        layoutMasonry: "Masonry",
+        sort: "Ordenar",
+        sortName: "Nome",
+        sortSize: "Tamanho",
+        sortDate: "Data",
+        ascending: "Crescente",
+        descending: "Decrescente",
+        welcomeTitle: "Suas fotos, direto do disco.",
+        welcomeText: "A página lê apenas a pasta que você permitir. As imagens ficam no seu computador e são mostradas localmente no navegador.",
+        unsupported: "Este navegador não suporta escolha moderna de diretórios. Usando o seletor compatível, quando disponível.",
+        loading: "Carregando imagens...",
+        loaded: "{count} imagem(ns) em {folder}",
+        empty: "Nenhuma imagem compatível foi encontrada nessa pasta.",
+        cancelled: "Seleção cancelada.",
+        error: "Não foi possível ler a pasta escolhida."
+      },
+      en: {
+        title: "Local Gallery",
+        statusIdle: "Choose a folder to view images, with no upload.",
+        pickFolder: "Choose folder",
+        size: "Size",
+        layoutGrid: "Grid",
+        layoutMasonry: "Masonry",
+        sort: "Sort",
+        sortName: "Name",
+        sortSize: "Size",
+        sortDate: "Date",
+        ascending: "Ascending",
+        descending: "Descending",
+        welcomeTitle: "Your photos, straight from disk.",
+        welcomeText: "This page reads only the folder you allow. Images stay on your computer and are shown locally in the browser.",
+        unsupported: "This browser does not support the modern directory picker. Using the compatible picker when available.",
+        loading: "Loading images...",
+        loaded: "{count} image(s) in {folder}",
+        empty: "No compatible images were found in this folder.",
+        cancelled: "Selection cancelled.",
+        error: "Could not read the selected folder."
+      },
+      ja: {
+        title: "ローカルギャラリー",
+        statusIdle: "アップロードせず、フォルダを選んで画像を表示します。",
+        pickFolder: "フォルダを選択",
+        size: "サイズ",
+        layoutGrid: "グリッド",
+        layoutMasonry: "Masonry",
+        sort: "並び替え",
+        sortName: "名前",
+        sortSize: "サイズ",
+        sortDate: "日付",
+        ascending: "昇順",
+        descending: "降順",
+        welcomeTitle: "写真をディスクから直接表示。",
+        welcomeText: "許可したフォルダだけを読み取ります。画像はコンピューター上に残り、ブラウザ内でローカル表示されます。",
+        unsupported: "このブラウザは新しいフォルダ選択に対応していません。利用可能な場合は互換ピッカーを使います。",
+        loading: "画像を読み込み中...",
+        loaded: "{count} 枚の画像: {folder}",
+        empty: "このフォルダに対応画像が見つかりませんでした。",
+        cancelled: "選択がキャンセルされました。",
+        error: "選択したフォルダを読み取れませんでした。"
+      }
+    };
+
+    const imageExtensions = /\.(avif|bmp|gif|heic|heif|jpeg|jpg|png|svg|webp)$/i;
+    const state = {
+      lang: localStorage.getItem("local-gallery-lang") || detectLanguage(),
+      theme: localStorage.getItem("local-gallery-theme") || "dark",
+      layout: localStorage.getItem("local-gallery-layout") || "grid",
+      sortBy: localStorage.getItem("local-gallery-sort-by") || "name",
+      sortDirection: localStorage.getItem("local-gallery-sort-direction") || "asc",
+      files: [],
+      folderName: "",
+      urls: []
+    };
+
+    const root = document.documentElement;
+    const statusEl = document.getElementById("status");
+    const galleryEl = document.getElementById("gallery");
+    const welcomeEl = document.getElementById("welcome");
+    const emptyEl = document.getElementById("empty");
+    const modalEl = document.getElementById("modal");
+    const modalImg = document.getElementById("modalImg");
+    const folderInput = document.getElementById("folderInput");
+    const supportNotice = document.getElementById("supportNotice");
+    const sortByEl = document.getElementById("sortBy");
+    const sortDirectionBtn = document.getElementById("sortDirectionBtn");
+
+    function detectLanguage() {
+      const lang = (navigator.language || "pt").toLowerCase();
+      if (lang.startsWith("ja")) return "ja";
+      if (lang.startsWith("en")) return "en";
+      return "pt";
+    }
+
+    function t(key, values = {}) {
+      let text = translations[state.lang][key] || translations.pt[key] || key;
+      Object.entries(values).forEach(([name, value]) => {
+        text = text.replace(`{${name}}`, value);
+      });
+      return text;
+    }
+
+    function applyLanguage() {
+      root.lang = state.lang;
+      document.querySelectorAll("[data-i18n]").forEach((el) => {
+        el.textContent = t(el.dataset.i18n);
+      });
+      document.querySelectorAll("[data-lang]").forEach((button) => {
+        button.classList.toggle("active", button.dataset.lang === state.lang);
+      });
+      document.querySelectorAll("[data-layout]").forEach((button) => {
+        button.classList.toggle("active", button.dataset.layout === state.layout);
+      });
+      updateSortDirectionButton();
+      if (!("showDirectoryPicker" in window)) {
+        supportNotice.textContent = t("unsupported");
+      }
+    }
+
+    function applyTheme() {
+      root.dataset.theme = state.theme;
+      localStorage.setItem("local-gallery-theme", state.theme);
+    }
+
+    function applyLayout() {
+      galleryEl.classList.toggle("masonry", state.layout === "masonry");
+      document.querySelectorAll("[data-layout]").forEach((button) => {
+        button.classList.toggle("active", button.dataset.layout === state.layout);
+      });
+      localStorage.setItem("local-gallery-layout", state.layout);
+    }
+
+    function setStatus(key, values) {
+      statusEl.textContent = t(key, values);
+    }
+
+    function clearObjectUrls() {
+      state.urls.forEach((url) => URL.revokeObjectURL(url));
+      state.urls = [];
+    }
+
+    function resetGallery() {
+      clearObjectUrls();
+      galleryEl.innerHTML = "";
+      galleryEl.classList.add("hidden");
+      emptyEl.classList.add("hidden");
+      welcomeEl.classList.add("hidden");
+    }
+
+    function compareFiles(a, b) {
+      let result = 0;
+      if (state.sortBy === "size") {
+        result = a.size - b.size;
+      } else if (state.sortBy === "date") {
+        result = a.lastModified - b.lastModified;
+      } else {
+        result = a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: "base" });
+      }
+
+      if (result === 0) {
+        result = a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: "base" });
+      }
+
+      return state.sortDirection === "asc" ? result : -result;
+    }
+
+    function sortedFiles(files) {
+      return [...files].sort(compareFiles);
+    }
+
+    function updateSortDirectionButton() {
+      const label = state.sortDirection === "asc" ? t("ascending") : t("descending");
+      sortDirectionBtn.textContent = state.sortDirection === "asc" ? "↑" : "↓";
+      sortDirectionBtn.setAttribute("aria-label", label);
+      sortDirectionBtn.title = label;
+    }
+
+    async function pickFolder() {
+      if ("showDirectoryPicker" in window) {
+        try {
+          setStatus("loading");
+          const handle = await window.showDirectoryPicker({ mode: "read" });
+          const files = await readDirectory(handle);
+          loadFiles(files, handle.name);
+        } catch (error) {
+          if (error && error.name === "AbortError") {
+            setStatus("cancelled");
+          } else {
+            console.error(error);
+            setStatus("error");
+          }
+        }
+        return;
+      }
+
+      folderInput.click();
+    }
+
+    async function readDirectory(dirHandle) {
+      const files = [];
+      for await (const entry of dirHandle.values()) {
+        if (entry.kind !== "file" || !imageExtensions.test(entry.name)) continue;
+        const file = await entry.getFile();
+        if (file.type.startsWith("image/") || imageExtensions.test(file.name)) {
+          files.push(file);
+        }
+      }
+      return files;
+    }
+
+    function loadFiles(files, folderName) {
+      state.files = files;
+      state.folderName = folderName || "";
+      renderFiles();
+    }
+
+    function renderFiles() {
+      resetGallery();
+      const files = sortedFiles(state.files);
+      if (!files.length) {
+        emptyEl.classList.remove("hidden");
+        setStatus("loaded", { count: 0, folder: state.folderName });
+        return;
+      }
+
+      const fragment = document.createDocumentFragment();
+      files.forEach((file) => {
+        const url = URL.createObjectURL(file);
+        state.urls.push(url);
+        const img = document.createElement("img");
+        img.className = "photo";
+        img.src = url;
+        img.alt = "";
+        img.loading = "lazy";
+        img.decoding = "async";
+        img.addEventListener("click", () => openModal(url));
+        fragment.appendChild(img);
+      });
+
+      galleryEl.appendChild(fragment);
+      galleryEl.classList.remove("hidden");
+      setStatus("loaded", { count: files.length, folder: state.folderName });
+    }
+
+    function openModal(src) {
+      modalImg.src = src;
+      modalEl.classList.add("open");
+      modalEl.setAttribute("aria-hidden", "false");
+    }
+
+    function closeModal() {
+      modalEl.classList.remove("open");
+      modalEl.setAttribute("aria-hidden", "true");
+      modalImg.removeAttribute("src");
+    }
+
+    document.getElementById("pickBtn").addEventListener("click", pickFolder);
+    document.getElementById("welcomePickBtn").addEventListener("click", pickFolder);
+    document.getElementById("sizeRange").addEventListener("input", (event) => {
+      root.style.setProperty("--tile", `${event.target.value}px`);
+    });
+    sortByEl.value = state.sortBy;
+    sortByEl.addEventListener("change", (event) => {
+      state.sortBy = event.target.value;
+      localStorage.setItem("local-gallery-sort-by", state.sortBy);
+      if (state.files.length) renderFiles();
+    });
+    sortDirectionBtn.addEventListener("click", () => {
+      state.sortDirection = state.sortDirection === "asc" ? "desc" : "asc";
+      localStorage.setItem("local-gallery-sort-direction", state.sortDirection);
+      updateSortDirectionButton();
+      if (state.files.length) renderFiles();
+    });
+    document.getElementById("themeBtn").addEventListener("click", () => {
+      state.theme = state.theme === "dark" ? "light" : "dark";
+      applyTheme();
+    });
+    document.querySelectorAll("[data-lang]").forEach((button) => {
+      button.addEventListener("click", () => {
+        state.lang = button.dataset.lang;
+        localStorage.setItem("local-gallery-lang", state.lang);
+        applyLanguage();
+      });
+    });
+    document.querySelectorAll("[data-layout]").forEach((button) => {
+      button.addEventListener("click", () => {
+        state.layout = button.dataset.layout;
+        applyLayout();
+      });
+    });
+    folderInput.addEventListener("change", () => {
+      const files = Array.from(folderInput.files || [])
+        .filter((file) => file.type.startsWith("image/") || imageExtensions.test(file.name));
+      const firstPath = files[0] && files[0].webkitRelativePath;
+      const folderName = firstPath ? firstPath.split("/")[0] : "";
+      loadFiles(files, folderName);
+      folderInput.value = "";
+    });
+    modalEl.addEventListener("click", closeModal);
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && modalEl.classList.contains("open")) closeModal();
+    });
+    window.addEventListener("beforeunload", clearObjectUrls);
+
+    applyTheme();
+    applyLayout();
+    applyLanguage();
+    if (!("showDirectoryPicker" in window)) {
+      supportNotice.textContent = t("unsupported");
+    }
+  </script>
+</body>
+</html>
