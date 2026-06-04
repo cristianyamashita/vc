@@ -329,6 +329,31 @@
 
     .modal.open { display: grid; }
 
+    .modal-download {
+      position: fixed;
+      top: 16px;
+      right: 16px;
+      z-index: 21;
+      min-height: 40px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 9px 12px;
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      border-radius: var(--radius);
+      background: rgba(16, 18, 20, 0.82);
+      color: #fff;
+      text-decoration: none;
+      font-weight: 850;
+      box-shadow: 0 16px 42px rgba(0, 0, 0, 0.36);
+      cursor: pointer;
+    }
+
+    .modal-download:hover {
+      background: rgba(35, 195, 155, 0.92);
+    }
+
     .modal img {
       max-width: 100%;
       max-height: 100%;
@@ -414,6 +439,7 @@
   </main>
 
   <div class="modal" id="modal" aria-hidden="true">
+    <a class="modal-download" id="modalDownload" href="#" download data-i18n="download">Baixar</a>
     <img id="modalImg" alt="" />
   </div>
 
@@ -425,6 +451,7 @@
         title: "Galeria Local",
         statusIdle: "Escolha uma pasta para ver as imagens, sem upload.",
         pickFolder: "Escolher pasta",
+        download: "Baixar",
         size: "Tamanho",
         layoutGrid: "Grid",
         layoutMasonry: "Masonry",
@@ -447,6 +474,7 @@
         title: "Local Gallery",
         statusIdle: "Choose a folder to view images, with no upload.",
         pickFolder: "Choose folder",
+        download: "Download",
         size: "Size",
         layoutGrid: "Grid",
         layoutMasonry: "Masonry",
@@ -469,6 +497,7 @@
         title: "ローカルギャラリー",
         statusIdle: "アップロードせず、フォルダを選んで画像を表示します。",
         pickFolder: "フォルダを選択",
+        download: "ダウンロード",
         size: "サイズ",
         layoutGrid: "グリッド",
         layoutMasonry: "Masonry",
@@ -508,6 +537,7 @@
     const emptyEl = document.getElementById("empty");
     const modalEl = document.getElementById("modal");
     const modalImg = document.getElementById("modalImg");
+    const modalDownload = document.getElementById("modalDownload");
     const folderInput = document.getElementById("folderInput");
     const supportNotice = document.getElementById("supportNotice");
     const sortByEl = document.getElementById("sortBy");
@@ -658,10 +688,11 @@
         const img = document.createElement("img");
         img.className = "photo";
         img.src = url;
-        img.alt = "";
+        img.alt = file.name;
+        img.title = file.name;
         img.loading = "lazy";
         img.decoding = "async";
-        img.addEventListener("click", () => openModal(url));
+        img.addEventListener("click", () => openModal(url, file.name));
         fragment.appendChild(img);
       });
 
@@ -670,8 +701,13 @@
       setStatus("loaded", { count: files.length, folder: state.folderName });
     }
 
-    function openModal(src) {
+    function openModal(src, fileName) {
       modalImg.src = src;
+      modalImg.alt = fileName;
+      modalImg.title = fileName;
+      modalDownload.href = src;
+      modalDownload.download = fileName;
+      modalDownload.title = fileName;
       modalEl.classList.add("open");
       modalEl.setAttribute("aria-hidden", "false");
     }
@@ -680,6 +716,10 @@
       modalEl.classList.remove("open");
       modalEl.setAttribute("aria-hidden", "true");
       modalImg.removeAttribute("src");
+      modalImg.removeAttribute("title");
+      modalDownload.removeAttribute("href");
+      modalDownload.removeAttribute("download");
+      modalDownload.removeAttribute("title");
     }
 
     document.getElementById("pickBtn").addEventListener("click", pickFolder);
@@ -725,6 +765,7 @@
       folderInput.value = "";
     });
     modalEl.addEventListener("click", closeModal);
+    modalDownload.addEventListener("click", (event) => event.stopPropagation());
     document.addEventListener("keydown", (event) => {
       if (event.key === "Escape" && modalEl.classList.contains("open")) closeModal();
     });
