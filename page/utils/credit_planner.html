@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title data-i18n="title">Credit Usage Planner</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/fontawesome/css/all.min.css">
+  <style>
+    :root {
+      --bg-color: #1a1a1a;
+      --text-color: #f0f0f0;
+      --card-bg-color: #2a2a2a;
+      --border-color: #444;
+      --accent-color: #0d6efd;
+      --muted-color: #aaa;
+      --danger-color: #dc3545;
+      --success-color: #198754;
+      --warning-color: #ffc107;
+    }
+
+    html[data-theme="light"] {
+      --bg-color: #f8f9fa;
+      --text-color: #212529;
+      --card-bg-color: #fff;
+      --border-color: #dee2e6;
+      --muted-color: #6c757d;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      margin: 0;
+    }
+
+    .container-fluid {
+      padding-top: 20px;
+      padding-bottom: 20px;
+      flex: 1;
+    }
+
+    .navbar-brand,
+    .form-label,
+    .form-check-label {
+      color: var(--text-color);
+    }
+
+    .card {
+      background-color: var(--card-bg-color);
+      border-color: var(--border-color);
+    }
+
+    .card-header {
+      border-bottom-color: var(--border-color);
+    }
+
+    .form-control,
+    .form-select,
+    .input-group-text {
+      background-color: var(--card-bg-color);
+      color: var(--text-color);
+      border-color: var(--border-color);
+    }
+
+    .form-control:focus,
+    .form-select:focus {
+      background-color: var(--card-bg-color);
+      color: var(--text-color);
+      border-color: var(--accent-color);
+      box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+    }
+
+    .form-control::placeholder {
+      color: var(--muted-color);
+    }
+
+    .help-text {
+      color: var(--muted-color);
+      font-size: 0.92rem;
+    }
+
+    .toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    .modal-content {
+      background-color: var(--card-bg-color);
+      color: var(--text-color);
+      border-color: var(--border-color);
+    }
+
+    .modal-header,
+    .modal-footer {
+      border-color: var(--border-color);
+    }
+
+    html[data-theme="dark"] .btn-close {
+      filter: invert(1) grayscale(100%) brightness(180%);
+    }
+
+    .service-card {
+      border-left: 4px solid var(--accent-color);
+    }
+
+    .service-card.overdue {
+      border-left-color: var(--danger-color);
+    }
+
+    .metric {
+      border: 1px solid var(--border-color);
+      border-radius: 0.5rem;
+      padding: 0.62rem 0.72rem;
+      height: 100%;
+      background: rgba(13, 110, 253, 0.06);
+    }
+
+    .metric-label {
+      color: var(--muted-color);
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0;
+      margin-bottom: 0.18rem;
+    }
+
+    .metric-value {
+      color: var(--text-color);
+      font-size: 1.18rem;
+      font-weight: 700;
+      line-height: 1.2;
+      overflow-wrap: anywhere;
+    }
+
+    .stale-update {
+      color: #ea868f;
+      font-weight: 700;
+    }
+
+    .fresh-update {
+      color: #75b798;
+    }
+
+    .empty-state {
+      border: 1px dashed var(--border-color);
+      border-radius: 0.5rem;
+      color: var(--muted-color);
+      padding: 2rem;
+      text-align: center;
+    }
+
+    .btn-icon {
+      width: 38px;
+      min-width: 38px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .actions {
+      display: flex;
+      gap: 0.4rem;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+    }
+
+    .service-card .card-body {
+      padding: 0.85rem 1rem;
+    }
+
+    .service-card .card-title {
+      font-size: 1rem;
+    }
+
+    #services-list {
+      gap: 0.8rem !important;
+    }
+
+    @media (max-width: 576px) {
+      .toolbar {
+        align-items: stretch;
+        flex-direction: column;
+      }
+
+      #new-service {
+        width: 100%;
+      }
+    }
+  </style>
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-NWZDZ906DJ"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-NWZDZ906DJ');
+  </script>
+</head>
+<body>
+  <nav class="navbar navbar-expand-lg" style="background-color: var(--card-bg-color); border-bottom: 1px solid var(--border-color);">
+    <div class="container-fluid">
+      <a class="navbar-brand" href="#" data-i18n="title">Credit Usage Planner</a>
+      <div class="d-flex ms-auto gap-2 align-items-center">
+        <select id="lang-switcher" class="form-select form-select-sm" style="width: auto;">
+          <option value="en">English</option>
+          <option value="pt">Português</option>
+          <option value="ja">日本語</option>
+        </select>
+        <button id="theme-switcher" class="btn btn-sm btn-outline-secondary" type="button" data-i18n-title="themeBtn" title="Toggle theme">
+          <i class="fas fa-moon"></i>
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container-fluid">
+    <div class="row justify-content-center">
+      <div class="col-xl-10 col-lg-11">
+        <div class="toolbar">
+          <p class="help-text mb-0" data-i18n="subtitle">Track services with monthly credits and see how many credits to use per day before the period ends.</p>
+          <button type="button" id="new-service" class="btn btn-primary">
+            <i class="fas fa-plus me-1"></i><span data-i18n="newBtn">New</span>
+          </button>
+        </div>
+
+        <div id="services-list" class="d-grid gap-3"></div>
+        <div id="empty-state" class="empty-state d-none">
+          <i class="fas fa-chart-line fa-2x mb-3"></i>
+          <div data-i18n="emptyState">No services yet.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="service-modal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+      <div class="modal-content">
+        <form id="service-form">
+          <div class="modal-header">
+            <h5 class="modal-title" id="modal-title" data-i18n="newModalTitle">New Service</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" data-i18n-title="cancelBtn" title="Cancel"></button>
+          </div>
+          <div class="modal-body">
+            <input type="hidden" id="service-id">
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label for="service-name" class="form-label" data-i18n="nameLabel">Name</label>
+                <input type="text" id="service-name" class="form-control" data-i18n-placeholder="namePlaceholder" placeholder="Service name" required>
+              </div>
+              <div class="col-md-6">
+                <label for="monthly-credits" class="form-label" data-i18n="monthlyLabel">Monthly credits</label>
+                <input type="number" id="monthly-credits" class="form-control" min="0" step="0.01" placeholder="1000">
+              </div>
+              <div class="col-md-6">
+                <label for="period-end" class="form-label" data-i18n="endDateLabel">Period end date</label>
+                <input type="date" id="period-end" class="form-control" required>
+              </div>
+              <div class="col-md-6">
+                <label for="current-credits" class="form-label" data-i18n="currentLabel">Current credits</label>
+                <div class="input-group">
+                  <input type="number" id="current-credits" class="form-control" min="0" step="0.01" placeholder="500" required>
+                  <select id="credit-mode" class="form-select" style="max-width: 98px;">
+                    <option value="number" data-i18n="creditsUnit">Credits</option>
+                    <option value="percent" data-i18n="percentUnit">%</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal" data-i18n="cancelBtn">Cancel</button>
+            <button type="submit" class="btn btn-primary">
+              <i class="fas fa-floppy-disk me-1"></i><span data-i18n="saveBtn">Save</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    const i18n = {
+      en: {
+        title: "Credit Usage Planner",
+        subtitle: "Track services with monthly credits and see how many credits to use per day before the period ends.",
+        formTitle: "Service",
+        nameLabel: "Name",
+        namePlaceholder: "Service name",
+        monthlyLabel: "Monthly credits",
+        endDateLabel: "Period end date",
+        currentLabel: "Current credits",
+        creditsUnit: "Credits",
+        percentUnit: "%",
+        newBtn: "New",
+        newModalTitle: "New Service",
+        editModalTitle: "Edit Service",
+        saveBtn: "Save",
+        cancelBtn: "Cancel",
+        themeBtn: "Toggle theme",
+        emptyState: "No services yet.",
+        usePerDay: "Credits per day",
+        daysLeft: "Days left",
+        currentCredits: "Current credits",
+        periodEnd: "Period ends",
+        lastUpdate: "Last updated",
+        editBtn: "Edit",
+        deleteBtn: "Delete",
+        deleteConfirm: "Delete this service?",
+        overdue: "Period ended",
+        today: "today",
+        credits: "credits",
+        updateWarning: "Last update: {date}",
+        updateFresh: "Last update: {date}",
+        percentOfMonthly: "{percent}% of 100%",
+        monthlyMissing: "Set monthly credits to use percentage mode."
+      },
+      pt: {
+        title: "Planejador de Uso de Créditos",
+        subtitle: "Registre serviços com créditos mensais e veja quantos créditos usar por dia antes do fim do período.",
+        formTitle: "Serviço",
+        nameLabel: "Nome",
+        namePlaceholder: "Nome do serviço",
+        monthlyLabel: "Créditos mensais",
+        endDateLabel: "Data do fim do período",
+        currentLabel: "Créditos atuais",
+        creditsUnit: "Créditos",
+        percentUnit: "%",
+        newBtn: "Novo",
+        newModalTitle: "Novo Serviço",
+        editModalTitle: "Editar Serviço",
+        saveBtn: "Salvar",
+        cancelBtn: "Cancelar",
+        themeBtn: "Alternar tema",
+        emptyState: "Nenhum serviço ainda.",
+        usePerDay: "Créditos por dia",
+        daysLeft: "Dias restantes",
+        currentCredits: "Créditos atuais",
+        periodEnd: "Fim do período",
+        lastUpdate: "Última atualização",
+        editBtn: "Editar",
+        deleteBtn: "Apagar",
+        deleteConfirm: "Apagar este serviço?",
+        overdue: "Período encerrado",
+        today: "hoje",
+        credits: "créditos",
+        updateWarning: "Última atualização: {date}",
+        updateFresh: "Última atualização: {date}",
+        percentOfMonthly: "{percent}% de 100%",
+        monthlyMissing: "Informe os créditos mensais para usar porcentagem."
+      },
+      ja: {
+        title: "クレジット使用プランナー",
+        subtitle: "月間クレジットのあるサービスを登録し、期間終了までに1日あたり使うクレジット数を確認します。",
+        formTitle: "サービス",
+        nameLabel: "名前",
+        namePlaceholder: "サービス名",
+        monthlyLabel: "月間クレジット",
+        endDateLabel: "期間終了日",
+        currentLabel: "現在のクレジット",
+        creditsUnit: "クレジット",
+        percentUnit: "%",
+        newBtn: "新規",
+        newModalTitle: "新しいサービス",
+        editModalTitle: "サービスを編集",
+        saveBtn: "保存",
+        cancelBtn: "キャンセル",
+        themeBtn: "テーマ切替",
+        emptyState: "サービスはまだありません。",
+        usePerDay: "1日あたりの使用量",
+        daysLeft: "残り日数",
+        currentCredits: "現在のクレジット",
+        periodEnd: "期間終了",
+        lastUpdate: "最終更新",
+        editBtn: "編集",
+        deleteBtn: "削除",
+        deleteConfirm: "このサービスを削除しますか？",
+        overdue: "期間終了済み",
+        today: "今日",
+        credits: "クレジット",
+        updateWarning: "最終更新: {date}",
+        updateFresh: "最終更新: {date}",
+        percentOfMonthly: "100% の {percent}%",
+        monthlyMissing: "パーセントを使うには月間クレジットを入力してください。"
+      }
+    };
+
+    const DB_NAME = 'CreditPlannerDB';
+    const DB_VERSION = 1;
+    const STORE_NAME = 'services';
+
+    let currentLang = localStorage.getItem('app_lang') || 'en';
+    let currentTheme = localStorage.getItem('app_theme') || 'dark';
+    let services = [];
+    let db = null;
+    let serviceModal = null;
+
+    const $ = (id) => document.getElementById(id);
+
+    function t(key, vars = {}) {
+      let text = (i18n[currentLang] || i18n.en)[key] || i18n.en[key] || key;
+      for (const [name, value] of Object.entries(vars)) {
+        text = text.replace(`{${name}}`, value);
+      }
+      return text;
+    }
+
+    function applyI18n() {
+      document.querySelectorAll('[data-i18n]').forEach((el) => {
+        el.textContent = t(el.getAttribute('data-i18n'));
+      });
+      document.querySelectorAll('[data-i18n-title]').forEach((el) => {
+        el.title = t(el.getAttribute('data-i18n-title'));
+      });
+      document.querySelectorAll('[data-i18n-placeholder]').forEach((el) => {
+        el.placeholder = t(el.getAttribute('data-i18n-placeholder'));
+      });
+      document.title = t('title');
+      renderServices();
+    }
+
+    function applyTheme(theme) {
+      document.documentElement.setAttribute('data-theme', theme);
+      const icon = $('theme-switcher').querySelector('i');
+      icon.className = theme === 'dark' ? 'fas fa-moon' : 'fas fa-sun';
+    }
+
+    function openDatabase() {
+      return new Promise((resolve, reject) => {
+        const request = indexedDB.open(DB_NAME, DB_VERSION);
+        request.onupgradeneeded = (event) => {
+          const database = event.target.result;
+          if (!database.objectStoreNames.contains(STORE_NAME)) {
+            database.createObjectStore(STORE_NAME, { keyPath: 'id' });
+          }
+        };
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+    }
+
+    function getAllServices() {
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readonly');
+        const store = tx.objectStore(STORE_NAME);
+        const request = store.getAll();
+        request.onsuccess = () => resolve(request.result || []);
+        request.onerror = () => reject(request.error);
+      });
+    }
+
+    function putService(service) {
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        tx.objectStore(STORE_NAME).put(service);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      });
+    }
+
+    function deleteService(id) {
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        tx.objectStore(STORE_NAME).delete(id);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      });
+    }
+
+    function todayISO() {
+      const now = new Date();
+      const offsetMs = now.getTimezoneOffset() * 60000;
+      return new Date(now.getTime() - offsetMs).toISOString().slice(0, 10);
+    }
+
+    function parseLocalDate(isoDate) {
+      const [year, month, day] = isoDate.split('-').map(Number);
+      return new Date(year, month - 1, day);
+    }
+
+    function daysUntil(endDate) {
+      if (!endDate) return 0;
+      const start = parseLocalDate(todayISO());
+      const end = parseLocalDate(endDate);
+      const diff = Math.floor((end - start) / 86400000);
+      return Math.max(0, diff + 1);
+    }
+
+    function formatNumber(value, digits = 2) {
+      if (!Number.isFinite(value)) return '0';
+      return new Intl.NumberFormat(currentLang, {
+        maximumFractionDigits: digits
+      }).format(value);
+    }
+
+    function formatDate(isoDate) {
+      if (!isoDate) return '';
+      return new Intl.DateTimeFormat(currentLang, { dateStyle: 'medium' }).format(parseLocalDate(isoDate));
+    }
+
+    function currentCreditAmount(service) {
+      const amount = Number(service.currentCredits) || 0;
+      if (service.creditMode === 'percent') {
+        const monthly = Number(service.monthlyCredits) || 0;
+        return monthly > 0 ? monthly * amount / 100 : 0;
+      }
+      return amount;
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#039;');
+    }
+
+    async function loadServices() {
+      services = await getAllServices();
+      services.sort((a, b) => (a.periodEnd || '').localeCompare(b.periodEnd || '') || a.name.localeCompare(b.name));
+      renderServices();
+    }
+
+    function renderServices() {
+      const list = $('services-list');
+      const emptyState = $('empty-state');
+      list.innerHTML = '';
+      emptyState.classList.toggle('d-none', services.length > 0);
+
+      const today = todayISO();
+
+      services.forEach((service) => {
+        const days = daysUntil(service.periodEnd);
+        const currentCredits = currentCreditAmount(service);
+        const isPercentMode = service.creditMode === 'percent';
+        const currentDisplay = isPercentMode ? (Number(service.currentCredits) || 0) : currentCredits;
+        const perDayDisplay = days > 0 ? currentDisplay / days : 0;
+        const perDayDigits = isPercentMode ? 4 : 2;
+        const unitDisplay = isPercentMode ? '%' : ` ${t('credits')}`;
+        const isStale = service.lastUpdated !== today;
+        const isOverdue = service.periodEnd && parseLocalDate(service.periodEnd) < parseLocalDate(today);
+        const currentDetail = isPercentMode
+          ? t('percentOfMonthly', {
+              percent: formatNumber(currentDisplay)
+            })
+          : t('credits');
+        const updateClass = isStale ? 'stale-update' : 'fresh-update';
+        const updateText = t(isStale ? 'updateWarning' : 'updateFresh', { date: formatDate(service.lastUpdated) });
+
+        const card = document.createElement('article');
+        card.className = `card service-card ${isOverdue ? 'overdue' : ''}`;
+        card.innerHTML = `
+          <div class="card-body">
+            <div class="d-flex justify-content-between gap-3 flex-wrap mb-3">
+              <div>
+                <h5 class="card-title mb-1">${escapeHtml(service.name)}</h5>
+                <div class="help-text">${t('periodEnd')}: ${formatDate(service.periodEnd)}${isOverdue ? ` · ${t('overdue')}` : ''}</div>
+              </div>
+              <div class="actions">
+                <button type="button" class="btn btn-outline-secondary btn-sm btn-edit" data-id="${service.id}" title="${t('editBtn')}">
+                  <i class="fas fa-pencil"></i>
+                </button>
+                <button type="button" class="btn btn-outline-danger btn-sm btn-delete" data-id="${service.id}" title="${t('deleteBtn')}">
+                  <i class="fas fa-trash"></i>
+                </button>
+              </div>
+            </div>
+            <div class="row g-3">
+              <div class="col-md-4">
+                <div class="metric">
+                  <div class="metric-label">${t('currentCredits')}</div>
+                  <div class="metric-value">${formatNumber(currentDisplay)}${unitDisplay}</div>
+                  <div class="help-text">${currentDetail}</div>
+                  <div class="${updateClass} small mt-2">${updateText}</div>
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="metric">
+                  <div class="metric-label">${t('usePerDay')}</div>
+                  <div class="metric-value">${formatNumber(perDayDisplay, perDayDigits)}${unitDisplay}</div>
+                  <div class="help-text">${days > 0 ? `${formatNumber(currentDisplay)}${unitDisplay} / ${days}` : t('overdue')}</div>
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="metric">
+                  <div class="metric-label">${t('daysLeft')}</div>
+                  <div class="metric-value">${days}</div>
+                  <div class="help-text">${days === 1 ? t('today') : formatDate(service.periodEnd)}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+        list.appendChild(card);
+      });
+    }
+
+    function resetForm() {
+      $('service-form').reset();
+      $('service-id').value = '';
+      $('credit-mode').value = 'number';
+      $('modal-title').textContent = t('newModalTitle');
+    }
+
+    function openNewModal() {
+      resetForm();
+      serviceModal.show();
+      setTimeout(() => $('service-name').focus(), 150);
+    }
+
+    function fillForm(service) {
+      $('service-id').value = service.id;
+      $('service-name').value = service.name;
+      $('monthly-credits').value = service.monthlyCredits ?? '';
+      $('period-end').value = service.periodEnd;
+      $('current-credits').value = service.currentCredits;
+      $('credit-mode').value = service.creditMode || 'number';
+      $('modal-title').textContent = t('editModalTitle');
+      serviceModal.show();
+      setTimeout(() => $('service-name').focus(), 150);
+    }
+
+    async function handleSubmit(event) {
+      event.preventDefault();
+      const creditMode = $('credit-mode').value;
+      const monthlyCredits = Number($('monthly-credits').value) || 0;
+      if (creditMode === 'percent' && monthlyCredits <= 0) {
+        alert(t('monthlyMissing'));
+        $('monthly-credits').focus();
+        return;
+      }
+
+      const id = $('service-id').value || `svc_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+      const existing = services.find((service) => service.id === id);
+      const service = {
+        id,
+        name: $('service-name').value.trim(),
+        monthlyCredits,
+        periodEnd: $('period-end').value,
+        currentCredits: Number($('current-credits').value) || 0,
+        creditMode,
+        lastUpdated: todayISO(),
+        createdAt: existing?.createdAt || new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+
+      await putService(service);
+      resetForm();
+      serviceModal.hide();
+      await loadServices();
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      serviceModal = new bootstrap.Modal($('service-modal'));
+      $('lang-switcher').value = currentLang;
+      applyTheme(currentTheme);
+      applyI18n();
+
+      db = await openDatabase();
+      await loadServices();
+
+      $('lang-switcher').addEventListener('change', () => {
+        currentLang = $('lang-switcher').value;
+        localStorage.setItem('app_lang', currentLang);
+        applyI18n();
+      });
+
+      $('theme-switcher').addEventListener('click', () => {
+        currentTheme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+        localStorage.setItem('app_theme', currentTheme);
+        applyTheme(currentTheme);
+      });
+
+      $('service-form').addEventListener('submit', handleSubmit);
+      $('new-service').addEventListener('click', openNewModal);
+      $('service-modal').addEventListener('hidden.bs.modal', resetForm);
+
+      $('services-list').addEventListener('click', async (event) => {
+        const editButton = event.target.closest('.btn-edit');
+        const deleteButton = event.target.closest('.btn-delete');
+
+        if (editButton) {
+          const service = services.find((item) => item.id === editButton.dataset.id);
+          if (service) fillForm(service);
+        }
+
+        if (deleteButton && confirm(t('deleteConfirm'))) {
+          await deleteService(deleteButton.dataset.id);
+          await loadServices();
+        }
+      });
+    });
+  </script>
+</body>
+</html>
