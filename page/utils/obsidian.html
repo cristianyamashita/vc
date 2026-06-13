@@ -1,0 +1,1432 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vault Markdown</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link rel="stylesheet" href="../assets/fontawesome/css/all.min.css" />
+  <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+  <style>
+    :root {
+      --bg: #17191f;
+      --panel: #20242d;
+      --panel-2: #282d38;
+      --text: #f4f2ec;
+      --muted: #aeb5c2;
+      --border: #394150;
+      --accent: #3fb98f;
+      --accent-2: #e2b84b;
+      --danger: #e05d5d;
+      --shadow: 0 18px 42px rgba(0, 0, 0, .28);
+      --editor: #14171d;
+      --link-missing: #e2b84b;
+    }
+
+    html[data-theme='light'] {
+      --bg: #f5f6f8;
+      --panel: #ffffff;
+      --panel-2: #edf0f4;
+      --text: #1c2028;
+      --muted: #5f6876;
+      --border: #d7dce4;
+      --accent: #087f68;
+      --accent-2: #a66f00;
+      --danger: #c83f45;
+      --shadow: 0 14px 34px rgba(30, 37, 48, .12);
+      --editor: #ffffff;
+      --link-missing: #9b6500;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans JP", Arial, sans-serif;
+    }
+    button, input, select, textarea { font: inherit; }
+    .app {
+      height: 100vh;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+    }
+    .topbar {
+      display: flex;
+      align-items: center;
+      gap: .75rem;
+      padding: .65rem .9rem;
+      background: var(--panel);
+      border-bottom: 1px solid var(--border);
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: .55rem;
+      min-width: 184px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+    .brand i { color: var(--accent); }
+    .top-actions {
+      display: flex;
+      align-items: center;
+      gap: .45rem;
+      margin-left: auto;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+    .btn-icon {
+      width: 36px;
+      height: 36px;
+      display: inline-grid;
+      place-items: center;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--panel-2);
+      color: var(--text);
+    }
+    .btn-icon:hover, .mode-btn:hover { border-color: var(--accent); }
+    .btn-accent {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #07140f;
+      font-weight: 800;
+    }
+    html[data-theme='dark'] .btn-accent { color: #07140f; }
+    .main {
+      min-height: 0;
+      display: grid;
+      grid-template-columns: 310px minmax(0, 1fr) 292px;
+    }
+    .sidebar {
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      background: var(--panel);
+      border-right: 1px solid var(--border);
+    }
+    .side-section {
+      padding: .75rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .vault-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto auto;
+      gap: .35rem;
+      align-items: center;
+    }
+    .form-control, .form-select {
+      color: var(--text);
+      background-color: var(--editor);
+      border-color: var(--border);
+    }
+    .form-control:focus, .form-select:focus {
+      color: var(--text);
+      background-color: var(--editor);
+      border-color: var(--accent);
+      box-shadow: 0 0 0 .18rem color-mix(in srgb, var(--accent) 24%, transparent);
+    }
+    .search-box { margin-top: .65rem; }
+    .file-tree {
+      min-height: 0;
+      flex: 1;
+      overflow: auto;
+      padding: .45rem .55rem .8rem;
+    }
+    .tree-group { margin: .18rem 0; }
+    .tree-folder, .tree-doc {
+      width: 100%;
+      min-height: 34px;
+      display: flex;
+      align-items: center;
+      gap: .45rem;
+      border: 1px solid transparent;
+      border-radius: 8px;
+      color: var(--text);
+      background: transparent;
+      text-align: left;
+      padding: .35rem .45rem;
+    }
+    .tree-folder {
+      color: var(--muted);
+      font-weight: 800;
+      font-size: .82rem;
+      text-transform: uppercase;
+    }
+    .tree-doc:hover, .tree-folder:hover { background: var(--panel-2); }
+    .tree-doc.active {
+      background: color-mix(in srgb, var(--accent) 18%, var(--panel-2));
+      border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
+    }
+    .tree-doc .name {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .tree-doc .path {
+      margin-left: auto;
+      color: var(--muted);
+      font-size: .72rem;
+    }
+    .workspace {
+      min-width: 0;
+      min-height: 0;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+    }
+    .docbar {
+      min-width: 0;
+      display: grid;
+      grid-template-columns: minmax(170px, 1fr) minmax(210px, 1.15fr) auto;
+      gap: .6rem;
+      align-items: center;
+      padding: .7rem .85rem;
+      background: var(--panel);
+      border-bottom: 1px solid var(--border);
+    }
+    .doc-title-wrap { min-width: 0; }
+    .doc-title {
+      width: 100%;
+      font-size: 1rem;
+      font-weight: 800;
+    }
+    .doc-path {
+      width: 100%;
+      font-size: .82rem;
+    }
+    .mode-group {
+      display: inline-flex;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      justify-self: end;
+    }
+    .mode-btn {
+      min-width: 78px;
+      min-height: 36px;
+      border: 0;
+      border-right: 1px solid var(--border);
+      background: var(--panel-2);
+      color: var(--text);
+      font-weight: 700;
+    }
+    .mode-btn:last-child { border-right: 0; }
+    .mode-btn.active {
+      background: var(--accent);
+      color: #07140f;
+    }
+    .editor-grid {
+      min-height: 0;
+      display: grid;
+      gap: .75rem;
+      padding: .75rem;
+      background: var(--bg);
+    }
+    .editor-grid.mode-edit, .editor-grid.mode-view { grid-template-columns: minmax(0, 1fr); }
+    .editor-grid.mode-split { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+    .editor-panel, .preview-panel {
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      background: var(--panel);
+      box-shadow: var(--shadow);
+    }
+    .panel-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 38px;
+      padding: .45rem .65rem;
+      color: var(--muted);
+      border-bottom: 1px solid var(--border);
+      font-size: .78rem;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+    #editor {
+      flex: 1;
+      min-height: 0;
+      width: 100%;
+      resize: none;
+      color: var(--text);
+      background: var(--editor);
+      border: 0;
+      outline: 0;
+      padding: 1rem;
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      font-size: .95rem;
+      line-height: 1.62;
+    }
+    #preview {
+      flex: 1;
+      min-height: 0;
+      overflow: auto;
+      padding: 1.15rem 1.25rem;
+      line-height: 1.7;
+      background: var(--editor);
+    }
+    #preview > :first-child { margin-top: 0; }
+    #preview > :last-child { margin-bottom: 0; }
+    #preview h1, #preview h2 { border-bottom: 1px solid var(--border); padding-bottom: .25rem; }
+    #preview pre, #preview code {
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+    }
+    #preview code { padding: .1rem .28rem; }
+    #preview pre { padding: .8rem; overflow: auto; }
+    #preview pre code { border: 0; padding: 0; }
+    #preview blockquote {
+      margin: 1rem 0;
+      padding-left: 1rem;
+      border-left: 4px solid var(--accent);
+      color: var(--muted);
+    }
+    #preview table { width: 100%; border-collapse: collapse; }
+    #preview th, #preview td { border: 1px solid var(--border); padding: .4rem .55rem; }
+    #preview a { color: var(--accent); }
+    #preview a.missing { color: var(--link-missing); text-decoration-style: dashed; }
+    .inspector {
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      background: var(--panel);
+      border-left: 1px solid var(--border);
+    }
+    .inspector-tabs {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      padding: .65rem;
+      gap: .4rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .inspector-tab {
+      min-height: 36px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--panel-2);
+      color: var(--text);
+      font-weight: 800;
+    }
+    .inspector-tab.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #07140f;
+    }
+    .inspector-body {
+      min-height: 0;
+      flex: 1;
+      overflow: auto;
+      padding: .65rem;
+    }
+    .tag-item, .backlink-item {
+      width: 100%;
+      display: grid;
+      gap: .25rem;
+      margin-bottom: .5rem;
+      padding: .55rem .6rem;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--editor);
+      color: var(--text);
+      text-align: left;
+    }
+    .tag-item:hover, .backlink-item:hover {
+      border-color: var(--accent);
+      background: var(--panel-2);
+    }
+    .tag-name {
+      color: var(--accent);
+      font-weight: 900;
+    }
+    .tag-docs, .backlink-path {
+      color: var(--muted);
+      font-size: .78rem;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .empty-list {
+      color: var(--muted);
+      text-align: center;
+      padding: 1.5rem .5rem;
+    }
+    .empty-state {
+      min-height: 0;
+      display: grid;
+      place-items: center;
+      padding: 2rem;
+      text-align: center;
+      color: var(--muted);
+    }
+    .drop-zone {
+      border: 2px dashed var(--border);
+      border-radius: 8px;
+      padding: 1rem;
+      color: var(--muted);
+      text-align: center;
+      cursor: pointer;
+    }
+    .drop-zone.dragover {
+      border-color: var(--accent);
+      background: color-mix(in srgb, var(--accent) 10%, transparent);
+    }
+    .status {
+      min-height: 20px;
+      color: var(--muted);
+      font-size: .8rem;
+    }
+    .hidden { display: none !important; }
+    .toast-line {
+      position: fixed;
+      right: 16px;
+      bottom: 16px;
+      z-index: 30;
+      max-width: min(420px, calc(100vw - 32px));
+      padding: .75rem .95rem;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      color: var(--text);
+    }
+    @media (max-width: 920px) {
+      body { overflow: auto; }
+      .app { min-height: 100vh; height: auto; }
+      .topbar { align-items: flex-start; flex-wrap: wrap; }
+      .brand { min-width: 0; }
+      .top-actions { width: 100%; margin-left: 0; justify-content: flex-start; }
+      .main { grid-template-columns: 1fr; }
+      .sidebar { max-height: 44vh; border-right: 0; border-bottom: 1px solid var(--border); }
+      .workspace { min-height: 70vh; }
+      .inspector { min-height: 280px; border-left: 0; border-top: 1px solid var(--border); }
+      .docbar { grid-template-columns: 1fr; }
+      .mode-group { justify-self: start; }
+      .editor-grid.mode-split { grid-template-columns: 1fr; grid-template-rows: minmax(280px, 1fr) minmax(280px, 1fr); }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand"><i class="fas fa-gem"></i><span data-i18n="appName">Vault Markdown</span></div>
+      <div class="top-actions">
+        <button id="new-doc-btn" class="btn-icon btn-accent" type="button" data-i18n-title="newDoc" title="New document"><i class="fas fa-file-circle-plus"></i></button>
+        <button id="new-folder-btn" class="btn-icon" type="button" data-i18n-title="newFolder" title="New folder"><i class="fas fa-folder-plus"></i></button>
+        <button id="export-btn" class="btn-icon" type="button" data-i18n-title="exportVault" title="Export vault ZIP"><i class="fas fa-file-zipper"></i></button>
+        <select id="lang-switcher" class="form-select form-select-sm" style="width:auto">
+          <option value="en">EN</option>
+          <option value="pt">PT</option>
+          <option value="ja">JA</option>
+        </select>
+        <button id="theme-btn" class="btn-icon" type="button" data-i18n-title="theme" title="Theme"><i class="fas fa-moon"></i></button>
+      </div>
+    </header>
+
+    <main class="main">
+      <aside class="sidebar">
+        <section class="side-section">
+          <div class="vault-row">
+            <select id="vault-select" class="form-select form-select-sm"></select>
+            <button id="new-vault-btn" class="btn-icon" type="button" data-i18n-title="newVault" title="New vault"><i class="fas fa-plus"></i></button>
+            <button id="delete-vault-btn" class="btn-icon" type="button" data-i18n-title="deleteVault" title="Delete vault"><i class="fas fa-trash"></i></button>
+          </div>
+          <input id="search-input" class="form-control form-control-sm search-box" type="search" data-i18n-placeholder="search" placeholder="Search documents" />
+        </section>
+        <section class="side-section">
+          <div id="drop-zone" class="drop-zone">
+            <i class="fas fa-cloud-arrow-up"></i>
+            <div data-i18n="dropHint">Drop .md files or a .zip here</div>
+            <input id="file-input" class="hidden" type="file" accept=".md,.markdown,.zip" multiple />
+          </div>
+        </section>
+        <nav id="file-tree" class="file-tree"></nav>
+      </aside>
+
+      <section class="workspace">
+        <div id="docbar" class="docbar hidden">
+          <div class="doc-title-wrap">
+            <input id="doc-title" class="form-control form-control-sm doc-title" type="text" />
+          </div>
+          <input id="doc-path" class="form-control form-control-sm doc-path" type="text" />
+          <div class="mode-group" role="group">
+            <button class="mode-btn" type="button" data-mode="edit" data-i18n="editMode">Edit</button>
+            <button class="mode-btn" type="button" data-mode="view" data-i18n="viewMode">View</button>
+            <button class="mode-btn" type="button" data-mode="split" data-i18n="splitMode">Split</button>
+          </div>
+        </div>
+
+        <div id="empty-state" class="empty-state">
+          <div>
+            <i class="fas fa-diagram-project fa-3x mb-3"></i>
+            <h2 data-i18n="emptyTitle">Pick or create a document</h2>
+            <p data-i18n="emptyBody">Vaults, folders, and Markdown files stay private in this browser.</p>
+          </div>
+        </div>
+
+        <div id="editor-grid" class="editor-grid mode-split hidden">
+          <section id="editor-panel" class="editor-panel">
+            <div class="panel-head"><span data-i18n="editor">Editor</span><span id="status" class="status"></span></div>
+            <textarea id="editor" spellcheck="true"></textarea>
+          </section>
+          <section id="preview-panel" class="preview-panel">
+            <div class="panel-head"><span data-i18n="preview">Preview</span></div>
+            <article id="preview"></article>
+          </section>
+        </div>
+      </section>
+
+      <aside class="inspector">
+        <div class="inspector-tabs" role="tablist">
+          <button id="tags-tab" class="inspector-tab active" type="button" data-panel="tags" data-i18n="tags">Tags</button>
+          <button id="backlinks-tab" class="inspector-tab" type="button" data-panel="backlinks" data-i18n="backlinks">Backlinks</button>
+        </div>
+        <div class="inspector-body">
+          <div id="tags-panel"></div>
+          <div id="backlinks-panel" class="hidden"></div>
+        </div>
+      </aside>
+    </main>
+  </div>
+
+  <div id="toast" class="toast-line hidden"></div>
+
+  <script>
+    const DB_NAME = 'ObsidianWebDB';
+    const DB_VERSION = 1;
+    const STATE_KEY = 'obsidian_web_state';
+    const PREF_LANG = 'app_lang';
+    const PREF_THEME = 'app_theme';
+
+    const i18n = {
+      en: {
+        appName: 'Vault Markdown',
+        newDoc: 'New document',
+        newFolder: 'New folder',
+        exportVault: 'Export vault ZIP',
+        theme: 'Toggle theme',
+        newVault: 'New vault',
+        deleteVault: 'Delete vault',
+        search: 'Search documents',
+        dropHint: 'Drop .md files or a .zip here',
+        editMode: 'Edit',
+        viewMode: 'View',
+        splitMode: 'Split',
+        editor: 'Editor',
+        preview: 'Preview',
+        tags: 'Tags',
+        backlinks: 'Backlinks',
+        emptyTitle: 'Pick or create a document',
+        emptyBody: 'Vaults, folders, and Markdown files stay private in this browser.',
+        defaultVault: 'Personal Vault',
+        welcomeTitle: 'Welcome',
+        welcomeBody: '# Welcome\n\nCreate links with [[Another note]] or [[folder/Note|custom text]].\n\nClick a missing link in View mode to create that note.',
+        untitled: 'Untitled',
+        folderName: 'Folder name',
+        vaultName: 'Vault name',
+        deleteVaultConfirm: 'Delete this vault and all its documents?',
+        duplicatePath: 'A document already uses that path.',
+        saved: 'Saved',
+        saving: 'Saving...',
+        imported: 'Imported {n} document(s).',
+        exported: 'Exported {n} document(s).',
+        noDocsExport: 'This vault has no documents to export.',
+        importError: 'Could not import that file.',
+        linkCreated: 'Created {name}.',
+        noResults: 'No documents found',
+        folderCreated: 'Folder ready. Create documents inside {path}.',
+        noTags: 'No tags found',
+        noBacklinks: 'No backlinks yet',
+        linkedDocs: '{n} document(s)',
+        commandClickHint: 'Command/Ctrl-click opens links'
+      },
+      pt: {
+        appName: 'Vault Markdown',
+        newDoc: 'Novo documento',
+        newFolder: 'Nova pasta',
+        exportVault: 'Exportar vault ZIP',
+        theme: 'Alternar tema',
+        newVault: 'Novo vault',
+        deleteVault: 'Excluir vault',
+        search: 'Buscar documentos',
+        dropHint: 'Arraste .md ou um .zip aqui',
+        editMode: 'Editar',
+        viewMode: 'Ver',
+        splitMode: 'Dividir',
+        editor: 'Editor',
+        preview: 'Prévia',
+        tags: 'Tags',
+        backlinks: 'Backlinks',
+        emptyTitle: 'Escolha ou crie um documento',
+        emptyBody: 'Vaults, pastas e arquivos Markdown ficam privados neste navegador.',
+        defaultVault: 'Vault Pessoal',
+        welcomeTitle: 'Boas-vindas',
+        welcomeBody: '# Boas-vindas\n\nCrie links com [[Outra nota]] ou [[pasta/Nota|texto customizado]].\n\nClique em um link inexistente no modo Ver para criar essa nota.',
+        untitled: 'Sem título',
+        folderName: 'Nome da pasta',
+        vaultName: 'Nome do vault',
+        deleteVaultConfirm: 'Excluir este vault e todos os documentos?',
+        duplicatePath: 'Já existe um documento usando esse caminho.',
+        saved: 'Salvo',
+        saving: 'Salvando...',
+        imported: '{n} documento(s) importado(s).',
+        exported: '{n} documento(s) exportado(s).',
+        noDocsExport: 'Este vault não tem documentos para exportar.',
+        importError: 'Não foi possível importar esse arquivo.',
+        linkCreated: '{name} criado.',
+        noResults: 'Nenhum documento encontrado',
+        folderCreated: 'Pasta pronta. Crie documentos dentro de {path}.',
+        noTags: 'Nenhuma tag encontrada',
+        noBacklinks: 'Ainda não há backlinks',
+        linkedDocs: '{n} documento(s)',
+        commandClickHint: 'Command/Ctrl+clique abre links'
+      },
+      ja: {
+        appName: 'Vault Markdown',
+        newDoc: '新規ドキュメント',
+        newFolder: '新規フォルダ',
+        exportVault: 'VaultをZIP出力',
+        theme: 'テーマ切替',
+        newVault: '新規Vault',
+        deleteVault: 'Vault削除',
+        search: 'ドキュメント検索',
+        dropHint: '.md または .zip をここにドロップ',
+        editMode: '編集',
+        viewMode: '表示',
+        splitMode: '分割',
+        editor: 'エディタ',
+        preview: 'プレビュー',
+        tags: 'タグ',
+        backlinks: 'バックリンク',
+        emptyTitle: 'ドキュメントを選択または作成',
+        emptyBody: 'Vault、フォルダ、Markdownファイルはこのブラウザ内に保存されます。',
+        defaultVault: '個人Vault',
+        welcomeTitle: 'ようこそ',
+        welcomeBody: '# ようこそ\n\n[[別のノート]] や [[folder/Note|表示名]] でリンクを作れます。\n\n表示モードで存在しないリンクをクリックすると、そのノートを作成します。',
+        untitled: '無題',
+        folderName: 'フォルダ名',
+        vaultName: 'Vault名',
+        deleteVaultConfirm: 'このVaultとすべてのドキュメントを削除しますか？',
+        duplicatePath: 'そのパスを使っているドキュメントがすでにあります。',
+        saved: '保存済み',
+        saving: '保存中...',
+        imported: '{n}件のドキュメントをインポートしました。',
+        exported: '{n}件のドキュメントをエクスポートしました。',
+        noDocsExport: 'このVaultにはエクスポートするドキュメントがありません。',
+        importError: 'そのファイルをインポートできませんでした。',
+        linkCreated: '{name}を作成しました。',
+        noResults: 'ドキュメントが見つかりません',
+        folderCreated: 'フォルダを準備しました。{path} 内にドキュメントを作成してください。',
+        noTags: 'タグが見つかりません',
+        noBacklinks: 'バックリンクはまだありません',
+        linkedDocs: '{n}件のドキュメント',
+        commandClickHint: 'Command/Ctrlクリックでリンクを開く'
+      }
+    };
+
+    const el = {
+      vaultSelect: document.getElementById('vault-select'),
+      newVault: document.getElementById('new-vault-btn'),
+      deleteVault: document.getElementById('delete-vault-btn'),
+      newDoc: document.getElementById('new-doc-btn'),
+      newFolder: document.getElementById('new-folder-btn'),
+      exportBtn: document.getElementById('export-btn'),
+      lang: document.getElementById('lang-switcher'),
+      theme: document.getElementById('theme-btn'),
+      search: document.getElementById('search-input'),
+      dropZone: document.getElementById('drop-zone'),
+      fileInput: document.getElementById('file-input'),
+      tree: document.getElementById('file-tree'),
+      docbar: document.getElementById('docbar'),
+      empty: document.getElementById('empty-state'),
+      grid: document.getElementById('editor-grid'),
+      editorPanel: document.getElementById('editor-panel'),
+      previewPanel: document.getElementById('preview-panel'),
+      title: document.getElementById('doc-title'),
+      path: document.getElementById('doc-path'),
+      editor: document.getElementById('editor'),
+      preview: document.getElementById('preview'),
+      tagsTab: document.getElementById('tags-tab'),
+      backlinksTab: document.getElementById('backlinks-tab'),
+      tagsPanel: document.getElementById('tags-panel'),
+      backlinksPanel: document.getElementById('backlinks-panel'),
+      status: document.getElementById('status'),
+      toast: document.getElementById('toast')
+    };
+
+    let db;
+    let state = {
+      lang: localStorage.getItem(PREF_LANG) || 'en',
+      theme: localStorage.getItem(PREF_THEME) || 'dark',
+      vaultId: null,
+      docId: null,
+      viewMode: 'split',
+      inspectorTab: 'tags',
+      search: '',
+      openFolders: {}
+    };
+    let vaults = [];
+    let docs = [];
+    let currentDoc = null;
+    let saveTimer = null;
+    let pathTimer = null;
+    let toastTimer = null;
+
+    function t(key, vars = {}) {
+      let value = (i18n[state.lang] && i18n[state.lang][key]) || i18n.en[key] || key;
+      Object.entries(vars).forEach(([k, v]) => { value = value.replace(`{${k}}`, v); });
+      return value;
+    }
+
+    function id(prefix) {
+      return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+    }
+
+    function now() {
+      return new Date().toISOString();
+    }
+
+    function normalizePath(raw) {
+      let path = String(raw || '')
+        .replace(/\\/g, '/')
+        .replace(/^\/+/, '')
+        .replace(/\/+/g, '/')
+        .trim();
+      if (!path) path = `${t('untitled')}.md`;
+      if (!/\.md$/i.test(path)) path += '.md';
+      return path;
+    }
+
+    function displayPath(path) {
+      return normalizePath(path).replace(/\.md$/i, '');
+    }
+
+    function basename(path) {
+      return normalizePath(path).split('/').pop().replace(/\.md$/i, '');
+    }
+
+    function folderOf(path) {
+      const parts = normalizePath(path).split('/');
+      parts.pop();
+      return parts.join('/');
+    }
+
+    function slugPart(name) {
+      return String(name || t('untitled')).trim().replace(/[\\/:*?"<>|]+/g, '-').replace(/\s+/g, ' ').slice(0, 80) || t('untitled');
+    }
+
+    function extractTags(content) {
+      const tags = new Set();
+      const regex = /(^|[^\p{L}\p{N}_/-])#([\p{L}\p{N}_/-]+)/gu;
+      let match;
+      while ((match = regex.exec(content || ''))) {
+        tags.add(match[2].toLowerCase());
+      }
+      return Array.from(tags).sort((a, b) => a.localeCompare(b));
+    }
+
+    function extractLinkTargets(content) {
+      const links = [];
+      let match;
+      const wikiRegex = /\[\[([^\]]+)\]\]/g;
+      while ((match = wikiRegex.exec(content || ''))) {
+        const target = match[1].split('|')[0].trim();
+        if (target) links.push(target);
+      }
+      const mdRegex = /\[[^\]]+\]\(([^)]+)\)/g;
+      while ((match = mdRegex.exec(content || ''))) {
+        const target = match[1].trim();
+        if (/\.md($|#)/i.test(target) && !/^[a-z][a-z0-9+.-]*:/i.test(target)) links.push(target);
+      }
+      return links;
+    }
+
+    function loadState() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(STATE_KEY) || '{}');
+        state = { ...state, ...saved };
+      } catch (err) {}
+      state.lang = localStorage.getItem(PREF_LANG) || state.lang || 'en';
+      state.theme = localStorage.getItem(PREF_THEME) || state.theme || 'dark';
+    }
+
+    function saveState() {
+      localStorage.setItem(STATE_KEY, JSON.stringify({
+        vaultId: state.vaultId,
+        docId: state.docId,
+        viewMode: state.viewMode,
+        inspectorTab: state.inspectorTab,
+        search: state.search,
+        openFolders: state.openFolders
+      }));
+    }
+
+    function openDB() {
+      return new Promise((resolve, reject) => {
+        const request = indexedDB.open(DB_NAME, DB_VERSION);
+        request.onupgradeneeded = event => {
+          const database = event.target.result;
+          if (!database.objectStoreNames.contains('vaults')) {
+            const store = database.createObjectStore('vaults', { keyPath: 'id' });
+            store.createIndex('updatedAt', 'updatedAt');
+          }
+          if (!database.objectStoreNames.contains('docs')) {
+            const store = database.createObjectStore('docs', { keyPath: 'id' });
+            store.createIndex('vaultId', 'vaultId');
+            store.createIndex('path', 'path');
+            store.createIndex('updatedAt', 'updatedAt');
+          }
+        };
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+    }
+
+    function tx(storeName, mode = 'readonly') {
+      return db.transaction(storeName, mode).objectStore(storeName);
+    }
+
+    function getAll(storeName) {
+      return new Promise((resolve, reject) => {
+        const request = tx(storeName).getAll();
+        request.onsuccess = () => resolve(request.result || []);
+        request.onerror = () => reject(request.error);
+      });
+    }
+
+    function put(storeName, value) {
+      return new Promise((resolve, reject) => {
+        const request = tx(storeName, 'readwrite').put(value);
+        request.onsuccess = () => resolve(value);
+        request.onerror = () => reject(request.error);
+      });
+    }
+
+    function remove(storeName, key) {
+      return new Promise((resolve, reject) => {
+        const request = tx(storeName, 'readwrite').delete(key);
+        request.onsuccess = () => resolve();
+        request.onerror = () => reject(request.error);
+      });
+    }
+
+    async function deleteDocsForVault(vaultId) {
+      const allDocs = await getAll('docs');
+      await Promise.all(allDocs.filter(doc => doc.vaultId === vaultId).map(doc => remove('docs', doc.id)));
+    }
+
+    async function ensureSeed() {
+      vaults = await getAll('vaults');
+      if (vaults.length) return;
+      const vault = { id: id('vault'), name: t('defaultVault'), createdAt: now(), updatedAt: now() };
+      const doc = {
+        id: id('doc'),
+        vaultId: vault.id,
+        title: t('welcomeTitle'),
+        path: 'Welcome.md',
+        content: t('welcomeBody'),
+        createdAt: now(),
+        updatedAt: now()
+      };
+      await put('vaults', vault);
+      await put('docs', doc);
+      state.vaultId = vault.id;
+      state.docId = doc.id;
+    }
+
+    async function refreshData() {
+      vaults = (await getAll('vaults')).sort((a, b) => a.name.localeCompare(b.name));
+      if (!vaults.some(v => v.id === state.vaultId)) state.vaultId = vaults[0] && vaults[0].id;
+      const allDocs = await getAll('docs');
+      docs = allDocs.filter(doc => doc.vaultId === state.vaultId).sort((a, b) => a.path.localeCompare(b.path));
+      if (!docs.some(d => d.id === state.docId)) state.docId = docs[0] && docs[0].id;
+      currentDoc = docs.find(doc => doc.id === state.docId) || null;
+    }
+
+    function applyI18n() {
+      document.querySelectorAll('[data-i18n]').forEach(node => { node.textContent = t(node.dataset.i18n); });
+      document.querySelectorAll('[data-i18n-title]').forEach(node => { node.title = t(node.dataset.i18nTitle); });
+      document.querySelectorAll('[data-i18n-placeholder]').forEach(node => { node.placeholder = t(node.dataset.i18nPlaceholder); });
+      document.title = t('appName');
+      el.lang.value = state.lang;
+      el.editor.title = t('commandClickHint');
+    }
+
+    function applyTheme() {
+      document.documentElement.dataset.theme = state.theme;
+      el.theme.querySelector('i').className = state.theme === 'dark' ? 'fas fa-moon' : 'fas fa-sun';
+    }
+
+    function showToast(message) {
+      clearTimeout(toastTimer);
+      el.toast.textContent = message;
+      el.toast.classList.remove('hidden');
+      toastTimer = setTimeout(() => el.toast.classList.add('hidden'), 3000);
+    }
+
+    function renderVaults() {
+      el.vaultSelect.innerHTML = '';
+      vaults.forEach(vault => {
+        const option = document.createElement('option');
+        option.value = vault.id;
+        option.textContent = vault.name;
+        el.vaultSelect.appendChild(option);
+      });
+      if (state.vaultId) el.vaultSelect.value = state.vaultId;
+    }
+
+    function matchesSearch(doc) {
+      const q = state.search.trim().toLowerCase();
+      if (!q) return true;
+      return `${doc.title} ${doc.path} ${doc.content}`.toLowerCase().includes(q);
+    }
+
+    function buildTree(filteredDocs) {
+      const root = { folders: new Map(), docs: [] };
+      filteredDocs.forEach(doc => {
+        const parts = normalizePath(doc.path).split('/');
+        const file = parts.pop();
+        let node = root;
+        parts.forEach(part => {
+          if (!node.folders.has(part)) node.folders.set(part, { name: part, folders: new Map(), docs: [], path: '' });
+          node = node.folders.get(part);
+        });
+        node.docs.push({ ...doc, displayFile: file });
+      });
+      return root;
+    }
+
+    function renderTreeNode(node, container, prefix = '', depth = 0) {
+      Array.from(node.folders.values()).sort((a, b) => a.name.localeCompare(b.name)).forEach(folder => {
+        const fullPath = prefix ? `${prefix}/${folder.name}` : folder.name;
+        folder.path = fullPath;
+        const group = document.createElement('div');
+        group.className = 'tree-group';
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'tree-folder';
+        button.style.paddingLeft = `${0.45 + depth * 0.8}rem`;
+        const open = state.openFolders[fullPath] !== false;
+        button.innerHTML = `<i class="fas ${open ? 'fa-folder-open' : 'fa-folder'}"></i><span>${escapeHtml(folder.name)}</span>`;
+        button.addEventListener('click', () => {
+          state.openFolders[fullPath] = !open;
+          saveState();
+          renderTree();
+        });
+        group.appendChild(button);
+        if (open) renderTreeNode(folder, group, fullPath, depth + 1);
+        container.appendChild(group);
+      });
+      node.docs.sort((a, b) => a.displayFile.localeCompare(b.displayFile)).forEach(doc => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = `tree-doc${doc.id === state.docId ? ' active' : ''}`;
+        button.style.paddingLeft = `${0.55 + depth * 0.8}rem`;
+        button.innerHTML = `<i class="fas fa-file-lines"></i><span class="name">${escapeHtml(doc.title || basename(doc.path))}</span>`;
+        button.addEventListener('click', () => selectDoc(doc.id));
+        container.appendChild(button);
+      });
+    }
+
+    function renderTree() {
+      el.tree.innerHTML = '';
+      const filtered = docs.filter(matchesSearch);
+      if (!filtered.length) {
+        const div = document.createElement('div');
+        div.className = 'p-3 text-center';
+        div.style.color = 'var(--muted)';
+        div.textContent = t('noResults');
+        el.tree.appendChild(div);
+        return;
+      }
+      renderTreeNode(buildTree(filtered), el.tree);
+    }
+
+    function renderDoc() {
+      const hasDoc = !!currentDoc;
+      el.docbar.classList.toggle('hidden', !hasDoc);
+      el.grid.classList.toggle('hidden', !hasDoc);
+      el.empty.classList.toggle('hidden', hasDoc);
+      if (!hasDoc) return;
+      el.title.value = currentDoc.title || basename(currentDoc.path);
+      el.path.value = displayPath(currentDoc.path);
+      el.editor.value = currentDoc.content || '';
+      setMode(state.viewMode);
+      renderPreview();
+    }
+
+    function setMode(mode) {
+      state.viewMode = mode;
+      el.grid.className = `editor-grid mode-${mode}`;
+      el.editorPanel.classList.toggle('hidden', mode === 'view');
+      el.previewPanel.classList.toggle('hidden', mode === 'edit');
+      document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.mode === mode));
+      saveState();
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text == null ? '' : String(text);
+      return div.innerHTML;
+    }
+
+    function linkTargetToPath(target, sourcePath) {
+      const clean = String(target || '').split('#')[0].trim();
+      if (!clean) return '';
+      if (clean.includes('/')) return normalizePath(clean);
+      const sourceFolder = sourcePath ? folderOf(sourcePath) : '';
+      return normalizePath(sourceFolder ? `${sourceFolder}/${clean}` : clean);
+    }
+
+    function resolveLinkTargetToPath(target, sourcePath) {
+      const clean = String(target || '').split('#')[0].trim();
+      if (!clean) return '';
+      if (clean.includes('/')) return normalizePath(clean);
+      const existing = docs.find(doc => basename(doc.path).toLowerCase() === clean.toLowerCase());
+      return existing ? normalizePath(existing.path) : linkTargetToPath(clean, sourcePath);
+    }
+
+    function docByPath(path) {
+      const normalized = normalizePath(path).toLowerCase();
+      return docs.find(doc => normalizePath(doc.path).toLowerCase() === normalized);
+    }
+
+    function wikilinkToMarkdown(source) {
+      return String(source || '').replace(/\[\[([^\]]+)\]\]/g, (match, body) => {
+        const [rawTarget, rawLabel] = body.split('|');
+        const target = rawTarget.trim();
+        const label = (rawLabel || rawTarget).trim();
+        return `[${label}](wikilink:${encodeURIComponent(target)})`;
+      });
+    }
+
+    function linkAtEditorPosition(content, position) {
+      let match;
+      const wikiRegex = /\[\[([^\]]+)\]\]/g;
+      while ((match = wikiRegex.exec(content || ''))) {
+        const start = match.index;
+        const end = start + match[0].length;
+        if (position >= start && position <= end) return match[1].split('|')[0].trim();
+      }
+      const mdRegex = /\[[^\]]+\]\(([^)]+)\)/g;
+      while ((match = mdRegex.exec(content || ''))) {
+        const start = match.index;
+        const end = start + match[0].length;
+        if (position >= start && position <= end) {
+          const target = match[1].trim();
+          if (/\.md($|#)/i.test(target) && !/^[a-z][a-z0-9+.-]*:/i.test(target)) return target;
+        }
+      }
+      return '';
+    }
+
+    async function handleEditorCommandClick(event) {
+      if (!currentDoc || (!event.metaKey && !event.ctrlKey)) return;
+      const target = linkAtEditorPosition(el.editor.value, el.editor.selectionStart);
+      if (!target) return;
+      event.preventDefault();
+      await saveCurrentDoc();
+      await openOrCreateLink(resolveLinkTargetToPath(target, currentDoc.path));
+    }
+
+    function handleEditorBeforeInput(event) {
+      if (event.data !== '[[' || el.editor.selectionStart === el.editor.selectionEnd) return;
+      event.preventDefault();
+      const start = el.editor.selectionStart;
+      const end = el.editor.selectionEnd;
+      const selected = el.editor.value.slice(start, end);
+      const wrapped = `[[${selected}]]`;
+      el.editor.setRangeText(wrapped, start, end, 'end');
+      el.editor.selectionStart = start + wrapped.length;
+      el.editor.selectionEnd = start + wrapped.length;
+      scheduleSave();
+    }
+
+    function renderPreview() {
+      if (!currentDoc) return;
+      const source = wikilinkToMarkdown(el.editor.value);
+      marked.setOptions({ breaks: true, gfm: true });
+      el.preview.innerHTML = marked.parse(source);
+      el.preview.querySelectorAll('a[href]').forEach(anchor => {
+        const href = anchor.getAttribute('href') || '';
+        let target = '';
+        if (href.startsWith('wikilink:')) target = decodeURIComponent(href.replace('wikilink:', ''));
+        else if (/\.md($|#)/i.test(href) && !/^[a-z][a-z0-9+.-]*:/i.test(href)) target = href;
+        if (!target) {
+          anchor.target = '_blank';
+          anchor.rel = 'noopener';
+          return;
+        }
+        const path = resolveLinkTargetToPath(target, currentDoc.path);
+        const exists = !!docByPath(path);
+        anchor.href = '#';
+        anchor.dataset.path = path;
+        anchor.classList.toggle('missing', !exists);
+        anchor.title = exists ? path : `${path}`;
+        anchor.addEventListener('click', event => {
+          event.preventDefault();
+          openOrCreateLink(path);
+        });
+      });
+    }
+
+    function renderInspector() {
+      const active = state.inspectorTab === 'backlinks' ? 'backlinks' : 'tags';
+      el.tagsTab.classList.toggle('active', active === 'tags');
+      el.backlinksTab.classList.toggle('active', active === 'backlinks');
+      el.tagsPanel.classList.toggle('hidden', active !== 'tags');
+      el.backlinksPanel.classList.toggle('hidden', active !== 'backlinks');
+      renderTagsPanel();
+      renderBacklinksPanel();
+    }
+
+    function liveDocs() {
+      if (!currentDoc) return docs;
+      return docs.map(doc => doc.id === currentDoc.id ? { ...doc, content: el.editor.value, title: el.title.value.trim() || doc.title, path: normalizePath(el.path.value || doc.path) } : doc);
+    }
+
+    function renderTagsPanel() {
+      const tagMap = new Map();
+      liveDocs().forEach(doc => {
+        extractTags(doc.content).forEach(tag => {
+          if (!tagMap.has(tag)) tagMap.set(tag, []);
+          tagMap.get(tag).push(doc);
+        });
+      });
+      el.tagsPanel.innerHTML = '';
+      if (!tagMap.size) {
+        const empty = document.createElement('div');
+        empty.className = 'empty-list';
+        empty.textContent = t('noTags');
+        el.tagsPanel.appendChild(empty);
+        return;
+      }
+      Array.from(tagMap.entries()).sort((a, b) => a[0].localeCompare(b[0])).forEach(([tag, tagDocs]) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'tag-item';
+        button.innerHTML = `<span class="tag-name">#${escapeHtml(tag)}</span><span class="tag-docs">${escapeHtml(t('linkedDocs', { n: tagDocs.length }))}</span>`;
+        button.addEventListener('click', () => {
+          state.search = `#${tag}`;
+          el.search.value = state.search;
+          saveState();
+          renderTree();
+        });
+        el.tagsPanel.appendChild(button);
+      });
+    }
+
+    function renderBacklinksPanel() {
+      el.backlinksPanel.innerHTML = '';
+      if (!currentDoc) {
+        const empty = document.createElement('div');
+        empty.className = 'empty-list';
+        empty.textContent = t('noBacklinks');
+        el.backlinksPanel.appendChild(empty);
+        return;
+      }
+      const currentPath = normalizePath(el.path.value || currentDoc.path).toLowerCase();
+      const backlinks = liveDocs().filter(doc => {
+        if (doc.id === currentDoc.id) return false;
+        return extractLinkTargets(doc.content).some(target => resolveLinkTargetToPath(target, doc.path).toLowerCase() === currentPath);
+      });
+      if (!backlinks.length) {
+        const empty = document.createElement('div');
+        empty.className = 'empty-list';
+        empty.textContent = t('noBacklinks');
+        el.backlinksPanel.appendChild(empty);
+        return;
+      }
+      backlinks.sort((a, b) => a.path.localeCompare(b.path)).forEach(doc => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'backlink-item';
+        button.innerHTML = `<strong>${escapeHtml(doc.title || basename(doc.path))}</strong><span class="backlink-path">${escapeHtml(displayPath(doc.path))}</span>`;
+        button.addEventListener('click', () => selectDoc(doc.id));
+        el.backlinksPanel.appendChild(button);
+      });
+    }
+
+    async function renderAll() {
+      renderVaults();
+      renderTree();
+      renderDoc();
+      renderInspector();
+    }
+
+    async function selectDoc(docId) {
+      state.docId = docId;
+      currentDoc = docs.find(doc => doc.id === docId) || null;
+      saveState();
+      renderAll();
+    }
+
+    async function createVault() {
+      const name = prompt(t('vaultName'), t('defaultVault'));
+      if (!name) return;
+      const vault = { id: id('vault'), name: name.trim(), createdAt: now(), updatedAt: now() };
+      await put('vaults', vault);
+      state.vaultId = vault.id;
+      state.docId = null;
+      await refreshData();
+      renderAll();
+    }
+
+    async function deleteVault() {
+      if (!state.vaultId || !confirm(t('deleteVaultConfirm'))) return;
+      await deleteDocsForVault(state.vaultId);
+      await remove('vaults', state.vaultId);
+      state.vaultId = null;
+      state.docId = null;
+      await refreshData();
+      if (!vaults.length) await ensureSeed();
+      await refreshData();
+      saveState();
+      renderAll();
+    }
+
+    async function createDoc(folder = '') {
+      const title = prompt(t('newDoc'), t('untitled'));
+      if (!title) return;
+      const base = slugPart(title);
+      let path = normalizePath(folder ? `${folder}/${base}` : base);
+      let counter = 2;
+      while (docByPath(path)) {
+        path = normalizePath(folder ? `${folder}/${base} ${counter}` : `${base} ${counter}`);
+        counter += 1;
+      }
+      const doc = { id: id('doc'), vaultId: state.vaultId, title: title.trim(), path, content: `# ${title.trim()}\n`, createdAt: now(), updatedAt: now() };
+      await put('docs', doc);
+      state.docId = doc.id;
+      await refreshData();
+      saveState();
+      renderAll();
+    }
+
+    function createFolder() {
+      const name = prompt(t('folderName'), 'Notes');
+      if (!name) return;
+      const path = String(name).replace(/\\/g, '/').replace(/^\/+|\/+$/g, '').replace(/\/+/g, '/');
+      if (!path) return;
+      state.openFolders[path] = true;
+      saveState();
+      showToast(t('folderCreated', { path }));
+      createDoc(path);
+    }
+
+    async function openOrCreateLink(path) {
+      const existing = docByPath(path);
+      if (existing) return selectDoc(existing.id);
+      const doc = {
+        id: id('doc'),
+        vaultId: state.vaultId,
+        title: basename(path),
+        path: normalizePath(path),
+        content: `# ${basename(path)}\n`,
+        createdAt: now(),
+        updatedAt: now()
+      };
+      await put('docs', doc);
+      state.openFolders[folderOf(path)] = true;
+      state.docId = doc.id;
+      await refreshData();
+      saveState();
+      renderAll();
+      showToast(t('linkCreated', { name: doc.title }));
+    }
+
+    async function saveCurrentDoc() {
+      if (!currentDoc) return;
+      el.status.textContent = t('saving');
+      const updated = {
+        ...currentDoc,
+        title: el.title.value.trim() || basename(el.path.value),
+        path: normalizePath(el.path.value),
+        content: el.editor.value,
+        updatedAt: now()
+      };
+      const duplicate = docs.find(doc => doc.id !== updated.id && normalizePath(doc.path).toLowerCase() === updated.path.toLowerCase());
+      if (duplicate) {
+        showToast(t('duplicatePath'));
+        el.path.value = displayPath(currentDoc.path);
+        el.status.textContent = '';
+        return;
+      }
+      currentDoc = updated;
+      await put('docs', updated);
+      await refreshData();
+      renderTree();
+      renderPreview();
+      renderInspector();
+      el.status.textContent = t('saved');
+      setTimeout(() => { if (el.status.textContent === t('saved')) el.status.textContent = ''; }, 1200);
+    }
+
+    function scheduleSave() {
+      clearTimeout(saveTimer);
+      saveTimer = setTimeout(saveCurrentDoc, 450);
+      if (state.viewMode !== 'edit') renderPreview();
+      renderInspector();
+    }
+
+    function schedulePathSave() {
+      clearTimeout(pathTimer);
+      pathTimer = setTimeout(saveCurrentDoc, 600);
+      renderInspector();
+    }
+
+    async function exportVault() {
+      const vault = vaults.find(v => v.id === state.vaultId);
+      if (!vault || !docs.length) {
+        showToast(t('noDocsExport'));
+        return;
+      }
+      const zip = new JSZip();
+      docs.forEach(doc => zip.file(normalizePath(doc.path), doc.content || ''));
+      const blob = await zip.generateAsync({ type: 'blob' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${vault.name.replace(/[\\/:*?"<>|]+/g, '-') || 'vault'}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      showToast(t('exported', { n: docs.length }));
+    }
+
+    async function importMarkdownFile(file, pathOverride) {
+      const content = await file.text();
+      const rawPath = pathOverride || file.webkitRelativePath || file.name;
+      const path = normalizePath(rawPath.replace(/^\/+/, ''));
+      const title = basename(path);
+      const existing = docByPath(path);
+      const doc = {
+        id: existing ? existing.id : id('doc'),
+        vaultId: state.vaultId,
+        title,
+        path,
+        content,
+        createdAt: existing ? existing.createdAt : now(),
+        updatedAt: now()
+      };
+      await put('docs', doc);
+      state.openFolders[folderOf(path)] = true;
+      return doc;
+    }
+
+    async function importZip(file) {
+      const zip = await JSZip.loadAsync(file);
+      let count = 0;
+      const entries = Object.values(zip.files).filter(entry => !entry.dir && /\.md$/i.test(entry.name));
+      for (const entry of entries) {
+        const content = await entry.async('string');
+        const blob = new Blob([content], { type: 'text/markdown' });
+        await importMarkdownFile(blob, entry.name);
+        count += 1;
+      }
+      return count;
+    }
+
+    async function importFiles(fileList) {
+      try {
+        let count = 0;
+        for (const file of Array.from(fileList)) {
+          if (/\.zip$/i.test(file.name)) count += await importZip(file);
+          else if (/\.(md|markdown)$/i.test(file.name)) {
+            await importMarkdownFile(file);
+            count += 1;
+          }
+        }
+        await refreshData();
+        if (!state.docId && docs[0]) state.docId = docs[0].id;
+        saveState();
+        renderAll();
+        showToast(t('imported', { n: count }));
+      } catch (err) {
+        console.error(err);
+        showToast(t('importError'));
+      }
+    }
+
+    function bindEvents() {
+      el.vaultSelect.addEventListener('change', async () => {
+        state.vaultId = el.vaultSelect.value;
+        state.docId = null;
+        await refreshData();
+        saveState();
+        renderAll();
+      });
+      el.newVault.addEventListener('click', createVault);
+      el.deleteVault.addEventListener('click', deleteVault);
+      el.newDoc.addEventListener('click', () => createDoc(''));
+      el.newFolder.addEventListener('click', createFolder);
+      el.exportBtn.addEventListener('click', exportVault);
+      el.lang.addEventListener('change', () => {
+        state.lang = el.lang.value;
+        localStorage.setItem(PREF_LANG, state.lang);
+        applyI18n();
+        renderAll();
+      });
+      el.theme.addEventListener('click', () => {
+        state.theme = state.theme === 'dark' ? 'light' : 'dark';
+        localStorage.setItem(PREF_THEME, state.theme);
+        applyTheme();
+      });
+      el.search.addEventListener('input', () => {
+        state.search = el.search.value;
+        saveState();
+        renderTree();
+      });
+      [el.tagsTab, el.backlinksTab].forEach(tab => tab.addEventListener('click', () => {
+        state.inspectorTab = tab.dataset.panel;
+        saveState();
+        renderInspector();
+      }));
+      document.querySelectorAll('.mode-btn').forEach(btn => btn.addEventListener('click', () => setMode(btn.dataset.mode)));
+      el.editor.addEventListener('beforeinput', handleEditorBeforeInput);
+      el.editor.addEventListener('input', scheduleSave);
+      el.editor.addEventListener('click', handleEditorCommandClick);
+      el.title.addEventListener('input', scheduleSave);
+      el.path.addEventListener('input', schedulePathSave);
+      el.dropZone.addEventListener('click', () => el.fileInput.click());
+      el.fileInput.addEventListener('change', () => importFiles(el.fileInput.files));
+      ['dragenter', 'dragover'].forEach(type => el.dropZone.addEventListener(type, event => {
+        event.preventDefault();
+        el.dropZone.classList.add('dragover');
+      }));
+      ['dragleave', 'drop'].forEach(type => el.dropZone.addEventListener(type, event => {
+        event.preventDefault();
+        el.dropZone.classList.remove('dragover');
+      }));
+      el.dropZone.addEventListener('drop', event => importFiles(event.dataTransfer.files));
+    }
+
+    async function init() {
+      loadState();
+      applyTheme();
+      applyI18n();
+      bindEvents();
+      db = await openDB();
+      await ensureSeed();
+      await refreshData();
+      el.search.value = state.search || '';
+      saveState();
+      renderAll();
+    }
+
+    init().catch(err => {
+      console.error(err);
+      showToast(err.message || 'Error');
+    });
+  </script>
+</body>
+</html>
