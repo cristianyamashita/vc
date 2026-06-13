@@ -306,6 +306,38 @@
       max-width: 100%;
       height: auto;
     }
+    html[data-theme='dark'] #preview .mermaid-diagram svg text,
+    html[data-theme='dark'] #preview .mermaid-diagram svg .label,
+    html[data-theme='dark'] #preview .mermaid-diagram svg .messageText,
+    html[data-theme='dark'] #preview .mermaid-diagram svg .loopText,
+    html[data-theme='dark'] #preview .mermaid-diagram svg .actor {
+      fill: var(--text) !important;
+      color: var(--text) !important;
+    }
+    html[data-theme='dark'] #preview .mermaid-diagram svg .flowchart-link,
+    html[data-theme='dark'] #preview .mermaid-diagram svg .edgePath path,
+    html[data-theme='dark'] #preview .mermaid-diagram svg .messageLine0,
+    html[data-theme='dark'] #preview .mermaid-diagram svg .messageLine1,
+    html[data-theme='dark'] #preview .mermaid-diagram svg .relation,
+    html[data-theme='dark'] #preview .mermaid-diagram svg line {
+      stroke: var(--muted) !important;
+    }
+    html[data-theme='dark'] #preview .mermaid-diagram svg marker path,
+    html[data-theme='dark'] #preview .mermaid-diagram svg .arrowheadPath {
+      fill: var(--muted) !important;
+      stroke: var(--muted) !important;
+    }
+    html[data-theme='dark'] #preview .mermaid-diagram svg .edgeLabel,
+    html[data-theme='dark'] #preview .mermaid-diagram svg .edgeLabel p {
+      color: var(--text) !important;
+      background-color: var(--panel) !important;
+    }
+    html[data-theme='dark'] #preview .mermaid-diagram svg .edgeLabel rect,
+    html[data-theme='dark'] #preview .mermaid-diagram svg .labelBkg,
+    html[data-theme='dark'] #preview .mermaid-diagram svg .label-container {
+      fill: var(--panel) !important;
+      background-color: var(--panel) !important;
+    }
     #preview .mermaid-error {
       color: var(--danger);
       white-space: pre-wrap;
@@ -890,10 +922,43 @@
 
     function configureMermaid() {
       if (!window.mermaid) return;
+      const dark = state.theme !== 'light';
       window.mermaid.initialize({
         startOnLoad: false,
         securityLevel: 'strict',
-        theme: state.theme === 'light' ? 'default' : 'dark'
+        theme: dark ? 'base' : 'default',
+        themeVariables: dark ? {
+          background: '#14171d',
+          mainBkg: '#282d38',
+          secondBkg: '#20242d',
+          primaryColor: '#282d38',
+          primaryTextColor: '#f4f2ec',
+          primaryBorderColor: '#3fb98f',
+          secondaryColor: '#20242d',
+          secondaryTextColor: '#f4f2ec',
+          secondaryBorderColor: '#394150',
+          tertiaryColor: '#17191f',
+          tertiaryTextColor: '#f4f2ec',
+          tertiaryBorderColor: '#394150',
+          lineColor: '#aeb5c2',
+          arrowheadColor: '#aeb5c2',
+          textColor: '#f4f2ec',
+          nodeTextColor: '#f4f2ec',
+          titleColor: '#f4f2ec',
+          labelTextColor: '#f4f2ec',
+          labelBackground: '#20242d',
+          edgeLabelBackground: '#20242d',
+          clusterBkg: '#20242d',
+          clusterBorder: '#394150',
+          noteBkgColor: '#282d38',
+          noteTextColor: '#f4f2ec',
+          noteBorderColor: '#e2b84b',
+          actorBkg: '#282d38',
+          actorTextColor: '#f4f2ec',
+          actorBorder: '#3fb98f',
+          activationBkgColor: '#282d38',
+          activationBorderColor: '#aeb5c2'
+        } : {}
       });
     }
 
