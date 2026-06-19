@@ -285,7 +285,7 @@
           title: "Prompt Concat",
           inputLabel: "Input",
           inputPlaceholder: "The {V1} is {V2} and has size {V3}, color {V4}, this is my {V1}",
-          placeholderHelp: "Use placeholders: {V1}, {V2}, {V3}, {V4}, {V5}. {{ID}} = permanent variable (same across storages). # = comment. [[a, b, c]] = random pick per line (Input & V1–V5, max 100 items).",
+          placeholderHelp: "Use placeholders: {V1}, {V2}, {V3}, {V4}, {V5}. SUM({V1},5) = numeric sum. {{ID}} = permanent variable (same across storages). # = comment. [[a, b, c]] = random pick per line (Input & V1–V5, max 100 items).",
           conditionalHelp: "Conditional: IF({V1}==1,\"value\") | Operators: ==, !=, <, >, <=, >=, contains, &&, ||",
           v1Placeholder: "car\nbicycle\nboat",
           v2Placeholder: "modern\nold\nvintage",
@@ -328,7 +328,7 @@
           title: "Prompt Concat",
           inputLabel: "Entrada",
           inputPlaceholder: "O {V1} é {V2} e tem o tamanho {V3}, da cor {V4}, esse é o meu {V1}",
-          placeholderHelp: "Placeholders: {V1}, {V2}, {V3}, {V4}, {V5}. {{ID}} = variável permanente (igual em todos os storages). # = comentário. [[a, b, c]] = escolha aleatória por linha (Input e V1–V5, máx. 100 itens).",
+          placeholderHelp: "Placeholders: {V1}, {V2}, {V3}, {V4}, {V5}. SUM({V1},5) = soma numérica. {{ID}} = variável permanente (igual em todos os storages). # = comentário. [[a, b, c]] = escolha aleatória por linha (Input e V1–V5, máx. 100 itens).",
           conditionalHelp: "Condicional: IF({V1}==1,\"valor\") | Operadores: ==, !=, <, >, <=, >=, contains, &&, ||",
           v1Placeholder: "carro\nbicicleta\nbarco",
           v2Placeholder: "moderno\nvelho\nvintage",
@@ -371,7 +371,7 @@
           title: "プロンプト連結",
           inputLabel: "入力",
           inputPlaceholder: "{V1}は{V2}で、サイズは{V3}、色は{V4}です。これが私の{V1}です",
-          placeholderHelp: "プレースホルダー: {V1}, {V2}, {V3}, {V4}, {V5}。{{ID}}=永続変数（全ストレージ共通）。#=コメント。[[a, b, c]]=行ごとにランダム選択（Input・V1–V5、最大100件）。",
+          placeholderHelp: "プレースホルダー: {V1}, {V2}, {V3}, {V4}, {V5}。SUM({V1},5)=数値の合計。{{ID}}=永続変数（全ストレージ共通）。#=コメント。[[a, b, c]]=行ごとにランダム選択（Input・V1–V5、最大100件）。",
           conditionalHelp: "条件式: IF({V1}==1,\"値\") | 演算子: ==, !=, <, >, <=, >=, contains, &&, ||",
           v1Placeholder: "車\n自転車\nボート",
           v2Placeholder: "モダン\n古い\nヴィンテージ",
@@ -1052,6 +1052,33 @@
           });
         };
 
+        const parseSumNumber = (value) => {
+          const normalized = String(value ?? '').trim().replace(',', '.');
+          if (!/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/.test(normalized)) return null;
+          const parsed = Number(normalized);
+          return Number.isFinite(parsed) ? parsed : null;
+        };
+
+        const formatSumNumber = (value) => {
+          if (Number.isInteger(value)) return String(value);
+          return String(Number(value.toFixed(12))).replace(/\.0+$/, '');
+        };
+
+        const evaluateSumFunctions = (str) => {
+          return String(str).replace(/SUM\s*\(([^()]*)\)/gi, (match, inner) => {
+            const parts = String(inner).split(',').map((part) => part.trim());
+            if (parts.length < 2) return match;
+
+            let total = 0;
+            for (const part of parts) {
+              const number = parseSumNumber(part);
+              if (number === null) return match;
+              total += number;
+            }
+            return formatSumNumber(total);
+          });
+        };
+
         const render = () => {
           const permanentVars = getPermanentVars();
           // Apply {{ID}} substitution before processing
@@ -1115,6 +1142,7 @@
             }
             // Replace [[...]] in template with random pick per result line
             out = replaceArrayLiteralsInTemplate(out);
+            out = evaluateSumFunctions(out);
             return out;
           });
 
@@ -1350,4 +1378,3 @@
     </script>
   </body>
 </html>
-
