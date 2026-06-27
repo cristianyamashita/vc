@@ -398,12 +398,30 @@
       align-items: flex-start;
       gap: 8px;
       justify-content: space-between;
+      flex-wrap: wrap;
     }
-    .row > *:first-child {
-      flex: 1;
+    .row[data-seq]::before {
+      content: attr(data-seq);
+      order: 1;
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 8px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      background: var(--chip-bg);
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 900;
+      letter-spacing: .08em;
+      line-height: 1;
+    }
+    .row > .link {
+      order: 2;
+      flex: 1 1 100%;
       min-width: 0;
     }
     .name {
+      display: block;
       color: var(--ink);
       font-weight: 800;
       font-size: 16px;
@@ -459,6 +477,7 @@
       color: var(--accent);
     }
     .tag {
+      order: 1;
       flex: 0 0 auto;
       max-width: 48%;
       padding: 3px 8px;
@@ -470,6 +489,7 @@
       text-overflow: ellipsis;
     }
     .pin-btn {
+      order: 1;
       width: 30px;
       height: 30px;
       flex: 0 0 auto;
@@ -479,7 +499,7 @@
       border: 1px solid transparent;
       cursor: pointer;
       padding: 0;
-      margin-left: 0;
+      margin-left: auto;
       color: var(--muted);
       opacity: .72;
       border-radius: 8px;
@@ -1992,6 +2012,101 @@
     <footer class="small" data-i18n="footer">© VC — Built with plain HTML/CSS/JS. Open links in a new tab to keep this index handy.</footer>
   </div>
   <script>
+    const cardSequenceByHref = {
+      "utils/ps2.html": "#001",
+      "game/game1.html": "#002",
+      "game/cube.html": "#003",
+      "game/game5.html": "#004",
+      "game/snake.html": "#005",
+      "game/game2.html": "#006",
+      "game/game3.html": "#007",
+      "game/game6.html": "#008",
+      "misc/spin2.html": "#009",
+      "misc/spin3.html": "#010",
+      "misc/spin1.html": "#011",
+      "utils/ps1.html": "#012",
+      "game/game4.html": "#013",
+      "game/race.html": "#014",
+      "game/game7.html": "#015",
+      "game/pachinko1.html": "#016",
+      "utils/sprint.html": "#017",
+      "utils/pixel1.html": "#018",
+      "utils/pixel2.html": "#019",
+      "game/pachinko2.html": "#020",
+      "game/domino.html": "#021",
+      "utils/whiteboard.html": "#022",
+      "utils/whiteboard_google.html": "#023",
+      "utils/whiteboard_gpt.html": "#024",
+      "utils/dev_utils.html": "#025",
+      "game/custom_image_puzzle.html": "#026",
+      "utils/wordpad.html": "#027",
+      "utils/mindmap.html": "#028",
+      "game/chess.html": "#029",
+      "game/math_quiz.html": "#030",
+      "game/claw-machine.html": "#031",
+      "game/flip.html": "#032",
+      "game/tetris1.html": "#033",
+      "utils/todo.html": "#034",
+      "game/morris.html": "#035",
+      "game/pac-man.html": "#036",
+      "game/checkers.html": "#037",
+      "game/tic-tac-toe.html": "#038",
+      "game/roulette.html": "#039",
+      "game/slot-machine.html": "#040",
+      "game/space-invaders.html": "#041",
+      "utils/copy_tool.html": "#042",
+      "utils/timer.html": "#043",
+      "game/missile-command.html": "#044",
+      "utils/fake_data_generator.html": "#045",
+      "utils/fullscreen_message.html": "#046",
+      "utils/password_generator.html": "#047",
+      "utils/calculator.html": "#048",
+      "utils/code_flow.html": "#049",
+      "utils/forex_times.html": "#050",
+      "utils/world_clocks.html": "#051",
+      "utils/bitwise_converter.html": "#052",
+      "utils/collage.html": "#053",
+      "utils/prompt_concat.html": "#054",
+      "utils/band_calc.html": "#055",
+      "utils/time_diff.html": "#056",
+      "game/type-invaders.html": "#057",
+      "game/type-invaders-jp.html": "#058",
+      "utils/notebook.html": "#059",
+      "utils/paste_canvas.html": "#060",
+      "misc/robot_face.html": "#061",
+      "misc/nebula.html": "#062",
+      "utils/code_runner.html": "#063",
+      "utils/audio_player.html": "#064",
+      "utils/backup.html": "#065",
+      "utils/prompt_context.html": "#066",
+      "utils/slides.html": "#067",
+      "utils/test_builder.html": "#068",
+      "utils/video_trimmer.html": "#069",
+      "game/tower-defense.html": "#070",
+      "game/traffic-lights.html": "#071",
+      "utils/markdown.html": "#072",
+      "game/tower-defense-3d.html": "#073",
+      "game/river-raid.html": "#074",
+      "game/ufo-tank-shooter-3d.html": "#075",
+      "game/traffic-pickup.html": "#076",
+      "misc/vision_motion_lab.html": "#077",
+      "game/vision_tetris.html": "#078",
+      "utils/wheel_picker.html": "#079",
+      "utils/color_picker.html": "#080",
+      "utils/char_art_creator.html": "#081",
+      "game/vision_balloon_ball.html": "#082",
+      "utils/handwritten_digit_ocr.html": "#083",
+      "mobile/ar_object_scanner.html": "#084",
+      "game/vision_hand_pong.html": "#085",
+      "utils/local_image_gallery.html": "#086",
+      "utils/credit_planner.html": "#087",
+      "game/cube-bash-arena.html": "#088",
+      "game/vehicle-bash-arena.html": "#089",
+      "utils/obsidian.html": "#090",
+      "misc/eye_gaze_control.html": "#091",
+      "misc/plasma_ball_lab.html": "#092"
+    };
+
     const translations = {
       en: {
         vcPlayground: "VC Playground",
@@ -2943,6 +3058,8 @@
     };
 
     document.addEventListener('DOMContentLoaded', () => {
+      initializeCardSequences();
+
       const langSelector = document.querySelector('.lang-selector');
       langSelector.addEventListener('click', (event) => {
         event.preventDefault();
@@ -2990,6 +3107,23 @@
         const cardCount = section.querySelectorAll(':scope > .grid > .card').length;
         if (title) {
           title.setAttribute('data-count', cardCount);
+        }
+      });
+    }
+
+    function initializeCardSequences() {
+      document.querySelectorAll('.card').forEach(card => {
+        const href = card.querySelector('a.link')?.getAttribute('href');
+        const row = card.querySelector('.row');
+        const name = card.querySelector('.name');
+        const sequence = href ? cardSequenceByHref[href] : '';
+
+        if (row && sequence) {
+          row.setAttribute('data-seq', sequence);
+        }
+
+        if (name) {
+          name.removeAttribute('data-seq');
         }
       });
     }
@@ -3086,11 +3220,21 @@
       const tagEl = card.querySelector('[data-i18n*="Tag"]');
       const descEl = card.querySelector('[data-i18n*="Desc"]');
       const pathEl = card.querySelector('.k');
+      const rowEl = card.querySelector('.row');
+      const sequence = rowEl?.getAttribute('data-seq')?.toLowerCase() || '';
+      const normalizedQuery = queryLower.replace(/^#/, '');
 
       // Get the translation keys
       const nameKey = nameEl?.getAttribute('data-i18n');
       const tagKey = tagEl?.getAttribute('data-i18n');
       const descKey = descEl?.getAttribute('data-i18n');
+
+      if (sequence) {
+        const normalizedSequence = sequence.replace(/^#/, '');
+        if (sequence.includes(queryLower) || normalizedSequence.includes(normalizedQuery)) {
+          return true;
+        }
+      }
 
       // Search in all languages
       const languages = ['en', 'ja', 'pt'];

@@ -6,6 +6,7 @@ These instructions apply to the entire repository.
 
 - Always create each page as a single self-contained HTML file containing its HTML, CSS, and JavaScript.
 - Keep page-specific behavior inside that page file unless there is already a shared local asset that the page must use.
+- When adding or registering cards in `page/index.html`, include a visible `#NNN` sequence number for each card based on the order the card was first added to the index. If multiple cards share the same commit date and time, continue numbering them sequentially in the page order for that addition.
 
 ## Libraries
 
