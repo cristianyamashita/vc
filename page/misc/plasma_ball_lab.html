@@ -1,0 +1,2390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Plasma Ball Lab</title>
+  <style>
+    :root {
+      --bg: #0c1316;
+      --bg-soft: #162126;
+      --panel: rgba(14, 24, 28, 0.86);
+      --panel-strong: rgba(20, 34, 39, 0.96);
+      --border: rgba(167, 216, 214, 0.18);
+      --text: #eef7f5;
+      --muted: #9db4b0;
+      --accent: #56f0c0;
+      --accent-strong: #1dc995;
+      --warm: #ffc96b;
+      --danger: #ff7b74;
+      --info: #7dd3fc;
+      --shadow: 0 24px 80px rgba(0, 0, 0, 0.34);
+      --radius: 24px;
+      --radius-sm: 16px;
+      --grid: rgba(255, 255, 255, 0.04);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      min-height: 100%;
+      background:
+        radial-gradient(circle at top left, rgba(86, 240, 192, 0.12), transparent 30%),
+        radial-gradient(circle at bottom right, rgba(255, 201, 107, 0.14), transparent 28%),
+        linear-gradient(160deg, #091014 0%, #10191d 42%, #081114 100%);
+      color: var(--text);
+      font-family: "Space Grotesk", "Segoe UI", sans-serif;
+    }
+
+    body {
+      padding: 24px;
+      background-image:
+        radial-gradient(circle at 1px 1px, var(--grid) 1px, transparent 0),
+        radial-gradient(circle at top left, rgba(86, 240, 192, 0.12), transparent 30%),
+        radial-gradient(circle at bottom right, rgba(255, 201, 107, 0.14), transparent 28%),
+        linear-gradient(160deg, #091014 0%, #10191d 42%, #081114 100%);
+      background-size: 22px 22px, auto, auto, auto;
+    }
+
+    button,
+    select,
+    input {
+      font: inherit;
+    }
+
+    .app-shell {
+      width: min(1400px, 100%);
+      margin: 0 auto;
+      display: grid;
+      gap: 20px;
+    }
+
+    .hero,
+    .card,
+    .viewport-panel,
+    .status-grid {
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(20px);
+    }
+
+    .hero {
+      position: relative;
+      overflow: hidden;
+      padding: 30px;
+      border-radius: var(--radius);
+      background:
+        linear-gradient(135deg, rgba(86, 240, 192, 0.15), transparent 32%),
+        linear-gradient(315deg, rgba(255, 201, 107, 0.14), transparent 30%),
+        var(--panel);
+    }
+
+    .hero::after {
+      content: "";
+      position: absolute;
+      inset: auto -60px -60px auto;
+      width: 220px;
+      height: 220px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(86, 240, 192, 0.22), transparent 72%);
+      pointer-events: none;
+    }
+
+    .lang-selector {
+      position: absolute;
+      top: 18px;
+      right: 18px;
+      z-index: 2;
+      display: flex;
+      gap: 6px;
+      padding: 4px;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: rgba(4, 11, 14, 0.48);
+    }
+
+    .lang-selector button {
+      min-width: 42px;
+      min-height: 34px;
+      padding: 0 10px;
+      color: var(--muted);
+      background: transparent;
+      border: 1px solid transparent;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .lang-selector button:hover {
+      color: var(--text);
+      border-color: rgba(255, 255, 255, 0.12);
+    }
+
+    .lang-selector button.active {
+      color: #06241c;
+      background: var(--accent);
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      color: var(--warm);
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .hero h1 {
+      margin: 16px 0 10px;
+      font-size: clamp(2.4rem, 6vw, 4.4rem);
+      line-height: 0.96;
+      letter-spacing: -0.04em;
+      max-width: 760px;
+    }
+
+    .hero p {
+      margin: 0;
+      max-width: 760px;
+      color: var(--muted);
+      font-size: 1rem;
+    }
+
+    .hero-grid {
+      margin-top: 22px;
+      display: grid;
+      grid-template-columns: minmax(0, 1.45fr) minmax(300px, 0.85fr);
+      gap: 18px;
+      align-items: start;
+    }
+
+    .card {
+      background: var(--panel);
+      border-radius: var(--radius-sm);
+      padding: 18px;
+    }
+
+    .note-card {
+      display: grid;
+      gap: 12px;
+      align-content: start;
+      min-height: 100%;
+    }
+
+    .note-card strong {
+      color: var(--accent);
+    }
+
+    .instructions {
+      display: grid;
+      gap: 10px;
+      margin: 0;
+      padding-left: 18px;
+      color: var(--muted);
+    }
+
+    .controls-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+      align-items: start;
+    }
+
+    .field-group {
+      display: grid;
+      gap: 12px;
+      padding: 14px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .group-title {
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--warm);
+    }
+
+    .field,
+    .toggle-row,
+    .slider-row {
+      display: grid;
+      gap: 8px;
+    }
+
+    .field label,
+    .toggle-row label,
+    .slider-row label {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+    }
+
+    .field select,
+    .slider-row input[type="range"] {
+      width: 100%;
+    }
+
+    .field select {
+      min-height: 46px;
+      padding: 0 14px;
+      color: var(--text);
+      border-radius: 14px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    .slider-row input[type="range"] {
+      accent-color: var(--accent);
+    }
+
+    .slider-meta {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .button-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .button-row button {
+      min-height: 48px;
+      padding: 0 18px;
+      border-radius: 14px;
+      border: 1px solid transparent;
+      cursor: pointer;
+      transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+    }
+
+    .button-row button:hover:not(:disabled),
+    .toggle-chip:hover {
+      transform: translateY(-1px);
+    }
+
+    .button-row button:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+
+    .primary-btn {
+      color: #06241c;
+      background: linear-gradient(135deg, var(--accent), #88ffd8);
+      box-shadow: 0 12px 26px rgba(29, 201, 149, 0.28);
+    }
+
+    .secondary-btn,
+    .toggle-chip {
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.05);
+      border-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .secondary-btn.active,
+    .toggle-chip.active {
+      color: #06241c;
+      background: linear-gradient(135deg, var(--warm), #ffe5a8);
+    }
+
+    .toggle-chip {
+      min-height: 44px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 14px;
+      border-radius: 14px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      cursor: pointer;
+      transition: transform 0.18s ease, background 0.18s ease;
+    }
+
+    .toggle-chip input {
+      position: absolute;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .pill-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .pill {
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.07);
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .main-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.85fr);
+      gap: 20px;
+      align-items: start;
+    }
+
+    .viewport-panel {
+      position: relative;
+      border-radius: var(--radius);
+      padding: 18px;
+      background: var(--panel);
+      overflow: hidden;
+    }
+
+    .viewport-topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+    }
+
+    .viewport-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .viewport-topbar h2,
+    .status-grid h2 {
+      margin: 0;
+      font-size: 1rem;
+      letter-spacing: 0.02em;
+    }
+
+    .live-indicator {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      font-size: 12px;
+      color: var(--muted);
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .live-indicator::before {
+      content: "";
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--danger);
+      box-shadow: 0 0 0 0 rgba(255, 123, 116, 0.4);
+    }
+
+    .live-indicator.active::before {
+      background: var(--accent);
+      animation: pulse 1.6s infinite;
+    }
+
+    .fullscreen-btn {
+      min-height: 38px;
+      padding: 0 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.05);
+      cursor: pointer;
+    }
+
+    .fullscreen-btn:hover {
+      border-color: rgba(86, 240, 192, 0.42);
+      background: rgba(86, 240, 192, 0.1);
+    }
+
+    @keyframes pulse {
+      0% {
+        box-shadow: 0 0 0 0 rgba(86, 240, 192, 0.5);
+      }
+      70% {
+        box-shadow: 0 0 0 12px rgba(86, 240, 192, 0);
+      }
+      100% {
+        box-shadow: 0 0 0 0 rgba(86, 240, 192, 0);
+      }
+    }
+
+    .stage {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 4 / 3;
+      border-radius: 20px;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      background:
+        radial-gradient(circle at top, rgba(125, 211, 252, 0.12), transparent 28%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.03));
+      isolation: isolate;
+    }
+
+    .stage::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(circle at 24% 22%, rgba(86, 240, 192, 0.16), transparent 20%),
+        radial-gradient(circle at 76% 68%, rgba(255, 201, 107, 0.14), transparent 24%),
+        linear-gradient(135deg, rgba(4, 11, 14, 0.96), rgba(17, 31, 36, 0.94));
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .stage:fullscreen {
+      width: 100vw;
+      height: 100vh;
+      aspect-ratio: auto;
+      border: 0;
+      border-radius: 0;
+      background: #020405;
+    }
+
+    .video-layer,
+    .plasma-layer,
+    .overlay-layer {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .video-layer {
+      object-fit: cover;
+      transform: scaleX(-1);
+      opacity: 0.58;
+      filter: saturate(0.9) contrast(1.02) brightness(0.66);
+      z-index: 1;
+      transition: opacity 0.2s ease, filter 0.2s ease;
+    }
+
+    .stage.video-layer-hidden .video-layer {
+      opacity: 0;
+    }
+
+    .stage.camera-feed-active::before {
+      opacity: 0.36;
+    }
+
+    .stage.camera-feed-active .video-layer {
+      opacity: 0.72;
+      filter: saturate(1) contrast(1.05) brightness(0.74);
+    }
+
+    .plasma-layer {
+      z-index: 2;
+    }
+
+    .overlay-layer {
+      z-index: 3;
+      pointer-events: none;
+    }
+
+    .overlay-banner {
+      position: absolute;
+      left: 16px;
+      right: 16px;
+      bottom: 16px;
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      z-index: 4;
+      flex-wrap: wrap;
+    }
+
+    .overlay-badge {
+      display: inline-flex;
+      align-items: center;
+      min-height: 40px;
+      padding: 10px 14px;
+      border-radius: 14px;
+      font-size: 13px;
+      color: var(--text);
+      background: rgba(4, 11, 14, 0.62);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(14px);
+    }
+
+    .stage-caption {
+      position: absolute;
+      top: 16px;
+      left: 16px;
+      z-index: 4;
+      max-width: min(320px, calc(100% - 32px));
+      padding: 12px 14px;
+      border-radius: 16px;
+      background: rgba(4, 11, 14, 0.5);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(10px);
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .stage-caption strong {
+      display: block;
+      margin-bottom: 5px;
+      color: var(--text);
+      font-size: 13px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .status-grid {
+      border-radius: var(--radius);
+      padding: 18px;
+      display: grid;
+      gap: 14px;
+      align-content: start;
+      background: var(--panel);
+    }
+
+    .status-card {
+      display: grid;
+      gap: 10px;
+      padding: 16px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .status-card h3 {
+      margin: 0;
+      font-size: 0.95rem;
+      letter-spacing: 0.02em;
+    }
+
+    .status-value {
+      color: var(--text);
+      font-size: 1rem;
+      line-height: 1.45;
+    }
+
+    .status-value.small {
+      color: var(--muted);
+      font-size: 0.92rem;
+      white-space: pre-line;
+    }
+
+    .status-chip-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .status-chip {
+      display: inline-flex;
+      min-height: 36px;
+      align-items: center;
+      padding: 0 12px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      color: var(--muted);
+      font-size: 12px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    @media (max-width: 1160px) {
+      .hero-grid,
+      .main-grid,
+      .controls-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 720px) {
+      body {
+        padding: 14px;
+      }
+
+      .hero,
+      .viewport-panel,
+      .status-grid {
+        padding: 16px;
+        border-radius: 20px;
+      }
+
+      .hero h1 {
+        font-size: 2.3rem;
+      }
+
+      .lang-selector {
+        position: static;
+        margin-bottom: 12px;
+        width: fit-content;
+      }
+
+      .overlay-banner {
+        left: 12px;
+        right: 12px;
+        bottom: 12px;
+      }
+    }
+  </style>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-NWZDZ906DJ"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-NWZDZ906DJ');
+  </script>
+</head>
+<body>
+  <div class="app-shell">
+    <section class="hero">
+      <div class="lang-selector" aria-label="Language selector">
+        <button type="button" data-lang="en" class="active">EN</button>
+        <button type="button" data-lang="pt">PT</button>
+        <button type="button" data-lang="ja">JA</button>
+      </div>
+
+      <div class="eyebrow" data-i18n="eyebrow">MediaPipe Tasks Vision Webcam Demo</div>
+      <h1 data-i18n="heroTitle">Plasma Ball Lab</h1>
+      <p data-i18n="heroIntro">Camera-driven plasma globe simulation reacting to hand proximity.</p>
+
+      <div class="hero-grid">
+        <div class="card">
+          <div class="controls-grid">
+            <div class="field-group">
+              <div class="group-title" data-i18n="cameraControlsTitle">Camera Controls</div>
+              <div class="field">
+                <label data-i18n="cameraControlsLabel">Camera Controls</label>
+                <div class="button-row">
+                  <button id="startButton" class="primary-btn" type="button" data-i18n="startCameraButton">Start Camera</button>
+                  <button id="stopButton" class="secondary-btn" type="button" disabled data-i18n="stopCameraButton">Stop Camera</button>
+                </div>
+              </div>
+              <div class="toggle-row">
+                <label data-i18n="cameraLayerLabel">Camera Layer</label>
+                <div class="button-row">
+                  <label id="showCameraImageChip" class="toggle-chip active">
+                    <input id="showCameraImageInput" type="checkbox" checked />
+                    <span data-i18n="showCameraImageLabel">Show Camera Image</span>
+                  </label>
+                  <label id="showSkeletonChip" class="toggle-chip">
+                    <input id="showSkeletonInput" type="checkbox" />
+                    <span data-i18n="showHandSkeletonLabel">Show Hand Skeleton</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <div class="field-group">
+              <div class="group-title" data-i18n="plasmaControlsTitle">Plasma Controls</div>
+              <div class="field">
+                <label for="colorSelect" data-i18n="plasmaColorLabel">Plasma Color</label>
+                <select id="colorSelect">
+                  <option value="purple" data-i18n="colorPurple">Purple</option>
+                  <option value="red" data-i18n="colorRed">Red</option>
+                  <option value="pink" data-i18n="colorPink">Pink</option>
+                  <option value="white" data-i18n="colorWhite">White</option>
+                  <option value="blue" data-i18n="colorBlue">Blue</option>
+                  <option value="cyan" data-i18n="colorCyan">Cyan</option>
+                  <option value="green" data-i18n="colorGreen">Green</option>
+                  <option value="rainbow" data-i18n="colorRainbow">Rainbow</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="styleSelect" data-i18n="rayStyleLabel">Ray Style / Sharpness</label>
+                <select id="styleSelect">
+                  <option value="soft" data-i18n="styleSoft">Gas-like / soft</option>
+                  <option value="balanced" data-i18n="styleBalanced">Balanced</option>
+                  <option value="lightning" data-i18n="styleLightning">Thin lightning</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="field-group">
+              <div class="group-title" data-i18n="energyTuningTitle">Energy Tuning</div>
+              <div class="slider-row">
+                <label for="intensitySlider" data-i18n="plasmaIntensityLabel">Plasma Intensity</label>
+                <input id="intensitySlider" type="range" min="0.4" max="2" step="0.01" />
+                <div class="slider-meta"><span data-i18n="intensityHint">Glow and force</span><span id="intensityValue">1.00</span></div>
+              </div>
+              <div class="slider-row">
+                <label for="rayCountSlider" data-i18n="rayCountLabel">Ray Count</label>
+                <input id="rayCountSlider" type="range" min="12" max="72" step="1" />
+                <div class="slider-meta"><span data-i18n="rayCountHint">Tentacle density</span><span id="rayCountValue">36</span></div>
+              </div>
+              <div class="slider-row">
+                <label for="glowSlider" data-i18n="glowAmountLabel">Glow Amount</label>
+                <input id="glowSlider" type="range" min="0.2" max="2" step="0.01" />
+                <div class="slider-meta"><span data-i18n="glowHint">Outer halo</span><span id="glowValue">1.00</span></div>
+              </div>
+            </div>
+
+            <div class="field-group">
+              <div class="group-title" data-i18n="motionTuningTitle">Motion Tuning</div>
+              <div class="slider-row">
+                <label for="reactionSlider" data-i18n="reactionDistanceLabel">Reaction Distance</label>
+                <input id="reactionSlider" type="range" min="0.2" max="0.95" step="0.01" />
+                <div class="slider-meta"><span data-i18n="reactionHint">Hand attraction range</span><span id="reactionValue">0.62</span></div>
+              </div>
+              <div class="slider-row">
+                <label for="speedSlider" data-i18n="motionSpeedLabel">Motion Speed</label>
+                <input id="speedSlider" type="range" min="0.3" max="2.2" step="0.01" />
+                <div class="slider-meta"><span data-i18n="speedHint">Oscillation speed</span><span id="speedValue">1.00</span></div>
+              </div>
+              <div class="slider-row">
+                <label for="darknessSlider" data-i18n="backgroundDarknessLabel">Background Darkness</label>
+                <input id="darknessSlider" type="range" min="0.4" max="1" step="0.01" />
+                <div class="slider-meta"><span data-i18n="darknessHint">Stage backdrop</span><span id="darknessValue">0.82</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <aside class="card note-card">
+          <div>
+            <strong data-i18n="webcamNoteLabel">Webcam note:</strong>
+            <span data-i18n="webcamNoteText">camera access usually requires localhost or HTTPS. Opening this file with file:// may fail in many browsers.</span>
+          </div>
+          <ol class="instructions">
+            <li data-i18n="quickNote1">Move your hand near the plasma globe to attract the rays.</li>
+            <li data-i18n="quickNote2">Hide the camera image for a cleaner plasma-only look.</li>
+            <li data-i18n="quickNote3">Enable the hand skeleton when you want tracking debug feedback.</li>
+            <li data-i18n="quickNote4">If camera access fails, the globe still runs in demo mode.</li>
+          </ol>
+          <div class="pill-list">
+            <div class="pill" data-i18n="pillMirror">Mirror preview enabled</div>
+            <div class="pill" data-i18n="pillHandOnly">Hand tracking only</div>
+            <div class="pill" data-i18n="pillSingleFile">Single-file app</div>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <section class="main-grid">
+      <div class="viewport-panel">
+        <div class="viewport-topbar">
+          <h2 data-i18n="liveDetectionTitle">Live Plasma View</h2>
+          <div class="viewport-actions">
+            <button id="fullscreenButton" class="fullscreen-btn" type="button" data-i18n="enterFullscreenButton">Full screen</button>
+            <div id="liveIndicator" class="live-indicator">Camera idle</div>
+          </div>
+        </div>
+
+        <div class="stage" id="stage">
+          <video id="webcam" class="video-layer" autoplay playsinline muted></video>
+          <canvas id="plasmaCanvas" class="plasma-layer"></canvas>
+          <canvas id="overlayCanvas" class="overlay-layer"></canvas>
+
+          <div class="stage-caption">
+            <strong data-i18n="stageCaptionTitle">Plasma Field</strong>
+            <span data-i18n="stageCaptionText">Idle rays drift inside the globe. Bring your palm closer to bend the brightest strands toward your hand.</span>
+          </div>
+
+          <div class="overlay-banner">
+            <div id="detectionBadge" class="overlay-badge">Waiting for hand data</div>
+            <div id="interactionBadge" class="overlay-badge">Idle plasma</div>
+          </div>
+        </div>
+      </div>
+
+      <aside class="status-grid">
+        <h2 data-i18n="statusPanelTitle">Status Panel</h2>
+
+        <div class="status-card">
+          <h3 data-i18n="sessionTitle">Session</h3>
+          <div id="cameraStatus" class="status-value">Camera stopped</div>
+          <div id="handStatus" class="status-value small">Hand tracking ready when camera starts.</div>
+          <div class="status-chip-row">
+            <div id="fpsChip" class="status-chip">FPS: --</div>
+            <div id="perfChip" class="status-chip">Performance: Waiting</div>
+          </div>
+        </div>
+
+        <div class="status-card">
+          <h3 data-i18n="interactionTitle">Current Interaction</h3>
+          <div id="interactionState" class="status-value">Idle</div>
+          <div id="interactionDetails" class="status-value small">The plasma globe is animating in demo mode.</div>
+        </div>
+
+        <div class="status-card">
+          <h3 data-i18n="distanceTitle">Hand Distance From Globe</h3>
+          <div id="distanceValue" class="status-value">--</div>
+          <div id="coordinateOutput" class="status-value small">Palm coordinates will appear here when a hand is detected.</div>
+        </div>
+
+        <div class="status-card">
+          <h3 data-i18n="plasmaProfileTitle">Plasma Profile</h3>
+          <div id="selectedColor" class="status-value">Purple</div>
+          <div id="selectedStyle" class="status-value small">Balanced rays with medium blur.</div>
+        </div>
+
+        <div class="status-card">
+          <h3 data-i18n="quickNotesLabel">Quick Notes</h3>
+          <div id="statusNotes" class="status-value small">Camera access requires HTTPS or localhost.
+Move your hand near the plasma globe to attract the rays.
+Hide camera for a cleaner visual effect.
+Use hand skeleton for debugging.</div>
+        </div>
+      </aside>
+    </section>
+  </div>
+
+  <script type="module">
+    const HAND_CONNECTIONS = [
+      [0, 1], [1, 2], [2, 3], [3, 4],
+      [0, 5], [5, 6], [6, 7], [7, 8],
+      [5, 9], [9, 10], [10, 11], [11, 12],
+      [9, 13], [13, 14], [14, 15], [15, 16],
+      [13, 17], [17, 18], [18, 19], [19, 20],
+      [0, 17],
+    ];
+
+    const MODEL_URL = "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task";
+    const STORAGE_PREFIX = "plasma_ball_lab_";
+    const MAX_RAYS = 72;
+    const MAX_PARTICLES = 92;
+    const sliderKeys = [
+      "intensity",
+      "rayCount",
+      "glowAmount",
+      "reactionDistance",
+      "motionSpeed",
+      "backgroundDarkness",
+    ];
+
+    const i18n = {
+      en: {
+        pageTitle: "Plasma Ball Lab",
+        eyebrow: "MediaPipe Tasks Vision Webcam Demo",
+        heroTitle: "Plasma Ball Lab",
+        heroIntro: "Camera-driven plasma globe simulation reacting to hand proximity.",
+        cameraControlsTitle: "Camera Controls",
+        cameraControlsLabel: "Camera Controls",
+        startCameraButton: "Start Camera",
+        stopCameraButton: "Stop Camera",
+        hideCameraButton: "Hide Camera",
+        showCameraButton: "Show Camera",
+        cameraLayerLabel: "Camera Layer",
+        showCameraImageLabel: "Show Camera Image",
+        showHandSkeletonLabel: "Show Hand Skeleton",
+        plasmaControlsTitle: "Plasma Controls",
+        plasmaColorLabel: "Plasma Color",
+        colorPurple: "Purple",
+        colorRed: "Red",
+        colorPink: "Pink",
+        colorWhite: "White",
+        colorBlue: "Blue",
+        colorCyan: "Cyan",
+        colorGreen: "Green",
+        colorRainbow: "Rainbow",
+        rayStyleLabel: "Ray Style / Sharpness",
+        styleSoft: "Gas-like / soft",
+        styleBalanced: "Balanced",
+        styleLightning: "Thin lightning",
+        energyTuningTitle: "Energy Tuning",
+        motionTuningTitle: "Motion Tuning",
+        plasmaIntensityLabel: "Plasma Intensity",
+        intensityHint: "Glow and force",
+        rayCountLabel: "Ray Count",
+        rayCountHint: "Tentacle density",
+        glowAmountLabel: "Glow Amount",
+        glowHint: "Outer halo",
+        reactionDistanceLabel: "Reaction Distance",
+        reactionHint: "Hand attraction range",
+        motionSpeedLabel: "Motion Speed",
+        speedHint: "Oscillation speed",
+        backgroundDarknessLabel: "Background Darkness",
+        darknessHint: "Stage backdrop",
+        webcamNoteLabel: "Webcam note:",
+        webcamNoteText: "camera access usually requires localhost or HTTPS. Opening this file with file:// may fail in many browsers.",
+        quickNote1: "Move your hand near the plasma globe to attract the rays.",
+        quickNote2: "Hide the camera image for a cleaner plasma-only look.",
+        quickNote3: "Enable the hand skeleton when you want tracking debug feedback.",
+        quickNote4: "If camera access fails, the globe still runs in demo mode.",
+        pillMirror: "Mirror preview enabled",
+        pillHandOnly: "Hand tracking only",
+        pillSingleFile: "Single-file app",
+        liveDetectionTitle: "Live Plasma View",
+        enterFullscreenButton: "Full screen",
+        exitFullscreenButton: "Exit full screen",
+        stageCaptionTitle: "Plasma Field",
+        stageCaptionText: "Idle rays drift inside the globe. Bring your palm closer to bend the brightest strands toward your hand.",
+        statusPanelTitle: "Status Panel",
+        sessionTitle: "Session",
+        interactionTitle: "Current Interaction",
+        distanceTitle: "Hand Distance From Globe",
+        plasmaProfileTitle: "Plasma Profile",
+        quickNotesLabel: "Quick Notes",
+        cameraIdle: "Camera idle",
+        cameraLive: "Camera live",
+        cameraStopped: "Camera stopped",
+        cameraRunning: "Camera running",
+        cameraViewHidden: "Camera running. Preview hidden.",
+        cameraImageOff: "Camera image disabled",
+        handTrackingReady: "Hand tracking ready when camera starts.",
+        handTrackingLoading: "Loading hand tracker...",
+        handTrackingUnavailable: "Hand tracking unavailable. Demo mode only.",
+        startCameraHint: "Start the camera to enable hand-reactive plasma.",
+        secureContextWarning: "This page is not running on localhost or HTTPS. Camera access may be blocked.",
+        secureContextRunningWarning: "This page is not running on localhost or HTTPS. Camera access may be blocked.",
+        unsupportedBrowser: "Unsupported browser",
+        browserUnsupported: "This browser does not support webcam access.",
+        browserSupportHint: "Use a browser with navigator.mediaDevices.getUserMedia support.",
+        startingCamera: "Starting camera...",
+        cameraStartFailed: "Failed to start camera",
+        permissionDenied: "Camera permission was denied. Allow access and try again.",
+        noWebcamFound: "No webcam was found on this device.",
+        webcamBusy: "The webcam is busy in another application.",
+        unableToStartCamera: "Unable to start the camera.",
+        detectionIdle: "Waiting for hand data",
+        detectionActive: "Hand tracking live",
+        detectionNoHand: "No hand detected",
+        detectionHand: "Hand detected",
+        detectionDemo: "Demo mode active",
+        interactionIdle: "Idle",
+        interactionHandDetected: "Hand detected",
+        interactionAttracting: "Attracting plasma",
+        interactionStrong: "Strong attraction",
+        interactionIdleDetails: "The plasma globe is animating in demo mode.",
+        interactionDetectedDetails: "A hand is in frame, but still outside the strongest attraction zone.",
+        interactionAttractingDetails: "Several strands are bending toward the palm.",
+        interactionStrongDetails: "The closest rays are fully focused on the palm direction.",
+        coordinatesPlaceholder: "Palm coordinates will appear here when a hand is detected.",
+        distancePlaceholder: "--",
+        noHandSummary: "No active hand landmarks.",
+        currentColorPrefix: "Selected color",
+        currentStylePrefix: "Ray style",
+        styleSoftSummary: "Soft gas-like rays with wide blur.",
+        styleBalancedSummary: "Balanced rays with medium blur.",
+        styleLightningSummary: "Thin lightning rays with tighter branches.",
+        fpsPlaceholder: "FPS: --",
+        fpsValue: "FPS: {fps}",
+        performanceValue: "Performance: {value}",
+        performanceWaiting: "Waiting",
+        performanceSmooth: "Smooth",
+        performanceModerate: "Moderate",
+        performanceLow: "Low",
+        statusNotesText: "Camera access requires HTTPS or localhost.\nMove your hand near the plasma globe to attract the rays.\nHide camera for a cleaner visual effect.\nUse hand skeleton for debugging.",
+        overlayIdleBadge: "Idle plasma",
+        overlayTrackingBadge: "Tracking hand",
+        overlayAttractingBadge: "Plasma attraction",
+        overlayStrongBadge: "Strong focus",
+        trackingFailed: "MediaPipe failed to load. Visual demo continues without hand input.",
+        modelsReady: "Hand tracker ready",
+        detectionLoopRunning: "Camera is live. Plasma is listening for the nearest hand.",
+        handDistanceValue: "{distance}px from globe edge",
+        handDistanceInside: "Inside reaction zone",
+        palmCoord: "Palm: x {x}, y {y}",
+        handedness: "Hand: {value}",
+        nearestHandLabel: "Nearest hand chosen",
+        hiddenCameraSummary: "Camera is running, but the preview layer is hidden.",
+      },
+      pt: {
+        pageTitle: "Plasma Ball Lab",
+        eyebrow: "Demo de webcam com MediaPipe Tasks Vision",
+        heroTitle: "Plasma Ball Lab",
+        heroIntro: "Simulação de globo de plasma guiada pela câmera e reagindo à proximidade da mão.",
+        cameraControlsTitle: "Controles da câmera",
+        cameraControlsLabel: "Controles da câmera",
+        startCameraButton: "Iniciar câmera",
+        stopCameraButton: "Parar câmera",
+        hideCameraButton: "Ocultar câmera",
+        showCameraButton: "Mostrar câmera",
+        cameraLayerLabel: "Camada da câmera",
+        showCameraImageLabel: "Mostrar imagem da câmera",
+        showHandSkeletonLabel: "Mostrar esqueleto da mão",
+        plasmaControlsTitle: "Controles do plasma",
+        plasmaColorLabel: "Cor do plasma",
+        colorPurple: "Roxo",
+        colorRed: "Vermelho",
+        colorPink: "Rosa",
+        colorWhite: "Branco",
+        colorBlue: "Azul",
+        colorCyan: "Ciano",
+        colorGreen: "Verde",
+        colorRainbow: "Arco-íris",
+        rayStyleLabel: "Estilo / nitidez dos raios",
+        styleSoft: "Gasoso / suave",
+        styleBalanced: "Balanceado",
+        styleLightning: "Raio fino",
+        energyTuningTitle: "Ajuste de energia",
+        motionTuningTitle: "Ajuste de movimento",
+        plasmaIntensityLabel: "Intensidade do plasma",
+        intensityHint: "Brilho e força",
+        rayCountLabel: "Quantidade de raios",
+        rayCountHint: "Densidade dos tentáculos",
+        glowAmountLabel: "Quantidade de glow",
+        glowHint: "Halo externo",
+        reactionDistanceLabel: "Distância de reação",
+        reactionHint: "Alcance de atração da mão",
+        motionSpeedLabel: "Velocidade do movimento",
+        speedHint: "Velocidade da oscilação",
+        backgroundDarknessLabel: "Escuridão do fundo",
+        darknessHint: "Fundo do palco",
+        webcamNoteLabel: "Nota da webcam:",
+        webcamNoteText: "o acesso à câmera geralmente exige localhost ou HTTPS. Abrir este arquivo com file:// pode falhar em muitos navegadores.",
+        quickNote1: "Aproxime a mão do globo para atrair os raios.",
+        quickNote2: "Oculte a imagem da câmera para um visual mais limpo.",
+        quickNote3: "Ative o esqueleto da mão quando quiser depurar o rastreamento.",
+        quickNote4: "Se a câmera falhar, o globo continua em modo demo.",
+        pillMirror: "Preview espelhado ativado",
+        pillHandOnly: "Apenas rastreamento de mão",
+        pillSingleFile: "App em um único arquivo",
+        liveDetectionTitle: "Visualização de plasma ao vivo",
+        enterFullscreenButton: "Tela cheia",
+        exitFullscreenButton: "Sair da tela cheia",
+        stageCaptionTitle: "Campo de plasma",
+        stageCaptionText: "Os raios ociosos flutuam dentro do globo. Aproxime a palma para curvar os fios mais brilhantes na direção da mão.",
+        statusPanelTitle: "Painel de status",
+        sessionTitle: "Sessão",
+        interactionTitle: "Interação atual",
+        distanceTitle: "Distância da mão ao globo",
+        plasmaProfileTitle: "Perfil do plasma",
+        quickNotesLabel: "Notas rápidas",
+        cameraIdle: "Câmera parada",
+        cameraLive: "Câmera ativa",
+        cameraStopped: "Câmera parada",
+        cameraRunning: "Câmera em execução",
+        cameraViewHidden: "Câmera em execução. Preview oculto.",
+        cameraImageOff: "Imagem da câmera desativada",
+        handTrackingReady: "O rastreamento de mão fica pronto quando a câmera iniciar.",
+        handTrackingLoading: "Carregando rastreador de mão...",
+        handTrackingUnavailable: "Rastreamento de mão indisponível. Apenas modo demo.",
+        startCameraHint: "Inicie a câmera para ativar o plasma reativo à mão.",
+        secureContextWarning: "Esta página não está rodando em localhost ou HTTPS. O acesso à câmera pode ser bloqueado.",
+        secureContextRunningWarning: "Esta página não está rodando em localhost ou HTTPS. O acesso à câmera pode ser bloqueado.",
+        unsupportedBrowser: "Navegador sem suporte",
+        browserUnsupported: "Este navegador não suporta acesso à webcam.",
+        browserSupportHint: "Use um navegador com suporte a navigator.mediaDevices.getUserMedia.",
+        startingCamera: "Iniciando câmera...",
+        cameraStartFailed: "Falha ao iniciar a câmera",
+        permissionDenied: "A permissão da câmera foi negada. Libere o acesso e tente novamente.",
+        noWebcamFound: "Nenhuma webcam foi encontrada neste dispositivo.",
+        webcamBusy: "A webcam está ocupada em outro aplicativo.",
+        unableToStartCamera: "Não foi possível iniciar a câmera.",
+        detectionIdle: "Aguardando dados da mão",
+        detectionActive: "Rastreamento de mão ativo",
+        detectionNoHand: "Nenhuma mão detectada",
+        detectionHand: "Mão detectada",
+        detectionDemo: "Modo demo ativo",
+        interactionIdle: "Ocioso",
+        interactionHandDetected: "Mão detectada",
+        interactionAttracting: "Atraindo plasma",
+        interactionStrong: "Atração forte",
+        interactionIdleDetails: "O globo de plasma está animando em modo demo.",
+        interactionDetectedDetails: "Há uma mão no quadro, mas ainda fora da zona de atração mais forte.",
+        interactionAttractingDetails: "Vários fios estão se curvando em direção à palma.",
+        interactionStrongDetails: "Os raios mais próximos estão totalmente focados na direção da palma.",
+        coordinatesPlaceholder: "As coordenadas da palma aparecerão aqui quando uma mão for detectada.",
+        distancePlaceholder: "--",
+        noHandSummary: "Nenhum landmark de mão ativo.",
+        currentColorPrefix: "Cor selecionada",
+        currentStylePrefix: "Estilo dos raios",
+        styleSoftSummary: "Raios suaves e gasosos com blur largo.",
+        styleBalancedSummary: "Raios balanceados com blur médio.",
+        styleLightningSummary: "Raios finos com ramificações mais fechadas.",
+        fpsPlaceholder: "FPS: --",
+        fpsValue: "FPS: {fps}",
+        performanceValue: "Desempenho: {value}",
+        performanceWaiting: "Aguardando",
+        performanceSmooth: "Suave",
+        performanceModerate: "Moderado",
+        performanceLow: "Baixo",
+        statusNotesText: "O acesso à câmera exige HTTPS ou localhost.\nAproxime a mão do globo para atrair os raios.\nOculte a câmera para um efeito mais limpo.\nUse o esqueleto da mão para depuração.",
+        overlayIdleBadge: "Plasma ocioso",
+        overlayTrackingBadge: "Rastreando mão",
+        overlayAttractingBadge: "Atração de plasma",
+        overlayStrongBadge: "Foco forte",
+        trackingFailed: "O MediaPipe falhou ao carregar. A demo visual continua sem entrada da mão.",
+        modelsReady: "Rastreador de mão pronto",
+        detectionLoopRunning: "A câmera está ativa. O plasma está ouvindo a mão mais próxima.",
+        handDistanceValue: "{distance}px da borda do globo",
+        handDistanceInside: "Dentro da zona de reação",
+        palmCoord: "Palma: x {x}, y {y}",
+        handedness: "Mão: {value}",
+        nearestHandLabel: "Mão mais próxima escolhida",
+        hiddenCameraSummary: "A câmera está ativa, mas a camada de preview está oculta.",
+      },
+      ja: {
+        pageTitle: "Plasma Ball Lab",
+        eyebrow: "MediaPipe Tasks Vision ウェブカメラデモ",
+        heroTitle: "Plasma Ball Lab",
+        heroIntro: "カメラで動く、手の近さに反応するプラズマ球シミュレーションです。",
+        cameraControlsTitle: "カメラ操作",
+        cameraControlsLabel: "カメラ操作",
+        startCameraButton: "カメラ開始",
+        stopCameraButton: "カメラ停止",
+        hideCameraButton: "カメラ非表示",
+        showCameraButton: "カメラ表示",
+        cameraLayerLabel: "カメラレイヤー",
+        showCameraImageLabel: "カメラ映像を表示",
+        showHandSkeletonLabel: "手のスケルトンを表示",
+        plasmaControlsTitle: "プラズマ操作",
+        plasmaColorLabel: "プラズマ色",
+        colorPurple: "紫",
+        colorRed: "赤",
+        colorPink: "ピンク",
+        colorWhite: "白",
+        colorBlue: "青",
+        colorCyan: "シアン",
+        colorGreen: "緑",
+        colorRainbow: "レインボー",
+        rayStyleLabel: "光線スタイル / 鋭さ",
+        styleSoft: "ガス状 / ソフト",
+        styleBalanced: "バランス",
+        styleLightning: "細いライトニング",
+        energyTuningTitle: "エネルギー調整",
+        motionTuningTitle: "動きの調整",
+        plasmaIntensityLabel: "プラズマ強度",
+        intensityHint: "輝きと強さ",
+        rayCountLabel: "光線数",
+        rayCountHint: "触手の密度",
+        glowAmountLabel: "グロー量",
+        glowHint: "外側のハロー",
+        reactionDistanceLabel: "反応距離",
+        reactionHint: "手の引力範囲",
+        motionSpeedLabel: "動きの速度",
+        speedHint: "振動の速さ",
+        backgroundDarknessLabel: "背景の暗さ",
+        darknessHint: "ステージ背景",
+        webcamNoteLabel: "ウェブカメラの注意:",
+        webcamNoteText: "カメラアクセスには通常 localhost または HTTPS が必要です。file:// で開くと多くのブラウザで失敗する場合があります。",
+        quickNote1: "手をグローブに近づけると光線が引き寄せられます。",
+        quickNote2: "よりクリーンな見た目にしたい場合はカメラ映像を隠してください。",
+        quickNote3: "トラッキング確認には手のスケルトンを有効にしてください。",
+        quickNote4: "カメラが失敗してもグローブはデモモードで動き続けます。",
+        pillMirror: "ミラー表示を有効化",
+        pillHandOnly: "手の追跡のみ",
+        pillSingleFile: "単一ファイルアプリ",
+        liveDetectionTitle: "ライブプラズマビュー",
+        enterFullscreenButton: "全画面",
+        exitFullscreenButton: "全画面終了",
+        stageCaptionTitle: "プラズマフィールド",
+        stageCaptionText: "待機中の光線は球体内部を漂います。手のひらを近づけると最も明るい筋が手の方向へ曲がります。",
+        statusPanelTitle: "ステータスパネル",
+        sessionTitle: "セッション",
+        interactionTitle: "現在のインタラクション",
+        distanceTitle: "手とグローブの距離",
+        plasmaProfileTitle: "プラズマ設定",
+        quickNotesLabel: "クイックメモ",
+        cameraIdle: "カメラ停止中",
+        cameraLive: "カメラ稼働中",
+        cameraStopped: "カメラ停止",
+        cameraRunning: "カメラ動作中",
+        cameraViewHidden: "カメラ動作中。プレビューは非表示です。",
+        cameraImageOff: "カメラ映像はオフです",
+        handTrackingReady: "手の追跡はカメラ開始時に有効になります。",
+        handTrackingLoading: "手のトラッカーを読み込み中...",
+        handTrackingUnavailable: "手の追跡は利用できません。デモモードのみです。",
+        startCameraHint: "カメラを開始すると手に反応するプラズマが有効になります。",
+        secureContextWarning: "このページは localhost または HTTPS で実行されていません。カメラアクセスがブロックされる可能性があります。",
+        secureContextRunningWarning: "このページは localhost または HTTPS で実行されていません。カメラアクセスがブロックされる可能性があります。",
+        unsupportedBrowser: "未対応ブラウザ",
+        browserUnsupported: "このブラウザはウェブカメラアクセスに対応していません。",
+        browserSupportHint: "navigator.mediaDevices.getUserMedia に対応したブラウザを使用してください。",
+        startingCamera: "カメラを開始しています...",
+        cameraStartFailed: "カメラの開始に失敗しました",
+        permissionDenied: "カメラの許可が拒否されました。許可して再試行してください。",
+        noWebcamFound: "この端末でウェブカメラが見つかりませんでした。",
+        webcamBusy: "ウェブカメラは別のアプリで使用中です。",
+        unableToStartCamera: "カメラを開始できませんでした。",
+        detectionIdle: "手のデータ待機中",
+        detectionActive: "手の追跡が動作中",
+        detectionNoHand: "手が見つかりません",
+        detectionHand: "手を検出",
+        detectionDemo: "デモモード稼働中",
+        interactionIdle: "待機中",
+        interactionHandDetected: "手を検出",
+        interactionAttracting: "プラズマを引き寄せ中",
+        interactionStrong: "強い引力",
+        interactionIdleDetails: "プラズマ球はデモモードでアニメーションしています。",
+        interactionDetectedDetails: "手は映っていますが、まだ最も強い引力ゾーンの外です。",
+        interactionAttractingDetails: "複数の筋が手のひらに向かって曲がっています。",
+        interactionStrongDetails: "最も近い光線が手の方向へ強く集中しています。",
+        coordinatesPlaceholder: "手が検出されると手のひら座標がここに表示されます。",
+        distancePlaceholder: "--",
+        noHandSummary: "有効な手のランドマークはありません。",
+        currentColorPrefix: "選択中の色",
+        currentStylePrefix: "光線スタイル",
+        styleSoftSummary: "広いぼかしを持つ柔らかなガス状の光線です。",
+        styleBalancedSummary: "中程度のぼかしを持つバランス型の光線です。",
+        styleLightningSummary: "引き締まった分岐を持つ細いライトニングです。",
+        fpsPlaceholder: "FPS: --",
+        fpsValue: "FPS: {fps}",
+        performanceValue: "性能: {value}",
+        performanceWaiting: "待機中",
+        performanceSmooth: "快適",
+        performanceModerate: "中程度",
+        performanceLow: "低下",
+        statusNotesText: "カメラアクセスには HTTPS または localhost が必要です。\n手をグローブに近づけて光線を引き寄せます。\nよりクリーンな見た目にはカメラを隠してください。\nデバッグには手のスケルトンを使用してください。",
+        overlayIdleBadge: "待機プラズマ",
+        overlayTrackingBadge: "手を追跡中",
+        overlayAttractingBadge: "プラズマ引力",
+        overlayStrongBadge: "強い集中",
+        trackingFailed: "MediaPipe の読み込みに失敗しました。ビジュアルデモは手入力なしで続行します。",
+        modelsReady: "手のトラッカー準備完了",
+        detectionLoopRunning: "カメラは有効です。プラズマは最も近い手を追跡しています。",
+        handDistanceValue: "グローブ境界まで {distance}px",
+        handDistanceInside: "反応ゾーン内",
+        palmCoord: "手のひら: x {x}, y {y}",
+        handedness: "手: {value}",
+        nearestHandLabel: "最も近い手を採用",
+        hiddenCameraSummary: "カメラは動作中ですが、プレビュー層は非表示です。",
+      }
+    };
+
+    const elements = {
+      stage: document.getElementById("stage"),
+      video: document.getElementById("webcam"),
+      plasmaCanvas: document.getElementById("plasmaCanvas"),
+      overlayCanvas: document.getElementById("overlayCanvas"),
+      startButton: document.getElementById("startButton"),
+      stopButton: document.getElementById("stopButton"),
+      showCameraImageInput: document.getElementById("showCameraImageInput"),
+      showCameraImageChip: document.getElementById("showCameraImageChip"),
+      showSkeletonInput: document.getElementById("showSkeletonInput"),
+      showSkeletonChip: document.getElementById("showSkeletonChip"),
+      colorSelect: document.getElementById("colorSelect"),
+      styleSelect: document.getElementById("styleSelect"),
+      intensitySlider: document.getElementById("intensitySlider"),
+      intensityValue: document.getElementById("intensityValue"),
+      rayCountSlider: document.getElementById("rayCountSlider"),
+      rayCountValue: document.getElementById("rayCountValue"),
+      glowSlider: document.getElementById("glowSlider"),
+      glowValue: document.getElementById("glowValue"),
+      reactionSlider: document.getElementById("reactionSlider"),
+      reactionValue: document.getElementById("reactionValue"),
+      speedSlider: document.getElementById("speedSlider"),
+      speedValue: document.getElementById("speedValue"),
+      darknessSlider: document.getElementById("darknessSlider"),
+      darknessValue: document.getElementById("darknessValue"),
+      fullscreenButton: document.getElementById("fullscreenButton"),
+      liveIndicator: document.getElementById("liveIndicator"),
+      detectionBadge: document.getElementById("detectionBadge"),
+      interactionBadge: document.getElementById("interactionBadge"),
+      cameraStatus: document.getElementById("cameraStatus"),
+      handStatus: document.getElementById("handStatus"),
+      interactionState: document.getElementById("interactionState"),
+      interactionDetails: document.getElementById("interactionDetails"),
+      distanceValue: document.getElementById("distanceValue"),
+      coordinateOutput: document.getElementById("coordinateOutput"),
+      selectedColor: document.getElementById("selectedColor"),
+      selectedStyle: document.getElementById("selectedStyle"),
+      statusNotes: document.getElementById("statusNotes"),
+      fpsChip: document.getElementById("fpsChip"),
+      perfChip: document.getElementById("perfChip"),
+      langButtons: Array.from(document.querySelectorAll(".lang-selector button")),
+    };
+
+    const plasmaContext = elements.plasmaCanvas.getContext("2d");
+    const overlayContext = elements.overlayCanvas.getContext("2d");
+    let currentLanguage = localStorage.getItem("app_lang") || "en";
+
+    const appState = {
+      stream: null,
+      animationFrameId: 0,
+      mediaPipeModule: null,
+      visionResolver: null,
+      handLandmarker: null,
+      trackerReady: false,
+      trackerFailed: false,
+      trackerErrorMessage: "",
+      cameraRunning: false,
+      showCameraImage: localStorage.getItem(`${STORAGE_PREFIX}show_camera_image`) !== "false",
+      showHandSkeleton: localStorage.getItem(`${STORAGE_PREFIX}show_hand_skeleton`) === "true",
+      settings: {
+        color: localStorage.getItem(`${STORAGE_PREFIX}color`) || "purple",
+        style: localStorage.getItem(`${STORAGE_PREFIX}style`) || "balanced",
+        intensity: parseStoredNumber(`${STORAGE_PREFIX}intensity`, 1),
+        rayCount: parseStoredNumber(`${STORAGE_PREFIX}ray_count`, 36),
+        glowAmount: parseStoredNumber(`${STORAGE_PREFIX}glow`, 1),
+        reactionDistance: parseStoredNumber(`${STORAGE_PREFIX}reaction_distance`, 0.62),
+        motionSpeed: parseStoredNumber(`${STORAGE_PREFIX}motion_speed`, 1),
+        backgroundDarkness: parseStoredNumber(`${STORAGE_PREFIX}background_darkness`, 0.82),
+      },
+      frameCount: 0,
+      fps: 0,
+      fpsTime: performance.now(),
+      lastPerfLevel: "performanceWaiting",
+      lastFrameTime: performance.now(),
+      lastVideoTime: -1,
+      dpr: Math.max(1, Math.min(2, window.devicePixelRatio || 1)),
+      canvasWidth: 0,
+      canvasHeight: 0,
+      simulationTime: 0,
+      raySeeds: [],
+      particles: [],
+      currentHands: [],
+      currentHand: null,
+      currentHandedness: "",
+      lastHandResults: null,
+      interactionKey: "interactionIdle",
+      detectionKey: "detectionDemo",
+      targetGlow: 0,
+    };
+
+    function parseStoredNumber(key, fallbackValue) {
+      const raw = localStorage.getItem(key);
+      const parsed = raw === null ? NaN : Number(raw);
+      return Number.isFinite(parsed) ? parsed : fallbackValue;
+    }
+
+    function t(key, vars = {}) {
+      const template = (i18n[currentLanguage] && i18n[currentLanguage][key]) || i18n.en[key] || key;
+      return template.replace(/\{(\w+)\}/g, (_, name) => String(vars[name] ?? ""));
+    }
+
+    function clamp(value, min, max) {
+      return Math.min(max, Math.max(min, value));
+    }
+
+    function lerp(start, end, amount) {
+      return start + (end - start) * amount;
+    }
+
+    function easeOutCubic(value) {
+      return 1 - Math.pow(1 - value, 3);
+    }
+
+    function colorWithAlpha(color, alpha) {
+      if (color.startsWith("rgba(")) {
+        const channels = color.slice(5, -1).split(",").slice(0, 3).map((entry) => entry.trim());
+        return `rgba(${channels.join(", ")}, ${alpha})`;
+      }
+      if (color.startsWith("rgb(")) {
+        const channels = color.slice(4, -1).split(",").map((entry) => entry.trim());
+        return `rgba(${channels.join(", ")}, ${alpha})`;
+      }
+      if (color.startsWith("hsla(")) {
+        const channels = color.slice(5, -1).split(",").slice(0, 3).map((entry) => entry.trim());
+        return `hsla(${channels.join(", ")}, ${alpha})`;
+      }
+      if (color.startsWith("hsl(")) {
+        const channels = color.slice(4, -1).split(",").map((entry) => entry.trim());
+        return `hsla(${channels.join(", ")}, ${alpha})`;
+      }
+      return color;
+    }
+
+    function applyTranslations() {
+      document.documentElement.lang = currentLanguage;
+      document.title = t("pageTitle");
+      document.querySelectorAll("[data-i18n]").forEach((element) => {
+        element.textContent = t(element.dataset.i18n);
+      });
+      elements.langButtons.forEach((button) => {
+        button.classList.toggle("active", button.dataset.lang === currentLanguage);
+      });
+      updateCameraViewUI();
+      updateToggleChips();
+      renderControlValues();
+      renderProfileSummary();
+      renderPerformanceChips();
+      updateFullscreenButton();
+      updateStatusUI();
+    }
+
+    function setLanguage(language) {
+      currentLanguage = i18n[language] ? language : "en";
+      localStorage.setItem("app_lang", currentLanguage);
+      applyTranslations();
+    }
+
+    function saveSettings() {
+      localStorage.setItem(`${STORAGE_PREFIX}color`, appState.settings.color);
+      localStorage.setItem(`${STORAGE_PREFIX}style`, appState.settings.style);
+      localStorage.setItem(`${STORAGE_PREFIX}intensity`, String(appState.settings.intensity));
+      localStorage.setItem(`${STORAGE_PREFIX}ray_count`, String(appState.settings.rayCount));
+      localStorage.setItem(`${STORAGE_PREFIX}glow`, String(appState.settings.glowAmount));
+      localStorage.setItem(`${STORAGE_PREFIX}reaction_distance`, String(appState.settings.reactionDistance));
+      localStorage.setItem(`${STORAGE_PREFIX}motion_speed`, String(appState.settings.motionSpeed));
+      localStorage.setItem(`${STORAGE_PREFIX}background_darkness`, String(appState.settings.backgroundDarkness));
+    }
+
+    function updateToggleChips() {
+      elements.showCameraImageChip.classList.toggle("active", appState.showCameraImage);
+      elements.showSkeletonChip.classList.toggle("active", appState.showHandSkeleton);
+      elements.showCameraImageInput.checked = appState.showCameraImage;
+      elements.showSkeletonInput.checked = appState.showHandSkeleton;
+    }
+
+    function updateCameraViewUI() {
+      const shouldShowVideo = appState.cameraRunning && appState.showCameraImage;
+      elements.stage.classList.toggle("video-layer-hidden", !shouldShowVideo);
+      elements.stage.classList.toggle("camera-feed-active", shouldShowVideo);
+    }
+
+    function renderProfileSummary() {
+      elements.selectedColor.textContent = `${t("currentColorPrefix")}: ${t(`color${capitalize(appState.settings.color)}`)}`;
+      elements.selectedStyle.textContent = `${t("currentStylePrefix")}: ${t(getStyleSummaryKey(appState.settings.style))}`;
+      elements.statusNotes.textContent = t("statusNotesText");
+    }
+
+    function renderControlValues() {
+      elements.colorSelect.value = appState.settings.color;
+      elements.styleSelect.value = appState.settings.style;
+      elements.intensitySlider.value = String(appState.settings.intensity);
+      elements.rayCountSlider.value = String(appState.settings.rayCount);
+      elements.glowSlider.value = String(appState.settings.glowAmount);
+      elements.reactionSlider.value = String(appState.settings.reactionDistance);
+      elements.speedSlider.value = String(appState.settings.motionSpeed);
+      elements.darknessSlider.value = String(appState.settings.backgroundDarkness);
+      elements.intensityValue.textContent = Number(appState.settings.intensity).toFixed(2);
+      elements.rayCountValue.textContent = String(Math.round(appState.settings.rayCount));
+      elements.glowValue.textContent = Number(appState.settings.glowAmount).toFixed(2);
+      elements.reactionValue.textContent = Number(appState.settings.reactionDistance).toFixed(2);
+      elements.speedValue.textContent = Number(appState.settings.motionSpeed).toFixed(2);
+      elements.darknessValue.textContent = Number(appState.settings.backgroundDarkness).toFixed(2);
+    }
+
+    function renderPerformanceChips() {
+      elements.fpsChip.textContent = appState.fps > 0 ? t("fpsValue", { fps: appState.fps.toFixed(1) }) : t("fpsPlaceholder");
+      elements.perfChip.textContent = t("performanceValue", { value: t(appState.lastPerfLevel) });
+    }
+
+    function getStyleSummaryKey(styleValue) {
+      if (styleValue === "soft") {
+        return "styleSoftSummary";
+      }
+      if (styleValue === "lightning") {
+        return "styleLightningSummary";
+      }
+      return "styleBalancedSummary";
+    }
+
+    function capitalize(value) {
+      return String(value || "").charAt(0).toUpperCase() + String(value || "").slice(1);
+    }
+
+    function isSecureOrLocalhost() {
+      return window.isSecureContext || location.hostname === "localhost" || location.hostname === "127.0.0.1";
+    }
+
+    function createRaySeeds() {
+      appState.raySeeds = Array.from({ length: MAX_RAYS }, (_, index) => ({
+        index,
+        angle: (Math.PI * 2 * index) / MAX_RAYS,
+        phase: Math.random() * Math.PI * 2,
+        phaseB: Math.random() * Math.PI * 2,
+        bend: 0.3 + Math.random() * 0.9,
+        radiusBias: 0.82 + Math.random() * 0.2,
+        flicker: 0.7 + Math.random() * 0.5,
+        branchChance: 0.25 + Math.random() * 0.55,
+      }));
+    }
+
+    function createParticles() {
+      appState.particles = Array.from({ length: MAX_PARTICLES }, () => ({
+        angle: Math.random() * Math.PI * 2,
+        radial: Math.sqrt(Math.random()) * 0.9,
+        speed: 0.2 + Math.random() * 0.7,
+        drift: Math.random() * Math.PI * 2,
+        size: 1 + Math.random() * 2.6,
+        alpha: 0.1 + Math.random() * 0.26,
+      }));
+    }
+
+    function updateFullscreenButton() {
+      const isFullscreen = document.fullscreenElement === elements.stage;
+      elements.fullscreenButton.textContent = t(isFullscreen ? "exitFullscreenButton" : "enterFullscreenButton");
+    }
+
+    async function toggleFullscreen() {
+      try {
+        if (document.fullscreenElement) {
+          await document.exitFullscreen();
+        } else {
+          await elements.stage.requestFullscreen();
+        }
+        resizeCanvases();
+        updateFullscreenButton();
+      } catch (error) {
+        elements.handStatus.textContent = String(error?.message || error);
+      }
+    }
+
+    async function ensureMediaPipeModule() {
+      if (appState.mediaPipeModule) {
+        return appState.mediaPipeModule;
+      }
+
+      try {
+        appState.mediaPipeModule = await import("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14");
+        return appState.mediaPipeModule;
+      } catch (error) {
+        appState.trackerFailed = true;
+        appState.trackerErrorMessage = String(error?.message || error);
+        throw error;
+      }
+    }
+
+    async function ensureVisionResolver() {
+      if (appState.visionResolver) {
+        return appState.visionResolver;
+      }
+
+      const { FilesetResolver } = await ensureMediaPipeModule();
+      appState.visionResolver = await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm");
+      return appState.visionResolver;
+    }
+
+    async function ensureHandLandmarker() {
+      if (appState.handLandmarker) {
+        appState.trackerReady = true;
+        return appState.handLandmarker;
+      }
+
+      try {
+        elements.handStatus.textContent = t("handTrackingLoading");
+        const vision = await ensureVisionResolver();
+        const { HandLandmarker } = await ensureMediaPipeModule();
+        appState.handLandmarker = await HandLandmarker.createFromOptions(vision, {
+          baseOptions: { modelAssetPath: MODEL_URL },
+          runningMode: "VIDEO",
+          numHands: 2,
+        });
+        appState.trackerReady = true;
+        appState.trackerFailed = false;
+        return appState.handLandmarker;
+      } catch (error) {
+        appState.trackerReady = false;
+        appState.trackerFailed = true;
+        appState.trackerErrorMessage = String(error?.message || error);
+        elements.handStatus.textContent = t("trackingFailed");
+        throw error;
+      }
+    }
+
+    function resizeCanvases() {
+      const rect = elements.stage.getBoundingClientRect();
+      const width = Math.max(1, Math.round(rect.width));
+      const height = Math.max(1, Math.round(rect.height));
+      const nextDpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+      appState.dpr = nextDpr;
+      appState.canvasWidth = width;
+      appState.canvasHeight = height;
+
+      const targetWidth = Math.round(width * nextDpr);
+      const targetHeight = Math.round(height * nextDpr);
+      for (const canvas of [elements.plasmaCanvas, elements.overlayCanvas]) {
+        if (canvas.width !== targetWidth || canvas.height !== targetHeight) {
+          canvas.width = targetWidth;
+          canvas.height = targetHeight;
+        }
+        canvas.style.width = `${width}px`;
+        canvas.style.height = `${height}px`;
+      }
+
+      plasmaContext.setTransform(nextDpr, 0, 0, nextDpr, 0, 0);
+      overlayContext.setTransform(nextDpr, 0, 0, nextDpr, 0, 0);
+    }
+
+    function pointToCanvas(point) {
+      if (!point) {
+        return null;
+      }
+
+      return {
+        x: (1 - point.x) * appState.canvasWidth,
+        y: point.y * appState.canvasHeight,
+      };
+    }
+
+    function averagePoints(points) {
+      if (!points.length) {
+        return null;
+      }
+      let x = 0;
+      let y = 0;
+      for (const point of points) {
+        x += point.x;
+        y += point.y;
+      }
+      return { x: x / points.length, y: y / points.length };
+    }
+
+    function getPalmCenter(landmarks) {
+      if (!landmarks || landmarks.length < 18) {
+        return null;
+      }
+      return averagePoints([landmarks[0], landmarks[5], landmarks[9], landmarks[13], landmarks[17]]);
+    }
+
+    function getTrackedHands(result, globeCenter) {
+      const hands = result?.landmarks || [];
+      const handednessList = result?.handedness || [];
+      const trackedHands = [];
+      for (let index = 0; index < hands.length; index += 1) {
+        const landmarks = hands[index];
+        const palm = getPalmCenter(landmarks);
+        if (!palm) {
+          continue;
+        }
+        const canvasPalm = pointToCanvas(palm);
+        const distance = Math.hypot(canvasPalm.x - globeCenter.x, canvasPalm.y - globeCenter.y);
+        const handedness = handednessList[index]?.[0]?.displayName || handednessList[index]?.[0]?.categoryName || "";
+        trackedHands.push({
+          landmarks,
+          palm,
+          canvasPalm,
+          distance,
+          handedness,
+        });
+      }
+      trackedHands.sort((left, right) => left.distance - right.distance);
+      return trackedHands.slice(0, 2);
+    }
+
+    function getGlobeGeometry() {
+      const minDimension = Math.min(appState.canvasWidth, appState.canvasHeight);
+      const radius = minDimension * 0.255;
+      return {
+        center: { x: appState.canvasWidth / 2, y: appState.canvasHeight / 2 },
+        radius,
+        coreRadius: radius * 0.18,
+        reactionDistance: minDimension * appState.settings.reactionDistance,
+      };
+    }
+
+    function getColorTheme(timeSeconds, rayIndex = 0) {
+      const theme = appState.settings.color;
+      if (theme === "rainbow") {
+        const hue = (timeSeconds * 70 + rayIndex * 16) % 360;
+        return {
+          base: `hsla(${hue}, 92%, 64%, 0.98)`,
+          glow: `hsla(${(hue + 18) % 360}, 100%, 68%, 0.7)`,
+          shell: `hsla(${(hue + 8) % 360}, 100%, 82%, 0.18)`,
+          particle: `hsla(${(hue + 40) % 360}, 100%, 76%, 0.72)`,
+          core: `hsla(${(hue + 6) % 360}, 100%, 80%, 1)`,
+        };
+      }
+
+      const themes = {
+        purple: { base: "rgba(183, 122, 255, 0.96)", glow: "rgba(151, 84, 255, 0.68)", shell: "rgba(226, 205, 255, 0.18)", particle: "rgba(236, 223, 255, 0.72)", core: "rgba(248, 240, 255, 1)" },
+        red: { base: "rgba(255, 92, 120, 0.96)", glow: "rgba(255, 74, 80, 0.68)", shell: "rgba(255, 214, 220, 0.18)", particle: "rgba(255, 232, 226, 0.72)", core: "rgba(255, 244, 240, 1)" },
+        pink: { base: "rgba(255, 120, 202, 0.96)", glow: "rgba(255, 95, 180, 0.68)", shell: "rgba(255, 219, 240, 0.18)", particle: "rgba(255, 234, 247, 0.72)", core: "rgba(255, 244, 250, 1)" },
+        white: { base: "rgba(240, 247, 255, 0.98)", glow: "rgba(192, 225, 255, 0.62)", shell: "rgba(255, 255, 255, 0.18)", particle: "rgba(255, 255, 255, 0.76)", core: "rgba(255, 255, 255, 1)" },
+        blue: { base: "rgba(100, 160, 255, 0.96)", glow: "rgba(76, 131, 255, 0.68)", shell: "rgba(217, 232, 255, 0.18)", particle: "rgba(225, 240, 255, 0.72)", core: "rgba(245, 250, 255, 1)" },
+        cyan: { base: "rgba(84, 246, 255, 0.96)", glow: "rgba(43, 190, 255, 0.68)", shell: "rgba(214, 252, 255, 0.18)", particle: "rgba(225, 255, 255, 0.72)", core: "rgba(240, 255, 255, 1)" },
+        green: { base: "rgba(116, 255, 172, 0.96)", glow: "rgba(48, 229, 148, 0.68)", shell: "rgba(219, 255, 233, 0.18)", particle: "rgba(236, 255, 242, 0.72)", core: "rgba(245, 255, 248, 1)" },
+      };
+
+      return themes[theme] || themes.purple;
+    }
+
+    function clearCanvases() {
+      plasmaContext.clearRect(0, 0, appState.canvasWidth, appState.canvasHeight);
+      overlayContext.clearRect(0, 0, appState.canvasWidth, appState.canvasHeight);
+    }
+
+    function drawStageBackdrop(timeSeconds, geometry) {
+      const darkness = appState.settings.backgroundDarkness;
+      const videoVisible = appState.cameraRunning && appState.showCameraImage;
+      const backdropAlpha = videoVisible ? darkness * 0.26 : darkness;
+      const shimmer = 0.04 + 0.02 * Math.sin(timeSeconds * 0.8);
+      const gradient = plasmaContext.createRadialGradient(
+        geometry.center.x,
+        geometry.center.y,
+        geometry.coreRadius * 0.3,
+        geometry.center.x,
+        geometry.center.y,
+        geometry.radius * 2.1
+      );
+      gradient.addColorStop(0, `rgba(14, 24, 36, ${videoVisible ? 0.08 + shimmer * 0.45 : 0.22 + shimmer})`);
+      gradient.addColorStop(0.5, `rgba(5, 10, 18, ${videoVisible ? 0.12 + darkness * 0.08 : 0.42 + darkness * 0.22})`);
+      gradient.addColorStop(1, `rgba(1, 3, 8, ${videoVisible ? 0.2 + darkness * 0.08 : 0.78 + darkness * 0.18})`);
+
+      plasmaContext.fillStyle = `rgba(0, 0, 0, ${backdropAlpha})`;
+      plasmaContext.fillRect(0, 0, appState.canvasWidth, appState.canvasHeight);
+      plasmaContext.fillStyle = gradient;
+      plasmaContext.fillRect(0, 0, appState.canvasWidth, appState.canvasHeight);
+    }
+
+    function drawParticles(timeSeconds, geometry, attraction) {
+      const particleCap = appState.fps > 0 && appState.fps < 16 ? 54 : MAX_PARTICLES;
+      for (let index = 0; index < particleCap; index += 1) {
+        const particle = appState.particles[index];
+        const theme = getColorTheme(timeSeconds, index);
+        const angle = particle.angle + timeSeconds * (0.2 + particle.speed * 0.18);
+        const drift = Math.sin(timeSeconds * (0.7 + particle.speed) + particle.drift) * 0.08;
+        const radius = geometry.radius * clamp(particle.radial + drift * 0.18 + attraction * 0.02, 0.05, 0.92);
+        const x = geometry.center.x + Math.cos(angle + drift) * radius;
+        const y = geometry.center.y + Math.sin(angle * 1.12 + drift) * radius * 0.95;
+        plasmaContext.beginPath();
+        plasmaContext.fillStyle = theme.particle;
+        plasmaContext.globalAlpha = particle.alpha + attraction * 0.08;
+        plasmaContext.arc(x, y, particle.size * (0.8 + attraction * 0.25), 0, Math.PI * 2);
+        plasmaContext.fill();
+      }
+      plasmaContext.globalAlpha = 1;
+    }
+
+    function drawGlobeShell(timeSeconds, geometry, attraction) {
+      const shellTheme = getColorTheme(timeSeconds);
+      const outerGlow = plasmaContext.createRadialGradient(
+        geometry.center.x,
+        geometry.center.y,
+        geometry.radius * 0.55,
+        geometry.center.x,
+        geometry.center.y,
+        geometry.radius * 1.55
+      );
+      outerGlow.addColorStop(0, "rgba(255, 255, 255, 0)");
+      outerGlow.addColorStop(0.55, colorWithAlpha(shellTheme.glow, 0.05 + attraction * 0.08));
+      outerGlow.addColorStop(1, "rgba(255, 255, 255, 0)");
+
+      plasmaContext.save();
+      plasmaContext.globalCompositeOperation = "screen";
+      plasmaContext.fillStyle = outerGlow;
+      plasmaContext.beginPath();
+      plasmaContext.arc(geometry.center.x, geometry.center.y, geometry.radius * 1.5, 0, Math.PI * 2);
+      plasmaContext.fill();
+      plasmaContext.restore();
+
+      const shellFill = plasmaContext.createRadialGradient(
+        geometry.center.x - geometry.radius * 0.26,
+        geometry.center.y - geometry.radius * 0.3,
+        geometry.radius * 0.08,
+        geometry.center.x,
+        geometry.center.y,
+        geometry.radius
+      );
+      shellFill.addColorStop(0, `rgba(255, 255, 255, ${0.16 + attraction * 0.06})`);
+      shellFill.addColorStop(0.24, shellTheme.shell);
+      shellFill.addColorStop(0.75, "rgba(60, 88, 115, 0.08)");
+      shellFill.addColorStop(1, "rgba(255, 255, 255, 0.02)");
+
+      plasmaContext.beginPath();
+      plasmaContext.arc(geometry.center.x, geometry.center.y, geometry.radius, 0, Math.PI * 2);
+      plasmaContext.fillStyle = shellFill;
+      plasmaContext.fill();
+
+      plasmaContext.strokeStyle = `rgba(255, 255, 255, ${0.22 + attraction * 0.08})`;
+      plasmaContext.lineWidth = 1.2;
+      plasmaContext.beginPath();
+      plasmaContext.arc(geometry.center.x, geometry.center.y, geometry.radius, 0, Math.PI * 2);
+      plasmaContext.stroke();
+
+      plasmaContext.strokeStyle = `rgba(255, 255, 255, ${0.06 + attraction * 0.05})`;
+      plasmaContext.lineWidth = 5;
+      plasmaContext.beginPath();
+      plasmaContext.arc(geometry.center.x, geometry.center.y, geometry.radius * 0.98, 0, Math.PI * 2);
+      plasmaContext.stroke();
+    }
+
+    function drawCore(timeSeconds, geometry, attraction) {
+      const theme = getColorTheme(timeSeconds);
+      const pulse = 0.88 + Math.sin(timeSeconds * 4.2) * 0.06 + attraction * 0.12;
+      const coreGradient = plasmaContext.createRadialGradient(
+        geometry.center.x,
+        geometry.center.y,
+        geometry.coreRadius * 0.1,
+        geometry.center.x,
+        geometry.center.y,
+        geometry.coreRadius * 2.4
+      );
+      coreGradient.addColorStop(0, theme.core);
+      coreGradient.addColorStop(0.38, colorWithAlpha(theme.base, 0.88));
+      coreGradient.addColorStop(0.72, colorWithAlpha(theme.glow, 0.35));
+      coreGradient.addColorStop(1, "rgba(255, 255, 255, 0)");
+
+      plasmaContext.save();
+      plasmaContext.globalCompositeOperation = "screen";
+      plasmaContext.shadowColor = theme.glow;
+      plasmaContext.shadowBlur = geometry.radius * 0.34 * appState.settings.glowAmount;
+      plasmaContext.fillStyle = coreGradient;
+      plasmaContext.beginPath();
+      plasmaContext.arc(geometry.center.x, geometry.center.y, geometry.coreRadius * 2.25 * pulse, 0, Math.PI * 2);
+      plasmaContext.fill();
+      plasmaContext.restore();
+    }
+
+    function drawRayBranch(start, end, width, theme) {
+      plasmaContext.beginPath();
+      plasmaContext.moveTo(start.x, start.y);
+      const midX = lerp(start.x, end.x, 0.45);
+      const midY = lerp(start.y, end.y, 0.45);
+      plasmaContext.quadraticCurveTo(midX, midY, end.x, end.y);
+      plasmaContext.lineWidth = width;
+      plasmaContext.strokeStyle = theme.base;
+      plasmaContext.stroke();
+    }
+
+    function drawRay(ray, geometry, timeSeconds, interaction) {
+      const style = appState.settings.style;
+      const intensity = appState.settings.intensity;
+      const styleWidthBase = style === "soft" ? 2.2 : style === "lightning" ? 0.95 : 1.55;
+      const glowMultiplier = style === "soft" ? 1.9 : style === "lightning" ? 0.9 : 1.2;
+      const theme = getColorTheme(timeSeconds, ray.index);
+      const noiseA = Math.sin(timeSeconds * (1.2 + ray.bend) + ray.phase);
+      const noiseB = Math.cos(timeSeconds * (0.8 + ray.bend * 0.5) + ray.phaseB);
+      const noiseC = Math.sin(timeSeconds * (0.54 + ray.bend * 0.36) + ray.phaseB * 0.7);
+      const noiseD = Math.cos(timeSeconds * (1.62 + ray.bend * 0.28) + ray.phase * 1.2);
+      const coneSpread = style === "soft" ? 1.42 : style === "lightning" ? 0.68 : 1.02;
+      const sources = interaction.sources || [];
+      const hasTwoHands = sources.length >= 2;
+      let chosenSource = null;
+      if (hasTwoHands) {
+        const [firstSource, secondSource] = sources;
+        const leftSource = firstSource.hand.canvasPalm.x <= secondSource.hand.canvasPalm.x ? firstSource : secondSource;
+        const rightSource = leftSource === firstSource ? secondSource : firstSource;
+        chosenSource = Math.cos(ray.angle) < 0 ? leftSource : rightSource;
+      } else {
+        let chosenScore = 0;
+        for (const source of sources) {
+          const sourceAngularDelta = shortestAngleDistance(ray.angle, source.handAngle);
+          const sourceConeAffinity = Math.exp(-Math.pow(sourceAngularDelta / coneSpread, 2));
+          const sourceScore = source.attraction * (0.34 + sourceConeAffinity * 0.9);
+          if (sourceScore > chosenScore) {
+            chosenSource = source;
+            chosenScore = sourceScore;
+          }
+        }
+      }
+
+      const handAngle = chosenSource?.handAngle ?? null;
+      const sourceAttraction = hasTwoHands
+        ? Math.max(chosenSource?.attraction ?? 0, interaction.attraction * 0.72)
+        : chosenSource?.attraction ?? 0;
+      const angularDelta = handAngle === null ? Math.PI : shortestAngleDistance(ray.angle, handAngle);
+      const coneAffinity = handAngle === null ? 0 : Math.exp(-Math.pow(angularDelta / coneSpread, 2));
+      const globalPull = interaction.attraction * (style === "soft" ? 0.76 : style === "lightning" ? 0.42 : 0.58);
+      const localPull = sourceAttraction * coneAffinity;
+      const attractionWeight = clamp(globalPull * 0.55 + localPull, 0, 1);
+      const idleAngle = ray.angle + noiseA * 0.38 + noiseB * 0.18 + noiseC * 0.1;
+      const guidedSpread = (noiseA * 0.34 + noiseB * 0.22 + noiseD * 0.08) * coneSpread * (style === "soft" ? 0.85 : 0.55);
+      const guidedAngle = handAngle === null ? idleAngle : handAngle + guidedSpread;
+      const targetAngle = handAngle === null
+        ? idleAngle
+        : idleAngle + shortestAngleDistance(idleAngle, guidedAngle) * clamp(globalPull + localPull * 0.82, 0, 1);
+      const endRadius = geometry.radius * lerp(0.68 + ray.radiusBias * 0.16, 1.07, attractionWeight * 0.84 + globalPull * 0.18);
+      const endX = geometry.center.x + Math.cos(targetAngle) * endRadius;
+      const endY = geometry.center.y + Math.sin(targetAngle) * endRadius;
+      const startX = geometry.center.x + Math.cos(targetAngle + noiseB * 0.22) * geometry.coreRadius * lerp(0.15, 0.42, attractionWeight);
+      const startY = geometry.center.y + Math.sin(targetAngle - noiseA * 0.22) * geometry.coreRadius * lerp(0.15, 0.42, attractionWeight);
+
+      const segmentOneRadius = geometry.radius * (0.24 + attractionWeight * 0.14 + Math.abs(noiseC) * 0.04);
+      const segmentTwoRadius = geometry.radius * (0.48 + attractionWeight * 0.24 + Math.abs(noiseD) * 0.05);
+      const normalAngle = targetAngle + Math.PI / 2;
+      const flowFieldA = (22 + geometry.radius * 0.17 * ray.bend) * (noiseA * 0.75 + noiseC * 0.45);
+      const flowFieldB = (18 + geometry.radius * 0.16 * ray.bend) * (noiseB * 0.7 + noiseD * 0.4);
+      const curveOffsetA = flowFieldA * (style === "soft" ? 1.5 : style === "lightning" ? 0.82 : 1.08);
+      const curveOffsetB = flowFieldB * (style === "soft" ? 1.35 : style === "lightning" ? 0.72 : 1.04);
+      const pointOne = {
+        x: geometry.center.x + Math.cos(targetAngle - 0.24 * noiseB + noiseC * 0.08) * segmentOneRadius,
+        y: geometry.center.y + Math.sin(targetAngle - 0.24 * noiseB + noiseC * 0.08) * segmentOneRadius,
+      };
+      const pointTwo = {
+        x: geometry.center.x + Math.cos(targetAngle + 0.12 * noiseA - noiseD * 0.05) * segmentTwoRadius,
+        y: geometry.center.y + Math.sin(targetAngle + 0.12 * noiseA - noiseD * 0.05) * segmentTwoRadius,
+      };
+      const controlOne = {
+        x: lerp(startX, pointOne.x, 0.44) + Math.cos(normalAngle) * curveOffsetA,
+        y: lerp(startY, pointOne.y, 0.44) + Math.sin(normalAngle) * curveOffsetA,
+      };
+      const controlTwo = {
+        x: lerp(pointOne.x, pointTwo.x, 0.48) - Math.cos(normalAngle) * curveOffsetB,
+        y: lerp(pointOne.y, pointTwo.y, 0.48) - Math.sin(normalAngle) * curveOffsetB,
+      };
+      const controlThree = {
+        x: lerp(pointTwo.x, endX, 0.56) + Math.cos(normalAngle) * curveOffsetA * 0.52,
+        y: lerp(pointTwo.y, endY, 0.56) + Math.sin(normalAngle) * curveOffsetA * 0.52,
+      };
+      const flicker = 0.68 + Math.sin(timeSeconds * (7 + ray.flicker * 2) + ray.phase) * 0.15 + attractionWeight * 0.28;
+      const width = styleWidthBase * intensity * (0.92 + attractionWeight * (style === "soft" ? 1.38 : 1.18));
+      const glow = geometry.radius * 0.12 * appState.settings.glowAmount * glowMultiplier * (0.82 + attractionWeight * 1.28);
+
+      const tracePath = () => {
+        plasmaContext.beginPath();
+        plasmaContext.moveTo(startX, startY);
+        plasmaContext.bezierCurveTo(controlOne.x, controlOne.y, controlTwo.x, controlTwo.y, pointTwo.x, pointTwo.y);
+        plasmaContext.quadraticCurveTo(controlThree.x, controlThree.y, endX, endY);
+      };
+
+      plasmaContext.save();
+      plasmaContext.globalCompositeOperation = "screen";
+      plasmaContext.globalAlpha = clamp(flicker, 0.38, 1);
+      plasmaContext.shadowColor = theme.glow;
+      plasmaContext.shadowBlur = glow;
+      plasmaContext.lineCap = style === "lightning" ? "butt" : "round";
+      plasmaContext.lineJoin = "round";
+
+      if (style === "soft") {
+        plasmaContext.strokeStyle = colorWithAlpha(theme.glow, 0.2 + attractionWeight * 0.1);
+        plasmaContext.lineWidth = width * 3.4;
+        plasmaContext.shadowBlur = glow * 1.65;
+        tracePath();
+        plasmaContext.stroke();
+
+        plasmaContext.strokeStyle = colorWithAlpha(theme.base, 0.34 + attractionWeight * 0.12);
+        plasmaContext.lineWidth = width * 2.05;
+        plasmaContext.shadowBlur = glow * 1.2;
+        tracePath();
+        plasmaContext.stroke();
+
+        plasmaContext.strokeStyle = colorWithAlpha(theme.core, 0.48 + attractionWeight * 0.16);
+        plasmaContext.lineWidth = Math.max(0.8, width * 0.8);
+        plasmaContext.shadowBlur = glow * 0.6;
+        tracePath();
+        plasmaContext.stroke();
+
+        plasmaContext.globalAlpha *= 0.42;
+        plasmaContext.strokeStyle = colorWithAlpha(theme.base, 0.22);
+        plasmaContext.lineWidth = width * 1.55;
+        plasmaContext.shadowBlur = glow * 0.95;
+        plasmaContext.beginPath();
+        plasmaContext.moveTo(startX, startY);
+        plasmaContext.bezierCurveTo(
+          controlOne.x + Math.cos(normalAngle) * 8,
+          controlOne.y + Math.sin(normalAngle) * 8,
+          controlTwo.x - Math.cos(normalAngle) * 10,
+          controlTwo.y - Math.sin(normalAngle) * 10,
+          pointTwo.x,
+          pointTwo.y
+        );
+        plasmaContext.quadraticCurveTo(controlThree.x, controlThree.y, endX, endY);
+        plasmaContext.stroke();
+      } else {
+        plasmaContext.strokeStyle = theme.base;
+        plasmaContext.lineWidth = width;
+        tracePath();
+        plasmaContext.stroke();
+
+        plasmaContext.lineWidth = Math.max(0.7, width * 0.45);
+        plasmaContext.strokeStyle = theme.core;
+        plasmaContext.shadowBlur = glow * 0.55;
+        tracePath();
+        plasmaContext.stroke();
+      }
+
+      if (style === "lightning" && attractionWeight > 0.2 && ray.branchChance > 0.45) {
+        const branchLength = geometry.radius * (0.12 + attractionWeight * 0.14);
+        const branchAngle = targetAngle + (ray.phase > Math.PI ? 1 : -1) * (0.45 + noiseA * 0.24);
+        const branchStart = {
+          x: lerp(pointOne.x, pointTwo.x, 0.55),
+          y: lerp(pointOne.y, pointTwo.y, 0.55),
+        };
+        const branchEnd = {
+          x: branchStart.x + Math.cos(branchAngle) * branchLength,
+          y: branchStart.y + Math.sin(branchAngle) * branchLength,
+        };
+        plasmaContext.lineWidth = Math.max(0.6, width * 0.45);
+        drawRayBranch(branchStart, branchEnd, plasmaContext.lineWidth, theme);
+      }
+
+      plasmaContext.restore();
+    }
+
+    function shortestAngleDistance(start, end) {
+      return Math.atan2(Math.sin(end - start), Math.cos(end - start));
+    }
+
+    function getInteractionMetrics(geometry) {
+      const hands = appState.currentHands || [];
+      if (!hands.length) {
+        return {
+          attraction: 0,
+          handAngle: null,
+          edgeDistance: Infinity,
+          centerDistance: Infinity,
+          sources: [],
+        };
+      }
+
+      const softenedReactionDistance = geometry.reactionDistance + geometry.radius * 0.38;
+      const sources = hands.map((hand) => {
+        const dx = hand.canvasPalm.x - geometry.center.x;
+        const dy = hand.canvasPalm.y - geometry.center.y;
+        const centerDistance = Math.hypot(dx, dy);
+        const edgeDistance = Math.max(0, centerDistance - geometry.radius);
+        const normalized = 1 - clamp((edgeDistance - geometry.radius * 0.08) / softenedReactionDistance, 0, 1);
+        const attraction = easeOutCubic(normalized);
+        return {
+          hand,
+          attraction,
+          handAngle: Math.atan2(dy, dx),
+          edgeDistance,
+          centerDistance,
+        };
+      });
+      const strongestSource = sources.reduce((best, source) => {
+        if (!best || source.attraction > best.attraction) {
+          return source;
+        }
+        return best;
+      }, null);
+      const combinedAttraction = clamp(
+        sources.reduce((total, source, index) => total + source.attraction * (index === 0 ? 1 : 0.62), 0),
+        0,
+        1
+      );
+      return {
+        attraction: combinedAttraction,
+        handAngle: strongestSource?.handAngle ?? null,
+        edgeDistance: strongestSource?.edgeDistance ?? Infinity,
+        centerDistance: strongestSource?.centerDistance ?? Infinity,
+        sources,
+      };
+    }
+
+    function drawPlasma(timeSeconds) {
+      const geometry = getGlobeGeometry();
+      const interaction = getInteractionMetrics(geometry);
+      appState.targetGlow = interaction.attraction;
+      drawStageBackdrop(timeSeconds, geometry);
+
+      plasmaContext.save();
+      plasmaContext.beginPath();
+      plasmaContext.arc(geometry.center.x, geometry.center.y, geometry.radius, 0, Math.PI * 2);
+      plasmaContext.clip();
+      drawParticles(timeSeconds, geometry, interaction.attraction);
+
+      const rayBudget = Math.min(MAX_RAYS, Math.max(8, Math.round(appState.settings.rayCount)));
+      const performanceLimiter = appState.fps > 0 && appState.fps < 14 ? 0.72 : 1;
+      const activeRays = Math.max(8, Math.round(rayBudget * performanceLimiter));
+      const rayStride = MAX_RAYS / activeRays;
+      for (let index = 0; index < activeRays; index += 1) {
+        const seedIndex = Math.floor(index * rayStride) % MAX_RAYS;
+        drawRay(appState.raySeeds[seedIndex], geometry, timeSeconds * appState.settings.motionSpeed, interaction);
+      }
+      plasmaContext.restore();
+
+      drawCore(timeSeconds, geometry, interaction.attraction);
+      drawGlobeShell(timeSeconds, geometry, interaction.attraction);
+
+      return interaction;
+    }
+
+    function drawHandSkeleton() {
+      if (!appState.showHandSkeleton || !appState.lastHandResults?.landmarks?.length) {
+        return;
+      }
+
+      overlayContext.save();
+      overlayContext.lineJoin = "round";
+      overlayContext.lineCap = "round";
+      for (const landmarks of appState.lastHandResults.landmarks) {
+        overlayContext.strokeStyle = "rgba(125, 211, 252, 0.92)";
+        overlayContext.lineWidth = 2.2;
+        overlayContext.beginPath();
+        for (const [startIndex, endIndex] of HAND_CONNECTIONS) {
+          const start = pointToCanvas(landmarks[startIndex]);
+          const end = pointToCanvas(landmarks[endIndex]);
+          if (!start || !end) {
+            continue;
+          }
+          overlayContext.moveTo(start.x, start.y);
+          overlayContext.lineTo(end.x, end.y);
+        }
+        overlayContext.stroke();
+
+        for (let index = 0; index < landmarks.length; index += 1) {
+          const point = pointToCanvas(landmarks[index]);
+          overlayContext.beginPath();
+          overlayContext.fillStyle = index === 0 ? "rgba(255, 201, 107, 0.98)" : "rgba(86, 240, 192, 0.95)";
+          overlayContext.arc(point.x, point.y, index === 0 ? 5 : 3.4, 0, Math.PI * 2);
+          overlayContext.fill();
+        }
+      }
+      overlayContext.restore();
+    }
+
+    function detectHands(now) {
+      if (!appState.cameraRunning || !appState.trackerReady || !appState.handLandmarker) {
+        appState.lastHandResults = null;
+        appState.currentHands = [];
+        appState.currentHand = null;
+        appState.currentHandedness = "";
+        return;
+      }
+
+      if (elements.video.readyState < 2 || elements.video.currentTime === appState.lastVideoTime) {
+        return;
+      }
+
+      appState.lastVideoTime = elements.video.currentTime;
+      appState.lastHandResults = appState.handLandmarker.detectForVideo(elements.video, now);
+      appState.currentHands = getTrackedHands(appState.lastHandResults, getGlobeGeometry().center);
+      appState.currentHand = appState.currentHands[0] || null;
+      appState.currentHandedness = appState.currentHand?.handedness || "";
+    }
+
+    function updatePerformance(now) {
+      appState.frameCount += 1;
+      const elapsed = now - appState.fpsTime;
+      if (elapsed >= 500) {
+        appState.fps = (appState.frameCount * 1000) / elapsed;
+        appState.frameCount = 0;
+        appState.fpsTime = now;
+
+        let perfKey = "performanceSmooth";
+        if (appState.fps < 12) {
+          perfKey = "performanceLow";
+        } else if (appState.fps < 20) {
+          perfKey = "performanceModerate";
+        }
+        appState.lastPerfLevel = perfKey;
+        renderPerformanceChips();
+      }
+    }
+
+    function updateStatusUI(interactionMetrics = null) {
+      const currentMetrics = interactionMetrics || getInteractionMetrics(getGlobeGeometry());
+      const cameraStatusKey = !appState.cameraRunning
+        ? "cameraStopped"
+        : appState.showCameraImage
+          ? "cameraRunning"
+          : "cameraImageOff";
+      elements.cameraStatus.textContent = t(cameraStatusKey);
+
+      if (appState.trackerFailed) {
+        elements.handStatus.textContent = t("trackingFailed");
+      } else if (!appState.cameraRunning) {
+        elements.handStatus.textContent = isSecureOrLocalhost() ? t("handTrackingReady") : t("secureContextWarning");
+      } else if (appState.currentHand) {
+        elements.handStatus.textContent = `${t("modelsReady")} · ${t("nearestHandLabel")}`;
+      } else {
+        elements.handStatus.textContent = appState.trackerReady ? t("detectionLoopRunning") : t("handTrackingLoading");
+      }
+
+      let interactionKey = "interactionIdle";
+      let interactionDetailsKey = "interactionIdleDetails";
+      let detectionBadgeKey = appState.cameraRunning ? "detectionNoHand" : "detectionDemo";
+      let overlayKey = "overlayIdleBadge";
+
+      if (appState.currentHand && currentMetrics.attraction <= 0.18) {
+        interactionKey = "interactionHandDetected";
+        interactionDetailsKey = "interactionDetectedDetails";
+        detectionBadgeKey = "detectionHand";
+        overlayKey = "overlayTrackingBadge";
+      } else if (appState.currentHand && currentMetrics.attraction < 0.72) {
+        interactionKey = "interactionAttracting";
+        interactionDetailsKey = "interactionAttractingDetails";
+        detectionBadgeKey = "detectionActive";
+        overlayKey = "overlayAttractingBadge";
+      } else if (appState.currentHand) {
+        interactionKey = "interactionStrong";
+        interactionDetailsKey = "interactionStrongDetails";
+        detectionBadgeKey = "detectionActive";
+        overlayKey = "overlayStrongBadge";
+      }
+
+      appState.interactionKey = interactionKey;
+      appState.detectionKey = detectionBadgeKey;
+
+      elements.interactionState.textContent = t(interactionKey);
+      elements.interactionDetails.textContent = t(interactionDetailsKey);
+      elements.detectionBadge.textContent = t(detectionBadgeKey);
+      elements.interactionBadge.textContent = t(overlayKey);
+      elements.liveIndicator.textContent = t(appState.cameraRunning ? "cameraLive" : "cameraIdle");
+      elements.liveIndicator.classList.toggle("active", appState.cameraRunning);
+
+      if (appState.currentHand) {
+        const edgeDistance = currentMetrics.edgeDistance;
+        elements.distanceValue.textContent = edgeDistance <= 2 ? t("handDistanceInside") : t("handDistanceValue", { distance: Math.round(edgeDistance) });
+        elements.coordinateOutput.textContent = `${t("palmCoord", {
+          x: appState.currentHand.palm.x.toFixed(3),
+          y: appState.currentHand.palm.y.toFixed(3),
+        })}\n${t("handedness", { value: appState.currentHandedness || "--" })}`;
+      } else {
+        elements.distanceValue.textContent = t("distancePlaceholder");
+        elements.coordinateOutput.textContent = t("coordinatesPlaceholder");
+      }
+
+      renderProfileSummary();
+    }
+
+    async function startCamera() {
+      if (!navigator.mediaDevices?.getUserMedia) {
+        elements.cameraStatus.textContent = t("browserUnsupported");
+        elements.handStatus.textContent = t("unsupportedBrowser");
+        elements.interactionDetails.textContent = t("browserSupportHint");
+        return;
+      }
+
+      if (!isSecureOrLocalhost()) {
+        elements.cameraStatus.textContent = t("secureContextRunningWarning");
+      }
+
+      try {
+        elements.startButton.disabled = true;
+        elements.cameraStatus.textContent = t("startingCamera");
+        await ensureHandLandmarker();
+
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            width: { ideal: 640 },
+            height: { ideal: 480 },
+            facingMode: "user",
+          },
+          audio: false,
+        });
+
+        appState.stream = stream;
+        elements.video.srcObject = stream;
+        await elements.video.play();
+        appState.cameraRunning = true;
+        appState.lastVideoTime = -1;
+        appState.fps = 0;
+        appState.frameCount = 0;
+        appState.fpsTime = performance.now();
+        appState.lastPerfLevel = "performanceWaiting";
+
+        elements.startButton.disabled = true;
+        elements.stopButton.disabled = false;
+        updateCameraViewUI();
+        renderPerformanceChips();
+        updateStatusUI();
+      } catch (error) {
+        const errorName = error && typeof error === "object" && "name" in error ? error.name : "UnknownError";
+        let friendlyMessage = t("unableToStartCamera");
+        if (errorName === "NotAllowedError") {
+          friendlyMessage = t("permissionDenied");
+        } else if (errorName === "NotFoundError") {
+          friendlyMessage = t("noWebcamFound");
+        } else if (errorName === "NotReadableError") {
+          friendlyMessage = t("webcamBusy");
+        }
+        appState.cameraRunning = false;
+        elements.cameraStatus.textContent = friendlyMessage;
+        elements.handStatus.textContent = t("cameraStartFailed");
+        elements.interactionDetails.textContent = String(error?.message || friendlyMessage);
+        elements.startButton.disabled = false;
+        elements.stopButton.disabled = true;
+        updateCameraViewUI();
+      }
+    }
+
+    function stopCamera() {
+      appState.cameraRunning = false;
+      appState.lastVideoTime = -1;
+      appState.lastHandResults = null;
+      appState.currentHand = null;
+      appState.currentHandedness = "";
+      if (appState.stream) {
+        for (const track of appState.stream.getTracks()) {
+          track.stop();
+        }
+        appState.stream = null;
+      }
+      elements.video.srcObject = null;
+      elements.startButton.disabled = false;
+      elements.stopButton.disabled = true;
+      updateCameraViewUI();
+      updateStatusUI();
+    }
+
+    function handleShowCameraImageChange() {
+      appState.showCameraImage = elements.showCameraImageInput.checked;
+      localStorage.setItem(`${STORAGE_PREFIX}show_camera_image`, String(appState.showCameraImage));
+      updateToggleChips();
+      updateCameraViewUI();
+      updateStatusUI();
+    }
+
+    function handleShowSkeletonChange() {
+      appState.showHandSkeleton = elements.showSkeletonInput.checked;
+      localStorage.setItem(`${STORAGE_PREFIX}show_hand_skeleton`, String(appState.showHandSkeleton));
+      updateToggleChips();
+    }
+
+    function handleControlInput() {
+      appState.settings.color = elements.colorSelect.value;
+      appState.settings.style = elements.styleSelect.value;
+      appState.settings.intensity = Number(elements.intensitySlider.value);
+      appState.settings.rayCount = Number(elements.rayCountSlider.value);
+      appState.settings.glowAmount = Number(elements.glowSlider.value);
+      appState.settings.reactionDistance = Number(elements.reactionSlider.value);
+      appState.settings.motionSpeed = Number(elements.speedSlider.value);
+      appState.settings.backgroundDarkness = Number(elements.darknessSlider.value);
+      renderControlValues();
+      renderProfileSummary();
+      saveSettings();
+    }
+
+    function initializeControls() {
+      renderControlValues();
+      updateToggleChips();
+      updateCameraViewUI();
+      renderProfileSummary();
+    }
+
+    function initializeUI() {
+      initializeControls();
+      applyTranslations();
+      updateStatusUI();
+    }
+
+    function renderLoop(now) {
+      if (!appState.animationFrameId) {
+        appState.animationFrameId = requestAnimationFrame(renderLoop);
+        return;
+      }
+
+      const deltaSeconds = Math.min(0.05, (now - appState.lastFrameTime) / 1000 || 0.016);
+      appState.lastFrameTime = now;
+      appState.simulationTime += deltaSeconds;
+
+      resizeCanvases();
+      detectHands(now);
+      clearCanvases();
+      const interactionMetrics = drawPlasma(appState.simulationTime);
+      drawHandSkeleton();
+      updateStatusUI(interactionMetrics);
+      updatePerformance(now);
+      appState.animationFrameId = requestAnimationFrame(renderLoop);
+    }
+
+    elements.startButton.addEventListener("click", startCamera);
+    elements.stopButton.addEventListener("click", stopCamera);
+    elements.showCameraImageInput.addEventListener("change", handleShowCameraImageChange);
+    elements.showSkeletonInput.addEventListener("change", handleShowSkeletonChange);
+    elements.colorSelect.addEventListener("change", handleControlInput);
+    elements.styleSelect.addEventListener("change", handleControlInput);
+    elements.intensitySlider.addEventListener("input", handleControlInput);
+    elements.rayCountSlider.addEventListener("input", handleControlInput);
+    elements.glowSlider.addEventListener("input", handleControlInput);
+    elements.reactionSlider.addEventListener("input", handleControlInput);
+    elements.speedSlider.addEventListener("input", handleControlInput);
+    elements.darknessSlider.addEventListener("input", handleControlInput);
+    elements.fullscreenButton.addEventListener("click", toggleFullscreen);
+    elements.langButtons.forEach((button) => {
+      button.addEventListener("click", () => setLanguage(button.dataset.lang));
+    });
+
+    document.addEventListener("fullscreenchange", updateFullscreenButton);
+    window.addEventListener("resize", resizeCanvases);
+    window.addEventListener("beforeunload", stopCamera);
+
+    createRaySeeds();
+    createParticles();
+    initializeUI();
+    resizeCanvases();
+    appState.animationFrameId = requestAnimationFrame(renderLoop);
+  </script>
+</body>
+</html>
