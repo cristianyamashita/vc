@@ -526,31 +526,6 @@
       backdrop-filter: blur(14px);
     }
 
-    .stage-caption {
-      position: absolute;
-      top: 16px;
-      left: 16px;
-      z-index: 4;
-      max-width: min(320px, calc(100% - 32px));
-      padding: 12px 14px;
-      border-radius: 16px;
-      background: rgba(4, 11, 14, 0.5);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      backdrop-filter: blur(10px);
-      color: var(--muted);
-      font-size: 13px;
-      line-height: 1.45;
-    }
-
-    .stage-caption strong {
-      display: block;
-      margin-bottom: 5px;
-      color: var(--text);
-      font-size: 13px;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
-    }
-
     .status-grid {
       border-radius: var(--radius);
       padding: 18px;
@@ -798,11 +773,6 @@
           <video id="webcam" class="video-layer" autoplay playsinline muted></video>
           <canvas id="plasmaCanvas" class="plasma-layer"></canvas>
           <canvas id="overlayCanvas" class="overlay-layer"></canvas>
-
-          <div class="stage-caption">
-            <strong data-i18n="stageCaptionTitle">Plasma Field</strong>
-            <span data-i18n="stageCaptionText">Idle rays drift inside the globe. Bring your palm closer to bend the brightest strands toward your hand.</span>
-          </div>
 
           <div class="overlay-banner">
             <div id="detectionBadge" class="overlay-badge">Waiting for hand data</div>
@@ -1736,11 +1706,42 @@ Use hand skeleton for debugging.</div>
         const y = geometry.center.y + Math.sin(angle * 1.12 + drift) * radius * 0.95;
         plasmaContext.beginPath();
         plasmaContext.fillStyle = theme.particle;
-        plasmaContext.globalAlpha = particle.alpha + attraction * 0.08;
-        plasmaContext.arc(x, y, particle.size * (0.8 + attraction * 0.25), 0, Math.PI * 2);
+        plasmaContext.globalAlpha = particle.alpha * 0.72 + attraction * 0.05;
+        plasmaContext.arc(x, y, particle.size * (0.54 + attraction * 0.18), 0, Math.PI * 2);
         plasmaContext.fill();
       }
       plasmaContext.globalAlpha = 1;
+    }
+
+    function drawEnergyVeils(timeSeconds, geometry, attraction) {
+      const veilCount = appState.fps > 0 && appState.fps < 16 ? 4 : 6;
+      for (let index = 0; index < veilCount; index += 1) {
+        const theme = getColorTheme(timeSeconds, index * 3);
+        const baseAngle = timeSeconds * (0.18 + index * 0.03) + index * 1.14;
+        const radiusA = geometry.radius * (0.34 + index * 0.08);
+        const radiusB = geometry.radius * (0.52 + index * 0.05);
+        const startX = geometry.center.x + Math.cos(baseAngle) * radiusA;
+        const startY = geometry.center.y + Math.sin(baseAngle * 1.08) * radiusA * 0.84;
+        const endX = geometry.center.x + Math.cos(baseAngle + 1.4) * radiusB;
+        const endY = geometry.center.y + Math.sin((baseAngle + 1.4) * 1.12) * radiusB * 0.9;
+        const ctrl1X = geometry.center.x + Math.cos(baseAngle + 0.42) * geometry.radius * (0.18 + attraction * 0.05);
+        const ctrl1Y = geometry.center.y + Math.sin((baseAngle + 0.42) * 1.14) * geometry.radius * 0.2;
+        const ctrl2X = geometry.center.x + Math.cos(baseAngle + 0.9) * geometry.radius * (0.28 + index * 0.04);
+        const ctrl2Y = geometry.center.y + Math.sin((baseAngle + 0.9) * 1.07) * geometry.radius * 0.32;
+
+        plasmaContext.save();
+        plasmaContext.globalCompositeOperation = "screen";
+        plasmaContext.globalAlpha = 0.06 + attraction * 0.03;
+        plasmaContext.strokeStyle = colorWithAlpha(theme.glow, 0.22);
+        plasmaContext.lineWidth = 10 + index * 1.2;
+        plasmaContext.shadowColor = theme.glow;
+        plasmaContext.shadowBlur = geometry.radius * 0.08;
+        plasmaContext.beginPath();
+        plasmaContext.moveTo(startX, startY);
+        plasmaContext.bezierCurveTo(ctrl1X, ctrl1Y, ctrl2X, ctrl2Y, endX, endY);
+        plasmaContext.stroke();
+        plasmaContext.restore();
+      }
     }
 
     function drawGlobeShell(timeSeconds, geometry, attraction) {
@@ -1820,6 +1821,12 @@ Use hand skeleton for debugging.</div>
       plasmaContext.beginPath();
       plasmaContext.arc(geometry.center.x, geometry.center.y, geometry.coreRadius * 2.25 * pulse, 0, Math.PI * 2);
       plasmaContext.fill();
+
+      plasmaContext.globalAlpha = 0.72;
+      plasmaContext.fillStyle = colorWithAlpha(theme.core, 0.95);
+      plasmaContext.beginPath();
+      plasmaContext.arc(geometry.center.x, geometry.center.y, geometry.coreRadius * 0.42, 0, Math.PI * 2);
+      plasmaContext.fill();
       plasmaContext.restore();
     }
 
@@ -1830,15 +1837,15 @@ Use hand skeleton for debugging.</div>
       const midY = lerp(start.y, end.y, 0.45);
       plasmaContext.quadraticCurveTo(midX, midY, end.x, end.y);
       plasmaContext.lineWidth = width;
-      plasmaContext.strokeStyle = theme.base;
+      plasmaContext.strokeStyle = colorWithAlpha(theme.base, 0.78);
       plasmaContext.stroke();
     }
 
     function drawRay(ray, geometry, timeSeconds, interaction) {
       const style = appState.settings.style;
       const intensity = appState.settings.intensity;
-      const styleWidthBase = style === "soft" ? 2.2 : style === "lightning" ? 0.95 : 1.55;
-      const glowMultiplier = style === "soft" ? 1.9 : style === "lightning" ? 0.9 : 1.2;
+      const styleWidthBase = style === "soft" ? 1.12 : style === "lightning" ? 0.58 : 0.94;
+      const glowMultiplier = style === "soft" ? 1.45 : style === "lightning" ? 0.72 : 0.94;
       const theme = getColorTheme(timeSeconds, ray.index);
       const noiseA = Math.sin(timeSeconds * (1.2 + ray.bend) + ray.phase);
       const noiseB = Math.cos(timeSeconds * (0.8 + ray.bend * 0.5) + ray.phaseB);
@@ -1915,13 +1922,31 @@ Use hand skeleton for debugging.</div>
         y: lerp(pointTwo.y, endY, 0.56) + Math.sin(normalAngle) * curveOffsetA * 0.52,
       };
       const flicker = 0.68 + Math.sin(timeSeconds * (7 + ray.flicker * 2) + ray.phase) * 0.15 + attractionWeight * 0.28;
-      const width = styleWidthBase * intensity * (0.92 + attractionWeight * (style === "soft" ? 1.38 : 1.18));
-      const glow = geometry.radius * 0.12 * appState.settings.glowAmount * glowMultiplier * (0.82 + attractionWeight * 1.28);
+      const width = styleWidthBase * intensity * (0.86 + attractionWeight * (style === "soft" ? 1.04 : 0.92));
+      const glow = geometry.radius * 0.08 * appState.settings.glowAmount * glowMultiplier * (0.76 + attractionWeight * 1.06);
+      const filamentOffset = (4 + geometry.radius * 0.028) * (0.4 + attractionWeight * 0.8);
+      const nodeT = 0.36 + ((ray.index % 5) / 10);
+      const nodeX = lerp(pointOne.x, pointTwo.x, nodeT);
+      const nodeY = lerp(pointOne.y, pointTwo.y, nodeT);
 
       const tracePath = () => {
         plasmaContext.beginPath();
         plasmaContext.moveTo(startX, startY);
         plasmaContext.bezierCurveTo(controlOne.x, controlOne.y, controlTwo.x, controlTwo.y, pointTwo.x, pointTwo.y);
+        plasmaContext.quadraticCurveTo(controlThree.x, controlThree.y, endX, endY);
+      };
+
+      const traceOffsetPath = (offset) => {
+        plasmaContext.beginPath();
+        plasmaContext.moveTo(startX + Math.cos(normalAngle) * offset * 0.15, startY + Math.sin(normalAngle) * offset * 0.15);
+        plasmaContext.bezierCurveTo(
+          controlOne.x + Math.cos(normalAngle) * offset,
+          controlOne.y + Math.sin(normalAngle) * offset,
+          controlTwo.x - Math.cos(normalAngle) * offset * 0.7,
+          controlTwo.y - Math.sin(normalAngle) * offset * 0.7,
+          pointTwo.x,
+          pointTwo.y
+        );
         plasmaContext.quadraticCurveTo(controlThree.x, controlThree.y, endX, endY);
       };
 
@@ -1934,39 +1959,35 @@ Use hand skeleton for debugging.</div>
       plasmaContext.lineJoin = "round";
 
       if (style === "soft") {
-        plasmaContext.strokeStyle = colorWithAlpha(theme.glow, 0.2 + attractionWeight * 0.1);
-        plasmaContext.lineWidth = width * 3.4;
-        plasmaContext.shadowBlur = glow * 1.65;
+        plasmaContext.strokeStyle = colorWithAlpha(theme.glow, 0.16 + attractionWeight * 0.08);
+        plasmaContext.lineWidth = width * 2.6;
+        plasmaContext.shadowBlur = glow * 1.35;
         tracePath();
         plasmaContext.stroke();
 
-        plasmaContext.strokeStyle = colorWithAlpha(theme.base, 0.34 + attractionWeight * 0.12);
-        plasmaContext.lineWidth = width * 2.05;
-        plasmaContext.shadowBlur = glow * 1.2;
-        tracePath();
-        plasmaContext.stroke();
-
-        plasmaContext.strokeStyle = colorWithAlpha(theme.core, 0.48 + attractionWeight * 0.16);
-        plasmaContext.lineWidth = Math.max(0.8, width * 0.8);
-        plasmaContext.shadowBlur = glow * 0.6;
-        tracePath();
-        plasmaContext.stroke();
-
-        plasmaContext.globalAlpha *= 0.42;
-        plasmaContext.strokeStyle = colorWithAlpha(theme.base, 0.22);
-        plasmaContext.lineWidth = width * 1.55;
+        plasmaContext.strokeStyle = colorWithAlpha(theme.base, 0.3 + attractionWeight * 0.1);
+        plasmaContext.lineWidth = width * 1.4;
         plasmaContext.shadowBlur = glow * 0.95;
-        plasmaContext.beginPath();
-        plasmaContext.moveTo(startX, startY);
-        plasmaContext.bezierCurveTo(
-          controlOne.x + Math.cos(normalAngle) * 8,
-          controlOne.y + Math.sin(normalAngle) * 8,
-          controlTwo.x - Math.cos(normalAngle) * 10,
-          controlTwo.y - Math.sin(normalAngle) * 10,
-          pointTwo.x,
-          pointTwo.y
-        );
-        plasmaContext.quadraticCurveTo(controlThree.x, controlThree.y, endX, endY);
+        tracePath();
+        plasmaContext.stroke();
+
+        plasmaContext.strokeStyle = colorWithAlpha(theme.core, 0.56 + attractionWeight * 0.14);
+        plasmaContext.lineWidth = Math.max(0.55, width * 0.46);
+        plasmaContext.shadowBlur = glow * 0.46;
+        tracePath();
+        plasmaContext.stroke();
+
+        plasmaContext.globalAlpha *= 0.52;
+        plasmaContext.strokeStyle = colorWithAlpha(theme.base, 0.2);
+        plasmaContext.lineWidth = width * 0.84;
+        plasmaContext.shadowBlur = glow * 0.62;
+        traceOffsetPath(filamentOffset);
+        plasmaContext.stroke();
+
+        plasmaContext.globalAlpha *= 0.84;
+        plasmaContext.strokeStyle = colorWithAlpha(theme.core, 0.26);
+        plasmaContext.lineWidth = width * 0.66;
+        traceOffsetPath(-filamentOffset * 0.85);
         plasmaContext.stroke();
       } else {
         plasmaContext.strokeStyle = theme.base;
@@ -1980,6 +2001,19 @@ Use hand skeleton for debugging.</div>
         tracePath();
         plasmaContext.stroke();
       }
+
+      plasmaContext.globalAlpha = 0.4 + attractionWeight * 0.22;
+      plasmaContext.fillStyle = colorWithAlpha(theme.core, 0.72);
+      plasmaContext.shadowColor = theme.core;
+      plasmaContext.shadowBlur = glow * 0.45;
+      plasmaContext.beginPath();
+      plasmaContext.arc(nodeX, nodeY, Math.max(1.1, width * 1.2), 0, Math.PI * 2);
+      plasmaContext.fill();
+
+      plasmaContext.globalAlpha *= 0.7;
+      plasmaContext.beginPath();
+      plasmaContext.arc(endX, endY, Math.max(0.8, width * 0.72), 0, Math.PI * 2);
+      plasmaContext.fill();
 
       if (style === "lightning" && attractionWeight > 0.2 && ray.branchChance > 0.45) {
         const branchLength = geometry.radius * (0.12 + attractionWeight * 0.14);
@@ -2061,6 +2095,7 @@ Use hand skeleton for debugging.</div>
       plasmaContext.beginPath();
       plasmaContext.arc(geometry.center.x, geometry.center.y, geometry.radius, 0, Math.PI * 2);
       plasmaContext.clip();
+      drawEnergyVeils(timeSeconds, geometry, interaction.attraction);
       drawParticles(timeSeconds, geometry, interaction.attraction);
 
       const rayBudget = Math.min(MAX_RAYS, Math.max(8, Math.round(appState.settings.rayCount)));
