@@ -1,0 +1,1772 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Eye Gaze Control</title>
+  <style>
+    :root {
+      --bg: #0c1316;
+      --panel: rgba(14, 24, 28, 0.86);
+      --panel-strong: rgba(20, 34, 39, 0.96);
+      --border: rgba(167, 216, 214, 0.18);
+      --text: #eef7f5;
+      --muted: #9db4b0;
+      --accent: #56f0c0;
+      --accent-strong: #1dc995;
+      --warm: #ffc96b;
+      --danger: #ff7b74;
+      --info: #7dd3fc;
+      --laser: #ff3c1a;
+      --shadow: 0 24px 80px rgba(0, 0, 0, 0.34);
+      --radius: 24px;
+      --radius-sm: 16px;
+      --grid: rgba(255, 255, 255, 0.04);
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      background:
+        radial-gradient(circle at top left, rgba(86, 240, 192, 0.12), transparent 30%),
+        radial-gradient(circle at bottom right, rgba(255, 201, 107, 0.14), transparent 28%),
+        linear-gradient(160deg, #091014 0%, #10191d 42%, #081114 100%);
+      color: var(--text);
+      font-family: "Space Grotesk", "Segoe UI", sans-serif;
+    }
+    body {
+      padding: 24px;
+      background-image:
+        radial-gradient(circle at 1px 1px, var(--grid) 1px, transparent 0),
+        radial-gradient(circle at top left, rgba(86, 240, 192, 0.12), transparent 30%),
+        radial-gradient(circle at bottom right, rgba(255, 201, 107, 0.14), transparent 28%),
+        linear-gradient(160deg, #091014 0%, #10191d 42%, #081114 100%);
+      background-size: 22px 22px, auto, auto, auto;
+    }
+    button, select, input { font: inherit; }
+    .app-shell {
+      width: min(1380px, 100%);
+      margin: 0 auto;
+      display: grid;
+      gap: 20px;
+    }
+    .hero, .card, .viewport-panel, .status-grid {
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(20px);
+    }
+    .hero {
+      position: relative;
+      overflow: hidden;
+      padding: 30px;
+      border-radius: var(--radius);
+      background:
+        linear-gradient(135deg, rgba(86, 240, 192, 0.15), transparent 32%),
+        linear-gradient(315deg, rgba(255, 201, 107, 0.14), transparent 30%),
+        var(--panel);
+    }
+    .hero::after {
+      content: "";
+      position: absolute;
+      inset: auto -60px -60px auto;
+      width: 220px;
+      height: 220px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(86, 240, 192, 0.22), transparent 72%);
+      pointer-events: none;
+    }
+    .lang-selector {
+      position: absolute;
+      top: 18px;
+      right: 18px;
+      z-index: 2;
+      display: flex;
+      gap: 6px;
+      padding: 4px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.1);
+      background: rgba(4,11,14,0.48);
+    }
+    .lang-selector button {
+      min-width: 42px;
+      min-height: 34px;
+      padding: 0 10px;
+      color: var(--muted);
+      background: transparent;
+      border: 1px solid transparent;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .lang-selector button:hover { color: var(--text); border-color: rgba(255,255,255,0.12); }
+    .lang-selector button.active { color: #06241c; background: var(--accent); }
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.08);
+      color: var(--warm);
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .hero h1 {
+      margin: 16px 0 10px;
+      font-size: clamp(2.4rem, 6vw, 4.6rem);
+      line-height: 0.96;
+      letter-spacing: -0.04em;
+      max-width: 760px;
+    }
+    .hero p { margin: 0; max-width: 760px; color: var(--muted); font-size: 1rem; }
+    .hero-grid {
+      margin-top: 22px;
+      display: grid;
+      grid-template-columns: minmax(0, 1.3fr) minmax(300px, 0.9fr);
+      gap: 18px;
+      align-items: start;
+    }
+    .card { background: var(--panel); border-radius: var(--radius-sm); padding: 18px; }
+    .note-card { display: grid; gap: 12px; align-content: start; min-height: 100%; }
+    .note-card strong { color: var(--accent); }
+    .instructions { display: grid; gap: 10px; margin: 0; padding-left: 18px; color: var(--muted); }
+    .controls { display: grid; gap: 14px; }
+    .controls-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .field { display: grid; gap: 8px; }
+    .field label { font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+    .field select {
+      width: 100%;
+      min-height: 48px;
+      padding: 0 14px;
+      color: var(--text);
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,0.1);
+      background: rgba(255,255,255,0.04);
+    }
+    .slider-row { display: flex; align-items: center; gap: 10px; }
+    .slider-row input[type=range] {
+      flex: 1;
+      accent-color: var(--accent);
+      height: 6px;
+    }
+    .slider-val {
+      min-width: 36px;
+      text-align: right;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--accent);
+    }
+    .button-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    .button-row button {
+      min-height: 48px;
+      padding: 0 18px;
+      border-radius: 14px;
+      border: 1px solid transparent;
+      cursor: pointer;
+      transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+    }
+    .button-row button:hover:not(:disabled) { transform: translateY(-1px); }
+    .button-row button:disabled { opacity: 0.55; cursor: not-allowed; }
+    .primary-btn {
+      color: #06241c;
+      background: linear-gradient(135deg, var(--accent), #88ffd8);
+      box-shadow: 0 12px 26px rgba(29,201,149,0.28);
+    }
+    .secondary-btn {
+      color: var(--text);
+      background: rgba(255,255,255,0.05);
+      border-color: rgba(255,255,255,0.1);
+    }
+    .main-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.85fr);
+      gap: 20px;
+      align-items: start;
+    }
+    .viewport-panel {
+      position: relative;
+      border-radius: var(--radius);
+      padding: 18px;
+      background: var(--panel);
+      overflow: hidden;
+    }
+    .viewport-topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+    }
+    .viewport-topbar h2 { margin: 0; font-size: 1rem; letter-spacing: 0.02em; }
+    .viewport-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .live-indicator {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      font-size: 12px;
+      color: var(--muted);
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+    .live-indicator::before {
+      content: "";
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--danger);
+    }
+    .live-indicator.active::before {
+      background: var(--accent);
+      animation: pulse 1.6s infinite;
+    }
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(86,240,192,0.5); }
+      70% { box-shadow: 0 0 0 12px rgba(86,240,192,0); }
+      100% { box-shadow: 0 0 0 0 rgba(86,240,192,0); }
+    }
+    .fullscreen-btn {
+      min-height: 38px;
+      padding: 0 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.1);
+      color: var(--text);
+      background: rgba(255,255,255,0.05);
+      cursor: pointer;
+    }
+    .fullscreen-btn:hover { border-color: rgba(86,240,192,0.42); background: rgba(86,240,192,0.1); }
+    .stage {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 4 / 3;
+      border-radius: 20px;
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,0.1);
+      background:
+        radial-gradient(circle at top, rgba(125,211,252,0.12), transparent 28%),
+        linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.03));
+    }
+    .stage::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(circle at 24% 22%, rgba(86,240,192,0.16), transparent 20%),
+        radial-gradient(circle at 76% 68%, rgba(255,201,107,0.14), transparent 24%),
+        linear-gradient(135deg, rgba(4,11,14,0.96), rgba(17,31,36,0.94));
+      pointer-events: none;
+      z-index: 0;
+    }
+    .stage:fullscreen { width: 100vw; height: 100vh; aspect-ratio: auto; border: 0; border-radius: 0; }
+    .mirror-layer {
+      position: absolute;
+      inset: 0;
+      transform: scaleX(-1);
+      transform-origin: center;
+      z-index: 1;
+    }
+    video, canvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    video { background: #020405; z-index: 0; }
+    canvas { pointer-events: none; z-index: 1; }
+    .gaze-canvas {
+      position: absolute !important;
+      inset: 0;
+      z-index: 2 !important;
+      pointer-events: none;
+    }
+    .overlay-banner {
+      position: absolute;
+      left: 18px;
+      right: 18px;
+      bottom: 18px;
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      pointer-events: none;
+      z-index: 4;
+    }
+    .overlay-badge {
+      padding: 10px 12px;
+      border-radius: 14px;
+      background: rgba(7,14,17,0.74);
+      border: 1px solid rgba(255,255,255,0.08);
+      color: var(--text);
+      font-size: 13px;
+      box-shadow: 0 14px 30px rgba(0,0,0,0.18);
+    }
+    .status-grid {
+      display: grid;
+      gap: 16px;
+      border-radius: var(--radius);
+      padding: 18px;
+      background: var(--panel);
+    }
+    .status-grid h2 { margin: 0; font-size: 1rem; letter-spacing: 0.02em; }
+    .status-card {
+      display: grid;
+      gap: 10px;
+      padding: 16px;
+      border-radius: 18px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+    .status-card h3 { margin: 0; font-size: 0.92rem; color: var(--muted); font-weight: 600; }
+    .status-value { font-size: 1.05rem; font-weight: 700; letter-spacing: -0.02em; }
+    .status-value.small {
+      font-size: 0.95rem;
+      font-weight: 600;
+      line-height: 1.45;
+      color: var(--muted);
+      white-space: pre-line;
+    }
+    .status-chip-row { display: flex; flex-wrap: wrap; gap: 8px; }
+    .status-chip { padding: 7px 10px; border-radius: 999px; background: rgba(86,240,192,0.12); color: var(--accent); font-size: 12px; }
+    .numpad-output {
+      font-size: 1.6rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      color: var(--accent);
+      min-height: 2em;
+      border-radius: 12px;
+      background: rgba(86,240,192,0.08);
+      border: 1px solid rgba(86,240,192,0.2);
+      padding: 8px 14px;
+      font-family: monospace;
+      word-break: break-all;
+    }
+    .hidden { display: none !important; }
+    @media (max-width: 1080px) {
+      .hero-grid, .main-grid, .controls-row { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 720px) {
+      body { padding: 14px; }
+      .hero, .viewport-panel, .status-grid { padding: 16px; border-radius: 20px; }
+      .hero h1 { font-size: 2.3rem; }
+      .lang-selector { position: static; margin-bottom: 12px; width: fit-content; }
+    }
+  </style>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-NWZDZ906DJ"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-NWZDZ906DJ');
+  </script>
+</head>
+<body>
+  <div class="app-shell">
+
+    <section class="hero">
+      <div class="lang-selector" aria-label="Language selector">
+        <button type="button" data-lang="en" class="active">EN</button>
+        <button type="button" data-lang="pt">PT</button>
+        <button type="button" data-lang="ja">JA</button>
+      </div>
+      <div class="eyebrow" data-i18n="eyebrow">Head Pose + Iris Tracking</div>
+      <h1 data-i18n="heroTitle">Eye Gaze Control</h1>
+      <p data-i18n="heroIntro">Control the screen with your eyes and head. Move your head to aim, blink or dwell to select. No extra hardware — just your webcam.</p>
+
+      <div class="hero-grid">
+        <div class="card">
+          <div class="controls">
+            <div class="controls-row">
+              <div class="field">
+                <label for="modeSelect" data-i18n="detectionModeLabel">Mode</label>
+                <select id="modeSelect">
+                  <option value="gazeCursor" data-i18n="modeGazeCursor">Gaze Cursor</option>
+                  <option value="eyeNumpad" data-i18n="modeEyeNumpad">Eye Numpad</option>
+                  <option value="laserEyes" data-i18n="modeLaserEyes">Laser Eyes</option>
+                  <option value="gazeOrb" data-i18n="modeGazeOrb">Gaze Orb</option>
+                </select>
+              </div>
+              <div class="field">
+                <label data-i18n="cameraControlsLabel">Camera</label>
+                <div class="button-row">
+                  <button id="startButton" class="primary-btn" type="button" data-i18n="startCameraButton">Start Camera</button>
+                  <button id="stopButton" class="secondary-btn" type="button" disabled data-i18n="stopCameraButton">Stop Camera</button>
+                </div>
+              </div>
+            </div>
+            <div class="controls-row">
+              <div class="field">
+                <label for="sensitivitySlider" data-i18n="sensitivityLabel">Sensitivity</label>
+                <div class="slider-row">
+                  <input type="range" id="sensitivitySlider" min="0.5" max="3.5" step="0.1" value="1.6" />
+                  <span class="slider-val" id="sensitivityValue">1.6</span>
+                </div>
+              </div>
+              <div class="field">
+                <label for="smoothingSlider" data-i18n="smoothingLabel">Smoothing</label>
+                <div class="slider-row">
+                  <input type="range" id="smoothingSlider" min="0.04" max="0.55" step="0.01" value="0.12" />
+                  <span class="slider-val" id="smoothingValue">0.12</span>
+                </div>
+              </div>
+            </div>
+            <div class="field">
+              <div class="button-row">
+                <button id="recenterButton" class="secondary-btn" type="button" data-i18n="calibrateButton">Re-center</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <aside class="card note-card">
+          <div>
+            <strong data-i18n="webcamNoteLabel">Note:</strong>
+            <span data-i18n="webcamNoteText"> Camera requires localhost or HTTPS. Keep your head centered. Move slowly at first.</span>
+          </div>
+          <ol class="instructions">
+            <li data-i18n="instruction1">Face the camera and keep your head centered.</li>
+            <li data-i18n="instruction2">Move your head slowly left/right/up/down to aim.</li>
+            <li data-i18n="instruction3">Blink deliberately (1–2s after aiming) to select.</li>
+            <li data-i18n="instruction4">Use Re-center if the cursor drifts off-target.</li>
+          </ol>
+        </aside>
+      </div>
+    </section>
+
+    <section class="main-grid">
+      <div class="viewport-panel">
+        <div class="viewport-topbar">
+          <h2 data-i18n="liveDetectionTitle">Live View</h2>
+          <div class="viewport-actions">
+            <button id="fullscreenButton" class="fullscreen-btn" type="button" data-i18n="enterFullscreenButton">Full screen</button>
+            <div id="liveIndicator" class="live-indicator" data-i18n="cameraIdle">Camera idle</div>
+          </div>
+        </div>
+
+        <div class="stage" id="stage">
+          <div class="mirror-layer">
+            <video id="webcam" autoplay playsinline muted></video>
+            <canvas id="overlayCanvas"></canvas>
+          </div>
+          <canvas id="gazeCanvas" class="gaze-canvas"></canvas>
+          <div class="overlay-banner">
+            <div id="detectionBadge" class="overlay-badge" data-i18n="cameraIdle">Camera idle</div>
+            <div id="gazeBadge" class="overlay-badge">—</div>
+          </div>
+        </div>
+      </div>
+
+      <aside class="status-grid">
+        <h2 data-i18n="statusPanelTitle">Status</h2>
+
+        <div class="status-card">
+          <h3 data-i18n="sessionTitle">Session</h3>
+          <div id="cameraStatus" class="status-value" data-i18n="cameraStopped">Camera stopped</div>
+          <div id="selectedMode" class="status-value small">Mode: Gaze Cursor</div>
+          <div class="status-chip-row">
+            <div id="fpsChip" class="status-chip">FPS: --</div>
+            <div id="perfChip" class="status-chip">Perf: —</div>
+          </div>
+        </div>
+
+        <div class="status-card">
+          <h3 data-i18n="gazeTitle">Gaze Position</h3>
+          <div id="gazeStatus" class="status-value" data-i18n="waitingForFace">Waiting for face…</div>
+          <div id="gazeCoords" class="status-value small">x —  y —</div>
+        </div>
+
+        <div class="status-card">
+          <h3 data-i18n="blinkTitle">Blink Detection</h3>
+          <div id="blinkStatus" class="status-value">—</div>
+          <div id="blinkInfo" class="status-value small">EAR: —</div>
+        </div>
+
+        <div id="numpadCard" class="status-card hidden">
+          <h3 data-i18n="numpadTitle">Numpad Input</h3>
+          <div id="numpadOutput" class="numpad-output">_</div>
+        </div>
+      </aside>
+    </section>
+  </div>
+
+  <script type="module">
+    import {
+      FaceLandmarker,
+      FilesetResolver,
+    } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14";
+
+    const MODEL_URL = "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task";
+
+    // Numpad layout
+    const NUMPAD_GRID = [
+      ["7", "8", "9"],
+      ["4", "5", "6"],
+      ["1", "2", "3"],
+      ["⌫", "0", "✓"],
+    ];
+
+    // Eye landmark indices for EAR (Eye Aspect Ratio) blink detection
+    const LEFT_EYE  = [33,  160, 158, 133, 153, 144]; // p1..p6
+    const RIGHT_EYE = [263, 387, 385, 362, 380, 374];
+
+    // Iris center indices (MediaPipe 478-landmark model)
+    const L_IRIS = 468;
+    const R_IRIS = 473;
+
+    // Face outline connections for overlay
+    const FACE_OUTLINE = [
+      [10,338],[338,297],[297,332],[332,284],[284,251],[251,389],
+      [389,356],[356,454],[454,323],[323,361],[361,288],[288,397],
+      [397,365],[365,379],[379,378],[378,400],[400,377],[377,152],
+      [152,148],[148,176],[176,149],[149,150],[150,136],[136,172],
+      [172,58],[58,132],[132,93],[93,234],[234,127],[127,162],
+      [162,21],[21,54],[54,103],[103,67],[67,109],[109,10],
+    ];
+
+    const i18n = {
+      en: {
+        pageTitle: "Eye Gaze Control",
+        eyebrow: "Head Pose + Iris Tracking",
+        heroTitle: "Eye Gaze Control",
+        heroIntro: "Control the screen with your eyes and head. Move your head to aim, blink or dwell to select. No extra hardware — just your webcam.",
+        detectionModeLabel: "Mode",
+        modeGazeCursor: "Gaze Cursor",
+        modeEyeNumpad: "Eye Numpad",
+        modeLaserEyes: "Laser Eyes",
+        modeGazeOrb: "Gaze Orb",
+        cameraControlsLabel: "Camera",
+        startCameraButton: "Start Camera",
+        stopCameraButton: "Stop Camera",
+        sensitivityLabel: "Sensitivity",
+        smoothingLabel: "Smoothing",
+        calibrateButton: "Re-center",
+        webcamNoteLabel: "Note:",
+        webcamNoteText: " Camera requires localhost or HTTPS. Keep your head centered. Move slowly at first.",
+        instruction1: "Face the camera and keep your head centered.",
+        instruction2: "Move your head slowly left/right/up/down to aim.",
+        instruction3: "Blink deliberately (1–2s after aiming) to select.",
+        instruction4: "Use Re-center if the cursor drifts off-target.",
+        liveDetectionTitle: "Live View",
+        enterFullscreenButton: "Full screen",
+        exitFullscreenButton: "Exit full screen",
+        statusPanelTitle: "Status",
+        sessionTitle: "Session",
+        gazeTitle: "Gaze Position",
+        blinkTitle: "Blink Detection",
+        numpadTitle: "Numpad Input",
+        selectedModePrefix: "Mode",
+        cameraIdle: "Camera idle",
+        cameraLive: "Camera live",
+        cameraStopped: "Camera stopped",
+        cameraRunning: "Camera running",
+        startingCamera: "Starting camera…",
+        modelLoading: "Loading face model…",
+        modelsReady: "Model ready",
+        detectionLoopRunning: "Detection loop running.",
+        cameraStartFailed: "Camera start failed",
+        permissionDenied: "Permission denied. Allow camera access and retry.",
+        noWebcamFound: "No webcam found on this device.",
+        webcamBusy: "Webcam is in use by another app.",
+        unableToStartCamera: "Unable to start the camera.",
+        secureContextWarning: "Not on localhost/HTTPS. Camera may be blocked.",
+        browserUnsupported: "Webcam not supported in this browser.",
+        browserSupportHint: "Use a recent browser with getUserMedia support.",
+        noFaceDetected: "No face detected",
+        faceDetected: "Face detected",
+        centerFaceInFrame: "Center your face in the frame.",
+        waitingForFace: "Waiting for face…",
+        gazeCursorActive: "Gaze cursor",
+        eyeNumpadActive: "Eye numpad — dwell or blink",
+        laserEyesActive: "Laser eyes",
+        gazeOrbActive: "Gaze orb",
+        blinkDetected: "Blink!",
+        blinkCount: "Blinks: {n}",
+        fpsValue: "FPS: {fps}",
+        fpsPlaceholder: "FPS: --",
+        performanceSmooth: "Smooth",
+        performanceModerate: "Moderate",
+        performanceLow: "Low",
+        performanceWaiting: "Waiting",
+        performanceLabel: "Perf: {v}",
+        recenterDone: "Re-centered ✓",
+        modePrefix: "Mode: {m}",
+        gazeXY: "x {x}  y {y}",
+        earInfo: "EAR {ear} · Blinks: {n}",
+        numpadConfirmed: "✓ {digits}",
+        blinkSelect: "Blink to select",
+        dwellSelect: "Dwell {p}% on key",
+      },
+      pt: {
+        pageTitle: "Controle por Olhar",
+        eyebrow: "Rastreamento de Cabeça + Íris",
+        heroTitle: "Controle por Olhar",
+        heroIntro: "Controle a tela com seus olhos e cabeça. Mova a cabeça para mirar e pisque ou aguarde para selecionar. Sem hardware extra — só sua webcam.",
+        detectionModeLabel: "Modo",
+        modeGazeCursor: "Cursor de Olhar",
+        modeEyeNumpad: "Teclado por Olhar",
+        modeLaserEyes: "Olhos a Laser",
+        modeGazeOrb: "Orbe de Olhar",
+        cameraControlsLabel: "Câmera",
+        startCameraButton: "Iniciar Câmera",
+        stopCameraButton: "Parar Câmera",
+        sensitivityLabel: "Sensibilidade",
+        smoothingLabel: "Suavização",
+        calibrateButton: "Recentralizar",
+        webcamNoteLabel: "Nota:",
+        webcamNoteText: " A câmera requer localhost ou HTTPS. Mantenha a cabeça centralizada. Mova devagar no início.",
+        instruction1: "Fique de frente para a câmera e centralize a cabeça.",
+        instruction2: "Mova a cabeça devagar para mirar em alvos.",
+        instruction3: "Pisque intencionalmente (1–2s depois de mirar) para selecionar.",
+        instruction4: "Use Recentralizar se o cursor desviar demais.",
+        liveDetectionTitle: "Visualização ao Vivo",
+        enterFullscreenButton: "Tela cheia",
+        exitFullscreenButton: "Sair da tela cheia",
+        statusPanelTitle: "Status",
+        sessionTitle: "Sessão",
+        gazeTitle: "Posição do Olhar",
+        blinkTitle: "Detecção de Piscar",
+        numpadTitle: "Entrada do Teclado",
+        selectedModePrefix: "Modo",
+        cameraIdle: "Câmera inativa",
+        cameraLive: "Câmera ao vivo",
+        cameraStopped: "Câmera parada",
+        cameraRunning: "Câmera em execução",
+        startingCamera: "Iniciando câmera…",
+        modelLoading: "Carregando modelo facial…",
+        modelsReady: "Modelo pronto",
+        detectionLoopRunning: "Loop de detecção em execução.",
+        cameraStartFailed: "Falha ao iniciar a câmera",
+        permissionDenied: "Permissão negada. Permita acesso à câmera.",
+        noWebcamFound: "Nenhuma webcam encontrada.",
+        webcamBusy: "Webcam em uso por outro aplicativo.",
+        unableToStartCamera: "Não foi possível iniciar a câmera.",
+        secureContextWarning: "Não está em localhost/HTTPS. A câmera pode ser bloqueada.",
+        browserUnsupported: "Webcam não suportada neste navegador.",
+        browserSupportHint: "Use um navegador recente com suporte a getUserMedia.",
+        noFaceDetected: "Nenhum rosto detectado",
+        faceDetected: "Rosto detectado",
+        centerFaceInFrame: "Centralize seu rosto no enquadramento.",
+        waitingForFace: "Aguardando rosto…",
+        gazeCursorActive: "Cursor de olhar",
+        eyeNumpadActive: "Teclado — aguarde ou pisque",
+        laserEyesActive: "Olhos a laser",
+        gazeOrbActive: "Orbe de olhar",
+        blinkDetected: "Piscou!",
+        blinkCount: "Piscadas: {n}",
+        fpsValue: "FPS: {fps}",
+        fpsPlaceholder: "FPS: --",
+        performanceSmooth: "Suave",
+        performanceModerate: "Moderado",
+        performanceLow: "Baixo",
+        performanceWaiting: "Aguardando",
+        performanceLabel: "Desempenho: {v}",
+        recenterDone: "Recentralizado ✓",
+        modePrefix: "Modo: {m}",
+        gazeXY: "x {x}  y {y}",
+        earInfo: "EAR {ear} · Piscadas: {n}",
+        numpadConfirmed: "✓ {digits}",
+        blinkSelect: "Pisque para selecionar",
+        dwellSelect: "Aguardo {p}% na tecla",
+      },
+      ja: {
+        pageTitle: "視線コントロール",
+        eyebrow: "頭部姿勢 + 瞳孔追跡",
+        heroTitle: "視線コントロール",
+        heroIntro: "目と頭で画面を操作します。頭を動かして狙い、まばたきまたはドウェルで選択します。追加ハードウェア不要 — ウェブカメラだけで動作します。",
+        detectionModeLabel: "モード",
+        modeGazeCursor: "視線カーソル",
+        modeEyeNumpad: "視線テンキー",
+        modeLaserEyes: "レーザーアイ",
+        modeGazeOrb: "視線オーブ",
+        cameraControlsLabel: "カメラ",
+        startCameraButton: "カメラ開始",
+        stopCameraButton: "カメラ停止",
+        sensitivityLabel: "感度",
+        smoothingLabel: "平滑化",
+        calibrateButton: "再中央揃え",
+        webcamNoteLabel: "注意:",
+        webcamNoteText: " localhost または HTTPS が必要です。頭を中央に保つと精度が上がります。最初はゆっくり動かしてください。",
+        instruction1: "カメラの正面に向いて頭を中央に保ってください。",
+        instruction2: "頭をゆっくり左右上下に動かして狙います。",
+        instruction3: "意図的にまばたき（狙った後1〜2秒）して選択します。",
+        instruction4: "カーソルがずれたら「再中央揃え」を使ってください。",
+        liveDetectionTitle: "ライブビュー",
+        enterFullscreenButton: "全画面",
+        exitFullscreenButton: "全画面終了",
+        statusPanelTitle: "ステータス",
+        sessionTitle: "セッション",
+        gazeTitle: "視線位置",
+        blinkTitle: "まばたき検出",
+        numpadTitle: "テンキー入力",
+        selectedModePrefix: "モード",
+        cameraIdle: "カメラ停止中",
+        cameraLive: "カメラ作動中",
+        cameraStopped: "カメラ停止",
+        cameraRunning: "カメラ稼働中",
+        startingCamera: "カメラを開始しています…",
+        modelLoading: "顔モデルを読み込んでいます…",
+        modelsReady: "モデル準備完了",
+        detectionLoopRunning: "検出ループ実行中。",
+        cameraStartFailed: "カメラ開始失敗",
+        permissionDenied: "許可が拒否されました。カメラを許可してください。",
+        noWebcamFound: "ウェブカメラが見つかりません。",
+        webcamBusy: "ウェブカメラは別のアプリで使用中です。",
+        unableToStartCamera: "カメラを開始できませんでした。",
+        secureContextWarning: "localhost/HTTPS ではありません。カメラがブロックされる可能性があります。",
+        browserUnsupported: "このブラウザはウェブカメラに対応していません。",
+        browserSupportHint: "getUserMedia 対応の最新ブラウザを使用してください。",
+        noFaceDetected: "顔が検出されません",
+        faceDetected: "顔を検出",
+        centerFaceInFrame: "顔をフレーム中央に入れてください。",
+        waitingForFace: "顔を待機中…",
+        gazeCursorActive: "視線カーソル",
+        eyeNumpadActive: "視線テンキー — ドウェルまたはまばたき",
+        laserEyesActive: "レーザーアイ",
+        gazeOrbActive: "視線オーブ",
+        blinkDetected: "まばたき！",
+        blinkCount: "まばたき: {n}回",
+        fpsValue: "FPS: {fps}",
+        fpsPlaceholder: "FPS: --",
+        performanceSmooth: "快適",
+        performanceModerate: "中程度",
+        performanceLow: "低下",
+        performanceWaiting: "待機中",
+        performanceLabel: "性能: {v}",
+        recenterDone: "再中央揃え完了 ✓",
+        modePrefix: "モード: {m}",
+        gazeXY: "x {x}  y {y}",
+        earInfo: "EAR {ear} · まばたき: {n}回",
+        numpadConfirmed: "✓ {digits}",
+        blinkSelect: "まばたきで選択",
+        dwellSelect: "キー上のドウェル {p}%",
+      },
+    };
+
+    const modeLabelKeys = {
+      gazeCursor: "modeGazeCursor",
+      eyeNumpad:  "modeEyeNumpad",
+      laserEyes:  "modeLaserEyes",
+      gazeOrb:    "modeGazeOrb",
+    };
+
+    const els = {
+      video:           document.getElementById("webcam"),
+      overlayCanvas:   document.getElementById("overlayCanvas"),
+      gazeCanvas:      document.getElementById("gazeCanvas"),
+      stage:           document.getElementById("stage"),
+      modeSelect:      document.getElementById("modeSelect"),
+      startButton:     document.getElementById("startButton"),
+      stopButton:      document.getElementById("stopButton"),
+      recenterButton:  document.getElementById("recenterButton"),
+      sensitivitySlider: document.getElementById("sensitivitySlider"),
+      smoothingSlider:   document.getElementById("smoothingSlider"),
+      sensitivityValue:  document.getElementById("sensitivityValue"),
+      smoothingValue:    document.getElementById("smoothingValue"),
+      fullscreenButton: document.getElementById("fullscreenButton"),
+      liveIndicator:   document.getElementById("liveIndicator"),
+      cameraStatus:    document.getElementById("cameraStatus"),
+      selectedMode:    document.getElementById("selectedMode"),
+      fpsChip:         document.getElementById("fpsChip"),
+      perfChip:        document.getElementById("perfChip"),
+      gazeStatus:      document.getElementById("gazeStatus"),
+      gazeCoords:      document.getElementById("gazeCoords"),
+      blinkStatus:     document.getElementById("blinkStatus"),
+      blinkInfo:       document.getElementById("blinkInfo"),
+      numpadCard:      document.getElementById("numpadCard"),
+      numpadOutput:    document.getElementById("numpadOutput"),
+      detectionBadge:  document.getElementById("detectionBadge"),
+      gazeBadge:       document.getElementById("gazeBadge"),
+      langButtons:     Array.from(document.querySelectorAll(".lang-selector button")),
+    };
+
+    const overlayCtx = els.overlayCanvas.getContext("2d");
+    const gazeCtx    = els.gazeCanvas.getContext("2d");
+
+    let currentLanguage = localStorage.getItem("egc_lang") || "en";
+
+    const state = {
+      stream: null,
+      animId: 0,
+      resolver: null,
+      landmarker: null,
+      cameraRunning: false,
+      lastVideoTime: -1,
+      loopCount: 0,
+      // gaze
+      gazeX: 0.5,
+      gazeY: 0.5,
+      rawGazeX: 0.5,
+      rawGazeY: 0.5,
+      offsetX: 0,
+      offsetY: 0,
+      sensitivity: 1.6,
+      smoothing: 0.12,
+      // blink
+      blinkCount: 0,
+      blinkFramesBelow: 0,
+      blinkDetected: false,
+      blinkFlashUntil: 0,
+      lastBlinkTime: 0,
+      earSmoothed: 0.35,
+      // numpad
+      numpadInput: "",
+      dwellKey: null,
+      dwellStart: 0,
+      dwellCooldownUntil: 0,
+      // orb
+      orbX: 0.5,
+      orbY: 0.5,
+      orbTrail: [],
+      // laser
+      laserPulse: 0,
+      // performance
+      fps: 0,
+      frameCount: 0,
+      fpsTime: performance.now(),
+      lastPerfLevel: "performanceWaiting",
+      // face result
+      lastFaceResult: null,
+      // mode
+      activeMode: "gazeCursor",
+    };
+
+    // ── Helpers ──────────────────────────────────────────────────────────────
+
+    function t(key, vars = {}) {
+      const tmpl = (i18n[currentLanguage]?.[key]) || i18n.en[key] || key;
+      return tmpl.replace(/\{(\w+)\}/g, (_, k) => String(vars[k] ?? ""));
+    }
+
+    function clamp(v, lo, hi) { return Math.min(hi, Math.max(lo, v)); }
+
+    function dist(a, b) {
+      return Math.hypot(a.x - b.x, a.y - b.y);
+    }
+
+    function midpoint(a, b) {
+      return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+    }
+
+    // ── Language ─────────────────────────────────────────────────────────────
+
+    function applyTranslations() {
+      document.documentElement.lang = currentLanguage;
+      document.title = t("pageTitle");
+      document.querySelectorAll("[data-i18n]").forEach(el => {
+        el.textContent = t(el.dataset.i18n);
+      });
+      els.langButtons.forEach(btn => btn.classList.toggle("active", btn.dataset.lang === currentLanguage));
+    }
+
+    function setLanguage(lang) {
+      currentLanguage = i18n[lang] ? lang : "en";
+      localStorage.setItem("egc_lang", currentLanguage);
+      applyTranslations();
+      syncModeUI();
+      if (!state.cameraRunning) renderStoppedUI();
+    }
+
+    // ── EAR blink detection ───────────────────────────────────────────────────
+
+    function ear(lm, idxs) {
+      // p1=outer p2=top-outer p3=top-inner p4=inner p5=bot-inner p6=bot-outer
+      const [p1, p2, p3, p4, p5, p6] = idxs.map(i => lm[i]);
+      if (!p1 || !p2 || !p3 || !p4 || !p5 || !p6) return 0.3;
+      const d1 = dist(p2, p6);
+      const d2 = dist(p3, p5);
+      const d3 = dist(p1, p4);
+      return d3 < 0.001 ? 0.3 : (d1 + d2) / (2 * d3);
+    }
+
+    function processEAR(lm) {
+      const leftEAR  = ear(lm, LEFT_EYE);
+      const rightEAR = ear(lm, RIGHT_EYE);
+      const avgEAR   = (leftEAR + rightEAR) / 2;
+
+      // Smooth EAR with α=0.3
+      state.earSmoothed = state.earSmoothed * 0.7 + avgEAR * 0.3;
+
+      const threshold = 0.19;
+      const cooldown  = 750; // ms
+      const now = performance.now();
+
+      if (state.earSmoothed < threshold) {
+        state.blinkFramesBelow += 1;
+      } else {
+        if (state.blinkFramesBelow >= 2 && now - state.lastBlinkTime > cooldown) {
+          // Blink confirmed
+          state.blinkCount += 1;
+          state.blinkDetected = true;
+          state.blinkFlashUntil = now + 400;
+          state.lastBlinkTime = now;
+        }
+        state.blinkFramesBelow = 0;
+      }
+
+      return state.earSmoothed;
+    }
+
+    // ── Gaze estimation ───────────────────────────────────────────────────────
+
+    function estimateGaze(lm) {
+      const noseTip    = lm[1];
+      const forehead   = lm[10];
+      const chin       = lm[152];
+      const leftCheek  = lm[234];
+      const rightCheek = lm[454];
+
+      if (!noseTip || !forehead || !chin || !leftCheek || !rightCheek) return;
+
+      const faceMidX   = (leftCheek.x + rightCheek.x) / 2;
+      const faceMidY   = (forehead.y  + chin.y)        / 2;
+      const faceWidth  = Math.abs(rightCheek.x - leftCheek.x) || 0.01;
+      const faceHeight = Math.abs(chin.y - forehead.y)         || 0.01;
+
+      // Head pose: negative yaw = looking right (in camera frame)
+      const headYaw   = (noseTip.x - faceMidX) / (faceWidth  * 0.5);
+      const headPitch = (noseTip.y - faceMidY) / (faceHeight * 0.45);
+
+      // Iris refinement (indices 468 & 473)
+      let irisX = headYaw;
+      let irisY = headPitch;
+      if (lm.length > 477 && lm[L_IRIS] && lm[R_IRIS]) {
+        const avgIrisX = (lm[L_IRIS].x + lm[R_IRIS].x) / 2;
+        const avgIrisY = (lm[L_IRIS].y + lm[R_IRIS].y) / 2;
+        const irisOffX = (avgIrisX - faceMidX) / (faceWidth  * 0.5);
+        const irisOffY = (avgIrisY - faceMidY) / (faceHeight * 0.35);
+        irisX = headYaw   * 0.65 + irisOffX * 0.35;
+        irisY = headPitch * 0.65 + irisOffY * 0.35;
+      }
+
+      const s = state.sensitivity;
+      // In camera space: looking right → nose moves LEFT → irisX < 0
+      // For display: cursor right when looking right → invert irisX
+      const rawX = clamp(0.5 - irisX * s - state.offsetX, 0, 1);
+      const rawY = clamp(0.5 + irisY * s - state.offsetY, 0, 1);
+
+      state.rawGazeX = rawX;
+      state.rawGazeY = rawY;
+
+      const α = state.smoothing;
+      state.gazeX = state.gazeX * (1 - α) + rawX * α;
+      state.gazeY = state.gazeY * (1 - α) + rawY * α;
+    }
+
+    function recenter() {
+      // Capture current deviation and use as offset so cursor returns to center
+      state.offsetX = state.rawGazeX - 0.5;
+      state.offsetY = state.rawGazeY - 0.5;
+      els.gazeStatus.textContent = t("recenterDone");
+    }
+
+    // ── Canvas helpers ────────────────────────────────────────────────────────
+
+    function resizeCanvases() {
+      const vw = els.video.videoWidth  || 640;
+      const vh = els.video.videoHeight || 480;
+      [els.overlayCanvas, els.gazeCanvas].forEach(c => {
+        if (c.width !== vw || c.height !== vh) {
+          c.width  = vw;
+          c.height = vh;
+        }
+      });
+    }
+
+    function glowLine(ctx, x1, y1, x2, y2, color, sizes) {
+      sizes.forEach(([width, alpha]) => {
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.strokeStyle = color.replace("{a}", String(alpha));
+        ctx.lineWidth = width;
+        ctx.stroke();
+      });
+    }
+
+    // ── Face overlay draw (inside mirror-layer, landmark coords) ──────────────
+    // Draws only the face contour — one per detected person.
+    // First face (controlling) = accent green; others = info blue.
+
+    function drawFaceOverlay(allFaceLandmarks) {
+      const ctx = overlayCtx;
+      const w = els.overlayCanvas.width;
+      const h = els.overlayCanvas.height;
+      ctx.clearRect(0, 0, w, h);
+
+      allFaceLandmarks.forEach((lm, idx) => {
+        const isController = idx === 0;
+        const color = isController
+          ? "rgba(86,240,192,0.70)"
+          : "rgba(125,211,252,0.45)";
+        const lineW = isController ? 1.8 : 1.2;
+
+        ctx.strokeStyle = color;
+        ctx.lineWidth = lineW;
+        ctx.beginPath();
+        for (const [a, b] of FACE_OUTLINE) {
+          if (!lm[a] || !lm[b]) continue;
+          ctx.moveTo(lm[a].x * w, lm[a].y * h);
+          ctx.lineTo(lm[b].x * w, lm[b].y * h);
+        }
+        ctx.stroke();
+
+        // Small control indicator on the forehead of the active face
+        if (isController) {
+          const forehead = lm[10];
+          if (forehead) {
+            const now = performance.now();
+            const blink = now < state.blinkFlashUntil;
+            ctx.beginPath();
+            ctx.arc(forehead.x * w, forehead.y * h - 10, 5, 0, Math.PI * 2);
+            ctx.fillStyle = blink ? "rgba(255,123,116,0.9)" : "rgba(86,240,192,0.85)";
+            ctx.fill();
+          }
+        }
+      });
+    }
+
+    // ── Mode: Gaze Cursor ─────────────────────────────────────────────────────
+
+    function drawGazeCursorMode() {
+      const ctx = gazeCtx;
+      const w = els.gazeCanvas.width;
+      const h = els.gazeCanvas.height;
+      ctx.clearRect(0, 0, w, h);
+
+      const gx = state.gazeX * w;
+      const gy = state.gazeY * h;
+      const now = performance.now();
+      const blink = now < state.blinkFlashUntil;
+
+      // Outer glow
+      const grad = ctx.createRadialGradient(gx, gy, 0, gx, gy, blink ? 48 : 32);
+      grad.addColorStop(0, blink ? "rgba(255,123,116,0.5)" : "rgba(86,240,192,0.4)");
+      grad.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(gx, gy, blink ? 48 : 32, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Cursor ring
+      ctx.beginPath();
+      ctx.arc(gx, gy, 12, 0, Math.PI * 2);
+      ctx.strokeStyle = blink ? "rgba(255,123,116,0.95)" : "rgba(86,240,192,0.95)";
+      ctx.lineWidth = 2.5;
+      ctx.stroke();
+
+      // Center dot
+      ctx.beginPath();
+      ctx.arc(gx, gy, 4, 0, Math.PI * 2);
+      ctx.fillStyle = blink ? "rgba(255,123,116,0.9)" : "rgba(255,255,255,0.9)";
+      ctx.fill();
+
+      // Cross-hair lines
+      const csz = 20;
+      ctx.strokeStyle = blink ? "rgba(255,123,116,0.5)" : "rgba(86,240,192,0.5)";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(gx - csz, gy); ctx.lineTo(gx + csz, gy);
+      ctx.moveTo(gx, gy - csz); ctx.lineTo(gx, gy + csz);
+      ctx.stroke();
+    }
+
+    // ── Mode: Eye Numpad ──────────────────────────────────────────────────────
+
+    function getNumpadLayout(w, h) {
+      const padW = Math.min(w * 0.56, 320);
+      const padH = Math.min(h * 0.75, 360);
+      const gap = 8;
+      const cols = 3, rows = 4;
+      const cw = (padW - gap * (cols - 1)) / cols;
+      const ch = (padH - gap * (rows - 1)) / rows;
+      const left = (w - padW) / 2;
+      const top  = (h - padH) / 2 + h * 0.06;
+      const cells = [];
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          cells.push({
+            key: NUMPAD_GRID[r][c],
+            x: left + c * (cw + gap),
+            y: top  + r * (ch + gap),
+            w: cw, h: ch,
+          });
+        }
+      }
+      return { cells, top, left, padW };
+    }
+
+    function hitCell(cells, px, py) {
+      return cells.find(cell =>
+        px >= cell.x && px <= cell.x + cell.w &&
+        py >= cell.y && py <= cell.y + cell.h
+      ) ?? null;
+    }
+
+    const DWELL_TIME = 1400; // ms
+
+    function drawNumpadMode() {
+      const ctx = gazeCtx;
+      const w = els.gazeCanvas.width;
+      const h = els.gazeCanvas.height;
+      ctx.clearRect(0, 0, w, h);
+
+      const layout = getNumpadLayout(w, h);
+      const { cells } = layout;
+
+      const gx = state.gazeX * w;
+      const gy = state.gazeY * h;
+      const now = performance.now();
+      const hovered = hitCell(cells, gx, gy);
+      const blink = now < state.blinkFlashUntil;
+
+      // Dwell tracking
+      if (now >= state.dwellCooldownUntil) {
+        if (hovered) {
+          if (state.dwellKey !== hovered.key) {
+            state.dwellKey = hovered.key;
+            state.dwellStart = now;
+          }
+          const elapsed = now - state.dwellStart;
+          if (elapsed >= DWELL_TIME) {
+            selectNumpadKey(hovered.key);
+            state.dwellCooldownUntil = now + 600;
+            state.dwellKey = null;
+          }
+        } else {
+          state.dwellKey = null;
+        }
+      } else {
+        state.dwellKey = null;
+      }
+
+      // Blink-to-select
+      if (blink && hovered && !state._blinkConsumed) {
+        state._blinkConsumed = true;
+        selectNumpadKey(hovered.key);
+        state.dwellCooldownUntil = now + 600;
+      }
+      if (!blink) state._blinkConsumed = false;
+
+      // Draw input display
+      const displayText = state.numpadInput || "_";
+      const displayY = layout.top - 16;
+      const displayH = 48;
+      ctx.fillStyle = "rgba(7,14,17,0.82)";
+      roundRect(ctx, layout.left, displayY - displayH, layout.padW, displayH, 12);
+      ctx.fill();
+      ctx.strokeStyle = "rgba(86,240,192,0.35)";
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.fillStyle = "rgba(86,240,192,0.9)";
+      ctx.font = `700 ${Math.round(displayH * 0.55)}px Space Grotesk, monospace`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(displayText, layout.left + layout.padW / 2, displayY - displayH / 2);
+
+      // Draw cells
+      cells.forEach(cell => {
+        const isHovered = hovered === cell;
+        const isDwelling = state.dwellKey === cell.key && isHovered;
+        const dwellPct = isDwelling
+          ? clamp((now - state.dwellStart) / DWELL_TIME, 0, 1)
+          : 0;
+
+        // Cell background
+        ctx.fillStyle = isHovered
+          ? "rgba(86,240,192,0.18)"
+          : "rgba(7,14,17,0.72)";
+        roundRect(ctx, cell.x, cell.y, cell.w, cell.h, 14);
+        ctx.fill();
+
+        // Cell border
+        ctx.strokeStyle = isHovered
+          ? "rgba(86,240,192,0.7)"
+          : "rgba(255,255,255,0.12)";
+        ctx.lineWidth = isHovered ? 1.5 : 1;
+        ctx.stroke();
+
+        // Dwell arc
+        if (isDwelling && dwellPct > 0) {
+          const cx2 = cell.x + cell.w / 2;
+          const cy2 = cell.y + cell.h / 2;
+          const arcR = Math.min(cell.w, cell.h) * 0.44;
+          ctx.beginPath();
+          ctx.arc(cx2, cy2, arcR, -Math.PI / 2, -Math.PI / 2 + dwellPct * Math.PI * 2);
+          ctx.strokeStyle = "rgba(86,240,192,0.85)";
+          ctx.lineWidth = 3;
+          ctx.stroke();
+        }
+
+        // Key label
+        ctx.fillStyle = isHovered
+          ? "rgba(255,255,255,0.97)"
+          : "rgba(200,220,218,0.85)";
+        ctx.font = `700 ${Math.round(cell.h * 0.44)}px Space Grotesk, Segoe UI, sans-serif`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(cell.key, cell.x + cell.w / 2, cell.y + cell.h / 2);
+      });
+
+      // Gaze cursor (small)
+      const glowColor = blink ? "rgba(255,123,116,0.9)" : "rgba(86,240,192,0.9)";
+      ctx.beginPath();
+      ctx.arc(gx, gy, 7, 0, Math.PI * 2);
+      ctx.fillStyle = glowColor;
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(gx, gy, 14, 0, Math.PI * 2);
+      ctx.strokeStyle = glowColor.replace("0.9", "0.4");
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      // Update status panel numpad output
+      els.numpadOutput.textContent = state.numpadInput || "_";
+    }
+
+    function selectNumpadKey(key) {
+      if (key === "⌫") {
+        state.numpadInput = state.numpadInput.slice(0, -1);
+      } else if (key === "✓") {
+        els.numpadOutput.textContent = state.numpadInput
+          ? t("numpadConfirmed", { digits: state.numpadInput })
+          : "_";
+        state.numpadInput = "";
+      } else {
+        if (state.numpadInput.length < 16) state.numpadInput += key;
+      }
+    }
+
+    function roundRect(ctx, x, y, w, h, r) {
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.lineTo(x + w - r, y);
+      ctx.arcTo(x + w, y, x + w, y + r, r);
+      ctx.lineTo(x + w, y + h - r);
+      ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+      ctx.lineTo(x + r, y + h);
+      ctx.arcTo(x, y + h, x, y + h - r, r);
+      ctx.lineTo(x, y + r);
+      ctx.arcTo(x, y, x + r, y, r);
+      ctx.closePath();
+    }
+
+    // ── Mode: Laser Eyes ──────────────────────────────────────────────────────
+
+    function drawLaserEyesMode(lm) {
+      const ctx = gazeCtx;
+      const w = els.gazeCanvas.width;
+      const h = els.gazeCanvas.height;
+      ctx.clearRect(0, 0, w, h);
+
+      const now = performance.now();
+      state.laserPulse = (Math.sin(now * 0.006) + 1) / 2; // 0-1 pulsing
+
+      const tx = state.gazeX * w;
+      const ty = state.gazeY * h;
+
+      // Eye positions: convert from landmark space to display space
+      // In display (gaze canvas, outside mirror-layer): displayX = 1 - landmarkX
+      let leftIrisDisplay  = null;
+      let rightIrisDisplay = null;
+
+      if (lm) {
+        const leftEyeCenter  = midpoint(lm[33],  lm[133]);
+        const rightEyeCenter = midpoint(lm[263], lm[362]);
+
+        // Check if iris landmarks available
+        const lIris = lm.length > L_IRIS && lm[L_IRIS] ? lm[L_IRIS] : leftEyeCenter;
+        const rIris = lm.length > R_IRIS && lm[R_IRIS] ? lm[R_IRIS] : rightEyeCenter;
+
+        // Mirror flip for display canvas
+        leftIrisDisplay  = { x: (1 - lIris.x) * w, y: lIris.y * h };
+        rightIrisDisplay = { x: (1 - rIris.x) * w, y: rIris.y * h };
+      }
+
+      const targets = leftIrisDisplay && rightIrisDisplay
+        ? [leftIrisDisplay, rightIrisDisplay]
+        : [{ x: w * 0.38, y: h * 0.42 }, { x: w * 0.62, y: h * 0.42 }];
+
+      const blink = now < state.blinkFlashUntil;
+      const beamColor = blink ? "rgba(86,240,192,{a})" : "rgba(255,60,26,{a})";
+      const glowAlpha = 0.15 + state.laserPulse * 0.2;
+
+      targets.forEach(eye => {
+        // Extend beam beyond the target
+        const dx = tx - eye.x;
+        const dy = ty - eye.y;
+        const len = Math.hypot(dx, dy) || 1;
+        const ex = tx + (dx / len) * 60;
+        const ey = ty + (dy / len) * 60;
+
+        // Soft glow halo
+        const grd = ctx.createLinearGradient(eye.x, eye.y, ex, ey);
+        grd.addColorStop(0, beamColor.replace("{a}", String(0)));
+        grd.addColorStop(0.3, beamColor.replace("{a}", String(glowAlpha)));
+        grd.addColorStop(1, beamColor.replace("{a}", String(0)));
+        ctx.beginPath();
+        ctx.moveTo(eye.x, eye.y);
+        ctx.lineTo(ex, ey);
+        ctx.strokeStyle = grd;
+        ctx.lineWidth = 18;
+        ctx.lineJoin = "round";
+        ctx.lineCap  = "round";
+        ctx.stroke();
+
+        // Mid glow
+        ctx.beginPath();
+        ctx.moveTo(eye.x, eye.y);
+        ctx.lineTo(ex, ey);
+        ctx.strokeStyle = beamColor.replace("{a}", String(0.35 + state.laserPulse * 0.2));
+        ctx.lineWidth = 5;
+        ctx.stroke();
+
+        // Core bright line
+        ctx.beginPath();
+        ctx.moveTo(eye.x, eye.y);
+        ctx.lineTo(ex, ey);
+        ctx.strokeStyle = beamColor.replace("{a}", String(0.92));
+        ctx.lineWidth = 1.8;
+        ctx.stroke();
+
+        // Iris origin circle
+        ctx.beginPath();
+        ctx.arc(eye.x, eye.y, 6, 0, Math.PI * 2);
+        ctx.fillStyle = beamColor.replace("{a}", "0.8");
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(eye.x, eye.y, 12, 0, Math.PI * 2);
+        ctx.strokeStyle = beamColor.replace("{a}", "0.4");
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      });
+
+      // Target explosion at gaze point
+      const rings = blink ? 4 : 3;
+      for (let i = 0; i < rings; i++) {
+        const r = (12 + i * 14) * (0.8 + state.laserPulse * 0.4);
+        const a = (0.7 - i * 0.18) * (blink ? 1 : 0.75);
+        ctx.beginPath();
+        ctx.arc(tx, ty, r, 0, Math.PI * 2);
+        ctx.strokeStyle = beamColor.replace("{a}", String(Math.max(0, a)));
+        ctx.lineWidth = blink ? 2.5 : 1.5;
+        ctx.stroke();
+      }
+
+      // Bright center
+      ctx.beginPath();
+      ctx.arc(tx, ty, 6, 0, Math.PI * 2);
+      ctx.fillStyle = beamColor.replace("{a}", "0.95");
+      ctx.fill();
+
+      // Spark lines at target
+      const sparkCount = blink ? 10 : 6;
+      for (let i = 0; i < sparkCount; i++) {
+        const angle = (i / sparkCount) * Math.PI * 2 + now * 0.002;
+        const innerR = 10;
+        const outerR = 22 + state.laserPulse * 14;
+        ctx.beginPath();
+        ctx.moveTo(tx + Math.cos(angle) * innerR, ty + Math.sin(angle) * innerR);
+        ctx.lineTo(tx + Math.cos(angle) * outerR, ty + Math.sin(angle) * outerR);
+        ctx.strokeStyle = beamColor.replace("{a}", String(0.55 + state.laserPulse * 0.25));
+        ctx.lineWidth = 1.2;
+        ctx.stroke();
+      }
+    }
+
+    // ── Mode: Gaze Orb ────────────────────────────────────────────────────────
+
+    function drawGazeOrbMode() {
+      const ctx = gazeCtx;
+      const w = els.gazeCanvas.width;
+      const h = els.gazeCanvas.height;
+      ctx.clearRect(0, 0, w, h);
+
+      const now = performance.now();
+      const blink = now < state.blinkFlashUntil;
+
+      // Spring motion
+      const spring = 0.06;
+      state.orbX += (state.gazeX - state.orbX) * spring;
+      state.orbY += (state.gazeY - state.orbY) * spring;
+
+      // Trail
+      state.orbTrail.push({ x: state.orbX, y: state.orbY, t: now });
+      state.orbTrail = state.orbTrail.filter(p => now - p.t < 600);
+
+      // Draw trail
+      state.orbTrail.forEach((p, i) => {
+        const age  = (now - p.t) / 600;
+        const alpha = (1 - age) * 0.35;
+        const r = (1 - age) * 8 + 2;
+        ctx.beginPath();
+        ctx.arc(p.x * w, p.y * h, r, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(86,240,192,${alpha.toFixed(2)})`;
+        ctx.fill();
+      });
+
+      const ox = state.orbX * w;
+      const oy = state.orbY * h;
+      const pulse = (Math.sin(now * 0.004) + 1) / 2;
+      const orbR = blink ? 28 : 20 + pulse * 6;
+
+      // Outer ambient glow
+      const grd = ctx.createRadialGradient(ox, oy, 0, ox, oy, orbR * 3.2);
+      grd.addColorStop(0, blink ? "rgba(255,123,116,0.28)" : "rgba(86,240,192,0.22)");
+      grd.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = grd;
+      ctx.beginPath();
+      ctx.arc(ox, oy, orbR * 3.2, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Orb body
+      const orbGrd = ctx.createRadialGradient(ox - orbR * 0.3, oy - orbR * 0.3, 0, ox, oy, orbR);
+      if (blink) {
+        orbGrd.addColorStop(0, "rgba(255,200,200,0.98)");
+        orbGrd.addColorStop(0.5, "rgba(255,123,116,0.9)");
+        orbGrd.addColorStop(1, "rgba(180,40,30,0.7)");
+      } else {
+        orbGrd.addColorStop(0, "rgba(220,255,248,0.98)");
+        orbGrd.addColorStop(0.5, "rgba(86,240,192,0.85)");
+        orbGrd.addColorStop(1, "rgba(29,120,100,0.65)");
+      }
+      ctx.fillStyle = orbGrd;
+      ctx.beginPath();
+      ctx.arc(ox, oy, orbR, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Ring
+      ctx.beginPath();
+      ctx.arc(ox, oy, orbR + 4, 0, Math.PI * 2);
+      ctx.strokeStyle = blink
+        ? `rgba(255,123,116,${0.6 + pulse * 0.3})`
+        : `rgba(86,240,192,${0.5 + pulse * 0.3})`;
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      // Rotating orbit ring
+      const orbitR = orbR + 14;
+      const segments = 6;
+      for (let i = 0; i < segments; i++) {
+        const angle = (i / segments) * Math.PI * 2 + now * 0.001;
+        const x1 = ox + Math.cos(angle) * orbitR;
+        const y1 = oy + Math.sin(angle) * orbitR;
+        const x2 = ox + Math.cos(angle + Math.PI / segments) * orbitR;
+        const y2 = oy + Math.sin(angle + Math.PI / segments) * orbitR;
+        ctx.beginPath();
+        ctx.moveTo(x1, y1); ctx.lineTo(x2, y2);
+        ctx.strokeStyle = blink
+          ? "rgba(255,123,116,0.55)"
+          : "rgba(86,240,192,0.45)";
+        ctx.lineWidth = 1.8;
+        ctx.stroke();
+      }
+    }
+
+    // ── Detection loop ────────────────────────────────────────────────────────
+
+    async function runDetectionLoop() {
+      if (!state.cameraRunning) return;
+
+      const video = els.video;
+      const now = performance.now();
+
+      if (video.readyState < 2) {
+        state.animId = requestAnimationFrame(runDetectionLoop);
+        return;
+      }
+      if (video.currentTime === state.lastVideoTime) {
+        state.animId = requestAnimationFrame(runDetectionLoop);
+        return;
+      }
+      state.lastVideoTime = video.currentTime;
+      state.loopCount++;
+
+      resizeCanvases();
+
+      let faceLandmarks = null;
+
+      if (state.landmarker) {
+        const result = state.landmarker.detectForVideo(video, now);
+        state.lastFaceResult = result;
+        if (result?.faceLandmarks?.length > 0) {
+          faceLandmarks = result.faceLandmarks[0];
+        }
+      }
+
+      // Update gaze and blink
+      const allFaces = state.lastFaceResult?.faceLandmarks || [];
+      if (faceLandmarks) {
+        estimateGaze(faceLandmarks);
+        processEAR(faceLandmarks);
+        drawFaceOverlay(allFaces);
+        updateStatusWithFace(faceLandmarks);
+      } else {
+        overlayCtx.clearRect(0, 0, els.overlayCanvas.width, els.overlayCanvas.height);
+        updateStatusNoFace();
+      }
+
+      // Draw gaze mode
+      const mode = state.activeMode;
+      if (faceLandmarks || mode === "gazeOrb") {
+        if (mode === "gazeCursor") drawGazeCursorMode();
+        else if (mode === "eyeNumpad") drawNumpadMode();
+        else if (mode === "laserEyes") drawLaserEyesMode(faceLandmarks);
+        else if (mode === "gazeOrb")  drawGazeOrbMode();
+      } else {
+        gazeCtx.clearRect(0, 0, els.gazeCanvas.width, els.gazeCanvas.height);
+      }
+
+      // Reset blink after consuming
+      if (performance.now() > state.blinkFlashUntil + 50) {
+        state.blinkDetected = false;
+      }
+
+      updatePerformance(now);
+      state.animId = requestAnimationFrame(runDetectionLoop);
+    }
+
+    function updateStatusWithFace(lm) {
+      const mode = state.activeMode;
+      const modeActiveKey = {
+        gazeCursor: "gazeCursorActive",
+        eyeNumpad:  "eyeNumpadActive",
+        laserEyes:  "laserEyesActive",
+        gazeOrb:    "gazeOrbActive",
+      }[mode] || "gazeCursorActive";
+
+      els.detectionBadge.textContent = t("faceDetected");
+      els.gazeBadge.textContent = t(modeActiveKey);
+      els.gazeStatus.textContent = t("faceDetected");
+      els.gazeCoords.textContent = t("gazeXY", {
+        x: state.gazeX.toFixed(2),
+        y: state.gazeY.toFixed(2),
+      });
+
+      const earVal = state.earSmoothed.toFixed(3);
+      els.blinkInfo.textContent = t("earInfo", { ear: earVal, n: state.blinkCount });
+
+      const now = performance.now();
+      if (now < state.blinkFlashUntil) {
+        els.blinkStatus.textContent = t("blinkDetected");
+      } else if (mode === "eyeNumpad") {
+        const hovered = state.dwellKey;
+        if (hovered) {
+          const pct = Math.round(clamp((now - state.dwellStart) / DWELL_TIME * 100, 0, 99));
+          els.blinkStatus.textContent = t("dwellSelect", { p: pct });
+        } else {
+          els.blinkStatus.textContent = t("blinkSelect");
+        }
+      } else {
+        els.blinkStatus.textContent = t("blinkCount", { n: state.blinkCount });
+      }
+    }
+
+    function updateStatusNoFace() {
+      els.detectionBadge.textContent = t("noFaceDetected");
+      els.gazeBadge.textContent = t("centerFaceInFrame");
+      els.gazeStatus.textContent = t("waitingForFace");
+      els.gazeCoords.textContent = "x —  y —";
+      els.blinkStatus.textContent = "—";
+      els.blinkInfo.textContent = "EAR: —";
+    }
+
+    function updatePerformance(now) {
+      state.frameCount++;
+      const elapsed = now - state.fpsTime;
+      if (elapsed >= 500) {
+        state.fps = (state.frameCount * 1000) / elapsed;
+        state.frameCount = 0;
+        state.fpsTime = now;
+
+        let pk = "performanceSmooth";
+        if (state.fps < 12) pk = "performanceLow";
+        else if (state.fps < 20) pk = "performanceModerate";
+        state.lastPerfLevel = pk;
+
+        els.fpsChip.textContent = t("fpsValue", { fps: state.fps.toFixed(1) });
+        els.perfChip.textContent = t("performanceLabel", { v: t(pk) });
+      }
+    }
+
+    // ── Camera ────────────────────────────────────────────────────────────────
+
+    async function startCamera() {
+      if (!navigator.mediaDevices?.getUserMedia) {
+        els.cameraStatus.textContent = t("browserUnsupported");
+        return;
+      }
+
+      try {
+        els.startButton.disabled = true;
+        els.cameraStatus.textContent = t("modelLoading");
+
+        if (!state.resolver) {
+          state.resolver = await FilesetResolver.forVisionTasks(
+            "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm"
+          );
+        }
+        if (!state.landmarker) {
+          state.landmarker = await FaceLandmarker.createFromOptions(state.resolver, {
+            baseOptions: { modelAssetPath: MODEL_URL },
+            runningMode: "VIDEO",
+            numFaces: 3,
+            outputFaceBlendshapes: false,
+            outputFacialTransformationMatrixes: false,
+          });
+        }
+
+        els.cameraStatus.textContent = t("startingCamera");
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: "user" },
+          audio: false,
+        });
+
+        state.stream = stream;
+        els.video.srcObject = stream;
+        await els.video.play();
+        resizeCanvases();
+
+        state.cameraRunning = true;
+        state.lastVideoTime = -1;
+        state.fps = 0;
+        state.frameCount = 0;
+        state.fpsTime = performance.now();
+        state.blinkCount = 0;
+        state.earSmoothed = 0.35;
+        state.numpadInput = "";
+
+        els.startButton.disabled = true;
+        els.stopButton.disabled = false;
+        els.liveIndicator.textContent = t("cameraLive");
+        els.liveIndicator.classList.add("active");
+        els.cameraStatus.textContent = t("cameraRunning");
+        els.detectionBadge.textContent = t("modelsReady");
+        els.fpsChip.textContent = t("fpsPlaceholder");
+
+        runDetectionLoop();
+      } catch (err) {
+        const name = err?.name || "UnknownError";
+        let msg = t("unableToStartCamera");
+        if (name === "NotAllowedError") msg = t("permissionDenied");
+        else if (name === "NotFoundError") msg = t("noWebcamFound");
+        else if (name === "NotReadableError") msg = t("webcamBusy");
+        els.cameraStatus.textContent = msg;
+        els.startButton.disabled = false;
+        els.stopButton.disabled = true;
+        els.liveIndicator.textContent = t("cameraIdle");
+        els.liveIndicator.classList.remove("active");
+      }
+    }
+
+    function stopCamera() {
+      state.cameraRunning = false;
+      cancelAnimationFrame(state.animId);
+      state.animId = 0;
+      if (state.stream) {
+        state.stream.getTracks().forEach(t => t.stop());
+        state.stream = null;
+      }
+      els.video.srcObject = null;
+      els.startButton.disabled = false;
+      els.stopButton.disabled = true;
+      overlayCtx.clearRect(0, 0, els.overlayCanvas.width, els.overlayCanvas.height);
+      gazeCtx.clearRect(0, 0, els.gazeCanvas.width, els.gazeCanvas.height);
+      renderStoppedUI();
+    }
+
+    function renderStoppedUI() {
+      els.liveIndicator.textContent = t("cameraIdle");
+      els.liveIndicator.classList.remove("active");
+      els.cameraStatus.textContent = t("cameraStopped");
+      els.detectionBadge.textContent = t("cameraIdle");
+      els.gazeBadge.textContent = "—";
+      els.gazeStatus.textContent = t("waitingForFace");
+      els.gazeCoords.textContent = "x —  y —";
+      els.blinkStatus.textContent = "—";
+      els.blinkInfo.textContent = "EAR: —";
+      els.fpsChip.textContent = t("fpsPlaceholder");
+      els.perfChip.textContent = t("performanceLabel", { v: t("performanceWaiting") });
+    }
+
+    // ── Mode UI sync ─────────────────────────────────────────────────────────
+
+    function syncModeUI() {
+      const mode = state.activeMode;
+      const label = t(modeLabelKeys[mode] || "modeGazeCursor");
+      els.selectedMode.textContent = t("modePrefix", { m: label });
+      els.numpadCard.classList.toggle("hidden", mode !== "eyeNumpad");
+    }
+
+    // ── Fullscreen ────────────────────────────────────────────────────────────
+
+    async function toggleFullscreen() {
+      try {
+        if (document.fullscreenElement) {
+          await document.exitFullscreen();
+        } else {
+          await els.stage.requestFullscreen();
+        }
+        resizeCanvases();
+        els.fullscreenButton.textContent = t(
+          document.fullscreenElement ? "exitFullscreenButton" : "enterFullscreenButton"
+        );
+      } catch (e) {
+        // ignore
+      }
+    }
+
+    // ── Init & Events ─────────────────────────────────────────────────────────
+
+    els.startButton.addEventListener("click", startCamera);
+    els.stopButton.addEventListener("click", stopCamera);
+    els.recenterButton.addEventListener("click", recenter);
+    els.fullscreenButton.addEventListener("click", toggleFullscreen);
+
+    els.modeSelect.addEventListener("change", () => {
+      state.activeMode = els.modeSelect.value;
+      state.dwellKey = null;
+      state.numpadInput = "";
+      if (els.numpadOutput) els.numpadOutput.textContent = "_";
+      syncModeUI();
+    });
+
+    els.sensitivitySlider.addEventListener("input", () => {
+      state.sensitivity = parseFloat(els.sensitivitySlider.value);
+      els.sensitivityValue.textContent = state.sensitivity.toFixed(1);
+    });
+
+    els.smoothingSlider.addEventListener("input", () => {
+      state.smoothing = parseFloat(els.smoothingSlider.value);
+      els.smoothingValue.textContent = state.smoothing.toFixed(2);
+    });
+
+    els.langButtons.forEach(btn => {
+      btn.addEventListener("click", () => setLanguage(btn.dataset.lang));
+    });
+
+    document.addEventListener("fullscreenchange", () => {
+      els.fullscreenButton.textContent = t(
+        document.fullscreenElement ? "exitFullscreenButton" : "enterFullscreenButton"
+      );
+      resizeCanvases();
+    });
+
+    window.addEventListener("resize", resizeCanvases);
+    window.addEventListener("beforeunload", stopCamera);
+
+    // Init
+    applyTranslations();
+    syncModeUI();
+    renderStoppedUI();
+  </script>
+</body>
+</html>
