@@ -1,0 +1,2434 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Vector Studio</title>
+  <meta name="description" content="Single-file vector editor with SVG shapes, paths, text, autosave, themes, and EN/PT/JA UI." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../assets/fontawesome/css/all.min.css" />
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-NWZDZ906DJ"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-NWZDZ906DJ');
+  </script>
+  <style>
+    :root{
+      --bg:#071018;
+      --panel:#0f1b26;
+      --panel-2:#132434;
+      --panel-3:#173048;
+      --surface:#0b1520;
+      --surface-2:#112233;
+      --text:#eef5ff;
+      --muted:#9bb0c5;
+      --line:#1f3951;
+      --accent:#ff7f50;
+      --accent-2:#ffb36a;
+      --accent-cool:#52c7ff;
+      --success:#43d19e;
+      --danger:#ff667e;
+      --shadow:0 24px 70px rgba(0,0,0,.34);
+      --grid:#17354f;
+      --artboard:#ffffff;
+      --artboard-grid:#eff5fb;
+      --handle:#0a1220;
+      --handle-stroke:#ffffff;
+    }
+    html[data-theme="light"]{
+      --bg:#f2f6fa;
+      --panel:#ffffff;
+      --panel-2:#f7fafc;
+      --panel-3:#ecf2f8;
+      --surface:#e9f0f6;
+      --surface-2:#dce7f0;
+      --text:#102132;
+      --muted:#5e738a;
+      --line:#cfdae5;
+      --accent:#dd5b2e;
+      --accent-2:#f3a14c;
+      --accent-cool:#1487cc;
+      --success:#0c9f68;
+      --danger:#d94b61;
+      --shadow:0 18px 50px rgba(10,27,44,.12);
+      --grid:#c5d7e7;
+      --artboard:#ffffff;
+      --artboard-grid:#edf3f8;
+      --handle:#ffffff;
+      --handle-stroke:#102132;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font:14px/1.45 "IBM Plex Sans", system-ui, sans-serif;
+      background:
+        radial-gradient(circle at top left, color-mix(in srgb, var(--accent) 18%, transparent), transparent 28%),
+        radial-gradient(circle at bottom right, color-mix(in srgb, var(--accent-cool) 16%, transparent), transparent 26%),
+        var(--bg);
+      color:var(--text);
+      overflow:hidden;
+    }
+    button,input,select,textarea{font:inherit}
+    .app{
+      display:grid;
+      grid-template-rows:auto 1fr auto;
+      grid-template-columns:76px minmax(0,1fr) 320px;
+      height:100vh;
+      gap:12px;
+      padding:12px;
+    }
+    .shell{
+      background:color-mix(in srgb, var(--panel) 92%, transparent);
+      border:1px solid color-mix(in srgb, var(--line) 84%, transparent);
+      box-shadow:var(--shadow);
+      backdrop-filter:blur(14px) saturate(125%);
+    }
+    .header{
+      grid-column:1 / 4;
+      display:flex;
+      align-items:center;
+      gap:10px;
+      padding:12px 14px;
+      border-radius:24px;
+      min-height:72px;
+    }
+    .brand{
+      display:flex;
+      flex-direction:column;
+      gap:2px;
+      min-width:170px;
+    }
+    .brand-title{
+      font:700 1.2rem/1 "Space Grotesk", sans-serif;
+      letter-spacing:.02em;
+    }
+    .brand-sub{
+      color:var(--muted);
+      font-size:.84rem;
+    }
+    .toolbar-group,
+    .header-group{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      padding:8px;
+      border-radius:18px;
+      background:color-mix(in srgb, var(--panel-2) 88%, transparent);
+      border:1px solid color-mix(in srgb, var(--line) 78%, transparent);
+    }
+    .spacer{flex:1}
+    .btn,
+    .tool-btn,
+    .icon-btn,
+    .select,
+    .field,
+    .text-input,
+    .number-input,
+    .textarea{
+      border:1px solid var(--line);
+      color:var(--text);
+      background:var(--panel-2);
+      transition:background .16s ease, transform .16s ease, border-color .16s ease;
+    }
+    .btn,
+    .icon-btn{
+      border-radius:14px;
+      min-height:42px;
+      padding:0 14px;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      gap:8px;
+      cursor:pointer;
+      font-weight:600;
+    }
+    .btn:hover,
+    .tool-btn:hover,
+    .icon-btn:hover,
+    .select:hover,
+    .field:hover,
+    .text-input:hover,
+    .number-input:hover,
+    .textarea:hover{
+      background:var(--panel-3);
+      border-color:color-mix(in srgb, var(--accent-cool) 38%, var(--line));
+    }
+    .btn.primary{
+      background:linear-gradient(135deg, var(--accent), var(--accent-2));
+      border-color:transparent;
+      color:#130d09;
+    }
+    .btn.primary:hover{background:linear-gradient(135deg, color-mix(in srgb, var(--accent) 92%, white), color-mix(in srgb, var(--accent-2) 90%, white));}
+    .toolbox{
+      position:relative;
+      z-index:30;
+      overflow:visible;
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+      padding:10px;
+      border-radius:24px;
+      align-self:stretch;
+    }
+    .tool-btn,
+    .icon-btn{
+      position:relative;
+      min-width:54px;
+      min-height:54px;
+      border-radius:18px;
+      padding:0;
+      display:grid;
+      place-items:center;
+      cursor:pointer;
+      font-size:1rem;
+    }
+    .tool-btn.active{
+      background:linear-gradient(135deg, color-mix(in srgb, var(--accent) 76%, #fff 4%), color-mix(in srgb, var(--accent-cool) 72%, #fff 4%));
+      color:#0f1620;
+      border-color:transparent;
+      transform:translateY(-1px);
+    }
+    .tool-btn::after,
+    .icon-btn::after,
+    .tool-btn::before,
+    .icon-btn::before{
+      pointer-events:none;
+      position:absolute;
+      opacity:0;
+      transform:translateY(6px);
+      transition:opacity .15s ease, transform .15s ease;
+    }
+    .tool-btn::after,
+    .icon-btn::after{
+      content:attr(data-tip);
+      left:calc(100% + 10px);
+      top:50%;
+      translate:0 -50%;
+      white-space:nowrap;
+      background:rgba(6,12,20,.92);
+      color:#fff;
+      border:1px solid rgba(255,255,255,.12);
+      border-radius:10px;
+      padding:6px 10px;
+      font-size:.79rem;
+      z-index:20;
+    }
+    .tool-btn::before,
+    .icon-btn::before{
+      content:"";
+      left:calc(100% + 2px);
+      top:50%;
+      translate:0 -50%;
+      border:6px solid transparent;
+      border-right-color:rgba(6,12,20,.92);
+      z-index:19;
+    }
+    .tool-btn:hover::after,
+    .tool-btn:hover::before,
+    .icon-btn:hover::after,
+    .icon-btn:hover::before,
+    .tool-btn:focus-visible::after,
+    .tool-btn:focus-visible::before,
+    .icon-btn:focus-visible::after,
+    .icon-btn:focus-visible::before{
+      opacity:1;
+      transform:translateY(0);
+    }
+    .workspace{
+      position:relative;
+      z-index:1;
+      min-width:0;
+      min-height:0;
+      border-radius:28px;
+      overflow:hidden;
+      display:flex;
+      flex-direction:column;
+    }
+    .workspace-top{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      padding:10px 14px;
+      border-bottom:1px solid color-mix(in srgb, var(--line) 76%, transparent);
+      background:color-mix(in srgb, var(--panel) 94%, transparent);
+    }
+    .meta-strip{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      flex-wrap:wrap;
+      color:var(--muted);
+      font-size:.83rem;
+    }
+    .stage-wrap{
+      position:relative;
+      flex:1;
+      min-height:0;
+      background:
+        linear-gradient(45deg, color-mix(in srgb, var(--surface) 88%, transparent) 25%, transparent 25%),
+        linear-gradient(-45deg, color-mix(in srgb, var(--surface) 88%, transparent) 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, color-mix(in srgb, var(--surface) 88%, transparent) 75%),
+        linear-gradient(-45deg, transparent 75%, color-mix(in srgb, var(--surface) 88%, transparent) 75%);
+      background-size:28px 28px;
+      background-position:0 0, 0 14px, 14px -14px, -14px 0;
+      cursor:crosshair;
+    }
+    .stage-wrap.hand{cursor:grab}
+    .stage-wrap.dragging-hand{cursor:grabbing}
+    #stage{
+      width:100%;
+      height:100%;
+      display:block;
+      touch-action:none;
+      user-select:none;
+    }
+    .sidebar{
+      border-radius:28px;
+      padding:12px;
+      overflow:auto;
+    }
+    .panel-section{
+      background:color-mix(in srgb, var(--panel-2) 90%, transparent);
+      border:1px solid color-mix(in srgb, var(--line) 74%, transparent);
+      border-radius:22px;
+      padding:14px;
+      margin-bottom:12px;
+    }
+    .panel-title{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:10px;
+      margin:0 0 12px;
+      font:700 .98rem/1 "Space Grotesk", sans-serif;
+    }
+    .stack{display:flex;flex-direction:column;gap:10px}
+    .row{display:flex;align-items:center;gap:8px}
+    .row.wrap{flex-wrap:wrap}
+    .field{
+      min-height:40px;
+      border-radius:14px;
+      padding:0 10px;
+      display:flex;
+      align-items:center;
+      gap:8px;
+      width:100%;
+      background:var(--surface);
+    }
+    .field span,
+    .field label{
+      font-size:.82rem;
+      color:var(--muted);
+      white-space:nowrap;
+    }
+    .text-input,
+    .number-input,
+    .select,
+    .textarea{
+      width:100%;
+      min-height:40px;
+      border-radius:14px;
+      padding:0 12px;
+      outline:none;
+    }
+    .textarea{
+      min-height:88px;
+      padding:10px 12px;
+      resize:vertical;
+    }
+    .number-input.small,
+    .select.small{max-width:110px}
+    input[type="color"]{
+      width:42px;
+      height:32px;
+      padding:0;
+      border:none;
+      background:transparent;
+      cursor:pointer;
+    }
+    input[type="checkbox"]{accent-color:var(--accent)}
+    .layer-list,
+    .item-list{display:flex;flex-direction:column;gap:8px}
+    .layer-row,
+    .item-row{
+      display:grid;
+      grid-template-columns:auto 1fr auto auto;
+      gap:8px;
+      align-items:center;
+      padding:10px 12px;
+      border:1px solid var(--line);
+      border-radius:16px;
+      background:var(--surface);
+    }
+    .item-row{grid-template-columns:auto 1fr auto}
+    .layer-row.active,
+    .item-row.active{
+      border-color:color-mix(in srgb, var(--accent-cool) 40%, var(--line));
+      background:color-mix(in srgb, var(--surface-2) 92%, transparent);
+    }
+    .layer-name,
+    .item-name{
+      overflow:hidden;
+      text-overflow:ellipsis;
+      white-space:nowrap;
+      font-weight:600;
+    }
+    .layer-meta,
+    .item-meta,
+    .muted{color:var(--muted)}
+    .statusbar{
+      grid-column:1 / 4;
+      display:flex;
+      align-items:center;
+      gap:12px;
+      padding:10px 14px;
+      border-radius:22px;
+      font-size:.84rem;
+      color:var(--muted);
+      overflow:auto;
+    }
+    .pill{
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      border:1px solid var(--line);
+      padding:6px 10px;
+      border-radius:999px;
+      background:color-mix(in srgb, var(--panel-2) 86%, transparent);
+      white-space:nowrap;
+    }
+    .shortcut{
+      font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      background:var(--surface);
+      border:1px solid var(--line);
+      color:var(--text);
+      padding:2px 7px;
+      border-radius:9px;
+      font-size:.78rem;
+    }
+    .hidden{display:none !important}
+    .toast{
+      position:fixed;
+      right:16px;
+      bottom:16px;
+      display:flex;
+      align-items:center;
+      gap:10px;
+      padding:12px 16px;
+      background:rgba(6,12,20,.94);
+      color:#fff;
+      border:1px solid rgba(255,255,255,.12);
+      border-radius:16px;
+      box-shadow:var(--shadow);
+      opacity:0;
+      pointer-events:none;
+      transform:translateY(10px);
+      transition:opacity .18s ease, transform .18s ease;
+      z-index:40;
+    }
+    .toast.show{opacity:1;transform:translateY(0)}
+    .overlay-label{
+      fill:var(--text);
+      font-size:12px;
+      font-weight:600;
+    }
+    .selection-box{
+      fill:none;
+      stroke:var(--accent-cool);
+      stroke-width:1.5;
+      stroke-dasharray:8 6;
+      vector-effect:non-scaling-stroke;
+      pointer-events:none;
+    }
+    .handle,
+    .node-handle{
+      fill:var(--handle);
+      stroke:var(--handle-stroke);
+      stroke-width:1.5;
+      vector-effect:non-scaling-stroke;
+      cursor:pointer;
+    }
+    .node-handle{fill:var(--accent-cool)}
+    .artboard-shadow{filter:drop-shadow(0 24px 40px rgba(0,0,0,.24))}
+    .guide-line{
+      stroke:color-mix(in srgb, var(--accent) 65%, var(--accent-cool));
+      stroke-width:1;
+      stroke-dasharray:4 4;
+      vector-effect:non-scaling-stroke;
+      opacity:.85;
+    }
+    @media (max-width: 1180px){
+      .app{
+        grid-template-columns:64px minmax(0,1fr);
+        grid-template-rows:auto minmax(0,1fr) minmax(180px,auto) auto;
+      }
+      .header{grid-column:1 / 3}
+      .workspace{grid-column:2 / 3}
+      .sidebar{grid-column:1 / 3;grid-row:3 / 4;max-height:36vh}
+      .statusbar{grid-column:1 / 3}
+    }
+    @media (max-width: 760px){
+      .app{padding:8px;gap:8px}
+      .header{padding:10px;border-radius:20px;flex-wrap:wrap}
+      .toolbar-group,.header-group{width:100%;justify-content:flex-start;overflow:auto}
+      .tool-btn::after,.tool-btn::before,.icon-btn::after,.icon-btn::before{display:none}
+      .workspace-top{flex-direction:column;align-items:flex-start}
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="header shell">
+      <div class="brand">
+        <div class="brand-title" data-i18n="brandTitle">Vector Studio</div>
+        <div class="brand-sub" data-i18n="brandSub">SVG editor with autosave, themes, and multilingual UI.</div>
+      </div>
+      <div class="header-group">
+        <button class="btn primary" id="newDocBtn"><i class="fa-solid fa-file-circle-plus"></i><span data-i18n="newDoc">New</span></button>
+        <button class="btn" id="importJsonBtn"><i class="fa-solid fa-file-import"></i><span data-i18n="importJson">Import JSON</span></button>
+        <button class="btn" id="exportJsonBtn"><i class="fa-solid fa-file-code"></i><span data-i18n="exportJson">Export JSON</span></button>
+        <button class="btn" id="exportSvgBtn"><i class="fa-regular fa-image"></i><span data-i18n="exportSvg">Export SVG</span></button>
+        <button class="btn" id="exportPngBtn"><i class="fa-solid fa-file-export"></i><span data-i18n="exportPng">Export PNG</span></button>
+      </div>
+      <div class="spacer"></div>
+      <div class="header-group">
+        <button class="icon-btn" id="undoBtn" data-tip="Undo"><i class="fa-solid fa-rotate-left"></i></button>
+        <button class="icon-btn" id="redoBtn" data-tip="Redo"><i class="fa-solid fa-rotate-right"></i></button>
+        <button class="icon-btn" id="fitBtn" data-tip="Fit artboard"><i class="fa-solid fa-expand"></i></button>
+      </div>
+      <div class="header-group">
+        <select class="select small" id="themeSelect" aria-label="Theme">
+          <option value="dark">Dark</option>
+          <option value="light">Light</option>
+        </select>
+        <select class="select small" id="langSelect" aria-label="Language">
+          <option value="en">EN</option>
+          <option value="pt">PT</option>
+          <option value="ja">JA</option>
+        </select>
+      </div>
+      <input type="file" id="jsonInput" accept="application/json,.json" class="hidden" />
+    </header>
+
+    <aside class="toolbox shell" aria-label="Tools">
+      <button class="tool-btn active" data-tool="select" data-tip="Select (V)" aria-label="Select"><i class="fa-solid fa-arrow-pointer"></i></button>
+      <button class="tool-btn" data-tool="hand" data-tip="Hand (H)" aria-label="Hand"><i class="fa-solid fa-hand"></i></button>
+      <button class="tool-btn" data-tool="rect" data-tip="Rectangle (R)" aria-label="Rectangle"><i class="fa-regular fa-square"></i></button>
+      <button class="tool-btn" data-tool="ellipse" data-tip="Ellipse (O)" aria-label="Ellipse"><i class="fa-regular fa-circle"></i></button>
+      <button class="tool-btn" data-tool="line" data-tip="Line (L)" aria-label="Line"><i class="fa-solid fa-slash"></i></button>
+      <button class="tool-btn" data-tool="pen" data-tip="Path (P)" aria-label="Path"><i class="fa-solid fa-pen-nib"></i></button>
+      <button class="tool-btn" data-tool="text" data-tip="Text (T)" aria-label="Text"><i class="fa-solid fa-font"></i></button>
+      <div style="height:1px;background:var(--line);margin:2px 4px"></div>
+      <button class="icon-btn" id="duplicateBtn" data-tip="Duplicate"><i class="fa-regular fa-clone"></i></button>
+      <button class="icon-btn" id="bringFrontBtn" data-tip="Bring forward"><i class="fa-solid fa-layer-group"></i></button>
+      <button class="icon-btn" id="sendBackBtn" data-tip="Send backward"><i class="fa-solid fa-layer-group" style="transform:scaleY(-1)"></i></button>
+      <button class="icon-btn" id="deleteBtn" data-tip="Delete"><i class="fa-solid fa-trash"></i></button>
+    </aside>
+
+    <main class="workspace shell">
+      <div class="workspace-top">
+        <div class="meta-strip">
+          <span class="pill"><i class="fa-regular fa-file-lines"></i><strong id="docName">vector-studio</strong></span>
+          <span class="pill"><i class="fa-solid fa-up-right-and-down-left-from-center"></i><span id="docSizeLabel">1280 x 800</span></span>
+          <span class="pill"><i class="fa-solid fa-magnifying-glass-plus"></i><span id="zoomLabel">100%</span></span>
+          <span class="pill"><i class="fa-solid fa-layer-group"></i><span id="selectionLabel" data-i18n="nothingSelected">Nothing selected</span></span>
+        </div>
+        <div class="toolbar-group">
+          <label class="row"><input type="checkbox" id="showGridToggle" checked /><span data-i18n="showGrid">Grid</span></label>
+          <label class="row"><input type="checkbox" id="snapToggle" checked /><span data-i18n="snap">Snap</span></label>
+          <label class="row"><span class="muted" data-i18n="gridSize">Grid</span><input class="number-input small" id="gridSizeInput" type="number" min="4" max="200" step="1" value="24" /></label>
+        </div>
+      </div>
+      <div class="stage-wrap" id="stageWrap">
+        <svg id="stage" viewBox="0 0 100 100" aria-label="Vector editor stage">
+          <defs>
+            <pattern id="artboard-grid" width="24" height="24" patternUnits="userSpaceOnUse">
+              <rect width="24" height="24" fill="var(--artboard)" />
+              <path d="M 24 0 L 0 0 0 24" fill="none" stroke="var(--artboard-grid)" stroke-width="1" />
+            </pattern>
+          </defs>
+          <g id="camera">
+            <g id="artboardGroup" class="artboard-shadow">
+              <rect id="artboard" x="0" y="0" width="1280" height="800" fill="url(#artboard-grid)" stroke="rgba(0,0,0,.08)" />
+            </g>
+            <g id="scene"></g>
+            <g id="guides"></g>
+            <g id="overlay"></g>
+          </g>
+        </svg>
+      </div>
+    </main>
+
+    <aside class="sidebar shell">
+      <section class="panel-section">
+        <h2 class="panel-title"><span data-i18n="documentPanel">Document</span><i class="fa-regular fa-file"></i></h2>
+        <div class="stack">
+          <label class="field"><span data-i18n="documentName">Name</span><input class="text-input" id="docNameInput" type="text" /></label>
+          <div class="row wrap">
+            <label class="field"><span data-i18n="width">W</span><input class="number-input" id="docWidthInput" type="number" min="64" max="4000" step="1" /></label>
+            <label class="field"><span data-i18n="height">H</span><input class="number-input" id="docHeightInput" type="number" min="64" max="4000" step="1" /></label>
+          </div>
+          <label class="field"><span data-i18n="background">Background</span><input id="docBgInput" type="color" value="#ffffff" /></label>
+        </div>
+      </section>
+
+      <section class="panel-section">
+        <h2 class="panel-title"><span data-i18n="selectionPanel">Selection</span><i class="fa-solid fa-crosshairs"></i></h2>
+        <div class="stack">
+          <div class="row wrap">
+            <label class="field"><span data-i18n="fill">Fill</span><input id="fillInput" type="color" value="#ff7f50" /></label>
+            <label class="field"><span data-i18n="stroke">Stroke</span><input id="strokeInput" type="color" value="#0b1320" /></label>
+          </div>
+          <div class="row wrap">
+            <label class="field"><span data-i18n="strokeWidth">Stroke</span><input class="number-input" id="strokeWidthInput" type="number" min="0" max="80" step="1" /></label>
+            <label class="field"><span data-i18n="opacity">Opacity</span><input class="number-input" id="opacityInput" type="number" min="0" max="1" step="0.05" /></label>
+          </div>
+          <div class="row wrap">
+            <label class="field"><span data-i18n="fontSize">Font</span><input class="number-input" id="fontSizeInput" type="number" min="8" max="240" step="1" /></label>
+            <label class="field"><span data-i18n="fontWeight">Weight</span>
+              <select class="select" id="fontWeightSelect">
+                <option value="400">400</option>
+                <option value="500">500</option>
+                <option value="600">600</option>
+                <option value="700">700</option>
+              </select>
+            </label>
+          </div>
+          <label class="field"><span data-i18n="textContent">Text</span><input class="text-input" id="textContentInput" type="text" /></label>
+          <label class="field"><span data-i18n="closedPath">Closed</span><input id="closedPathInput" type="checkbox" /></label>
+          <label class="field"><span data-i18n="itemLabel">Label</span><input class="text-input" id="itemNameInput" type="text" /></label>
+        </div>
+      </section>
+
+      <section class="panel-section">
+        <h2 class="panel-title"><span data-i18n="layersPanel">Layers</span>
+          <div class="row">
+            <button class="icon-btn" id="addLayerBtn" data-tip="Add layer"><i class="fa-solid fa-plus"></i></button>
+            <button class="icon-btn" id="deleteLayerBtn" data-tip="Delete layer"><i class="fa-solid fa-minus"></i></button>
+          </div>
+        </h2>
+        <div class="layer-list" id="layerList"></div>
+      </section>
+
+      <section class="panel-section">
+        <h2 class="panel-title"><span data-i18n="itemsPanel">Layer Items</span><i class="fa-solid fa-shapes"></i></h2>
+        <div class="item-list" id="itemList"></div>
+      </section>
+    </aside>
+
+    <footer class="statusbar shell">
+      <span class="pill"><span data-i18n="activeTool">Tool</span><strong id="activeToolLabel">Select</strong></span>
+      <span class="pill"><span data-i18n="coordinates">Pointer</span><strong id="pointerLabel">0, 0</strong></span>
+      <span class="pill"><span data-i18n="autosaveState">Autosave</span><strong id="autosaveLabel">Idle</strong></span>
+      <span class="pill"><span class="shortcut">V</span><span data-i18n="shortcutSelect">Select</span></span>
+      <span class="pill"><span class="shortcut">P</span><span data-i18n="shortcutPen">Path</span></span>
+      <span class="pill"><span class="shortcut">Space</span><span data-i18n="shortcutPan">Pan</span></span>
+      <span class="pill"><span class="shortcut">Cmd/Ctrl+Z</span><span data-i18n="shortcutUndo">Undo</span></span>
+      <span class="pill"><span class="shortcut">Del</span><span data-i18n="shortcutDelete">Delete</span></span>
+    </footer>
+  </div>
+
+  <div class="toast" id="toast"><i class="fa-solid fa-circle-info"></i><span id="toastText"></span></div>
+
+  <script>
+    (() => {
+      const STORAGE = {
+        dbName: 'vector_editor_db',
+        version: 1,
+        stores: { documents: 'documents', settings: 'settings' },
+        keys: { autosave: 'autosave', settings: 'ui-settings' },
+        theme: 'vector_editor_theme',
+        lang: 'vector_editor_lang'
+      };
+
+      const TOOL_KEYS = ['select', 'hand', 'rect', 'ellipse', 'line', 'pen', 'text'];
+      const TOOL_SHORTCUTS = { v: 'select', h: 'hand', r: 'rect', o: 'ellipse', l: 'line', p: 'pen', t: 'text' };
+      const FONT_FAMILY = 'IBM Plex Sans, system-ui, sans-serif';
+      const GRID_DEFAULT = 24;
+      const MAX_HISTORY = 80;
+
+      const I18N = {
+        en: {
+          brandTitle: 'Vector Studio',
+          brandSub: 'SVG editor with autosave, themes, and multilingual UI.',
+          newDoc: 'New',
+          importJson: 'Import JSON',
+          exportJson: 'Export JSON',
+          exportSvg: 'Export SVG',
+          exportPng: 'Export PNG',
+          nothingSelected: 'Nothing selected',
+          showGrid: 'Grid',
+          snap: 'Snap',
+          gridSize: 'Grid',
+          documentPanel: 'Document',
+          documentName: 'Name',
+          width: 'Width',
+          height: 'Height',
+          background: 'Background',
+          selectionPanel: 'Selection',
+          fill: 'Fill',
+          stroke: 'Stroke',
+          strokeWidth: 'Stroke',
+          opacity: 'Opacity',
+          fontSize: 'Font size',
+          fontWeight: 'Weight',
+          textContent: 'Text',
+          closedPath: 'Closed path',
+          itemLabel: 'Label',
+          layersPanel: 'Layers',
+          itemsPanel: 'Layer Items',
+          activeTool: 'Tool',
+          coordinates: 'Pointer',
+          autosaveState: 'Autosave',
+          shortcutSelect: 'Select',
+          shortcutPen: 'Path',
+          shortcutPan: 'Pan',
+          shortcutUndo: 'Undo',
+          shortcutDelete: 'Delete',
+          toolSelect: 'Select',
+          toolHand: 'Hand',
+          toolRect: 'Rectangle',
+          toolEllipse: 'Ellipse',
+          toolLine: 'Line',
+          toolPen: 'Path',
+          toolText: 'Text',
+          duplicate: 'Duplicate',
+          bringForward: 'Bring forward',
+          sendBackward: 'Send backward',
+          deleteItem: 'Delete',
+          addLayer: 'Add layer',
+          deleteLayer: 'Delete layer',
+          undo: 'Undo',
+          redo: 'Redo',
+          fitArtboard: 'Fit artboard',
+          themeDark: 'Dark',
+          themeLight: 'Light',
+          promptText: 'Text content',
+          promptLayer: 'Layer name',
+          draftPath: 'Path mode: click to add points, Enter or double-click to finish.',
+          autosaveIdle: 'Idle',
+          autosaveSaving: 'Saving…',
+          autosaveSaved: 'Saved',
+          toastSaved: 'Document saved locally.',
+          toastLoaded: 'Autosave restored.',
+          toastExported: 'File exported.',
+          toastImported: 'Project imported.',
+          toastNeedSelection: 'Select an object first.',
+          toastNeedLayer: 'At least one layer must remain.',
+          toastPathFinished: 'Path completed.',
+          toastDeleted: 'Selection deleted.',
+          toastReset: 'New document ready.',
+          confirmNew: 'Start a new document? Unsaved changes in the current history will be replaced.',
+          untitled: 'Untitled vector',
+          layerName: 'Layer',
+          itemRect: 'Rectangle',
+          itemEllipse: 'Ellipse',
+          itemLine: 'Line',
+          itemPath: 'Path',
+          itemTextType: 'Text',
+          themeLabelDark: 'Dark',
+          themeLabelLight: 'Light'
+        },
+        pt: {
+          brandTitle: 'Vector Studio',
+          brandSub: 'Editor SVG com autosave, temas e interface multilíngue.',
+          newDoc: 'Novo',
+          importJson: 'Importar JSON',
+          exportJson: 'Exportar JSON',
+          exportSvg: 'Exportar SVG',
+          exportPng: 'Exportar PNG',
+          nothingSelected: 'Nada selecionado',
+          showGrid: 'Grade',
+          snap: 'Snap',
+          gridSize: 'Grade',
+          documentPanel: 'Documento',
+          documentName: 'Nome',
+          width: 'Largura',
+          height: 'Altura',
+          background: 'Fundo',
+          selectionPanel: 'Seleção',
+          fill: 'Preench.',
+          stroke: 'Traço',
+          strokeWidth: 'Esp. traço',
+          opacity: 'Opacidade',
+          fontSize: 'Tamanho',
+          fontWeight: 'Peso',
+          textContent: 'Texto',
+          closedPath: 'Fechar path',
+          itemLabel: 'Rótulo',
+          layersPanel: 'Camadas',
+          itemsPanel: 'Itens da Camada',
+          activeTool: 'Ferramenta',
+          coordinates: 'Ponteiro',
+          autosaveState: 'Autosave',
+          shortcutSelect: 'Selecionar',
+          shortcutPen: 'Path',
+          shortcutPan: 'Mover',
+          shortcutUndo: 'Desfazer',
+          shortcutDelete: 'Apagar',
+          toolSelect: 'Selecionar',
+          toolHand: 'Mão',
+          toolRect: 'Retângulo',
+          toolEllipse: 'Elipse',
+          toolLine: 'Linha',
+          toolPen: 'Path',
+          toolText: 'Texto',
+          duplicate: 'Duplicar',
+          bringForward: 'Trazer à frente',
+          sendBackward: 'Mandar para trás',
+          deleteItem: 'Excluir',
+          addLayer: 'Nova camada',
+          deleteLayer: 'Excluir camada',
+          undo: 'Desfazer',
+          redo: 'Refazer',
+          fitArtboard: 'Ajustar prancheta',
+          themeDark: 'Escuro',
+          themeLight: 'Claro',
+          promptText: 'Conteúdo do texto',
+          promptLayer: 'Nome da camada',
+          draftPath: 'Modo path: clique para adicionar pontos, Enter ou duplo clique para finalizar.',
+          autosaveIdle: 'Parado',
+          autosaveSaving: 'Salvando…',
+          autosaveSaved: 'Salvo',
+          toastSaved: 'Documento salvo localmente.',
+          toastLoaded: 'Autosave restaurado.',
+          toastExported: 'Arquivo exportado.',
+          toastImported: 'Projeto importado.',
+          toastNeedSelection: 'Selecione um objeto primeiro.',
+          toastNeedLayer: 'Ao menos uma camada deve permanecer.',
+          toastPathFinished: 'Path finalizado.',
+          toastDeleted: 'Seleção apagada.',
+          toastReset: 'Novo documento pronto.',
+          confirmNew: 'Criar um novo documento? O histórico atual será substituído.',
+          untitled: 'Vetor sem título',
+          layerName: 'Camada',
+          itemRect: 'Retângulo',
+          itemEllipse: 'Elipse',
+          itemLine: 'Linha',
+          itemPath: 'Path',
+          itemTextType: 'Texto',
+          themeLabelDark: 'Escuro',
+          themeLabelLight: 'Claro'
+        },
+        ja: {
+          brandTitle: 'Vector Studio',
+          brandSub: 'オートセーブ、テーマ、EN/PT/JA UI を備えた SVG エディタ。',
+          newDoc: '新規',
+          importJson: 'JSON読込',
+          exportJson: 'JSON書出し',
+          exportSvg: 'SVG書出し',
+          exportPng: 'PNG書出し',
+          nothingSelected: '未選択',
+          showGrid: 'グリッド',
+          snap: 'スナップ',
+          gridSize: 'グリッド',
+          documentPanel: 'ドキュメント',
+          documentName: '名前',
+          width: '幅',
+          height: '高さ',
+          background: '背景',
+          selectionPanel: '選択',
+          fill: '塗り',
+          stroke: '線',
+          strokeWidth: '線幅',
+          opacity: '不透明度',
+          fontSize: '文字サイズ',
+          fontWeight: '太さ',
+          textContent: 'テキスト',
+          closedPath: '閉じる',
+          itemLabel: 'ラベル',
+          layersPanel: 'レイヤー',
+          itemsPanel: 'レイヤー項目',
+          activeTool: 'ツール',
+          coordinates: 'ポインタ',
+          autosaveState: '自動保存',
+          shortcutSelect: '選択',
+          shortcutPen: 'パス',
+          shortcutPan: 'パン',
+          shortcutUndo: '元に戻す',
+          shortcutDelete: '削除',
+          toolSelect: '選択',
+          toolHand: '手のひら',
+          toolRect: '長方形',
+          toolEllipse: '楕円',
+          toolLine: '線',
+          toolPen: 'パス',
+          toolText: 'テキスト',
+          duplicate: '複製',
+          bringForward: '前面へ',
+          sendBackward: '背面へ',
+          deleteItem: '削除',
+          addLayer: 'レイヤー追加',
+          deleteLayer: 'レイヤー削除',
+          undo: '元に戻す',
+          redo: 'やり直す',
+          fitArtboard: 'アートボードに合わせる',
+          themeDark: 'ダーク',
+          themeLight: 'ライト',
+          promptText: 'テキスト内容',
+          promptLayer: 'レイヤー名',
+          draftPath: 'パスモード: クリックで点追加、Enter またはダブルクリックで終了。',
+          autosaveIdle: '待機中',
+          autosaveSaving: '保存中…',
+          autosaveSaved: '保存済み',
+          toastSaved: 'ドキュメントをローカル保存しました。',
+          toastLoaded: 'オートセーブを復元しました。',
+          toastExported: '書き出しました。',
+          toastImported: 'プロジェクトを読み込みました。',
+          toastNeedSelection: '先にオブジェクトを選択してください。',
+          toastNeedLayer: '少なくとも1レイヤーが必要です。',
+          toastPathFinished: 'パスを確定しました。',
+          toastDeleted: '選択を削除しました。',
+          toastReset: '新しいドキュメントを準備しました。',
+          confirmNew: '新しいドキュメントを作成しますか？現在の履歴は置き換えられます。',
+          untitled: '無題ベクター',
+          layerName: 'レイヤー',
+          itemRect: '長方形',
+          itemEllipse: '楕円',
+          itemLine: '線',
+          itemPath: 'パス',
+          itemTextType: 'テキスト',
+          themeLabelDark: 'ダーク',
+          themeLabelLight: 'ライト'
+        }
+      };
+
+      const $ = (selector) => document.querySelector(selector);
+      const $$ = (selector) => Array.from(document.querySelectorAll(selector));
+      const stage = $('#stage');
+      const stageWrap = $('#stageWrap');
+      const camera = $('#camera');
+      const artboard = $('#artboard');
+      const scene = $('#scene');
+      const overlay = $('#overlay');
+      const guides = $('#guides');
+      const toastEl = $('#toast');
+      const toastTextEl = $('#toastText');
+
+      let dbPromise = null;
+      let history = [];
+      let historyIndex = -1;
+      let saveTimer = null;
+      let toastTimer = null;
+      let isSpacePanning = false;
+      let state = null;
+
+      function uid(prefix) {
+        return `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
+      }
+
+      function deepClone(value) {
+        return JSON.parse(JSON.stringify(value));
+      }
+
+      function t(key) {
+        const lang = state?.ui?.lang || 'en';
+        return I18N[lang]?.[key] || I18N.en[key] || key;
+      }
+
+      function makeLayer(name, index = 1) {
+        return {
+          id: uid('layer'),
+          name: name || `${t('layerName')} ${index}`,
+          visible: true,
+          locked: false,
+          items: []
+        };
+      }
+
+      function defaultDoc() {
+        return {
+          id: uid('doc'),
+          name: t('untitled'),
+          width: 1280,
+          height: 800,
+          bg: '#ffffff',
+          gridSize: GRID_DEFAULT,
+          showGrid: true,
+          snap: true,
+          layers: [makeLayer(undefined, 1)]
+        };
+      }
+
+      function defaultState() {
+        const theme = localStorage.getItem(STORAGE.theme) || 'dark';
+        const lang = localStorage.getItem(STORAGE.lang) || 'en';
+        const doc = defaultDoc();
+        return {
+          doc,
+          ui: {
+            activeTool: 'select',
+            theme,
+            lang,
+            zoom: 1,
+            pan: { x: 140, y: 90 },
+            activeLayerId: doc.layers[0].id,
+            selectedId: null,
+            pointer: { x: 0, y: 0 },
+            autosave: 'idle'
+          },
+          interaction: {
+            mode: null,
+            pointerId: null,
+            start: null,
+            startDoc: null,
+            startItem: null,
+            handle: null,
+            layerId: null,
+            nodeIndex: null
+          },
+          penDraft: null
+        };
+      }
+
+      function resetState(doc = null, options = {}) {
+        const { seedHistory = true } = options;
+        state = defaultState();
+        if (doc) {
+          state.doc = doc;
+          state.ui.activeLayerId = doc.layers[0]?.id || null;
+        }
+        history = [];
+        historyIndex = -1;
+        if (seedHistory) {
+          pushHistory();
+        }
+      }
+
+      function getDb() {
+        if (dbPromise) return dbPromise;
+        dbPromise = new Promise((resolve, reject) => {
+          const request = indexedDB.open(STORAGE.dbName, STORAGE.version);
+          request.onupgradeneeded = () => {
+            const db = request.result;
+            if (!db.objectStoreNames.contains(STORAGE.stores.documents)) {
+              db.createObjectStore(STORAGE.stores.documents);
+            }
+            if (!db.objectStoreNames.contains(STORAGE.stores.settings)) {
+              db.createObjectStore(STORAGE.stores.settings);
+            }
+          };
+          request.onsuccess = () => resolve(request.result);
+          request.onerror = () => reject(request.error);
+        });
+        return dbPromise;
+      }
+
+      async function idbGet(storeName, key) {
+        const db = await getDb();
+        return new Promise((resolve, reject) => {
+          const tx = db.transaction(storeName, 'readonly');
+          const store = tx.objectStore(storeName);
+          const request = store.get(key);
+          request.onsuccess = () => resolve(request.result ?? null);
+          request.onerror = () => reject(request.error);
+        });
+      }
+
+      async function idbSet(storeName, key, value) {
+        const db = await getDb();
+        return new Promise((resolve, reject) => {
+          const tx = db.transaction(storeName, 'readwrite');
+          tx.objectStore(storeName).put(value, key);
+          tx.oncomplete = () => resolve();
+          tx.onerror = () => reject(tx.error);
+        });
+      }
+
+      function setAutosaveStatus(kind) {
+        state.ui.autosave = kind;
+        $('#autosaveLabel').textContent = t(`autosave${kind[0].toUpperCase()}${kind.slice(1)}`) || t('autosaveIdle');
+      }
+
+      function showToast(messageKeyOrText, raw = false) {
+        clearTimeout(toastTimer);
+        toastTextEl.textContent = raw ? messageKeyOrText : t(messageKeyOrText);
+        toastEl.classList.add('show');
+        toastTimer = setTimeout(() => toastEl.classList.remove('show'), 1900);
+      }
+
+      function pushHistory() {
+        const snapshot = deepClone({ doc: state.doc, ui: { selectedId: state.ui.selectedId, activeLayerId: state.ui.activeLayerId } });
+        history = history.slice(0, historyIndex + 1);
+        history.push(snapshot);
+        if (history.length > MAX_HISTORY) {
+          history.shift();
+        }
+        historyIndex = history.length - 1;
+        updateUndoRedoButtons();
+        scheduleAutosave();
+      }
+
+      function restoreHistory(index) {
+        if (index < 0 || index >= history.length) return;
+        historyIndex = index;
+        const snapshot = deepClone(history[index]);
+        state.doc = snapshot.doc;
+        state.ui.selectedId = snapshot.ui.selectedId;
+        state.ui.activeLayerId = snapshot.ui.activeLayerId || state.doc.layers[0]?.id || null;
+        state.penDraft = null;
+        state.interaction = { mode: null, pointerId: null, start: null, startDoc: null, startItem: null, handle: null, layerId: null, nodeIndex: null };
+        updateUndoRedoButtons();
+        render();
+      }
+
+      function undo() {
+        if (historyIndex <= 0) return;
+        restoreHistory(historyIndex - 1);
+      }
+
+      function redo() {
+        if (historyIndex >= history.length - 1) return;
+        restoreHistory(historyIndex + 1);
+      }
+
+      function updateUndoRedoButtons() {
+        $('#undoBtn').disabled = historyIndex <= 0;
+        $('#redoBtn').disabled = historyIndex >= history.length - 1;
+      }
+
+      function getLayer(layerId = state.ui.activeLayerId) {
+        return state.doc.layers.find((layer) => layer.id === layerId) || null;
+      }
+
+      function getSelectedItemLocation() {
+        if (!state.ui.selectedId) return null;
+        for (const layer of state.doc.layers) {
+          const index = layer.items.findIndex((item) => item.id === state.ui.selectedId);
+          if (index !== -1) return { layer, index, item: layer.items[index] };
+        }
+        return null;
+      }
+
+      function getItemById(id) {
+        for (const layer of state.doc.layers) {
+          const index = layer.items.findIndex((item) => item.id === id);
+          if (index !== -1) return { layer, index, item: layer.items[index] };
+        }
+        return null;
+      }
+
+      function selectItem(id) {
+        state.ui.selectedId = id;
+        const location = getSelectedItemLocation();
+        if (location) {
+          state.ui.activeLayerId = location.layer.id;
+        }
+        updateSelectionFields();
+        render();
+      }
+
+      function deselect() {
+        state.ui.selectedId = null;
+        updateSelectionFields();
+        render();
+      }
+
+      function currentTool() {
+        return state.ui.activeTool;
+      }
+
+      function setTool(tool) {
+        state.ui.activeTool = tool;
+        $$('.tool-btn').forEach((button) => button.classList.toggle('active', button.dataset.tool === tool));
+        $('#activeToolLabel').textContent = t(`tool${tool[0].toUpperCase()}${tool.slice(1)}`);
+        stageWrap.classList.toggle('hand', tool === 'hand' || isSpacePanning);
+        if (tool !== 'pen') {
+          state.penDraft = null;
+        }
+        render();
+      }
+
+      function setTheme(theme) {
+        state.ui.theme = theme;
+        document.documentElement.dataset.theme = theme;
+        localStorage.setItem(STORAGE.theme, theme);
+      }
+
+      function setLanguage(lang) {
+        state.ui.lang = lang;
+        localStorage.setItem(STORAGE.lang, lang);
+        document.documentElement.lang = lang;
+        applyI18n();
+        render();
+      }
+
+      function applyI18n() {
+        $$('[data-i18n]').forEach((element) => {
+          element.textContent = t(element.dataset.i18n);
+        });
+
+        const tooltips = {
+          undoBtn: 'undo',
+          redoBtn: 'redo',
+          fitBtn: 'fitArtboard',
+          duplicateBtn: 'duplicate',
+          bringFrontBtn: 'bringForward',
+          sendBackBtn: 'sendBackward',
+          deleteBtn: 'deleteItem',
+          addLayerBtn: 'addLayer',
+          deleteLayerBtn: 'deleteLayer'
+        };
+        Object.entries(tooltips).forEach(([id, key]) => {
+          const el = document.getElementById(id);
+          if (el) el.setAttribute('data-tip', t(key));
+        });
+
+        const toolTipKeys = {
+          select: 'toolSelect',
+          hand: 'toolHand',
+          rect: 'toolRect',
+          ellipse: 'toolEllipse',
+          line: 'toolLine',
+          pen: 'toolPen',
+          text: 'toolText'
+        };
+        $$('.tool-btn').forEach((button) => {
+          const base = t(toolTipKeys[button.dataset.tool]);
+          const shortcut = Object.entries(TOOL_SHORTCUTS).find(([, value]) => value === button.dataset.tool)?.[0]?.toUpperCase() || '';
+          button.setAttribute('data-tip', shortcut ? `${base} (${shortcut})` : base);
+          button.setAttribute('aria-label', base);
+        });
+
+        $('#themeSelect').options[0].textContent = t('themeLabelDark');
+        $('#themeSelect').options[1].textContent = t('themeLabelLight');
+        $('#selectionLabel').textContent = state.ui.selectedId ? $('#selectionLabel').textContent : t('nothingSelected');
+        $('#autosaveLabel').textContent = t(`autosave${state.ui.autosave[0].toUpperCase()}${state.ui.autosave.slice(1)}`) || t('autosaveIdle');
+      }
+
+      function describeItemType(item) {
+        if (!item) return t('nothingSelected');
+        const keyMap = { rect: 'itemRect', ellipse: 'itemEllipse', line: 'itemLine', path: 'itemPath', text: 'itemTextType' };
+        return t(keyMap[item.type] || 'nothingSelected');
+      }
+
+      function makeItemName(type, count) {
+        const keyMap = { rect: 'itemRect', ellipse: 'itemEllipse', line: 'itemLine', path: 'itemPath', text: 'itemTextType' };
+        return `${t(keyMap[type])} ${count}`;
+      }
+
+      function selectedItem() {
+        return getSelectedItemLocation()?.item || null;
+      }
+
+      function itemCount() {
+        return state.doc.layers.reduce((sum, layer) => sum + layer.items.length, 0);
+      }
+
+      function addItem(item, layerId = state.ui.activeLayerId) {
+        const layer = getLayer(layerId) || state.doc.layers[0];
+        layer.items.push(item);
+        selectItem(item.id);
+      }
+
+      function snapValue(value) {
+        return state.doc.snap ? Math.round(value / state.doc.gridSize) * state.doc.gridSize : value;
+      }
+
+      function snapPoint(point) {
+        return { x: snapValue(point.x), y: snapValue(point.y) };
+      }
+
+      function updatePattern() {
+        const pattern = $('#artboard-grid');
+        pattern.setAttribute('width', state.doc.gridSize);
+        pattern.setAttribute('height', state.doc.gridSize);
+        pattern.innerHTML = `
+          <rect width="${state.doc.gridSize}" height="${state.doc.gridSize}" fill="${state.doc.showGrid ? 'var(--artboard)' : state.doc.bg}" />
+          ${state.doc.showGrid ? `<path d="M ${state.doc.gridSize} 0 L 0 0 0 ${state.doc.gridSize}" fill="none" stroke="var(--artboard-grid)" stroke-width="1" />` : ''}
+        `;
+      }
+
+      function updateViewportSize() {
+        const width = Math.max(stageWrap.clientWidth, 1);
+        const height = Math.max(stageWrap.clientHeight, 1);
+        stage.setAttribute('viewBox', `0 0 ${width} ${height}`);
+      }
+
+      function updateCamera() {
+        camera.setAttribute('transform', `translate(${state.ui.pan.x} ${state.ui.pan.y}) scale(${state.ui.zoom})`);
+        $('#zoomLabel').textContent = `${Math.round(state.ui.zoom * 100)}%`;
+      }
+
+      function setViewToFit() {
+        const padding = 64;
+        const boxWidth = stageWrap.clientWidth - padding * 2;
+        const boxHeight = stageWrap.clientHeight - padding * 2;
+        const zoom = Math.min(boxWidth / state.doc.width, boxHeight / state.doc.height, 1.8);
+        state.ui.zoom = Math.max(0.15, zoom);
+        state.ui.pan.x = (stageWrap.clientWidth - state.doc.width * state.ui.zoom) / 2;
+        state.ui.pan.y = (stageWrap.clientHeight - state.doc.height * state.ui.zoom) / 2;
+        updateCamera();
+      }
+
+      function svgPoint(clientX, clientY) {
+        const point = stage.createSVGPoint();
+        point.x = clientX;
+        point.y = clientY;
+        const transformed = point.matrixTransform(camera.getScreenCTM().inverse());
+        return { x: transformed.x, y: transformed.y };
+      }
+
+      function clampPoint(point) {
+        return {
+          x: Math.max(0, Math.min(state.doc.width, point.x)),
+          y: Math.max(0, Math.min(state.doc.height, point.y))
+        };
+      }
+
+      function createPathAnchor(point) {
+        return {
+          x: point.x,
+          y: point.y,
+          inX: null,
+          inY: null,
+          outX: null,
+          outY: null
+        };
+      }
+
+      function shiftPathAnchor(anchor, dx, dy) {
+        return {
+          x: anchor.x + dx,
+          y: anchor.y + dy,
+          inX: anchor.inX == null ? null : anchor.inX + dx,
+          inY: anchor.inY == null ? null : anchor.inY + dy,
+          outX: anchor.outX == null ? null : anchor.outX + dx,
+          outY: anchor.outY == null ? null : anchor.outY + dy
+        };
+      }
+
+      function pointsAreNear(pointA, pointB, tolerance = 8 / Math.max(state.ui.zoom, 0.1)) {
+        return Math.hypot(pointA.x - pointB.x, pointA.y - pointB.y) <= tolerance;
+      }
+
+      function getItemBounds(item) {
+        if (item.type === 'rect' || item.type === 'ellipse' || item.type === 'text') {
+          return { x: item.x, y: item.y, width: item.width, height: item.height };
+        }
+        if (item.type === 'line') {
+          const minX = Math.min(item.x1, item.x2);
+          const minY = Math.min(item.y1, item.y2);
+          return { x: minX, y: minY, width: Math.abs(item.x2 - item.x1), height: Math.abs(item.y2 - item.y1) };
+        }
+        if (item.type === 'path') {
+          const coords = item.points.flatMap((point) => {
+            const points = [[point.x, point.y]];
+            if (point.inX != null && point.inY != null) points.push([point.inX, point.inY]);
+            if (point.outX != null && point.outY != null) points.push([point.outX, point.outY]);
+            return points;
+          });
+          const xs = coords.map((coord) => coord[0]);
+          const ys = coords.map((coord) => coord[1]);
+          return {
+            x: Math.min(...xs),
+            y: Math.min(...ys),
+            width: Math.max(...xs) - Math.min(...xs),
+            height: Math.max(...ys) - Math.min(...ys)
+          };
+        }
+        return { x: 0, y: 0, width: 0, height: 0 };
+      }
+
+      function createSvg(tagName, attributes = {}) {
+        const element = document.createElementNS('http://www.w3.org/2000/svg', tagName);
+        Object.entries(attributes).forEach(([key, value]) => element.setAttribute(key, value));
+        return element;
+      }
+
+      function pathData(points, closed) {
+        if (!points.length) return '';
+        const parts = [`M ${points[0].x} ${points[0].y}`];
+        for (let index = 1; index < points.length; index += 1) {
+          const prev = points[index - 1];
+          const curr = points[index];
+          const hasCurve = prev.outX != null || curr.inX != null;
+          if (hasCurve) {
+            const cp1x = prev.outX ?? prev.x;
+            const cp1y = prev.outY ?? prev.y;
+            const cp2x = curr.inX ?? curr.x;
+            const cp2y = curr.inY ?? curr.y;
+            parts.push(`C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${curr.x} ${curr.y}`);
+          } else {
+            parts.push(`L ${curr.x} ${curr.y}`);
+          }
+        }
+        if (closed && points.length > 1) {
+          const last = points[points.length - 1];
+          const first = points[0];
+          const hasClosingCurve = last.outX != null || first.inX != null;
+          if (hasClosingCurve) {
+            const cp1x = last.outX ?? last.x;
+            const cp1y = last.outY ?? last.y;
+            const cp2x = first.inX ?? first.x;
+            const cp2y = first.inY ?? first.y;
+            parts.push(`C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${first.x} ${first.y}`);
+          } else {
+            parts.push('Z');
+          }
+        }
+        return parts.join(' ');
+      }
+
+      function renderScene() {
+        scene.innerHTML = '';
+        artboard.setAttribute('width', state.doc.width);
+        artboard.setAttribute('height', state.doc.height);
+        artboard.setAttribute('fill', state.doc.showGrid ? 'url(#artboard-grid)' : state.doc.bg);
+        artboard.setAttribute('stroke', 'rgba(0,0,0,.08)');
+
+        state.doc.layers.forEach((layer) => {
+          if (!layer.visible) return;
+          const group = createSvg('g', { 'data-layer-id': layer.id });
+          if (layer.locked) group.setAttribute('opacity', '0.74');
+
+          layer.items.forEach((item) => {
+            let element = null;
+            if (item.type === 'rect') {
+              element = createSvg('rect', {
+                x: item.x,
+                y: item.y,
+                width: item.width,
+                height: item.height,
+                rx: item.corner || 14,
+                fill: item.fill,
+                stroke: item.stroke,
+                'stroke-width': item.strokeWidth,
+                opacity: item.opacity
+              });
+            } else if (item.type === 'ellipse') {
+              element = createSvg('ellipse', {
+                cx: item.x + item.width / 2,
+                cy: item.y + item.height / 2,
+                rx: Math.abs(item.width / 2),
+                ry: Math.abs(item.height / 2),
+                fill: item.fill,
+                stroke: item.stroke,
+                'stroke-width': item.strokeWidth,
+                opacity: item.opacity
+              });
+            } else if (item.type === 'line') {
+              element = createSvg('line', {
+                x1: item.x1,
+                y1: item.y1,
+                x2: item.x2,
+                y2: item.y2,
+                stroke: item.stroke,
+                'stroke-width': item.strokeWidth,
+                'stroke-linecap': 'round',
+                opacity: item.opacity
+              });
+            } else if (item.type === 'path') {
+              element = createSvg('path', {
+                d: pathData(item.points, item.closed),
+                fill: item.closed ? item.fill : 'none',
+                stroke: item.stroke,
+                'stroke-width': item.strokeWidth,
+                'stroke-linecap': 'round',
+                'stroke-linejoin': 'round',
+                opacity: item.opacity
+              });
+            } else if (item.type === 'text') {
+              element = createSvg('text', {
+                x: item.x,
+                y: item.y + item.fontSize,
+                fill: item.fill,
+                opacity: item.opacity,
+                'font-size': item.fontSize,
+                'font-weight': item.fontWeight,
+                'font-family': FONT_FAMILY,
+                'dominant-baseline': 'alphabetic'
+              });
+              element.textContent = item.text;
+            }
+
+            if (!element) return;
+            element.setAttribute('data-item-id', item.id);
+            element.setAttribute('vector-effect', 'non-scaling-stroke');
+            element.style.cursor = currentTool() === 'hand' ? 'grab' : 'pointer';
+            if (item.id === state.ui.selectedId) {
+              element.setAttribute('filter', 'drop-shadow(0 0 0 rgba(0,0,0,0))');
+            }
+            group.appendChild(element);
+          });
+
+          scene.appendChild(group);
+        });
+      }
+
+      function renderPenDraft() {
+        if (!state.penDraft) return;
+        const points = state.penDraft.points.slice();
+        if (state.penDraft.preview) points.push(state.penDraft.preview);
+        if (!points.length) return;
+        const draftPath = createSvg('path', {
+          d: pathData(points, false),
+          fill: 'none',
+          stroke: 'var(--accent)',
+          'stroke-width': 2,
+          'stroke-dasharray': '6 6',
+          'vector-effect': 'non-scaling-stroke'
+        });
+        overlay.appendChild(draftPath);
+        state.penDraft.points.forEach((point, index) => {
+          if (point.inX != null && point.inY != null) {
+            overlay.appendChild(createSvg('line', {
+              x1: point.x,
+              y1: point.y,
+              x2: point.inX,
+              y2: point.inY,
+              class: 'guide-line'
+            }));
+            overlay.appendChild(createSvg('circle', {
+              cx: point.inX,
+              cy: point.inY,
+              r: 4,
+              class: 'handle'
+            }));
+          }
+          if (point.outX != null && point.outY != null) {
+            overlay.appendChild(createSvg('line', {
+              x1: point.x,
+              y1: point.y,
+              x2: point.outX,
+              y2: point.outY,
+              class: 'guide-line'
+            }));
+            overlay.appendChild(createSvg('circle', {
+              cx: point.outX,
+              cy: point.outY,
+              r: 4,
+              class: 'handle'
+            }));
+          }
+          overlay.appendChild(createSvg('circle', {
+            cx: point.x,
+            cy: point.y,
+            r: index === 0 ? 6 : 5,
+            class: 'node-handle'
+          }));
+        });
+      }
+
+      function renderSelectionOverlay() {
+        overlay.innerHTML = '';
+        guides.innerHTML = '';
+
+        const item = selectedItem();
+        if (!item) {
+          renderPenDraft();
+          return;
+        }
+
+        const bounds = getItemBounds(item);
+        overlay.appendChild(createSvg('rect', {
+          x: bounds.x,
+          y: bounds.y,
+          width: Math.max(bounds.width, 1),
+          height: Math.max(bounds.height, 1),
+          class: 'selection-box'
+        }));
+
+        if (item.type === 'line') {
+          [
+            { x: item.x1, y: item.y1, handle: 'line-start' },
+            { x: item.x2, y: item.y2, handle: 'line-end' }
+          ].forEach((point) => {
+            overlay.appendChild(createSvg('circle', {
+              cx: point.x,
+              cy: point.y,
+              r: 6,
+              class: 'node-handle',
+              'data-handle': point.handle
+            }));
+          });
+        } else if (item.type === 'path') {
+          item.points.forEach((point, index) => {
+            if (point.inX != null && point.inY != null) {
+              overlay.appendChild(createSvg('line', {
+                x1: point.x,
+                y1: point.y,
+                x2: point.inX,
+                y2: point.inY,
+                class: 'guide-line'
+              }));
+              overlay.appendChild(createSvg('circle', {
+                cx: point.inX,
+                cy: point.inY,
+                r: 4,
+                class: 'handle'
+              }));
+            }
+            if (point.outX != null && point.outY != null) {
+              overlay.appendChild(createSvg('line', {
+                x1: point.x,
+                y1: point.y,
+                x2: point.outX,
+                y2: point.outY,
+                class: 'guide-line'
+              }));
+              overlay.appendChild(createSvg('circle', {
+                cx: point.outX,
+                cy: point.outY,
+                r: 4,
+                class: 'handle'
+              }));
+            }
+            overlay.appendChild(createSvg('circle', {
+              cx: point.x,
+              cy: point.y,
+              r: 5.5,
+              class: 'node-handle',
+              'data-handle': 'path-node',
+              'data-node-index': index
+            }));
+          });
+        } else {
+          const handles = [
+            { x: bounds.x, y: bounds.y, key: 'nw' },
+            { x: bounds.x + bounds.width, y: bounds.y, key: 'ne' },
+            { x: bounds.x + bounds.width, y: bounds.y + bounds.height, key: 'se' },
+            { x: bounds.x, y: bounds.y + bounds.height, key: 'sw' }
+          ];
+          handles.forEach((handle) => {
+            overlay.appendChild(createSvg('rect', {
+              x: handle.x - 5,
+              y: handle.y - 5,
+              width: 10,
+              height: 10,
+              rx: 2,
+              class: 'handle',
+              'data-handle': handle.key
+            }));
+          });
+        }
+
+        overlay.appendChild(createSvg('text', {
+          x: bounds.x,
+          y: Math.max(bounds.y - 10, 16),
+          class: 'overlay-label'
+        })).textContent = item.name || describeItemType(item);
+        renderPenDraft();
+      }
+
+      function renderLayers() {
+        const container = $('#layerList');
+        container.innerHTML = '';
+        state.doc.layers.forEach((layer, index) => {
+          const row = document.createElement('div');
+          row.className = `layer-row${layer.id === state.ui.activeLayerId ? ' active' : ''}`;
+          row.innerHTML = `
+            <input type="checkbox" ${layer.visible ? 'checked' : ''} data-action="visible" />
+            <div>
+              <div class="layer-name"></div>
+              <div class="layer-meta">${layer.items.length}</div>
+            </div>
+            <button class="icon-btn" data-action="lock"></button>
+            <button class="icon-btn" data-action="up"></button>
+          `;
+          row.querySelector('.layer-name').textContent = layer.name || `${t('layerName')} ${index + 1}`;
+          row.querySelector('[data-action="lock"]').innerHTML = `<i class="fa-solid ${layer.locked ? 'fa-lock' : 'fa-lock-open'}"></i>`;
+          row.querySelector('[data-action="lock"]').setAttribute('data-tip', layer.locked ? 'Unlock' : 'Lock');
+          row.querySelector('[data-action="up"]').innerHTML = '<i class="fa-solid fa-arrow-up-right-dots"></i>';
+          row.querySelector('[data-action="up"]').setAttribute('data-tip', 'Set active');
+          row.querySelector('[data-action="visible"]').addEventListener('change', (event) => {
+            layer.visible = event.target.checked;
+            pushHistory();
+            render();
+          });
+          row.querySelector('[data-action="lock"]').addEventListener('click', () => {
+            layer.locked = !layer.locked;
+            pushHistory();
+            render();
+          });
+          row.querySelector('[data-action="up"]').addEventListener('click', () => {
+            state.ui.activeLayerId = layer.id;
+            render();
+          });
+          row.addEventListener('dblclick', () => {
+            const renamed = prompt(t('promptLayer'), layer.name);
+            if (renamed) {
+              layer.name = renamed;
+              pushHistory();
+              render();
+            }
+          });
+          row.addEventListener('click', (event) => {
+            if (event.target.closest('button, input')) return;
+            state.ui.activeLayerId = layer.id;
+            render();
+          });
+          container.appendChild(row);
+        });
+      }
+
+      function renderItems() {
+        const container = $('#itemList');
+        container.innerHTML = '';
+        const layer = getLayer();
+        if (!layer) return;
+        [...layer.items].reverse().forEach((item) => {
+          const row = document.createElement('div');
+          row.className = `item-row${item.id === state.ui.selectedId ? ' active' : ''}`;
+          row.innerHTML = `
+            <i class="fa-solid fa-diamond"></i>
+            <div>
+              <div class="item-name"></div>
+              <div class="item-meta"></div>
+            </div>
+            <button class="icon-btn" data-action="pick"><i class="fa-solid fa-crosshairs"></i></button>
+          `;
+          row.querySelector('.item-name').textContent = item.name;
+          row.querySelector('.item-meta').textContent = describeItemType(item);
+          row.querySelector('[data-action="pick"]').setAttribute('data-tip', t('toolSelect'));
+          row.querySelector('[data-action="pick"]').addEventListener('click', () => selectItem(item.id));
+          row.addEventListener('click', (event) => {
+            if (event.target.closest('button')) return;
+            selectItem(item.id);
+          });
+          container.appendChild(row);
+        });
+      }
+
+      function updateDocFields() {
+        $('#docName').textContent = state.doc.name;
+        $('#docNameInput').value = state.doc.name;
+        $('#docWidthInput').value = state.doc.width;
+        $('#docHeightInput').value = state.doc.height;
+        $('#docBgInput').value = state.doc.bg;
+        $('#docSizeLabel').textContent = `${state.doc.width} x ${state.doc.height}`;
+        $('#showGridToggle').checked = state.doc.showGrid;
+        $('#snapToggle').checked = state.doc.snap;
+        $('#gridSizeInput').value = state.doc.gridSize;
+      }
+
+      function updateSelectionFields() {
+        const item = selectedItem();
+        $('#selectionLabel').textContent = item ? `${item.name} · ${describeItemType(item)}` : t('nothingSelected');
+        $('#fillInput').value = item?.fill || '#ff7f50';
+        $('#strokeInput').value = item?.stroke || '#0b1320';
+        $('#strokeWidthInput').value = item?.strokeWidth ?? 2;
+        $('#opacityInput').value = item?.opacity ?? 1;
+        $('#fontSizeInput').value = item?.fontSize ?? 48;
+        $('#fontWeightSelect').value = `${item?.fontWeight ?? 600}`;
+        $('#textContentInput').value = item?.text || '';
+        $('#closedPathInput').checked = Boolean(item?.closed);
+        $('#itemNameInput').value = item?.name || '';
+
+        const textOnly = item?.type === 'text';
+        const pathOnly = item?.type === 'path';
+        $('#fontSizeInput').closest('.field').classList.toggle('hidden', !textOnly);
+        $('#fontWeightSelect').closest('.field').classList.toggle('hidden', !textOnly);
+        $('#textContentInput').closest('.field').classList.toggle('hidden', !textOnly);
+        $('#closedPathInput').closest('.field').classList.toggle('hidden', !pathOnly);
+      }
+
+      function render() {
+        updateViewportSize();
+        updatePattern();
+        updateCamera();
+        renderScene();
+        renderSelectionOverlay();
+        renderLayers();
+        renderItems();
+        updateDocFields();
+        updateSelectionFields();
+        applyI18n();
+      }
+
+      function scheduleAutosave() {
+        setAutosaveStatus('saving');
+        clearTimeout(saveTimer);
+        saveTimer = setTimeout(async () => {
+          try {
+            await idbSet(STORAGE.stores.documents, STORAGE.keys.autosave, deepClone(state.doc));
+            await idbSet(STORAGE.stores.settings, STORAGE.keys.settings, {
+              theme: state.ui.theme,
+              lang: state.ui.lang,
+              zoom: state.ui.zoom,
+              pan: state.ui.pan,
+              activeLayerId: state.ui.activeLayerId
+            });
+            setAutosaveStatus('saved');
+          } catch (error) {
+            console.error(error);
+            setAutosaveStatus('idle');
+          }
+        }, 360);
+      }
+
+      async function restoreAutosave() {
+        try {
+          clearTimeout(saveTimer);
+          const savedDoc = await idbGet(STORAGE.stores.documents, STORAGE.keys.autosave);
+          const savedUi = await idbGet(STORAGE.stores.settings, STORAGE.keys.settings);
+          if (savedDoc) {
+            resetState(savedDoc, { seedHistory: false });
+            if (savedUi) {
+              state.ui.theme = savedUi.theme || state.ui.theme;
+              state.ui.lang = savedUi.lang || state.ui.lang;
+              state.ui.zoom = savedUi.zoom || state.ui.zoom;
+              state.ui.pan = savedUi.pan || state.ui.pan;
+              state.ui.activeLayerId = savedUi.activeLayerId || state.ui.activeLayerId;
+            } else {
+              setViewToFit();
+            }
+            pushHistory();
+            showToast('toastLoaded');
+            return true;
+          }
+        } catch (error) {
+          console.error(error);
+        }
+        return false;
+      }
+
+      function exportFile(name, content, mime) {
+        const blob = new Blob([content], { type: mime });
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.download = name;
+        anchor.click();
+        URL.revokeObjectURL(url);
+        showToast('toastExported');
+      }
+
+      function documentPayload() {
+        return deepClone(state.doc);
+      }
+
+      function buildExportSvg() {
+        const copy = stage.cloneNode(true);
+        copy.removeAttribute('viewBox');
+        copy.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+        copy.setAttribute('width', state.doc.width);
+        copy.setAttribute('height', state.doc.height);
+        copy.style.background = state.doc.bg;
+
+        const copyCamera = copy.querySelector('#camera');
+        copyCamera.removeAttribute('transform');
+        const exportOverlay = copy.querySelector('#overlay');
+        const exportGuides = copy.querySelector('#guides');
+        exportOverlay.innerHTML = '';
+        exportGuides.innerHTML = '';
+
+        const exportArtboard = copy.querySelector('#artboard');
+        exportArtboard.setAttribute('fill', state.doc.showGrid ? 'url(#artboard-grid)' : state.doc.bg);
+        exportArtboard.setAttribute('stroke', 'transparent');
+        return `<?xml version="1.0" encoding="UTF-8"?>\n${new XMLSerializer().serializeToString(copy)}`;
+      }
+
+      async function exportPng() {
+        const svgText = buildExportSvg();
+        const blob = new Blob([svgText], { type: 'image/svg+xml;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const image = new Image();
+        image.decoding = 'async';
+        await new Promise((resolve, reject) => {
+          image.onload = resolve;
+          image.onerror = reject;
+          image.src = url;
+        });
+        const canvas = document.createElement('canvas');
+        canvas.width = state.doc.width;
+        canvas.height = state.doc.height;
+        const context = canvas.getContext('2d');
+        context.fillStyle = state.doc.bg;
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        context.drawImage(image, 0, 0);
+        URL.revokeObjectURL(url);
+        canvas.toBlob((pngBlob) => {
+          const pngUrl = URL.createObjectURL(pngBlob);
+          const anchor = document.createElement('a');
+          anchor.href = pngUrl;
+          anchor.download = `${slugify(state.doc.name)}.png`;
+          anchor.click();
+          URL.revokeObjectURL(pngUrl);
+          showToast('toastExported');
+        }, 'image/png');
+      }
+
+      function slugify(value) {
+        return value.toLowerCase().trim().replace(/[^a-z0-9]+/gi, '-').replace(/^-+|-+$/g, '') || 'vector-studio';
+      }
+
+      function startInteraction(mode, event, payload = {}) {
+        stage.setPointerCapture(event.pointerId);
+        state.interaction = {
+          mode,
+          pointerId: event.pointerId,
+          start: svgPoint(event.clientX, event.clientY),
+          startClient: { x: event.clientX, y: event.clientY },
+          startDoc: { zoom: state.ui.zoom, pan: deepClone(state.ui.pan) },
+          startItem: selectedItem() ? deepClone(selectedItem()) : null,
+          handle: payload.handle || null,
+          layerId: payload.layerId || null,
+          nodeIndex: payload.nodeIndex ?? null
+        };
+      }
+
+      function stopInteraction() {
+        state.interaction = { mode: null, pointerId: null, start: null, startClient: null, startDoc: null, startItem: null, handle: null, layerId: null, nodeIndex: null };
+        stageWrap.classList.remove('dragging-hand');
+      }
+
+      function createShapeDraft(type, startPoint) {
+        const snapped = snapPoint(startPoint);
+        const count = itemCount() + 1;
+        if (type === 'rect') {
+          return { id: uid('item'), type, name: makeItemName(type, count), x: snapped.x, y: snapped.y, width: 0, height: 0, corner: 14, fill: '#ffb870', stroke: '#0b1320', strokeWidth: 2, opacity: 1 };
+        }
+        if (type === 'ellipse') {
+          return { id: uid('item'), type, name: makeItemName(type, count), x: snapped.x, y: snapped.y, width: 0, height: 0, fill: '#7fd8ff', stroke: '#0b1320', strokeWidth: 2, opacity: 1 };
+        }
+        if (type === 'line') {
+          return { id: uid('item'), type, name: makeItemName(type, count), x1: snapped.x, y1: snapped.y, x2: snapped.x, y2: snapped.y, stroke: '#0b1320', strokeWidth: 4, opacity: 1, fill: 'none' };
+        }
+        return null;
+      }
+
+      function finalizeShapeDraft(draft) {
+        if (!draft) return;
+        if ((draft.type === 'rect' || draft.type === 'ellipse') && (Math.abs(draft.width) < 3 || Math.abs(draft.height) < 3)) return;
+        if (draft.type === 'line' && Math.hypot(draft.x2 - draft.x1, draft.y2 - draft.y1) < 3) return;
+
+        if (draft.type === 'rect' || draft.type === 'ellipse') {
+          if (draft.width < 0) {
+            draft.x += draft.width;
+            draft.width = Math.abs(draft.width);
+          }
+          if (draft.height < 0) {
+            draft.y += draft.height;
+            draft.height = Math.abs(draft.height);
+          }
+        }
+        addItem(draft);
+        pushHistory();
+      }
+
+      function onStagePointerDown(event) {
+        const point = clampPoint(svgPoint(event.clientX, event.clientY));
+        state.ui.pointer = point;
+        updatePointerLabel();
+
+        const handleEl = event.target.closest('[data-handle]');
+        if (handleEl && selectedItem()) {
+          const handle = handleEl.dataset.handle;
+          const nodeIndex = handleEl.dataset.nodeIndex ? Number(handleEl.dataset.nodeIndex) : null;
+          const mode = handle === 'path-node' ? 'edit-node' : 'resize';
+          startInteraction(mode, event, { handle, nodeIndex });
+          return;
+        }
+
+        if (currentTool() === 'hand' || isSpacePanning) {
+          stageWrap.classList.add('dragging-hand');
+          startInteraction('pan', event);
+          return;
+        }
+
+        const itemEl = event.target.closest('[data-item-id]');
+        const itemId = itemEl?.getAttribute('data-item-id') || null;
+        if (itemId && currentTool() === 'select') {
+          selectItem(itemId);
+          startInteraction('move', event);
+          return;
+        }
+
+        if (currentTool() === 'select') {
+          deselect();
+          return;
+        }
+
+        if (currentTool() === 'rect' || currentTool() === 'ellipse' || currentTool() === 'line') {
+          const draft = createShapeDraft(currentTool(), point);
+          addItem(draft);
+          startInteraction('draw-shape', event);
+          render();
+          return;
+        }
+
+        if (currentTool() === 'text') {
+          const text = prompt(t('promptText'), 'Headline');
+          if (!text) return;
+          const snapped = snapPoint(point);
+          addItem({
+            id: uid('item'),
+            type: 'text',
+            name: makeItemName('text', itemCount() + 1),
+            x: snapped.x,
+            y: snapped.y,
+            width: Math.max(160, text.length * 18),
+            height: 64,
+            text,
+            fill: '#102132',
+            stroke: 'none',
+            strokeWidth: 0,
+            opacity: 1,
+            fontSize: 48,
+            fontWeight: 700
+          });
+          pushHistory();
+          render();
+          return;
+        }
+
+        if (currentTool() === 'pen') {
+          const snapped = snapPoint(point);
+          if (!state.penDraft) {
+            state.penDraft = { points: [createPathAnchor(snapped)], preview: null };
+            startInteraction('pen-curve', event, { nodeIndex: 0 });
+            showToast('draftPath');
+          } else if (event.detail === 2) {
+            const lastPoint = state.penDraft.points[state.penDraft.points.length - 1];
+            if (!pointsAreNear(lastPoint, snapped)) {
+              state.penDraft.points.push(createPathAnchor(snapped));
+            }
+            finalizePenDraft(true);
+          } else {
+            const first = state.penDraft.points[0];
+            if (state.penDraft.points.length >= 3 && pointsAreNear(first, snapped)) {
+              finalizePenDraft(true);
+            } else {
+              state.penDraft.points.push(createPathAnchor(snapped));
+              startInteraction('pen-curve', event, { nodeIndex: state.penDraft.points.length - 1 });
+            }
+          }
+          render();
+        }
+      }
+
+      function onStagePointerMove(event) {
+        const point = clampPoint(svgPoint(event.clientX, event.clientY));
+        state.ui.pointer = point;
+        updatePointerLabel();
+
+        if (state.penDraft) {
+          if (state.interaction.mode === 'pen-curve') {
+            state.penDraft.preview = null;
+          } else {
+            state.penDraft.preview = createPathAnchor(snapPoint(point));
+          }
+          renderSelectionOverlay();
+        }
+
+        if (!state.interaction.mode) {
+          return;
+        }
+
+        if (state.interaction.mode === 'pan') {
+          state.ui.pan.x = state.interaction.startDoc.pan.x + (event.clientX - state.interaction.startClient.x);
+          state.ui.pan.y = state.interaction.startDoc.pan.y + (event.clientY - state.interaction.startClient.y);
+          render();
+          return;
+        }
+
+        const snapped = snapPoint(point);
+
+        if (state.interaction.mode === 'pen-curve' && state.penDraft) {
+          const anchor = state.penDraft.points[state.interaction.nodeIndex];
+          if (!anchor) return;
+          const dx = snapped.x - anchor.x;
+          const dy = snapped.y - anchor.y;
+          if (Math.hypot(dx, dy) < 4 / Math.max(state.ui.zoom, 0.1)) {
+            anchor.inX = null;
+            anchor.inY = null;
+            anchor.outX = null;
+            anchor.outY = null;
+          } else {
+            anchor.inX = snapValue(anchor.x - dx);
+            anchor.inY = snapValue(anchor.y - dy);
+            anchor.outX = snapValue(anchor.x + dx);
+            anchor.outY = snapValue(anchor.y + dy);
+          }
+          render();
+          return;
+        }
+
+        const location = getSelectedItemLocation();
+        if (!location) return;
+
+        const delta = {
+          x: snapped.x - state.interaction.start.x,
+          y: snapped.y - state.interaction.start.y
+        };
+
+        if (state.interaction.mode === 'move') {
+          const item = location.item;
+          const startItem = state.interaction.startItem;
+          if (item.type === 'rect' || item.type === 'ellipse' || item.type === 'text') {
+            item.x = snapValue(startItem.x + delta.x);
+            item.y = snapValue(startItem.y + delta.y);
+          } else if (item.type === 'line') {
+            item.x1 = snapValue(startItem.x1 + delta.x);
+            item.y1 = snapValue(startItem.y1 + delta.y);
+            item.x2 = snapValue(startItem.x2 + delta.x);
+            item.y2 = snapValue(startItem.y2 + delta.y);
+          } else if (item.type === 'path') {
+            item.points = startItem.points.map((node) => shiftPathAnchor(node, delta.x, delta.y));
+          }
+          render();
+        } else if (state.interaction.mode === 'draw-shape') {
+          const item = location.item;
+          if (item.type === 'rect' || item.type === 'ellipse') {
+            item.width = snapValue(point.x) - state.interaction.startItem.x;
+            item.height = snapValue(point.y) - state.interaction.startItem.y;
+          } else if (item.type === 'line') {
+            item.x2 = snapValue(point.x);
+            item.y2 = snapValue(point.y);
+          }
+          render();
+        } else if (state.interaction.mode === 'resize') {
+          const item = location.item;
+          if (item.type === 'rect' || item.type === 'ellipse' || item.type === 'text') {
+            resizeBoxItem(item, state.interaction.startItem, state.interaction.handle, snapped);
+          } else if (item.type === 'line') {
+            if (state.interaction.handle === 'line-start') {
+              item.x1 = snapped.x;
+              item.y1 = snapped.y;
+            } else if (state.interaction.handle === 'line-end') {
+              item.x2 = snapped.x;
+              item.y2 = snapped.y;
+            }
+          }
+          render();
+        } else if (state.interaction.mode === 'edit-node' && location.item.type === 'path') {
+          const startNode = state.interaction.startItem.points[state.interaction.nodeIndex];
+          const node = location.item.points[state.interaction.nodeIndex];
+          node.x = snapped.x;
+          node.y = snapped.y;
+          if (startNode.inX != null && startNode.inY != null) {
+            node.inX = snapValue(startNode.inX + (snapped.x - startNode.x));
+            node.inY = snapValue(startNode.inY + (snapped.y - startNode.y));
+          }
+          if (startNode.outX != null && startNode.outY != null) {
+            node.outX = snapValue(startNode.outX + (snapped.x - startNode.x));
+            node.outY = snapValue(startNode.outY + (snapped.y - startNode.y));
+          }
+          render();
+        }
+      }
+
+      function resizeBoxItem(item, startItem, handle, point) {
+        const startRight = startItem.x + startItem.width;
+        const startBottom = startItem.y + startItem.height;
+        let x1 = startItem.x;
+        let y1 = startItem.y;
+        let x2 = startRight;
+        let y2 = startBottom;
+        if (handle.includes('n')) y1 = point.y;
+        if (handle.includes('s')) y2 = point.y;
+        if (handle.includes('w')) x1 = point.x;
+        if (handle.includes('e')) x2 = point.x;
+        item.x = Math.min(x1, x2);
+        item.y = Math.min(y1, y2);
+        item.width = Math.max(8, Math.abs(x2 - x1));
+        item.height = Math.max(8, Math.abs(y2 - y1));
+      }
+
+      function onStagePointerUp(event) {
+        if (!state.interaction.mode) return;
+        if (state.interaction.pointerId !== event.pointerId) return;
+
+        const location = getSelectedItemLocation();
+        if (state.interaction.mode === 'draw-shape' && location?.item) {
+          const draft = deepClone(location.item);
+          location.layer.items.splice(location.index, 1);
+          finalizeShapeDraft(draft);
+        } else if (['move', 'resize', 'edit-node'].includes(state.interaction.mode)) {
+          pushHistory();
+          render();
+        } else if (state.interaction.mode === 'pen-curve') {
+          render();
+        }
+
+        if (state.interaction.mode === 'pan') {
+          pushHistory();
+        }
+        stopInteraction();
+      }
+
+      function updatePointerLabel() {
+        $('#pointerLabel').textContent = `${Math.round(state.ui.pointer.x)}, ${Math.round(state.ui.pointer.y)}`;
+      }
+
+      function finalizePenDraft(closed = false) {
+        if (!state.penDraft || state.penDraft.points.length < 2) {
+          state.penDraft = null;
+          render();
+          return;
+        }
+        addItem({
+          id: uid('item'),
+          type: 'path',
+          name: makeItemName('path', itemCount() + 1),
+          points: deepClone(state.penDraft.points),
+          closed,
+          fill: closed ? '#ffb870' : '#ffb870',
+          stroke: '#0b1320',
+          strokeWidth: 4,
+          opacity: 1
+        });
+        state.penDraft = null;
+        pushHistory();
+        render();
+        showToast('toastPathFinished');
+      }
+
+      function duplicateSelected() {
+        const location = getSelectedItemLocation();
+        if (!location) {
+          showToast('toastNeedSelection');
+          return;
+        }
+        const copy = deepClone(location.item);
+        copy.id = uid('item');
+        copy.name = `${location.item.name} copy`;
+        if (copy.type === 'rect' || copy.type === 'ellipse' || copy.type === 'text') {
+          copy.x += state.doc.gridSize;
+          copy.y += state.doc.gridSize;
+        } else if (copy.type === 'line') {
+          copy.x1 += state.doc.gridSize;
+          copy.x2 += state.doc.gridSize;
+          copy.y1 += state.doc.gridSize;
+          copy.y2 += state.doc.gridSize;
+        } else if (copy.type === 'path') {
+          copy.points = copy.points.map((point) => shiftPathAnchor(point, state.doc.gridSize, state.doc.gridSize));
+        }
+        location.layer.items.push(copy);
+        selectItem(copy.id);
+        pushHistory();
+        render();
+      }
+
+      function deleteSelected() {
+        const location = getSelectedItemLocation();
+        if (!location) {
+          showToast('toastNeedSelection');
+          return;
+        }
+        location.layer.items.splice(location.index, 1);
+        deselect();
+        pushHistory();
+        render();
+        showToast('toastDeleted');
+      }
+
+      function reorderSelected(direction) {
+        const location = getSelectedItemLocation();
+        if (!location) {
+          showToast('toastNeedSelection');
+          return;
+        }
+        const nextIndex = direction > 0 ? location.index + 1 : location.index - 1;
+        if (nextIndex < 0 || nextIndex >= location.layer.items.length) return;
+        const [item] = location.layer.items.splice(location.index, 1);
+        location.layer.items.splice(nextIndex, 0, item);
+        pushHistory();
+        render();
+      }
+
+      function addLayer() {
+        const layer = makeLayer(undefined, state.doc.layers.length + 1);
+        state.doc.layers.push(layer);
+        state.ui.activeLayerId = layer.id;
+        pushHistory();
+        render();
+      }
+
+      function deleteLayer() {
+        if (state.doc.layers.length <= 1) {
+          showToast('toastNeedLayer');
+          return;
+        }
+        const index = state.doc.layers.findIndex((layer) => layer.id === state.ui.activeLayerId);
+        if (index === -1) return;
+        const [removed] = state.doc.layers.splice(index, 1);
+        if (removed.items.some((item) => item.id === state.ui.selectedId)) {
+          state.ui.selectedId = null;
+        }
+        state.ui.activeLayerId = state.doc.layers[Math.max(0, index - 1)].id;
+        pushHistory();
+        render();
+      }
+
+      function applySelectionChange(mutator) {
+        const item = selectedItem();
+        if (!item) return;
+        mutator(item);
+        pushHistory();
+        render();
+      }
+
+      function bindControls() {
+        $$('.tool-btn').forEach((button) => {
+          button.addEventListener('click', () => setTool(button.dataset.tool));
+        });
+
+        $('#themeSelect').addEventListener('change', (event) => {
+          setTheme(event.target.value);
+          render();
+        });
+        $('#langSelect').addEventListener('change', (event) => setLanguage(event.target.value));
+
+        $('#newDocBtn').addEventListener('click', () => {
+          if (!confirm(t('confirmNew'))) return;
+          resetState();
+          setViewToFit();
+          render();
+          showToast('toastReset');
+        });
+        $('#importJsonBtn').addEventListener('click', () => $('#jsonInput').click());
+        $('#jsonInput').addEventListener('change', async (event) => {
+          const file = event.target.files?.[0];
+          if (!file) return;
+          try {
+            const parsed = JSON.parse(await file.text());
+            resetState(parsed);
+            setViewToFit();
+            render();
+            showToast('toastImported');
+          } catch (error) {
+            console.error(error);
+          }
+          event.target.value = '';
+        });
+        $('#exportJsonBtn').addEventListener('click', () => exportFile(`${slugify(state.doc.name)}.json`, JSON.stringify(documentPayload(), null, 2), 'application/json'));
+        $('#exportSvgBtn').addEventListener('click', () => exportFile(`${slugify(state.doc.name)}.svg`, buildExportSvg(), 'image/svg+xml'));
+        $('#exportPngBtn').addEventListener('click', exportPng);
+
+        $('#undoBtn').addEventListener('click', undo);
+        $('#redoBtn').addEventListener('click', redo);
+        $('#fitBtn').addEventListener('click', () => { setViewToFit(); render(); });
+
+        $('#duplicateBtn').addEventListener('click', duplicateSelected);
+        $('#bringFrontBtn').addEventListener('click', () => reorderSelected(1));
+        $('#sendBackBtn').addEventListener('click', () => reorderSelected(-1));
+        $('#deleteBtn').addEventListener('click', deleteSelected);
+
+        $('#docNameInput').addEventListener('change', (event) => { state.doc.name = event.target.value || t('untitled'); pushHistory(); render(); });
+        $('#docWidthInput').addEventListener('change', (event) => { state.doc.width = Math.max(64, Number(event.target.value) || 1280); pushHistory(); render(); });
+        $('#docHeightInput').addEventListener('change', (event) => { state.doc.height = Math.max(64, Number(event.target.value) || 800); pushHistory(); render(); });
+        $('#docBgInput').addEventListener('input', (event) => { state.doc.bg = event.target.value; pushHistory(); render(); });
+        $('#showGridToggle').addEventListener('change', (event) => { state.doc.showGrid = event.target.checked; pushHistory(); render(); });
+        $('#snapToggle').addEventListener('change', (event) => { state.doc.snap = event.target.checked; pushHistory(); render(); });
+        $('#gridSizeInput').addEventListener('change', (event) => { state.doc.gridSize = Math.max(4, Number(event.target.value) || GRID_DEFAULT); pushHistory(); render(); });
+
+        $('#fillInput').addEventListener('input', (event) => applySelectionChange((item) => { item.fill = event.target.value; }));
+        $('#strokeInput').addEventListener('input', (event) => applySelectionChange((item) => { item.stroke = event.target.value; }));
+        $('#strokeWidthInput').addEventListener('change', (event) => applySelectionChange((item) => { item.strokeWidth = Math.max(0, Number(event.target.value) || 0); }));
+        $('#opacityInput').addEventListener('change', (event) => applySelectionChange((item) => { item.opacity = Math.max(0, Math.min(1, Number(event.target.value) || 0)); }));
+        $('#fontSizeInput').addEventListener('change', (event) => applySelectionChange((item) => { if (item.type === 'text') { item.fontSize = Math.max(8, Number(event.target.value) || 48); item.height = item.fontSize * 1.3; } }));
+        $('#fontWeightSelect').addEventListener('change', (event) => applySelectionChange((item) => { if (item.type === 'text') item.fontWeight = Number(event.target.value); }));
+        $('#textContentInput').addEventListener('change', (event) => applySelectionChange((item) => { if (item.type === 'text') { item.text = event.target.value; item.width = Math.max(120, item.text.length * (item.fontSize * 0.7)); } }));
+        $('#closedPathInput').addEventListener('change', (event) => applySelectionChange((item) => { if (item.type === 'path') item.closed = event.target.checked; }));
+        $('#itemNameInput').addEventListener('change', (event) => applySelectionChange((item) => { item.name = event.target.value || item.name; }));
+
+        $('#addLayerBtn').addEventListener('click', addLayer);
+        $('#deleteLayerBtn').addEventListener('click', deleteLayer);
+
+        stage.addEventListener('pointerdown', onStagePointerDown);
+        stage.addEventListener('pointermove', onStagePointerMove);
+        stage.addEventListener('pointerup', onStagePointerUp);
+        stage.addEventListener('pointerleave', () => {
+          state.ui.pointer = { x: 0, y: 0 };
+          updatePointerLabel();
+        });
+        stage.addEventListener('dblclick', () => {
+          if (currentTool() === 'pen') {
+            finalizePenDraft(true);
+          }
+        });
+
+        stage.addEventListener('wheel', (event) => {
+          event.preventDefault();
+          const rect = stage.getBoundingClientRect();
+          const before = svgPoint(event.clientX, event.clientY);
+          const direction = event.deltaY > 0 ? 0.92 : 1.08;
+          const nextZoom = Math.max(0.1, Math.min(5, state.ui.zoom * direction));
+          const pointerX = event.clientX - rect.left;
+          const pointerY = event.clientY - rect.top;
+          state.ui.zoom = nextZoom;
+          state.ui.pan.x = pointerX - before.x * nextZoom;
+          state.ui.pan.y = pointerY - before.y * nextZoom;
+          render();
+        }, { passive: false });
+
+        window.addEventListener('resize', render);
+
+        window.addEventListener('keydown', (event) => {
+          const key = event.key.toLowerCase();
+          if ((event.ctrlKey || event.metaKey) && key === 'z') {
+            event.preventDefault();
+            if (event.shiftKey) redo(); else undo();
+            return;
+          }
+          if ((event.ctrlKey || event.metaKey) && key === 'y') {
+            event.preventDefault();
+            redo();
+            return;
+          }
+          if (event.code === 'Space' && !isSpacePanning) {
+            isSpacePanning = true;
+            stageWrap.classList.add('hand');
+          }
+          if (event.key === 'Delete' || event.key === 'Backspace') {
+            if (state.ui.selectedId) {
+              event.preventDefault();
+              deleteSelected();
+            }
+          }
+          if (event.key === 'Escape') {
+            if (state.penDraft) {
+              state.penDraft = null;
+              render();
+            } else {
+              deselect();
+            }
+          }
+          if (event.key === 'Enter' && currentTool() === 'pen') {
+            finalizePenDraft(false);
+          }
+          if (!event.metaKey && !event.ctrlKey && TOOL_SHORTCUTS[key]) {
+            setTool(TOOL_SHORTCUTS[key]);
+          }
+        });
+
+        window.addEventListener('keyup', (event) => {
+          if (event.code === 'Space') {
+            isSpacePanning = false;
+            stageWrap.classList.remove('hand');
+            stageWrap.classList.remove('dragging-hand');
+          }
+        });
+      }
+
+      async function init() {
+        resetState(null, { seedHistory: false });
+        bindControls();
+        const restored = await restoreAutosave();
+        $('#themeSelect').value = state.ui.theme;
+        $('#langSelect').value = state.ui.lang;
+        setTheme(state.ui.theme);
+        setLanguage(state.ui.lang);
+        setTool('select');
+        if (!restored) {
+          pushHistory();
+          setViewToFit();
+        }
+        render();
+      }
+
+      init().catch((error) => {
+        console.error(error);
+      });
+    })();
+  </script>
+</body>
+</html>
