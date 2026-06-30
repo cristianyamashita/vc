@@ -1,0 +1,3471 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Form Builder DB</title>
+  <meta name="description" content="Build custom forms and use them as an IndexedDB-backed local database with table and form views." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../assets/fontawesome/css/all.min.css" />
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
+  <style>
+    :root {
+      --bg: #0e1714;
+      --bg-soft: #13201c;
+      --panel: rgba(18, 31, 27, 0.92);
+      --panel-strong: #1a2b25;
+      --panel-alt: #101a17;
+      --text: #edf5ef;
+      --muted: #a8bab0;
+      --border: rgba(255, 255, 255, 0.10);
+      --accent: #3ed0a5;
+      --accent-2: #ff8e61;
+      --accent-3: #f1c453;
+      --danger: #ff6c6c;
+      --success: #61d99a;
+      --shadow: 0 24px 60px rgba(0, 0, 0, 0.34);
+      --soft-shadow: 0 12px 28px rgba(0, 0, 0, 0.22);
+      --chip: rgba(255, 255, 255, 0.07);
+      --input: rgba(8, 13, 11, 0.68);
+      --selected: rgba(62, 208, 165, 0.16);
+      --grid: rgba(255, 255, 255, 0.05);
+    }
+
+    html[data-theme='light'] {
+      --bg: #eef2ee;
+      --bg-soft: #dde7e2;
+      --panel: rgba(255, 255, 255, 0.96);
+      --panel-strong: #ffffff;
+      --panel-alt: #f5f8f5;
+      --text: #18211d;
+      --muted: #58635c;
+      --border: rgba(24, 33, 29, 0.12);
+      --accent: #048f72;
+      --accent-2: #d96848;
+      --accent-3: #bb8d14;
+      --danger: #d74d4d;
+      --success: #1d9e62;
+      --shadow: 0 18px 44px rgba(39, 59, 49, 0.14);
+      --soft-shadow: 0 10px 20px rgba(39, 59, 49, 0.08);
+      --chip: rgba(4, 143, 114, 0.08);
+      --input: #ffffff;
+      --selected: rgba(4, 143, 114, 0.10);
+      --grid: rgba(24, 33, 29, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      min-height: 100%;
+      margin: 0;
+      font-family: 'Noto Sans JP', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(62, 208, 165, 0.18), transparent 28%),
+        radial-gradient(circle at bottom right, rgba(255, 142, 97, 0.16), transparent 26%),
+        linear-gradient(180deg, var(--bg), var(--bg-soft));
+      color: var(--text);
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+    }
+
+    button,
+    input,
+    select,
+    textarea {
+      font: inherit;
+    }
+
+    button,
+    input,
+    select,
+    textarea,
+    [contenteditable='true'] {
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--input);
+      color: var(--text);
+    }
+
+    button:focus-visible,
+    input:focus-visible,
+    select:focus-visible,
+    textarea:focus-visible,
+    [contenteditable='true']:focus-visible {
+      outline: 3px solid color-mix(in srgb, var(--accent) 48%, transparent);
+      outline-offset: 2px;
+    }
+
+    a {
+      color: inherit;
+    }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 14px 18px;
+      background: color-mix(in srgb, var(--panel) 84%, transparent);
+      border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(18px);
+      box-shadow: var(--soft-shadow);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .brand-mark {
+      width: 44px;
+      height: 44px;
+      display: grid;
+      place-items: center;
+      border-radius: 14px;
+      background:
+        linear-gradient(135deg, rgba(62, 208, 165, 0.22), rgba(241, 196, 83, 0.12)),
+        var(--panel-strong);
+      border: 1px solid var(--border);
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+      color: var(--accent);
+    }
+
+    .brand-text {
+      min-width: 0;
+    }
+
+    .brand-text h1 {
+      margin: 0;
+      font-size: clamp(20px, 3vw, 26px);
+      line-height: 1.05;
+    }
+
+    .brand-text p {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .topbar-actions {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .segmented,
+    .toolbar-group {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: var(--chip);
+    }
+
+    .segmented button,
+    .toolbar-btn,
+    .icon-btn,
+    .primary-btn,
+    .ghost-btn,
+    .danger-btn {
+      appearance: none;
+      border: 0;
+      cursor: pointer;
+      transition: transform 0.16s ease, filter 0.16s ease, background 0.16s ease, border-color 0.16s ease;
+    }
+
+    .segmented button,
+    .toolbar-btn,
+    .icon-btn,
+    .ghost-btn,
+    .danger-btn {
+      min-height: 38px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: transparent;
+      color: var(--muted);
+      border: 1px solid transparent;
+      white-space: nowrap;
+    }
+
+    .segmented button.active,
+    .toolbar-btn.active {
+      background: linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 64%, white));
+      color: #0d1512;
+      font-weight: 800;
+    }
+
+    .segmented button:hover,
+    .toolbar-btn:hover,
+    .icon-btn:hover,
+    .ghost-btn:hover,
+    .danger-btn:hover,
+    .primary-btn:hover {
+      transform: translateY(-1px);
+      filter: brightness(1.02);
+    }
+
+    .toolbar-btn:not(.active):hover,
+    .ghost-btn:hover,
+    .danger-btn:hover,
+    .icon-btn:hover {
+      color: var(--text);
+      background: color-mix(in srgb, var(--accent) 10%, var(--chip));
+      border-color: var(--border);
+    }
+
+    .primary-btn {
+      min-height: 40px;
+      padding: 9px 14px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 68%, white));
+      color: #0b1713;
+      font-weight: 800;
+      box-shadow: var(--soft-shadow);
+    }
+
+    .ghost-btn {
+      border: 1px solid var(--border);
+      color: var(--text);
+      background: var(--chip);
+      border-radius: 12px;
+    }
+
+    .danger-btn {
+      border: 1px solid color-mix(in srgb, var(--danger) 34%, var(--border));
+      color: var(--danger);
+      background: color-mix(in srgb, var(--danger) 10%, transparent);
+      border-radius: 12px;
+    }
+
+    .icon-btn {
+      width: 40px;
+      padding: 0;
+      display: grid;
+      place-items: center;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: var(--chip);
+    }
+
+    .control-select,
+    .control-input,
+    .control-textarea {
+      width: 100%;
+      min-height: 40px;
+      padding: 10px 12px;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    }
+
+    .control-textarea {
+      min-height: 88px;
+      resize: vertical;
+    }
+
+    .shell {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 300px minmax(0, 1fr);
+      gap: 18px;
+      padding: 18px;
+      min-height: 0;
+    }
+
+    .sidebar,
+    .canvas,
+    .panel,
+    .preview-card,
+    .table-card,
+    .record-card,
+    .stats-card,
+    .empty-card {
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      background: color-mix(in srgb, var(--panel) 90%, transparent);
+      box-shadow: var(--soft-shadow);
+      backdrop-filter: blur(14px);
+    }
+
+    .sidebar {
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    .sidebar-header,
+    .card-header,
+    .canvas-header,
+    .record-panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 16px 18px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .sidebar-header h2,
+    .card-header h3,
+    .canvas-header h2,
+    .record-panel-header h3 {
+      margin: 0;
+      font-size: 16px;
+    }
+
+    .sidebar-tools {
+      padding: 14px 16px 10px;
+      display: grid;
+      gap: 10px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .forms-list,
+    .fields-list,
+    .record-nav-list,
+    .relations-list,
+    .stats-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+
+    .forms-scroll,
+    .record-nav,
+    .card-body-scroll {
+      min-height: 0;
+      overflow: auto;
+    }
+
+    .forms-scroll {
+      padding: 10px 10px 14px;
+      flex: 1;
+    }
+
+    .form-item,
+    .field-item,
+    .record-nav-item,
+    .relation-item,
+    .stats-item {
+      border: 1px solid transparent;
+      border-radius: 16px;
+      background: transparent;
+      padding: 12px 12px;
+      margin-bottom: 8px;
+      cursor: pointer;
+      transition: background 0.16s ease, border-color 0.16s ease, transform 0.16s ease;
+    }
+
+    .form-item:hover,
+    .field-item:hover,
+    .record-nav-item:hover,
+    .relation-item:hover {
+      background: color-mix(in srgb, var(--accent) 8%, var(--chip));
+      border-color: var(--border);
+      transform: translateY(-1px);
+    }
+
+    .form-item.active,
+    .field-item.active,
+    .record-nav-item.active {
+      background: var(--selected);
+      border-color: color-mix(in srgb, var(--accent) 44%, var(--border));
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.03);
+    }
+
+    .form-item-main,
+    .field-item-main,
+    .record-nav-main,
+    .relation-item-main {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .form-name,
+    .field-name,
+    .record-nav-name {
+      font-weight: 700;
+      line-height: 1.2;
+      overflow-wrap: anywhere;
+    }
+
+    .form-meta,
+    .field-meta,
+    .record-nav-meta,
+    .relation-meta,
+    .stats-meta,
+    .hint,
+    .empty-copy,
+    .section-copy,
+    .save-status {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .chip-row,
+    .inline-actions,
+    .property-grid,
+    .builder-layout,
+    .data-layout,
+    .record-toolbar,
+    .helper-row,
+    .preview-meta,
+    .field-config-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .chip,
+    .type-chip,
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      min-height: 28px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: var(--chip);
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .type-chip.entity { color: var(--accent); }
+    .type-chip.catalog { color: var(--accent-3); }
+    .type-chip.junction { color: var(--accent-2); }
+    .type-chip.log { color: #8cc8ff; }
+
+    .sidebar-footer {
+      padding: 14px 16px 16px;
+      border-top: 1px solid var(--border);
+      display: grid;
+      gap: 10px;
+      background: color-mix(in srgb, var(--panel-strong) 76%, transparent);
+    }
+
+    .canvas {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    .canvas-header {
+      background:
+        linear-gradient(90deg, rgba(62, 208, 165, 0.08), transparent 52%),
+        linear-gradient(0deg, transparent, transparent),
+        color-mix(in srgb, var(--panel) 88%, transparent);
+    }
+
+    .canvas-header-copy {
+      min-width: 0;
+    }
+
+    .canvas-header-copy p {
+      margin: 5px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .canvas-body {
+      flex: 1;
+      min-height: 0;
+      overflow: auto;
+      padding: 18px;
+    }
+
+    .builder-layout {
+      align-items: stretch;
+      flex-wrap: nowrap;
+    }
+
+    .builder-main {
+      flex: 1 1 62%;
+      min-width: 0;
+      display: grid;
+      gap: 16px;
+    }
+
+    .builder-side {
+      flex: 0 1 38%;
+      min-width: min(360px, 100%);
+      display: grid;
+      gap: 16px;
+      align-content: start;
+    }
+
+    .panel,
+    .preview-card,
+    .table-card,
+    .record-card,
+    .stats-card,
+    .empty-card {
+      overflow: hidden;
+    }
+
+    .card-body,
+    .preview-body,
+    .table-body,
+    .record-card-body,
+    .stats-body,
+    .empty-body {
+      padding: 16px 18px 18px;
+    }
+
+    .empty-card {
+      min-height: 420px;
+      display: grid;
+      place-items: center;
+      background:
+        radial-gradient(circle at top right, rgba(241, 196, 83, 0.12), transparent 22%),
+        radial-gradient(circle at bottom left, rgba(62, 208, 165, 0.16), transparent 24%),
+        color-mix(in srgb, var(--panel) 92%, transparent);
+    }
+
+    .empty-body {
+      max-width: 560px;
+      text-align: center;
+    }
+
+    .empty-icon {
+      width: 78px;
+      height: 78px;
+      margin: 0 auto 18px;
+      display: grid;
+      place-items: center;
+      border-radius: 22px;
+      border: 1px solid var(--border);
+      background: color-mix(in srgb, var(--accent) 12%, var(--chip));
+      color: var(--accent);
+      font-size: 28px;
+    }
+
+    .empty-body h3 {
+      margin: 0 0 8px;
+      font-size: clamp(22px, 3vw, 30px);
+    }
+
+    .empty-copy {
+      font-size: 14px;
+      margin-bottom: 18px;
+    }
+
+    .property-grid {
+      align-items: stretch;
+    }
+
+    .field-block,
+    .property-card,
+    .helper-card,
+    .preview-form,
+    .record-form {
+      display: grid;
+      gap: 14px;
+    }
+
+    .property-card {
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 14px;
+      background: color-mix(in srgb, var(--panel-alt) 74%, transparent);
+    }
+
+    .property-card h4,
+    .helper-card h4,
+    .preview-form h4,
+    .record-form h4 {
+      margin: 0;
+      font-size: 14px;
+    }
+
+    .helper-card {
+      padding: 14px;
+      border: 1px dashed color-mix(in srgb, var(--accent) 32%, var(--border));
+      border-radius: 16px;
+      background: color-mix(in srgb, var(--accent) 8%, transparent);
+    }
+
+    .label {
+      display: block;
+      margin: 0 0 6px;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--muted);
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .field-grid-2,
+    .field-grid-3 {
+      display: grid;
+      gap: 12px;
+    }
+
+    .field-grid-2 {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .field-grid-3 {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: color-mix(in srgb, var(--panel-alt) 80%, transparent);
+    }
+
+    .toggle-row label {
+      margin: 0;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+      text-transform: none;
+      letter-spacing: 0;
+    }
+
+    .toggle-row input[type='checkbox'] {
+      width: 18px;
+      height: 18px;
+      accent-color: var(--accent);
+    }
+
+    .field-item {
+      background: color-mix(in srgb, var(--panel-alt) 64%, transparent);
+      border-color: var(--border);
+      padding: 12px 14px;
+    }
+
+    .field-handle {
+      color: var(--muted);
+      cursor: grab;
+      padding-right: 6px;
+    }
+
+    .field-config-row {
+      justify-content: space-between;
+    }
+
+    .fields-list.sorting .field-item {
+      opacity: 0.82;
+    }
+
+    .preview-card {
+      background:
+        linear-gradient(180deg, rgba(62, 208, 165, 0.08), transparent 16%),
+        color-mix(in srgb, var(--panel) 92%, transparent);
+    }
+
+    .preview-form,
+    .record-form {
+      grid-template-columns: 1fr;
+    }
+
+    .preview-field,
+    .record-field {
+      display: grid;
+      gap: 8px;
+      padding: 14px;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      background: color-mix(in srgb, var(--panel-alt) 72%, transparent);
+    }
+
+    .preview-field-label,
+    .record-field-label {
+      font-weight: 700;
+      font-size: 13px;
+    }
+
+    .required-dot {
+      color: var(--accent-2);
+      margin-left: 4px;
+    }
+
+    .help-copy {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    .preview-input,
+    .preview-textarea,
+    .rich-preview,
+    .record-input,
+    .record-textarea,
+    .record-richtext {
+      width: 100%;
+      min-height: 42px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: color-mix(in srgb, var(--input) 90%, transparent);
+      color: var(--text);
+    }
+
+    .preview-textarea,
+    .record-textarea,
+    .record-richtext,
+    .rich-preview {
+      min-height: 96px;
+      resize: vertical;
+    }
+
+    .record-richtext,
+    .rich-preview {
+      overflow: auto;
+      white-space: pre-wrap;
+    }
+
+    .preview-input[disabled],
+    .preview-textarea[disabled],
+    .record-input[disabled],
+    .record-textarea[disabled] {
+      opacity: 0.8;
+      cursor: not-allowed;
+    }
+
+    .choice-group {
+      display: grid;
+      gap: 8px;
+    }
+
+    .choice-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: color-mix(in srgb, var(--panel-alt) 78%, transparent);
+    }
+
+    .choice-item input {
+      accent-color: var(--accent);
+    }
+
+    .table-card {
+      min-height: 420px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .table-body {
+      min-height: 0;
+      overflow: auto;
+      padding: 0;
+    }
+
+    .table-scroll {
+      min-height: 0;
+      overflow: auto;
+      background-image:
+        linear-gradient(var(--grid) 1px, transparent 1px),
+        linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+      background-size: 22px 22px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 680px;
+    }
+
+    th,
+    td {
+      padding: 12px 14px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+
+    th {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      background: color-mix(in srgb, var(--panel-strong) 94%, transparent);
+      font-size: 12px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    tr:hover td {
+      background: color-mix(in srgb, var(--accent) 6%, transparent);
+    }
+
+    .record-shell {
+      display: grid;
+      grid-template-columns: 280px minmax(0, 1fr);
+      gap: 16px;
+      align-items: start;
+    }
+
+    .record-nav,
+    .record-card {
+      min-height: 480px;
+    }
+
+    .record-nav {
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      background: color-mix(in srgb, var(--panel-alt) 80%, transparent);
+      overflow: hidden;
+    }
+
+    .record-nav-header {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+      display: grid;
+      gap: 10px;
+    }
+
+    .record-nav-list {
+      padding: 12px;
+    }
+
+    .record-nav-item.empty-row,
+    .relation-item.empty-row,
+    .stats-item.empty-row,
+    .field-item.empty-row,
+    .form-item.empty-row {
+      cursor: default;
+      background: color-mix(in srgb, var(--panel-alt) 72%, transparent);
+      color: var(--muted);
+      border-style: dashed;
+    }
+
+    .file-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: color-mix(in srgb, var(--accent) 8%, transparent);
+      font-size: 12px;
+      margin: 4px 6px 0 0;
+    }
+
+    .file-preview-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .image-thumb {
+      width: 92px;
+      height: 92px;
+      border-radius: 14px;
+      object-fit: cover;
+      border: 1px solid var(--border);
+      box-shadow: var(--soft-shadow);
+    }
+
+    .record-toolbar {
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+
+    .save-status.success {
+      color: var(--success);
+    }
+
+    .save-status.error {
+      color: var(--danger);
+    }
+
+    .save-status.warn {
+      color: var(--accent-3);
+    }
+
+    dialog {
+      width: min(520px, calc(100vw - 24px));
+      border: 1px solid var(--border);
+      border-radius: 22px;
+      padding: 0;
+      background: color-mix(in srgb, var(--panel-strong) 96%, transparent);
+      color: var(--text);
+      box-shadow: var(--shadow);
+    }
+
+    dialog::backdrop {
+      background: rgba(4, 10, 8, 0.56);
+      backdrop-filter: blur(4px);
+    }
+
+    .dialog-body {
+      padding: 18px;
+      display: grid;
+      gap: 14px;
+    }
+
+    .dialog-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .mono {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12px;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    @media (max-width: 1180px) {
+      .shell,
+      .record-shell,
+      .builder-layout {
+        grid-template-columns: 1fr;
+      }
+
+      .builder-layout {
+        flex-direction: column;
+      }
+
+      .builder-side {
+        min-width: 0;
+      }
+    }
+
+    @media (max-width: 920px) {
+      .shell {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        max-height: none;
+      }
+
+      .field-grid-2,
+      .field-grid-3 {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 760px) {
+      .topbar,
+      .shell,
+      .canvas-body {
+        padding: 12px;
+      }
+
+      .topbar {
+        align-items: stretch;
+        flex-direction: column;
+      }
+
+      .topbar-actions {
+        justify-content: flex-start;
+      }
+
+      .sidebar-header,
+      .card-header,
+      .canvas-header,
+      .record-panel-header,
+      .record-nav-header,
+      .sidebar-footer,
+      .sidebar-tools,
+      .card-body,
+      .preview-body,
+      .record-card-body,
+      .stats-body,
+      .empty-body {
+        padding-inline: 14px;
+      }
+    }
+  </style>
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-NWZDZ906DJ"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-NWZDZ906DJ');
+  </script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark"><i class="fas fa-database"></i></div>
+      <div class="brand-text">
+        <h1 data-i18n="appTitle">Form Builder DB</h1>
+        <p data-i18n="appSubtitle">Design local forms, store records in IndexedDB, and switch between schema, table, and record views.</p>
+      </div>
+    </div>
+    <div class="topbar-actions">
+      <div class="segmented" aria-label="Mode selector">
+        <button id="mode-builder-btn" class="active" type="button" data-i18n="builderMode">Builder</button>
+        <button id="mode-data-btn" type="button" data-i18n="dataMode">Data</button>
+      </div>
+      <div class="segmented" id="data-view-toggle" aria-label="Data view selector">
+        <button id="data-view-table-btn" class="active" type="button" data-i18n="tableView">Table</button>
+        <button id="data-view-form-btn" type="button" data-i18n="formView">Form</button>
+      </div>
+      <div class="toolbar-group">
+        <button id="export-app-btn" class="toolbar-btn" type="button" data-i18n="exportJson">Export</button>
+        <button id="import-app-btn" class="toolbar-btn" type="button" data-i18n="importJson">Import</button>
+      </div>
+      <select id="lang-switcher" class="control-select" style="width:auto; min-width:110px;">
+        <option value="en">English</option>
+        <option value="pt">Português</option>
+        <option value="ja">日本語</option>
+      </select>
+      <button id="theme-toggle-btn" class="icon-btn" type="button" title="Toggle theme" aria-label="Toggle theme"><i class="fas fa-moon"></i></button>
+      <input id="import-file-input" type="file" accept="application/json" class="hidden" />
+    </div>
+  </header>
+
+  <div class="shell">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div>
+          <h2 data-i18n="formsTitle">Forms</h2>
+          <div class="hint" data-i18n="formsSubtitle">Choose a local schema to edit or use as a table.</div>
+        </div>
+        <button id="create-form-btn" class="icon-btn" type="button" title="Create form" aria-label="Create form"><i class="fas fa-plus"></i></button>
+      </div>
+      <div class="sidebar-tools">
+        <input id="forms-search-input" class="control-input" type="search" data-i18n-placeholder="searchFormsPlaceholder" placeholder="Search forms" />
+        <div class="stats-card">
+          <div class="card-header">
+            <h3 data-i18n="storageOverview">Storage overview</h3>
+          </div>
+          <div class="stats-body">
+            <ul class="stats-list" id="storage-stats-list"></ul>
+          </div>
+        </div>
+      </div>
+      <div class="forms-scroll">
+        <ul class="forms-list" id="forms-list"></ul>
+      </div>
+      <div class="sidebar-footer">
+        <button id="duplicate-form-btn" class="ghost-btn" type="button" data-i18n="duplicateForm">Duplicate form</button>
+        <button id="delete-form-btn" class="danger-btn" type="button" data-i18n="deleteForm">Delete form</button>
+      </div>
+    </aside>
+
+    <main class="canvas">
+      <div class="canvas-header">
+        <div class="canvas-header-copy">
+          <h2 id="canvas-title" data-i18n="noFormSelectedTitle">Create a form to start</h2>
+          <p id="canvas-subtitle" data-i18n="noFormSelectedSubtitle">Use the builder to define fields and relations, then switch to data mode for CRUD.</p>
+        </div>
+        <div class="chip-row" id="canvas-meta-row"></div>
+      </div>
+      <div class="canvas-body" id="canvas-body"></div>
+    </main>
+  </div>
+
+  <dialog id="form-dialog">
+    <form method="dialog" id="form-dialog-form">
+      <div class="dialog-body">
+        <div>
+          <h3 id="form-dialog-title" data-i18n="createForm">Create form</h3>
+          <div class="hint" data-i18n="createFormHint">Choose the schema type and start modeling your local data.</div>
+        </div>
+        <div>
+          <label class="label" for="dialog-form-name" data-i18n="formName">Form name</label>
+          <input id="dialog-form-name" class="control-input" required />
+        </div>
+        <div class="field-grid-2">
+          <div>
+            <label class="label" for="dialog-form-type" data-i18n="formType">Form type</label>
+            <select id="dialog-form-type" class="control-select"></select>
+          </div>
+          <div>
+            <label class="label" for="dialog-form-icon" data-i18n="formIcon">Icon</label>
+            <input id="dialog-form-icon" class="control-input" placeholder="fa-table" />
+          </div>
+        </div>
+        <div>
+          <label class="label" for="dialog-form-description" data-i18n="formDescription">Description</label>
+          <textarea id="dialog-form-description" class="control-textarea"></textarea>
+        </div>
+        <div class="dialog-actions">
+          <button class="ghost-btn" type="button" id="form-dialog-cancel" data-i18n="cancel">Cancel</button>
+          <button class="primary-btn" type="submit" value="confirm" data-i18n="save">Save</button>
+        </div>
+      </div>
+    </form>
+  </dialog>
+
+  <script>
+    const DB_NAME = 'form_builder_db';
+    const DB_VERSION = 1;
+    const STORE_NAMES = ['forms', 'fields', 'relations', 'records', 'attachments', 'views', 'settings'];
+    const FORM_TYPES = ['entity', 'catalog', 'junction', 'log'];
+    const FIELD_TYPES = ['text', 'number', 'textarea', 'richtext', 'date', 'time', 'datetime', 'select', 'radio', 'checkbox', 'boolean', 'lookup', 'file', 'image', 'formula'];
+    const I18N = {
+      en: {
+        appTitle: 'Form Builder DB',
+        appSubtitle: 'Design local forms, store records in IndexedDB, and switch between schema, table, and record views.',
+        builderMode: 'Builder',
+        dataMode: 'Data',
+        tableView: 'Table',
+        formView: 'Form',
+        exportJson: 'Export',
+        importJson: 'Import',
+        formsTitle: 'Forms',
+        formsSubtitle: 'Choose a local schema to edit or use as a table.',
+        searchFormsPlaceholder: 'Search forms',
+        storageOverview: 'Storage overview',
+        duplicateForm: 'Duplicate form',
+        deleteForm: 'Delete form',
+        noFormSelectedTitle: 'Create a form to start',
+        noFormSelectedSubtitle: 'Use the builder to define fields and relations, then switch to data mode for CRUD.',
+        createForm: 'Create form',
+        createFormHint: 'Choose the schema type and start modeling your local data.',
+        formName: 'Form name',
+        formType: 'Form type',
+        formIcon: 'Icon',
+        formDescription: 'Description',
+        cancel: 'Cancel',
+        save: 'Save',
+        noFormsEmpty: 'No forms yet. Create one to start your local database.',
+        noFormsEmptyHint: 'Entity forms are the default choice. Catalogs work well for lookup tables. Junction forms connect many-to-many relations.',
+        createFirstForm: 'Create first form',
+        formDetails: 'Form details',
+        schemaFields: 'Fields',
+        schemaFieldsHint: 'Drag fields to reorder them. Edit the selected field on the right.',
+        addField: 'Add field',
+        fieldProperties: 'Field properties',
+        fieldPropertiesHint: 'Configure type, validation, defaults, and relationship behavior.',
+        relationTools: 'Relations',
+        relationToolsHint: 'Create junction forms to connect two tables and track many-to-many links.',
+        previewTitle: 'Preview',
+        previewHint: 'This is how the current form will look in record mode.',
+        searchRecordsPlaceholder: 'Search records',
+        addRecord: 'Add record',
+        emptyRecords: 'No records yet',
+        emptyRecordsHint: 'Switch to form view and create the first record for this form.',
+        recordsTitle: 'Records',
+        recordEditorTitle: 'Record editor',
+        saveRecord: 'Save record',
+        deleteRecord: 'Delete record',
+        deleteField: 'Delete field',
+        duplicateField: 'Duplicate field',
+        primaryField: 'Primary field',
+        fieldLabel: 'Label',
+        fieldKey: 'Key',
+        fieldType: 'Type',
+        required: 'Required',
+        placeholder: 'Placeholder',
+        helpText: 'Help text',
+        defaultValue: 'Default value',
+        options: 'Options',
+        optionsHint: 'One option per line.',
+        relationTarget: 'Relation target',
+        relationMultiple: 'Multiple selection',
+        formula: 'Formula',
+        formulaHint: 'Use {fieldKey} placeholders. Example: ({qty} || 0) * ({price} || 0)',
+        accept: 'Accepted file types',
+        builderEmptyTitle: 'No field selected',
+        builderEmptyCopy: 'Add a field to the form or select an existing one to configure it.',
+        entity: 'Entity',
+        catalog: 'Catalog',
+        junction: 'Junction',
+        log: 'Log',
+        text: 'Text',
+        number: 'Number',
+        textarea: 'Textarea',
+        richtext: 'Rich text',
+        date: 'Date',
+        time: 'Time',
+        datetime: 'Date & time',
+        select: 'Select',
+        radio: 'Radio',
+        checkbox: 'Checkbox group',
+        boolean: 'Boolean',
+        lookup: 'Lookup',
+        file: 'File',
+        image: 'Image',
+        formulaType: 'Formula',
+        createJunction: 'Create junction form',
+        junctionTarget: 'Target form',
+        junctionCreated: 'Junction form created.',
+        relationNone: 'No saved relations for this form yet.',
+        relationLookup: 'Lookup field',
+        relationMany: 'Many-to-many',
+        relatedTo: 'Related to',
+        recordCount: 'Records',
+        fieldCount: 'Fields',
+        attachmentCount: 'Attachments',
+        localStorageCount: 'localStorage keys',
+        modeBuilderTitle: 'Builder mode',
+        modeDataTitle: 'Data mode',
+        modeBuilderSubtitle: 'Edit the schema, field settings, and relation helpers.',
+        modeDataSubtitle: 'Browse records as rows or edit a single entry as a form.',
+        confirmDeleteForm: 'Delete this form and all related fields, records, attachments, and saved relations?',
+        confirmDeleteField: 'Delete this field from the form?',
+        confirmDeleteRecord: 'Delete this record?',
+        importReplaceWarning: 'Importing will merge objects by id and overwrite duplicates. Continue?',
+        exportDone: 'Export created successfully.',
+        importDone: 'Import finished successfully.',
+        importError: 'Could not import file.',
+        invalidJson: 'Invalid JSON file.',
+        newRecord: 'New record',
+        saved: 'Saved',
+        saveFailed: 'Save failed',
+        autoKeyHint: 'Generated from the label when empty.',
+        themeLight: 'Light theme',
+        themeDark: 'Dark theme',
+        relationNeedsTarget: 'Choose another form before creating a junction.',
+        noTargetForms: 'Create a second form to enable relations.',
+        filePreview: 'Existing files',
+        recordListTitle: 'Entries',
+        recordsViewTable: 'Row grid',
+        recordsViewForm: 'Entry form',
+        lastUpdated: 'Updated',
+        createdAt: 'Created',
+        idLabel: 'ID',
+        importSeeded: 'Data imported and reloaded.',
+        noFieldsYet: 'No fields yet. Add the first field to make this form usable.',
+        noSelectionData: 'Pick a form on the left to browse data.',
+        noSelectionBuilder: 'Pick a form on the left to edit its schema.',
+        formKeyExists: 'This field key already exists in the selected form.',
+        nameFallback: 'Untitled',
+        formulaReadonly: 'Formula fields are read-only and computed automatically.',
+        logDefaultHint: 'Log forms are optimized for timestamped entries.',
+        catalogDefaultHint: 'Catalog forms work well as lookup tables.',
+        entityDefaultHint: 'Entity forms are general-purpose tables.',
+        junctionDefaultHint: 'Junction forms store many-to-many links and optional extra metadata.',
+        recordsEmptyNav: 'No saved records for this form yet.',
+        statsForms: 'Forms',
+        statsRecords: 'Records store',
+        statsFields: 'Fields store',
+        statsRelations: 'Relations store',
+        statsAttachments: 'Attachments store',
+        savePreview: 'Preview updates live while you edit the schema.',
+        relationCreatedLookup: 'Lookup relations are configured on the field itself.',
+        removeAttachment: 'Remove existing file',
+        relationFieldHint: 'Lookup targets drive select options in record mode.',
+        exportIncludesAll: 'Export includes forms, schema, records, relations, and attachments metadata.'
+      },
+      pt: {
+        appTitle: 'Form Builder DB',
+        appSubtitle: 'Crie formulários locais, salve registros no IndexedDB e alterne entre schema, tabela e formulário.',
+        builderMode: 'Builder',
+        dataMode: 'Dados',
+        tableView: 'Tabela',
+        formView: 'Formulário',
+        exportJson: 'Exportar',
+        importJson: 'Importar',
+        formsTitle: 'Forms',
+        formsSubtitle: 'Escolha um schema local para editar ou usar como tabela.',
+        searchFormsPlaceholder: 'Buscar forms',
+        storageOverview: 'Visão do storage',
+        duplicateForm: 'Duplicar form',
+        deleteForm: 'Excluir form',
+        noFormSelectedTitle: 'Crie um form para começar',
+        noFormSelectedSubtitle: 'Use o builder para definir campos e relações, depois mude para o modo de dados para o CRUD.',
+        createForm: 'Criar form',
+        createFormHint: 'Escolha o tipo de schema e comece a modelar seus dados locais.',
+        formName: 'Nome do form',
+        formType: 'Tipo de form',
+        formIcon: 'Ícone',
+        formDescription: 'Descrição',
+        cancel: 'Cancelar',
+        save: 'Salvar',
+        noFormsEmpty: 'Ainda não há forms. Crie um para iniciar seu banco local.',
+        noFormsEmptyHint: 'Forms do tipo entity são a escolha padrão. Catalog funciona bem para tabelas de lookup. Junction conecta relações N:N.',
+        createFirstForm: 'Criar primeiro form',
+        formDetails: 'Detalhes do form',
+        schemaFields: 'Campos',
+        schemaFieldsHint: 'Arraste os campos para reordenar. Edite o campo selecionado à direita.',
+        addField: 'Adicionar campo',
+        fieldProperties: 'Propriedades do campo',
+        fieldPropertiesHint: 'Configure tipo, validação, defaults e comportamento de relação.',
+        relationTools: 'Relações',
+        relationToolsHint: 'Crie junction forms para conectar duas tabelas e registrar relações muitos-para-muitos.',
+        previewTitle: 'Preview',
+        previewHint: 'Assim o form atual aparecerá no modo de registros.',
+        searchRecordsPlaceholder: 'Buscar registros',
+        addRecord: 'Novo registro',
+        emptyRecords: 'Nenhum registro ainda',
+        emptyRecordsHint: 'Mude para a visão de formulário e crie o primeiro registro deste form.',
+        recordsTitle: 'Registros',
+        recordEditorTitle: 'Editor de registro',
+        saveRecord: 'Salvar registro',
+        deleteRecord: 'Excluir registro',
+        deleteField: 'Excluir campo',
+        duplicateField: 'Duplicar campo',
+        primaryField: 'Campo principal',
+        fieldLabel: 'Label',
+        fieldKey: 'Key',
+        fieldType: 'Tipo',
+        required: 'Obrigatório',
+        placeholder: 'Placeholder',
+        helpText: 'Texto de ajuda',
+        defaultValue: 'Valor padrão',
+        options: 'Opções',
+        optionsHint: 'Uma opção por linha.',
+        relationTarget: 'Tabela relacionada',
+        relationMultiple: 'Seleção múltipla',
+        formula: 'Fórmula',
+        formulaHint: 'Use placeholders {fieldKey}. Exemplo: ({qty} || 0) * ({price} || 0)',
+        accept: 'Tipos de arquivo aceitos',
+        builderEmptyTitle: 'Nenhum campo selecionado',
+        builderEmptyCopy: 'Adicione um campo ao form ou selecione um existente para configurá-lo.',
+        entity: 'Entity',
+        catalog: 'Catalog',
+        junction: 'Junction',
+        log: 'Log',
+        text: 'Texto',
+        number: 'Número',
+        textarea: 'Textarea',
+        richtext: 'Texto rico',
+        date: 'Data',
+        time: 'Hora',
+        datetime: 'Data e hora',
+        select: 'Select',
+        radio: 'Radio',
+        checkbox: 'Grupo de checkboxes',
+        boolean: 'Booleano',
+        lookup: 'Lookup',
+        file: 'Arquivo',
+        image: 'Imagem',
+        formulaType: 'Fórmula',
+        createJunction: 'Criar junction form',
+        junctionTarget: 'Form alvo',
+        junctionCreated: 'Junction form criado.',
+        relationNone: 'Ainda não há relações salvas para este form.',
+        relationLookup: 'Campo lookup',
+        relationMany: 'Muitos para muitos',
+        relatedTo: 'Relacionado com',
+        recordCount: 'Registros',
+        fieldCount: 'Campos',
+        attachmentCount: 'Anexos',
+        localStorageCount: 'Chaves localStorage',
+        modeBuilderTitle: 'Modo builder',
+        modeDataTitle: 'Modo dados',
+        modeBuilderSubtitle: 'Edite o schema, as configurações dos campos e os helpers de relação.',
+        modeDataSubtitle: 'Navegue pelos registros em linhas ou edite uma entrada como formulário.',
+        confirmDeleteForm: 'Excluir este form e todos os campos, registros, anexos e relações salvas relacionados?',
+        confirmDeleteField: 'Excluir este campo do form?',
+        confirmDeleteRecord: 'Excluir este registro?',
+        importReplaceWarning: 'A importação vai mesclar objetos por id e sobrescrever duplicados. Continuar?',
+        exportDone: 'Exportação criada com sucesso.',
+        importDone: 'Importação concluída com sucesso.',
+        importError: 'Não foi possível importar o arquivo.',
+        invalidJson: 'Arquivo JSON inválido.',
+        newRecord: 'Novo registro',
+        saved: 'Salvo',
+        saveFailed: 'Falha ao salvar',
+        autoKeyHint: 'Gerada a partir do label quando estiver vazia.',
+        themeLight: 'Tema claro',
+        themeDark: 'Tema escuro',
+        relationNeedsTarget: 'Escolha outro form antes de criar uma junction.',
+        noTargetForms: 'Crie um segundo form para habilitar relações.',
+        filePreview: 'Arquivos existentes',
+        recordListTitle: 'Entradas',
+        recordsViewTable: 'Grade',
+        recordsViewForm: 'Formulário',
+        lastUpdated: 'Atualizado',
+        createdAt: 'Criado',
+        idLabel: 'ID',
+        importSeeded: 'Dados importados e recarregados.',
+        noFieldsYet: 'Ainda não há campos. Adicione o primeiro campo para tornar este form utilizável.',
+        noSelectionData: 'Escolha um form à esquerda para navegar nos dados.',
+        noSelectionBuilder: 'Escolha um form à esquerda para editar o schema.',
+        formKeyExists: 'Esta key de campo já existe no form selecionado.',
+        nameFallback: 'Sem título',
+        formulaReadonly: 'Campos de fórmula são somente leitura e calculados automaticamente.',
+        logDefaultHint: 'Forms do tipo log são otimizados para entradas com data/hora.',
+        catalogDefaultHint: 'Catalogs funcionam bem como tabelas de referência.',
+        entityDefaultHint: 'Entity forms são tabelas de uso geral.',
+        junctionDefaultHint: 'Junction forms armazenam links N:N e metadados extras opcionais.',
+        recordsEmptyNav: 'Ainda não há registros salvos para este form.',
+        statsForms: 'Forms',
+        statsRecords: 'Store records',
+        statsFields: 'Store fields',
+        statsRelations: 'Store relations',
+        statsAttachments: 'Store attachments',
+        savePreview: 'O preview atualiza ao vivo enquanto você edita o schema.',
+        relationCreatedLookup: 'Relações lookup são configuradas no próprio campo.',
+        removeAttachment: 'Remover arquivo existente',
+        relationFieldHint: 'O alvo do lookup define as opções no modo de registro.',
+        exportIncludesAll: 'A exportação inclui forms, schema, registros, relações e metadados de anexos.'
+      },
+      ja: {
+        appTitle: 'Form Builder DB',
+        appSubtitle: 'ローカルフォームを設計し、IndexedDB に保存し、schema・表・フォーム表示を切り替えます。',
+        builderMode: 'Builder',
+        dataMode: 'Data',
+        tableView: 'Table',
+        formView: 'Form',
+        exportJson: 'Export',
+        importJson: 'Import',
+        formsTitle: 'Forms',
+        formsSubtitle: '編集またはテーブルとして使うローカル schema を選択します。',
+        searchFormsPlaceholder: 'フォームを検索',
+        storageOverview: 'ストレージ概要',
+        duplicateForm: 'フォーム複製',
+        deleteForm: 'フォーム削除',
+        noFormSelectedTitle: '最初のフォームを作成してください',
+        noFormSelectedSubtitle: 'Builder で schema と relation を定義し、その後 Data モードで CRUD を行います。',
+        createForm: 'フォーム作成',
+        createFormHint: 'schema の種類を選び、ローカルデータを設計します。',
+        formName: 'フォーム名',
+        formType: 'フォーム種別',
+        formIcon: 'アイコン',
+        formDescription: '説明',
+        cancel: 'キャンセル',
+        save: '保存',
+        noFormsEmpty: 'まだフォームがありません。ローカルデータベースを始めるには作成してください。',
+        noFormsEmptyHint: 'entity は標準的な選択です。catalog は lookup テーブル向き、junction は N:N 関係向きです。',
+        createFirstForm: '最初のフォームを作成',
+        formDetails: 'フォーム詳細',
+        schemaFields: 'フィールド',
+        schemaFieldsHint: 'ドラッグして並べ替え、選択したフィールドを右で編集します。',
+        addField: 'フィールド追加',
+        fieldProperties: 'フィールド設定',
+        fieldPropertiesHint: '型、検証、デフォルト、relation 動作を設定します。',
+        relationTools: 'リレーション',
+        relationToolsHint: 'junction form を作成して 2 つのテーブルをつなぎ、多対多を扱います。',
+        previewTitle: 'プレビュー',
+        previewHint: '現在のフォームがレコードモードでどう見えるかを表示します。',
+        searchRecordsPlaceholder: 'レコード検索',
+        addRecord: 'レコード追加',
+        emptyRecords: 'まだレコードがありません',
+        emptyRecordsHint: 'フォーム表示に切り替えて最初のレコードを作成してください。',
+        recordsTitle: 'レコード',
+        recordEditorTitle: 'レコード編集',
+        saveRecord: 'レコード保存',
+        deleteRecord: 'レコード削除',
+        deleteField: 'フィールド削除',
+        duplicateField: 'フィールド複製',
+        primaryField: '主表示フィールド',
+        fieldLabel: 'ラベル',
+        fieldKey: 'キー',
+        fieldType: '型',
+        required: '必須',
+        placeholder: 'プレースホルダー',
+        helpText: '補助テキスト',
+        defaultValue: '初期値',
+        options: '選択肢',
+        optionsHint: '1 行に 1 項目。',
+        relationTarget: '参照先フォーム',
+        relationMultiple: '複数選択',
+        formula: '数式',
+        formulaHint: '{fieldKey} を使います。例: ({qty} || 0) * ({price} || 0)',
+        accept: '許可するファイル形式',
+        builderEmptyTitle: 'フィールドが選択されていません',
+        builderEmptyCopy: 'フィールドを追加するか、既存フィールドを選択して設定してください。',
+        entity: 'Entity',
+        catalog: 'Catalog',
+        junction: 'Junction',
+        log: 'Log',
+        text: 'テキスト',
+        number: '数値',
+        textarea: 'テキストエリア',
+        richtext: 'リッチテキスト',
+        date: '日付',
+        time: '時刻',
+        datetime: '日時',
+        select: 'セレクト',
+        radio: 'ラジオ',
+        checkbox: 'チェックボックス群',
+        boolean: '真偽値',
+        lookup: 'Lookup',
+        file: 'ファイル',
+        image: '画像',
+        formulaType: '数式',
+        createJunction: 'junction form を作成',
+        junctionTarget: '対象フォーム',
+        junctionCreated: 'junction form を作成しました。',
+        relationNone: 'このフォームにはまだ保存済み relation がありません。',
+        relationLookup: 'lookup フィールド',
+        relationMany: '多対多',
+        relatedTo: '関連先',
+        recordCount: 'レコード',
+        fieldCount: 'フィールド',
+        attachmentCount: '添付',
+        localStorageCount: 'localStorage キー',
+        modeBuilderTitle: 'Builder モード',
+        modeDataTitle: 'Data モード',
+        modeBuilderSubtitle: 'schema、field 設定、relation helper を編集します。',
+        modeDataSubtitle: 'レコードを行で見るか、1 件ずつフォーム編集します。',
+        confirmDeleteForm: 'このフォームと関連する fields、records、attachments、relations を削除しますか？',
+        confirmDeleteField: 'このフィールドを削除しますか？',
+        confirmDeleteRecord: 'このレコードを削除しますか？',
+        importReplaceWarning: 'インポートは id ごとにマージし、重複は上書きします。続行しますか？',
+        exportDone: 'エクスポートを作成しました。',
+        importDone: 'インポートが完了しました。',
+        importError: 'ファイルをインポートできませんでした。',
+        invalidJson: '無効な JSON ファイルです。',
+        newRecord: '新規レコード',
+        saved: '保存済み',
+        saveFailed: '保存失敗',
+        autoKeyHint: '空の場合はラベルから自動生成します。',
+        themeLight: 'ライトテーマ',
+        themeDark: 'ダークテーマ',
+        relationNeedsTarget: 'junction を作る前に別のフォームを選択してください。',
+        noTargetForms: 'relation を有効にするには 2 つ目のフォームを作成してください。',
+        filePreview: '既存ファイル',
+        recordListTitle: 'エントリー',
+        recordsViewTable: '表',
+        recordsViewForm: 'フォーム',
+        lastUpdated: '更新',
+        createdAt: '作成',
+        idLabel: 'ID',
+        importSeeded: 'データを読み込み、再描画しました。',
+        noFieldsYet: 'まだフィールドがありません。最初のフィールドを追加してください。',
+        noSelectionData: '左のフォームを選択してデータを表示してください。',
+        noSelectionBuilder: '左のフォームを選択して schema を編集してください。',
+        formKeyExists: 'この field key は既に存在します。',
+        nameFallback: 'Untitled',
+        formulaReadonly: '数式フィールドは読み取り専用で自動計算されます。',
+        logDefaultHint: 'log フォームは日時付きエントリー向けです。',
+        catalogDefaultHint: 'catalog は lookup テーブルとして使いやすいです。',
+        entityDefaultHint: 'entity は汎用テーブル向けです。',
+        junctionDefaultHint: 'junction は多対多リンクと追加メタデータ向けです。',
+        recordsEmptyNav: 'このフォームにはまだ保存済みレコードがありません。',
+        statsForms: 'Forms',
+        statsRecords: 'Records store',
+        statsFields: 'Fields store',
+        statsRelations: 'Relations store',
+        statsAttachments: 'Attachments store',
+        savePreview: 'schema 編集中にプレビューがリアルタイム更新されます。',
+        relationCreatedLookup: 'lookup relation は field 自体で設定します。',
+        removeAttachment: '既存ファイルを削除',
+        relationFieldHint: 'lookup の参照先がレコード入力時の候補を決めます。',
+        exportIncludesAll: 'エクスポートには forms、schema、records、relations、attachment metadata が含まれます。'
+      }
+    };
+
+    const state = {
+      forms: [],
+      fields: [],
+      relations: [],
+      records: [],
+      attachments: [],
+      views: [],
+      settings: {},
+      selectedFormId: null,
+      selectedFieldId: null,
+      selectedRecordId: null,
+      currentMode: 'builder',
+      currentDataView: 'table',
+      formsSearch: '',
+      recordSearch: '',
+      currentLang: localStorage.getItem('app_lang') || 'en',
+      currentTheme: localStorage.getItem('app_theme') || 'dark',
+      junctionTargetId: '',
+      saveStatus: '',
+      importedAt: null
+    };
+
+    let dbPromise = null;
+    let fieldsSortable = null;
+
+    function t(key) {
+      return I18N[state.currentLang]?.[key] || I18N.en[key] || key;
+    }
+
+    function generateId(prefix) {
+      return `${prefix}_${crypto.randomUUID()}`;
+    }
+
+    function slugify(value) {
+      return String(value || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '_')
+        .replace(/^_+|_+$/g, '') || 'field';
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function openDb() {
+      if (dbPromise) {
+        return dbPromise;
+      }
+      dbPromise = new Promise((resolve, reject) => {
+        const req = indexedDB.open(DB_NAME, DB_VERSION);
+        req.onupgradeneeded = (event) => {
+          const db = event.target.result;
+          if (!db.objectStoreNames.contains('forms')) {
+            const store = db.createObjectStore('forms', { keyPath: 'id' });
+            store.createIndex('type', 'type', { unique: false });
+            store.createIndex('order', 'order', { unique: false });
+          }
+          if (!db.objectStoreNames.contains('fields')) {
+            const store = db.createObjectStore('fields', { keyPath: 'id' });
+            store.createIndex('formId', 'formId', { unique: false });
+            store.createIndex('order', 'order', { unique: false });
+            store.createIndex('key', 'key', { unique: false });
+          }
+          if (!db.objectStoreNames.contains('relations')) {
+            const store = db.createObjectStore('relations', { keyPath: 'id' });
+            store.createIndex('formId', 'formId', { unique: false });
+            store.createIndex('targetFormId', 'targetFormId', { unique: false });
+          }
+          if (!db.objectStoreNames.contains('records')) {
+            const store = db.createObjectStore('records', { keyPath: 'id' });
+            store.createIndex('formId', 'formId', { unique: false });
+            store.createIndex('updatedAt', 'updatedAt', { unique: false });
+          }
+          if (!db.objectStoreNames.contains('attachments')) {
+            const store = db.createObjectStore('attachments', { keyPath: 'id' });
+            store.createIndex('recordId', 'recordId', { unique: false });
+            store.createIndex('fieldId', 'fieldId', { unique: false });
+          }
+          if (!db.objectStoreNames.contains('views')) {
+            const store = db.createObjectStore('views', { keyPath: 'id' });
+            store.createIndex('formId', 'formId', { unique: false });
+          }
+          if (!db.objectStoreNames.contains('settings')) {
+            db.createObjectStore('settings', { keyPath: 'id' });
+          }
+        };
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+      });
+      return dbPromise;
+    }
+
+    async function dbGetAll(storeName) {
+      const db = await openDb();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(storeName, 'readonly');
+        const store = tx.objectStore(storeName);
+        const req = store.getAll();
+        req.onsuccess = () => resolve(req.result || []);
+        req.onerror = () => reject(req.error);
+      });
+    }
+
+    async function dbPut(storeName, value) {
+      const db = await openDb();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(storeName, 'readwrite');
+        tx.objectStore(storeName).put(value);
+        tx.oncomplete = () => resolve(value);
+        tx.onerror = () => reject(tx.error);
+      });
+    }
+
+    async function dbDelete(storeName, id) {
+      const db = await openDb();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(storeName, 'readwrite');
+        tx.objectStore(storeName).delete(id);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      });
+    }
+
+    async function dbBulkPut(storeName, values) {
+      const db = await openDb();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(storeName, 'readwrite');
+        const store = tx.objectStore(storeName);
+        values.forEach((item) => store.put(item));
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      });
+    }
+
+    async function loadState() {
+      const [forms, fields, relations, records, attachments, views, settings] = await Promise.all(
+        STORE_NAMES.map((store) => dbGetAll(store))
+      );
+      state.forms = forms.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+      state.fields = fields;
+      state.relations = relations;
+      state.records = records;
+      state.attachments = attachments;
+      state.views = views;
+      state.settings = Object.fromEntries(settings.map((item) => [item.id, item.value]));
+      const savedFormId = state.settings.selectedFormId;
+      state.selectedFormId = savedFormId && state.forms.some((form) => form.id === savedFormId) ? savedFormId : state.forms[0]?.id || null;
+      const selectedFormFields = getFieldsForSelectedForm();
+      state.selectedFieldId = selectedFormFields.some((field) => field.id === state.selectedFieldId) ? state.selectedFieldId : selectedFormFields[0]?.id || null;
+    }
+
+    function saveSetting(id, value) {
+      state.settings[id] = value;
+      return dbPut('settings', { id, value });
+    }
+
+    function getSelectedForm() {
+      return state.forms.find((form) => form.id === state.selectedFormId) || null;
+    }
+
+    function getFieldsByFormId(formId) {
+      return state.fields
+        .filter((field) => field.formId === formId)
+        .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+    }
+
+    function getFieldsForSelectedForm() {
+      return getFieldsByFormId(state.selectedFormId);
+    }
+
+    function getSelectedField() {
+      return state.fields.find((field) => field.id === state.selectedFieldId) || null;
+    }
+
+    function getRecordsByFormId(formId) {
+      return state.records
+        .filter((record) => record.formId === formId)
+        .sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
+    }
+
+    function getSelectedRecord() {
+      if (!state.selectedRecordId || state.selectedRecordId === '__new__') {
+        return null;
+      }
+      return state.records.find((record) => record.id === state.selectedRecordId) || null;
+    }
+
+    function getFormTypeLabel(type) {
+      return t(type);
+    }
+
+    function getFieldTypeLabel(type) {
+      return type === 'formula' ? t('formulaType') : t(type);
+    }
+
+    function getFormLabelById(formId) {
+      return state.forms.find((form) => form.id === formId)?.name || t('nameFallback');
+    }
+
+    function getAttachmentById(attachmentId) {
+      return state.attachments.find((attachment) => attachment.id === attachmentId) || null;
+    }
+
+    function getAttachmentsForRecordField(recordId, fieldId) {
+      return state.attachments.filter((attachment) => attachment.recordId === recordId && attachment.fieldId === fieldId);
+    }
+
+    function getPrimaryField(formId) {
+      const fields = getFieldsByFormId(formId);
+      return fields.find((field) => field.isPrimary) || fields.find((field) => ['text', 'textarea', 'richtext'].includes(field.type)) || fields[0] || null;
+    }
+
+    function getRecordLabel(formId, recordId) {
+      const record = state.records.find((item) => item.id === recordId && item.formId === formId);
+      if (!record) {
+        return recordId;
+      }
+      const primaryField = getPrimaryField(formId);
+      if (!primaryField) {
+        return recordId;
+      }
+      const value = record.values?.[primaryField.id];
+      if (Array.isArray(value)) {
+        return value.join(', ');
+      }
+      return value || recordId;
+    }
+
+    function getFilteredForms() {
+      const query = state.formsSearch.trim().toLowerCase();
+      if (!query) {
+        return state.forms;
+      }
+      return state.forms.filter((form) => {
+        return [form.name, form.description, form.type].some((value) => String(value || '').toLowerCase().includes(query));
+      });
+    }
+
+    function getFilteredRecords(formId) {
+      const records = getRecordsByFormId(formId);
+      const fields = getFieldsByFormId(formId);
+      const query = state.recordSearch.trim().toLowerCase();
+      if (!query) {
+        return records;
+      }
+      return records.filter((record) => {
+        return fields.some((field) => {
+          const raw = field.type === 'formula'
+            ? computeFormula(field.formula || '', record.values || {}, fields)
+            : record.values?.[field.id];
+          return String(formatValueForDisplay(raw, field) || '').toLowerCase().includes(query);
+        });
+      });
+    }
+
+    function normalizeOptions(value) {
+      return String(value || '')
+        .split('\n')
+        .map((item) => item.trim())
+        .filter(Boolean);
+    }
+
+    function getDefaultFieldConfig(formType, fieldType, order) {
+      const timestamp = new Date().toISOString();
+      const labelBase = fieldType === 'lookup' ? 'Relation' : getFieldTypeLabel(fieldType);
+      return {
+        id: generateId('field'),
+        formId: state.selectedFormId,
+        label: labelBase,
+        key: slugify(labelBase),
+        type: fieldType,
+        order,
+        required: false,
+        placeholder: '',
+        helpText: '',
+        defaultValue: formType === 'log' && fieldType === 'datetime' ? timestamp.slice(0, 16) : '',
+        optionsText: fieldType === 'select' || fieldType === 'radio' || fieldType === 'checkbox' ? 'Option 1\nOption 2' : '',
+        relationFormId: '',
+        multiple: false,
+        formula: '',
+        accept: fieldType === 'image' ? 'image/*' : '',
+        isPrimary: false,
+        createdAt: timestamp,
+        updatedAt: timestamp
+      };
+    }
+
+    function buildFormDefaults(type) {
+      if (type === 'catalog') {
+        return [
+          { label: 'Label', key: 'label', type: 'text', required: true, isPrimary: true },
+          { label: 'Notes', key: 'notes', type: 'textarea' }
+        ];
+      }
+      if (type === 'log') {
+        return [
+          { label: 'Logged at', key: 'logged_at', type: 'datetime', required: true, isPrimary: true, defaultValue: new Date().toISOString().slice(0, 16) },
+          { label: 'Details', key: 'details', type: 'textarea' }
+        ];
+      }
+      if (type === 'junction') {
+        return [];
+      }
+      return [
+        { label: 'Name', key: 'name', type: 'text', required: true, isPrimary: true },
+        { label: 'Description', key: 'description', type: 'textarea' }
+      ];
+    }
+
+    async function createForm(payload) {
+      const createdAt = new Date().toISOString();
+      const form = {
+        id: generateId('form'),
+        name: payload.name.trim(),
+        type: payload.type,
+        description: payload.description.trim(),
+        icon: payload.icon.trim() || 'fa-table',
+        order: state.forms.length,
+        createdAt,
+        updatedAt: createdAt
+      };
+      const fields = buildFormDefaults(form.type).map((item, index) => ({
+        ...getDefaultFieldConfig(form.type, item.type, index),
+        formId: form.id,
+        label: item.label,
+        key: item.key,
+        required: Boolean(item.required),
+        isPrimary: Boolean(item.isPrimary),
+        defaultValue: item.defaultValue || getDefaultFieldConfig(form.type, item.type, index).defaultValue
+      }));
+      await dbPut('forms', form);
+      if (fields.length) {
+        await dbBulkPut('fields', fields);
+      }
+      state.forms.push(form);
+      state.forms.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+      state.fields.push(...fields);
+      state.selectedFormId = form.id;
+      state.selectedFieldId = fields[0]?.id || null;
+      state.selectedRecordId = null;
+      await saveSetting('selectedFormId', form.id);
+      render();
+    }
+
+    async function duplicateCurrentForm() {
+      const form = getSelectedForm();
+      if (!form) {
+        return;
+      }
+      const newFormId = generateId('form');
+      const createdAt = new Date().toISOString();
+      const clone = {
+        ...form,
+        id: newFormId,
+        name: `${form.name} Copy`,
+        order: state.forms.length,
+        createdAt,
+        updatedAt: createdAt
+      };
+      const sourceFields = getFieldsByFormId(form.id);
+      const fieldIdMap = new Map();
+      const clonedFields = sourceFields.map((field, index) => {
+        const newId = generateId('field');
+        fieldIdMap.set(field.id, newId);
+        return {
+          ...field,
+          id: newId,
+          formId: newFormId,
+          order: index,
+          createdAt,
+          updatedAt: createdAt
+        };
+      });
+      await dbPut('forms', clone);
+      if (clonedFields.length) {
+        await dbBulkPut('fields', clonedFields);
+      }
+      state.forms.push(clone);
+      state.fields.push(...clonedFields);
+      state.selectedFormId = newFormId;
+      state.selectedFieldId = clonedFields[0]?.id || null;
+      await saveSetting('selectedFormId', newFormId);
+      render();
+    }
+
+    async function deleteCurrentForm() {
+      const form = getSelectedForm();
+      if (!form) {
+        return;
+      }
+      if (!window.confirm(t('confirmDeleteForm'))) {
+        return;
+      }
+      const formId = form.id;
+      const fieldIds = getFieldsByFormId(formId).map((field) => field.id);
+      const recordIds = getRecordsByFormId(formId).map((record) => record.id);
+      const relationIds = state.relations
+        .filter((relation) => relation.formId === formId || relation.targetFormId === formId || relation.junctionFormId === formId)
+        .map((relation) => relation.id);
+      const attachmentIds = state.attachments
+        .filter((attachment) => recordIds.includes(attachment.recordId))
+        .map((attachment) => attachment.id);
+      await dbDelete('forms', formId);
+      await Promise.all(fieldIds.map((id) => dbDelete('fields', id)));
+      await Promise.all(recordIds.map((id) => dbDelete('records', id)));
+      await Promise.all(relationIds.map((id) => dbDelete('relations', id)));
+      await Promise.all(attachmentIds.map((id) => dbDelete('attachments', id)));
+      state.forms = state.forms.filter((item) => item.id !== formId).map((item, index) => ({ ...item, order: index }));
+      await dbBulkPut('forms', state.forms);
+      state.fields = state.fields.filter((field) => field.formId !== formId);
+      state.records = state.records.filter((record) => record.formId !== formId);
+      state.relations = state.relations.filter((relation) => !relationIds.includes(relation.id));
+      state.attachments = state.attachments.filter((attachment) => !attachmentIds.includes(attachment.id));
+      state.selectedFormId = state.forms[0]?.id || null;
+      state.selectedFieldId = getFieldsForSelectedForm()[0]?.id || null;
+      state.selectedRecordId = null;
+      await saveSetting('selectedFormId', state.selectedFormId || '');
+      render();
+    }
+
+    async function updateForm(patch, options = {}) {
+      const form = getSelectedForm();
+      if (!form) {
+        return;
+      }
+      const { rerender = true } = options;
+      const updated = { ...form, ...patch, updatedAt: new Date().toISOString() };
+      await dbPut('forms', updated);
+      const index = state.forms.findIndex((item) => item.id === form.id);
+      state.forms.splice(index, 1, updated);
+      if (rerender) {
+        renderHeader();
+        renderFormsList();
+        renderBuilder();
+        renderData();
+      }
+    }
+
+    async function addField(type) {
+      const form = getSelectedForm();
+      if (!form) {
+        return;
+      }
+      const order = getFieldsByFormId(form.id).length;
+      const field = getDefaultFieldConfig(form.type, type, order);
+      field.formId = form.id;
+      field.label = `${getFieldTypeLabel(type)} ${order + 1}`;
+      field.key = createUniqueFieldKey(form.id, slugify(field.label));
+      await dbPut('fields', field);
+      state.fields.push(field);
+      state.selectedFieldId = field.id;
+      renderBuilder();
+      setSaveStatus(t('saved'), 'success');
+    }
+
+    function createUniqueFieldKey(formId, desiredKey, currentFieldId = null) {
+      const existing = new Set(
+        getFieldsByFormId(formId)
+          .filter((field) => field.id !== currentFieldId)
+          .map((field) => field.key)
+      );
+      let nextKey = desiredKey || 'field';
+      let counter = 2;
+      while (existing.has(nextKey)) {
+        nextKey = `${desiredKey}_${counter}`;
+        counter += 1;
+      }
+      return nextKey;
+    }
+
+    async function updateField(fieldId, patch, options = {}) {
+      const field = state.fields.find((item) => item.id === fieldId);
+      if (!field) {
+        return;
+      }
+      const { rerender = true } = options;
+      const nextKey = patch.key ? createUniqueFieldKey(field.formId, slugify(patch.key), field.id) : field.key;
+      const updated = {
+        ...field,
+        ...patch,
+        key: patch.key !== undefined ? nextKey : field.key,
+        updatedAt: new Date().toISOString()
+      };
+      await dbPut('fields', updated);
+      const index = state.fields.findIndex((item) => item.id === field.id);
+      state.fields.splice(index, 1, updated);
+      if (updated.isPrimary) {
+        const siblings = getFieldsByFormId(updated.formId).filter((item) => item.id !== updated.id && item.isPrimary);
+        for (const sibling of siblings) {
+          const changed = { ...sibling, isPrimary: false, updatedAt: new Date().toISOString() };
+          await dbPut('fields', changed);
+          const siblingIndex = state.fields.findIndex((item) => item.id === sibling.id);
+          state.fields.splice(siblingIndex, 1, changed);
+        }
+      }
+      if (rerender) {
+        renderBuilder();
+        renderData();
+      }
+      setSaveStatus(t('saved'), 'success');
+    }
+
+    async function duplicateSelectedField() {
+      const field = getSelectedField();
+      if (!field) {
+        return;
+      }
+      const siblings = getFieldsByFormId(field.formId);
+      const clone = {
+        ...field,
+        id: generateId('field'),
+        label: `${field.label} Copy`,
+        key: createUniqueFieldKey(field.formId, `${field.key}_copy`),
+        order: siblings.length,
+        isPrimary: false,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+      await dbPut('fields', clone);
+      state.fields.push(clone);
+      state.selectedFieldId = clone.id;
+      renderBuilder();
+    }
+
+    async function deleteSelectedField() {
+      const field = getSelectedField();
+      if (!field) {
+        return;
+      }
+      if (!window.confirm(t('confirmDeleteField'))) {
+        return;
+      }
+      await dbDelete('fields', field.id);
+      state.fields = state.fields.filter((item) => item.id !== field.id);
+      state.records = state.records.map((record) => {
+        if (record.formId !== field.formId) {
+          return record;
+        }
+        const nextValues = { ...(record.values || {}) };
+        delete nextValues[field.id];
+        return { ...record, values: nextValues };
+      });
+      for (const record of state.records.filter((item) => item.formId === field.formId)) {
+        await dbPut('records', record);
+      }
+      const relatedAttachments = state.attachments.filter((attachment) => attachment.fieldId === field.id);
+      await Promise.all(relatedAttachments.map((attachment) => dbDelete('attachments', attachment.id)));
+      state.attachments = state.attachments.filter((attachment) => attachment.fieldId !== field.id);
+      const nextFields = getFieldsByFormId(field.formId);
+      state.selectedFieldId = nextFields[0]?.id || null;
+      renderBuilder();
+      renderData();
+    }
+
+    async function reorderFields(formId, orderedIds) {
+      const fields = getFieldsByFormId(formId);
+      const updates = fields.map((field) => {
+        const newOrder = orderedIds.indexOf(field.id);
+        return { ...field, order: newOrder, updatedAt: new Date().toISOString() };
+      });
+      await dbBulkPut('fields', updates);
+      updates.forEach((item) => {
+        const index = state.fields.findIndex((field) => field.id === item.id);
+        state.fields.splice(index, 1, item);
+      });
+      renderBuilder();
+      renderData();
+    }
+
+    async function createJunctionRelation(targetFormId) {
+      const sourceForm = getSelectedForm();
+      if (!sourceForm || !targetFormId || targetFormId === sourceForm.id) {
+        setSaveStatus(t('relationNeedsTarget'), 'warn');
+        return;
+      }
+      const targetForm = state.forms.find((form) => form.id === targetFormId);
+      if (!targetForm) {
+        setSaveStatus(t('relationNeedsTarget'), 'warn');
+        return;
+      }
+      const createdAt = new Date().toISOString();
+      const junctionForm = {
+        id: generateId('form'),
+        name: `${sourceForm.name} × ${targetForm.name}`,
+        type: 'junction',
+        description: `${sourceForm.name} ↔ ${targetForm.name}`,
+        icon: 'fa-link',
+        order: state.forms.length,
+        createdAt,
+        updatedAt: createdAt
+      };
+      const leftField = {
+        ...getDefaultFieldConfig('junction', 'lookup', 0),
+        id: generateId('field'),
+        formId: junctionForm.id,
+        label: sourceForm.name,
+        key: createUniqueFieldKey(junctionForm.id, slugify(sourceForm.name)),
+        relationFormId: sourceForm.id,
+        required: true,
+        isPrimary: true,
+        createdAt,
+        updatedAt: createdAt
+      };
+      const rightField = {
+        ...getDefaultFieldConfig('junction', 'lookup', 1),
+        id: generateId('field'),
+        formId: junctionForm.id,
+        label: targetForm.name,
+        key: createUniqueFieldKey(junctionForm.id, slugify(targetForm.name)),
+        relationFormId: targetForm.id,
+        required: true,
+        createdAt,
+        updatedAt: createdAt
+      };
+      const relationA = {
+        id: generateId('relation'),
+        formId: sourceForm.id,
+        targetFormId: targetForm.id,
+        junctionFormId: junctionForm.id,
+        type: 'manyToMany',
+        fieldId: leftField.id,
+        relatedFieldId: rightField.id,
+        createdAt,
+        updatedAt: createdAt
+      };
+      const relationB = {
+        id: generateId('relation'),
+        formId: targetForm.id,
+        targetFormId: sourceForm.id,
+        junctionFormId: junctionForm.id,
+        type: 'manyToMany',
+        fieldId: rightField.id,
+        relatedFieldId: leftField.id,
+        createdAt,
+        updatedAt: createdAt
+      };
+      await dbPut('forms', junctionForm);
+      await dbBulkPut('fields', [leftField, rightField]);
+      await dbBulkPut('relations', [relationA, relationB]);
+      state.forms.push(junctionForm);
+      state.fields.push(leftField, rightField);
+      state.relations.push(relationA, relationB);
+      state.junctionTargetId = '';
+      render();
+      setSaveStatus(t('junctionCreated'), 'success');
+    }
+
+    function getRelationsForSelectedForm() {
+      const form = getSelectedForm();
+      if (!form) {
+        return [];
+      }
+      const lookupFields = getFieldsByFormId(form.id)
+        .filter((field) => field.type === 'lookup' && field.relationFormId)
+        .map((field) => ({ kind: 'lookup', field }));
+      const junctions = state.relations
+        .filter((relation) => relation.formId === form.id)
+        .map((relation) => ({ kind: relation.type, relation }));
+      return [...lookupFields, ...junctions];
+    }
+
+    function computeFormula(expression, values, fields) {
+      if (!expression) {
+        return '';
+      }
+      const fieldByKey = new Map(fields.map((field) => [field.key, field]));
+      const compiled = expression.replace(/\{([a-zA-Z0-9_]+)\}/g, (_, key) => {
+        const field = fieldByKey.get(key);
+        if (!field) {
+          return 'undefined';
+        }
+        const raw = values?.[field.id];
+        if (Array.isArray(raw)) {
+          return JSON.stringify(raw);
+        }
+        if (raw === '' || raw === null || raw === undefined) {
+          return 'undefined';
+        }
+        return JSON.stringify(raw);
+      });
+      try {
+        return Function(`"use strict"; return (${compiled});`)();
+      } catch {
+        return '';
+      }
+    }
+
+    function formatValueForDisplay(value, field) {
+      if (value === undefined || value === null || value === '') {
+        return '';
+      }
+      if (field?.type === 'lookup') {
+        if (Array.isArray(value)) {
+          return value.map((item) => getRecordLabel(field.relationFormId, item)).join(', ');
+        }
+        return getRecordLabel(field.relationFormId, value);
+      }
+      if (field?.type === 'checkbox' && Array.isArray(value)) {
+        return value.join(', ');
+      }
+      if ((field?.type === 'file' || field?.type === 'image') && Array.isArray(value)) {
+        return value
+          .map((id) => getAttachmentById(id)?.name || id)
+          .join(', ');
+      }
+      if (field?.type === 'boolean') {
+        return value ? 'Yes' : 'No';
+      }
+      if (Array.isArray(value)) {
+        return value.join(', ');
+      }
+      return String(value);
+    }
+
+    function getRecordDraft(formId, record = null) {
+      const fields = getFieldsByFormId(formId);
+      const values = { ...(record?.values || {}) };
+      fields.forEach((field) => {
+        if (values[field.id] === undefined) {
+          if (field.type === 'checkbox') {
+            values[field.id] = [];
+          } else if (field.type === 'boolean') {
+            values[field.id] = false;
+          } else if (field.type === 'file' || field.type === 'image') {
+            values[field.id] = [];
+          } else {
+            values[field.id] = field.defaultValue || '';
+          }
+        }
+      });
+      fields
+        .filter((field) => field.type === 'formula')
+        .forEach((field) => {
+          values[field.id] = computeFormula(field.formula || '', values, fields);
+        });
+      return values;
+    }
+
+    async function saveRecordFromForm(formElement, recordIdOverride = null) {
+      const form = getSelectedForm();
+      if (!form) {
+        return;
+      }
+      const fields = getFieldsByFormId(form.id);
+      const existingRecord = getSelectedRecord();
+      const recordId = recordIdOverride || existingRecord?.id || generateId('record');
+      const previousValues = { ...(existingRecord?.values || {}) };
+      const values = {};
+      for (const field of fields) {
+        if (field.type === 'formula') {
+          continue;
+        }
+        if (field.type === 'boolean') {
+          values[field.id] = formElement.querySelector(`[data-field-id="${field.id}"]`)?.checked || false;
+          continue;
+        }
+        if (field.type === 'checkbox') {
+          values[field.id] = Array.from(formElement.querySelectorAll(`[data-field-group="${field.id}"]:checked`)).map((input) => input.value);
+          continue;
+        }
+        if (field.type === 'file' || field.type === 'image') {
+          const input = formElement.querySelector(`[data-field-id="${field.id}"]`);
+          const keepExisting = !input?.dataset.removeExisting;
+          let existingIds = keepExisting ? [...(previousValues[field.id] || [])] : [];
+          if (input?.files?.length) {
+            const newIds = [];
+            for (const file of input.files) {
+              const attachment = {
+                id: generateId('attachment'),
+                formId: form.id,
+                recordId,
+                fieldId: field.id,
+                name: file.name,
+                mimeType: file.type,
+                size: file.size,
+                blob: file,
+                createdAt: new Date().toISOString()
+              };
+              await dbPut('attachments', attachment);
+              state.attachments.push(attachment);
+              newIds.push(attachment.id);
+            }
+            if (previousValues[field.id]?.length) {
+              const toRemove = state.attachments.filter((item) => previousValues[field.id].includes(item.id));
+              await Promise.all(toRemove.map((item) => dbDelete('attachments', item.id)));
+              state.attachments = state.attachments.filter((item) => !previousValues[field.id].includes(item.id));
+              existingIds = [];
+            }
+            values[field.id] = [...existingIds, ...newIds];
+          } else {
+            if (!keepExisting && previousValues[field.id]?.length) {
+              const toRemove = state.attachments.filter((item) => previousValues[field.id].includes(item.id));
+              await Promise.all(toRemove.map((item) => dbDelete('attachments', item.id)));
+              state.attachments = state.attachments.filter((item) => !previousValues[field.id].includes(item.id));
+              existingIds = [];
+            }
+            values[field.id] = existingIds;
+          }
+          continue;
+        }
+        const input = formElement.querySelector(`[data-field-id="${field.id}"]`);
+        if (field.type === 'lookup' && field.multiple) {
+          values[field.id] = Array.from(input?.selectedOptions || []).map((option) => option.value).filter(Boolean);
+        } else if (field.type === 'lookup') {
+          values[field.id] = input?.value || '';
+        } else if (field.type === 'radio') {
+          values[field.id] = formElement.querySelector(`[name="${field.id}"]:checked`)?.value || '';
+        } else if (field.type === 'number') {
+          values[field.id] = input?.value === '' ? '' : Number(input?.value);
+        } else if (field.type === 'richtext') {
+          values[field.id] = input?.innerHTML || '';
+        } else {
+          values[field.id] = input?.value || '';
+        }
+      }
+      fields
+        .filter((field) => field.type === 'formula')
+        .forEach((field) => {
+          values[field.id] = computeFormula(field.formula || '', values, fields);
+        });
+      const now = new Date().toISOString();
+      const record = {
+        id: recordId,
+        formId: form.id,
+        values,
+        createdAt: existingRecord?.createdAt || now,
+        updatedAt: now
+      };
+      await dbPut('records', record);
+      const existingIndex = state.records.findIndex((item) => item.id === record.id);
+      if (existingIndex >= 0) {
+        state.records.splice(existingIndex, 1, record);
+      } else {
+        state.records.push(record);
+      }
+      state.selectedRecordId = record.id;
+      renderData();
+      renderStorageStats();
+      setSaveStatus(t('saved'), 'success');
+    }
+
+    async function deleteSelectedRecord() {
+      const record = getSelectedRecord();
+      if (!record) {
+        return;
+      }
+      if (!window.confirm(t('confirmDeleteRecord'))) {
+        return;
+      }
+      await dbDelete('records', record.id);
+      const attachments = state.attachments.filter((item) => item.recordId === record.id);
+      await Promise.all(attachments.map((item) => dbDelete('attachments', item.id)));
+      state.records = state.records.filter((item) => item.id !== record.id);
+      state.attachments = state.attachments.filter((item) => item.recordId !== record.id);
+      state.selectedRecordId = null;
+      renderData();
+      renderStorageStats();
+    }
+
+    async function exportAllData() {
+      const payload = {};
+      for (const store of STORE_NAMES) {
+        const values = await dbGetAll(store);
+        payload[store] = await Promise.all(values.map(async (item) => {
+          if (store !== 'attachments') {
+            return item;
+          }
+          return {
+            ...item,
+            blob: item.blob ? await blobToDataUrl(item.blob) : null
+          };
+        }));
+      }
+      const blob = new Blob([JSON.stringify({ version: 1, exportedAt: new Date().toISOString(), data: payload }, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `form-builder-db-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)}.json`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      document.body.removeChild(anchor);
+      URL.revokeObjectURL(url);
+      setSaveStatus(t('exportDone'), 'success');
+    }
+
+    async function importAllData(file) {
+      if (!file) {
+        return;
+      }
+      if (!window.confirm(t('importReplaceWarning'))) {
+        return;
+      }
+      try {
+        const text = await file.text();
+        const parsed = JSON.parse(text);
+        if (!parsed?.data) {
+          throw new Error('invalid');
+        }
+        const prepared = {};
+        for (const store of STORE_NAMES) {
+          prepared[store] = await Promise.all((parsed.data[store] || []).map(async (item) => {
+            if (store !== 'attachments') {
+              return item;
+            }
+            return {
+              ...item,
+              blob: item.blob ? await dataUrlToBlob(item.blob, item.mimeType || 'application/octet-stream') : null
+            };
+          }));
+        }
+        for (const store of STORE_NAMES) {
+          await dbBulkPut(store, prepared[store]);
+        }
+        await loadState();
+        render();
+        setSaveStatus(t('importDone'), 'success');
+      } catch (error) {
+        console.error(error);
+        setSaveStatus(t('importError'), 'error');
+        window.alert(t('invalidJson'));
+      }
+    }
+
+    function blobToDataUrl(blob) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(reader.error);
+        reader.readAsDataURL(blob);
+      });
+    }
+
+    async function dataUrlToBlob(dataUrl, fallbackMimeType) {
+      if (!dataUrl) {
+        return null;
+      }
+      const response = await fetch(dataUrl);
+      const blob = await response.blob();
+      return blob.type ? blob : new Blob([await blob.arrayBuffer()], { type: fallbackMimeType });
+    }
+
+    function render() {
+      applyLanguage();
+      applyTheme();
+      renderFormsList();
+      renderHeader();
+      renderStorageStats();
+      renderBuilder();
+      renderData();
+      renderModeToggles();
+    }
+
+    function renderHeader() {
+      const form = getSelectedForm();
+      const title = document.getElementById('canvas-title');
+      const subtitle = document.getElementById('canvas-subtitle');
+      const metaRow = document.getElementById('canvas-meta-row');
+      if (!form) {
+        title.textContent = state.currentMode === 'builder' ? t('noFormSelectedTitle') : t('recordsTitle');
+        subtitle.textContent = state.currentMode === 'builder' ? t('noFormSelectedSubtitle') : t('noSelectionData');
+        metaRow.innerHTML = '';
+        return;
+      }
+      title.textContent = state.currentMode === 'builder' ? t('modeBuilderTitle') : t('modeDataTitle');
+      subtitle.textContent = state.currentMode === 'builder' ? t('modeBuilderSubtitle') : t('modeDataSubtitle');
+      const fields = getFieldsByFormId(form.id);
+      const records = getRecordsByFormId(form.id);
+      metaRow.innerHTML = `
+        <span class="type-chip ${escapeHtml(form.type)}">${escapeHtml(getFormTypeLabel(form.type))}</span>
+        <span class="chip"><i class="fas fa-table-columns"></i> ${fields.length} ${escapeHtml(t('fieldCount'))}</span>
+        <span class="chip"><i class="fas fa-table"></i> ${records.length} ${escapeHtml(t('recordCount'))}</span>
+        <span class="chip"><i class="fas ${escapeHtml(form.icon || 'fa-table')}"></i> ${escapeHtml(form.name)}</span>
+      `;
+    }
+
+    function renderModeToggles() {
+      document.getElementById('mode-builder-btn').classList.toggle('active', state.currentMode === 'builder');
+      document.getElementById('mode-data-btn').classList.toggle('active', state.currentMode === 'data');
+      document.getElementById('data-view-toggle').classList.toggle('hidden', state.currentMode !== 'data');
+      document.getElementById('data-view-table-btn').classList.toggle('active', state.currentDataView === 'table');
+      document.getElementById('data-view-form-btn').classList.toggle('active', state.currentDataView === 'form');
+      document.getElementById('duplicate-form-btn').disabled = !getSelectedForm();
+      document.getElementById('delete-form-btn').disabled = !getSelectedForm();
+    }
+
+    function renderFormsList() {
+      const list = document.getElementById('forms-list');
+      const forms = getFilteredForms();
+      if (!forms.length) {
+        list.innerHTML = `
+          <li class="form-item empty-row">
+            <div class="form-name">${escapeHtml(t('noFormsEmpty'))}</div>
+            <div class="form-meta">${escapeHtml(t('noFormsEmptyHint'))}</div>
+          </li>
+        `;
+        return;
+      }
+      list.innerHTML = forms.map((form) => {
+        const fields = getFieldsByFormId(form.id);
+        const records = getRecordsByFormId(form.id);
+        return `
+          <li class="form-item ${form.id === state.selectedFormId ? 'active' : ''}" data-form-id="${escapeHtml(form.id)}">
+            <div class="form-item-main">
+              <div>
+                <div class="form-name">${escapeHtml(form.name)}</div>
+                <div class="form-meta">${escapeHtml(form.description || getFormTypeLabel(form.type))}</div>
+              </div>
+              <span class="type-chip ${escapeHtml(form.type)}">${escapeHtml(getFormTypeLabel(form.type))}</span>
+            </div>
+            <div class="chip-row" style="margin-top:10px;">
+              <span class="chip"><i class="fas fa-input-text"></i> ${fields.length}</span>
+              <span class="chip"><i class="fas fa-database"></i> ${records.length}</span>
+            </div>
+          </li>
+        `;
+      }).join('');
+    }
+
+    function renderStorageStats() {
+      const list = document.getElementById('storage-stats-list');
+      const localStorageCount = Object.keys(localStorage).length;
+      const stats = [
+        { label: t('statsForms'), value: state.forms.length },
+        { label: t('statsFields'), value: state.fields.length },
+        { label: t('statsRecords'), value: state.records.length },
+        { label: t('statsRelations'), value: state.relations.length },
+        { label: t('statsAttachments'), value: state.attachments.length },
+        { label: t('localStorageCount'), value: localStorageCount }
+      ];
+      list.innerHTML = stats.map((item) => `
+        <li class="stats-item">
+          <div class="stats-item-main">
+            <div class="form-name">${escapeHtml(item.label)}</div>
+            <div class="badge">${item.value}</div>
+          </div>
+        </li>
+      `).join('');
+    }
+
+    function renderBuilder() {
+      if (state.currentMode !== 'builder') {
+        document.getElementById('canvas-body').innerHTML = '';
+        return;
+      }
+      const form = getSelectedForm();
+      if (!form) {
+        document.getElementById('canvas-body').innerHTML = `
+          <section class="empty-card">
+            <div class="empty-body">
+              <div class="empty-icon"><i class="fas fa-object-group"></i></div>
+              <h3>${escapeHtml(t('noFormsEmpty'))}</h3>
+              <p class="empty-copy">${escapeHtml(t('noFormsEmptyHint'))}</p>
+              <button id="empty-create-form-btn" class="primary-btn" type="button">${escapeHtml(t('createFirstForm'))}</button>
+            </div>
+          </section>
+        `;
+        document.getElementById('empty-create-form-btn')?.addEventListener('click', openCreateFormDialog);
+        return;
+      }
+      const fields = getFieldsByFormId(form.id);
+      const selectedField = getSelectedField();
+      const canCreateJunction = state.forms.some((item) => item.id !== form.id);
+      document.getElementById('canvas-body').innerHTML = `
+        <div class="builder-layout">
+          <div class="builder-main">
+            <section class="panel">
+              <div class="card-header">
+                <div>
+                  <h3>${escapeHtml(t('formDetails'))}</h3>
+                  <div class="section-copy">${escapeHtml(form.description || t(`${form.type}DefaultHint`) || '')}</div>
+                </div>
+                <span class="save-status ${escapeHtml(state.saveStatus.className || '')}">${escapeHtml(state.saveStatus.message || t('savePreview'))}</span>
+              </div>
+              <div class="card-body">
+                <div class="field-grid-2">
+                  <div>
+                    <label class="label" for="builder-form-name">${escapeHtml(t('formName'))}</label>
+                    <input id="builder-form-name" class="control-input" value="${escapeHtml(form.name)}" />
+                  </div>
+                  <div>
+                    <label class="label" for="builder-form-type">${escapeHtml(t('formType'))}</label>
+                    <select id="builder-form-type" class="control-select">${FORM_TYPES.map((type) => `<option value="${type}" ${type === form.type ? 'selected' : ''}>${escapeHtml(getFormTypeLabel(type))}</option>`).join('')}</select>
+                  </div>
+                </div>
+                <div class="field-grid-2">
+                  <div>
+                    <label class="label" for="builder-form-icon">${escapeHtml(t('formIcon'))}</label>
+                    <input id="builder-form-icon" class="control-input mono" value="${escapeHtml(form.icon || '')}" />
+                  </div>
+                  <div>
+                    <label class="label">${escapeHtml(t('primaryField'))}</label>
+                    <select id="builder-primary-field" class="control-select">
+                      <option value="">--</option>
+                      ${fields.map((field) => `<option value="${escapeHtml(field.id)}" ${field.isPrimary ? 'selected' : ''}>${escapeHtml(field.label)}</option>`).join('')}
+                    </select>
+                  </div>
+                </div>
+                <div>
+                  <label class="label" for="builder-form-description">${escapeHtml(t('formDescription'))}</label>
+                  <textarea id="builder-form-description" class="control-textarea">${escapeHtml(form.description || '')}</textarea>
+                </div>
+              </div>
+            </section>
+
+            <section class="panel">
+              <div class="card-header">
+                <div>
+                  <h3>${escapeHtml(t('schemaFields'))}</h3>
+                  <div class="section-copy">${escapeHtml(t('schemaFieldsHint'))}</div>
+                </div>
+                <div class="helper-row">
+                  <select id="field-type-picker" class="control-select" style="min-width: 160px; width: auto;">
+                    ${FIELD_TYPES.map((type) => `<option value="${type}">${escapeHtml(getFieldTypeLabel(type))}</option>`).join('')}
+                  </select>
+                  <button id="add-field-btn" class="primary-btn" type="button">${escapeHtml(t('addField'))}</button>
+                </div>
+              </div>
+              <div class="card-body">
+                <ul class="fields-list" id="fields-list">
+                  ${fields.length ? fields.map((field) => `
+                    <li class="field-item ${field.id === state.selectedFieldId ? 'active' : ''}" data-field-id="${escapeHtml(field.id)}">
+                      <div class="field-config-row">
+                        <div class="field-item-main">
+                          <span class="field-handle"><i class="fas fa-grip-vertical"></i></span>
+                          <div>
+                            <div class="field-name">${escapeHtml(field.label)}</div>
+                            <div class="field-meta mono">${escapeHtml(field.key)} · ${escapeHtml(getFieldTypeLabel(field.type))}</div>
+                          </div>
+                        </div>
+                        <div class="chip-row">
+                          ${field.required ? `<span class="badge">${escapeHtml(t('required'))}</span>` : ''}
+                          ${field.type === 'lookup' && field.relationFormId ? `<span class="badge">${escapeHtml(getFormLabelById(field.relationFormId))}</span>` : ''}
+                        </div>
+                      </div>
+                    </li>
+                  `).join('') : `
+                    <li class="field-item empty-row">
+                      <div class="field-name">${escapeHtml(t('noFieldsYet'))}</div>
+                    </li>
+                  `}
+                </ul>
+              </div>
+            </section>
+          </div>
+
+          <div class="builder-side">
+            <section class="panel">
+              <div class="card-header">
+                <div>
+                  <h3>${escapeHtml(t('fieldProperties'))}</h3>
+                  <div class="section-copy">${escapeHtml(t('fieldPropertiesHint'))}</div>
+                </div>
+                ${selectedField ? `<div class="inline-actions"><button id="duplicate-field-btn" class="ghost-btn" type="button">${escapeHtml(t('duplicateField'))}</button><button id="delete-field-btn" class="danger-btn" type="button">${escapeHtml(t('deleteField'))}</button></div>` : ''}
+              </div>
+              <div class="card-body" id="field-properties-container">
+                ${selectedField ? renderFieldPropertiesMarkup(selectedField) : `
+                  <section class="empty-card" style="min-height: 260px;">
+                    <div class="empty-body">
+                      <div class="empty-icon"><i class="fas fa-sliders"></i></div>
+                      <h3>${escapeHtml(t('builderEmptyTitle'))}</h3>
+                      <p class="empty-copy">${escapeHtml(t('builderEmptyCopy'))}</p>
+                    </div>
+                  </section>
+                `}
+              </div>
+            </section>
+
+            <section class="panel">
+              <div class="card-header">
+                <div>
+                  <h3>${escapeHtml(t('relationTools'))}</h3>
+                  <div class="section-copy">${escapeHtml(t('relationToolsHint'))}</div>
+                </div>
+              </div>
+              <div class="card-body">
+                <div class="helper-card">
+                  <h4>${escapeHtml(t('createJunction'))}</h4>
+                  <div class="help-copy">${escapeHtml(canCreateJunction ? t('relationToolsHint') : t('noTargetForms'))}</div>
+                  <div class="helper-row" style="margin-top: 12px;">
+                    <select id="junction-target-select" class="control-select" ${canCreateJunction ? '' : 'disabled'}>
+                      <option value="">${escapeHtml(t('junctionTarget'))}</option>
+                      ${state.forms.filter((item) => item.id !== form.id).map((item) => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.name)}</option>`).join('')}
+                    </select>
+                    <button id="create-junction-btn" class="primary-btn" type="button" ${canCreateJunction ? '' : 'disabled'}>${escapeHtml(t('createJunction'))}</button>
+                  </div>
+                </div>
+                <ul class="relations-list" id="relations-list" style="margin-top: 14px;">
+                  ${renderRelationsMarkup()}
+                </ul>
+              </div>
+            </section>
+
+            <section class="preview-card">
+              <div class="card-header">
+                <div>
+                  <h3>${escapeHtml(t('previewTitle'))}</h3>
+                  <div class="section-copy">${escapeHtml(t('previewHint'))}</div>
+                </div>
+              </div>
+              <div class="preview-body">
+                ${renderPreviewMarkup(form.id, null, true)}
+              </div>
+            </section>
+          </div>
+        </div>
+      `;
+      bindBuilderEvents();
+      setupFieldsSortable();
+    }
+
+    function renderFieldPropertiesMarkup(field) {
+      const selectedForm = getSelectedForm();
+      const showOptions = ['select', 'radio', 'checkbox'].includes(field.type);
+      const showRelation = field.type === 'lookup';
+      const showFormula = field.type === 'formula';
+      const showAccept = field.type === 'file' || field.type === 'image';
+      return `
+        <div class="property-card">
+          <div class="field-grid-2">
+            <div>
+              <label class="label" for="field-label-input">${escapeHtml(t('fieldLabel'))}</label>
+              <input id="field-label-input" class="control-input" value="${escapeHtml(field.label)}" />
+            </div>
+            <div>
+              <label class="label" for="field-key-input">${escapeHtml(t('fieldKey'))}</label>
+              <input id="field-key-input" class="control-input mono" value="${escapeHtml(field.key)}" />
+              <div class="hint">${escapeHtml(t('autoKeyHint'))}</div>
+            </div>
+          </div>
+          <div class="field-grid-2">
+            <div>
+              <label class="label" for="field-type-input">${escapeHtml(t('fieldType'))}</label>
+              <select id="field-type-input" class="control-select">
+                ${FIELD_TYPES.map((type) => `<option value="${type}" ${type === field.type ? 'selected' : ''}>${escapeHtml(getFieldTypeLabel(type))}</option>`).join('')}
+              </select>
+            </div>
+            <div>
+              <label class="label" for="field-default-input">${escapeHtml(t('defaultValue'))}</label>
+              <input id="field-default-input" class="control-input" value="${escapeHtml(field.defaultValue || '')}" ${showFormula ? 'disabled' : ''} />
+            </div>
+          </div>
+          <div class="field-grid-2">
+            <div>
+              <label class="label" for="field-placeholder-input">${escapeHtml(t('placeholder'))}</label>
+              <input id="field-placeholder-input" class="control-input" value="${escapeHtml(field.placeholder || '')}" />
+            </div>
+            <div>
+              <label class="label" for="field-help-input">${escapeHtml(t('helpText'))}</label>
+              <input id="field-help-input" class="control-input" value="${escapeHtml(field.helpText || '')}" />
+            </div>
+          </div>
+          <div class="toggle-row">
+            <label for="field-required-input">${escapeHtml(t('required'))}</label>
+            <input id="field-required-input" type="checkbox" ${field.required ? 'checked' : ''} />
+          </div>
+          <div class="toggle-row">
+            <label for="field-primary-input">${escapeHtml(t('primaryField'))}</label>
+            <input id="field-primary-input" type="checkbox" ${field.isPrimary ? 'checked' : ''} />
+          </div>
+          ${showOptions ? `
+            <div>
+              <label class="label" for="field-options-input">${escapeHtml(t('options'))}</label>
+              <textarea id="field-options-input" class="control-textarea">${escapeHtml(field.optionsText || '')}</textarea>
+              <div class="hint">${escapeHtml(t('optionsHint'))}</div>
+            </div>
+          ` : ''}
+          ${showRelation ? `
+            <div class="field-grid-2">
+              <div>
+                <label class="label" for="field-relation-target-input">${escapeHtml(t('relationTarget'))}</label>
+                <select id="field-relation-target-input" class="control-select">
+                  <option value="">--</option>
+                  ${state.forms.filter((item) => item.id !== selectedForm.id).map((item) => `<option value="${escapeHtml(item.id)}" ${item.id === field.relationFormId ? 'selected' : ''}>${escapeHtml(item.name)}</option>`).join('')}
+                </select>
+                <div class="hint">${escapeHtml(t('relationFieldHint'))}</div>
+              </div>
+              <div class="toggle-row">
+                <label for="field-multiple-input">${escapeHtml(t('relationMultiple'))}</label>
+                <input id="field-multiple-input" type="checkbox" ${field.multiple ? 'checked' : ''} />
+              </div>
+            </div>
+          ` : ''}
+          ${showFormula ? `
+            <div>
+              <label class="label" for="field-formula-input">${escapeHtml(t('formula'))}</label>
+              <textarea id="field-formula-input" class="control-textarea mono">${escapeHtml(field.formula || '')}</textarea>
+              <div class="hint">${escapeHtml(t('formulaHint'))}</div>
+              <div class="hint">${escapeHtml(t('formulaReadonly'))}</div>
+            </div>
+          ` : ''}
+          ${showAccept ? `
+            <div>
+              <label class="label" for="field-accept-input">${escapeHtml(t('accept'))}</label>
+              <input id="field-accept-input" class="control-input mono" value="${escapeHtml(field.accept || (field.type === 'image' ? 'image/*' : ''))}" />
+            </div>
+          ` : ''}
+        </div>
+      `;
+    }
+
+    function renderRelationsMarkup() {
+      const relations = getRelationsForSelectedForm();
+      if (!relations.length) {
+        return `
+          <li class="relation-item empty-row">
+            <div class="relation-meta">${escapeHtml(t('relationNone'))}</div>
+          </li>
+        `;
+      }
+      return relations.map((entry) => {
+        if (entry.kind === 'lookup') {
+          return `
+            <li class="relation-item">
+              <div class="relation-item-main">
+                <div>
+                  <div class="field-name">${escapeHtml(entry.field.label)}</div>
+                  <div class="relation-meta">${escapeHtml(t('relationLookup'))} · ${escapeHtml(getFormLabelById(entry.field.relationFormId))}</div>
+                </div>
+                <span class="badge">lookup</span>
+              </div>
+            </li>
+          `;
+        }
+        return `
+          <li class="relation-item">
+            <div class="relation-item-main">
+              <div>
+                <div class="field-name">${escapeHtml(getFormLabelById(entry.relation.junctionFormId))}</div>
+                <div class="relation-meta">${escapeHtml(t('relationMany'))} · ${escapeHtml(t('relatedTo'))} ${escapeHtml(getFormLabelById(entry.relation.targetFormId))}</div>
+              </div>
+              <span class="badge">N:N</span>
+            </div>
+          </li>
+        `;
+      }).join('');
+    }
+
+    function renderPreviewMarkup(formId, values = null, disabled = false) {
+      const fields = getFieldsByFormId(formId);
+      if (!fields.length) {
+        return `<div class="help-copy">${escapeHtml(t('noFieldsYet'))}</div>`;
+      }
+      const draft = getRecordDraft(formId, values ? { values } : null);
+      return `
+        <form class="preview-form" novalidate>
+          ${fields.map((field) => renderFieldInputMarkup(field, draft[field.id], { preview: true, disabled })).join('')}
+        </form>
+      `;
+    }
+
+    function renderFieldInputMarkup(field, value, options = {}) {
+      const preview = Boolean(options.preview);
+      const disabled = Boolean(options.disabled);
+      const inputClass = preview ? 'preview-input' : 'record-input';
+      const textareaClass = preview ? 'preview-textarea' : 'record-textarea';
+      const fieldClass = preview ? 'preview-field' : 'record-field';
+      const labelClass = preview ? 'preview-field-label' : 'record-field-label';
+      const requiredMark = field.required ? `<span class="required-dot">*</span>` : '';
+      const help = field.helpText ? `<div class="help-copy">${escapeHtml(field.helpText)}</div>` : '';
+      const disabledAttr = disabled || field.type === 'formula' ? 'disabled' : '';
+      const safeValue = value ?? '';
+      let control = '';
+
+      if (field.type === 'textarea') {
+        control = `<textarea class="${textareaClass}" data-field-id="${escapeHtml(field.id)}" placeholder="${escapeHtml(field.placeholder || '')}" ${disabledAttr}>${escapeHtml(safeValue)}</textarea>`;
+      } else if (field.type === 'richtext') {
+        control = `<div class="${preview ? 'rich-preview' : 'record-richtext'}" data-field-id="${escapeHtml(field.id)}" contenteditable="${preview || disabled ? 'false' : 'true'}">${safeValue || ''}</div>`;
+      } else if (field.type === 'select' || field.type === 'lookup') {
+        const optionValues = field.type === 'lookup'
+          ? getRecordsByFormId(field.relationFormId).map((record) => ({ value: record.id, label: getRecordLabel(field.relationFormId, record.id) }))
+          : normalizeOptions(field.optionsText).map((item) => ({ value: item, label: item }));
+        const selectedValues = Array.isArray(safeValue) ? safeValue : [safeValue];
+        control = `
+          <select class="${inputClass}" data-field-id="${escapeHtml(field.id)}" ${field.multiple ? 'multiple' : ''} ${disabledAttr}>
+            ${field.multiple ? '' : '<option value=""></option>'}
+            ${optionValues.map((option) => `<option value="${escapeHtml(option.value)}" ${selectedValues.includes(option.value) ? 'selected' : ''}>${escapeHtml(option.label)}</option>`).join('')}
+          </select>
+        `;
+      } else if (field.type === 'radio') {
+        control = `<div class="choice-group">${normalizeOptions(field.optionsText).map((option) => `
+          <label class="choice-item"><input type="radio" name="${escapeHtml(field.id)}" value="${escapeHtml(option)}" ${safeValue === option ? 'checked' : ''} ${disabledAttr} /><span>${escapeHtml(option)}</span></label>
+        `).join('')}</div>`;
+      } else if (field.type === 'checkbox') {
+        const values = Array.isArray(safeValue) ? safeValue : [];
+        control = `<div class="choice-group">${normalizeOptions(field.optionsText).map((option) => `
+          <label class="choice-item"><input type="checkbox" data-field-group="${escapeHtml(field.id)}" value="${escapeHtml(option)}" ${values.includes(option) ? 'checked' : ''} ${disabledAttr} /><span>${escapeHtml(option)}</span></label>
+        `).join('')}</div>`;
+      } else if (field.type === 'boolean') {
+        control = `<label class="choice-item"><input type="checkbox" data-field-id="${escapeHtml(field.id)}" ${safeValue ? 'checked' : ''} ${disabledAttr} /><span>${escapeHtml(field.placeholder || field.label)}</span></label>`;
+      } else if (field.type === 'file' || field.type === 'image') {
+        const attachmentIds = Array.isArray(safeValue) ? safeValue : [];
+        const attachments = attachmentIds.map((id) => getAttachmentById(id)).filter(Boolean);
+        const previewMarkup = attachments.length ? `
+          <div>
+            <div class="help-copy">${escapeHtml(t('filePreview'))}</div>
+            <div class="file-preview-grid">
+              ${attachments.map((attachment) => field.type === 'image' ? `<img class="image-thumb" src="${escapeHtml(URL.createObjectURL(attachment.blob))}" alt="${escapeHtml(attachment.name)}" />` : `<span class="file-pill"><i class="fas fa-file"></i>${escapeHtml(attachment.name)}</span>`).join('')}
+            </div>
+          </div>
+        ` : '';
+        control = `
+          <div class="field-block">
+            ${previewMarkup}
+            <input class="${inputClass}" data-field-id="${escapeHtml(field.id)}" type="file" ${field.accept ? `accept="${escapeHtml(field.accept)}"` : ''} ${field.multiple ? 'multiple' : ''} ${disabledAttr} />
+            ${attachments.length && !preview ? `<label class="choice-item"><input type="checkbox" data-remove-existing="${escapeHtml(field.id)}" /> <span>${escapeHtml(t('removeAttachment'))}</span></label>` : ''}
+          </div>
+        `;
+      } else if (field.type === 'formula') {
+        control = `<input class="${inputClass}" data-field-id="${escapeHtml(field.id)}" value="${escapeHtml(safeValue)}" disabled />`;
+      } else {
+        const typeMap = { number: 'number', date: 'date', time: 'time', datetime: 'datetime-local' };
+        control = `<input class="${inputClass}" data-field-id="${escapeHtml(field.id)}" type="${typeMap[field.type] || 'text'}" value="${escapeHtml(safeValue)}" placeholder="${escapeHtml(field.placeholder || '')}" ${disabledAttr} />`;
+      }
+
+      return `
+        <div class="${fieldClass}">
+          <div class="${labelClass}">${escapeHtml(field.label)}${requiredMark}</div>
+          ${control}
+          ${help}
+        </div>
+      `;
+    }
+
+    function renderData() {
+      if (state.currentMode !== 'data') {
+        return;
+      }
+      const form = getSelectedForm();
+      if (!form) {
+        document.getElementById('canvas-body').innerHTML = `
+          <section class="empty-card">
+            <div class="empty-body">
+              <div class="empty-icon"><i class="fas fa-table"></i></div>
+              <h3>${escapeHtml(t('recordsTitle'))}</h3>
+              <p class="empty-copy">${escapeHtml(t('noSelectionData'))}</p>
+            </div>
+          </section>
+        `;
+        return;
+      }
+      const records = getFilteredRecords(form.id);
+      const fields = getFieldsByFormId(form.id);
+      if (state.currentDataView === 'table') {
+        document.getElementById('canvas-body').innerHTML = `
+          <section class="table-card">
+            <div class="record-panel-header">
+              <div>
+                <h3>${escapeHtml(t('recordsViewTable'))}</h3>
+                <div class="section-copy">${escapeHtml(form.name)} · ${records.length} ${escapeHtml(t('recordCount'))}</div>
+              </div>
+              <div class="record-toolbar">
+                <input id="records-search-input" class="control-input" type="search" value="${escapeHtml(state.recordSearch)}" placeholder="${escapeHtml(t('searchRecordsPlaceholder'))}" />
+                <button id="add-record-btn" class="primary-btn" type="button">${escapeHtml(t('addRecord'))}</button>
+              </div>
+            </div>
+            <div class="table-body">
+              ${records.length ? `
+                <div class="table-scroll">
+                  <table>
+                    <thead>
+                      <tr>
+                        ${fields.map((field) => `<th>${escapeHtml(field.label)}</th>`).join('')}
+                        <th>${escapeHtml(t('formView'))}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      ${records.map((record) => `
+                        <tr data-record-id="${escapeHtml(record.id)}">
+                          ${fields.map((field) => {
+                            const value = field.type === 'formula'
+                              ? computeFormula(field.formula || '', record.values || {}, fields)
+                              : record.values?.[field.id];
+                            return `<td>${escapeHtml(formatValueForDisplay(value, field))}</td>`;
+                          }).join('')}
+                          <td>
+                            <button class="ghost-btn row-open-record-btn" type="button" data-record-id="${escapeHtml(record.id)}">${escapeHtml(t('formView'))}</button>
+                          </td>
+                        </tr>
+                      `).join('')}
+                    </tbody>
+                  </table>
+                </div>
+              ` : `
+                <div class="empty-body" style="padding-top: 36px;">
+                  <div class="empty-icon"><i class="fas fa-table"></i></div>
+                  <h3>${escapeHtml(t('emptyRecords'))}</h3>
+                  <p class="empty-copy">${escapeHtml(t('emptyRecordsHint'))}</p>
+                </div>
+              `}
+            </div>
+          </section>
+        `;
+        bindTableEvents();
+        return;
+      }
+
+      const selectedRecord = getSelectedRecord();
+      const recordDraft = getRecordDraft(form.id, selectedRecord);
+      document.getElementById('canvas-body').innerHTML = `
+        <div class="record-shell">
+          <aside class="record-nav">
+            <div class="record-nav-header">
+              <div>
+                <h3>${escapeHtml(t('recordListTitle'))}</h3>
+                <div class="hint">${escapeHtml(form.name)}</div>
+              </div>
+              <button id="record-nav-new-btn" class="icon-btn" type="button"><i class="fas fa-plus"></i></button>
+              <input id="records-search-input" class="control-input" type="search" value="${escapeHtml(state.recordSearch)}" placeholder="${escapeHtml(t('searchRecordsPlaceholder'))}" />
+            </div>
+            <div class="card-body-scroll">
+              <ul class="record-nav-list">
+                <li class="record-nav-item ${state.selectedRecordId === '__new__' || !state.selectedRecordId ? 'active' : ''}" data-record-id="__new__">
+                  <div class="record-nav-main">
+                    <div>
+                      <div class="record-nav-name">${escapeHtml(t('newRecord'))}</div>
+                      <div class="record-nav-meta">${escapeHtml(t('recordsViewForm'))}</div>
+                    </div>
+                    <span class="badge">+</span>
+                  </div>
+                </li>
+                ${records.length ? records.map((record) => `
+                  <li class="record-nav-item ${record.id === state.selectedRecordId ? 'active' : ''}" data-record-id="${escapeHtml(record.id)}">
+                    <div class="record-nav-main">
+                      <div>
+                        <div class="record-nav-name">${escapeHtml(getRecordLabel(form.id, record.id))}</div>
+                        <div class="record-nav-meta">${escapeHtml(t('lastUpdated'))}: ${escapeHtml(formatTimestamp(record.updatedAt))}</div>
+                      </div>
+                    </div>
+                  </li>
+                `).join('') : `<li class="record-nav-item empty-row"><div class="record-nav-meta">${escapeHtml(t('recordsEmptyNav'))}</div></li>`}
+              </ul>
+            </div>
+          </aside>
+
+          <section class="record-card">
+            <div class="record-panel-header">
+              <div>
+                <h3>${escapeHtml(selectedRecord ? getRecordLabel(form.id, selectedRecord.id) : t('newRecord'))}</h3>
+                <div class="section-copy">${escapeHtml(form.name)} · ${escapeHtml(selectedRecord ? `${t('lastUpdated')}: ${formatTimestamp(selectedRecord.updatedAt)}` : t('recordsViewForm'))}</div>
+              </div>
+              <div class="record-toolbar">
+                <span class="save-status ${escapeHtml(state.saveStatus.className || '')}">${escapeHtml(state.saveStatus.message || '')}</span>
+                ${selectedRecord ? `<button id="delete-record-btn" class="danger-btn" type="button">${escapeHtml(t('deleteRecord'))}</button>` : ''}
+                <button id="save-record-btn" class="primary-btn" type="button">${escapeHtml(t('saveRecord'))}</button>
+              </div>
+            </div>
+            <div class="record-card-body">
+              <form id="record-form" class="record-form" novalidate>
+                ${fields.map((field) => {
+                  const currentValue = field.type === 'formula'
+                    ? computeFormula(field.formula || '', recordDraft, fields)
+                    : recordDraft[field.id];
+                  return renderFieldInputMarkup(field, currentValue, { preview: false, disabled: false });
+                }).join('')}
+              </form>
+            </div>
+          </section>
+        </div>
+      `;
+      bindFormViewEvents();
+      bindRecordFormulaUpdates();
+    }
+
+    function formatTimestamp(value) {
+      if (!value) {
+        return '';
+      }
+      const date = new Date(value);
+      return Number.isNaN(date.getTime()) ? value : date.toLocaleString(state.currentLang);
+    }
+
+    function debounce(fn, wait = 260) {
+      let timer = null;
+      return (...args) => {
+        window.clearTimeout(timer);
+        timer = window.setTimeout(() => fn(...args), wait);
+      };
+    }
+
+    function bindBuilderEvents() {
+      const form = getSelectedForm();
+      if (!form) {
+        return;
+      }
+      const scheduleFormUpdate = debounce((patch) => updateForm(patch, { rerender: false }));
+      document.getElementById('builder-form-name')?.addEventListener('input', (event) => scheduleFormUpdate({ name: event.target.value }));
+      document.getElementById('builder-form-name')?.addEventListener('blur', (event) => updateForm({ name: event.target.value }));
+      document.getElementById('builder-form-type')?.addEventListener('change', (event) => updateForm({ type: event.target.value }));
+      document.getElementById('builder-form-icon')?.addEventListener('input', (event) => scheduleFormUpdate({ icon: event.target.value || 'fa-table' }));
+      document.getElementById('builder-form-icon')?.addEventListener('blur', (event) => updateForm({ icon: event.target.value || 'fa-table' }));
+      document.getElementById('builder-form-description')?.addEventListener('input', (event) => scheduleFormUpdate({ description: event.target.value }));
+      document.getElementById('builder-form-description')?.addEventListener('blur', (event) => updateForm({ description: event.target.value }));
+      document.getElementById('builder-primary-field')?.addEventListener('change', async (event) => {
+        const targetId = event.target.value;
+        const updates = getFieldsByFormId(form.id).map((field) => ({ ...field, isPrimary: field.id === targetId, updatedAt: new Date().toISOString() }));
+        await dbBulkPut('fields', updates);
+        updates.forEach((item) => {
+          const index = state.fields.findIndex((field) => field.id === item.id);
+          state.fields.splice(index, 1, item);
+        });
+        renderBuilder();
+        renderData();
+      });
+      document.getElementById('add-field-btn')?.addEventListener('click', () => addField(document.getElementById('field-type-picker').value));
+      document.querySelectorAll('.field-item[data-field-id]').forEach((item) => {
+        item.addEventListener('click', () => {
+          state.selectedFieldId = item.dataset.fieldId;
+          renderBuilder();
+        });
+      });
+      document.getElementById('duplicate-field-btn')?.addEventListener('click', duplicateSelectedField);
+      document.getElementById('delete-field-btn')?.addEventListener('click', deleteSelectedField);
+      document.getElementById('create-junction-btn')?.addEventListener('click', () => createJunctionRelation(document.getElementById('junction-target-select').value));
+      bindFieldPropertyEvents();
+    }
+
+    function bindFieldPropertyEvents() {
+      const field = getSelectedField();
+      if (!field) {
+        return;
+      }
+      const readPatch = () => ({
+        label: document.getElementById('field-label-input')?.value || field.label,
+        key: document.getElementById('field-key-input')?.value || field.key,
+        type: document.getElementById('field-type-input')?.value || field.type,
+        defaultValue: document.getElementById('field-default-input')?.value || '',
+        placeholder: document.getElementById('field-placeholder-input')?.value || '',
+        helpText: document.getElementById('field-help-input')?.value || '',
+        required: document.getElementById('field-required-input')?.checked || false,
+        isPrimary: document.getElementById('field-primary-input')?.checked || false,
+        optionsText: document.getElementById('field-options-input')?.value || '',
+        relationFormId: document.getElementById('field-relation-target-input')?.value || '',
+        multiple: document.getElementById('field-multiple-input')?.checked || false,
+        formula: document.getElementById('field-formula-input')?.value || '',
+        accept: document.getElementById('field-accept-input')?.value || ''
+      });
+      const onUpdate = () => {
+        updateField(field.id, readPatch());
+      };
+      const scheduleUpdate = debounce(() => updateField(field.id, readPatch(), { rerender: false }));
+      ['field-label-input', 'field-key-input', 'field-default-input', 'field-placeholder-input', 'field-help-input', 'field-options-input', 'field-formula-input', 'field-accept-input'].forEach((id) => {
+        document.getElementById(id)?.addEventListener('input', scheduleUpdate);
+        document.getElementById(id)?.addEventListener('blur', onUpdate);
+      });
+      ['field-type-input', 'field-relation-target-input', 'field-required-input', 'field-primary-input', 'field-multiple-input'].forEach((id) => {
+        document.getElementById(id)?.addEventListener('change', onUpdate);
+      });
+    }
+
+    function setupFieldsSortable() {
+      const list = document.getElementById('fields-list');
+      const form = getSelectedForm();
+      if (!list || !form || !window.Sortable) {
+        return;
+      }
+      fieldsSortable?.destroy();
+      fieldsSortable = new Sortable(list, {
+        animation: 150,
+        handle: '.field-handle',
+        onEnd: () => {
+          const orderedIds = Array.from(list.querySelectorAll('.field-item[data-field-id]')).map((item) => item.dataset.fieldId);
+          reorderFields(form.id, orderedIds);
+        }
+      });
+    }
+
+    function bindTableEvents() {
+      document.getElementById('records-search-input')?.addEventListener('input', (event) => {
+        state.recordSearch = event.target.value;
+        renderData();
+      });
+      document.getElementById('add-record-btn')?.addEventListener('click', () => {
+        state.selectedRecordId = '__new__';
+        state.currentDataView = 'form';
+        render();
+      });
+      document.querySelectorAll('.row-open-record-btn').forEach((button) => {
+        button.addEventListener('click', () => {
+          state.selectedRecordId = button.dataset.recordId;
+          state.currentDataView = 'form';
+          render();
+        });
+      });
+    }
+
+    function bindFormViewEvents() {
+      document.getElementById('records-search-input')?.addEventListener('input', (event) => {
+        state.recordSearch = event.target.value;
+        renderData();
+      });
+      document.getElementById('record-nav-new-btn')?.addEventListener('click', () => {
+        state.selectedRecordId = '__new__';
+        renderData();
+      });
+      document.querySelectorAll('.record-nav-item[data-record-id]').forEach((item) => {
+        item.addEventListener('click', () => {
+          state.selectedRecordId = item.dataset.recordId;
+          renderData();
+        });
+      });
+      document.getElementById('save-record-btn')?.addEventListener('click', () => {
+        const formElement = document.getElementById('record-form');
+        saveRecordFromForm(formElement);
+      });
+      document.getElementById('delete-record-btn')?.addEventListener('click', deleteSelectedRecord);
+      document.querySelectorAll('[data-remove-existing]').forEach((checkbox) => {
+        checkbox.addEventListener('change', () => {
+          const input = document.querySelector(`[data-field-id="${checkbox.dataset.removeExisting}"]`);
+          if (input) {
+            input.dataset.removeExisting = checkbox.checked ? '1' : '';
+          }
+        });
+      });
+    }
+
+    function bindRecordFormulaUpdates() {
+      const formElement = document.getElementById('record-form');
+      const form = getSelectedForm();
+      if (!formElement || !form) {
+        return;
+      }
+      const recompute = () => {
+        const draft = collectRecordDraftFromDom(formElement, form.id);
+        const fields = getFieldsByFormId(form.id);
+        fields.filter((field) => field.type === 'formula').forEach((field) => {
+          const target = formElement.querySelector(`[data-field-id="${field.id}"]`);
+          if (target) {
+            target.value = computeFormula(field.formula || '', draft, fields);
+          }
+        });
+      };
+      formElement.addEventListener('input', recompute);
+      formElement.addEventListener('change', recompute);
+    }
+
+    function collectRecordDraftFromDom(formElement, formId) {
+      const values = {};
+      const fields = getFieldsByFormId(formId);
+      for (const field of fields) {
+        if (field.type === 'formula') {
+          continue;
+        }
+        if (field.type === 'boolean') {
+          values[field.id] = formElement.querySelector(`[data-field-id="${field.id}"]`)?.checked || false;
+        } else if (field.type === 'checkbox') {
+          values[field.id] = Array.from(formElement.querySelectorAll(`[data-field-group="${field.id}"]:checked`)).map((input) => input.value);
+        } else if (field.type === 'lookup' && field.multiple) {
+          values[field.id] = Array.from(formElement.querySelector(`[data-field-id="${field.id}"]`)?.selectedOptions || []).map((option) => option.value);
+        } else if (field.type === 'radio') {
+          values[field.id] = formElement.querySelector(`[name="${field.id}"]:checked`)?.value || '';
+        } else if (field.type === 'number') {
+          const raw = formElement.querySelector(`[data-field-id="${field.id}"]`)?.value || '';
+          values[field.id] = raw === '' ? '' : Number(raw);
+        } else if (field.type === 'richtext') {
+          values[field.id] = formElement.querySelector(`[data-field-id="${field.id}"]`)?.innerHTML || '';
+        } else if (field.type === 'file' || field.type === 'image') {
+          values[field.id] = getSelectedRecord()?.values?.[field.id] || [];
+        } else {
+          values[field.id] = formElement.querySelector(`[data-field-id="${field.id}"]`)?.value || '';
+        }
+      }
+      return values;
+    }
+
+    function setSaveStatus(message, className = '') {
+      state.saveStatus = { message, className };
+      renderHeader();
+      const indicators = document.querySelectorAll('.save-status');
+      indicators.forEach((node) => {
+        node.textContent = message;
+        node.classList.remove('success', 'error', 'warn');
+        if (className) {
+          node.classList.add(className);
+        }
+      });
+      window.clearTimeout(setSaveStatus._timer);
+      setSaveStatus._timer = window.setTimeout(() => {
+        state.saveStatus = { message: '', className: '' };
+        document.querySelectorAll('.save-status').forEach((node) => {
+          node.textContent = '';
+          node.classList.remove('success', 'error', 'warn');
+        });
+      }, 2200);
+    }
+
+    function applyLanguage() {
+      document.documentElement.lang = state.currentLang;
+      document.querySelectorAll('[data-i18n]').forEach((node) => {
+        node.textContent = t(node.dataset.i18n);
+      });
+      document.querySelectorAll('[data-i18n-placeholder]').forEach((node) => {
+        node.placeholder = t(node.dataset.i18nPlaceholder);
+      });
+      document.getElementById('lang-switcher').value = state.currentLang;
+      document.title = t('appTitle');
+    }
+
+    function applyTheme() {
+      document.documentElement.setAttribute('data-theme', state.currentTheme);
+      const button = document.getElementById('theme-toggle-btn');
+      const isLight = state.currentTheme === 'light';
+      button.innerHTML = `<i class="fas ${isLight ? 'fa-sun' : 'fa-moon'}"></i>`;
+      button.title = isLight ? t('themeLight') : t('themeDark');
+      localStorage.setItem('app_theme', state.currentTheme);
+    }
+
+    function openCreateFormDialog() {
+      const dialog = document.getElementById('form-dialog');
+      const typeSelect = document.getElementById('dialog-form-type');
+      typeSelect.innerHTML = FORM_TYPES.map((type) => `<option value="${type}">${escapeHtml(getFormTypeLabel(type))}</option>`).join('');
+      document.getElementById('dialog-form-name').value = '';
+      document.getElementById('dialog-form-type').value = 'entity';
+      document.getElementById('dialog-form-icon').value = 'fa-table';
+      document.getElementById('dialog-form-description').value = '';
+      dialog.showModal();
+      document.getElementById('dialog-form-name').focus();
+    }
+
+    function bindTopLevelEvents() {
+      document.getElementById('create-form-btn').addEventListener('click', openCreateFormDialog);
+      document.getElementById('duplicate-form-btn').addEventListener('click', duplicateCurrentForm);
+      document.getElementById('delete-form-btn').addEventListener('click', deleteCurrentForm);
+      document.getElementById('forms-search-input').addEventListener('input', (event) => {
+        state.formsSearch = event.target.value;
+        renderFormsList();
+      });
+      document.getElementById('mode-builder-btn').addEventListener('click', () => {
+        state.currentMode = 'builder';
+        render();
+      });
+      document.getElementById('mode-data-btn').addEventListener('click', () => {
+        state.currentMode = 'data';
+        render();
+      });
+      document.getElementById('data-view-table-btn').addEventListener('click', () => {
+        state.currentDataView = 'table';
+        render();
+      });
+      document.getElementById('data-view-form-btn').addEventListener('click', () => {
+        state.currentDataView = 'form';
+        state.selectedRecordId = state.selectedRecordId || '__new__';
+        render();
+      });
+      document.getElementById('lang-switcher').addEventListener('change', async (event) => {
+        state.currentLang = event.target.value;
+        localStorage.setItem('app_lang', state.currentLang);
+        await saveSetting('lang', state.currentLang);
+        render();
+      });
+      document.getElementById('theme-toggle-btn').addEventListener('click', async () => {
+        state.currentTheme = state.currentTheme === 'light' ? 'dark' : 'light';
+        localStorage.setItem('app_theme', state.currentTheme);
+        await saveSetting('theme', state.currentTheme);
+        applyTheme();
+      });
+      document.getElementById('export-app-btn').addEventListener('click', exportAllData);
+      document.getElementById('import-app-btn').addEventListener('click', () => document.getElementById('import-file-input').click());
+      document.getElementById('import-file-input').addEventListener('change', (event) => importAllData(event.target.files[0]));
+      document.getElementById('form-dialog-form').addEventListener('submit', async (event) => {
+        event.preventDefault();
+        await createForm({
+          name: document.getElementById('dialog-form-name').value,
+          type: document.getElementById('dialog-form-type').value,
+          icon: document.getElementById('dialog-form-icon').value,
+          description: document.getElementById('dialog-form-description').value
+        });
+        document.getElementById('form-dialog').close();
+      });
+      document.getElementById('form-dialog-cancel').addEventListener('click', () => document.getElementById('form-dialog').close());
+      document.getElementById('forms-list').addEventListener('click', async (event) => {
+        const item = event.target.closest('[data-form-id]');
+        if (!item) {
+          return;
+        }
+        state.selectedFormId = item.dataset.formId;
+        state.selectedFieldId = getFieldsForSelectedForm()[0]?.id || null;
+        state.selectedRecordId = null;
+        await saveSetting('selectedFormId', state.selectedFormId);
+        render();
+      });
+    }
+
+    async function init() {
+      await openDb();
+      await loadState();
+      state.currentLang = state.settings.lang || state.currentLang;
+      state.currentTheme = state.settings.theme || state.currentTheme;
+      bindTopLevelEvents();
+      render();
+    }
+
+    window.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+</html>
