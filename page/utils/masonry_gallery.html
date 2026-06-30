@@ -1,0 +1,1223 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Masonry Image Gallery</title>
+  <meta name="description" content="Masonry image gallery with IndexedDB persistence, fullscreen preview, and manual numeric ordering." />
+  <style>
+    :root {
+      --bg: #111315;
+      --bg-soft: #1a1f24;
+      --panel: rgba(24, 29, 34, 0.88);
+      --panel-strong: rgba(17, 20, 23, 0.96);
+      --card: rgba(29, 35, 40, 0.94);
+      --ink: #f4f1ea;
+      --muted: #a9b2b9;
+      --border: rgba(255, 255, 255, 0.11);
+      --accent: #18bb97;
+      --accent-strong: #0f8d72;
+      --danger: #ef5b5b;
+      --danger-strong: #c93f3f;
+      --shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+      --soft-shadow: 0 16px 34px rgba(0, 0, 0, 0.2);
+      --radius: 8px;
+      --tile: 260px;
+    }
+
+    html[data-theme="light"] {
+      --bg: #f4f6f7;
+      --bg-soft: #e7edef;
+      --panel: rgba(255, 255, 255, 0.9);
+      --panel-strong: rgba(255, 255, 255, 0.98);
+      --card: rgba(255, 255, 255, 0.96);
+      --ink: #182026;
+      --muted: #5f6b74;
+      --border: rgba(21, 31, 39, 0.13);
+      --accent: #0a8c76;
+      --accent-strong: #066b59;
+      --danger: #d64a4a;
+      --danger-strong: #b73535;
+      --shadow: 0 24px 54px rgba(30, 42, 50, 0.14);
+      --soft-shadow: 0 12px 28px rgba(30, 42, 50, 0.12);
+    }
+
+    * { box-sizing: border-box; }
+    html, body { min-height: 100%; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      font: 14px/1.5 "Noto Sans JP", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        linear-gradient(135deg, color-mix(in srgb, var(--accent) 18%, transparent), transparent 34%),
+        linear-gradient(315deg, rgba(239, 91, 91, 0.13), transparent 36%),
+        linear-gradient(180deg, var(--bg), var(--bg-soft));
+      background-attachment: fixed;
+    }
+
+    button, input {
+      font: inherit;
+    }
+
+    button:focus-visible,
+    input:focus-visible {
+      outline: 3px solid color-mix(in srgb, var(--accent) 52%, transparent);
+      outline-offset: 3px;
+    }
+
+    .app {
+      width: min(1440px, 100%);
+      min-height: 100vh;
+      margin: 0 auto;
+      padding: 16px;
+      display: grid;
+      grid-template-rows: auto auto 1fr;
+      gap: 16px;
+    }
+
+    .topbar,
+    .hero,
+    .gallery-shell {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--panel);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(14px);
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px;
+    }
+
+    .hero {
+      display: grid;
+      gap: 16px;
+      padding: 18px;
+      background:
+        linear-gradient(135deg, color-mix(in srgb, var(--accent) 16%, transparent), transparent 45%),
+        linear-gradient(315deg, color-mix(in srgb, var(--danger) 12%, transparent), transparent 48%),
+        var(--panel);
+    }
+
+    .brand {
+      display: grid;
+      gap: 4px;
+      min-width: 0;
+    }
+
+    h1,
+    h2,
+    p {
+      margin: 0;
+    }
+
+    h1 {
+      font-size: clamp(28px, 5vw, 52px);
+      line-height: 0.98;
+    }
+
+    .subtitle,
+    .status,
+    .helper,
+    .empty-note,
+    .meta,
+    .modal-meta {
+      color: var(--muted);
+    }
+
+    .subtitle {
+      max-width: 860px;
+      font-size: 15px;
+    }
+
+    .toolbar,
+    .top-actions,
+    .modal-actions,
+    .modal-toolbar,
+    .lang-selector {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .top-actions {
+      justify-content: flex-end;
+    }
+
+    .btn,
+    .chip,
+    .number-input {
+      min-height: 40px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 8px 14px;
+      cursor: pointer;
+      color: var(--ink);
+      background: var(--panel-strong);
+      font-weight: 800;
+      text-decoration: none;
+      transition: transform 0.16s ease, border-color 0.16s ease, background 0.16s ease;
+    }
+
+    .btn:hover {
+      transform: translateY(-1px);
+      border-color: color-mix(in srgb, var(--accent) 48%, var(--border));
+    }
+
+    .btn.primary {
+      color: #ffffff;
+      border-color: transparent;
+      background: linear-gradient(180deg, var(--accent), var(--accent-strong));
+    }
+
+    .btn.danger {
+      color: #ffffff;
+      border-color: transparent;
+      background: linear-gradient(180deg, var(--danger), var(--danger-strong));
+    }
+
+    .btn.icon {
+      min-width: 40px;
+      padding: 0;
+      font-size: 16px;
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      background: color-mix(in srgb, var(--panel-strong) 82%, transparent);
+      color: var(--ink);
+      font-weight: 700;
+    }
+
+    .number-input {
+      width: 104px;
+      padding: 0 12px;
+      color: var(--ink);
+      background: var(--panel-strong);
+    }
+
+    .lang-selector {
+      padding: 4px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--panel-strong);
+    }
+
+    .lang-selector button {
+      min-width: 40px;
+      min-height: 30px;
+      border: 1px solid transparent;
+      border-radius: 6px;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    .lang-selector button.active {
+      color: #ffffff;
+      background: var(--accent-strong);
+    }
+
+    .hero-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 16px;
+      align-items: start;
+    }
+
+    .toolbar {
+      justify-content: space-between;
+    }
+
+    .helper {
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .gallery-shell {
+      display: grid;
+      gap: 14px;
+      padding: 16px;
+      align-content: start;
+    }
+
+    .status-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .status {
+      min-height: 21px;
+    }
+
+    .gallery {
+      --column-count: 1;
+      display: grid;
+      grid-template-columns: repeat(var(--column-count), minmax(0, 1fr));
+      gap: 14px;
+      align-items: start;
+    }
+
+    .gallery-column {
+      display: grid;
+      align-content: start;
+      gap: 14px;
+    }
+
+    .gallery.hidden,
+    .empty-state.hidden,
+    .modal.hidden {
+      display: none;
+    }
+
+    .card {
+      width: 100%;
+      margin: 0;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--card);
+      box-shadow: var(--soft-shadow);
+    }
+
+    .thumb-btn {
+      width: 100%;
+      display: block;
+      border: 0;
+      padding: 0;
+      background: transparent;
+      cursor: pointer;
+    }
+
+    .thumb {
+      width: 100%;
+      display: block;
+      background: rgba(0, 0, 0, 0.12);
+    }
+
+    .card-body {
+      display: grid;
+      gap: 8px;
+      padding: 12px;
+    }
+
+    .card-title {
+      font-size: 14px;
+      font-weight: 800;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .meta-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .value-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--accent) 14%, transparent);
+      color: color-mix(in srgb, var(--accent) 88%, white 12%);
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    .empty-state {
+      display: grid;
+      place-items: center;
+      min-height: 52vh;
+      padding: 28px;
+      text-align: center;
+    }
+
+    .empty-card {
+      max-width: 560px;
+      display: grid;
+      gap: 14px;
+      padding: 28px;
+      border: 1px dashed color-mix(in srgb, var(--accent) 34%, var(--border));
+      border-radius: calc(var(--radius) + 4px);
+      background: color-mix(in srgb, var(--panel-strong) 82%, transparent);
+    }
+
+    .empty-card h2 {
+      font-size: clamp(24px, 4vw, 34px);
+      line-height: 1.05;
+    }
+
+    .empty-note {
+      font-size: 15px;
+    }
+
+    .modal {
+      position: fixed;
+      inset: 0;
+      z-index: 20;
+      display: grid;
+      align-items: stretch;
+      background: rgba(7, 10, 12, 0.88);
+      backdrop-filter: blur(10px);
+    }
+
+    .modal-panel {
+      min-width: 0;
+      min-height: 0;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      gap: 12px;
+      padding: 14px;
+    }
+
+    .modal-toolbar,
+    .modal-footer {
+      justify-content: space-between;
+    }
+
+    .modal-toolbar {
+      gap: 12px;
+    }
+
+    .modal-title {
+      min-width: 0;
+      display: grid;
+      gap: 4px;
+    }
+
+    .modal-title strong {
+      font-size: 16px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .modal-stage {
+      min-height: 0;
+      display: grid;
+      place-items: center;
+      overflow: auto;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: var(--radius);
+      background: rgba(0, 0, 0, 0.32);
+    }
+
+    .modal-stage img {
+      max-width: 100%;
+      max-height: calc(100vh - 220px);
+      object-fit: contain;
+      display: block;
+    }
+
+    .modal-footer {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .modal-actions {
+      margin-left: auto;
+    }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      border: 0;
+    }
+
+    @media (max-width: 860px) {
+      .app {
+        padding: 10px;
+        gap: 10px;
+      }
+
+      .topbar,
+      .hero,
+      .gallery-shell {
+        padding: 12px;
+      }
+
+      .topbar,
+      .hero-grid,
+      .toolbar,
+      .status-row,
+      .modal-footer,
+      .modal-toolbar {
+        grid-template-columns: 1fr;
+        justify-content: stretch;
+      }
+
+      .topbar,
+      .toolbar,
+      .status-row,
+      .modal-footer,
+      .modal-toolbar,
+      .top-actions,
+      .modal-actions {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .modal-actions {
+        margin-left: 0;
+      }
+
+      .btn,
+      .chip,
+      .number-input {
+        width: 100%;
+      }
+
+      .lang-selector {
+        justify-content: stretch;
+      }
+
+      .lang-selector button {
+        flex: 1 1 0;
+      }
+
+      .gallery {
+        gap: 10px;
+      }
+
+      .gallery-column {
+        gap: 10px;
+      }
+
+      .modal-stage img {
+        max-height: calc(100vh - 280px);
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <strong data-i18n="shortTitle">Masonry Gallery</strong>
+        <div class="status" id="status" data-i18n="statusReady">Ready to add images.</div>
+      </div>
+      <div class="top-actions">
+        <div class="lang-selector" aria-label="Language selector">
+          <button type="button" data-lang="en">EN</button>
+          <button type="button" data-lang="pt">PT</button>
+          <button type="button" data-lang="ja">JA</button>
+        </div>
+        <button type="button" class="btn icon" id="themeBtn" title="Theme" aria-label="Theme">◐</button>
+      </div>
+    </header>
+
+    <section class="hero">
+      <div class="hero-grid">
+        <div class="brand">
+          <h1 data-i18n="title">Masonry Image Gallery</h1>
+          <p class="subtitle" data-i18n="subtitle">Add images, keep them in IndexedDB, open them fullscreen, remove them, and control which ones stay on top with a numeric value.</p>
+        </div>
+        <div class="toolbar">
+          <button type="button" class="btn primary" id="addBtn" data-i18n="addImages">Add images</button>
+          <label class="chip" for="fileInput">
+            <span data-i18n="multipleHint">Multiple files supported</span>
+          </label>
+        </div>
+      </div>
+      <div class="toolbar">
+        <div class="chip">
+          <span data-i18n="sortLabel">Order</span>
+          <strong id="orderSummary" data-i18n="sortSummary">Higher value stays above.</strong>
+        </div>
+        <div class="helper" data-i18n="helperText">New images get the current highest value plus one.</div>
+      </div>
+      <input id="fileInput" class="sr-only" type="file" accept="image/*" multiple />
+    </section>
+
+    <section class="gallery-shell">
+      <div class="status-row">
+        <div class="helper" id="countLabel" data-i18n="countEmpty">No saved images yet.</div>
+      </div>
+      <div class="empty-state" id="emptyState">
+        <div class="empty-card">
+          <h2 data-i18n="emptyTitle">Start your gallery</h2>
+          <p class="empty-note" data-i18n="emptyText">Use the add button to store images in this browser. They will remain available after reload because the gallery uses IndexedDB.</p>
+          <button type="button" class="btn primary" id="emptyAddBtn" data-i18n="addImages">Add images</button>
+        </div>
+      </div>
+      <div class="gallery hidden" id="gallery"></div>
+    </section>
+  </div>
+
+  <div class="modal hidden" id="modal" aria-hidden="true">
+    <div class="modal-panel">
+      <div class="modal-toolbar">
+        <div class="modal-title">
+          <strong id="modalName">-</strong>
+          <div class="modal-meta" id="modalMeta">-</div>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn icon" id="closeModalBtn" aria-label="Close">✕</button>
+        </div>
+      </div>
+
+      <div class="modal-stage" id="modalStage">
+        <img id="modalImg" alt="" />
+      </div>
+
+      <div class="modal-footer">
+        <label class="chip" for="modalValueInput">
+          <span data-i18n="valueLabel">Value</span>
+          <input id="modalValueInput" class="number-input" type="number" step="1" />
+        </label>
+        <div class="modal-actions">
+          <button type="button" class="btn" id="saveValueBtn" data-i18n="saveValue">Save value</button>
+          <button type="button" class="btn danger" id="removeBtn" data-i18n="removeImage">Remove image</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const STORAGE = {
+      dbName: 'masonry_gallery_db',
+      version: 1,
+      stores: {
+        images: 'images'
+      }
+    };
+
+    const translations = {
+      en: {
+        shortTitle: 'Masonry Gallery',
+        title: 'Masonry Image Gallery',
+        subtitle: 'Add images, keep them in IndexedDB, open them fullscreen, remove them, and control which ones stay on top with a numeric value.',
+        addImages: 'Add images',
+        multipleHint: 'Multiple files supported',
+        sortLabel: 'Order',
+        sortSummary: 'Higher value stays above.',
+        helperText: 'New images get the current highest value plus one.',
+        statusReady: 'Ready to add images.',
+        statusLoading: 'Loading gallery...',
+        statusSaving: 'Saving images...',
+        statusSaved: 'Gallery updated.',
+        statusRemoved: 'Image removed.',
+        statusValueSaved: 'Value updated.',
+        statusInvalidFiles: 'No valid image files were selected.',
+        statusErrorLoad: 'Could not load the gallery.',
+        statusErrorSave: 'Could not save the selected images.',
+        statusErrorRemove: 'Could not remove the image.',
+        statusErrorValue: 'Could not update the image value.',
+        statusModalValueInvalid: 'Enter a valid number before saving.',
+        countEmpty: 'No saved images yet.',
+        countLabel: '{count} saved image(s)',
+        emptyTitle: 'Start your gallery',
+        emptyText: 'Use the add button to store images in this browser. They will remain available after reload because the gallery uses IndexedDB.',
+        valueLabel: 'Value',
+        saveValue: 'Save value',
+        removeImage: 'Remove image',
+        removeConfirm: 'Remove this image from the gallery?',
+        modalMeta: 'Value {value} • {size}',
+        themeDark: 'Dark theme',
+        themeLight: 'Light theme',
+        close: 'Close'
+      },
+      pt: {
+        shortTitle: 'Galeria Masonry',
+        title: 'Galeria de Imagens Masonry',
+        subtitle: 'Adicione imagens, guarde tudo no IndexedDB, abra em tela cheia, remova e controle quais ficam no topo com um valor numérico.',
+        addImages: 'Adicionar imagens',
+        multipleHint: 'Suporta vários arquivos',
+        sortLabel: 'Ordem',
+        sortSummary: 'Maior valor fica mais acima.',
+        helperText: 'Novas imagens recebem o maior valor atual mais um.',
+        statusReady: 'Pronto para adicionar imagens.',
+        statusLoading: 'Carregando galeria...',
+        statusSaving: 'Salvando imagens...',
+        statusSaved: 'Galeria atualizada.',
+        statusRemoved: 'Imagem removida.',
+        statusValueSaved: 'Valor atualizado.',
+        statusInvalidFiles: 'Nenhuma imagem válida foi selecionada.',
+        statusErrorLoad: 'Não foi possível carregar a galeria.',
+        statusErrorSave: 'Não foi possível salvar as imagens selecionadas.',
+        statusErrorRemove: 'Não foi possível remover a imagem.',
+        statusErrorValue: 'Não foi possível atualizar o valor da imagem.',
+        statusModalValueInvalid: 'Digite um número válido antes de salvar.',
+        countEmpty: 'Nenhuma imagem salva ainda.',
+        countLabel: '{count} imagem(ns) salva(s)',
+        emptyTitle: 'Comece sua galeria',
+        emptyText: 'Use o botão de adicionar para guardar imagens neste navegador. Elas continuam disponíveis após recarregar porque a galeria usa IndexedDB.',
+        valueLabel: 'Valor',
+        saveValue: 'Salvar valor',
+        removeImage: 'Remover imagem',
+        removeConfirm: 'Remover esta imagem da galeria?',
+        modalMeta: 'Valor {value} • {size}',
+        themeDark: 'Tema escuro',
+        themeLight: 'Tema claro',
+        close: 'Fechar'
+      },
+      ja: {
+        shortTitle: 'Masonry ギャラリー',
+        title: 'Masonry 画像ギャラリー',
+        subtitle: '画像を追加し、IndexedDB に保存し、全画面で開き、削除し、数値で上に出す順番を制御できます。',
+        addImages: '画像を追加',
+        multipleHint: '複数ファイルに対応',
+        sortLabel: '並び順',
+        sortSummary: '値が大きいほど上に表示されます。',
+        helperText: '新しい画像には現在の最大値に 1 を足した値が入ります。',
+        statusReady: '画像を追加できます。',
+        statusLoading: 'ギャラリーを読み込み中...',
+        statusSaving: '画像を保存中...',
+        statusSaved: 'ギャラリーを更新しました。',
+        statusRemoved: '画像を削除しました。',
+        statusValueSaved: '値を更新しました。',
+        statusInvalidFiles: '有効な画像ファイルが選択されていません。',
+        statusErrorLoad: 'ギャラリーを読み込めませんでした。',
+        statusErrorSave: '選択した画像を保存できませんでした。',
+        statusErrorRemove: '画像を削除できませんでした。',
+        statusErrorValue: '画像の値を更新できませんでした。',
+        statusModalValueInvalid: '保存する前に有効な数値を入力してください。',
+        countEmpty: '保存された画像はまだありません。',
+        countLabel: '{count} 枚の画像を保存済み',
+        emptyTitle: 'ギャラリーを始めましょう',
+        emptyText: '追加ボタンでこのブラウザに画像を保存できます。IndexedDB を使うので、再読み込みしても残ります。',
+        valueLabel: '値',
+        saveValue: '値を保存',
+        removeImage: '画像を削除',
+        removeConfirm: 'この画像をギャラリーから削除しますか？',
+        modalMeta: '値 {value} • {size}',
+        themeDark: 'ダークテーマ',
+        themeLight: 'ライトテーマ',
+        close: '閉じる'
+      }
+    };
+
+    const state = {
+      lang: localStorage.getItem('masonry-gallery-lang') || detectLanguage(),
+      theme: localStorage.getItem('masonry-gallery-theme') || 'dark',
+      items: [],
+      objectUrls: new Map(),
+      modalItemId: null
+    };
+
+    let dbPromise = null;
+
+    const root = document.documentElement;
+    const statusEl = document.getElementById('status');
+    const countLabelEl = document.getElementById('countLabel');
+    const galleryEl = document.getElementById('gallery');
+    const emptyStateEl = document.getElementById('emptyState');
+    const fileInputEl = document.getElementById('fileInput');
+    const themeBtnEl = document.getElementById('themeBtn');
+    const modalEl = document.getElementById('modal');
+    const modalImgEl = document.getElementById('modalImg');
+    const modalNameEl = document.getElementById('modalName');
+    const modalMetaEl = document.getElementById('modalMeta');
+    const modalValueInputEl = document.getElementById('modalValueInput');
+    const closeModalBtnEl = document.getElementById('closeModalBtn');
+    const saveValueBtnEl = document.getElementById('saveValueBtn');
+    const removeBtnEl = document.getElementById('removeBtn');
+
+    function detectLanguage() {
+      const lang = (navigator.language || 'en').toLowerCase();
+      if (lang.startsWith('pt')) return 'pt';
+      if (lang.startsWith('ja')) return 'ja';
+      return 'en';
+    }
+
+    function t(key, values = {}) {
+      let text = translations[state.lang][key] || translations.en[key] || key;
+      Object.entries(values).forEach(([name, value]) => {
+        text = text.replace(`{${name}}`, String(value));
+      });
+      return text;
+    }
+
+    function setStatus(key, values = {}) {
+      statusEl.textContent = t(key, values);
+    }
+
+    function formatBytes(bytes) {
+      if (!Number.isFinite(bytes) || bytes < 1024) {
+        return `${bytes || 0} B`;
+      }
+      const units = ['KB', 'MB', 'GB'];
+      let size = bytes;
+      let unitIndex = -1;
+      while (size >= 1024 && unitIndex < units.length - 1) {
+        size /= 1024;
+        unitIndex += 1;
+      }
+      return `${size.toFixed(size >= 10 || unitIndex === 0 ? 1 : 2)} ${units[unitIndex]}`;
+    }
+
+    function sortItems(items) {
+      return [...items].sort((a, b) => {
+        if (b.value !== a.value) return b.value - a.value;
+        return b.createdAt - a.createdAt;
+      });
+    }
+
+    function releaseObjectUrls() {
+      state.objectUrls.forEach((url) => URL.revokeObjectURL(url));
+      state.objectUrls.clear();
+    }
+
+    function getObjectUrl(item) {
+      const cached = state.objectUrls.get(item.id);
+      if (cached) return cached;
+      const url = URL.createObjectURL(item.blob);
+      state.objectUrls.set(item.id, url);
+      return url;
+    }
+
+    function applyTheme() {
+      root.dataset.theme = state.theme;
+      localStorage.setItem('masonry-gallery-theme', state.theme);
+      themeBtnEl.title = state.theme === 'dark' ? t('themeLight') : t('themeDark');
+      themeBtnEl.setAttribute('aria-label', themeBtnEl.title);
+      themeBtnEl.textContent = state.theme === 'dark' ? '◐' : '☀';
+    }
+
+    function applyLanguage() {
+      root.lang = state.lang;
+      localStorage.setItem('masonry-gallery-lang', state.lang);
+      document.querySelectorAll('[data-i18n]').forEach((element) => {
+        const key = element.getAttribute('data-i18n');
+        if (key) {
+          element.textContent = t(key);
+        }
+      });
+      document.querySelectorAll('[data-lang]').forEach((button) => {
+        button.classList.toggle('active', button.getAttribute('data-lang') === state.lang);
+      });
+      closeModalBtnEl.title = t('close');
+      closeModalBtnEl.setAttribute('aria-label', t('close'));
+      renderCount();
+      if (state.modalItemId) {
+        const current = state.items.find((item) => item.id === state.modalItemId);
+        if (current) {
+          fillModal(current);
+        }
+      }
+    }
+
+    function getDb() {
+      if (dbPromise) return dbPromise;
+      dbPromise = new Promise((resolve, reject) => {
+        const request = indexedDB.open(STORAGE.dbName, STORAGE.version);
+        request.onupgradeneeded = () => {
+          const db = request.result;
+          if (!db.objectStoreNames.contains(STORAGE.stores.images)) {
+            db.createObjectStore(STORAGE.stores.images, { keyPath: 'id' });
+          }
+        };
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+      return dbPromise;
+    }
+
+    async function idbGetAll(storeName) {
+      const db = await getDb();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(storeName, 'readonly');
+        const request = tx.objectStore(storeName).getAll();
+        request.onsuccess = () => resolve(request.result || []);
+        request.onerror = () => reject(request.error);
+      });
+    }
+
+    async function idbPut(storeName, value) {
+      const db = await getDb();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(storeName, 'readwrite');
+        tx.objectStore(storeName).put(value);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      });
+    }
+
+    async function idbDelete(storeName, id) {
+      const db = await getDb();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(storeName, 'readwrite');
+        tx.objectStore(storeName).delete(id);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      });
+    }
+
+    function renderCount() {
+      if (!state.items.length) {
+        countLabelEl.textContent = t('countEmpty');
+        return;
+      }
+      countLabelEl.textContent = t('countLabel', { count: state.items.length });
+    }
+
+    function getColumnCount() {
+      const width = galleryEl.clientWidth || galleryEl.parentElement?.clientWidth || window.innerWidth;
+      const gap = window.innerWidth <= 860 ? 10 : 14;
+      const tileWidth = parseFloat(getComputedStyle(root).getPropertyValue('--tile')) || 260;
+      return Math.max(1, Math.floor((width + gap) / (tileWidth + gap)));
+    }
+
+    function createCardElement(item) {
+      const article = document.createElement('article');
+      article.className = 'card';
+
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'thumb-btn';
+      button.addEventListener('click', () => openModal(item.id));
+
+      const image = document.createElement('img');
+      image.className = 'thumb';
+      image.src = getObjectUrl(item);
+      image.alt = item.fileName;
+      image.loading = 'lazy';
+      image.decoding = 'async';
+      button.appendChild(image);
+
+      const body = document.createElement('div');
+      body.className = 'card-body';
+
+      const title = document.createElement('div');
+      title.className = 'card-title';
+      title.textContent = item.fileName;
+
+      const metaRow = document.createElement('div');
+      metaRow.className = 'meta-row';
+
+      const meta = document.createElement('span');
+      meta.className = 'meta';
+      meta.textContent = formatBytes(item.size);
+
+      const value = document.createElement('span');
+      value.className = 'value-pill';
+      value.textContent = `${t('valueLabel')}: ${item.value}`;
+
+      metaRow.append(meta, value);
+      body.append(title, metaRow);
+      article.append(button, body);
+      return article;
+    }
+
+    function renderGallery() {
+      releaseObjectUrls();
+      galleryEl.innerHTML = '';
+      const ordered = sortItems(state.items);
+
+      if (!ordered.length) {
+        galleryEl.classList.add('hidden');
+        emptyStateEl.classList.remove('hidden');
+        renderCount();
+        return;
+      }
+
+      const columnCount = getColumnCount();
+      const chunkSize = Math.ceil(ordered.length / columnCount);
+      galleryEl.style.setProperty('--column-count', String(columnCount));
+
+      const fragment = document.createDocumentFragment();
+      for (let columnIndex = 0; columnIndex < columnCount; columnIndex += 1) {
+        const column = document.createElement('div');
+        column.className = 'gallery-column';
+        const start = columnIndex * chunkSize;
+        const end = start + chunkSize;
+        ordered.slice(start, end).forEach((item) => {
+          column.appendChild(createCardElement(item));
+        });
+        fragment.appendChild(column);
+      }
+
+      galleryEl.appendChild(fragment);
+      galleryEl.classList.remove('hidden');
+      emptyStateEl.classList.add('hidden');
+      renderCount();
+    }
+
+    function fillModal(item) {
+      modalNameEl.textContent = item.fileName;
+      modalMetaEl.textContent = t('modalMeta', { value: item.value, size: formatBytes(item.size) });
+      modalValueInputEl.value = String(item.value);
+      modalImgEl.src = getObjectUrl(item);
+      modalImgEl.alt = item.fileName;
+    }
+
+    function openModal(id) {
+      const item = state.items.find((entry) => entry.id === id);
+      if (!item) return;
+      state.modalItemId = id;
+      fillModal(item);
+      modalEl.classList.remove('hidden');
+      modalEl.setAttribute('aria-hidden', 'false');
+    }
+
+    function closeModal() {
+      state.modalItemId = null;
+      modalEl.classList.add('hidden');
+      modalEl.setAttribute('aria-hidden', 'true');
+      modalImgEl.removeAttribute('src');
+      modalImgEl.removeAttribute('alt');
+    }
+
+    async function loadGallery() {
+      setStatus('statusLoading');
+      try {
+        const items = await idbGetAll(STORAGE.stores.images);
+        state.items = items.map((item) => ({
+          ...item,
+          value: Number.isFinite(item.value) ? item.value : 0,
+          createdAt: Number(item.createdAt) || Date.now(),
+          updatedAt: Number(item.updatedAt) || Date.now(),
+          size: Number(item.size) || item.blob?.size || 0
+        }));
+        renderGallery();
+        setStatus('statusReady');
+      } catch (error) {
+        console.error(error);
+        setStatus('statusErrorLoad');
+      }
+    }
+
+    function getNextValues(count) {
+      const highest = state.items.reduce((max, item) => Math.max(max, Number(item.value) || 0), 0);
+      return Array.from({ length: count }, (_, index) => highest + index + 1);
+    }
+
+    function getWebpFileName(fileName) {
+      const trimmed = String(fileName || 'image').trim();
+      const baseName = trimmed.replace(/\.[^.]+$/, '') || 'image';
+      return `${baseName}.webp`;
+    }
+
+    function canvasToBlob(canvas, type, quality) {
+      return new Promise((resolve, reject) => {
+        canvas.toBlob((blob) => {
+          if (blob) {
+            resolve(blob);
+            return;
+          }
+          reject(new Error('Canvas conversion failed'));
+        }, type, quality);
+      });
+    }
+
+    function loadImageElement(file) {
+      return new Promise((resolve, reject) => {
+        const url = URL.createObjectURL(file);
+        const image = new Image();
+        image.onload = () => {
+          URL.revokeObjectURL(url);
+          resolve(image);
+        };
+        image.onerror = () => {
+          URL.revokeObjectURL(url);
+          reject(new Error('Image decode failed'));
+        };
+        image.src = url;
+      });
+    }
+
+    async function convertFileToWebp(file) {
+      const image = await loadImageElement(file);
+      const width = image.naturalWidth || image.width;
+      const height = image.naturalHeight || image.height;
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const context = canvas.getContext('2d');
+      if (!context) {
+        throw new Error('Canvas context unavailable');
+      }
+      context.drawImage(image, 0, 0, width, height);
+      const blob = await canvasToBlob(canvas, 'image/webp', 0.9);
+      return {
+        blob,
+        fileName: getWebpFileName(file.name),
+        mimeType: 'image/webp',
+        size: blob.size,
+        width,
+        height
+      };
+    }
+
+    async function handleFiles(fileList) {
+      const files = Array.from(fileList || []).filter((file) => file.type.startsWith('image/'));
+      if (!files.length) {
+        setStatus('statusInvalidFiles');
+        return;
+      }
+
+      setStatus('statusSaving');
+      const now = Date.now();
+      const nextValues = getNextValues(files.length);
+
+      try {
+        for (const [index, file] of files.entries()) {
+          const webpFile = await convertFileToWebp(file);
+          const imageItem = {
+            id: `${now}-${index}-${crypto.randomUUID()}`,
+            fileName: webpFile.fileName,
+            sourceName: file.name,
+            mimeType: webpFile.mimeType,
+            blob: webpFile.blob,
+            size: webpFile.size,
+            width: webpFile.width,
+            height: webpFile.height,
+            value: nextValues[index],
+            createdAt: now + index,
+            updatedAt: now + index
+          };
+          await idbPut(STORAGE.stores.images, imageItem);
+          state.items.push(imageItem);
+        }
+        renderGallery();
+        setStatus('statusSaved');
+      } catch (error) {
+        console.error(error);
+        setStatus('statusErrorSave');
+      }
+    }
+
+    async function saveCurrentModalValue() {
+      if (!state.modalItemId) return;
+      const item = state.items.find((entry) => entry.id === state.modalItemId);
+      if (!item) return;
+
+      const nextValue = Number(modalValueInputEl.value);
+      if (!Number.isFinite(nextValue)) {
+        setStatus('statusModalValueInvalid');
+        modalValueInputEl.focus();
+        return;
+      }
+
+      const updated = {
+        ...item,
+        value: nextValue,
+        updatedAt: Date.now()
+      };
+
+      try {
+        await idbPut(STORAGE.stores.images, updated);
+        const index = state.items.findIndex((entry) => entry.id === updated.id);
+        if (index >= 0) {
+          state.items[index] = updated;
+        }
+        renderGallery();
+        fillModal(updated);
+        setStatus('statusValueSaved');
+      } catch (error) {
+        console.error(error);
+        setStatus('statusErrorValue');
+      }
+    }
+
+    async function removeCurrentModalItem() {
+      if (!state.modalItemId) return;
+      const id = state.modalItemId;
+      if (!window.confirm(t('removeConfirm'))) {
+        return;
+      }
+
+      try {
+        await idbDelete(STORAGE.stores.images, id);
+        state.items = state.items.filter((entry) => entry.id !== id);
+        const url = state.objectUrls.get(id);
+        if (url) {
+          URL.revokeObjectURL(url);
+          state.objectUrls.delete(id);
+        }
+        closeModal();
+        renderGallery();
+        setStatus('statusRemoved');
+      } catch (error) {
+        console.error(error);
+        setStatus('statusErrorRemove');
+      }
+    }
+
+    document.getElementById('addBtn').addEventListener('click', () => fileInputEl.click());
+    document.getElementById('emptyAddBtn').addEventListener('click', () => fileInputEl.click());
+    fileInputEl.addEventListener('change', async () => {
+      await handleFiles(fileInputEl.files);
+      fileInputEl.value = '';
+    });
+
+    themeBtnEl.addEventListener('click', () => {
+      state.theme = state.theme === 'dark' ? 'light' : 'dark';
+      applyTheme();
+    });
+
+    document.querySelectorAll('[data-lang]').forEach((button) => {
+      button.addEventListener('click', () => {
+        state.lang = button.getAttribute('data-lang');
+        applyLanguage();
+      });
+    });
+
+    closeModalBtnEl.addEventListener('click', closeModal);
+    saveValueBtnEl.addEventListener('click', saveCurrentModalValue);
+    removeBtnEl.addEventListener('click', removeCurrentModalItem);
+
+    modalEl.addEventListener('click', (event) => {
+      if (event.target === modalEl) {
+        closeModal();
+      }
+    });
+
+    modalValueInputEl.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        saveCurrentModalValue();
+      }
+    });
+
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && !modalEl.classList.contains('hidden')) {
+        closeModal();
+      }
+    });
+
+    window.addEventListener('beforeunload', releaseObjectUrls);
+    window.addEventListener('resize', () => {
+      if (state.items.length) {
+        renderGallery();
+      }
+    });
+
+    applyTheme();
+    applyLanguage();
+    loadGallery();
+  </script>
+</body>
+</html>
