@@ -884,7 +884,7 @@
             refreshCacheBtn.disabled = true;
             refreshCacheBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Refreshing...';
             
-            // Clear all cached timezone data
+            // Remove cache entries created by older versions of this page.
             const keys = Object.keys(localStorage);
             keys.forEach(key => {
               if (key.startsWith('timezone_')) {
@@ -892,12 +892,8 @@
               }
             });
             
-            // Refresh all current clocks
-            const promises = Array.from(addedTimezones).map(timezone => 
-              fetchTimezoneData(timezone)
-            );
-            
-            await Promise.all(promises);
+            // Timezone conversion is handled locally by the browser.
+            refreshAllClocks();
             
             showMessage('cache_refreshed', 'success');
           } catch (error) {
@@ -972,27 +968,15 @@
           );
         }
 
-        async function updateClock(timezone) {
+        function updateClock(timezone) {
           try {
             const timeElement = document.getElementById(`time-${timezone}`);
             const dateElement = document.getElementById(`date-${timezone}`);
             
             if (!timeElement || !dateElement) return;
 
-            // Get cached timezone data or fetch it
-            let timezoneData = getCachedTimezoneData(timezone);
-            
-            if (!timezoneData) {
-              // Fetch timezone data from API (only once per timezone)
-              timezoneData = await fetchTimezoneData(timezone);
-              if (!timezoneData) {
-                timeElement.textContent = 'Error';
-                return;
-              }
-            }
-
-            // Calculate current time using cached offset
-            const currentTime = calculateLocalTime(timezoneData);
+            // Intl handles IANA timezones and daylight-saving changes locally.
+            const currentTime = calculateLocalTime(timezone);
             
             // Update display
             timeElement.textContent = currentTime.timeString;
@@ -1007,107 +991,25 @@
           }
         }
 
-        function getCachedTimezoneData(timezone) {
-          const cacheKey = `timezone_${timezone}`;
-          const cached = localStorage.getItem(cacheKey);
-          
-          if (!cached) return null;
-          
-          try {
-            const data = JSON.parse(cached);
-            const now = Date.now();
-            
-            // Check if cache is still valid (24 hours)
-            if (now - data.timestamp < 24 * 60 * 60 * 1000) {
-              return data;
-            } else {
-              // Cache expired, remove it
-              localStorage.removeItem(cacheKey);
-              return null;
-            }
-          } catch (error) {
-            console.error('Error parsing cached timezone data:', error);
-            localStorage.removeItem(cacheKey);
-            return null;
-          }
-        }
-
-        async function fetchTimezoneData(timezone) {
-          try {
-            const response = await fetch(`https://worldtimeapi.org/api/timezone/${timezone}`);
-            if (!response.ok) throw new Error('Failed to fetch time data');
-            
-            const data = await response.json();
-            
-            // Cache the timezone data
-            const cacheData = {
-              timezone: data.timezone,
-              utc_offset: data.utc_offset,
-              raw_offset: data.raw_offset,
-              dst: data.dst,
-              dst_offset: data.dst_offset,
-              abbreviation: data.abbreviation,
-              timestamp: Date.now()
-            };
-            
-            localStorage.setItem(`timezone_${timezone}`, JSON.stringify(cacheData));
-            
-            return cacheData;
-          } catch (error) {
-            console.error(`Error fetching timezone data for ${timezone}:`, error);
-            return null;
-          }
-        }
-
-        function calculateLocalTime(timezoneData) {
+        function calculateLocalTime(timezone) {
           const now = new Date();
-          
-          // Use the browser's built-in timezone conversion instead of manual calculation
-          // This is more reliable and handles DST automatically
-          try {
-                         const timeString = now.toLocaleTimeString('en-US', { 
-               hour12: false, 
-               hour: '2-digit',
-               minute: '2-digit',
-               timeZone: timezoneData.timezone
-             });
-            
-                         const dateString = now.toLocaleDateString(getLanguageCode(currentLanguage), { 
-               weekday: 'long',
-               year: 'numeric',
-               month: 'long',
-               day: 'numeric',
-               timeZone: timezoneData.timezone
-             });
-            
-            return { timeString, dateString };
-          } catch (error) {
-            console.error(`Error using timezone ${timezoneData.timezone}:`, error);
-            
-            // Fallback to manual calculation if browser timezone fails
-            const utcTime = now.getTime();
-            const offsetParts = timezoneData.utc_offset.split(':');
-            const offsetHours = parseInt(offsetParts[0]);
-            const offsetMinutes = parseInt(offsetParts[1]);
-            const totalOffsetMs = (offsetHours * 60 + offsetMinutes) * 60000;
-            
-            const localTime = new Date(utcTime + totalOffsetMs);
-            
-                         const fallbackTimeString = localTime.toLocaleTimeString('en-US', { 
-               hour12: false, 
-               hour: '2-digit',
-               minute: '2-digit'
-             });
-            
-                         const fallbackDateString = localTime.toLocaleDateString(getLanguageCode(currentLanguage), { 
-               weekday: 'long',
-               year: 'numeric',
-               month: 'long',
-               day: 'numeric'
-             });
-            
-            return { timeString: fallbackTimeString, dateString: fallbackDateString };
-          }
+
+          const timeString = now.toLocaleTimeString('en-US', {
+            hour12: false,
+            hour: '2-digit',
+            minute: '2-digit',
+            timeZone: timezone
+          });
+
+          const dateString = now.toLocaleDateString(getLanguageCode(currentLanguage), {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            timeZone: timezone
+          });
+
+          return { timeString, dateString };
         }
 
         function startClockUpdates() {
