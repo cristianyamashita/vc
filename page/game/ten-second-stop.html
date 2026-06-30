@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>10.00 Stop</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@500&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-1: #0f1724;
+      --bg-2: #1b1024;
+      --panel: rgba(14, 21, 34, 0.82);
+      --panel-strong: rgba(11, 17, 28, 0.94);
+      --ink: #f5efe5;
+      --muted: #c3b6a4;
+      --border: rgba(255, 255, 255, 0.12);
+      --accent: #ff9f1c;
+      --accent-2: #2ec4b6;
+      --accent-3: #ffbf69;
+      --danger: #ff6b6b;
+      --shadow: 0 22px 60px rgba(0, 0, 0, 0.35);
+      --button-ink: #1d1306;
+    }
+
+    body.light-theme {
+      --bg-1: #fff6eb;
+      --bg-2: #f0f4ff;
+      --panel: rgba(255, 255, 255, 0.82);
+      --panel-strong: rgba(255, 255, 255, 0.96);
+      --ink: #1f2430;
+      --muted: #5f6777;
+      --border: rgba(31, 36, 48, 0.12);
+      --accent: #f77f00;
+      --accent-2: #14746f;
+      --accent-3: #ffb703;
+      --danger: #d62839;
+      --shadow: 0 22px 60px rgba(34, 47, 62, 0.16);
+      --button-ink: #ffffff;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      min-height: 100%;
+      margin: 0;
+    }
+
+    body {
+      font-family: "Space Grotesk", "Noto Sans JP", system-ui, sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at top left, rgba(255, 159, 28, 0.30), transparent 28%),
+        radial-gradient(circle at bottom right, rgba(46, 196, 182, 0.24), transparent 32%),
+        linear-gradient(145deg, var(--bg-1), var(--bg-2));
+      padding: 20px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    body::before,
+    body::after {
+      content: "";
+      position: fixed;
+      inset: auto;
+      width: 38vmax;
+      height: 38vmax;
+      border-radius: 50%;
+      filter: blur(60px);
+      pointer-events: none;
+      opacity: 0.28;
+      z-index: -1;
+    }
+
+    body::before {
+      top: -12vmax;
+      left: -8vmax;
+      background: rgba(255, 159, 28, 0.34);
+    }
+
+    body::after {
+      right: -12vmax;
+      bottom: -10vmax;
+      background: rgba(46, 196, 182, 0.26);
+    }
+
+    button,
+    a {
+      font: inherit;
+    }
+
+    button:focus-visible,
+    a:focus-visible {
+      outline: 3px solid color-mix(in srgb, var(--accent) 55%, transparent);
+      outline-offset: 3px;
+    }
+
+    .app {
+      width: min(760px, 100%);
+      display: grid;
+      gap: 18px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 28px;
+      padding: 22px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(18px);
+      overflow: hidden;
+      position: relative;
+      isolation: isolate;
+    }
+
+    .app::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        linear-gradient(120deg, rgba(255, 255, 255, 0.07), transparent 22%),
+        repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.03) 0 1px, transparent 1px 22px);
+      pointer-events: none;
+      z-index: -1;
+    }
+
+    .top-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .title-block {
+      display: grid;
+      gap: 8px;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      width: fit-content;
+      gap: 8px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--muted);
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(2rem, 5vw, 3.4rem);
+      line-height: 0.95;
+    }
+
+    .subtitle {
+      margin: 0;
+      max-width: 52ch;
+      color: var(--muted);
+      font-size: 1rem;
+    }
+
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .lang-selector {
+      display: inline-flex;
+      gap: 6px;
+      padding: 4px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid var(--border);
+    }
+
+    .lang-selector a,
+    .theme-btn {
+      text-decoration: none;
+      color: var(--muted);
+      border: 1px solid transparent;
+      border-radius: 999px;
+      padding: 8px 12px;
+      font-size: 12px;
+      font-weight: 700;
+      transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+    }
+
+    .lang-selector a:hover,
+    .theme-btn:hover {
+      transform: translateY(-1px);
+      border-color: var(--border);
+    }
+
+    .lang-selector a.active {
+      background: var(--accent);
+      color: var(--button-ink);
+    }
+
+    .theme-btn {
+      cursor: pointer;
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    .counter-panel,
+    .status-panel,
+    .hint-panel {
+      background: var(--panel-strong);
+      border: 1px solid var(--border);
+      border-radius: 22px;
+      padding: 18px;
+    }
+
+    .counter-panel {
+      text-align: center;
+      display: grid;
+      gap: 10px;
+    }
+
+    .counter-label,
+    .hint-label {
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .counter {
+      font-family: "DM Mono", monospace;
+      font-size: clamp(4rem, 13vw, 7.2rem);
+      line-height: 0.95;
+      letter-spacing: -0.05em;
+      color: var(--accent-3);
+      text-shadow: 0 0 28px rgba(255, 191, 105, 0.20);
+      transition: opacity 0.08s linear, filter 0.08s linear, transform 0.08s linear;
+      will-change: opacity, filter, transform;
+    }
+
+    .counter-note {
+      margin: 0;
+      color: var(--muted);
+    }
+
+    .action-area {
+      display: grid;
+      gap: 16px;
+      justify-items: center;
+    }
+
+    .action-button {
+      width: min(100%, 360px);
+      min-height: 104px;
+      border: none;
+      border-radius: 28px;
+      cursor: pointer;
+      background:
+        linear-gradient(180deg, color-mix(in srgb, var(--accent) 88%, white 12%), var(--accent)),
+        var(--accent);
+      color: var(--button-ink);
+      font-size: clamp(2rem, 6vw, 3rem);
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      box-shadow: 0 18px 36px rgba(255, 159, 28, 0.26);
+      transition: transform 0.14s ease, box-shadow 0.14s ease, opacity 0.18s ease;
+    }
+
+    .action-button:hover:not(:disabled) {
+      transform: translateY(-2px) scale(1.01);
+      box-shadow: 0 22px 42px rgba(255, 159, 28, 0.30);
+    }
+
+    .action-button:active:not(:disabled) {
+      transform: translateY(1px) scale(0.995);
+    }
+
+    .action-button:disabled {
+      cursor: not-allowed;
+      opacity: 0.56;
+      box-shadow: none;
+    }
+
+    .status-panel {
+      display: grid;
+      gap: 8px;
+    }
+
+    .status-title {
+      margin: 0;
+      font-size: 1.35rem;
+      font-weight: 700;
+    }
+
+    .status-body,
+    .hint-body {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    .status-panel.win .status-title {
+      color: var(--accent-2);
+    }
+
+    .status-panel.lose .status-title {
+      color: var(--danger);
+    }
+
+    .hint-grid {
+      display: grid;
+      gap: 12px;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    }
+
+    .hint-chip {
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 14px;
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    .hint-chip strong {
+      display: block;
+      font-size: 0.95rem;
+      margin-bottom: 6px;
+    }
+
+    @media (max-width: 640px) {
+      body {
+        padding: 14px;
+      }
+
+      .app {
+        padding: 16px;
+        border-radius: 22px;
+      }
+
+      .top-bar {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .controls {
+        justify-content: space-between;
+      }
+
+      .theme-btn {
+        flex: 1;
+      }
+    }
+  </style>
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-NWZDZ906DJ"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-NWZDZ906DJ');
+  </script>
+</head>
+<body>
+  <main class="app">
+    <div class="top-bar">
+      <div class="title-block">
+        <span class="eyebrow" data-i18n="eyebrow">Timing Challenge</span>
+        <h1 data-i18n="title">10.00 Stop</h1>
+        <p class="subtitle" data-i18n="subtitle">Start the timer, watch it fade away, and press stop at exactly 10.00 seconds.</p>
+      </div>
+
+      <div class="controls">
+        <div class="lang-selector" aria-label="Language selector">
+          <a href="#" data-lang="en" class="active">EN</a>
+          <a href="#" data-lang="pt">PT</a>
+          <a href="#" data-lang="ja">JA</a>
+        </div>
+        <button id="theme-toggle-btn" class="theme-btn" type="button" data-i18n="theme">Theme</button>
+      </div>
+    </div>
+
+    <section class="counter-panel" aria-live="polite">
+      <div class="counter-label" data-i18n="counterLabel">Counter</div>
+      <div id="counter" class="counter">0.00</div>
+      <p class="counter-note" data-i18n="counterNote">The counter fades out during the first 5 seconds and stays invisible until you stop.</p>
+    </section>
+
+    <section class="action-area">
+      <button id="action-button" class="action-button" type="button" data-i18n="start">Start</button>
+    </section>
+
+    <section id="status-panel" class="status-panel">
+      <h2 id="status-title" class="status-title"></h2>
+      <p id="status-body" class="status-body"></p>
+    </section>
+
+    <section class="hint-panel">
+      <div class="hint-label" data-i18n="hintLabel">How it works</div>
+      <div class="hint-grid">
+        <div class="hint-chip">
+          <strong data-i18n="hintGoalTitle">Goal</strong>
+          <p class="hint-body" data-i18n="hintGoalBody">Hit stop when the hidden timer reaches exactly 10.00 seconds.</p>
+        </div>
+        <div class="hint-chip">
+          <strong data-i18n="hintLockTitle">Click lock</strong>
+          <p class="hint-body" data-i18n="hintLockBody">The main button ignores extra clicks for 1 second after every valid press.</p>
+        </div>
+        <div class="hint-chip">
+          <strong data-i18n="hintHotkeyTitle">Hotkey</strong>
+          <p class="hint-body" data-i18n="hintHotkeyBody">Press Space to trigger the same Start and Stop button.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const I18N = {
+      en: {
+        eyebrow: 'Timing Challenge',
+        title: '10.00 Stop',
+        subtitle: 'Start the timer, watch it fade away, and press stop at exactly 10.00 seconds.',
+        theme: 'Theme',
+        counterLabel: 'Counter',
+        counterNote: 'The counter fades out during the first 5 seconds and stays invisible until you stop.',
+        start: 'Start',
+        stop: 'Stop',
+        idleTitle: 'Wait for 10.00',
+        idleBody: 'Press start, count in your head, and stop on the exact hundredth.',
+        runningTitle: 'The clock is fading',
+        runningBody: 'After 5.00 seconds the counter is fully invisible, so the rest is pure timing.',
+        wonTitle: 'You won!',
+        wonBody: 'Exact hit: 10.00 seconds. Press start to play again.',
+        lostTitle: 'You missed.',
+        tooEarly: 'Too early',
+        tooLate: 'Too late',
+        missBody: '{direction} by {seconds}s ({centiseconds} centiseconds). Press start to try again.',
+        hintLabel: 'How it works',
+        hintGoalTitle: 'Goal',
+        hintGoalBody: 'Hit stop when the hidden timer reaches exactly 10.00 seconds.',
+        hintLockTitle: 'Click lock',
+        hintLockBody: 'The main button ignores extra clicks for 1 second after every valid press.',
+        hintHotkeyTitle: 'Hotkey',
+        hintHotkeyBody: 'Press Space to trigger the same Start and Stop button.'
+      },
+      pt: {
+        eyebrow: 'Desafio de tempo',
+        title: 'Pare em 10,00',
+        subtitle: 'Inicie o timer, veja ele sumir, e aperte stop exatamente em 10,00 segundos.',
+        theme: 'Tema',
+        counterLabel: 'Contador',
+        counterNote: 'O contador some gradualmente nos primeiros 5 segundos e fica invisivel ate voce apertar stop.',
+        start: 'Start',
+        stop: 'Stop',
+        idleTitle: 'Espere o 10,00',
+        idleBody: 'Aperte start, conte mentalmente e pare no centesimo exato.',
+        runningTitle: 'O relogio esta sumindo',
+        runningBody: 'Depois de 5,00 segundos o contador fica totalmente invisivel, entao o resto depende do seu tempo.',
+        wonTitle: 'Voce ganhou!',
+        wonBody: 'Acerto exato: 10,00 segundos. Aperte start para jogar de novo.',
+        lostTitle: 'Voce errou.',
+        tooEarly: 'Muito cedo',
+        tooLate: 'Muito tarde',
+        missBody: '{direction} por {seconds}s ({centiseconds} centesimos). Aperte start para tentar de novo.',
+        hintLabel: 'Como funciona',
+        hintGoalTitle: 'Objetivo',
+        hintGoalBody: 'Acerte o stop quando o timer escondido chegar exatamente em 10,00 segundos.',
+        hintLockTitle: 'Bloqueio de clique',
+        hintLockBody: 'O botao principal ignora cliques extras por 1 segundo apos cada acionamento valido.',
+        hintHotkeyTitle: 'Atalho',
+        hintHotkeyBody: 'Aperte Space para acionar o mesmo botao de Start e Stop.'
+      },
+      ja: {
+        eyebrow: 'タイミングチャレンジ',
+        title: '10.00 Stop',
+        subtitle: 'タイマーを開始し、表示が消えたあとも数えて、ちょうど10.00秒で止めてください。',
+        theme: 'Theme',
+        counterLabel: 'カウンター',
+        counterNote: 'カウンターは最初の5秒で徐々に消え、止めるまで見えなくなります。',
+        start: 'Start',
+        stop: 'Stop',
+        idleTitle: '10.00を狙う',
+        idleBody: 'スタートしたら頭の中で数えて、ちょうどの100分の1秒で止めてください。',
+        runningTitle: '時計が消えていく',
+        runningBody: '5.00秒を過ぎるとカウンターは完全に見えなくなり、あとは感覚勝負です。',
+        wonTitle: '勝ち!',
+        wonBody: 'ぴったり10.00秒です。もう一度遊ぶにはStartを押してください。',
+        lostTitle: '外れました。',
+        tooEarly: '早すぎ',
+        tooLate: '遅すぎ',
+        missBody: '{direction} {seconds}秒 ({centiseconds}センチ秒) でした。もう一度遊ぶにはStartを押してください。',
+        hintLabel: 'ルール',
+        hintGoalTitle: '目標',
+        hintGoalBody: '見えなくなったタイマーが10.00秒になった瞬間にStopを押します。',
+        hintLockTitle: 'クリック制限',
+        hintLockBody: '有効な押下のあと1秒間は追加クリックを受け付けません。',
+        hintHotkeyTitle: 'ホットキー',
+        hintHotkeyBody: 'SpaceキーでStartとStopのボタンを同じように操作できます。'
+      }
+    };
+
+    const counterEl = document.getElementById('counter');
+    const actionButton = document.getElementById('action-button');
+    const statusPanel = document.getElementById('status-panel');
+    const statusTitle = document.getElementById('status-title');
+    const statusBody = document.getElementById('status-body');
+    const themeToggleBtn = document.getElementById('theme-toggle-btn');
+    const langSelector = document.querySelector('.lang-selector');
+
+    const TARGET_CENTISECONDS = 1000;
+    const FADE_DURATION_MS = 5000;
+    const CLICK_LOCK_MS = 1000;
+
+    let currentLang = localStorage.getItem('app_lang') || 'en';
+    let running = false;
+    let startTime = 0;
+    let rafId = 0;
+    let currentCentiseconds = 0;
+    let lastOutcome = null;
+    let lockTimeoutId = 0;
+    let lockedUntil = 0;
+
+    function t(key, vars = {}) {
+      const template = (I18N[currentLang] && I18N[currentLang][key]) || I18N.en[key] || '';
+      return template.replace(/\{(\w+)\}/g, (_, token) => vars[token] ?? '');
+    }
+
+    function formatCentiseconds(value) {
+      return (value / 100).toFixed(2);
+    }
+
+    function syncStaticText() {
+      document.documentElement.lang = currentLang;
+      document.title = t('title');
+
+      document.querySelectorAll('[data-i18n]').forEach((node) => {
+        const key = node.getAttribute('data-i18n');
+        if (key === 'start' || key === 'stop') {
+          return;
+        }
+        node.textContent = t(key);
+      });
+
+      document.querySelectorAll('.lang-selector a').forEach((link) => {
+        link.classList.toggle('active', link.dataset.lang === currentLang);
+      });
+
+      syncPrimaryButtonLabel();
+      renderStatus();
+    }
+
+    function syncPrimaryButtonLabel() {
+      actionButton.textContent = running ? t('stop') : t('start');
+    }
+
+    function setCounterVisuals(centiseconds, forceVisible = false) {
+      counterEl.textContent = formatCentiseconds(centiseconds);
+
+      if (forceVisible) {
+        counterEl.style.opacity = '1';
+        counterEl.style.filter = 'blur(0px)';
+        counterEl.style.transform = 'scale(1)';
+        return;
+      }
+
+      const elapsedMs = centiseconds * 10;
+      const progress = Math.min(elapsedMs / FADE_DURATION_MS, 1);
+      const opacity = 1 - progress;
+      counterEl.style.opacity = String(opacity);
+      counterEl.style.filter = `blur(${progress * 6}px)`;
+      counterEl.style.transform = `scale(${1 - progress * 0.03})`;
+    }
+
+    function renderStatus() {
+      statusPanel.classList.remove('win', 'lose');
+
+      if (running) {
+        statusTitle.textContent = t('runningTitle');
+        statusBody.textContent = t('runningBody');
+        return;
+      }
+
+      if (!lastOutcome) {
+        statusTitle.textContent = t('idleTitle');
+        statusBody.textContent = t('idleBody');
+        return;
+      }
+
+      if (lastOutcome.diff === 0) {
+        statusPanel.classList.add('win');
+        statusTitle.textContent = t('wonTitle');
+        statusBody.textContent = t('wonBody');
+        return;
+      }
+
+      statusPanel.classList.add('lose');
+      statusTitle.textContent = t('lostTitle');
+      statusBody.textContent = t('missBody', {
+        direction: lastOutcome.diff < 0 ? t('tooEarly') : t('tooLate'),
+        seconds: formatCentiseconds(Math.abs(lastOutcome.diff)),
+        centiseconds: String(Math.abs(lastOutcome.diff))
+      });
+    }
+
+    function tick(now) {
+      if (!running) {
+        return;
+      }
+
+      currentCentiseconds = Math.round((now - startTime) / 10);
+      setCounterVisuals(currentCentiseconds);
+      rafId = window.requestAnimationFrame(tick);
+    }
+
+    function clearLoop() {
+      if (rafId) {
+        window.cancelAnimationFrame(rafId);
+        rafId = 0;
+      }
+    }
+
+    function startRound(now) {
+      clearLoop();
+      running = true;
+      startTime = now;
+      currentCentiseconds = 0;
+      lastOutcome = null;
+      setCounterVisuals(0, true);
+      syncPrimaryButtonLabel();
+      renderStatus();
+      rafId = window.requestAnimationFrame(tick);
+    }
+
+    function stopRound(now) {
+      running = false;
+      clearLoop();
+      currentCentiseconds = Math.round((now - startTime) / 10);
+      lastOutcome = {
+        diff: currentCentiseconds - TARGET_CENTISECONDS
+      };
+      setCounterVisuals(currentCentiseconds, true);
+      syncPrimaryButtonLabel();
+      renderStatus();
+    }
+
+    function lockPrimaryButton(now) {
+      lockedUntil = now + CLICK_LOCK_MS;
+      actionButton.disabled = true;
+      window.clearTimeout(lockTimeoutId);
+      lockTimeoutId = window.setTimeout(() => {
+        actionButton.disabled = false;
+        syncPrimaryButtonLabel();
+      }, CLICK_LOCK_MS);
+    }
+
+    function handlePrimaryAction() {
+      const now = performance.now();
+      if (now < lockedUntil || actionButton.disabled) {
+        return;
+      }
+
+      if (running) {
+        stopRound(now);
+      } else {
+        startRound(now);
+      }
+
+      lockPrimaryButton(now);
+    }
+
+    function applySavedTheme() {
+      const savedTheme = localStorage.getItem('app_theme');
+      document.body.classList.toggle('light-theme', savedTheme === 'light');
+    }
+
+    langSelector.addEventListener('click', (event) => {
+      event.preventDefault();
+      const link = event.target.closest('[data-lang]');
+      if (!link) {
+        return;
+      }
+
+      currentLang = link.dataset.lang;
+      localStorage.setItem('app_lang', currentLang);
+      syncStaticText();
+    });
+
+    themeToggleBtn.addEventListener('click', () => {
+      document.body.classList.toggle('light-theme');
+      localStorage.setItem('app_theme', document.body.classList.contains('light-theme') ? 'light' : 'dark');
+    });
+
+    actionButton.addEventListener('click', handlePrimaryAction);
+
+    window.addEventListener('keydown', (event) => {
+      if (event.code !== 'Space' || event.repeat) {
+        return;
+      }
+
+      event.preventDefault();
+      handlePrimaryAction();
+    });
+
+    applySavedTheme();
+    setCounterVisuals(0, true);
+    syncStaticText();
+  </script>
+</body>
+</html>

@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>LOOPLAND EXPRESS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito:wght@600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#f7fbff;--muted:#b9d7dc;--glass:rgba(8,20,30,.76);--line:rgba(255,255,255,.17);--yellow:#ffdc70;--mint:#68efbf;--pink:#ff708d;--blue:#78d8ff}
+body.light{--ink:#10252b;--muted:#385c63;--glass:rgba(239,252,247,.82);--line:rgba(15,50,55,.18);--yellow:#b96f00;--mint:#008b6f;--pink:#d53d62;--blue:#146ea8}
+*{box-sizing:border-box;margin:0;padding:0;user-select:none}
+html,body{width:100%;height:100%;overflow:hidden;background:#76cce8;font-family:Nunito,sans-serif;color:var(--ink)}
+canvas{display:block}
+#ui{position:fixed;inset:0;pointer-events:none}
+.panel{background:linear-gradient(145deg,var(--glass),rgba(7,13,21,.48));border:1px solid var(--line);box-shadow:0 14px 35px rgba(0,0,0,.28),inset 0 1px rgba(255,255,255,.09);backdrop-filter:blur(13px)}
+body.light .panel{background:linear-gradient(145deg,var(--glass),rgba(212,238,231,.72))}
+#brand{position:absolute;top:18px;left:18px;border-radius:18px;padding:14px 19px;min-width:260px}
+#title{font-family:"Lilita One",cursive;font-size:27px;letter-spacing:2px;color:var(--yellow);text-shadow:0 2px 0 rgba(0,0,0,.35)}
+#seed{font-size:11px;color:var(--muted);letter-spacing:2px;margin-top:3px}
+#stats{position:absolute;top:18px;right:18px;display:flex;border-radius:18px;overflow:hidden}
+.stat{padding:11px 17px;text-align:center;min-width:92px;border-left:1px solid var(--line)}
+.stat:first-child{border:0}.stat b{display:block;font-family:"Lilita One",cursive;font-size:23px;color:var(--mint);letter-spacing:1px}.stat small{font-size:10px;letter-spacing:2px;color:var(--muted)}
+#centerMsg{position:absolute;left:50%;top:24px;transform:translateX(-50%);font-family:"Lilita One",cursive;font-size:18px;letter-spacing:3px;text-shadow:0 2px 7px #000;opacity:0;transition:opacity .4s}
+#controls{position:absolute;left:18px;bottom:18px;border-radius:15px;padding:11px 15px;color:var(--muted);font-size:12px;letter-spacing:.4px}
+#tools{position:absolute;right:18px;bottom:18px;display:flex;gap:8px;pointer-events:auto}
+button{font-family:"Lilita One",cursive;letter-spacing:1px;border:1px solid var(--line);border-radius:12px;background:var(--glass);color:var(--ink);padding:10px 14px;cursor:pointer;box-shadow:0 6px 18px #0004;backdrop-filter:blur(10px)}
+button:hover{transform:translateY(-2px);border-color:var(--mint)}button:active{transform:translateY(1px)}
+#newBtn{color:#06271e;background:linear-gradient(#8affdc,#45d0aa);border:0}
+#splash{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;align-items:center;background:radial-gradient(ellipse at center,rgba(9,39,50,.48),rgba(3,11,18,.88));pointer-events:auto;transition:opacity .6s}
+#splash.hide{opacity:0;pointer-events:none}
+.logo{font-family:"Lilita One",cursive;color:var(--yellow);font-size:clamp(55px,8vw,105px);letter-spacing:7px;line-height:.85;text-align:center;text-shadow:0 5px 0 #17675f,0 10px 0 #0b3d3a,0 22px 45px #000b;transform:rotate(-2deg)}
+.logo span{display:block;color:var(--mint);font-size:.47em;letter-spacing:12px;margin-top:18px}
+.tagline{margin:29px 0 32px;color:#d7edf0;font-weight:800;letter-spacing:3px;font-size:13px;text-align:center}
+#rideBtn{font-size:25px;padding:14px 47px;background:linear-gradient(#ffeb92,#f5b831);color:#442c00;border:0;box-shadow:0 6px 0 #9f6208,0 16px 30px #0008}
+#rideBtn:hover{transform:scale(1.05)}
+#loading{position:absolute;inset:0;background:#0a1721;display:flex;align-items:center;justify-content:center;font-family:"Lilita One",cursive;color:var(--yellow);font-size:26px;letter-spacing:4px;z-index:20;transition:opacity .5s}
+#loading.hide{opacity:0;pointer-events:none}
+@media(max-width:700px){#brand{top:10px;left:10px;min-width:0;padding:10px 13px}#title{font-size:18px}#stats{top:10px;right:10px}.stat{padding:8px 10px;min-width:63px}.stat b{font-size:18px}.stat small{font-size:8px}#controls{display:none}#tools{right:10px;bottom:10px;flex-wrap:wrap;justify-content:flex-end;max-width:95vw}.logo{font-size:52px}.tagline{padding:0 25px;line-height:1.8}}
+</style>
+</head>
+<body>
+<div id="loading">BUILDING TRACK...</div>
+<div id="ui">
+  <div id="brand" class="panel"><div id="title" data-i18n="title">LOOPLAND EXPRESS</div><div id="seed"></div></div>
+  <div id="stats" class="panel">
+    <div class="stat"><b id="lap">1</b><small data-i18n="lap">LAP</small></div>
+    <div class="stat"><b id="speed">0</b><small data-i18n="speed">KM/H</small></div>
+    <div class="stat"><b id="height">0</b><small data-i18n="height">HEIGHT</small></div>
+  </div>
+  <div id="centerMsg" data-i18n="again">HERE WE GO AGAIN!</div>
+  <div id="controls" class="panel" data-i18n="controls">DRAG to look around · WHEEL to zoom · SPACE to cheer</div>
+  <div id="tools">
+    <button id="newBtn" data-i18n="newTrack">↻ NEW TRACK</button>
+    <button id="cameraBtn" data-i18n="camera">CAM: CHASE</button>
+    <button id="soundBtn">SOUND: ON</button>
+    <button id="langBtn">EN</button>
+    <button id="themeBtn">DARK</button>
+  </div>
+  <div id="splash">
+    <div class="logo">LOOPLAND<span>EXPRESS</span></div>
+    <div class="tagline" data-i18n="tagline">ONE TINY CART · ONE HUGE WORLD · INFINITE LAPS</div>
+    <button id="rideBtn" data-i18n="ride">LET'S RIDE!</button>
+  </div>
+</div>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}</script>
+<script type="module">
+import * as THREE from "three";
+import {EffectComposer} from "three/addons/postprocessing/EffectComposer.js";
+import {RenderPass} from "three/addons/postprocessing/RenderPass.js";
+import {UnrealBloomPass} from "three/addons/postprocessing/UnrealBloomPass.js";
+import {OutputPass} from "three/addons/postprocessing/OutputPass.js";
+
+const T={
+ en:{title:"LOOPLAND EXPRESS",lap:"LAP",speed:"KM/H",height:"HEIGHT",controls:"DRAG to look around · WHEEL to zoom · SPACE to cheer",newTrack:"↻ NEW TRACK",camera:"CAM: CHASE",cameraWide:"CAM: WIDE",soundOn:"SOUND: ON",soundOff:"SOUND: OFF",tagline:"ONE TINY CART · ONE HUGE WORLD · INFINITE LAPS",ride:"LET'S RIDE!",again:"HERE WE GO AGAIN!",seed:"TRACK"},
+ pt:{title:"EXPRESSO LOOPLAND",lap:"VOLTA",speed:"KM/H",height:"ALTURA",controls:"ARRASTE para olhar · RODA para zoom · ESPAÇO para comemorar",newTrack:"↻ NOVA PISTA",camera:"CÂM: PERTO",cameraWide:"CÂM: LONGE",soundOn:"SOM: LIGADO",soundOff:"SOM: DESLIGADO",tagline:"UM CARRINHO · UM MUNDO ENORME · VOLTAS INFINITAS",ride:"VAMOS!",again:"LÁ VAMOS NÓS!",seed:"PISTA"},
+ ja:{title:"ループランド急行",lap:"周回",speed:"KM/H",height:"高さ",controls:"ドラッグ：視点 · ホイール：ズーム · スペース：歓声",newTrack:"↻ 新しいコース",camera:"カメラ：近",cameraWide:"カメラ：遠",soundOn:"音：オン",soundOff:"音：オフ",tagline:"小さなカート · 大きな世界 · 無限の周回",ride:"出発！",again:"もう一周！",seed:"コース"}
+};
+const PREF="loopland_express_prefs";
+let prefs;try{prefs={lang:"en",theme:"dark",sound:true,...JSON.parse(localStorage.getItem(PREF)||"{}")}}catch{prefs={lang:"en",theme:"dark",sound:true}}
+const $=s=>document.querySelector(s);
+function save(){localStorage.setItem(PREF,JSON.stringify(prefs))}
+function words(){document.querySelectorAll("[data-i18n]").forEach(e=>e.innerHTML=T[prefs.lang][e.dataset.i18n]);$("#langBtn").textContent=prefs.lang.toUpperCase();$("#cameraBtn").textContent=T[prefs.lang][cameraWide?"cameraWide":"camera"];$("#soundBtn").textContent=T[prefs.lang][prefs.sound?"soundOn":"soundOff"];$("#themeBtn").textContent=prefs.theme==="dark"?"DARK":"LIGHT";$("#seed").textContent=`${T[prefs.lang].seed} #${seed.toString(16).toUpperCase()}`;document.documentElement.lang=prefs.lang}
+document.body.classList.toggle("light",prefs.theme==="light");
+
+const scene=new THREE.Scene();
+scene.fog=new THREE.FogExp2(0x9ed9e2,.00165);
+const camera=new THREE.PerspectiveCamera(58,innerWidth/innerHeight,.1,1800);
+const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:"high-performance"});
+renderer.setPixelRatio(Math.min(devicePixelRatio,1.7));renderer.setSize(innerWidth,innerHeight);renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.05;document.body.prepend(renderer.domElement);
+const composer=new EffectComposer(renderer);composer.addPass(new RenderPass(scene,camera));const bloom=new UnrealBloomPass(new THREE.Vector2(innerWidth,innerHeight),.18,.5,.88);composer.addPass(bloom);composer.addPass(new OutputPass());
+scene.add(new THREE.HemisphereLight(0xcdf7ff,0x45652d,2.3));
+const sun=new THREE.DirectionalLight(0xfff0c7,3.4);sun.position.set(-160,240,100);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);sun.shadow.camera.left=sun.shadow.camera.bottom=-310;sun.shadow.camera.right=sun.shadow.camera.top=310;sun.shadow.camera.far=700;scene.add(sun);
+const sunBall=new THREE.Mesh(new THREE.SphereGeometry(17,24,16),new THREE.MeshBasicMaterial({color:0xffe694}));sunBall.position.set(-310,260,-460);scene.add(sunBall);
+
+let seed=(crypto.getRandomValues(new Uint32Array(1))[0]||Date.now())>>>0,random,world,curve,cart,trackLength=1,progress=0,lap=1,riding=false,last=performance.now(),cameraWide=false,orbitX=0,orbitY=.32,zoom=1,drag=false,px=0,py=0,audio=null,oscillator=null,audioGain=null,cheer=0;
+function rng(s){return()=>{s|=0;s=s+0x6D2B79F5|0;let t=Math.imul(s^s>>>15,1|s);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+const mat=(c,rough=.75,metal=0)=>new THREE.MeshStandardMaterial({color:c,roughness:rough,metalness:metal});
+function mesh(g,m,parent=world,shadow=true){const x=new THREE.Mesh(g,m);x.castShadow=shadow;x.receiveShadow=shadow;parent.add(x);return x}
+function tube(c,r,material,segments=500){return mesh(new THREE.TubeGeometry(c,segments,r,7,true),material)}
+function frameAt(t){
+ const p=curve.getPointAt(t),tan=curve.getTangentAt(t).normalize();
+ const side=new THREE.Vector3().crossVectors(new THREE.Vector3(0,1,0),tan);
+ if(side.lengthSq()<.0001)side.set(1,0,0);else side.normalize();
+ const up=new THREE.Vector3().crossVectors(tan,side).normalize();
+ return{p,tan,side,up}
+}
+function terrainHeight(x,z){return -3+Math.sin(x*.014)*2.3+Math.cos(z*.018)*1.7+Math.sin((x+z)*.009)*1.2}
+function buildWorld(){
+ if(world)scene.remove(world);world=new THREE.Group();scene.add(world);random=rng(seed);
+ scene.background=new THREE.Color(prefs.theme==="light"?0xbceafa:0x74cbe8);scene.fog.color.copy(scene.background);
+ const groundGeo=new THREE.PlaneGeometry(900,900,90,90);groundGeo.rotateX(-Math.PI/2);const pa=groundGeo.attributes.position;
+ for(let i=0;i<pa.count;i++){const x=pa.getX(i),z=pa.getZ(i);pa.setY(i,terrainHeight(x,z)+(random()-.5)*.35)}groundGeo.computeVertexNormals();
+ mesh(groundGeo,mat(prefs.theme==="light"?0x7abf65:0x4a9453),world,false).receiveShadow=true;
+ const water=mesh(new THREE.CircleGeometry(95,48),new THREE.MeshStandardMaterial({color:0x49b9dc,roughness:.18,metalness:.15,transparent:true,opacity:.86}),world,false);water.rotation.x=-Math.PI/2;water.position.set(95,-1.9,-55);
+ const pts=[],count=10+Math.floor(random()*5);
+ for(let i=0;i<count;i++){const a=i/count*Math.PI*2;const rad=150+random()*95;const x=Math.cos(a)*rad,z=Math.sin(a)*rad;let y=16+random()*17+Math.pow(Math.max(0,Math.sin(a*2.1+random()*2)),2)*(42+random()*54);if(i===0)y=18;if(i===1)y=90+random()*28;pts.push(new THREE.Vector3(x,y,z))}
+ curve=new THREE.CatmullRomCurve3(pts,true,"centripetal",.42);trackLength=curve.getLength();
+ const railMat=mat(0xe9edf0,.24,.72),woodMat=mat(0x70442d,.9),supportMat=mat(0x234653,.58,.45),accentMat=mat(0xff5f7e,.38,.28);
+ const left=[],right=[];for(let i=0;i<260;i++){const f=frameAt(i/260);left.push(f.p.clone().addScaledVector(f.side,2.25));right.push(f.p.clone().addScaledVector(f.side,-2.25))}
+ tube(new THREE.CatmullRomCurve3(left,true,"centripetal"),.38,railMat,520);tube(new THREE.CatmullRomCurve3(right,true,"centripetal"),.38,railMat,520);
+ for(let i=0;i<190;i++){const f=frameAt(i/190);const sleeper=mesh(new THREE.BoxGeometry(6.5,.45,.75),woodMat);sleeper.position.copy(f.p).addScaledVector(f.up,-.45);const q=new THREE.Matrix4().makeBasis(f.side,f.up,f.tan);sleeper.quaternion.setFromRotationMatrix(q)}
+ for(let i=0;i<55;i++){const f=frameAt(i/55),ground=terrainHeight(f.p.x,f.p.z),h=f.p.y-ground;if(h>7){const pole=mesh(new THREE.CylinderGeometry(.38,.62,h,7),supportMat);pole.position.set(f.p.x,ground+h/2,f.p.z);const cross=mesh(new THREE.BoxGeometry(8,.48,.48),supportMat);cross.position.copy(f.p).addScaledVector(f.up,-1.1);const q=new THREE.Matrix4().makeBasis(f.side,f.up,f.tan);cross.quaternion.setFromRotationMatrix(q)}}
+ for(let i=0;i<135;i++){const x=(random()-.5)*790,z=(random()-.5)*790;if(Math.hypot(x,z)<115||Math.hypot(x-95,z+55)<115)continue;const y=terrainHeight(x,z);if(random()<.7){const tree=new THREE.Group(),h=5+random()*7;const trunk=mesh(new THREE.CylinderGeometry(.55,.9,h,6),mat(0x684529),tree);trunk.position.y=h/2;const crown=mesh(new THREE.ConeGeometry(3.4+random()*2,7+random()*4,7),mat([0x26704a,0x3f8d55,0x75a94f][Math.floor(random()*3)]),tree);crown.position.y=h+3;tree.position.set(x,y,z);tree.rotation.y=random()*6.3;tree.scale.setScalar(.75+random()*.65);world.add(tree)}else{const rock=mesh(new THREE.DodecahedronGeometry(2+random()*4,0),mat(0x6c7d79));rock.position.set(x,y+1,z);rock.scale.y=.45+random()*.7;rock.rotation.set(random(),random(),random())}}
+ for(let i=0;i<18;i++){const a=i/18*Math.PI*2,r=330+random()*80,h=40+random()*105;const mountain=mesh(new THREE.ConeGeometry(38+random()*48,h,7),mat(i%3===0?0x668a75:0x537566),world,false);mountain.position.set(Math.cos(a)*r,h/2-4,Math.sin(a)*r);mountain.rotation.y=random()*6}
+ buildStation(accentMat);buildCart();progress=0;lap=1;$("#lap").textContent=lap;words();
+}
+function buildStation(accent){
+ const f=frameAt(.998),g=new THREE.Group();g.position.copy(f.p);const q=new THREE.Matrix4().makeBasis(f.side,f.up,f.tan);g.quaternion.setFromRotationMatrix(q);
+ const platform=mesh(new THREE.BoxGeometry(14,1.3,24),mat(0xffc857),g);platform.position.set(0,-2,0);
+ for(const x of[-6,6])for(const z of[-9,9]){const p=mesh(new THREE.BoxGeometry(.7,13,.7),mat(0x274e59),g);p.position.set(x,3.5,z)}
+ const roof=mesh(new THREE.BoxGeometry(15,.8,25),accent,g);roof.position.y=10;
+ const sign=mesh(new THREE.BoxGeometry(10,3,.5),mat(0x17323e),g);sign.position.set(0,8,-12.4);
+ world.add(g)
+}
+function buildCart(){
+ cart=new THREE.Group();world.add(cart);const body=mesh(new THREE.BoxGeometry(5.2,2.3,7),mat(0xffc83d,.34,.25),cart);body.position.y=1;const nose=mesh(new THREE.BoxGeometry(5.3,1.2,1.1),mat(0xff6b78,.32,.18),cart);nose.position.set(0,1.4,3.5);
+ for(const z of[-2.2,2.2]){
+  const axle=mesh(new THREE.CylinderGeometry(.18,.18,5.4,8),mat(0x34434a,.35,.65),cart);axle.rotation.z=Math.PI/2;axle.position.set(0,-.15,z);
+  for(const x of[-2.25,2.25]){const w=mesh(new THREE.CylinderGeometry(.72,.72,.5,12),mat(0x15222b,.45,.5),cart);w.rotation.z=Math.PI/2;w.position.set(x,-.15,z)}
+ }
+ const seat=mesh(new THREE.BoxGeometry(4.3,2.1,.8),mat(0x36a982),cart);seat.position.set(0,2.35,1.7);
+ const head=mesh(new THREE.SphereGeometry(.74,16,12),mat(0xf3b985),cart);head.position.set(0,4.7,.2);
+ const torso=mesh(new THREE.BoxGeometry(1.65,2.2,1.05),mat(0x63d4ff),cart);torso.position.set(0,3.35,.3);
+ const hair=mesh(new THREE.SphereGeometry(.78,12,8,0,Math.PI*2,0,Math.PI*.54),mat(0x493128),cart);hair.position.set(0,4.88,.2);
+ for(const x of[-1.1,1.1]){const arm=mesh(new THREE.CylinderGeometry(.22,.25,2.5,8),mat(0xf3b985),cart);arm.name="arm";arm.position.set(x,4.2,.2);arm.rotation.z=x<0?-.65:.65}
+}
+function regenerate(){seed=(crypto.getRandomValues(new Uint32Array(1))[0]||Date.now())>>>0;buildWorld();riding=true;$("#splash").classList.add("hide")}
+function audioTick(speed){
+ if(!prefs.sound||!riding)return;if(!audio){audio=new (window.AudioContext||window.webkitAudioContext)();oscillator=audio.createOscillator();audioGain=audio.createGain();oscillator.type="triangle";oscillator.connect(audioGain).connect(audio.destination);audioGain.gain.value=.025;oscillator.start()}if(audio.state==="suspended")audio.resume();oscillator.frequency.setTargetAtTime(42+speed*.55,audio.currentTime,.08)
+}
+function update(dt){
+ if(!cart)return;let slope=0;if(riding){const f=frameAt(progress),ahead=curve.getPointAt((progress+.002)%1);slope=(ahead.y-f.p.y)/Math.max(.1,ahead.distanceTo(f.p));const velocity=THREE.MathUtils.clamp(34-slope*24,14,68);progress+=velocity*dt/trackLength;if(progress>=1){progress%=1;lap++;$("#lap").textContent=lap;$("#centerMsg").style.opacity=1;setTimeout(()=>$("#centerMsg").style.opacity=0,1100)}$("#speed").textContent=Math.round(velocity*3.2);audioTick(velocity)}
+ const f=frameAt(progress);cart.position.copy(f.p).addScaledVector(f.up,.82);const basis=new THREE.Matrix4().makeBasis(f.side,f.up,f.tan);cart.quaternion.setFromRotationMatrix(basis);$("#height").textContent=Math.max(0,Math.round(f.p.y));
+ cheer=Math.max(0,cheer-dt);cart.children.filter(x=>x.name==="arm").forEach((a,i)=>a.rotation.z=(i?-.1:.1)+(i?1:-1)*(cheer?1.35:.65));
+ const distance=(cameraWide?36:20)*zoom;
+ const target=cart.position.clone().addScaledVector(f.up,2.25);
+ const orbitDirection=f.tan.clone().multiplyScalar(-Math.cos(orbitX)).addScaledVector(f.side,Math.sin(orbitX)).normalize();
+ const desired=target.clone().addScaledVector(orbitDirection,Math.cos(orbitY)*distance).addScaledVector(f.up,Math.sin(orbitY)*distance);
+ camera.position.lerp(desired,1-Math.pow(.003,dt));camera.lookAt(target)
+}
+function render(now){requestAnimationFrame(render);const dt=Math.min(.05,(now-last)/1000);last=now;update(dt);composer.render()}
+addEventListener("resize",()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);composer.setSize(innerWidth,innerHeight)});
+renderer.domElement.addEventListener("pointerdown",e=>{drag=true;px=e.clientX;py=e.clientY;renderer.domElement.setPointerCapture?.(e.pointerId)});addEventListener("pointerup",()=>drag=false);addEventListener("pointermove",e=>{if(!drag)return;orbitX+=(e.clientX-px)*.006;orbitY=THREE.MathUtils.clamp(orbitY-(e.clientY-py)*.004,-.15,1.15);px=e.clientX;py=e.clientY});addEventListener("wheel",e=>zoom=THREE.MathUtils.clamp(zoom+e.deltaY*.0007,.65,1.7),{passive:true});
+addEventListener("keydown",e=>{if(e.code==="Space"){e.preventDefault();cheer=1.2}});
+$("#rideBtn").onclick=()=>{riding=true;$("#splash").classList.add("hide");audioTick(10)};
+$("#newBtn").onclick=regenerate;
+$("#cameraBtn").onclick=()=>{cameraWide=!cameraWide;words()};
+$("#soundBtn").onclick=()=>{prefs.sound=!prefs.sound;save();words();if(audioGain)audioGain.gain.value=prefs.sound?.025:0};
+$("#langBtn").onclick=()=>{prefs.lang={en:"pt",pt:"ja",ja:"en"}[prefs.lang];save();words()};
+$("#themeBtn").onclick=()=>{prefs.theme=prefs.theme==="dark"?"light":"dark";document.body.classList.toggle("light",prefs.theme==="light");save();buildWorld();words()};
+buildWorld();words();render(performance.now());setTimeout(()=>$("#loading").classList.add("hide"),350);
+</script>
+</body>
+</html>
