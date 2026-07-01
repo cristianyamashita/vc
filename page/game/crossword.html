@@ -1,0 +1,1882 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Crossword Mixer</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg-1: #11161c;
+      --bg-2: #18212b;
+      --bg-3: #223140;
+      --surface: rgba(14, 19, 25, 0.82);
+      --surface-strong: rgba(21, 29, 37, 0.95);
+      --card: rgba(24, 34, 44, 0.94);
+      --ink: #edf4f8;
+      --muted: #9db1be;
+      --accent: #f7b267;
+      --accent-strong: #ffce91;
+      --accent-2: #7bdff2;
+      --good: #81e979;
+      --bad: #ff7a7a;
+      --border: rgba(255, 255, 255, 0.12);
+      --shadow: 0 24px 60px rgba(0, 0, 0, 0.32);
+      --cell: #0f151b;
+      --cell-active: #273a49;
+      --cell-focus: #314d60;
+      --cell-correct: rgba(129, 233, 121, 0.18);
+      --cell-wrong: rgba(255, 122, 122, 0.18);
+      --cell-empty: rgba(255, 255, 255, 0.04);
+      --grid-gap: 3px;
+      --cell-size: min(7.2vw, 42px);
+    }
+
+    body.light-theme {
+      color-scheme: light;
+      --bg-1: #f6f1e8;
+      --bg-2: #f4e8d0;
+      --bg-3: #d7e3f1;
+      --surface: rgba(255, 251, 245, 0.88);
+      --surface-strong: rgba(255, 255, 255, 0.95);
+      --card: rgba(255, 255, 255, 0.96);
+      --ink: #1e2429;
+      --muted: #6a7880;
+      --accent: #b85c38;
+      --accent-strong: #db8c5e;
+      --accent-2: #226d86;
+      --good: #1d7f45;
+      --bad: #c24e4e;
+      --border: rgba(20, 25, 30, 0.12);
+      --shadow: 0 22px 54px rgba(76, 67, 58, 0.17);
+      --cell: #fffdfa;
+      --cell-active: #f2dac4;
+      --cell-focus: #efd0ab;
+      --cell-correct: rgba(29, 127, 69, 0.12);
+      --cell-wrong: rgba(194, 78, 78, 0.12);
+      --cell-empty: rgba(20, 25, 30, 0.05);
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      min-height: 100%;
+      margin: 0;
+    }
+
+    body {
+      font: 14px/1.5 "Noto Sans JP", "Hiragino Sans", "Yu Gothic", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at top left, rgba(247, 178, 103, 0.24), transparent 28%),
+        radial-gradient(circle at top right, rgba(123, 223, 242, 0.2), transparent 26%),
+        linear-gradient(145deg, var(--bg-1), var(--bg-2) 45%, var(--bg-3));
+      padding: 18px;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0.18;
+      background-image: linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+      background-size: 22px 22px;
+      mask-image: radial-gradient(circle at center, black, transparent 78%);
+    }
+
+    button,
+    input {
+      font: inherit;
+    }
+
+    button {
+      cursor: pointer;
+    }
+
+    .page {
+      width: min(1320px, 100%);
+      margin: 0 auto;
+      display: grid;
+      gap: 18px;
+    }
+
+    .hero,
+    .panel,
+    .sidebar {
+      border: 1px solid var(--border);
+      background: var(--surface);
+      backdrop-filter: blur(18px);
+      box-shadow: var(--shadow);
+    }
+
+    .hero {
+      border-radius: 24px;
+      padding: 24px;
+      display: grid;
+      gap: 18px;
+    }
+
+    .hero-top {
+      display: flex;
+      justify-content: space-between;
+      gap: 14px;
+      flex-wrap: wrap;
+      align-items: start;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--accent-strong);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(2rem, 5vw, 4rem);
+      line-height: 0.95;
+      letter-spacing: -0.04em;
+    }
+
+    .subtitle {
+      margin: 10px 0 0;
+      max-width: 760px;
+      color: var(--muted);
+      font-size: 1rem;
+    }
+
+    .toolbar {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .lang-switch,
+    .chip-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .lang-switch {
+      padding: 4px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .lang-btn,
+    .ghost-btn,
+    .primary-btn,
+    .mini-btn {
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      transition: transform 0.18s ease, background 0.18s ease, border-color 0.18s ease;
+    }
+
+    .lang-btn {
+      min-width: 46px;
+      padding: 8px 12px;
+      background: transparent;
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    .lang-btn.active {
+      background: var(--accent);
+      color: #1b1712;
+      border-color: transparent;
+    }
+
+    .ghost-btn,
+    .primary-btn,
+    .mini-btn {
+      padding: 10px 14px;
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--ink);
+      font-weight: 700;
+    }
+
+    .primary-btn {
+      background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+      color: #211910;
+      border-color: transparent;
+    }
+
+    .mini-btn {
+      padding: 7px 12px;
+      font-size: 12px;
+    }
+
+    .lang-btn:hover,
+    .ghost-btn:hover,
+    .primary-btn:hover,
+    .mini-btn:hover {
+      transform: translateY(-1px);
+    }
+
+    .hero-bottom {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .chip {
+      padding: 14px 16px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border);
+      min-height: 82px;
+      display: grid;
+      align-content: start;
+      gap: 6px;
+    }
+
+    .chip-label {
+      font-size: 12px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .chip strong {
+      font-size: 1.15rem;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1.3fr) minmax(320px, 0.9fr);
+      gap: 18px;
+    }
+
+    .panel {
+      border-radius: 24px;
+      padding: 18px;
+      display: grid;
+      gap: 14px;
+    }
+
+    .board-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .status {
+      min-height: 24px;
+      color: var(--accent-strong);
+      font-weight: 600;
+    }
+
+    .board-wrap {
+      width: 100%;
+      overflow: auto;
+      padding: 6px;
+      border-radius: 20px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--border);
+    }
+
+    .grid {
+      display: grid;
+      gap: var(--grid-gap);
+      justify-content: start;
+      margin: 0 auto;
+    }
+
+    .cell,
+    .block {
+      width: var(--cell-size);
+      height: var(--cell-size);
+      border-radius: 10px;
+      position: relative;
+    }
+
+    .block {
+      background: var(--cell-empty);
+    }
+
+    .cell {
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: var(--cell);
+      overflow: hidden;
+    }
+
+    .cell.active-word {
+      background: var(--cell-active);
+    }
+
+    .cell.current {
+      background: var(--cell-focus);
+      border-color: var(--accent-strong);
+    }
+
+    .cell.correct {
+      background: var(--cell-correct);
+    }
+
+    .cell.wrong {
+      background: var(--cell-wrong);
+    }
+
+    .cell-number {
+      position: absolute;
+      top: 3px;
+      left: 5px;
+      font-size: 10px;
+      color: var(--muted);
+      pointer-events: none;
+    }
+
+    .cell-input {
+      width: 100%;
+      height: 100%;
+      border: 0;
+      background: transparent;
+      color: var(--ink);
+      text-align: center;
+      text-transform: uppercase;
+      padding-top: 7px;
+      font-size: clamp(0.95rem, 3vw, 1.3rem);
+      font-weight: 700;
+      outline: none;
+    }
+
+    .sidebar {
+      border-radius: 24px;
+      padding: 18px;
+      display: grid;
+      gap: 16px;
+      align-content: start;
+    }
+
+    .section-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .section-head h2,
+    .section-head h3,
+    .sidebar h2 {
+      margin: 0;
+      font-size: 1.05rem;
+    }
+
+    .controls {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .clues {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .clue-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: grid;
+      gap: 8px;
+    }
+
+    .clue-item {
+      padding: 10px 12px;
+      border-radius: 16px;
+      border: 1px solid var(--border);
+      background: rgba(255, 255, 255, 0.04);
+      cursor: pointer;
+      transition: background 0.18s ease, border-color 0.18s ease;
+    }
+
+    .clue-item:hover,
+    .clue-item.active {
+      background: rgba(255, 255, 255, 0.08);
+      border-color: rgba(247, 178, 103, 0.45);
+    }
+
+    .clue-item.done {
+      border-color: rgba(129, 233, 121, 0.35);
+    }
+
+    .clue-line {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .clue-item ruby {
+      ruby-position: over;
+      ruby-align: center;
+    }
+
+    .clue-item rt {
+      font-size: 0.64em;
+      color: var(--muted);
+      letter-spacing: 0;
+    }
+
+    .legend,
+    .tips {
+      display: grid;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    .legend strong,
+    .tips strong {
+      color: var(--ink);
+    }
+
+    .completion {
+      padding: 14px 16px;
+      border-radius: 18px;
+      border: 1px solid rgba(129, 233, 121, 0.34);
+      background: rgba(129, 233, 121, 0.09);
+      display: none;
+    }
+
+    .completion.visible {
+      display: block;
+    }
+
+    .footer-note {
+      color: var(--muted);
+      font-size: 12px;
+      text-align: center;
+    }
+
+    @media (max-width: 1100px) {
+      .layout,
+      .hero-bottom,
+      .clues {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+
+    @media (max-width: 860px) {
+      .layout,
+      .hero-bottom,
+      .clues {
+        grid-template-columns: 1fr;
+      }
+
+      .toolbar {
+        justify-content: flex-start;
+      }
+    }
+
+    @media (max-width: 520px) {
+      body {
+        padding: 12px;
+      }
+
+      .hero,
+      .panel,
+      .sidebar {
+        border-radius: 20px;
+      }
+
+      .cell,
+      .block {
+        border-radius: 8px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <section class="hero">
+      <div class="hero-top">
+        <div>
+          <div class="eyebrow" data-i18n="eyebrow">Adaptive Word Grid</div>
+          <h1 data-i18n="title">Crossword Mixer</h1>
+          <p class="subtitle" data-i18n="subtitle">A procedural crossword that changes its word pool and placement strategy every round. The puzzle follows your language, and Japanese boards use kana only.</p>
+        </div>
+        <div class="toolbar">
+          <div class="lang-switch" aria-label="Language selector">
+            <button type="button" class="lang-btn" data-lang="en">EN</button>
+            <button type="button" class="lang-btn" data-lang="pt">PT</button>
+            <button type="button" class="lang-btn" data-lang="ja">JA</button>
+          </div>
+          <button type="button" id="themeToggle" class="ghost-btn" data-i18n="toggleTheme">Toggle theme</button>
+        </div>
+      </div>
+
+      <div class="hero-bottom">
+        <div class="chip">
+          <span class="chip-label" data-i18n="chipLanguage">Puzzle language</span>
+          <strong id="languageLabel">English</strong>
+          <span id="languageHint" data-i18n="languageHint">Changes the whole word bank.</span>
+        </div>
+        <div class="chip">
+          <span class="chip-label" data-i18n="chipStrategy">Placement strategy</span>
+          <strong id="strategyLabel">Cross weave</strong>
+          <span id="strategyHint" data-i18n="strategyHint">Every new board rotates the strategy.</span>
+        </div>
+        <div class="chip">
+          <span class="chip-label" data-i18n="chipWords">Words in play</span>
+          <strong id="wordCountLabel">0</strong>
+          <span id="bankCountLabel">0</span>
+        </div>
+        <div class="chip">
+          <span class="chip-label" data-i18n="chipProgress">Progress</span>
+          <strong id="progressLabel">0 / 0</strong>
+          <span id="statusInline" data-i18n="statusReady">Ready for a new board.</span>
+        </div>
+      </div>
+    </section>
+
+    <div class="layout">
+      <section class="panel">
+        <div class="board-head">
+          <div>
+            <h2 data-i18n="boardTitle">Board</h2>
+            <div class="status" id="statusText"></div>
+          </div>
+          <div class="controls">
+            <button type="button" id="newPuzzleBtn" class="primary-btn" data-i18n="newPuzzle">New puzzle</button>
+            <button type="button" id="checkBtn" class="ghost-btn" data-i18n="check">Check</button>
+            <button type="button" id="hintBtn" class="ghost-btn" data-i18n="hint">Hint</button>
+            <button type="button" id="clearBtn" class="ghost-btn" data-i18n="clear">Clear</button>
+          </div>
+        </div>
+
+        <div class="board-wrap">
+          <div id="grid" class="grid" aria-label="Crossword grid"></div>
+        </div>
+
+        <div class="completion" id="completionBox">
+          <strong data-i18n="completedTitle">Board complete.</strong>
+          <span id="completionText" data-i18n="completedBody">You solved every word. Generate another mix to get a different word set and placement pattern.</span>
+        </div>
+      </section>
+
+      <aside class="sidebar">
+        <div class="section-head">
+          <h2 data-i18n="cluesTitle">Clues</h2>
+          <button type="button" id="focusFirstBtn" class="mini-btn" data-i18n="focusFirst">Focus first word</button>
+        </div>
+
+        <div class="clues">
+          <section>
+            <div class="section-head">
+              <h3 data-i18n="across">Across</h3>
+            </div>
+            <ol id="acrossList" class="clue-list"></ol>
+          </section>
+          <section>
+            <div class="section-head">
+              <h3 data-i18n="down">Down</h3>
+            </div>
+            <ol id="downList" class="clue-list"></ol>
+          </section>
+        </div>
+
+        <div class="legend">
+          <strong data-i18n="legendTitle">How it works</strong>
+          <span data-i18n="legendLine1">The board chooses a fresh subset from the language-specific word array each round.</span>
+          <span data-i18n="legendLine2">A different placement strategy changes the order, anchor direction, and crossing bias.</span>
+          <span data-i18n="legendLine3">For Japanese, the answers are kana only: hiragana or katakana.</span>
+        </div>
+
+        <div class="tips">
+          <strong data-i18n="tipsTitle">Controls</strong>
+          <span data-i18n="tipsLine1">Type one character per cell. Arrow keys move around the board.</span>
+          <span data-i18n="tipsLine2">Click a clue to highlight its word, then keep typing to move forward automatically.</span>
+          <span data-i18n="tipsLine3">Hint reveals one character in the selected clue.</span>
+        </div>
+      </aside>
+    </div>
+
+    <div class="footer-note" data-i18n="footerNote">Single-file HTML game with local language and theme preferences.</div>
+  </div>
+
+  <script>
+    const STORAGE_KEYS = {
+      lang: 'crossword-mixer-lang',
+      theme: 'crossword-mixer-theme'
+    };
+
+    const GRID_SIZE = 13;
+    const MAX_BUILD_ATTEMPTS = 90;
+
+    const makeWordBank = (pairs) => pairs.map(([word, clue]) => ({ word, clue }));
+    const rb = (base, reading) => `<ruby>${base}<rt>${reading}</rt></ruby>`;
+
+    const WORD_BANKS = {
+      en: makeWordBank([
+        ['planet', 'A world orbiting a star.'],
+        ['garden', 'A place with flowers and plants.'],
+        ['castle', 'A fortified stone home from stories and history.'],
+        ['stream', 'A small flowing body of water.'],
+        ['silver', 'A shiny gray precious metal.'],
+        ['market', 'A place where people buy and sell goods.'],
+        ['forest', 'A large area full of trees.'],
+        ['bridge', 'A structure that helps you cross over.'],
+        ['lantern', 'A portable light with a frame around it.'],
+        ['notebook', 'Pages bound together for writing notes.'],
+        ['sunrise', 'The start of the day when the sun appears.'],
+        ['treasure', 'Something valuable that people hope to find.'],
+        ['season', 'One quarter of the year, like spring or summer.'],
+        ['river', 'A natural flowing watercourse.'],
+        ['signal', 'A sign or message that gives information.'],
+        ['window', 'An opening in a wall for light or air.'],
+        ['pillow', 'A soft support for your head in bed.'],
+        ['rocket', 'A vehicle launched high into the sky or space.'],
+        ['island', 'Land surrounded by water.'],
+        ['bakery', 'A shop that makes bread and pastries.'],
+        ['magnet', 'An object that pulls certain metals.'],
+        ['tunnel', 'A passage that goes through or under something.'],
+        ['painter', 'Someone who creates pictures with paint.'],
+        ['library', 'A place where books are stored and borrowed.'],
+        ['thunder', 'The loud sound that follows lightning.'],
+        ['blanket', 'A warm cover used on a bed or sofa.'],
+        ['compass', 'A tool that points north and helps with direction.'],
+        ['orange', 'A round citrus fruit and also a color.'],
+        ['valley', 'Low land between hills or mountains.'],
+        ['harbor', 'A sheltered place where boats can stay.'],
+        ['candle', 'Wax with a wick that gives light when lit.'],
+        ['violin', 'A bowed string instrument with four strings.'],
+        ['mountain', 'A very high natural rise of land.'],
+        ['pocket', 'A small pouch sewn into clothing.'],
+        ['engine', 'The machine that gives power to a vehicle.'],
+        ['mirror', 'A surface that reflects your image.'],
+        ['desert', 'A dry region with very little rain.'],
+        ['button', 'A small fastener or pressable control.'],
+        ['feather', 'A light part that covers a bird.'],
+        ['orchard', 'Land where fruit trees are grown.'],
+        ['captain', 'The leader of a ship or team.'],
+        ['bicycle', 'A two-wheeled vehicle powered by pedals.'],
+        ['whisper', 'A very soft way of speaking.'],
+        ['galaxy', 'A huge system of stars in space.'],
+        ['marble', 'A smooth stone or a small glass game ball.'],
+        ['teacup', 'A small cup used for tea.'],
+        ['winter', 'The coldest season of the year.'],
+        ['summer', 'The hottest season of the year.'],
+        ['spring', 'The season when many plants begin growing again.'],
+        ['autumn', 'The season when leaves often change color and fall.'],
+        ['pirate', 'A sea robber from adventure stories.'],
+        ['anchor', 'A heavy object dropped to keep a boat in place.'],
+        ['museum', 'A place where important objects are displayed.'],
+        ['diamond', 'A very hard and valuable gemstone.'],
+        ['volcano', 'A mountain that can erupt with lava.'],
+        ['sailor', 'A person who works on a ship.'],
+        ['rainbow', 'A band of colors seen after rain.'],
+        ['meadow', 'A field full of grass and wildflowers.'],
+        ['ladder', 'A tool with steps for climbing up or down.'],
+        ['helmet', 'Protective gear worn on the head.'],
+        ['camera', 'A device used to take pictures.'],
+        ['subway', 'A city train that often runs underground.'],
+        ['village', 'A small community smaller than a town.'],
+        ['kettle', 'A pot used to heat water.'],
+        ['pepper', 'A spicy seasoning or a crunchy vegetable.'],
+        ['dragon', 'A powerful creature from myth and legend.'],
+        ['temple', 'A building used for worship.'],
+        ['satellite', 'An object that travels around a planet.'],
+        ['printer', 'A machine that puts digital text or images on paper.'],
+        ['doorway', 'The opening where a door is placed.'],
+        ['glacier', 'A slow-moving mass of ice.'],
+        ['fossil', 'Ancient remains preserved in rock.'],
+        ['jungle', 'A dense tropical forest.'],
+        ['wagon', 'A vehicle for carrying goods, often pulled or towed.'],
+        ['palace', 'A grand home for royalty or leaders.'],
+        ['carpet', 'A thick woven floor covering.'],
+        ['dolphin', 'A smart sea animal known for swimming fast.'],
+        ['cactus', 'A plant that stores water and often has spines.'],
+        ['skillet', 'A flat frying pan used on a stove.'],
+        ['airport', 'A place where airplanes take off and land.'],
+        ['suitcase', 'A case used for carrying clothes on a trip.'],
+        ['melody', 'A tune made of musical notes.'],
+        ['flashlight', 'A small portable electric light.'],
+        ['raindrop', 'A single drop that falls from rain.'],
+        ['snowman', 'A figure built from packed snow.'],
+        ['pancake', 'A flat round cake cooked on a pan.'],
+        ['chimney', 'A vertical passage that carries smoke upward.'],
+        ['toolbox', 'A box used to store and carry tools.'],
+        ['postcard', 'A card with a picture mailed without an envelope.'],
+        ['moonlight', 'Light coming from the moon at night.'],
+        ['seahorse', 'A small sea creature with a curled tail.'],
+        ['starfish', 'A sea animal with arms arranged like a star.'],
+        ['fireworks', 'Exploding lights used in celebrations.'],
+        ['sunflower', 'A tall flower with a large yellow head.'],
+        ['skateboard', 'A board with wheels used for riding and tricks.'],
+        ['waterfall', 'Water dropping over a cliff or steep rock.'],
+        ['workshop', 'A place where things are built or repaired.'],
+        ['moonstone', 'A gemstone with a pale glowing look.'],
+        ['headline', 'The main title at the top of a news story.'],
+        ['lighthouse', 'A coastal tower that guides ships with light.']
+      ]),
+      pt: makeWordBank([
+        ['planeta', 'Mundo que gira ao redor de uma estrela.'],
+        ['jardim', 'Espaco com plantas e flores.'],
+        ['castelo', 'Construcao antiga fortificada.'],
+        ['riacho', 'Curso pequeno de agua corrente.'],
+        ['prata', 'Metal claro e brilhante.'],
+        ['mercado', 'Lugar para comprar e vender produtos.'],
+        ['floresta', 'Grande area com muitas arvores.'],
+        ['ponte', 'Estrutura usada para atravessar.'],
+        ['lanterna', 'Luz portatil usada no escuro.'],
+        ['caderno', 'Conjunto de folhas para escrever.'],
+        ['amanhecer', 'Momento em que o dia comeca.'],
+        ['tesouro', 'Algo valioso que todos querem encontrar.'],
+        ['estacao', 'Cada uma das fases do ano.'],
+        ['rio', 'Curso natural de agua.'],
+        ['sinal', 'Marca ou mensagem que orienta alguem.'],
+        ['janela', 'Abertura na parede para entrar luz e ar.'],
+        ['travesseiro', 'Apoio macio para a cabeca na cama.'],
+        ['foguete', 'Veiculo que sobe rapido para o ceu ou espaco.'],
+        ['ilha', 'Pedaco de terra cercado por agua.'],
+        ['padaria', 'Loja onde se fazem paes e doces.'],
+        ['ima', 'Objeto que atrai certos metais.'],
+        ['tunel', 'Passagem que atravessa ou passa por baixo de algo.'],
+        ['pintor', 'Pessoa que cria imagens com tinta.'],
+        ['biblioteca', 'Lugar cheio de livros para ler e pegar emprestado.'],
+        ['trovao', 'Som forte que vem depois do raio.'],
+        ['cobertor', 'Peca quente usada para cobrir o corpo.'],
+        ['bussola', 'Instrumento que ajuda a encontrar direcao.'],
+        ['laranja', 'Fruta citrica redonda e tambem uma cor.'],
+        ['vale', 'Area baixa entre morros ou montanhas.'],
+        ['porto', 'Lugar protegido onde barcos param.'],
+        ['vela', 'Cera com pavio que ilumina quando acesa.'],
+        ['violino', 'Instrumento de cordas tocado com arco.'],
+        ['montanha', 'Grande elevacao natural do terreno.'],
+        ['bolso', 'Pequeno compartimento costurado na roupa.'],
+        ['motor', 'Parte que da forca a um veiculo ou maquina.'],
+        ['espelho', 'Superficie que reflete a imagem.'],
+        ['deserto', 'Regiao seca com pouca chuva.'],
+        ['botao', 'Peca pequena para fechar roupa ou acionar algo.'],
+        ['pena', 'Estrutura leve que cobre o corpo das aves.'],
+        ['pomar', 'Area com arvores frutiferas.'],
+        ['capitao', 'Lider de navio, equipe ou grupo.'],
+        ['bicicleta', 'Veiculo de duas rodas movido a pedal.'],
+        ['sussurro', 'Fala muito baixa e discreta.'],
+        ['galaxia', 'Sistema enorme de estrelas no espaco.'],
+        ['marmore', 'Pedra lisa muito usada em construcao e arte.'],
+        ['xicara', 'Recipiente pequeno para beber cafe ou cha.'],
+        ['inverno', 'Estacao mais fria do ano.'],
+        ['verao', 'Estacao mais quente do ano.'],
+        ['primavera', 'Estacao em que muitas plantas florescem.'],
+        ['outono', 'Estacao em que muitas folhas caem.'],
+        ['pirata', 'Ladrao do mar em historias de aventura.'],
+        ['ancora', 'Peca pesada que segura o barco parado.'],
+        ['museu', 'Lugar onde objetos importantes ficam expostos.'],
+        ['diamante', 'Pedra preciosa muito dura e valiosa.'],
+        ['vulcao', 'Montanha que pode soltar lava.'],
+        ['marinheiro', 'Pessoa que trabalha em navio.'],
+        ['arcoiris', 'Faixa colorida que aparece depois da chuva.'],
+        ['campina', 'Campo aberto com grama e flores.'],
+        ['escada', 'Estrutura com degraus para subir ou descer.'],
+        ['capacete', 'Protecao usada na cabeca.'],
+        ['camera', 'Aparelho usado para tirar fotos.'],
+        ['metro', 'Trem urbano que costuma andar no subsolo.'],
+        ['vila', 'Comunidade pequena, menor que uma cidade.'],
+        ['chaleira', 'Recipiente usado para aquecer agua.'],
+        ['pimenta', 'Tempero forte ou legume picante.'],
+        ['dragao', 'Criatura poderosa de lendas e contos.'],
+        ['templo', 'Construcao usada para oracao ou culto.'],
+        ['satelite', 'Objeto que gira ao redor de um planeta.'],
+        ['impressora', 'Maquina que coloca texto ou imagem no papel.'],
+        ['entrada', 'Passagem por onde se entra em um lugar.'],
+        ['geleira', 'Grande massa de gelo que se move devagar.'],
+        ['fossil', 'Vestigio muito antigo preservado em rocha.'],
+        ['selva', 'Floresta densa de clima tropical.'],
+        ['carroca', 'Veiculo simples para carga puxado ou empurrado.'],
+        ['palacio', 'Residencia grande e luxuosa.'],
+        ['tapete', 'Cobertura grossa colocada no chao.'],
+        ['golfinho', 'Animal marinho conhecido por nadar rapido.'],
+        ['cacto', 'Planta que guarda agua e tem espinhos.'],
+        ['frigideira', 'Panela rasa usada para fritar.'],
+        ['aeroporto', 'Lugar onde avioes pousam e decolam.'],
+        ['mala', 'Recipiente usado para levar roupas em viagem.'],
+        ['melodia', 'Sequencia agradavel de notas musicais.'],
+        ['holofote', 'Luz forte usada para iluminar um ponto.'],
+        ['gota', 'Pequena porcao liquida arredondada.'],
+        ['boneco', 'Figura pequena em forma de pessoa.'],
+        ['panqueca', 'Massa redonda assada em chapa ou frigideira.'],
+        ['chamine', 'Duto por onde a fumaca sobe.'],
+        ['maleta', 'Caixa pequena para carregar objetos.'],
+        ['postal', 'Cartao enviado pelo correio com imagem.'],
+        ['luar', 'Claridade da lua durante a noite.'],
+        ['cavalomar', 'Animal marinho pequeno com rabo enrolado.'],
+        ['estrelamar', 'Animal do mar com formato de estrela.'],
+        ['fogos', 'Luzes explosivas usadas em comemoracoes.'],
+        ['girassol', 'Flor alta e amarela que acompanha o sol.'],
+        ['skate', 'Prancha com rodas usada para manobras.'],
+        ['cachoeira', 'Queda de agua sobre rochas.'],
+        ['oficina', 'Lugar onde se constroi ou conserta algo.'],
+        ['pedralua', 'Pedra que lembra o brilho suave da lua.'],
+        ['manchete', 'Titulo principal de uma noticia.'],
+        ['farol', 'Torre de luz que orienta navios na costa.']
+      ]),
+      ja: makeWordBank([
+        ['さくら', `${rb('春', 'はる')}に ${rb('咲', 'さ')}く ぴんくの ${rb('花', 'はな')}`],
+        ['かさ', `${rb('雨', 'あめ')}の ${rb('日', 'ひ')}に ${rb('使', 'つか')}う もの`],
+        ['さかな', `${rb('水', 'みず')}の ${rb('中', 'なか')}を ${rb('泳', 'およ')}ぐ いきもの`],
+        ['からて', `${rb('手', 'て')}や ${rb('足', 'あし')}で たたかう ${rb('武道', 'ぶどう')}`],
+        ['たから', `${rb('大事', 'だいじ')}に したい ${rb('宝物', 'たからもの')}`],
+        ['でんしゃ', `${rb('駅', 'えき')}と ${rb('駅', 'えき')}を ${rb('走', 'はし')}る のりもの`],
+        ['しゃしん', `カメラで ${rb('残', 'のこ')}す ${rb('記録', 'きろく')}`],
+        ['しんぶん', `${rb('毎日', 'まいにち')}の ${rb('出来事', 'できごと')}が のる ${rb('紙', 'かみ')}`],
+        ['てがみ', `${rb('言葉', 'ことば')}を ${rb('書', 'か')}いて ${rb('送', 'おく')}る もの`],
+        ['みらい', `${rb('今', 'いま')}より ${rb('先', 'さき')}の ${rb('時間', 'じかん')}`],
+        ['ほしぞら', `${rb('星', 'ほし')}が たくさん ${rb('見', 'み')}える よるの ${rb('空', 'そら')}`],
+        ['そらまめ', `${rb('緑', 'みどり')}いろで ${rb('空', 'そら')}に むくような まめ`],
+        ['ことり', `${rb('小', 'ちい')}さな とり`],
+        ['りんご', `${rb('赤', 'あか')}くて あまい ${rb('果物', 'くだもの')}`],
+        ['カメラ', `${rb('写真', 'しゃしん')}を ${rb('撮', 'と')}る きかい`],
+        ['ラジオ', `${rb('音', 'おと')}や ${rb('話', 'はなし')}を ${rb('聞', 'き')}く きかい`],
+        ['みずうみ', `${rb('山', 'やま')}に かこまれた ${rb('大', 'おお')}きな ${rb('水辺', 'みずべ')}`],
+        ['きっぷ', `${rb('電車', 'でんしゃ')}や バスに のる ための しょうめい`],
+        ['ひこうき', `${rb('空', 'そら')}を とぶ ${rb('大', 'おお')}きな のりもの`],
+        ['えんぴつ', `${rb('字', 'じ')}や ${rb('絵', 'え')}を かく ぶんぼうぐ`],
+        ['ほんだな', `${rb('本', 'ほん')}を ならべる たな`],
+        ['おにぎり', `${rb('米', 'こめ')}を にぎって つくる たべもの`],
+        ['たいよう', `${rb('昼', 'ひる')}の ${rb('空', 'そら')}で ひかる ほし`],
+        ['つきよ', `${rb('月', 'つき')}が あかるい よる`],
+        ['ゆうひ', `${rb('夕方', 'ゆうがた')}に しずむ ひかり`],
+        ['たんぼ', `${rb('米', 'こめ')}を そだてる みずの はたけ`],
+        ['くもり', `${rb('空', 'そら')}が くもで おおわれた てんき`],
+        ['あまぐも', `${rb('雨', 'あめ')}を ふらせそうな くろい くも`],
+        ['しおかぜ', `${rb('海', 'うみ')}から ふいてくる かぜ`],
+        ['かがみ', `${rb('顔', 'かお')}を うつす どうぐ`],
+        ['まどぐち', `${rb('切符', 'きっぷ')}や ${rb('案内', 'あんない')}を うける ばしょ`],
+        ['しんごう', `${rb('道', 'みち')}で すすめや とまれを しめす ひかり`],
+        ['きょうかい', `${rb('祈', 'いの')}りを ささげる たてもの`],
+        ['とけい', `${rb('時間', 'じかん')}を しめす どうぐ`],
+        ['くつした', `${rb('足', 'あし')}にはく ぬの`],
+        ['ぼうし', `${rb('頭', 'あたま')}に かぶる もの`],
+        ['てぶくろ', `${rb('手', 'て')}を あたためる もの`],
+        ['じてんしゃ', `${rb('車輪', 'しゃりん')}が ふたつある のりもの`],
+        ['まくら', `${rb('寝', 'ね')}る ときに ${rb('頭', 'あたま')}の したに おく もの`],
+        ['ふうせん', `${rb('空気', 'くうき')}を いれて ふくらませる もの`],
+        ['ひまわり', `${rb('夏', 'なつ')}に さく きいろい ${rb('花', 'はな')}`],
+        ['かいがら', `${rb('海辺', 'うみべ')}で みつかる から`],
+        ['ゆきだるま', `${rb('雪', 'ゆき')}を まるめて つくる にんぎょう`],
+        ['たきび', `${rb('外', 'そと')}で もやす ${rb('小', 'ちい')}さな ひ`],
+        ['おまつり', `${rb('町', 'まち')}が にぎやかに なる ${rb('行事', 'ぎょうじ')}`],
+        ['たなばた', `${rb('星', 'ほし')}に ねがいを かく なつの ${rb('行事', 'ぎょうじ')}`],
+        ['おちゃ', `${rb('葉', 'は')}を むして のむ みどりの のみもの`],
+        ['みそしる', `${rb('味噌', 'みそ')}で あじを つけた しる`],
+        ['たまご', `${rb('鶏', 'にわとり')}が うむ たべもの`],
+        ['やさい', `${rb('畑', 'はたけ')}で そだてる しょくざい`],
+        ['くだもの', `${rb('木', 'き')}や つるに なる あまい たべもの`],
+        ['うみべ', `${rb('海', 'うみ')}の すぐ そば`],
+        ['やまみち', `${rb('山', 'やま')}の あいだを とおる みち`],
+        ['かわべ', `${rb('川', 'かわ')}の ちかくの ばしょ`],
+        ['はなび', `${rb('夜空', 'よぞら')}で ひらく ひかり`],
+        ['くじら', `${rb('海', 'うみ')}に すむ とても ${rb('大', 'おお')}きな いきもの`],
+        ['いるか', `${rb('海', 'うみ')}で たかく とびはねる いきもの`],
+        ['ぺんぎん', `${rb('氷', 'こおり')}の ちかくで くらす とり`],
+        ['らいおん', `${rb('草原', 'そうげん')}の おうさま と よばれる どうぶつ`],
+        ['きりん', `${rb('首', 'くび')}が とても ながい どうぶつ`],
+        ['さばく', `${rb('砂', 'すな')}が ひろがる あつい ばしょ`],
+        ['しんりん', `${rb('木', 'き')}が たくさん しげる ばしょ`],
+        ['てんき', `きょうの ${rb('空', 'そら')}や ${rb('気温', 'きおん')}の ようす`],
+        ['かみひこうき', `${rb('紙', 'かみ')}で おる ひこうき`],
+        ['たからばこ', `${rb('宝物', 'たからもの')}を いれる はこ`],
+        ['おんがく', `${rb('音', 'おと')}を くみあわせた げいじゅつ`],
+        ['ぴあの', `${rb('鍵盤', 'けんばん')}を おして ひく がっき`],
+        ['ぎたー', `${rb('弦', 'げん')}を はじいて ならす がっき`],
+        ['こんぱす', `${rb('丸', 'まる')}を かく ぶんぼうぐ`],
+        ['じしゃく', `${rb('鉄', 'てつ')}を ひきよせる もの`],
+        ['さかみち', `${rb('上', 'のぼ')}ったり ${rb('下', 'くだ')}ったり する みち`],
+        ['とんねる', `${rb('山', 'やま')}や ${rb('地下', 'ちか')}を ぬける みち`],
+        ['ひろば', `${rb('人', 'ひと')}が あつまる ひらけた ばしょ`],
+        ['びじゅつかん', `${rb('絵', 'え')}や ちょうこくを みる たてもの`],
+        ['としょかん', `${rb('本', 'ほん')}を かりたり よんだり する ばしょ`],
+        ['こうえん', `${rb('木', 'き')}や すべりだいが ある あそびば`],
+        ['ゆうえんち', `${rb('楽', 'たの')}しい のりものが たくさん ある ばしょ`],
+        ['すいぞくかん', `${rb('魚', 'さかな')}や ${rb('海', 'うみ')}の いきものを みる ばしょ`],
+        ['どうぶつえん', `${rb('動物', 'どうぶつ')}を ちかくで みる ばしょ`],
+        ['かんらんしゃ', `${rb('高', 'たか')}い ところから けしきを みる ${rb('大', 'おお')}きな わ`],
+        ['ジュース', `${rb('果物', 'くだもの')}や やさいから つくる のみもの`],
+        ['アイス', `${rb('冷', 'つめ')}たくて あまい でざーと`],
+        ['カレー', `${rb('香辛料', 'こうしんりょう')}の かおりが する りょうり`],
+        ['パンケーキ', `${rb('甘', 'あま')}い たれや ばたーで たべる まるい たべもの`],
+        ['サラダ', `${rb('生', 'なま')}の やさいを つかった りょうり`],
+        ['スープ', `${rb('温', 'あたた')}かい しるの ような りょうり`],
+        ['メロディ', `${rb('耳', 'みみ')}に のこる おとの ながれ`],
+        ['ドラゴン', `${rb('伝説', 'でんせつ')}に でてくる つよい いきもの`],
+        ['ロケット', `${rb('宇宙', 'うちゅう')}へ むかって とぶ きかい`],
+        ['メダル', `${rb('勝', 'か')}った ときに もらう きねんの しるし`],
+        ['パズル', `${rb('考', 'かんが')}えながら あわせて とく もんだい`],
+        ['ボタン', `${rb('押', 'お')}すと ${rb('機械', 'きかい')}が うごく ちいさな ぶひん`],
+        ['ランプ', `${rb('部屋', 'へや')}を てらす あかり`],
+        ['ベランダ', `${rb('家', 'いえ')}の そとに でっぱった ばしょ`],
+        ['ホテル', `${rb('旅', 'たび')}の ${rb('土地', 'とち')}で とまる たてもの`],
+        ['タクシー', `${rb('料金', 'りょうきん')}を はらって のる くるま`],
+        ['ばすてい', `${rb('客', 'きゃく')}が バスを まつ ばしょ`],
+        ['エンジン', `${rb('機械', 'きかい')}を うごかす ちからの もと`],
+        ['ネックレス', `${rb('首', 'くび')}に つける かざり`],
+        ['スケート', `${rb('氷', 'こおり')}や しゃりんの うえを すべる あそび`]
+      ])
+    };
+
+    const STRATEGIES = [
+      {
+        key: 'crossWeave',
+        nameKey: 'strategyCrossWeave',
+        descriptionKey: 'strategyCrossWeaveDesc',
+        firstOrientation: 'across',
+        orderMode: 'shared-long',
+        scoreMode: 'intersections'
+      },
+      {
+        key: 'downSpine',
+        nameKey: 'strategyDownSpine',
+        descriptionKey: 'strategyDownSpineDesc',
+        firstOrientation: 'down',
+        orderMode: 'longest-first',
+        scoreMode: 'center'
+      },
+      {
+        key: 'alternatingPulse',
+        nameKey: 'strategyAlternatingPulse',
+        descriptionKey: 'strategyAlternatingPulseDesc',
+        firstOrientation: 'across',
+        orderMode: 'alternating',
+        scoreMode: 'spread'
+      },
+      {
+        key: 'scatterLock',
+        nameKey: 'strategyScatterLock',
+        descriptionKey: 'strategyScatterLockDesc',
+        firstOrientation: 'down',
+        orderMode: 'short-long-short',
+        scoreMode: 'edge'
+      }
+    ];
+
+    const I18N = {
+      en: {
+        eyebrow: 'Adaptive Word Grid',
+        title: 'Crossword Mixer',
+        subtitle: 'A procedural crossword that changes its word pool and placement strategy every round. The puzzle follows your language, and Japanese boards use kana only.',
+        toggleTheme: 'Toggle theme',
+        chipLanguage: 'Puzzle language',
+        chipStrategy: 'Placement strategy',
+        chipWords: 'Words in play',
+        chipProgress: 'Progress',
+        languageHint: 'Changes the whole word bank.',
+        strategyHint: 'Every new board rotates the strategy.',
+        statusReady: 'Ready for a new board.',
+        boardTitle: 'Board',
+        newPuzzle: 'New puzzle',
+        check: 'Check',
+        hint: 'Hint',
+        clear: 'Clear',
+        completedTitle: 'Board complete.',
+        completedBody: 'You solved every word. Generate another mix to get a different word set and placement pattern.',
+        cluesTitle: 'Clues',
+        focusFirst: 'Focus first word',
+        across: 'Across',
+        down: 'Down',
+        legendTitle: 'How it works',
+        legendLine1: 'The board chooses a fresh subset from the language-specific word array each round.',
+        legendLine2: 'A different placement strategy changes the order, anchor direction, and crossing bias.',
+        legendLine3: 'For Japanese, the answers are kana only: hiragana or katakana.',
+        tipsTitle: 'Controls',
+        tipsLine1: 'Type one character per cell. Arrow keys move around the board.',
+        tipsLine2: 'Click a clue to highlight its word, then keep typing to move forward automatically.',
+        tipsLine3: 'Hint reveals one character in the selected clue.',
+        footerNote: 'Single-file HTML game with local language and theme preferences.',
+        strategyCrossWeave: 'Cross weave',
+        strategyCrossWeaveDesc: 'Shared letters are prioritized to make dense intersections.',
+        strategyDownSpine: 'Down spine',
+        strategyDownSpineDesc: 'A long vertical anchor starts the board and pulls words toward the center.',
+        strategyAlternatingPulse: 'Alternating pulse',
+        strategyAlternatingPulseDesc: 'Word order alternates between long and medium entries for rhythm.',
+        strategyScatterLock: 'Scatter lock',
+        strategyScatterLockDesc: 'Short and long words mix to spread the puzzle before locking crossings.',
+        languageEnglish: 'English',
+        languagePortuguese: 'Portuguese',
+        languageJapanese: 'Japanese',
+        wordsFromBank: 'using {used} of {total} available words',
+        progressCount: '{done} / {total} solved',
+        clueMeta: '{length} letters',
+        selectedWord: 'Selected #{number} {direction}.',
+        checkGood: 'Correct cells are marked in green.',
+        checkMixed: 'Some cells still need work.',
+        cleared: 'Board cleared.',
+        hintDone: 'One letter was revealed.',
+        hintBlocked: 'Select a word that still has empty cells for a hint.',
+        buildRetry: 'Generating a fresh arrangement...',
+        buildReady: 'New board ready.',
+        autoLanguage: 'Detected from your browser.',
+        directionAcross: 'across',
+        directionDown: 'down',
+        puzzleSolved: 'You completed the crossword.',
+        impossible: 'Unable to build a board with this mix. Retrying...'
+      },
+      pt: {
+        eyebrow: 'Grade de Palavras Adaptativa',
+        title: 'Misturador de Palavras Cruzadas',
+        subtitle: 'Um jogo procedural de palavras cruzadas que muda o conjunto de palavras e a estrategia de montagem a cada rodada. O tabuleiro segue o seu idioma, e no japones usa apenas kana.',
+        toggleTheme: 'Alternar tema',
+        chipLanguage: 'Idioma do tabuleiro',
+        chipStrategy: 'Estrategia de montagem',
+        chipWords: 'Palavras em jogo',
+        chipProgress: 'Progresso',
+        languageHint: 'Troca todo o banco de palavras.',
+        strategyHint: 'Cada novo tabuleiro gira a estrategia.',
+        statusReady: 'Pronto para um novo tabuleiro.',
+        boardTitle: 'Tabuleiro',
+        newPuzzle: 'Novo jogo',
+        check: 'Verificar',
+        hint: 'Dica',
+        clear: 'Limpar',
+        completedTitle: 'Tabuleiro concluido.',
+        completedBody: 'Voce resolveu todas as palavras. Gere outra mistura para receber um novo conjunto e outro padrao de montagem.',
+        cluesTitle: 'Dicas',
+        focusFirst: 'Focar primeira palavra',
+        across: 'Horizontal',
+        down: 'Vertical',
+        legendTitle: 'Como funciona',
+        legendLine1: 'A rodada escolhe um subconjunto novo do array de palavras do idioma atual.',
+        legendLine2: 'Uma estrategia diferente muda a ordem, a direcao inicial e o viés de cruzamento.',
+        legendLine3: 'No japones, as respostas usam apenas hiragana ou katakana.',
+        tipsTitle: 'Controles',
+        tipsLine1: 'Digite um caractere por casa. As setas movem pelo tabuleiro.',
+        tipsLine2: 'Clique em uma dica para destacar a palavra, depois continue digitando para avancar automaticamente.',
+        tipsLine3: 'Dica revela um caractere da palavra selecionada.',
+        footerNote: 'Jogo em um unico HTML com preferencias locais de idioma e tema.',
+        strategyCrossWeave: 'Trama cruzada',
+        strategyCrossWeaveDesc: 'Letras compartilhadas ganham prioridade para cruzamentos densos.',
+        strategyDownSpine: 'Espinha vertical',
+        strategyDownSpineDesc: 'Uma palavra longa vertical inicia o tabuleiro e puxa tudo para o centro.',
+        strategyAlternatingPulse: 'Pulso alternado',
+        strategyAlternatingPulseDesc: 'A ordem alterna entre palavras longas e medias para variar o ritmo.',
+        strategyScatterLock: 'Trava espalhada',
+        strategyScatterLockDesc: 'Palavras curtas e longas se espalham antes de fechar os cruzamentos.',
+        languageEnglish: 'Ingles',
+        languagePortuguese: 'Portugues',
+        languageJapanese: 'Japones',
+        wordsFromBank: 'usando {used} de {total} palavras disponiveis',
+        progressCount: '{done} / {total} resolvidas',
+        clueMeta: '{length} letras',
+        selectedWord: 'Selecionada #{number} {direction}.',
+        checkGood: 'Casas corretas foram marcadas em verde.',
+        checkMixed: 'Ainda faltam algumas casas.',
+        cleared: 'Tabuleiro limpo.',
+        hintDone: 'Uma letra foi revelada.',
+        hintBlocked: 'Selecione uma palavra com casas vazias para receber uma dica.',
+        buildRetry: 'Gerando uma nova montagem...',
+        buildReady: 'Novo tabuleiro pronto.',
+        autoLanguage: 'Detectado pelo navegador.',
+        directionAcross: 'horizontal',
+        directionDown: 'vertical',
+        puzzleSolved: 'Voce completou as palavras cruzadas.',
+        impossible: 'Nao foi possivel montar esse tabuleiro. Tentando outra combinacao...'
+      },
+      ja: {
+        eyebrow: 'ことばグリッド',
+        title: 'クロスワードミキサー',
+        subtitle: 'ことばの しゅるいと ならべかたが まいかい かわる じどうせいせい クロスワードです。ブラウザの ことばに あわせて、にほんごの ばんは かなだけを つかいます。',
+        toggleTheme: 'テーマ',
+        chipLanguage: 'ことば',
+        chipStrategy: 'ならべかた',
+        chipWords: 'つかう ことば',
+        chipProgress: 'しんちょく',
+        languageHint: 'ことばの ならびを まるごと かえます。',
+        strategyHint: 'あたらしい ばんで せんりゃくが かわります。',
+        statusReady: 'あたらしい ばんを つくれます。',
+        boardTitle: 'ばんめん',
+        newPuzzle: 'あたらしい ばん',
+        check: 'たしかめる',
+        hint: 'ヒント',
+        clear: 'けす',
+        completedTitle: 'かんせい です。',
+        completedBody: 'すべての ことばを ときました。つぎは ちがう ことばと ならべかたで あそべます。',
+        cluesTitle: 'ヒント',
+        focusFirst: 'さいしょの ことば',
+        across: 'よこ',
+        down: 'たて',
+        legendTitle: 'しくみ',
+        legendLine1: 'まいかい ことばの あれい から ちがう くみあわせを えらびます。',
+        legendLine2: 'せんりゃくが かわると、ならべる じゅんばんと まじわりかたが かわります。',
+        legendLine3: 'にほんごの こたえは ひらがなか カタカナだけです。',
+        tipsTitle: 'そうさ',
+        tipsLine1: 'ますごとに ひとつ もじを いれます。やじるしで いどうできます。',
+        tipsLine2: 'ヒントを えらぶと ことばが ひかります。にゅうりょくすると つぎへ すすみます。',
+        tipsLine3: 'ヒントで えらんだ ことばの もじを ひとつ あけます。',
+        footerNote: 'たんいつ HTML の ゲームです。ことばと テーマを ローカルに ほぞんします。',
+        strategyCrossWeave: 'こうさ じゅうし',
+        strategyCrossWeaveDesc: 'おなじ もじを さがして こうさを ふやします。',
+        strategyDownSpine: 'たての しん',
+        strategyDownSpineDesc: 'ながい ことばを たてに おいて まんなかから ひろげます。',
+        strategyAlternatingPulse: 'こうたい リズム',
+        strategyAlternatingPulseDesc: 'ながさを まぜて じゅんばんを かえます。',
+        strategyScatterLock: 'ひろがり ロック',
+        strategyScatterLockDesc: 'みじかい ことばと ながい ことばを まぜて ならべます。',
+        languageEnglish: 'えいご',
+        languagePortuguese: 'ポルトガルご',
+        languageJapanese: 'にほんご',
+        wordsFromBank: '{total}こ ちゅう {used}こ を しよう',
+        progressCount: '{total}こ ちゅう {done}こ かんせい',
+        clueMeta: '{length}もじ',
+        selectedWord: '#{number}の {direction}を えらびました。',
+        checkGood: 'あっている ますを みどりで しめしました。',
+        checkMixed: 'まだ なおす ますが あります。',
+        cleared: 'ばんめんを けしました。',
+        hintDone: 'もじを ひとつ あけました。',
+        hintBlocked: 'まだ あいている ますが ある ことばを えらんでください。',
+        buildRetry: 'あたらしい ならびを つくっています...',
+        buildReady: 'あたらしい ばんが できました。',
+        autoLanguage: 'ブラウザの ことばを つかっています。',
+        directionAcross: 'よこ',
+        directionDown: 'たて',
+        puzzleSolved: 'クロスワードを ぜんぶ ときました。',
+        impossible: 'この くみあわせでは つくれませんでした。べつの くみあわせで ためします。'
+      }
+    };
+
+    const state = {
+      lang: 'en',
+      theme: 'dark',
+      puzzle: null,
+      selectedWordId: null,
+      selectedDirection: 'across',
+      guesses: {},
+      lastStrategyKey: null,
+      lastWordKeys: []
+    };
+
+    const els = {
+      body: document.body,
+      grid: document.getElementById('grid'),
+      acrossList: document.getElementById('acrossList'),
+      downList: document.getElementById('downList'),
+      statusText: document.getElementById('statusText'),
+      completionBox: document.getElementById('completionBox'),
+      completionText: document.getElementById('completionText'),
+      newPuzzleBtn: document.getElementById('newPuzzleBtn'),
+      checkBtn: document.getElementById('checkBtn'),
+      hintBtn: document.getElementById('hintBtn'),
+      clearBtn: document.getElementById('clearBtn'),
+      focusFirstBtn: document.getElementById('focusFirstBtn'),
+      themeToggle: document.getElementById('themeToggle'),
+      languageLabel: document.getElementById('languageLabel'),
+      languageHint: document.getElementById('languageHint'),
+      strategyLabel: document.getElementById('strategyLabel'),
+      strategyHint: document.getElementById('strategyHint'),
+      wordCountLabel: document.getElementById('wordCountLabel'),
+      bankCountLabel: document.getElementById('bankCountLabel'),
+      progressLabel: document.getElementById('progressLabel'),
+      statusInline: document.getElementById('statusInline'),
+      langButtons: Array.from(document.querySelectorAll('.lang-btn'))
+    };
+
+    function pickInitialLang() {
+      const stored = localStorage.getItem(STORAGE_KEYS.lang);
+      if (stored && I18N[stored]) return stored;
+      const browser = (navigator.language || 'en').slice(0, 2).toLowerCase();
+      if (browser === 'pt') return 'pt';
+      if (browser === 'ja') return 'ja';
+      return 'en';
+    }
+
+    function applyTheme(theme) {
+      state.theme = theme === 'light' ? 'light' : 'dark';
+      els.body.classList.toggle('light-theme', state.theme === 'light');
+      localStorage.setItem(STORAGE_KEYS.theme, state.theme);
+    }
+
+    function setLanguage(lang, options = {}) {
+      if (!I18N[lang]) return;
+      state.lang = lang;
+      localStorage.setItem(STORAGE_KEYS.lang, lang);
+      document.documentElement.lang = lang;
+      document.querySelectorAll('[data-i18n]').forEach((node) => {
+        const key = node.dataset.i18n;
+        if (I18N[lang][key]) node.textContent = I18N[lang][key];
+      });
+
+      els.langButtons.forEach((button) => {
+        button.classList.toggle('active', button.dataset.lang === lang);
+      });
+
+      if (state.puzzle) {
+        refreshSummary();
+        renderClues();
+        renderGrid();
+      } else {
+        setStatus(t('statusReady'));
+      }
+
+      if (!options.silentRebuild) {
+        buildPuzzle();
+      }
+    }
+
+    function t(key, values = {}) {
+      let text = I18N[state.lang][key] || I18N.en[key] || key;
+      Object.entries(values).forEach(([entryKey, entryValue]) => {
+        text = text.replace(`{${entryKey}}`, String(entryValue));
+      });
+      return text;
+    }
+
+    function wordChars(word) {
+      return Array.from(word.normalize('NFC'));
+    }
+
+    function normalizeInputValue(value) {
+      const chars = Array.from((value || '').normalize('NFC').trim());
+      const last = chars[chars.length - 1] || '';
+      if (!last) return '';
+      if (state.lang === 'ja') return last;
+      return last.toUpperCase();
+    }
+
+    function sampleWords(bank) {
+      const shuffled = shuffle(bank.slice());
+      const count = Math.min(7, Math.max(5, Math.floor(Math.random() * 3) + 5));
+      return shuffled.slice(0, count);
+    }
+
+    function chooseStrategy() {
+      const options = STRATEGIES.filter((strategy) => strategy.key !== state.lastStrategyKey);
+      const pool = options.length ? options : STRATEGIES;
+      return pool[Math.floor(Math.random() * pool.length)];
+    }
+
+    function buildPuzzle() {
+      setStatus(t('buildRetry'));
+      els.completionBox.classList.remove('visible');
+      const bank = WORD_BANKS[state.lang];
+      let built = null;
+
+      for (let attempt = 0; attempt < MAX_BUILD_ATTEMPTS && !built; attempt += 1) {
+        const strategy = chooseStrategy();
+        const selected = orderWords(sampleWords(bank), strategy, bank);
+        const result = attemptBuild(selected, strategy);
+        if (result && result.placements.length >= 5) {
+          built = {
+            ...result,
+            strategy,
+            wordBankSize: bank.length,
+            selectedWords: selected
+          };
+        }
+      }
+
+      if (!built) {
+        setStatus(t('impossible'));
+        return;
+      }
+
+      state.lastStrategyKey = built.strategy.key;
+      state.lastWordKeys = built.placements.map((placement) => placement.word);
+      state.puzzle = finalizePuzzle(built);
+      state.selectedDirection = 'across';
+      state.selectedWordId = state.puzzle.across[0]?.id || state.puzzle.down[0]?.id || null;
+      state.guesses = {};
+
+      renderGrid();
+      renderClues();
+      refreshSummary();
+      focusSelectedWord();
+      setStatus(t('buildReady'));
+    }
+
+    function orderWords(words, strategy) {
+      const enriched = words.map((entry) => ({ ...entry, chars: wordChars(entry.word) }));
+      const letterFrequency = {};
+      enriched.forEach((entry) => {
+        entry.chars.forEach((char) => {
+          letterFrequency[char] = (letterFrequency[char] || 0) + 1;
+        });
+      });
+
+      const sharedScore = (entry) => entry.chars.reduce((total, char) => total + (letterFrequency[char] || 0), 0);
+
+      if (strategy.orderMode === 'shared-long') {
+        return enriched.sort((a, b) => (sharedScore(b) - sharedScore(a)) || (b.chars.length - a.chars.length));
+      }
+      if (strategy.orderMode === 'longest-first') {
+        return enriched.sort((a, b) => b.chars.length - a.chars.length || sharedScore(b) - sharedScore(a));
+      }
+      if (strategy.orderMode === 'alternating') {
+        const sorted = enriched.sort((a, b) => b.chars.length - a.chars.length || sharedScore(b) - sharedScore(a));
+        const output = [];
+        let left = 0;
+        let right = sorted.length - 1;
+        while (left <= right) {
+          output.push(sorted[left]);
+          left += 1;
+          if (left <= right) {
+            output.push(sorted[Math.floor((left + right) / 2)]);
+            sorted.splice(Math.floor((left + right) / 2), 1);
+            right = sorted.length - 1;
+          }
+        }
+        return output;
+      }
+      if (strategy.orderMode === 'short-long-short') {
+        const sorted = enriched.sort((a, b) => a.chars.length - b.chars.length || sharedScore(b) - sharedScore(a));
+        const output = [];
+        let start = 0;
+        let end = sorted.length - 1;
+        while (start <= end) {
+          output.push(sorted[end]);
+          end -= 1;
+          if (start <= end) {
+            output.push(sorted[start]);
+            start += 1;
+          }
+        }
+        return output;
+      }
+      return shuffle(enriched);
+    }
+
+    function attemptBuild(entries, strategy) {
+      const placements = [];
+      const cellMap = new Map();
+      const center = Math.floor(GRID_SIZE / 2);
+      const first = entries[0];
+      const firstLength = first.chars.length;
+      const firstPlacement = strategy.firstOrientation === 'across'
+        ? { row: center, col: center - Math.floor(firstLength / 2), direction: 'across', ...first }
+        : { row: center - Math.floor(firstLength / 2), col: center, direction: 'down', ...first };
+
+      if (!canPlace(firstPlacement, cellMap)) return null;
+      placeWord(firstPlacement, placements, cellMap);
+
+      for (let index = 1; index < entries.length; index += 1) {
+        const entry = entries[index];
+        const candidates = findCandidates(entry, placements, cellMap, strategy);
+        if (!candidates.length) continue;
+        placeWord(candidates[0], placements, cellMap);
+      }
+
+      return { placements, cellMap };
+    }
+
+    function findCandidates(entry, placements, cellMap, strategy) {
+      const candidates = [];
+      const entryChars = entry.chars;
+      placements.forEach((placed) => {
+        const placedChars = placed.chars;
+        placedChars.forEach((placedChar, placedIndex) => {
+          entryChars.forEach((entryChar, entryIndex) => {
+            if (placedChar !== entryChar) return;
+            const direction = placed.direction === 'across' ? 'down' : 'across';
+            const row = direction === 'across' ? placed.row + placedIndex : placed.row - entryIndex;
+            const col = direction === 'across' ? placed.col - entryIndex : placed.col + placedIndex;
+            const candidate = { ...entry, row, col, direction };
+            if (!canPlace(candidate, cellMap)) return;
+            const score = scoreCandidate(candidate, cellMap, strategy);
+            candidates.push({ ...candidate, score });
+          });
+        });
+      });
+
+      return candidates.sort((a, b) => b.score - a.score || a.row - b.row || a.col - b.col);
+    }
+
+    function scoreCandidate(candidate, cellMap, strategy) {
+      const chars = candidate.chars;
+      let intersections = 0;
+      chars.forEach((char, index) => {
+        const row = candidate.direction === 'across' ? candidate.row : candidate.row + index;
+        const col = candidate.direction === 'across' ? candidate.col + index : candidate.col;
+        const current = cellMap.get(keyFor(row, col));
+        if (current && current.char === char) intersections += 1;
+      });
+
+      const center = Math.floor(GRID_SIZE / 2);
+      const distance = Math.abs(candidate.row - center) + Math.abs(candidate.col - center);
+      const edgeDistance = Math.min(candidate.row, candidate.col, GRID_SIZE - 1 - candidate.row, GRID_SIZE - 1 - candidate.col);
+
+      if (strategy.scoreMode === 'intersections') return intersections * 8 - distance;
+      if (strategy.scoreMode === 'center') return intersections * 6 - distance * 1.6;
+      if (strategy.scoreMode === 'spread') return intersections * 6 + edgeDistance * 1.2 - distance * 0.5;
+      if (strategy.scoreMode === 'edge') return intersections * 5 + edgeDistance * 1.8;
+      return intersections * 4;
+    }
+
+    function canPlace(candidate, cellMap) {
+      const chars = candidate.chars;
+      const beforeRow = candidate.direction === 'across' ? candidate.row : candidate.row - 1;
+      const beforeCol = candidate.direction === 'across' ? candidate.col - 1 : candidate.col;
+      const afterRow = candidate.direction === 'across' ? candidate.row : candidate.row + chars.length;
+      const afterCol = candidate.direction === 'across' ? candidate.col + chars.length : candidate.col;
+
+      if (!isInside(beforeRow, beforeCol) || !isInside(afterRow, afterCol)) return false;
+      if (cellMap.has(keyFor(beforeRow, beforeCol)) || cellMap.has(keyFor(afterRow, afterCol))) return false;
+
+      let touchesExisting = false;
+
+      for (let index = 0; index < chars.length; index += 1) {
+        const row = candidate.direction === 'across' ? candidate.row : candidate.row + index;
+        const col = candidate.direction === 'across' ? candidate.col + index : candidate.col;
+        if (!isInside(row, col)) return false;
+        const existing = cellMap.get(keyFor(row, col));
+        if (existing && existing.char !== chars[index]) return false;
+        if (existing) touchesExisting = true;
+
+        const sideOffsets = candidate.direction === 'across'
+          ? [[-1, 0], [1, 0]]
+          : [[0, -1], [0, 1]];
+
+        for (const [rowOffset, colOffset] of sideOffsets) {
+          const sideRow = row + rowOffset;
+          const sideCol = col + colOffset;
+          if (!isInside(sideRow, sideCol)) continue;
+          const neighbor = cellMap.get(keyFor(sideRow, sideCol));
+          if (!neighbor) continue;
+          if (!existing) return false;
+        }
+      }
+
+      return placementsCount(cellMap) === 0 || touchesExisting;
+    }
+
+    function placementsCount(cellMap) {
+      return cellMap.size;
+    }
+
+    function placeWord(placement, placements, cellMap) {
+      placement.id = `${placement.direction}-${placements.length}-${placement.word}`;
+      placement.cells = [];
+      placement.chars.forEach((char, index) => {
+        const row = placement.direction === 'across' ? placement.row : placement.row + index;
+        const col = placement.direction === 'across' ? placement.col + index : placement.col;
+        const cellKey = keyFor(row, col);
+        const existing = cellMap.get(cellKey);
+        if (existing) {
+          existing.words.push(placement.id);
+        } else {
+          cellMap.set(cellKey, { row, col, char, words: [placement.id] });
+        }
+        placement.cells.push({ row, col, char });
+      });
+      placements.push(placement);
+    }
+
+    function finalizePuzzle(built) {
+      const occupiedRows = built.placements.flatMap((placement) => placement.cells.map((cell) => cell.row));
+      const occupiedCols = built.placements.flatMap((placement) => placement.cells.map((cell) => cell.col));
+      const minRow = Math.min(...occupiedRows);
+      const maxRow = Math.max(...occupiedRows);
+      const minCol = Math.min(...occupiedCols);
+      const maxCol = Math.max(...occupiedCols);
+
+      const words = built.placements.map((placement) => ({
+        ...placement,
+        row: placement.row - minRow,
+        col: placement.col - minCol,
+        cells: placement.cells.map((cell) => ({ ...cell, row: cell.row - minRow, col: cell.col - minCol }))
+      }));
+
+      const width = maxCol - minCol + 1;
+      const height = maxRow - minRow + 1;
+      const grid = Array.from({ length: height }, () => Array.from({ length: width }, () => null));
+      const lookup = new Map();
+
+      words.forEach((word) => {
+        word.cells.forEach((cell) => {
+          const cellRef = grid[cell.row][cell.col] || { row: cell.row, col: cell.col, char: cell.char, words: [] };
+          if (!cellRef.words.includes(word.id)) cellRef.words.push(word.id);
+          grid[cell.row][cell.col] = cellRef;
+          lookup.set(keyFor(cell.row, cell.col), cellRef);
+        });
+      });
+
+      const numbered = numberWords(words, lookup, grid);
+
+      return {
+        width,
+        height,
+        grid,
+        lookup,
+        words: numbered,
+        across: numbered.filter((word) => word.direction === 'across').sort((a, b) => a.number - b.number),
+        down: numbered.filter((word) => word.direction === 'down').sort((a, b) => a.number - b.number),
+        strategy: built.strategy,
+        wordBankSize: built.wordBankSize
+      };
+    }
+
+    function numberWords(words, lookup, grid) {
+      let number = 1;
+      const seen = new Map();
+
+      for (let row = 0; row < grid.length; row += 1) {
+        for (let col = 0; col < grid[0].length; col += 1) {
+          const cell = grid[row][col];
+          if (!cell) continue;
+          const startsAcross = col === 0 || !grid[row][col - 1];
+          const startsDown = row === 0 || !grid[row - 1][col];
+          if (!startsAcross && !startsDown) continue;
+          seen.set(keyFor(row, col), number);
+          number += 1;
+        }
+      }
+
+      return words.map((word) => {
+        const cellKey = keyFor(word.row, word.col);
+        return {
+          ...word,
+          number: seen.get(cellKey),
+          length: word.chars.length
+        };
+      });
+    }
+
+    function renderGrid() {
+      const puzzle = state.puzzle;
+      els.grid.innerHTML = '';
+      els.grid.style.gridTemplateColumns = `repeat(${puzzle.width}, var(--cell-size))`;
+
+      const activeWord = getSelectedWord();
+      for (let row = 0; row < puzzle.height; row += 1) {
+        for (let col = 0; col < puzzle.width; col += 1) {
+          const cell = puzzle.grid[row][col];
+          if (!cell) {
+            const block = document.createElement('div');
+            block.className = 'block';
+            els.grid.appendChild(block);
+            continue;
+          }
+
+          const wrapper = document.createElement('div');
+          wrapper.className = 'cell';
+          wrapper.dataset.row = String(row);
+          wrapper.dataset.col = String(col);
+
+          if (activeWord && activeWord.cells.some((entry) => entry.row === row && entry.col === col)) {
+            wrapper.classList.add('active-word');
+          }
+
+          if (activeWord && getCurrentCellKey() === keyFor(row, col)) {
+            wrapper.classList.add('current');
+          }
+
+          const guess = state.guesses[keyFor(row, col)] || '';
+          const correctness = getCellClass(row, col, guess, cell.char);
+          if (correctness) wrapper.classList.add(correctness);
+
+          const number = state.puzzle.words.find((word) => word.row === row && word.col === col)?.number;
+          if (number) {
+            const mark = document.createElement('span');
+            mark.className = 'cell-number';
+            mark.textContent = String(number);
+            wrapper.appendChild(mark);
+          }
+
+          const input = document.createElement('input');
+          input.className = 'cell-input';
+          input.type = 'text';
+          input.inputMode = state.lang === 'ja' ? 'text' : 'latin';
+          input.maxLength = 2;
+          input.autocomplete = 'off';
+          input.spellcheck = false;
+          input.dataset.row = String(row);
+          input.dataset.col = String(col);
+          input.value = guess;
+          input.setAttribute('aria-label', `${row + 1}, ${col + 1}`);
+          wrapper.appendChild(input);
+
+          els.grid.appendChild(wrapper);
+        }
+      }
+    }
+
+    function renderClues() {
+      renderClueList(els.acrossList, state.puzzle.across, 'across');
+      renderClueList(els.downList, state.puzzle.down, 'down');
+    }
+
+    function renderClueList(list, words, direction) {
+      list.innerHTML = '';
+      words.forEach((word) => {
+        const item = document.createElement('li');
+        item.className = 'clue-item';
+        if (state.selectedWordId === word.id) item.classList.add('active');
+        if (isWordSolved(word)) item.classList.add('done');
+        item.dataset.wordId = word.id;
+        item.dataset.direction = direction;
+        item.innerHTML = `<strong>${word.number}. ${word.clue}</strong><span class="clue-line">${t('clueMeta', { length: word.length })}</span>`;
+        list.appendChild(item);
+      });
+    }
+
+    function refreshSummary() {
+      const strategy = state.puzzle.strategy;
+      const solved = state.puzzle.words.filter((word) => isWordSolved(word)).length;
+      els.languageLabel.textContent = state.lang === 'en' ? t('languageEnglish') : state.lang === 'pt' ? t('languagePortuguese') : t('languageJapanese');
+      els.languageHint.textContent = t('autoLanguage');
+      els.strategyLabel.textContent = t(strategy.nameKey);
+      els.strategyHint.textContent = t(strategy.descriptionKey);
+      els.wordCountLabel.textContent = String(state.puzzle.words.length);
+      els.bankCountLabel.textContent = t('wordsFromBank', { used: state.puzzle.words.length, total: state.puzzle.wordBankSize });
+      els.progressLabel.textContent = t('progressCount', { done: solved, total: state.puzzle.words.length });
+      els.statusInline.textContent = t('statusReady');
+      els.completionText.textContent = t('completedBody');
+    }
+
+    function getSelectedWord() {
+      return state.puzzle?.words.find((word) => word.id === state.selectedWordId) || null;
+    }
+
+    function getCurrentCellKey() {
+      const word = getSelectedWord();
+      if (!word) return '';
+      const firstEmpty = word.cells.find((cell) => !state.guesses[keyFor(cell.row, cell.col)]);
+      const target = firstEmpty || word.cells[word.cells.length - 1];
+      return keyFor(target.row, target.col);
+    }
+
+    function setStatus(message) {
+      els.statusText.textContent = message;
+      els.statusInline.textContent = message;
+    }
+
+    function isWordSolved(word) {
+      return word.cells.every((cell) => (state.guesses[keyFor(cell.row, cell.col)] || '') === formatSolutionChar(cell.char));
+    }
+
+    function formatSolutionChar(char) {
+      return state.lang === 'ja' ? char : char.toUpperCase();
+    }
+
+    function getCellClass(row, col, guess, solution) {
+      if (!guess) return '';
+      if (guess === formatSolutionChar(solution)) return 'correct';
+      return 'wrong';
+    }
+
+    function clearBoard() {
+      state.guesses = {};
+      renderGrid();
+      renderClues();
+      refreshSummary();
+      els.completionBox.classList.remove('visible');
+      setStatus(t('cleared'));
+      focusSelectedWord();
+    }
+
+    function revealHint() {
+      const word = getSelectedWord();
+      if (!word) return;
+      const target = word.cells.find((cell) => !state.guesses[keyFor(cell.row, cell.col)] || state.guesses[keyFor(cell.row, cell.col)] !== formatSolutionChar(cell.char));
+      if (!target) {
+        setStatus(t('hintBlocked'));
+        return;
+      }
+      state.guesses[keyFor(target.row, target.col)] = formatSolutionChar(target.char);
+      renderGrid();
+      renderClues();
+      refreshSummary();
+      setStatus(t('hintDone'));
+      maybeFinishPuzzle();
+      focusCell(target.row, target.col);
+    }
+
+    function checkBoard() {
+      renderGrid();
+      renderClues();
+      refreshSummary();
+      setStatus(state.puzzle.words.every((word) => isWordSolved(word)) ? t('checkGood') : t('checkMixed'));
+      maybeFinishPuzzle();
+    }
+
+    function maybeFinishPuzzle() {
+      const solvedAll = state.puzzle.words.every((word) => isWordSolved(word));
+      els.completionBox.classList.toggle('visible', solvedAll);
+      if (solvedAll) {
+        setStatus(t('puzzleSolved'));
+      }
+    }
+
+    function focusSelectedWord() {
+      const word = getSelectedWord();
+      if (!word) return;
+      const target = word.cells.find((cell) => !state.guesses[keyFor(cell.row, cell.col)]) || word.cells[0];
+      focusCell(target.row, target.col);
+    }
+
+    function focusCell(row, col) {
+      const input = els.grid.querySelector(`input[data-row="${row}"][data-col="${col}"]`);
+      if (input) input.focus();
+    }
+
+    function handleInput(event) {
+      const input = event.target;
+      if (!input.classList.contains('cell-input')) return;
+      const row = Number(input.dataset.row);
+      const col = Number(input.dataset.col);
+      const normalized = normalizeInputValue(input.value);
+      input.value = normalized;
+      state.guesses[keyFor(row, col)] = normalized;
+      renderClues();
+      refreshSummary();
+      maybeFinishPuzzle();
+      moveToNextCell(row, col);
+    }
+
+    function moveToNextCell(row, col) {
+      const word = getSelectedWord();
+      if (!word) return;
+      const currentIndex = word.cells.findIndex((cell) => cell.row === row && cell.col === col);
+      if (currentIndex === -1) return;
+      const next = word.cells[currentIndex + 1];
+      if (next) {
+        focusCell(next.row, next.col);
+      }
+    }
+
+    function handleKeydown(event) {
+      const input = event.target;
+      if (!input.classList.contains('cell-input')) return;
+      const row = Number(input.dataset.row);
+      const col = Number(input.dataset.col);
+
+      if (event.key === 'Backspace' && !input.value) {
+        const previous = previousCellInWord(row, col);
+        if (previous) {
+          state.guesses[keyFor(previous.row, previous.col)] = '';
+          renderGrid();
+          renderClues();
+          refreshSummary();
+          focusCell(previous.row, previous.col);
+          event.preventDefault();
+        }
+        return;
+      }
+
+      const arrows = {
+        ArrowUp: [-1, 0],
+        ArrowDown: [1, 0],
+        ArrowLeft: [0, -1],
+        ArrowRight: [0, 1]
+      };
+      if (arrows[event.key]) {
+        const [rowOffset, colOffset] = arrows[event.key];
+        const nextRow = row + rowOffset;
+        const nextCol = col + colOffset;
+        if (state.puzzle.lookup.has(keyFor(nextRow, nextCol))) {
+          selectWordFromCell(nextRow, nextCol, inferDirection(event.key));
+          focusCell(nextRow, nextCol);
+        }
+        event.preventDefault();
+      }
+    }
+
+    function previousCellInWord(row, col) {
+      const word = getSelectedWord();
+      if (!word) return null;
+      const index = word.cells.findIndex((cell) => cell.row === row && cell.col === col);
+      if (index <= 0) return null;
+      return word.cells[index - 1];
+    }
+
+    function inferDirection(key) {
+      return key === 'ArrowUp' || key === 'ArrowDown' ? 'down' : 'across';
+    }
+
+    function handleGridClick(event) {
+      const wrapper = event.target.closest('.cell');
+      if (!wrapper) return;
+      const row = Number(wrapper.dataset.row);
+      const col = Number(wrapper.dataset.col);
+      selectWordFromCell(row, col, state.selectedDirection);
+      renderGrid();
+      renderClues();
+      refreshSummary();
+      focusCell(row, col);
+    }
+
+    function selectWordFromCell(row, col, preferredDirection) {
+      const cell = state.puzzle.lookup.get(keyFor(row, col));
+      if (!cell) return;
+      const candidates = cell.words.map((id) => state.puzzle.words.find((word) => word.id === id)).filter(Boolean);
+      let picked = candidates.find((word) => word.direction === preferredDirection);
+      if (!picked) picked = candidates[0];
+      state.selectedWordId = picked.id;
+      state.selectedDirection = picked.direction;
+      setStatus(t('selectedWord', { number: picked.number, direction: picked.direction === 'across' ? t('directionAcross') : t('directionDown') }));
+    }
+
+    function handleClueClick(event) {
+      const item = event.target.closest('.clue-item');
+      if (!item) return;
+      state.selectedWordId = item.dataset.wordId;
+      state.selectedDirection = item.dataset.direction;
+      renderGrid();
+      renderClues();
+      refreshSummary();
+      focusSelectedWord();
+      const word = getSelectedWord();
+      if (word) {
+        setStatus(t('selectedWord', { number: word.number, direction: word.direction === 'across' ? t('directionAcross') : t('directionDown') }));
+      }
+    }
+
+    function shuffle(items) {
+      for (let index = items.length - 1; index > 0; index -= 1) {
+        const swapIndex = Math.floor(Math.random() * (index + 1));
+        [items[index], items[swapIndex]] = [items[swapIndex], items[index]];
+      }
+      return items;
+    }
+
+    function isInside(row, col) {
+      return row >= 0 && row < GRID_SIZE && col >= 0 && col < GRID_SIZE;
+    }
+
+    function keyFor(row, col) {
+      return `${row}:${col}`;
+    }
+
+    function setupEvents() {
+      els.newPuzzleBtn.addEventListener('click', buildPuzzle);
+      els.checkBtn.addEventListener('click', checkBoard);
+      els.hintBtn.addEventListener('click', revealHint);
+      els.clearBtn.addEventListener('click', clearBoard);
+      els.focusFirstBtn.addEventListener('click', focusSelectedWord);
+      els.themeToggle.addEventListener('click', () => applyTheme(state.theme === 'dark' ? 'light' : 'dark'));
+      els.langButtons.forEach((button) => {
+        button.addEventListener('click', () => setLanguage(button.dataset.lang));
+      });
+      els.grid.addEventListener('input', handleInput);
+      els.grid.addEventListener('keydown', handleKeydown);
+      els.grid.addEventListener('click', handleGridClick);
+      els.acrossList.addEventListener('click', handleClueClick);
+      els.downList.addEventListener('click', handleClueClick);
+    }
+
+    function init() {
+      state.lang = pickInitialLang();
+      applyTheme(localStorage.getItem(STORAGE_KEYS.theme) || 'dark');
+      setupEvents();
+      setLanguage(state.lang, { silentRebuild: true });
+      buildPuzzle();
+    }
+
+    init();
+  </script>
+</body>
+</html>
