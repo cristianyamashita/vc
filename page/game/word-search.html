@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Word Search Studio</title>
+  <style>
+    :root{color-scheme:dark;--bg:#10151b;--bg2:#1d2b36;--panel:rgba(18,25,32,.88);--ink:#f1f6f8;--muted:#9db0ba;--line:rgba(255,255,255,.12);--accent:#ffb45c;--accent2:#64d7d0;--cell:#18232d;--hover:#2c4050;--found:#76df91;--shadow:0 24px 60px rgba(0,0,0,.35)}
+    body.light{color-scheme:light;--bg:#f7f1e7;--bg2:#dce9e7;--panel:rgba(255,255,255,.88);--ink:#20282c;--muted:#65747b;--line:rgba(25,35,40,.14);--accent:#c86528;--accent2:#087d79;--cell:#fffdf9;--hover:#f3dcc2;--found:#2b8c4b;--shadow:0 22px 52px rgba(52,63,63,.16)}
+    *{box-sizing:border-box}html,body{min-height:100%;margin:0}body{padding:18px;color:var(--ink);font:15px/1.5 "Noto Sans JP","Hiragino Sans","Yu Gothic",system-ui,sans-serif;background:radial-gradient(circle at 10% 0%,color-mix(in srgb,var(--accent) 25%,transparent),transparent 32%),radial-gradient(circle at 100% 10%,color-mix(in srgb,var(--accent2) 22%,transparent),transparent 30%),linear-gradient(145deg,var(--bg),var(--bg2));user-select:none}
+    button,select{font:inherit}button{cursor:pointer}.page{width:min(1250px,100%);margin:auto;display:grid;gap:18px}.hero,.board-panel,.side{border:1px solid var(--line);background:var(--panel);backdrop-filter:blur(18px);box-shadow:var(--shadow)}.hero{padding:22px;border-radius:24px;display:flex;justify-content:space-between;gap:18px;align-items:center;flex-wrap:wrap}.eyebrow{color:var(--accent);font-size:.75rem;font-weight:900;letter-spacing:.13em;text-transform:uppercase}h1{margin:3px 0 4px;font-size:clamp(2rem,5vw,4rem);line-height:1;letter-spacing:-.045em}.subtitle{margin:0;color:var(--muted);max-width:650px}.controls,.langs{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.langs{padding:4px;border:1px solid var(--line);border-radius:99px}.btn,.lang{border:1px solid var(--line);border-radius:99px;padding:9px 14px;color:var(--ink);background:color-mix(in srgb,var(--panel) 70%,white 6%);font-weight:800}.lang{border-color:transparent;background:transparent;color:var(--muted)}.lang.active,.primary{color:#21170c;background:linear-gradient(135deg,var(--accent),#ffd08b);border-color:transparent}.layout{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:18px}.board-panel,.side{border-radius:22px;padding:18px}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:15px}.stat{border:1px solid var(--line);border-radius:14px;padding:10px 12px;background:color-mix(in srgb,var(--panel) 80%,white 5%)}.stat span{display:block;color:var(--muted);font-size:.75rem;text-transform:uppercase;letter-spacing:.08em}.stat strong{font-size:1.2rem}.grid-wrap{display:grid;place-items:center;overflow:auto;padding:4px;touch-action:none}.grid{width:min(100%,690px);aspect-ratio:1;display:grid;gap:3px}.cell{display:grid;place-items:center;min-width:0;border:1px solid var(--line);border-radius:7px;background:var(--cell);font-size:clamp(.75rem,2.2vw,1.5rem);font-weight:900;line-height:1;transition:.12s;cursor:crosshair}.cell.preview{background:var(--hover);border-color:var(--accent)}.cell.found{background:color-mix(in srgb,var(--found) 28%,var(--cell));color:var(--found);border-color:color-mix(in srgb,var(--found) 60%,transparent)}.side{display:grid;align-content:start;gap:15px}.side h2{margin:0;font-size:1.2rem}.difficulty{display:grid;gap:6px}.difficulty label{color:var(--muted);font-size:.8rem;font-weight:800}.difficulty select{width:100%;padding:10px 12px;border-radius:12px;border:1px solid var(--line);color:var(--ink);background:var(--cell)}.words{display:grid;grid-template-columns:1fr 1fr;gap:8px}.word{padding:9px 10px;border:1px solid var(--line);border-radius:11px;background:color-mix(in srgb,var(--panel) 78%,white 4%);font-weight:800;overflow-wrap:anywhere}.word.found{color:var(--found);text-decoration:line-through;opacity:.72}.actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}.status{min-height:48px;padding:11px 13px;border-radius:13px;background:color-mix(in srgb,var(--accent2) 12%,transparent);border:1px solid color-mix(in srgb,var(--accent2) 30%,var(--line));color:var(--muted)}.help{margin:0;color:var(--muted);font-size:.86rem}
+    @media(max-width:850px){.layout{grid-template-columns:1fr}.side{grid-row:1}.words{grid-template-columns:repeat(3,1fr)}}@media(max-width:560px){body{padding:9px}.hero,.board-panel,.side{border-radius:17px;padding:14px}.words{grid-template-columns:1fr 1fr}.cell{border-radius:4px}.stats{gap:6px}.stat{padding:8px}.actions{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header class="hero">
+      <div>
+        <div class="eyebrow" data-i18n="eyebrow">Daily brain break</div>
+        <h1 data-i18n="title">Word Search Studio</h1>
+        <p class="subtitle" data-i18n="subtitle">Find every hidden word. They may run forward, backward, sideways or diagonally.</p>
+      </div>
+      <div class="controls">
+        <div class="langs" aria-label="Language">
+          <button class="lang" data-lang="en">EN</button><button class="lang" data-lang="pt">PT</button><button class="lang" data-lang="ja">JA</button>
+        </div>
+        <button class="btn" id="theme" data-i18n="theme">Light theme</button>
+      </div>
+    </header>
+    <section class="layout">
+      <section class="board-panel">
+        <div class="stats">
+          <div class="stat"><span data-i18n="found">Found</span><strong id="score">0 / 0</strong></div>
+          <div class="stat"><span data-i18n="time">Time</span><strong id="timer">00:00</strong></div>
+          <div class="stat"><span data-i18n="streak">Best</span><strong id="best">—</strong></div>
+        </div>
+        <div class="grid-wrap"><div class="grid" id="grid" role="grid" aria-label="Word search board"></div></div>
+      </section>
+      <aside class="side">
+        <h2 data-i18n="words">Words to find</h2>
+        <div class="difficulty">
+          <label for="difficulty" data-i18n="difficulty">Difficulty</label>
+          <select id="difficulty"><option value="easy" data-i18n="easy">Easy · 10 × 10</option><option value="medium" data-i18n="medium">Medium · 12 × 12</option><option value="hard" data-i18n="hard">Hard · 14 × 14</option></select>
+        </div>
+        <div class="words" id="words"></div>
+        <div class="actions"><button class="btn primary" id="new" data-i18n="newGame">New puzzle</button><button class="btn" id="hint" data-i18n="hint">Hint</button></div>
+        <div class="status" id="status" aria-live="polite"></div>
+        <p class="help" data-i18n="help">Drag from the first letter to the last. On a keyboard, select two cells with Enter.</p>
+      </aside>
+    </section>
+  </main>
+  <script>
+    const I18N={
+      en:{eyebrow:"Daily brain break",title:"Word Search Studio",subtitle:"Find every hidden word. They may run forward, backward, sideways or diagonally.",theme:"Light theme",themeDark:"Dark theme",found:"Found",time:"Time",streak:"Best",words:"Words to find",difficulty:"Difficulty",easy:"Easy · 10 × 10",medium:"Medium · 12 × 12",hard:"Hard · 14 × 14",newGame:"New puzzle",hint:"Hint",help:"Drag from the first letter to the last. On a keyboard, select two cells with Enter.",ready:"Choose the first and last letters of a word.",wrong:"Not quite — try another line.",got:"Nice! You found {word}.",done:"Puzzle complete in {time}!",hintMsg:"Look near the highlighted letter for {word}.",bank:[
+        "PLANET","GARDEN","OCEAN","MUSIC","CLOUD","FOREST","CAMERA","COFFEE","BRIDGE","ORANGE",
+        "ROBOT","PUZZLE","COMET","RIVER","WINDOW","SUNSET","CASTLE","BREEZE","ANCHOR","APPLE",
+        "AUTUMN","BALLOON","BANANA","BEACH","BERRY","BICYCLE","BUTTERFLY","CANDLE","CANYON","CARPET",
+        "CHERRY","CIRCLE","COMPASS","CORAL","CRYSTAL","DESERT","DIAMOND","DOLPHIN","DRAGON","EAGLE",
+        "EARTH","FEATHER","FIREFLY","FLOWER","GALAXY","GLOBE","HARBOR","HONEY","ISLAND","JUNGLE",
+        "KITTEN","LAGOON","LANTERN","LEMON","LIGHTNING","MARBLE","MEADOW","MIRROR","MONKEY","MOON",
+        "MOUNTAIN","NEBULA","NOTEBOOK","OASIS","PANDA","PAPER","PARROT","PEACH","PEBBLE","PENGUIN",
+        "PIANO","PILLOW","PIRATE","RAINBOW","REEF","ROCKET","SAILOR","SHELL","SKYLINE","SNOWFLAKE",
+        "SPARROW","SPIDER","SPRING","STARFISH","STORM","SUMMER","TEMPLE","THUNDER","TIGER","TOWER",
+        "TREASURE","TURTLE","VALLEY","VIOLET","VOLCANO","WATERFALL","WHALE","WILLOW","WINTER","ZEBRA",
+        "ACORN","BADGER","BAMBOO","BUTTON","CANARY","CLOVER","FALCON","GEYSER","IGLOO","MAPLE"
+      ]},
+      pt:{eyebrow:"Pausa para a mente",title:"Estúdio Caça-Palavras",subtitle:"Encontre todas as palavras. Elas podem estar em qualquer direção, inclusive ao contrário.",theme:"Tema claro",themeDark:"Tema escuro",found:"Achadas",time:"Tempo",streak:"Melhor",words:"Palavras",difficulty:"Dificuldade",easy:"Fácil · 10 × 10",medium:"Médio · 12 × 12",hard:"Difícil · 14 × 14",newGame:"Novo jogo",hint:"Dica",help:"Arraste da primeira até a última letra. No teclado, selecione duas casas com Enter.",ready:"Escolha a primeira e a última letra de uma palavra.",wrong:"Ainda não — tente outra linha.",got:"Boa! Você encontrou {word}.",done:"Caça-palavras concluído em {time}!",hintMsg:"Procure perto da letra destacada de {word}.",bank:[
+        "PLANETA","JARDIM","OCEANO","MÚSICA","NUVEM","FLORESTA","CÂMERA","CAFÉ","PONTE","LARANJA",
+        "ROBÔ","ENIGMA","COMETA","RIO","JANELA","POENTE","CASTELO","BRISA","ABELHA","ABACAXI",
+        "ÂNCORA","ARCO","AREIA","BALÃO","BANANA","BARCO","BICICLETA","BORBOLETA","BOSQUE","CACHOEIRA",
+        "CADEIRA","CAMINHO","CANETA","CAVERNA","CEREJA","CÍRCULO","COELHO","CONCHA","CORAL","CRISTAL",
+        "DESERTO","DIAMANTE","DRAGÃO","ELEFANTE","ESCADA","ESPELHO","ESTRELA","FAROL","FOLHA","FONTE",
+        "FORMIGA","FRAMBOESA","GATO","GIRAFA","GLOBO","GOLFINHO","ILHA","LAGOA","LÁPIS","LIMÃO",
+        "LIVRO","LUA","MACACO","MAÇÃ","MARTELO","MEL","MONTANHA","MORANGO","PÁSSARO","PEDRA",
+        "PÊSSEGO","PIANO","PIPA","PIRATA","PRAIA","QUEIJO","RAIO","SAPATO","TARTARUGA","TEMPESTADE",
+        "TIGRE","TORRE","TESOURO","TROVÃO","URSO","VALE","VELA","VIOLETA","VULCÃO","ZEBRA",
+        "AGULHA","AMORA","AZEITONA","BAMBU","BOTÃO","CENOURA","CHUVA","COBRE","COLINA","ESTOJO",
+        "FOGUEIRA","GARFO","GELO","HORTA","JACARÉ","LANTERNA","MÁRMORE","NINHO","PANDA","PERA"
+      ]},
+      ja:{eyebrow:"あたまの ひとやすみ",title:"ことばさがし",subtitle:"かくれた ことばを ぜんぶ みつけよう。たて・よこ・ななめ、ぎゃくむきにも あります。",theme:"ライト",themeDark:"ダーク",found:"みつけた",time:"じかん",streak:"ベスト",words:"さがす ことば",difficulty:"むずかしさ",easy:"かんたん · 10 × 10",medium:"ふつう · 12 × 12",hard:"むずかしい · 14 × 14",newGame:"あたらしい ゲーム",hint:"ヒント",help:"さいしょの もじから さいごまで なぞります。キーボードでは Enter で 2マスを えらびます。",ready:"ことばの さいしょと さいごを えらんでください。",wrong:"ちがいます。べつの せんを ためそう。",got:"せいかい！「{word}」を みつけました。",done:"{time}で ぜんぶ みつけました！",hintMsg:"「{word}」の ひかる もじの ちかくを さがそう。",bank:[
+        "ほしぞら","にわ","うみ","おんがく","くも","もり","しゃしん","こーひー","はし","みかん",
+        "ろぼっと","なぞ","すいせい","かわ","まど","ゆうやけ","おしろ","そよかぜ","あさがお","あめ",
+        "あり","いけ","いちご","いぬ","うさぎ","うちゅう","うま","えんぴつ","おおかみ","おちゃ",
+        "おにぎり","かいがら","かえる","かがみ","かさ","かぜ","かに","かばん","かぼちゃ","かめ",
+        "からす","きつね","きのこ","きりん","くじら","くるま","けしごむ","こあら","こおり","ことり",
+        "ごりら","さかな","さくら","さとう","さる","しか","しま","すいか","すずめ","たいよう",
+        "たけ","たぬき","たまご","ちず","ちょうちょ","つき","つくえ","つばさ","てがみ","てんとうむし",
+        "とけい","とまと","とら","どんぐり","なみ","にじ","ねこ","ねずみ","のはら","はっぱ",
+        "はなび","ぱんだ","ひこうき","ひまわり","ふうせん","ふくろう","ぶどう","ぺんぎん","ほたる","まつり",
+        "みずうみ","みつばち","めがね","もも","やま","ゆき","よっと","らいおん","りす","りんご",
+        "れもん","わに","あひる","いちょう","おうむ","かもめ","くじゃく","こすもす","しんぶん","たから"
+      ]}}
+    const CFG={easy:{size:10,count:7},medium:{size:12,count:9},hard:{size:14,count:11}},DIRS=[[0,1],[1,0],[1,1],[-1,1],[0,-1],[-1,0],[-1,-1],[1,-1]],KEY="wordSearchPrefs",BEST="wordSearchBest";
+    const $=s=>document.querySelector(s),grid=$("#grid"),wordBox=$("#words"),statusEl=$("#status"),difficulty=$("#difficulty");let state={},dragStart=null,keyboardStart=null,tick=null;
+    function prefs(){try{return JSON.parse(localStorage.getItem(KEY))||{}}catch{return{}}}function savePrefs(){localStorage.setItem(KEY,JSON.stringify({lang:state.lang,theme:state.theme,difficulty:difficulty.value}))}
+    function t(k,v={}){return (I18N[state.lang][k]||k).replace(/\{(\w+)\}/g,(_,x)=>v[x]??"")}
+    function shuffle(a){for(let i=a.length-1;i;i--){let j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+    function chars(word){return [...word.normalize("NFC")]}function key(r,c){return r+":"+c}
+    function generate(){
+      const cfg=CFG[difficulty.value],selected=shuffle([...I18N[state.lang].bank]).slice(0,cfg.count),board=Array.from({length:cfg.size},()=>Array(cfg.size).fill("")),placed=[];
+      for(const word of selected){const letters=chars(word);let done=false;for(let tries=0;tries<500&&!done;tries++){const [dr,dc]=DIRS[Math.floor(Math.random()*DIRS.length)],r=Math.floor(Math.random()*cfg.size),c=Math.floor(Math.random()*cfg.size),er=r+dr*(letters.length-1),ec=c+dc*(letters.length-1);if(er<0||ec<0||er>=cfg.size||ec>=cfg.size)continue;let ok=true;for(let i=0;i<letters.length;i++){const old=board[r+dr*i][c+dc*i];if(old&&old!==letters[i])ok=false}if(!ok)continue;const cells=[];letters.forEach((letter,i)=>{board[r+dr*i][c+dc*i]=letter;cells.push(key(r+dr*i,c+dc*i))});placed.push({word,cells});done=true}}
+      const alphabet=state.lang==="ja"?[..."あいうえおかきくけこさしすせそたちつてとなにぬねのはひふへほまみむめもやゆよらりるれろわん"]:state.lang==="pt"?[..."ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÃÕÇ"]:[..."ABCDEFGHIJKLMNOPQRSTUVWXYZ"];
+      board.forEach(row=>row.forEach((v,i)=>{if(!v)row[i]=alphabet[Math.floor(Math.random()*alphabet.length)]}));
+      state={...state,board,placed,found:new Set(),start:Date.now(),elapsed:0,won:false};render();clearInterval(tick);tick=setInterval(updateTimer,1000);statusEl.textContent=t("ready")
+    }
+    function render(){
+      grid.style.gridTemplateColumns=`repeat(${state.board.length},1fr)`;grid.innerHTML="";
+      state.board.forEach((row,r)=>row.forEach((letter,c)=>{const b=document.createElement("button");b.className="cell";b.textContent=letter;b.dataset.r=r;b.dataset.c=c;b.setAttribute("role","gridcell");b.setAttribute("aria-label",`${r+1}, ${c+1}: ${letter}`);grid.appendChild(b)}));
+      wordBox.innerHTML=state.placed.map((x,i)=>`<div class="word" data-word="${i}">${x.word}</div>`).join("");updateStats()
+    }
+    function line(a,b){const dr=b.r-a.r,dc=b.c-a.c,len=Math.max(Math.abs(dr),Math.abs(dc));if(!len||!(dr===0||dc===0||Math.abs(dr)===Math.abs(dc)))return[];const sr=Math.sign(dr),sc=Math.sign(dc);return Array.from({length:len+1},(_,i)=>key(a.r+sr*i,a.c+sc*i))}
+    function cellFromEvent(e){const p=e.touches?e.touches[0]:e;return document.elementFromPoint(p.clientX,p.clientY)?.closest(".cell")}
+    function point(el){return{r:+el.dataset.r,c:+el.dataset.c}}
+    function preview(cells=[]){grid.querySelectorAll(".preview").forEach(x=>x.classList.remove("preview"));cells.forEach(k=>{const [r,c]=k.split(":");grid.children[r*state.board.length+(+c)]?.classList.add("preview")})}
+    function finish(end){if(!dragStart)return;const cells=line(dragStart,end),rev=[...cells].reverse(),found=state.placed.findIndex((x,i)=>!state.found.has(i)&&(same(x.cells,cells)||same(x.cells,rev)));preview();dragStart=null;if(found<0){statusEl.textContent=t("wrong");return}state.found.add(found);statusEl.textContent=t("got",{word:state.placed[found].word});updateStats();if(state.found.size===state.placed.length)win()}
+    function same(a,b){return a.length===b.length&&a.every((v,i)=>v===b[i])}
+    function updateStats(){$("#score").textContent=`${state.found.size} / ${state.placed.length}`;state.placed.forEach((w,i)=>{const item=wordBox.children[i];if(item)item.classList.toggle("found",state.found.has(i));if(state.found.has(i))w.cells.forEach(k=>{const [r,c]=k.split(":");grid.children[r*state.board.length+(+c)]?.classList.add("found")})});const best=JSON.parse(localStorage.getItem(BEST)||"{}")[difficulty.value];$("#best").textContent=best?format(best):"—"}
+    function format(s){return String(Math.floor(s/60)).padStart(2,"0")+":"+String(s%60).padStart(2,"0")}function updateTimer(){if(!state.won){state.elapsed=Math.floor((Date.now()-state.start)/1000);$("#timer").textContent=format(state.elapsed)}}
+    function win(){state.won=true;clearInterval(tick);updateTimer();const all=JSON.parse(localStorage.getItem(BEST)||"{}"),old=all[difficulty.value];if(!old||state.elapsed<old){all[difficulty.value]=state.elapsed;localStorage.setItem(BEST,JSON.stringify(all))}updateStats();statusEl.textContent=t("done",{time:format(state.elapsed)})}
+    function applyLanguage(lang,rebuild=true){state.lang=lang;document.documentElement.lang=lang;document.querySelectorAll("[data-i18n]").forEach(el=>{el.textContent=t(el.dataset.i18n)});document.querySelectorAll(".lang").forEach(b=>b.classList.toggle("active",b.dataset.lang===lang));$("#theme").textContent=t(state.theme==="dark"?"theme":"themeDark");savePrefs();if(rebuild)generate()}
+    function applyTheme(theme){state.theme=theme;document.body.classList.toggle("light",theme==="light");$("#theme").textContent=t(theme==="dark"?"theme":"themeDark");savePrefs()}
+    grid.addEventListener("pointerdown",e=>{const c=e.target.closest(".cell");if(c){e.preventDefault();dragStart=point(c);preview([key(dragStart.r,dragStart.c)]);c.setPointerCapture?.(e.pointerId)}});
+    grid.addEventListener("pointermove",e=>{if(dragStart){const c=document.elementFromPoint(e.clientX,e.clientY)?.closest(".cell");if(c)preview(line(dragStart,point(c)))}});
+    grid.addEventListener("pointerup",e=>{const c=document.elementFromPoint(e.clientX,e.clientY)?.closest(".cell");if(c)finish(point(c));else{dragStart=null;preview()}});
+    grid.addEventListener("keydown",e=>{const c=e.target.closest(".cell");if(e.key==="Enter"&&c){e.preventDefault();if(!keyboardStart){keyboardStart=point(c);preview([key(keyboardStart.r,keyboardStart.c)])}else{dragStart=keyboardStart;keyboardStart=null;finish(point(c))}}});
+    $("#new").onclick=generate;$("#hint").onclick=()=>{const candidates=state.placed.map((x,i)=>({x,i})).filter(v=>!state.found.has(v.i));if(!candidates.length)return;const pick=candidates[Math.floor(Math.random()*candidates.length)],k=pick.x.cells[Math.floor(Math.random()*pick.x.cells.length)];preview([k]);statusEl.textContent=t("hintMsg",{word:pick.x.word});setTimeout(()=>preview(),1400)};$("#theme").onclick=()=>applyTheme(state.theme==="dark"?"light":"dark");difficulty.onchange=()=>{savePrefs();generate()};document.querySelectorAll(".lang").forEach(b=>b.onclick=()=>applyLanguage(b.dataset.lang));
+    const p=prefs();state.lang=p.lang&&I18N[p.lang]?p.lang:"en";state.theme=p.theme||"dark";difficulty.value=CFG[p.difficulty]?p.difficulty:"medium";applyTheme(state.theme);applyLanguage(state.lang,false);generate();
+  </script>
+</body>
+</html>
