@@ -174,10 +174,35 @@
       box-shadow: var(--soft-shadow);
       transition: transform .18s ease, border-color .18s ease, background .18s ease;
     }
+    nav.links button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 38px;
+      color: var(--ink);
+      font-weight: 800;
+      padding: 8px 14px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--nav-link-bg);
+      box-shadow: var(--soft-shadow);
+      cursor: pointer;
+      transition: transform .18s ease, border-color .18s ease, background .18s ease;
+    }
     nav.links a:hover {
       transform: translateY(-2px);
       border-color: var(--nav-link-hover-border);
       background: color-mix(in srgb, var(--accent) 14%, var(--nav-link-bg));
+    }
+    nav.links button:hover,
+    nav.links button[aria-pressed="true"] {
+      transform: translateY(-2px);
+      border-color: var(--nav-link-hover-border);
+      background: color-mix(in srgb, var(--accent) 22%, var(--nav-link-bg));
+    }
+    nav.links button[aria-pressed="true"] {
+      color: var(--btn-primary-color);
+      background: var(--accent);
     }
     .lang-selector,
     .theme-selector {
@@ -528,6 +553,13 @@
     .pinned-section.hidden-by-search {
       display: none !important;
     }
+    body.order-by-number-active .page > section:not(.ordered-section),
+    body.order-by-number-active .page > .pinned-section {
+      display: none;
+    }
+    body.order-by-number-active nav.links a {
+      display: none;
+    }
     @media (max-width: 760px) {
       body {
         padding: 12px 10px 24px;
@@ -572,6 +604,10 @@
       }
       nav.links a {
         flex: 1 1 calc(50% - 10px);
+        padding-inline: 10px;
+      }
+      nav.links button {
+        flex: 1 1 100%;
         padding-inline: 10px;
       }
       .search-container,
@@ -627,6 +663,7 @@
       </div>
       <div class="subtitle" data-i18n="subtitle">Collection of different scripts and applications. Pick a section below and explore.</div>
       <nav class="links">
+        <button id="order-by-number" type="button" aria-pressed="false" data-i18n="orderByNumber">Order by number</button>
         <a href="#utils" data-i18n="utilsLink">Utils</a>
         <a href="#games" data-i18n="gamesLink">Games</a>
         <a href="#mobile" data-i18n="mobileLink">Mobile</a>
@@ -819,15 +856,15 @@
 
         <article class="card">
           <div class="row">
-            <a class="link" href="utils/masonry_gallery.html" target="_blank" rel="noopener">
-              <div class="name" data-i18n="masonryGalleryName">Masonry Image Gallery</div>
+            <a class="link" href="utils/gallery.html" target="_blank" rel="noopener">
+              <div class="name" data-i18n="masonryGalleryName">Image Gallery</div>
             </a>
             <span class="tag" data-i18n="masonryGalleryTag">Photos</span>
           </div>
-          <div class="desc" data-i18n="masonryGalleryDesc">Upload images into an IndexedDB-backed masonry gallery, open them fullscreen, remove them, and control their order with a numeric value.</div>
+          <div class="desc" data-i18n="masonryGalleryDesc">Upload images into an IndexedDB-backed gallery, open them fullscreen, remove them, and control their order with a numeric value.</div>
           <div class="actions">
-            <a class="btn primary" href="utils/masonry_gallery.html" target="_blank" rel="noopener" data-i18n="open">Open</a>
-            <span class="k">utils/masonry_gallery.html</span>
+            <a class="btn primary" href="utils/gallery.html" target="_blank" rel="noopener" data-i18n="open">Open</a>
+            <span class="k">utils/gallery.html</span>
           </div>
         </article>
 
@@ -2222,12 +2259,12 @@
       "misc/plasma_ball_lab.html": "#092",
       "utils/vector_editor.html": "#093",
       "utils/form_builder.html": "#094",
-      "utils/masonry_gallery.html": "#095",
+      "utils/gallery.html": "#095",
       "utils/image_to_webp.html": "#096",
       "game/endless-coaster.html": "#097",
       "game/ten-second-stop.html": "#098",
       "game/rail-siege.html": "#099",
-      "game/crossword.html": "#100"
+      "game/crossword.html": "#100",
     };
 
     const translations = {
@@ -2239,6 +2276,8 @@
         searchPlaceholder: "Search cards...",
         searchResults: "results",
         searchNoResults: "No results found",
+        orderByNumber: "Order by number",
+        orderedTitle: "All links by number",
         gamesLink: "Games",
         miscLink: "Miscellaneous",
         utilsLink: "Utils",
@@ -2460,9 +2499,9 @@
         imageToWebpName: "Image to WebP Converter",
         imageToWebpTag: "Images",
         imageToWebpDesc: "Choose or drag local images, convert them to WebP in the browser, preview multiple results at once, and download each converted file individually.",
-        masonryGalleryName: "Masonry Image Gallery",
+        masonryGalleryName: "Image Gallery",
         masonryGalleryTag: "Photos",
-        masonryGalleryDesc: "Upload images into an IndexedDB-backed masonry gallery, open them fullscreen, remove them, and control their order with a numeric value.",
+        masonryGalleryDesc: "Upload images into an IndexedDB-backed gallery, open them fullscreen, remove them, and control their order with a numeric value.",
         charArtCreatorName: "Char-Art Creator",
         charArtCreatorTag: "Text Art",
         charArtCreatorDesc: "Type a word or phrase and turn it into blocky char-art/ascii-art. Includes custom fill characters, spacing, outline mode, copy/download, multilingual UI, and light/dark themes.",
@@ -2564,6 +2603,8 @@
         searchPlaceholder: "カードを検索...",
         searchResults: "件の結果",
         searchNoResults: "結果が見つかりません",
+        orderByNumber: "番号順に並べる",
+        orderedTitle: "番号順のすべてのリンク",
         gamesLink: "ゲーム",
         miscLink: "その他",
         utilsLink: "ユーティリティ",
@@ -2787,9 +2828,9 @@
         imageToWebpName: "画像から WebP 変換",
         imageToWebpTag: "画像",
         imageToWebpDesc: "ローカル画像を選択またはドラッグしてブラウザー内で WebP に変換し、複数結果を同時にプレビューして各変換ファイルを個別にダウンロードできます。",
-        masonryGalleryName: "Masonry 画像ギャラリー",
+        masonryGalleryName: "画像ギャラリー",
         masonryGalleryTag: "写真",
-        masonryGalleryDesc: "画像を IndexedDB 保存の masonry ギャラリーに追加し、全画面表示、削除、数値による表示順の調整ができます。",
+        masonryGalleryDesc: "画像を IndexedDB 保存のギャラリーに追加し、全画面表示、削除、数値による表示順の調整ができます。",
         charArtCreatorName: "チャーアート作成",
         charArtCreatorTag: "テキストアート",
         charArtCreatorDesc: "単語やフレーズを入力して、ブロック風のチャーアート/ASCIIアートに変換します。塗りつぶし文字、間隔、アウトライン、コピー/ダウンロード、多言語UI、ライト/ダークテーマに対応。",
@@ -2892,6 +2933,8 @@
         searchPlaceholder: "Buscar cards...",
         searchResults: "resultados",
         searchNoResults: "Nenhum resultado encontrado",
+        orderByNumber: "Ordenar por número",
+        orderedTitle: "Todos os links por número",
         gamesLink: "Jogos",
         miscLink: "Diversos",
         utilsLink: "Utilitários",
@@ -3115,9 +3158,9 @@
         imageToWebpName: "Conversor de Imagem para WebP",
         imageToWebpTag: "Imagens",
         imageToWebpDesc: "Escolha ou arraste imagens locais, converta para WebP no navegador, visualize vários resultados ao mesmo tempo e baixe cada arquivo convertido separadamente.",
-        masonryGalleryName: "Galeria de Imagens Masonry",
+        masonryGalleryName: "Galeria de Imagens",
         masonryGalleryTag: "Fotos",
-        masonryGalleryDesc: "Envie imagens para uma galeria masonry com IndexedDB, abra em tela cheia, remova e controle a ordem com um valor numérico.",
+        masonryGalleryDesc: "Envie imagens para uma galeria com IndexedDB, abra em tela cheia, remova e controle a ordem com um valor numérico.",
         charArtCreatorName: "Criador de Char-Art",
         charArtCreatorTag: "Arte em Texto",
         charArtCreatorDesc: "Digite uma palavra ou frase e transforme em char-art/ascii-art em blocos. Inclui caractere personalizado, espaçamento, modo contorno, copiar/baixar, UI multilíngue e temas claro/escuro.",
@@ -3252,8 +3295,12 @@
       updateSectionCounts();
     };
 
+    const originalCardPositions = new Map();
+    let orderByNumberActive = false;
+
     document.addEventListener('DOMContentLoaded', () => {
       initializeCardSequences();
+      rememberOriginalCardPositions();
 
       const langSelector = document.querySelector('.lang-selector');
       langSelector.addEventListener('click', (event) => {
@@ -3290,6 +3337,7 @@
 
       // Initialize pin functionality
       initializePins();
+      initializeNumberOrdering();
 
       // Initialize search functionality
       initializeSearch();
@@ -3321,6 +3369,78 @@
           name.removeAttribute('data-seq');
         }
       });
+    }
+
+    function rememberOriginalCardPositions() {
+      const sections = Array.from(document.querySelectorAll('.page > section'));
+      sections.forEach((section, sectionIndex) => {
+        section.querySelectorAll(':scope > .grid > .card').forEach((card, index) => {
+          originalCardPositions.set(card, { grid: card.parentElement, index, sectionIndex });
+        });
+      });
+    }
+
+    function initializeNumberOrdering() {
+      document.getElementById('order-by-number').addEventListener('click', () => {
+        setNumberOrdering(!orderByNumberActive);
+      });
+    }
+
+    function setNumberOrdering(enabled) {
+      orderByNumberActive = enabled;
+      document.getElementById('order-by-number').setAttribute('aria-pressed', String(enabled));
+      document.body.classList.toggle('order-by-number-active', enabled);
+
+      if (enabled) {
+        renderOrderedCards();
+      } else {
+        restoreNormalCardOrder();
+      }
+
+      filterCards(document.getElementById('search-input')?.value.trim() || '');
+      updateSectionCounts();
+    }
+
+    function getOrCreateOrderedSection() {
+      let section = document.querySelector('.ordered-section');
+      if (!section) {
+        section = document.createElement('section');
+        section.className = 'ordered-section';
+        section.id = 'ordered-by-number';
+        section.innerHTML = '<h2 data-i18n="orderedTitle">All links by number</h2><div class="grid"></div>';
+        const header = document.querySelector('header.hero');
+        header.parentNode.insertBefore(section, header.nextSibling);
+        const lang = localStorage.getItem('app_lang') || 'en';
+        section.querySelector('h2').textContent = translations[lang]?.orderedTitle || translations.en.orderedTitle;
+      }
+      return section;
+    }
+
+    function renderOrderedCards() {
+      const grid = getOrCreateOrderedSection().querySelector('.grid');
+      Array.from(originalCardPositions.keys())
+        .sort((a, b) => {
+          const numberOf = card => parseInt(card.querySelector('.row')?.dataset.seq?.replace('#', ''), 10) || 0;
+          return numberOf(b) - numberOf(a);
+        })
+        .forEach(card => grid.appendChild(card));
+    }
+
+    function restoreNormalCardOrder() {
+      document.querySelector('.pinned-section')?.remove();
+
+      Array.from(originalCardPositions.entries())
+        .sort(([, a], [, b]) => a.sectionIndex - b.sectionIndex || a.index - b.index)
+        .forEach(([card, position]) => {
+          card.classList.remove('pinned');
+          card.querySelector('.pin-btn')?.classList.remove('pinned');
+          card.removeAttribute('data-original-section');
+          card.removeAttribute('data-original-index');
+          position.grid.appendChild(card);
+        });
+
+      document.querySelector('.ordered-section')?.remove();
+      loadPinnedCards();
     }
 
     // Search functionality
@@ -3513,6 +3633,21 @@
       const pinnedCards = getPinnedCards();
       const cardElement = document.querySelector(`[data-card-id="${cardId}"]`);
       const pinBtn = document.querySelector(`.pin-btn[data-card-id="${cardId}"]`);
+
+      if (orderByNumberActive) {
+        const wasPinned = pinnedCards.includes(cardId);
+        if (wasPinned) {
+          pinnedCards.splice(pinnedCards.indexOf(cardId), 1);
+        } else {
+          pinnedCards.push(cardId);
+        }
+        cardElement.classList.toggle('pinned', !wasPinned);
+        pinBtn.classList.toggle('pinned', !wasPinned);
+        pinBtn.title = wasPinned ? 'Pin to top' : 'Unpin';
+        localStorage.setItem('pinned-cards', JSON.stringify(pinnedCards));
+        renderOrderedCards();
+        return;
+      }
 
       if (pinnedCards.includes(cardId)) {
         // Unpin the card
