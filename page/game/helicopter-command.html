@@ -1,0 +1,1488 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Helicopter Command</title>
+<script type="importmap">
+{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.module.js" } }
+</script>
+<style>
+  :root {
+    --ink: #f8f3e7;
+    --muted: #bfc9bd;
+    --panel: rgba(8, 13, 18, .84);
+    --panel2: rgba(14, 24, 30, .92);
+    --line: rgba(248, 243, 231, .18);
+    --accent: #ffcf5a;
+    --accent2: #65e6b6;
+    --accent3: #77b8ff;
+    --bad: #ff5b71;
+    --good: #78e36f;
+    --shadow: 0 22px 60px rgba(0, 0, 0, .42);
+    --display: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+  body.light {
+    --ink: #102027;
+    --muted: #41545d;
+    --panel: rgba(246, 251, 243, .9);
+    --panel2: rgba(232, 244, 239, .94);
+    --line: rgba(16, 32, 39, .18);
+    --accent: #b36700;
+    --accent2: #007e63;
+    --accent3: #1469a8;
+    --bad: #cf3151;
+    --good: #168743;
+    --shadow: 0 22px 54px rgba(35, 48, 45, .18);
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    overflow: hidden;
+    background: #0b1420;
+    color: var(--ink);
+    font-family: var(--display);
+    user-select: none;
+  }
+  canvas { display: block; }
+  button, select {
+    min-height: 36px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: linear-gradient(180deg, rgba(255,255,255,.16), rgba(255,255,255,.07));
+    color: var(--ink);
+    padding: 7px 12px;
+    font: inherit;
+    font-weight: 900;
+    cursor: pointer;
+  }
+  select {
+    appearance: none;
+    min-width: 86px;
+    padding-right: 26px;
+  }
+  button:hover { border-color: var(--accent2); }
+  select:hover { border-color: var(--accent2); }
+  button.primary {
+    color: #161007;
+    border-color: rgba(255,255,255,.28);
+    background: linear-gradient(180deg, #ffe087, #e99725);
+  }
+  body.light button.primary { color: #fff; background: linear-gradient(180deg, #198c72, #086452); }
+  .hud {
+    position: fixed;
+    left: 12px;
+    top: 10px;
+    z-index: 5;
+    width: min(880px, calc(100vw - 24px));
+    display: grid;
+    gap: 8px;
+    pointer-events: none;
+  }
+  .bar, .help, .panel {
+    pointer-events: auto;
+    background: linear-gradient(180deg, var(--panel2), var(--panel));
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    box-shadow: var(--shadow);
+    backdrop-filter: blur(12px);
+  }
+  .bar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 9px;
+  }
+  h1 {
+    margin: 0;
+    min-width: 218px;
+    font-size: 18px;
+    line-height: 1.1;
+    font-weight: 1000;
+    letter-spacing: 0;
+  }
+  .pill {
+    min-height: 30px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 8px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, .08);
+    font-size: 12px;
+    font-weight: 900;
+    white-space: nowrap;
+  }
+  .pill.hidden, .pill[hidden] { display: none; }
+  .meter {
+    width: 96px;
+    height: 10px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, .16);
+  }
+  .meter > i {
+    display: block;
+    width: 100%;
+    height: 100%;
+    transform-origin: left center;
+  }
+  #hpBar { background: linear-gradient(90deg, var(--bad), #ffc857, var(--good)); }
+  #shieldBar { background: linear-gradient(90deg, #6ea8ff, #8df3ff); }
+  #boostBar { background: linear-gradient(90deg, #ffe072, #ff7e55); }
+  #heatBar { background: linear-gradient(90deg, #8df3ff, #ff7e55, var(--bad)); }
+  .help {
+    width: min(650px, calc(100vw - 24px));
+    padding: 10px 12px;
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.38;
+  }
+  .help b { color: var(--ink); }
+  .tools {
+    position: fixed;
+    right: 12px;
+    top: 10px;
+    z-index: 8;
+    display: flex;
+    gap: 8px;
+  }
+  .mini {
+    position: fixed;
+    right: 12px;
+    bottom: 12px;
+    z-index: 5;
+    width: 150px;
+    height: 150px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: rgba(3, 7, 10, .55);
+    box-shadow: var(--shadow);
+  }
+  .overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 10;
+    display: grid;
+    place-items: center;
+    padding: 18px;
+    background:
+      radial-gradient(circle at 26% 22%, rgba(255, 207, 90, .18), transparent 33%),
+      radial-gradient(circle at 74% 28%, rgba(101, 230, 182, .16), transparent 32%),
+      rgba(5, 9, 13, .72);
+    backdrop-filter: blur(8px);
+  }
+  .overlay[hidden] { display: none; }
+  .panel {
+    width: min(900px, 100%);
+    max-height: min(720px, calc(100vh - 36px));
+    overflow: auto;
+    padding: 18px;
+  }
+  .panel h2 {
+    margin: 0 0 8px;
+    color: var(--accent);
+    font-size: clamp(30px, 7vw, 66px);
+    line-height: .9;
+    letter-spacing: 0;
+    text-shadow: 0 4px 0 rgba(0,0,0,.28);
+  }
+  .panel p {
+    margin: 0 0 14px;
+    color: var(--muted);
+    line-height: 1.45;
+  }
+  .cards, .lab {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr));
+    gap: 10px;
+    margin: 12px 0;
+  }
+  .modeCards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+    gap: 10px;
+    margin: 12px 0;
+  }
+  .card {
+    min-height: 112px;
+    display: grid;
+    gap: 7px;
+    text-align: left;
+    padding: 12px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, .08);
+  }
+  .card.selected, .card:hover { border-color: var(--accent2); }
+  .card strong { font-size: 15px; }
+  .card span, .lab small { color: var(--muted); font-size: 12px; line-height: 1.35; }
+  .actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .menuTools {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: end;
+    margin: 10px 0 4px;
+  }
+  .menuTools label {
+    display: grid;
+    gap: 4px;
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 900;
+    text-transform: uppercase;
+  }
+  .menuTools label.hidden { display: none; }
+  .sectionHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 14px;
+    color: var(--muted);
+    font-weight: 900;
+  }
+  .sectionHeader b {
+    color: var(--accent);
+    font-size: 18px;
+  }
+  .phaseBanner {
+    position: fixed;
+    inset: 0;
+    z-index: 9;
+    display: grid;
+    place-items: center;
+    pointer-events: none;
+    background: radial-gradient(circle at 50% 45%, rgba(255, 207, 90, .16), transparent 34%);
+    opacity: 1;
+    transition: opacity .25s ease;
+  }
+  .phaseBanner[hidden] { display: none; }
+  .phaseBanner h2 {
+    margin: 0;
+    color: var(--accent);
+    font-size: clamp(40px, 9vw, 104px);
+    line-height: .9;
+    letter-spacing: 0;
+    text-shadow: 0 5px 0 rgba(0,0,0,.34), 0 18px 42px rgba(0,0,0,.45);
+  }
+  .crosshair {
+    position: fixed;
+    left: 50%;
+    top: 50%;
+    z-index: 4;
+    width: 26px;
+    height: 26px;
+    margin: -13px 0 0 -13px;
+    border: 2px solid rgba(255, 207, 90, .85);
+    border-radius: 50%;
+    pointer-events: none;
+  }
+  .crosshair::before, .crosshair::after {
+    content: "";
+    position: absolute;
+    background: rgba(255, 207, 90, .85);
+  }
+  .crosshair::before { left: 50%; top: -8px; width: 2px; height: 6px; margin-left: -1px; }
+  .crosshair::after { left: -8px; top: 50%; width: 6px; height: 2px; margin-top: -1px; }
+  .crosshair[hidden] { display: none; }
+  html[lang="ja"] .panel h2 {
+    font-size: clamp(26px, 5.6vw, 52px);
+  }
+  html[lang="ja"] h1 {
+    min-width: 188px;
+    font-size: 16px;
+  }
+  .toast {
+    position: fixed;
+    left: 50%;
+    bottom: 18px;
+    z-index: 12;
+    min-width: 220px;
+    transform: translateX(-50%);
+    padding: 10px 14px;
+    color: var(--ink);
+    text-align: center;
+    font-weight: 1000;
+    background: var(--panel2);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    box-shadow: var(--shadow);
+    opacity: 0;
+    transition: opacity .2s ease, translate .2s ease;
+    pointer-events: none;
+  }
+  .toast.show { opacity: 1; translate: 0 -4px; }
+  @media (max-width: 760px) {
+    .hud { top: auto; bottom: 10px; }
+    .help { display: none; }
+    .tools { top: 8px; right: 8px; }
+    .mini { width: 112px; height: 112px; }
+    h1 { min-width: 100%; }
+  }
+</style>
+</head>
+<body>
+<div class="hud">
+  <div class="bar">
+    <h1 data-i18n="title">Helicopter Command</h1>
+    <span class="pill"><span data-i18n="hp">HP</span> <span class="meter"><i id="hpBar"></i></span></span>
+    <span class="pill"><span data-i18n="shield">Armor</span> <span class="meter"><i id="shieldBar"></i></span></span>
+    <span class="pill"><span data-i18n="boost">Boost</span> <span class="meter"><i id="boostBar"></i></span></span>
+    <span class="pill combat-only"><span data-i18n="gunHeat">Heat</span> <span class="meter"><i id="heatBar"></i></span></span>
+    <span class="pill combat-only"><span data-i18n="ammo">Rockets</span> <b id="ammo">0</b></span>
+    <span class="pill combat-only"><span data-i18n="wave">Wave</span> <b id="wave">1</b></span>
+    <span class="pill combat-only"><span data-i18n="targets">Targets</span> <b id="targetGoal">0/0</b></span>
+    <span class="pill combat-only"><span data-i18n="gunships">Gunships</span> <b id="gunshipGoal">0/0</b></span>
+    <span class="pill"><span data-i18n="coins">Coins</span> <b id="coins">0</b></span>
+    <span class="pill free-only"><span data-i18n="rings">Rings</span> <b id="ringCount">0</b></span>
+    <span class="pill"><span data-i18n="alt">Alt</span> <b id="altVal">0</b>m</span>
+    <span class="pill"><span data-i18n="spd">Spd</span> <b id="spdVal">0</b></span>
+    <span class="pill"><span data-i18n="hdg">Hdg</span> <b id="hdgVal">000</b>&deg;</span>
+    <span class="pill combat-only" id="dangerPill" hidden><span data-i18n="danger">DANGER</span> <b id="dangerTime">10.0</b>s</span>
+    <button id="pauseBtn" data-i18n="pause">Pause</button>
+  </div>
+  <div class="help" id="helpText"></div>
+</div>
+<div class="tools">
+  <select id="langSelect" aria-label="Language">
+    <option value="en">EN</option>
+    <option value="pt">PT</option>
+    <option value="ja">JA</option>
+  </select>
+  <button id="themeBtn">DARK</button>
+</div>
+<canvas id="mini" class="mini" width="150" height="150" aria-label="minimap"></canvas>
+<div id="crosshair" class="crosshair" hidden></div>
+
+<div id="menu" class="overlay">
+  <div class="panel">
+    <h2 data-i18n="title">Helicopter Command</h2>
+    <p data-i18n="intro">Pilot a nimble helicopter across mountains, lakes and forests. Choose Free Flight to relax and chase scenic rings, or Combat to blast ground turrets and enemy gunships across escalating waves for coins and hangar upgrades.</p>
+    <div class="modeCards" id="modeCards"></div>
+    <div class="cards" id="chopperCards"></div>
+    <div class="actions">
+      <button class="primary" id="startBtn" data-i18n="start">Start Flight</button>
+      <button id="resetBtn" data-i18n="reset">Reset Save</button>
+    </div>
+    <div class="menuTools">
+      <label id="difficultyLabel">
+        <span data-i18n="difficulty">Difficulty</span>
+        <select id="difficultySelect" aria-label="Difficulty">
+          <option value="easy" data-i18n="easy">Easy</option>
+          <option value="normal" data-i18n="normal">Normal</option>
+          <option value="hard" data-i18n="hard">Hard</option>
+        </select>
+      </label>
+      <select id="menuLangSelect" aria-label="Language">
+        <option value="en">EN</option>
+        <option value="pt">PT</option>
+        <option value="ja">JA</option>
+      </select>
+      <button id="menuThemeBtn">DARK</button>
+    </div>
+    <div class="sectionHeader"><span data-i18n="garage">Hangar</span><span><span data-i18n="coins">Coins</span>: <b id="garageCoins">0</b></span></div>
+    <div class="lab" id="lab"></div>
+  </div>
+</div>
+
+<div id="phaseBanner" class="phaseBanner" hidden><h2 id="phaseTitle">Phase 1</h2></div>
+
+<div id="pauseOverlay" class="overlay" hidden>
+  <div class="panel">
+    <h2 data-i18n="paused">Paused</h2>
+    <div class="actions">
+      <button class="primary" id="resumeBtn" data-i18n="resume">Resume</button>
+      <button id="pauseMenuBtn" data-i18n="mainMenu">Main Menu</button>
+    </div>
+  </div>
+</div>
+
+<div id="gameOver" class="overlay" hidden>
+  <div class="panel">
+    <h2 id="overTitle" data-i18n="runOver">Flight Over</h2>
+    <p id="overText"></p>
+    <div class="actions">
+      <button class="primary" id="againBtn" data-i18n="again">Fly Again</button>
+      <button id="menuBtn" data-i18n="mainMenu">Main Menu</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script type="module">
+import * as THREE from 'three';
+
+const STORE = 'helicopter_command_v1';
+const UI_STORE = 'helicopter_command_ui';
+const uiPrefs = loadJson(UI_STORE, { lang: 'en', theme: 'dark', difficulty: 'easy' });
+const save = loadJson(STORE, { coins: 0, best: 0, power: 0, armor: 0, boost: 0, reload: 0, ammo: 0 });
+const DIFFICULTY_MULT = { easy: 1, normal: 2, hard: 4 };
+if (!DIFFICULTY_MULT[uiPrefs.difficulty]) uiPrefs.difficulty = 'easy';
+
+const I18N = {
+  en: {
+    title: 'Helicopter Command', hp: 'HP', shield: 'Armor', boost: 'Boost', gunHeat: 'Heat', ammo: 'Rockets',
+    wave: 'Wave', targets: 'Targets', gunships: 'Gunships', coins: 'Coins', rings: 'Rings', alt: 'Alt', spd: 'Spd', hdg: 'Hdg', pause: 'Pause', resume: 'Resume', paused: 'Paused', mainMenu: 'Main Menu',
+    helpFree: '<b>Fly:</b> W/S pitch, A/D yaw, Space/Ctrl or mouse wheel to climb/descend, Shift boost. Fly through the glowing rings just for fun — no pressure, no enemies.',
+    helpCombat: '<b>Fly:</b> W/S pitch, A/D yaw, Space/Ctrl or mouse wheel to climb/descend, Shift boost. <b>Aim:</b> mouse. <b>Gun:</b> click. <b>Rocket:</b> right-click or R. Leave the red danger zone within 10 seconds.',
+    intro: 'Pilot a nimble helicopter across mountains, lakes and forests. Choose Free Flight to relax and chase scenic rings, or Combat to blast ground turrets and enemy gunships across escalating waves for coins and hangar upgrades.',
+    start: 'Start Flight', garage: 'Hangar', reset: 'Reset Save', runOver: 'Flight Over', again: 'Fly Again',
+    difficulty: 'Difficulty', easy: 'Easy', normal: 'Normal', hard: 'Hard',
+    freeFlight: 'Free Flight', freeFlightDesc: 'Just fly. No enemies, no pressure — explore the valley and chase glowing rings for fun.',
+    combatMode: 'Combat', combatModeDesc: 'Destroy ground turrets and enemy gunships across escalating waves. Earn coins and buy hangar upgrades.',
+    scout: 'Scout Chopper', scoutDesc: 'Light and agile with fast boost recovery.',
+    gunship: 'Heavy Gunship', gunshipDesc: 'Thick armor and hard-hitting weapons, slower handling.',
+    racer: 'Sky Racer', racerDesc: 'Very high top speed and boost, but a fragile frame.',
+    power: 'Weapon Power', powerDesc: '+12% gun & rocket damage per level',
+    armorUp: 'Plating', armorDesc: '+18 max HP and stronger armor per level',
+    boostUp: 'Turbo Rotor', boostDesc: '+12% boost capacity per level',
+    reload: 'Cooling System', reloadDesc: '-8% gun heat & rocket reload per level',
+    ammoUp: 'Rocket Rack', ammoDesc: '+2 max rockets per level',
+    cost: 'cost', maxed: 'MAXED', confirmReset: 'Reset coins and hangar upgrades?',
+    survived: 'Survived', destroyed: 'Destroyed', targetsDestroyed: 'Targets', banked: 'Banked', best: 'Best', waveReached: 'Wave',
+    fieldRepair: 'Repair kit', shieldBoost: 'Armor boost', boostPickup: 'Boost refill', ammoPickup: 'Rockets resupplied', coinPickup: 'Coins collected',
+    danger: 'DANGER', phase: 'Phase', overheat: 'Gun overheated!', crashed: 'Hard landing!', ringGet: 'Ring'
+  },
+  pt: {
+    title: 'Comando de Helicóptero', hp: 'HP', shield: 'Blindagem', boost: 'Turbo', gunHeat: 'Calor', ammo: 'Foguetes',
+    wave: 'Onda', targets: 'Alvos', gunships: 'Helicópteros', coins: 'Moedas', rings: 'Anéis', alt: 'Alt', spd: 'Vel', hdg: 'Rumo', pause: 'Pausar', resume: 'Continuar', paused: 'Pausado', mainMenu: 'Menu',
+    helpFree: '<b>Voar:</b> W/S inclina, A/D guina, Espaço/Ctrl ou roda do mouse para subir/descer, Shift turbo. Atravesse os anéis brilhantes só por diversão — sem pressão, sem inimigos.',
+    helpCombat: '<b>Voar:</b> W/S inclina, A/D guina, Espaço/Ctrl ou roda do mouse para subir/descer, Shift turbo. <b>Mira:</b> mouse. <b>Metralhadora:</b> clique. <b>Foguete:</b> clique direito ou R. Saia da zona vermelha em até 10 segundos.',
+    intro: 'Pilote um helicóptero ágil por montanhas, lagos e florestas. Escolha Passeio Livre para relaxar e perseguir anéis cênicos, ou Combate para destruir torres terrestres e helicópteros inimigos em ondas crescentes por moedas e upgrades no hangar.',
+    start: 'Iniciar Voo', garage: 'Hangar', reset: 'Resetar Save', runOver: 'Voo Encerrado', again: 'Voar de Novo',
+    difficulty: 'Dificuldade', easy: 'Fácil', normal: 'Normal', hard: 'Difícil',
+    freeFlight: 'Passeio Livre', freeFlightDesc: 'Apenas voe. Sem inimigos, sem pressão — explore o vale e persiga anéis brilhantes por diversão.',
+    combatMode: 'Combate', combatModeDesc: 'Destrua torres terrestres e helicópteros inimigos em ondas crescentes. Ganhe moedas e compre upgrades no hangar.',
+    scout: 'Helicóptero Scout', scoutDesc: 'Leve e ágil, com recuperação de turbo rápida.',
+    gunship: 'Helicóptero Pesado', gunshipDesc: 'Blindagem grossa e armas fortes, porém mais lento.',
+    racer: 'Sky Racer', racerDesc: 'Velocidade máxima e turbo altíssimos, mas frágil.',
+    power: 'Poder de Fogo', powerDesc: '+12% de dano de arma e foguete por nível',
+    armorUp: 'Blindagem', armorDesc: '+18 HP máximo e blindagem mais forte por nível',
+    boostUp: 'Rotor Turbo', boostDesc: '+12% de capacidade de turbo por nível',
+    reload: 'Sistema de Resfriamento', reloadDesc: '-8% de calor da arma e recarga de foguete por nível',
+    ammoUp: 'Suporte de Foguetes', ammoDesc: '+2 foguetes máximos por nível',
+    cost: 'custo', maxed: 'MAX', confirmReset: 'Resetar moedas e upgrades do hangar?',
+    survived: 'Sobreviveu', destroyed: 'Destruídos', targetsDestroyed: 'Alvos', banked: 'Guardou', best: 'Melhor', waveReached: 'Onda',
+    fieldRepair: 'Kit de reparo', shieldBoost: 'Blindagem reforçada', boostPickup: 'Turbo reabastecido', ammoPickup: 'Foguetes reabastecidos', coinPickup: 'Moedas coletadas',
+    danger: 'PERIGO', phase: 'Fase', overheat: 'Arma superaquecida!', crashed: 'Pouso forçado!', ringGet: 'Anel'
+  },
+  ja: {
+    title: 'ヘリコプターコマンド', hp: 'HP', shield: '装甲', boost: 'ブースト', gunHeat: '過熱', ammo: 'ロケット',
+    wave: 'ウェーブ', targets: '標的', gunships: '敵ヘリ', coins: 'コイン', rings: 'リング', alt: '高度', spd: '速度', hdg: '方位', pause: '一時停止', resume: '再開', paused: '一時停止中', mainMenu: 'メインメニュー',
+    helpFree: '<b>操縦:</b> W/Sでピッチ、A/Dでヨー、Spaceキー/Ctrlキーまたはマウスホイールで上昇・下降、Shiftでブースト。光るリングを気軽にくぐろう。敵もプレッシャーもなし。',
+    helpCombat: '<b>操縦:</b> W/Sでピッチ、A/Dでヨー、Spaceキー/Ctrlキーまたはマウスホイールで上昇・下降、Shiftでブースト。<b>照準:</b> マウス。<b>機銃:</b> クリック。<b>ロケット:</b> 右クリックまたはR。赤い危険ゾーンから10秒以内に脱出。',
+    intro: '山や湖、森の上を身軽なヘリコプターで飛び回ろう。自由飛行モードでのんびりリングを追いかけるか、コンバットモードで地上タレットと敵ヘリを次々撃破してコインとハンガー強化を手に入れよう。',
+    start: 'フライト開始', garage: '格納庫', reset: 'セーブをリセット', runOver: 'フライト終了', again: 'もう一度飛ぶ',
+    difficulty: '難易度', easy: 'イージー', normal: 'ノーマル', hard: 'ハード',
+    freeFlight: '自由飛行', freeFlightDesc: 'ただ飛ぶだけ。敵もプレッシャーもなし。谷を探索し、光るリングを気軽に追いかけよう。',
+    combatMode: 'コンバット', combatModeDesc: '地上タレットと敵ヘリを次々の波で撃破。コインを稼いでハンガーをアップグレードしよう。',
+    scout: 'スカウトヘリ', scoutDesc: '軽量で機敏、ブーストの回復が速い。',
+    gunship: 'ヘビーガンシップ', gunshipDesc: '厚い装甲と強力な武器を持つが、動きは遅い。',
+    racer: 'スカイレーサー', racerDesc: '最高速度とブーストが非常に高いが、機体は脆弱。',
+    power: '兵器出力', powerDesc: 'レベルごとに機銃・ロケットのダメージ+12%',
+    armorUp: '装甲板', armorDesc: 'レベルごとに最大HP+18、装甲強化',
+    boostUp: 'ターボローター', boostDesc: 'レベルごとにブースト容量+12%',
+    reload: '冷却システム', reloadDesc: 'レベルごとに機銃の過熱とロケット再装填-8%',
+    ammoUp: 'ロケットラック', ammoDesc: 'レベルごとにロケット最大数+2',
+    cost: '費用', maxed: '最大', confirmReset: 'コインとハンガー強化をリセットしますか？',
+    survived: '飛行時間', destroyed: '撃破', targetsDestroyed: '標的', banked: '獲得', best: 'ベスト', waveReached: 'ウェーブ',
+    fieldRepair: '修理キット', shieldBoost: '装甲強化', boostPickup: 'ブースト補給', ammoPickup: 'ロケット補給', coinPickup: 'コイン取得',
+    danger: '危険', phase: 'フェーズ', overheat: '銃身過熱！', crashed: '衝突！', ringGet: 'リング'
+  }
+};
+
+const choppers = [
+  { id: 'scout', key: 'scout', hp: 100, accel: 17, turn: 2.3, lift: 15, max: 30, boostMax: 100, reload: .085, rocketReload: 1.05, damage: 1, color: 0xffcf5a },
+  { id: 'gunship', key: 'gunship', hp: 165, accel: 12, turn: 1.5, lift: 11, max: 22, boostMax: 88, reload: .12, rocketReload: 1.3, damage: 1.45, color: 0x78e36f },
+  { id: 'racer', key: 'racer', hp: 78, accel: 21, turn: 2.9, lift: 17, max: 38, boostMax: 118, reload: .07, rocketReload: .92, damage: .82, color: 0x77b8ff }
+];
+const garage = [
+  { id: 'power', name: 'power', desc: 'powerDesc', base: 36, max: 8 },
+  { id: 'armor', name: 'armorUp', desc: 'armorDesc', base: 30, max: 8 },
+  { id: 'boost', name: 'boostUp', desc: 'boostDesc', base: 32, max: 7 },
+  { id: 'reload', name: 'reload', desc: 'reloadDesc', base: 42, max: 7 },
+  { id: 'ammo', name: 'ammoUp', desc: 'ammoDesc', base: 30, max: 6 }
+];
+
+function tr(key) { return I18N[uiPrefs.lang]?.[key] || I18N.en[key] || key; }
+function difficultyMult() { return DIFFICULTY_MULT[uiPrefs.difficulty] || DIFFICULTY_MULT.easy; }
+function loadJson(key, fallback) {
+  try { return { ...fallback, ...JSON.parse(localStorage.getItem(key) || '{}') }; } catch { return { ...fallback }; }
+}
+function saveJson(key, value) { try { localStorage.setItem(key, JSON.stringify(value)); } catch {} }
+function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+function rand(a, b) { return a + Math.random() * (b - a); }
+function angleDelta(a, b) { return Math.atan2(Math.sin(b - a), Math.cos(b - a)); }
+function setScale(el, v) { el.style.transform = `scaleX(${clamp(v, 0, 1)})`; }
+
+const canvasMini = document.getElementById('mini');
+const miniCtx = canvasMini.getContext('2d');
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+document.body.appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(58, innerWidth / innerHeight, .1, 620);
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+const clock = new THREE.Clock();
+const sun = new THREE.DirectionalLight(0xfff0c8, 2.3);
+sun.position.set(40, 70, 30);
+sun.castShadow = true;
+sun.shadow.mapSize.set(1536, 1536);
+sun.shadow.camera.left = -140; sun.shadow.camera.right = 140; sun.shadow.camera.top = 140; sun.shadow.camera.bottom = -140;
+sun.shadow.camera.far = 300;
+scene.add(sun, sun.target, new THREE.HemisphereLight(0xcfe9ff, 0x3b533e, 1.15));
+
+const WORLD = 230;
+const SAFE_WORLD = 165;
+const DANGER_SECONDS = 10;
+const MAX_ALT = 78;
+const MIN_HOVER = 2.0;
+const CRASH_VSPEED = -11;
+const GIMBAL_YAW = THREE.MathUtils.degToRad(72);
+const GIMBAL_PITCH_UP = THREE.MathUtils.degToRad(18);
+const GIMBAL_PITCH_DOWN = THREE.MathUtils.degToRad(72);
+const SEG = 130;
+const groundGeo = new THREE.PlaneGeometry(WORLD * 2, WORLD * 2, SEG, SEG);
+const heights = new Float32Array((SEG + 1) * (SEG + 1));
+const colors = new Float32Array((SEG + 1) * (SEG + 1) * 3);
+const cGrass = new THREE.Color(), cRock = new THREE.Color(), cMix = new THREE.Color();
+function baseHeight(x, z) {
+  return Math.sin(x * .013) * 3.6 + Math.cos(z * .015) * 3.1 + Math.sin((x + z) * .009) * 2.3 + Math.sin(x * .045) * Math.cos(z * .045) * 1.5;
+}
+function initTerrain() {
+  const pos = groundGeo.attributes.position;
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i), z = pos.getY(i);
+    const h = baseHeight(x, z);
+    heights[i] = h;
+    pos.setZ(i, h);
+  }
+  applyTerrainColors();
+  groundGeo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  groundGeo.computeVertexNormals();
+}
+function applyTerrainColors() {
+  cGrass.setHex(uiPrefs.theme === 'light' ? 0x83b96b : 0x3f7e4c);
+  cRock.setHex(uiPrefs.theme === 'light' ? 0xb5ab8f : 0x655a4a);
+  const pos = groundGeo.attributes.position;
+  for (let i = 0; i < pos.count; i++) {
+    const h = heights[i];
+    cMix.copy(cGrass).lerp(cRock, clamp((h + 1) / 6, 0, 1));
+    colors[i * 3] = cMix.r; colors[i * 3 + 1] = cMix.g; colors[i * 3 + 2] = cMix.b;
+  }
+  groundGeo.attributes.color && (groundGeo.attributes.color.needsUpdate = true);
+}
+initTerrain();
+const ground = new THREE.Mesh(groundGeo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .95, flatShading: true }));
+ground.rotation.x = -Math.PI / 2;
+ground.receiveShadow = true;
+scene.add(ground);
+const water = new THREE.Mesh(
+  new THREE.PlaneGeometry(WORLD * 2.4, WORLD * 2.4),
+  new THREE.MeshStandardMaterial({ color: 0x2c7ea6, roughness: .28, metalness: .12, transparent: true, opacity: .82 })
+);
+water.rotation.x = -Math.PI / 2;
+water.position.y = -1.35;
+scene.add(water);
+const grid = new THREE.GridHelper(WORLD * 2, 46, 0xffffff, 0xffffff);
+grid.material.transparent = true;
+grid.material.opacity = .07;
+scene.add(grid);
+const safeRing = new THREE.Mesh(
+  new THREE.RingGeometry(SAFE_WORLD - .8, SAFE_WORLD, 160),
+  new THREE.MeshBasicMaterial({ color: 0x65e6b6, transparent: true, opacity: .38, side: THREE.DoubleSide })
+);
+safeRing.rotation.x = -Math.PI / 2;
+safeRing.position.y = .2;
+safeRing.visible = false;
+scene.add(safeRing);
+const dangerRing = new THREE.Mesh(
+  new THREE.RingGeometry(SAFE_WORLD, WORLD - 5, 160),
+  new THREE.MeshBasicMaterial({ color: 0xff3f58, transparent: true, opacity: .085, side: THREE.DoubleSide })
+);
+dangerRing.rotation.x = -Math.PI / 2;
+dangerRing.position.y = .14;
+dangerRing.visible = false;
+scene.add(dangerRing);
+
+function terrainIndex(ix, iz) { return iz * (SEG + 1) + ix; }
+function terrainH(x, z) {
+  const gx = clamp((x / (WORLD * 2) + .5) * SEG, 0, SEG);
+  const gz = clamp((z / (WORLD * 2) + .5) * SEG, 0, SEG);
+  const x0 = Math.floor(gx), z0 = Math.floor(gz);
+  const x1 = Math.min(SEG, x0 + 1), z1 = Math.min(SEG, z0 + 1);
+  const tx = gx - x0, tz = gz - z0;
+  const h00 = heights[terrainIndex(x0, z0)], h10 = heights[terrainIndex(x1, z0)];
+  const h01 = heights[terrainIndex(x0, z1)], h11 = heights[terrainIndex(x1, z1)];
+  return (h00 * (1 - tx) + h10 * tx) * (1 - tz) + (h01 * (1 - tx) + h11 * tx) * tz;
+}
+
+function makeBox(w, h, d, color, metal = .1) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshStandardMaterial({ color, roughness: .62, metalness: metal }));
+  m.castShadow = true; m.receiveShadow = true;
+  return m;
+}
+function makeHeliMesh(color, enemy = false) {
+  const g = new THREE.Group();
+  const body = makeBox(1.6, 1.05, 3.1, color, .2);
+  const tailBoom = makeBox(.34, .34, 2.9, color, .18);
+  tailBoom.position.set(0, .12, -2.6);
+  const tailFin = makeBox(.12, .95, .7, enemy ? 0x5f2633 : 0x2b4050, .18);
+  tailFin.position.set(0, .68, -3.95);
+  const cockpit = makeBox(1.28, .62, 1.15, enemy ? 0x2a171d : 0x9be7ff, .32);
+  cockpit.position.set(0, .5, 1.05);
+  const skidMat = 0x14171a;
+  for (const x of [-.62, .62]) {
+    const skid = makeBox(.12, .12, 2.5, skidMat, .2);
+    skid.position.set(x, -.72, 0);
+    g.add(skid);
+    const strutF = makeBox(.09, .5, .09, skidMat, .2);
+    strutF.position.set(x, -.4, .8);
+    const strutB = makeBox(.09, .5, .09, skidMat, .2);
+    strutB.position.set(x, -.4, -.8);
+    g.add(strutF, strutB);
+  }
+  const rotor = new THREE.Group();
+  rotor.name = 'rotor';
+  rotor.position.set(0, .95, .15);
+  const hub = new THREE.Mesh(new THREE.CylinderGeometry(.12, .12, .22, 10), new THREE.MeshStandardMaterial({ color: 0x22262b, metalness: .5, roughness: .4 }));
+  hub.castShadow = true;
+  const blade1 = makeBox(3.9, .06, .26, 0x1c2024, .3);
+  blade1.position.y = .1;
+  const blade2 = blade1.clone();
+  blade2.rotation.y = Math.PI / 2;
+  rotor.add(hub, blade1, blade2);
+  const tailRotor = new THREE.Group();
+  tailRotor.name = 'tailRotor';
+  tailRotor.position.set(.22, .68, -3.95);
+  const tb1 = makeBox(.06, .82, .1, 0x1c2024, .3);
+  const tb2 = tb1.clone();
+  tb2.rotation.x = Math.PI / 2;
+  tailRotor.add(tb1, tb2);
+  const gun = new THREE.Group();
+  gun.name = 'gun';
+  gun.position.set(0, -.42, 1.35);
+  const gunBody = makeBox(.3, .3, .8, enemy ? 0x2a171d : 0x172936, .3);
+  const barrel = makeBox(.13, .13, 1.2, enemy ? 0xff9aa8 : 0xe9f1d8, .35);
+  barrel.position.z = .85;
+  gun.add(gunBody, barrel);
+  g.add(body, tailBoom, tailFin, cockpit, rotor, tailRotor, gun);
+  g.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+  return g;
+}
+function makeGroundTurret(x, z) {
+  const g = new THREE.Group();
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.5, 1.3, 8), new THREE.MeshStandardMaterial({ color: 0x384755, roughness: .7 }));
+  const head = new THREE.Group();
+  head.name = 'head';
+  const cab = makeBox(1.2, .68, 1.2, 0x912f3c, .22);
+  const barrel = makeBox(.28, .28, 2.1, 0xffcad4, .3);
+  barrel.position.set(0, 0, 1.35);
+  head.add(cab, barrel);
+  base.position.y = .65; head.position.y = 1.6;
+  g.add(base, head);
+  const y = terrainH(x, z);
+  g.position.set(x, y, z);
+  g.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+  scene.add(g);
+  return { mesh: g, head, hp: 75 + run.wave * 11, maxHp: 75 + run.wave * 11, shoot: rand(.6, 1.4), yaw: 0, pitch: 0, gunY: y + 1.6 };
+}
+function makeTree(x, z) {
+  const g = new THREE.Group();
+  const trunk = makeBox(.36, 2.2, .36, 0x5b4028, .05);
+  trunk.position.y = 1.1;
+  const leafColor = Math.random() < .5 ? 0x2f6b3a : 0x3a7d44;
+  const leaf1 = new THREE.Mesh(new THREE.ConeGeometry(1.5, 2.6, 7), new THREE.MeshStandardMaterial({ color: leafColor, roughness: .85, flatShading: true }));
+  leaf1.position.y = 2.9;
+  const leaf2 = new THREE.Mesh(new THREE.ConeGeometry(1.1, 2.0, 7), new THREE.MeshStandardMaterial({ color: leafColor, roughness: .85, flatShading: true }));
+  leaf2.position.y = 4.1;
+  g.add(trunk, leaf1, leaf2);
+  g.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+  g.position.set(x, terrainH(x, z), z);
+  g.rotation.y = rand(0, Math.PI * 2);
+  const s = rand(.75, 1.35);
+  g.scale.setScalar(s);
+  scene.add(g);
+}
+function makeRock(x, z) {
+  const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(rand(.7, 1.7), 0), new THREE.MeshStandardMaterial({ color: 0x6d6a63, roughness: .95, flatShading: true }));
+  rock.castShadow = true; rock.receiveShadow = true;
+  rock.position.set(x, terrainH(x, z) + .3, z);
+  rock.rotation.set(rand(0, 3), rand(0, 3), rand(0, 3));
+  scene.add(rock);
+}
+function makeHelipad() {
+  const g = new THREE.Group();
+  const pad = new THREE.Mesh(new THREE.CylinderGeometry(4.2, 4.4, .35, 24), new THREE.MeshStandardMaterial({ color: 0x2c3238, roughness: .8 }));
+  const ring = new THREE.Mesh(new THREE.RingGeometry(3.3, 3.7, 32), new THREE.MeshBasicMaterial({ color: 0xffcf5a, side: THREE.DoubleSide }));
+  ring.rotation.x = -Math.PI / 2;
+  ring.position.y = .19;
+  const barH = makeBox(1.8, .12, .42, 0xffcf5a, 0);
+  const barV = makeBox(.42, .12, 1.8, 0xffcf5a, 0);
+  barH.position.y = .2; barV.position.y = .2;
+  g.add(pad, ring, barH, barV);
+  g.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+  g.position.set(0, terrainH(0, 0), 0);
+  scene.add(g);
+}
+function decorateWorld() {
+  makeHelipad();
+  for (let i = 0; i < 70; i++) {
+    const a = Math.random() * Math.PI * 2, d = rand(14, WORLD - 10);
+    const x = Math.cos(a) * d, z = Math.sin(a) * d;
+    if (terrainH(x, z) < -.9) continue;
+    makeTree(x, z);
+  }
+  for (let i = 0; i < 26; i++) {
+    const a = Math.random() * Math.PI * 2, d = rand(20, WORLD - 8);
+    const x = Math.cos(a) * d, z = Math.sin(a) * d;
+    makeRock(x, z);
+  }
+}
+decorateWorld();
+
+let selectedMode = 'free';
+let selectedChopper = 'scout';
+let state = 'menu';
+let run, player;
+let groundTurrets = [], enemies = [], bullets = [], pickups = [], effects = [], rings = [];
+let spawnTimer = 0, pickupTimer = 0, fireHeld = false;
+let wheelVertical = 0, wheelTimer = 0;
+const keys = new Set();
+const tmpAimPoint = new THREE.Vector3();
+const tmpV = new THREE.Vector3();
+
+function computeAim(fromPos) {
+  raycaster.setFromCamera(mouse, camera);
+  const point = raycaster.ray.at(160, tmpAimPoint.clone());
+  const toPoint = point.clone().sub(fromPos);
+  const worldYawRaw = Math.atan2(toPoint.x, toPoint.z);
+  const rel = clamp(angleDelta(player.yaw, worldYawRaw), -GIMBAL_YAW, GIMBAL_YAW);
+  const worldYaw = player.yaw + rel;
+  const horizDist = Math.max(.001, Math.hypot(toPoint.x, toPoint.z));
+  let pitch = Math.atan2(toPoint.y, horizDist);
+  pitch = clamp(pitch, -GIMBAL_PITCH_DOWN, GIMBAL_PITCH_UP);
+  const dir = new THREE.Vector3(Math.sin(worldYaw) * Math.cos(pitch), Math.sin(pitch), Math.cos(worldYaw) * Math.cos(pitch)).normalize();
+  return { dir, rel, pitch };
+}
+function clearWorld() {
+  for (const list of [groundTurrets, enemies, bullets, pickups, effects, rings]) {
+    for (const o of list) scene.remove(o.mesh);
+    list.length = 0;
+  }
+  if (player?.mesh) scene.remove(player.mesh);
+}
+function spawnRing() {
+  const a = Math.random() * Math.PI * 2, d = rand(20, WORLD - 20);
+  const x = Math.cos(a) * d, z = Math.sin(a) * d;
+  const y = terrainH(x, z) + rand(9, 32);
+  const mesh = new THREE.Mesh(new THREE.TorusGeometry(3.2, .32, 10, 24), new THREE.MeshStandardMaterial({ color: 0xffcf5a, emissive: 0xffcf5a, emissiveIntensity: .55, roughness: .35 }));
+  mesh.position.set(x, y, z);
+  mesh.rotation.y = rand(0, Math.PI * 2);
+  mesh.rotation.x = rand(-.3, .3);
+  mesh.castShadow = true;
+  scene.add(mesh);
+  rings.push({ mesh, spin: rand(.4, .9) });
+}
+function startWave() {
+  for (const t of groundTurrets) scene.remove(t.mesh);
+  groundTurrets.length = 0;
+  run.waveTargets = run.wave;
+  run.enemyTarget = Math.round((8 + (run.wave - 1) * 4) * difficultyMult());
+  run.enemiesSpawned = 0;
+  run.waveKills = 0;
+  run.phaseIntro = 2.6;
+  const minDist = 46, maxDist = SAFE_WORLD - 20;
+  for (let i = 0; i < run.wave; i++) {
+    const a = (Math.PI * 2 * i / run.wave) + rand(-.35, .35) + run.wave * .24;
+    const d = rand(minDist, maxDist);
+    groundTurrets.push(makeGroundTurret(Math.cos(a) * d, Math.sin(a) * d));
+  }
+  spawnTimer = Math.max(1.0, 2.6 - run.wave * .08);
+  document.getElementById('phaseTitle').textContent = `${tr('phase')} ${run.wave}`;
+  document.getElementById('phaseBanner').hidden = false;
+  toast(`${tr('wave')} ${run.wave}: ${run.waveTargets} ${tr('targets')}`);
+}
+function clearEnemyHelis() {
+  for (const e of enemies) scene.remove(e.mesh);
+  enemies.length = 0;
+}
+function completeWave() {
+  clearEnemyHelis();
+  for (const b of bullets) scene.remove(b.mesh);
+  bullets.length = 0;
+  run.coins += 4 + run.wave * 2;
+  run.wave += 1;
+  player.shield = Math.min(run.shieldMax, player.shield + 22);
+  player.hp = Math.min(run.maxHp, player.hp + 14);
+  setTimeout(() => { if (state === 'play') startWave(); }, 700);
+}
+function updateModeVisibility() {
+  document.querySelectorAll('.combat-only').forEach(el => el.classList.toggle('hidden', run.mode !== 'combat'));
+  document.querySelectorAll('.free-only').forEach(el => el.classList.toggle('hidden', run.mode === 'combat'));
+  document.getElementById('crosshair').hidden = run.mode !== 'combat';
+}
+function startRun() {
+  clearWorld();
+  const def = choppers.find(c => c.id === selectedChopper) || choppers[0];
+  run = {
+    mode: selectedMode, wave: 1, time: 0, kills: 0, turretKills: 0, coins: 0, ringCount: 0,
+    waveTargets: 0, enemyTarget: 8, enemiesSpawned: 0, waveKills: 0,
+    damage: def.damage * (1 + save.power * .12),
+    maxHp: def.hp + save.armor * 18,
+    shieldMax: 45 + save.armor * 9,
+    boostMax: def.boostMax * (1 + save.boost * .12),
+    reloadMult: Math.pow(.92, save.reload),
+    rocketCap: 6 + save.ammo * 2,
+    gunHeat: 0, overheated: false, gunTimer: 0, rocketTimer: 0, danger: 0, phaseIntro: 0
+  };
+  player = {
+    def, mesh: makeHeliMesh(def.color), pos: new THREE.Vector3(0, terrainH(0, 0) + 8, 0), yaw: 0, speed: 0, vy: 0,
+    hp: run.maxHp, shield: run.shieldMax, boost: run.boostMax, rockets: run.rocketCap, inv: 0
+  };
+  player.mesh.position.copy(player.pos);
+  scene.add(player.mesh);
+  spawnTimer = 2.4; pickupTimer = 2.2;
+  rings.length = 0;
+  document.getElementById('menu').hidden = true;
+  document.getElementById('gameOver').hidden = true;
+  document.getElementById('pauseOverlay').hidden = true;
+  document.getElementById('helpText').innerHTML = tr(run.mode === 'combat' ? 'helpCombat' : 'helpFree');
+  safeRing.visible = run.mode === 'combat';
+  dangerRing.visible = run.mode === 'combat';
+  updateModeVisibility();
+  state = 'play';
+  if (run.mode === 'combat') {
+    startWave();
+  } else {
+    for (let i = 0; i < 12; i++) spawnRing();
+  }
+  toast(tr('start'));
+}
+function spawnEnemyHeli() {
+  const a = Math.random() * Math.PI * 2;
+  const d = rand(90, SAFE_WORLD - 14);
+  const x = Math.cos(a) * d, z = Math.sin(a) * d;
+  const y = terrainH(x, z) + rand(9, 22);
+  const mesh = makeHeliMesh(0xcc394f, true);
+  mesh.position.set(x, y, z);
+  scene.add(mesh);
+  enemies.push({
+    mesh, pos: new THREE.Vector3(x, y, z), yaw: a + Math.PI, speed: 0,
+    hp: 42 + run.wave * 8, maxHp: 42 + run.wave * 8, shoot: rand(1.0, 2.0), ram: 0,
+    strafeDir: Math.random() < .5 ? 1 : -1, strafeSwitch: rand(2, 4.5), targetAlt: rand(9, 24), altSwitch: rand(3, 6)
+  });
+  run.enemiesSpawned++;
+}
+function spawnPickup(kind = null) {
+  const a = Math.random() * Math.PI * 2, d = rand(20, SAFE_WORLD - 15);
+  const x = Math.cos(a) * d, z = Math.sin(a) * d;
+  const y = terrainH(x, z) + rand(6, 20);
+  const kinds = ['coins', 'repair', 'shield', 'boost', 'ammo'];
+  kind ||= kinds[Math.floor(Math.random() * kinds.length)];
+  const kColors = { coins: 0xffd55a, repair: 0x78e36f, shield: 0x77b8ff, boost: 0xff7e55, ammo: 0xf07cff };
+  const geo = kind === 'coins' ? new THREE.CylinderGeometry(.5, .5, .16, 16) : new THREE.OctahedronGeometry(.65, 0);
+  const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: kColors[kind], emissive: kColors[kind], emissiveIntensity: .3, roughness: .45 }));
+  mesh.position.set(x, y, z);
+  mesh.castShadow = true;
+  scene.add(mesh);
+  pickups.push({ mesh, kind, value: kind === 'coins' ? 3 + Math.floor(Math.random() * 6) : 1, spin: rand(1.6, 3.2) });
+}
+function fireGun() {
+  const dir = computeAim(player.pos).dir;
+  const gunWorld = new THREE.Vector3();
+  player.mesh.getObjectByName('gun').getWorldPosition(gunWorld);
+  const mesh = new THREE.Mesh(new THREE.SphereGeometry(.24, 8, 8), new THREE.MeshBasicMaterial({ color: 0xffcf5a }));
+  mesh.position.copy(gunWorld);
+  scene.add(mesh);
+  bullets.push({ mesh, dir, hostile: false, life: 1.6, speed: 96, damage: 9 * run.damage, splash: 0 });
+}
+function fireRocket() {
+  const dir = computeAim(player.pos).dir;
+  const gunWorld = new THREE.Vector3();
+  player.mesh.getObjectByName('gun').getWorldPosition(gunWorld);
+  const mesh = new THREE.Mesh(new THREE.CylinderGeometry(.14, .18, .9, 8), new THREE.MeshStandardMaterial({ color: 0xff8a4a, emissive: 0xff5a20, emissiveIntensity: .5 }));
+  mesh.position.copy(gunWorld);
+  mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
+  scene.add(mesh);
+  bullets.push({ mesh, dir, hostile: false, life: 2.6, speed: 46, damage: 34 * run.damage, splash: 6.5 });
+}
+function shootHostile(pos, targetPos, isTurret) {
+  const dir = targetPos.clone().sub(pos).normalize();
+  const mesh = new THREE.Mesh(new THREE.SphereGeometry(.26, 8, 8), new THREE.MeshBasicMaterial({ color: 0xff6a7e }));
+  mesh.position.copy(pos);
+  scene.add(mesh);
+  const dmg = (isTurret ? 6 : 5) + run.wave * .8 * difficultyMult() * .5;
+  bullets.push({ mesh, dir, hostile: true, life: 2.0, speed: isTurret ? 34 : 40, damage: dmg, splash: 0 });
+}
+function updatePlayer(dt) {
+  const throttle = (keys.has('KeyW') || keys.has('ArrowUp') ? 1 : 0) - (keys.has('KeyS') || keys.has('ArrowDown') ? 1 : 0);
+  const steer = (keys.has('KeyD') || keys.has('ArrowRight') ? 1 : 0) - (keys.has('KeyA') || keys.has('ArrowLeft') ? 1 : 0);
+  wheelTimer = Math.max(0, wheelTimer - dt);
+  const keyVertical = (keys.has('Space') ? 1 : 0) - (keys.has('ControlLeft') || keys.has('ControlRight') || keys.has('KeyC') ? 1 : 0);
+  const vertical = clamp(keyVertical + (wheelTimer > 0 ? wheelVertical : 0), -1, 1);
+  const boosting = (keys.has('ShiftLeft') || keys.has('ShiftRight')) && player.boost > 2;
+  if (throttle) player.speed += player.def.accel * dt * throttle * (boosting && throttle > 0 ? 1.6 : 1);
+  else player.speed *= Math.pow(.3, dt);
+  player.speed = clamp(player.speed, -player.def.max * .4, player.def.max * (boosting ? 1.4 : 1));
+  player.yaw -= steer * player.def.turn * dt;
+  if (boosting && throttle > 0) player.boost = Math.max(0, player.boost - 34 * dt);
+  else player.boost = Math.min(run.boostMax, player.boost + 16 * dt);
+  const fwd = new THREE.Vector3(Math.sin(player.yaw), 0, Math.cos(player.yaw));
+  player.pos.addScaledVector(fwd, player.speed * dt);
+  player.pos.x = clamp(player.pos.x, -WORLD + 4, WORLD - 4);
+  player.pos.z = clamp(player.pos.z, -WORLD + 4, WORLD - 4);
+  if (vertical) player.vy += vertical * player.def.lift * dt * 2.2;
+  else player.vy *= Math.pow(.12, dt);
+  player.vy = clamp(player.vy, -player.def.lift * 1.3, player.def.lift * 1.3);
+  player.pos.y += player.vy * dt;
+  const floor = terrainH(player.pos.x, player.pos.z) + MIN_HOVER;
+  if (player.pos.y < floor) {
+    if (player.vy < CRASH_VSPEED) {
+      const impact = Math.min(1, (-player.vy + CRASH_VSPEED) / 20);
+      damagePlayer(6 + impact * 26);
+      explode(player.pos, 0xffcf5a, .6);
+      toast(tr('crashed'));
+    }
+    player.pos.y = floor;
+    player.vy = 0;
+  }
+  if (player.pos.y > MAX_ALT) { player.pos.y = MAX_ALT; player.vy = Math.min(player.vy, 0); }
+  player.mesh.position.copy(player.pos);
+  player.mesh.rotation.y = player.yaw;
+  player.mesh.rotation.z = clamp(-steer * .32, -.4, .4);
+  player.mesh.rotation.x = clamp(-player.speed * .014 + player.vy * -.012, -.32, .32);
+  player.mesh.getObjectByName('rotor').rotation.y += dt * 34;
+  player.mesh.getObjectByName('tailRotor').rotation.x += dt * 40;
+  if (run.mode === 'combat') {
+    const aim = computeAim(player.pos);
+    const gun = player.mesh.getObjectByName('gun');
+    gun.rotation.y = aim.rel;
+    gun.rotation.x = -aim.pitch;
+    run.gunTimer = Math.max(0, run.gunTimer - dt);
+    if (run.overheated) {
+      run.gunHeat = Math.max(0, run.gunHeat - 55 * dt);
+      if (run.gunHeat <= 35) run.overheated = false;
+    } else {
+      run.gunHeat = Math.max(0, run.gunHeat - 22 * dt);
+      if (fireHeld && run.gunTimer <= 0) {
+        fireGun();
+        run.gunTimer = player.def.reload * run.reloadMult;
+        run.gunHeat = Math.min(100, run.gunHeat + 9);
+        if (run.gunHeat >= 100) { run.overheated = true; toast(tr('overheat')); }
+      }
+    }
+    run.rocketTimer = Math.max(0, run.rocketTimer - dt);
+  }
+  player.shield = Math.min(run.shieldMax, player.shield + dt * 4.2);
+  player.inv = Math.max(0, player.inv - dt);
+}
+function tryFireRocket() {
+  if (!run || run.mode !== 'combat' || state !== 'play') return;
+  if (run.rocketTimer > 0 || player.rockets <= 0) return;
+  player.rockets--;
+  fireRocket();
+  run.rocketTimer = player.def.rocketReload * run.reloadMult;
+}
+function updateGroundTurrets(dt) {
+  for (let i = groundTurrets.length - 1; i >= 0; i--) {
+    const t = groundTurrets[i];
+    const gunPos = new THREE.Vector3(t.mesh.position.x, t.gunY, t.mesh.position.z);
+    const toP = player.pos.clone().sub(gunPos);
+    const dist = toP.length();
+    const desiredYaw = Math.atan2(toP.x, toP.z);
+    t.yaw += angleDelta(t.yaw, desiredYaw) * Math.min(1, dt * 3.2);
+    const horiz = Math.max(.001, Math.hypot(toP.x, toP.z));
+    const desiredPitch = clamp(Math.atan2(toP.y, horiz), -.1, 1.0);
+    t.pitch += (desiredPitch - t.pitch) * Math.min(1, dt * 3);
+    t.head.rotation.y = t.yaw;
+    t.head.rotation.x = -t.pitch;
+    if (run.phaseIntro > 0) continue;
+    t.shoot -= dt;
+    if (dist < 60 && t.shoot <= 0) {
+      shootHostile(gunPos, player.pos, true);
+      t.shoot = rand(1.6, 2.6);
+    }
+    if (t.hp <= 0) {
+      run.turretKills++;
+      run.coins += 5;
+      if (Math.random() < .6) spawnPickup(Math.random() < .5 ? 'ammo' : 'coins');
+      explode(t.mesh.position, 0xffcf5a, 1);
+      scene.remove(t.mesh);
+      groundTurrets.splice(i, 1);
+      if (groundTurrets.length === 0) completeWave();
+    }
+  }
+}
+function updateEnemyHelis(dt) {
+  for (let i = enemies.length - 1; i >= 0; i--) {
+    const e = enemies[i];
+    const toP = player.pos.clone().sub(e.pos);
+    const horiz = new THREE.Vector3(toP.x, 0, toP.z);
+    const dist = horiz.length();
+    const desiredYaw = Math.atan2(horiz.x, horiz.z);
+    e.yaw += angleDelta(e.yaw, desiredYaw) * Math.min(1, dt * 2.2);
+    const preferred = 34;
+    e.speed += (dist > preferred + 6 ? 12 : dist < preferred - 6 ? -12 : 0) * dt;
+    e.speed = clamp(e.speed, -6, 14 + run.wave * .3);
+    const fwd = new THREE.Vector3(Math.sin(e.yaw), 0, Math.cos(e.yaw));
+    const right = new THREE.Vector3(Math.cos(e.yaw), 0, -Math.sin(e.yaw));
+    e.pos.addScaledVector(fwd, e.speed * dt);
+    e.strafeSwitch -= dt;
+    if (e.strafeSwitch <= 0) { e.strafeDir *= -1; e.strafeSwitch = rand(2.5, 5); }
+    e.pos.addScaledVector(right, e.strafeDir * 9 * dt);
+    e.altSwitch -= dt;
+    if (e.altSwitch <= 0) { e.targetAlt = rand(9, 26); e.altSwitch = rand(3.5, 6.5); }
+    const desiredY = terrainH(e.pos.x, e.pos.z) + e.targetAlt;
+    e.pos.y += (desiredY - e.pos.y) * Math.min(1, dt * 1.4);
+    e.pos.x = clamp(e.pos.x, -SAFE_WORLD + 5, SAFE_WORLD - 5);
+    e.pos.z = clamp(e.pos.z, -SAFE_WORLD + 5, SAFE_WORLD - 5);
+    e.pos.y = clamp(e.pos.y, terrainH(e.pos.x, e.pos.z) + 4, MAX_ALT - 2);
+    e.mesh.position.copy(e.pos);
+    e.mesh.rotation.y = e.yaw;
+    e.mesh.rotation.z = clamp(-e.strafeDir * .22, -.3, .3);
+    e.mesh.getObjectByName('rotor').rotation.y += dt * 34;
+    e.mesh.getObjectByName('tailRotor').rotation.x += dt * 40;
+    if (run.phaseIntro <= 0) {
+      e.shoot -= dt;
+      if (dist < 52 && e.shoot <= 0) { shootHostile(e.pos, player.pos, false); e.shoot = rand(1.4, 2.4); }
+      e.ram -= dt;
+      const dist3d = e.pos.distanceTo(player.pos);
+      if (dist3d < 2.6 && e.ram <= 0) {
+        damagePlayer(3 + run.wave * .25);
+        e.hp -= 5;
+        e.ram = .9;
+      }
+    }
+    if (e.hp <= 0) killEnemyHeli(i);
+  }
+}
+function updateBullets(dt) {
+  for (let i = bullets.length - 1; i >= 0; i--) {
+    const b = bullets[i];
+    b.life -= dt;
+    b.mesh.position.addScaledVector(b.dir, b.speed * dt);
+    const groundY = terrainH(b.mesh.position.x, b.mesh.position.z);
+    let remove = b.life <= 0 || Math.abs(b.mesh.position.x) > WORLD || Math.abs(b.mesh.position.z) > WORLD || b.mesh.position.y > MAX_ALT + 25;
+    if (!remove && b.mesh.position.y <= groundY) remove = true;
+    if (!remove && b.hostile && b.mesh.position.distanceTo(player.pos) < 1.9 && player.inv <= 0) {
+      damagePlayer(b.damage);
+      remove = true;
+    }
+    if (!remove && !b.hostile) {
+      for (const e of enemies) {
+        if (b.mesh.position.distanceTo(e.pos) < 1.9) { e.hp -= b.damage; remove = true; break; }
+      }
+      if (!remove) for (const t of groundTurrets) {
+        const gunPos = tmpV.set(t.mesh.position.x, t.gunY, t.mesh.position.z);
+        if (b.mesh.position.distanceTo(gunPos) < 2.0) { t.hp -= b.damage; remove = true; break; }
+      }
+    }
+    if (remove) {
+      if (b.splash > 0) {
+        for (const e of enemies) if (b.mesh.position.distanceTo(e.pos) < b.splash) e.hp -= b.damage * .6;
+        for (const t of groundTurrets) {
+          const gunPos = tmpV.set(t.mesh.position.x, t.gunY, t.mesh.position.z);
+          if (b.mesh.position.distanceTo(gunPos) < b.splash) t.hp -= b.damage * .6;
+        }
+        if (!b.hostile && b.mesh.position.distanceTo(player.pos) < b.splash) damagePlayer(b.damage * .2);
+        explode(b.mesh.position, 0xff8a4a, .9);
+      } else {
+        spark(b.mesh.position, b.hostile ? 0xff5b71 : 0xffcf5a);
+      }
+      scene.remove(b.mesh);
+      bullets.splice(i, 1);
+    }
+  }
+}
+function updatePickups(dt) {
+  for (let i = pickups.length - 1; i >= 0; i--) {
+    const p = pickups[i];
+    p.mesh.rotation.y += dt * p.spin;
+    const dist = p.mesh.position.distanceTo(player.pos);
+    if (dist < 7) p.mesh.position.lerp(player.pos, dt * 2.4);
+    if (dist < 2.0) {
+      collectPickup(p);
+      scene.remove(p.mesh);
+      pickups.splice(i, 1);
+    }
+  }
+}
+function updateRings(dt) {
+  for (const r of rings) r.mesh.rotation.z += dt * r.spin;
+  for (let i = rings.length - 1; i >= 0; i--) {
+    const r = rings[i];
+    if (r.mesh.position.distanceTo(player.pos) < 3.4) {
+      run.ringCount++;
+      toast(`+1 ${tr('ringGet')}`);
+      scene.remove(r.mesh);
+      rings.splice(i, 1);
+      spawnRing();
+    }
+  }
+}
+function updateEffects(dt) {
+  for (let i = effects.length - 1; i >= 0; i--) {
+    const e = effects[i];
+    e.life -= dt;
+    if (e.vel) {
+      e.vel.y -= 9 * dt;
+      e.mesh.position.addScaledVector(e.vel, dt);
+    }
+    if (e.grow) e.mesh.scale.addScalar(dt * e.grow);
+    e.mesh.material.opacity = Math.max(0, e.life / e.max);
+    if (e.life <= 0) { scene.remove(e.mesh); effects.splice(i, 1); }
+  }
+}
+function collectPickup(p) {
+  if (p.kind === 'coins') { run.coins += p.value; toast(`${tr('coinPickup')} +${p.value}`); }
+  if (p.kind === 'repair') { player.hp = Math.min(run.maxHp, player.hp + 34); toast(tr('fieldRepair')); }
+  if (p.kind === 'shield') { player.shield = Math.min(run.shieldMax, player.shield + 42); toast(tr('shieldBoost')); }
+  if (p.kind === 'boost') { player.boost = Math.min(run.boostMax, player.boost + 50); toast(tr('boostPickup')); }
+  if (p.kind === 'ammo') { player.rockets = Math.min(run.rocketCap, player.rockets + 3); toast(tr('ammoPickup')); }
+}
+function damagePlayer(amount) {
+  player.inv = .18;
+  const absorbed = Math.min(player.shield, amount);
+  player.shield -= absorbed;
+  player.hp -= amount - absorbed;
+  if (player.hp <= 0) endRun();
+}
+function killEnemyHeli(i) {
+  const e = enemies[i];
+  run.kills++;
+  run.waveKills++;
+  run.coins += 3;
+  if (Math.random() < .45) spawnPickup(Math.random() < .55 ? 'coins' : 'repair');
+  explode(e.pos, 0xff5b71, 1);
+  scene.remove(e.mesh);
+  enemies.splice(i, 1);
+}
+function spark(pos, color) {
+  const mesh = new THREE.Mesh(new THREE.RingGeometry(.3, .46, 16), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: .8, side: THREE.DoubleSide }));
+  mesh.position.copy(pos);
+  scene.add(mesh);
+  effects.push({ mesh, life: .22, max: .22, grow: 4 });
+}
+function sparks(pos, color, count = 14) {
+  const mat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: .9 });
+  const geo = new THREE.SphereGeometry(.09, 6, 6);
+  for (let i = 0; i < count; i++) {
+    const mesh = new THREE.Mesh(geo, mat.clone());
+    mesh.position.copy(pos);
+    scene.add(mesh);
+    const a = Math.random() * Math.PI * 2;
+    const speed = rand(3, 8.5);
+    effects.push({ mesh, life: rand(.35, .7), max: .7, grow: 0, vel: new THREE.Vector3(Math.sin(a) * speed, rand(2, 7), Math.cos(a) * speed) });
+  }
+}
+function explode(pos, color, scale = 1) {
+  for (let i = 0; i < 2; i++) spark(pos, color);
+  sparks(pos, color, Math.round(15 * scale));
+}
+function updateRun(dt) {
+  if (state !== 'play') return;
+  run.time += dt;
+  if (run.phaseIntro > 0) {
+    run.phaseIntro = Math.max(0, run.phaseIntro - dt);
+    document.getElementById('phaseBanner').hidden = false;
+    if (run.phaseIntro <= 0) document.getElementById('phaseBanner').hidden = true;
+  }
+  updatePlayer(dt);
+  if (run.mode === 'combat') {
+    const outsideSafe = Math.hypot(player.pos.x, player.pos.z) > SAFE_WORLD;
+    run.danger = outsideSafe ? run.danger + dt : Math.max(0, run.danger - dt * 2.5);
+    if (run.danger >= DANGER_SECONDS) {
+      player.hp = 0;
+      updateUi();
+      endRun();
+      return;
+    }
+    spawnTimer -= dt; pickupTimer -= dt;
+    if (spawnTimer <= 0 && run.phaseIntro <= 0 && run.enemiesSpawned < run.enemyTarget) {
+      const remaining = run.enemyTarget - run.enemiesSpawned;
+      const n = Math.min(1 + Math.floor(run.wave / 3), 4, remaining);
+      for (let i = 0; i < n; i++) spawnEnemyHeli();
+      spawnTimer = Math.max(1.0, 2.8 - run.wave * .08);
+    }
+    if (pickupTimer <= 0) { spawnPickup(); pickupTimer = rand(6, 9); }
+    updateGroundTurrets(dt);
+    updateEnemyHelis(dt);
+    updateBullets(dt);
+    updatePickups(dt);
+  } else {
+    updateRings(dt);
+  }
+  updateEffects(dt);
+  updateCamera(dt);
+  updateUi();
+}
+function updateCamera(dt) {
+  const fwd = new THREE.Vector3(Math.sin(player.yaw), 0, Math.cos(player.yaw));
+  const desired = player.pos.clone().addScaledVector(fwd, -16).add(new THREE.Vector3(0, 8.5, 0));
+  camera.position.lerp(desired, 1 - Math.pow(.0015, dt));
+  camera.lookAt(player.pos.x, player.pos.y + 1.0, player.pos.z);
+  sun.target.position.copy(player.pos);
+}
+function updateUi() {
+  setScale(document.getElementById('hpBar'), player.hp / run.maxHp);
+  setScale(document.getElementById('shieldBar'), player.shield / run.shieldMax);
+  setScale(document.getElementById('boostBar'), player.boost / run.boostMax);
+  setScale(document.getElementById('heatBar'), run.gunHeat / 100);
+  document.getElementById('ammo').textContent = player.rockets;
+  document.getElementById('wave').textContent = run.wave;
+  document.getElementById('targetGoal').textContent = `${Math.max(0, groundTurrets.length)}/${run.waveTargets || run.wave}`;
+  document.getElementById('gunshipGoal').textContent = `${Math.max(0, run.enemyTarget - run.waveKills)}/${run.enemyTarget}`;
+  document.getElementById('coins').textContent = save.coins + run.coins;
+  document.getElementById('ringCount').textContent = run.ringCount;
+  document.getElementById('altVal').textContent = Math.max(0, Math.round(player.pos.y - terrainH(player.pos.x, player.pos.z)));
+  document.getElementById('spdVal').textContent = Math.round(Math.abs(player.speed) * 3.6);
+  const heading = ((player.yaw * 180 / Math.PI) % 360 + 360) % 360;
+  document.getElementById('hdgVal').textContent = String(Math.round(heading)).padStart(3, '0');
+  const dangerPill = document.getElementById('dangerPill');
+  if (run.mode === 'combat') {
+    dangerPill.hidden = run.danger <= .05;
+    document.getElementById('dangerTime').textContent = Math.max(0, DANGER_SECONDS - run.danger).toFixed(1);
+  } else {
+    dangerPill.hidden = true;
+  }
+  drawMini();
+}
+function drawMini() {
+  const w = canvasMini.width, h = canvasMini.height, s = w / (WORLD * 2);
+  miniCtx.clearRect(0, 0, w, h);
+  miniCtx.fillStyle = uiPrefs.theme === 'light' ? 'rgba(245,250,242,.76)' : 'rgba(4,8,12,.72)';
+  miniCtx.fillRect(0, 0, w, h);
+  if (run.mode === 'combat') {
+    miniCtx.strokeStyle = '#65e6b6';
+    miniCtx.lineWidth = 1.5;
+    miniCtx.beginPath();
+    miniCtx.arc(w / 2, h / 2, SAFE_WORLD * s, 0, Math.PI * 2);
+    miniCtx.stroke();
+    miniCtx.fillStyle = 'rgba(255,63,88,.13)';
+    miniCtx.beginPath();
+    miniCtx.arc(w / 2, h / 2, (WORLD - 5) * s, 0, Math.PI * 2);
+    miniCtx.arc(w / 2, h / 2, SAFE_WORLD * s, 0, Math.PI * 2, true);
+    miniCtx.fill();
+  }
+  const dot = (x, z, color, r) => {
+    miniCtx.fillStyle = color;
+    miniCtx.beginPath();
+    miniCtx.arc(w / 2 + x * s, h / 2 + z * s, r, 0, Math.PI * 2);
+    miniCtx.fill();
+  };
+  groundTurrets.forEach(t => dot(t.mesh.position.x, t.mesh.position.z, '#ffcf5a', 3));
+  enemies.forEach(e => dot(e.pos.x, e.pos.z, '#ff5b71', 2.4));
+  pickups.slice(0, 45).forEach(p => dot(p.mesh.position.x, p.mesh.position.z, '#77b8ff', 1.6));
+  rings.forEach(r => dot(r.mesh.position.x, r.mesh.position.z, '#ffcf5a', 2));
+  if (player) dot(player.pos.x, player.pos.z, '#65e6b6', 3.5);
+}
+function endRun() {
+  if (state !== 'play') return;
+  state = 'over';
+  save.coins += run.coins;
+  save.best = Math.max(save.best, run.mode === 'combat' ? run.wave - 1 : save.best);
+  saveJson(STORE, save);
+  document.getElementById('overTitle').textContent = tr('runOver');
+  document.getElementById('overText').innerHTML = `${tr('survived')} <b>${Math.floor(run.time)}s</b> · ${tr('waveReached')} <b>${run.wave}</b><br>${tr('destroyed')} <b>${run.kills}</b> · ${tr('targetsDestroyed')} <b>${run.turretKills}</b><br>${tr('banked')} <b>+${run.coins}</b> · ${tr('best')} <b>${save.best}</b>`;
+  document.getElementById('gameOver').hidden = false;
+}
+function retreatToMenu() {
+  if (run && (state === 'play' || state === 'pause')) {
+    save.coins += run.coins;
+    run.coins = 0;
+    saveJson(STORE, save);
+  }
+  document.getElementById('pauseOverlay').hidden = true;
+  document.getElementById('phaseBanner').hidden = true;
+  document.getElementById('gameOver').hidden = true;
+  document.getElementById('menu').hidden = false;
+  state = 'menu';
+  renderGarage();
+}
+function applyI18n() {
+  document.documentElement.lang = uiPrefs.lang;
+  document.title = tr('title');
+  document.querySelectorAll('[data-i18n]').forEach(el => { el.innerHTML = tr(el.dataset.i18n); });
+  document.getElementById('langSelect').value = uiPrefs.lang;
+  document.getElementById('menuLangSelect').value = uiPrefs.lang;
+  document.getElementById('difficultySelect').value = uiPrefs.difficulty;
+  document.getElementById('pauseBtn').textContent = state === 'pause' ? tr('resume') : tr('pause');
+  renderModes();
+  renderChoppers();
+  renderGarage();
+  if (run) {
+    document.getElementById('helpText').innerHTML = tr(run.mode === 'combat' ? 'helpCombat' : 'helpFree');
+    updateUi();
+  }
+}
+function applyTheme() {
+  document.body.classList.toggle('light', uiPrefs.theme === 'light');
+  document.getElementById('themeBtn').textContent = uiPrefs.theme === 'light' ? 'LIGHT' : 'DARK';
+  document.getElementById('menuThemeBtn').textContent = uiPrefs.theme === 'light' ? 'LIGHT' : 'DARK';
+  renderer.toneMappingExposure = uiPrefs.theme === 'light' ? 1.2 : 1.05;
+  const sky = uiPrefs.theme === 'light' ? 0xbfe3f0 : 0x0b1420;
+  scene.background = new THREE.Color(sky);
+  scene.fog = new THREE.Fog(sky, 130, uiPrefs.theme === 'light' ? 430 : 380);
+  grid.material.opacity = uiPrefs.theme === 'light' ? .12 : .07;
+  applyTerrainColors();
+}
+function renderModes() {
+  const root = document.getElementById('modeCards');
+  root.innerHTML = '';
+  const modes = [
+    { id: 'free', key: 'freeFlight', desc: 'freeFlightDesc' },
+    { id: 'combat', key: 'combatMode', desc: 'combatModeDesc' }
+  ];
+  modes.forEach(m => {
+    const btn = document.createElement('button');
+    btn.className = 'card' + (selectedMode === m.id ? ' selected' : '');
+    btn.innerHTML = `<strong>${tr(m.key)}</strong><span>${tr(m.desc)}</span>`;
+    btn.onclick = () => { selectedMode = m.id; renderModes(); updateDifficultyVisibility(); };
+    root.appendChild(btn);
+  });
+  updateDifficultyVisibility();
+}
+function updateDifficultyVisibility() {
+  document.getElementById('difficultyLabel').classList.toggle('hidden', selectedMode !== 'combat');
+}
+function renderChoppers() {
+  const root = document.getElementById('chopperCards');
+  root.innerHTML = '';
+  choppers.forEach(c => {
+    const btn = document.createElement('button');
+    btn.className = 'card' + (selectedChopper === c.id ? ' selected' : '');
+    btn.innerHTML = `<strong>${tr(c.key)}</strong><span>${tr(c.key + 'Desc')}</span><span>HP ${c.hp} · ${tr('spd')} ${Math.round(c.max)}</span>`;
+    btn.onclick = () => { selectedChopper = c.id; renderChoppers(); };
+    root.appendChild(btn);
+  });
+}
+function garageCost(item) { return Math.round(item.base * Math.pow(1.72, save[item.id] || 0)); }
+function renderGarage() {
+  const root = document.getElementById('lab');
+  document.getElementById('garageCoins').textContent = save.coins;
+  root.innerHTML = '';
+  garage.forEach(item => {
+    const lvl = save[item.id] || 0;
+    const maxed = lvl >= item.max;
+    const cost = garageCost(item);
+    const btn = document.createElement('button');
+    btn.className = 'card';
+    btn.disabled = maxed || save.coins < cost;
+    btn.innerHTML = `<strong>${tr(item.name)} Lv.${lvl}</strong><span>${tr(item.desc)}</span><span>${maxed ? tr('maxed') : `${tr('cost')}: ${cost} ${tr('coins')}`}</span>`;
+    btn.onclick = () => {
+      if (save.coins < cost || maxed) return;
+      save.coins -= cost; save[item.id] = lvl + 1; saveJson(STORE, save); renderGarage(); toast(tr(item.name));
+    };
+    root.appendChild(btn);
+  });
+}
+function toast(text) {
+  const el = document.getElementById('toast');
+  el.textContent = text;
+  el.classList.add('show');
+  clearTimeout(toast.timer);
+  toast.timer = setTimeout(() => el.classList.remove('show'), 1100);
+}
+function animate() {
+  requestAnimationFrame(animate);
+  const dt = Math.min(.033, clock.getDelta());
+  updateRun(dt);
+  renderer.render(scene, camera);
+}
+addEventListener('resize', () => {
+  renderer.setSize(innerWidth, innerHeight);
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+});
+addEventListener('keydown', e => {
+  keys.add(e.code);
+  if (e.code === 'Space') e.preventDefault();
+  if (e.code === 'KeyR') tryFireRocket();
+  if (e.code === 'KeyP' || e.code === 'Escape') togglePause();
+});
+addEventListener('keyup', e => keys.delete(e.code));
+addEventListener('pointermove', e => {
+  mouse.x = (e.clientX / innerWidth) * 2 - 1;
+  mouse.y = -(e.clientY / innerHeight) * 2 + 1;
+});
+addEventListener('pointerdown', e => {
+  if (e.button === 0) fireHeld = true;
+  if (e.button === 2) tryFireRocket();
+});
+addEventListener('pointerup', e => { if (e.button === 0) fireHeld = false; });
+addEventListener('contextmenu', e => e.preventDefault());
+addEventListener('wheel', e => {
+  if (state !== 'play') return;
+  wheelVertical = e.deltaY < 0 ? 1 : -1;
+  wheelTimer = .22;
+  e.preventDefault();
+}, { passive: false });
+function togglePause() {
+  if (state === 'play') { state = 'pause'; document.getElementById('pauseOverlay').hidden = false; }
+  else if (state === 'pause') { state = 'play'; document.getElementById('pauseOverlay').hidden = true; }
+  document.getElementById('pauseBtn').textContent = state === 'pause' ? tr('resume') : tr('pause');
+}
+document.getElementById('startBtn').onclick = startRun;
+document.getElementById('againBtn').onclick = startRun;
+document.getElementById('menuBtn').onclick = () => {
+  document.getElementById('gameOver').hidden = true;
+  document.getElementById('phaseBanner').hidden = true;
+  document.getElementById('menu').hidden = false;
+  state = 'menu';
+  renderGarage();
+};
+document.getElementById('pauseBtn').onclick = togglePause;
+document.getElementById('resumeBtn').onclick = togglePause;
+document.getElementById('pauseMenuBtn').onclick = retreatToMenu;
+document.getElementById('resetBtn').onclick = () => {
+  if (!confirm(tr('confirmReset'))) return;
+  Object.assign(save, { coins: 0, best: 0, power: 0, armor: 0, boost: 0, reload: 0, ammo: 0 });
+  saveJson(STORE, save);
+  renderGarage();
+};
+function setLanguage(lang) {
+  uiPrefs.lang = lang;
+  saveJson(UI_STORE, uiPrefs);
+  applyI18n();
+}
+function toggleTheme() {
+  uiPrefs.theme = uiPrefs.theme === 'light' ? 'dark' : 'light';
+  saveJson(UI_STORE, uiPrefs);
+  applyTheme();
+}
+document.getElementById('langSelect').onchange = e => setLanguage(e.target.value);
+document.getElementById('menuLangSelect').onchange = e => setLanguage(e.target.value);
+document.getElementById('difficultySelect').onchange = e => {
+  uiPrefs.difficulty = e.target.value;
+  saveJson(UI_STORE, uiPrefs);
+};
+document.getElementById('themeBtn').onclick = toggleTheme;
+document.getElementById('menuThemeBtn').onclick = toggleTheme;
+
+applyTheme();
+applyI18n();
+dispatchEvent(new Event('resize'));
+camera.position.set(0, 14, -20);
+camera.lookAt(0, 4, 0);
+animate();
+</script>
+</body>
+</html>
