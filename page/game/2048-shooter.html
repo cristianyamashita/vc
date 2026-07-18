@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>2048 Shooter: Number Match</title>
+  <style>
+    :root {
+      --bg: #0d1224;
+      --bg-2: #171f3b;
+      --panel: rgba(18, 25, 49, .86);
+      --panel-strong: rgba(23, 31, 59, .96);
+      --text: #f8f5ff;
+      --muted: #aab2d2;
+      --line: rgba(220, 230, 255, .16);
+      --accent: #9c7bff;
+      --accent-2: #52e0c4;
+      --danger: #ff6f91;
+      --cell: rgba(255, 255, 255, .055);
+      --shadow: 0 24px 70px rgba(0, 0, 0, .32);
+    }
+    body.light {
+      --bg: #f3f0fa;
+      --bg-2: #dbe9f4;
+      --panel: rgba(255, 255, 255, .82);
+      --panel-strong: rgba(255, 255, 255, .96);
+      --text: #20223a;
+      --muted: #626a83;
+      --line: rgba(32, 34, 58, .14);
+      --accent: #6950d8;
+      --accent-2: #078f7a;
+      --danger: #d94868;
+      --cell: rgba(35, 42, 74, .06);
+      --shadow: 0 24px 60px rgba(65, 76, 105, .16);
+    }
+    * { box-sizing: border-box; }
+    html, body { min-height: 100%; margin: 0; }
+    body {
+      padding: 18px;
+      overflow-x: hidden;
+      color: var(--text);
+      font: 15px/1.45 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: radial-gradient(circle at 12% 4%, rgba(156, 123, 255, .24), transparent 31%), radial-gradient(circle at 90% 88%, rgba(82, 224, 196, .16), transparent 28%), linear-gradient(145deg, var(--bg), var(--bg-2));
+    }
+    button { font: inherit; }
+    button:focus-visible { outline: 3px solid color-mix(in srgb, var(--accent-2) 65%, transparent); outline-offset: 3px; }
+    .app { width: min(1120px, 100%); margin: auto; display: grid; gap: 16px; }
+    .panel { border: 1px solid var(--line); border-radius: 22px; background: var(--panel); box-shadow: var(--shadow); backdrop-filter: blur(18px); }
+    .hero { padding: 22px 24px 20px; position: relative; overflow: hidden; }
+    .hero::after { content: "2048"; position: absolute; right: 20px; bottom: -24px; color: rgba(255,255,255,.035); font-size: 130px; font-weight: 950; letter-spacing: -.12em; pointer-events: none; }
+    .toolbar { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; position: relative; z-index: 1; }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .brand-mark { width: 42px; height: 42px; display: grid; place-items: center; border-radius: 13px; color: #17122e; background: linear-gradient(135deg, #d4bcff, var(--accent)); font-weight: 950; box-shadow: 0 8px 22px rgba(156,123,255,.3); }
+    h1 { margin: 0; font-size: clamp(24px, 4vw, 38px); line-height: 1; letter-spacing: -.04em; }
+    .eyebrow { margin: 3px 0 0; color: var(--muted); font-size: 12px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+    .toolbar-actions, .lang { display: flex; gap: 7px; align-items: center; flex-wrap: wrap; }
+    button, .stat { min-height: 37px; border: 1px solid var(--line); border-radius: 11px; color: var(--text); background: rgba(255,255,255,.07); padding: 7px 12px; font-weight: 800; cursor: pointer; }
+    button:hover { border-color: var(--accent-2); transform: translateY(-1px); }
+    button.primary { color: #17122e; border-color: transparent; background: linear-gradient(135deg, #cbb4ff, var(--accent)); }
+    button.active { color: #fff; background: var(--accent); }
+    .game-layout { display: grid; grid-template-columns: minmax(0, 1fr) 278px; gap: 16px; align-items: start; }
+    .board-panel { padding: 16px; }
+    .score-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; }
+    .stat { padding: 8px 11px; cursor: default; }
+    .stat small { display: block; color: var(--muted); font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+    .stat strong { display: block; margin-top: 1px; font-size: 20px; }
+    .canvas-wrap { width: min(100%, 620px); margin: auto; position: relative; }
+    canvas { display: block; width: 100%; aspect-ratio: 4 / 5; border-radius: 16px; touch-action: none; background: rgba(7, 10, 23, .3); }
+    .board-note { display: flex; justify-content: space-between; gap: 10px; margin-top: 10px; color: var(--muted); font-size: 12px; }
+    .side { display: grid; gap: 12px; }
+    .side-card { padding: 17px; }
+    .side-card h2 { margin: 0 0 8px; font-size: 15px; letter-spacing: .02em; }
+    .side-card p { margin: 0; color: var(--muted); }
+    .next-ball { width: 72px; height: 72px; display: grid; place-items: center; margin: 13px auto 8px; border: 5px solid rgba(255,255,255,.2); border-radius: 50%; color: #fff; font-size: 22px; font-weight: 950; box-shadow: inset 0 3px 8px rgba(255,255,255,.22), 0 10px 22px rgba(0,0,0,.18); }
+    .legend { display: grid; gap: 7px; margin-top: 14px; }
+    .legend div { display: flex; justify-content: space-between; gap: 10px; color: var(--muted); font-size: 13px; }
+    .legend b { color: var(--text); }
+    .overlay { position: fixed; inset: 0; z-index: 5; display: grid; place-items: center; padding: 20px; background: rgba(7, 10, 23, .48); backdrop-filter: blur(8px); }
+    .overlay[hidden] { display: none; }
+    .modal { width: min(470px, 100%); padding: 28px; text-align: center; border: 1px solid var(--line); border-radius: 24px; background: var(--panel-strong); box-shadow: var(--shadow); }
+    .modal h2 { margin: 0 0 8px; font-size: 30px; letter-spacing: -.04em; }
+    .modal p { margin: 0 auto 18px; color: var(--muted); }
+    .modal .result { margin: 15px 0; font-size: 18px; font-weight: 800; }
+    @media (max-width: 760px) {
+      body { padding: 10px; }
+      .hero { padding: 17px; border-radius: 18px; }
+      .game-layout { grid-template-columns: 1fr; }
+      .side { grid-template-columns: repeat(2, 1fr); }
+      .side-card:last-child { grid-column: 1 / -1; }
+    }
+    @media (max-width: 450px) {
+      .score-row { gap: 5px; }
+      .stat { padding: 7px 6px; }
+      .stat strong { font-size: 17px; }
+      .side { grid-template-columns: 1fr; }
+      .side-card:last-child { grid-column: auto; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header class="panel hero">
+      <div class="toolbar">
+        <div class="brand">
+          <div class="brand-mark">2⁴</div>
+          <div><h1 data-i18n="title">2048 Shooter</h1><p class="eyebrow" data-i18n="subtitle">Number Match</p></div>
+        </div>
+        <div class="toolbar-actions">
+          <div class="lang" aria-label="Language"><button class="lang-btn active" data-lang="en">EN</button><button class="lang-btn" data-lang="pt">PT</button><button class="lang-btn" data-lang="ja">JA</button></div>
+          <button id="themeBtn" data-i18n="dark">DARK</button>
+          <button id="pauseBtn" data-i18n="pause">Pause</button>
+        </div>
+      </div>
+    </header>
+    <section class="game-layout">
+      <div class="panel board-panel">
+        <div class="score-row">
+          <div class="stat"><small data-i18n="score">Score</small><strong id="score">0</strong></div>
+          <div class="stat"><small data-i18n="combo">Combo</small><strong id="combo">x1</strong></div>
+          <div class="stat"><small data-i18n="shots">Shots</small><strong id="shots">0</strong></div>
+        </div>
+        <div class="canvas-wrap"><canvas id="game" width="640" height="800" aria-label="2048 shooter game"></canvas></div>
+        <div class="board-note"><span data-i18n="controls">Move with A/D or arrows. Tap the board to fire.</span><span id="status" data-i18n="ready">Ready</span></div>
+      </div>
+      <aside class="side">
+        <section class="panel side-card">
+          <h2 data-i18n="next">Next block</h2>
+          <div class="next-ball" id="nextBall">2</div>
+          <p data-i18n="nextHint">Match equal blocks to merge them into a larger number.</p>
+        </section>
+        <section class="panel side-card">
+          <h2 data-i18n="howToPlay">How to play</h2>
+          <p data-i18n="instructions">Aim a numbered shot into a column. Connected equal values merge like 2048. Every few shots, a new row drops in. Do not let the stack reach the danger line.</p>
+          <div class="legend"><div><span data-i18n="merge">Merge</span><b>2 + 2 = 4</b></div><div><span data-i18n="dangerLine">Danger line</span><b data-i18n="survive">Survive</b></div></div>
+        </section>
+      </aside>
+    </section>
+  </main>
+  <div id="overlay" class="overlay">
+    <div class="modal">
+      <h2 id="overlayTitle" data-i18n="welcome">Ready, shooter?</h2>
+      <p id="overlayText" data-i18n="intro">Fire numbered blocks, make 2048-style merges, and keep the tower below the line.</p>
+      <div id="result" class="result" hidden></div>
+      <button id="startBtn" class="primary" data-i18n="start">Start game</button>
+    </div>
+  </div>
+  <script>
+    (() => {
+      const I18N = {
+        en: { title: '2048 Shooter', subtitle: 'Number Match', dark: 'DARK', light: 'LIGHT', pause: 'Pause', resume: 'Resume', score: 'Score', combo: 'Combo', shots: 'Shots', controls: 'Move with A/D or arrows. Tap the board to fire.', ready: 'Ready', next: 'Next block', nextHint: 'Match equal blocks to merge them into a larger number.', howToPlay: 'How to play', instructions: 'Aim a numbered shot into a column. Adjacent equal values merge like 2048. Do not let the stack reach the danger line.', merge: 'Merge', dangerLine: 'Danger line', survive: 'Survive', welcome: 'Ready, shooter?', intro: 'Fire numbered blocks, make 2048-style merges, and keep the tower below the line.', start: 'Start game', gameOver: 'Tower breached', finalScore: 'Final score', playAgain: 'Play again', paused: 'Game paused', continue: 'Continue' },
+        pt: { title: '2048 Shooter', subtitle: 'Number Match', dark: 'ESCURO', light: 'CLARO', pause: 'Pausar', resume: 'Continuar', score: 'Pontos', combo: 'Combo', shots: 'Tiros', controls: 'Mova com A/D ou setas. Toque no tabuleiro para atirar.', ready: 'Pronto', next: 'Próximo bloco', nextHint: 'Combine blocos iguais para formar um número maior.', howToPlay: 'Como jogar', instructions: 'Mire um tiro numerado em uma coluna. Valores iguais adjacentes se juntam como no 2048. Não deixe a pilha alcançar a linha de perigo.', merge: 'Combinação', dangerLine: 'Linha de perigo', survive: 'Sobreviva', welcome: 'Pronto, atirador?', intro: 'Atire blocos numerados, faça combinações no estilo 2048 e mantenha a torre abaixo da linha.', start: 'Começar jogo', gameOver: 'Torre invadida', finalScore: 'Pontuação final', playAgain: 'Jogar novamente', paused: 'Jogo pausado', continue: 'Continuar' },
+        ja: { title: '2048 シューター', subtitle: 'ナンバーマッチ', dark: 'ダーク', light: 'ライト', pause: '一時停止', resume: '再開', score: 'スコア', combo: 'コンボ', shots: 'ショット', controls: 'A/D または矢印で移動。ボードをタップして発射。', ready: '準備完了', next: '次のブロック', nextHint: '同じブロックを合わせて、より大きな数字にします。', howToPlay: '遊び方', instructions: '数字のショットを列に向けます。隣接する同じ数字は2048のように合体します。タワーを危険ラインまで積まないでください。', merge: '合体', dangerLine: '危険ライン', survive: '生き残る', welcome: '準備はいい？', intro: '数字ブロックを撃ち、2048風の合体を作り、タワーをライン以下に保ちましょう。', start: 'ゲーム開始', gameOver: 'タワー崩壊', finalScore: '最終スコア', playAgain: 'もう一度', paused: '一時停止中', continue: '再開' }
+      };
+      const canvas = document.getElementById('game'), ctx = canvas.getContext('2d');
+      const els = { score: document.getElementById('score'), combo: document.getElementById('combo'), shots: document.getElementById('shots'), next: document.getElementById('nextBall'), status: document.getElementById('status'), overlay: document.getElementById('overlay'), overlayTitle: document.getElementById('overlayTitle'), overlayText: document.getElementById('overlayText'), result: document.getElementById('result'), start: document.getElementById('startBtn'), pause: document.getElementById('pauseBtn'), theme: document.getElementById('themeBtn') };
+      const COLS = 8, ROWS = 10, DANGER_ROW = ROWS - 2, colors = { 2: ['#65d7ff', '#142f59'], 4: ['#9c7bff', '#35235e'], 8: ['#ff79b0', '#612342'], 16: ['#ffb45c', '#603816'], 32: ['#7ee493', '#164d39'], 64: ['#ffe66d', '#66531a'], 128: ['#f58cff', '#51226c'], 256: ['#ff795f', '#632019'], 512: ['#72f1df', '#145a58'], 1024: ['#ffffff', '#6656a8'] };
+      let lang = 'en', theme = 'dark', grid, state, lastTime = 0;
+      const t = key => I18N[lang][key] || I18N.en[key];
+      const randomValue = () => [2, 2, 2, 4][Math.floor(Math.random() * 4)];
+      const emptyGrid = () => Array.from({ length: ROWS }, () => Array(COLS).fill(0));
+      function setLanguage(next) { lang = I18N[next] ? next : 'en'; document.documentElement.lang = lang; document.querySelectorAll('[data-i18n]').forEach(el => el.textContent = t(el.dataset.i18n)); document.querySelectorAll('.lang-btn').forEach(el => el.classList.toggle('active', el.dataset.lang === lang)); document.title = t('title') + ': ' + t('subtitle'); updateHud(); }
+      function setTheme() { theme = theme === 'dark' ? 'light' : 'dark'; document.body.classList.toggle('light', theme === 'light'); els.theme.textContent = t(theme === 'dark' ? 'dark' : 'light'); draw(); }
+      function newGame() { grid = emptyGrid(); state = { running: true, paused: false, over: false, resolving: false, score: 0, combo: 1, shots: 0, col: Math.floor(COLS / 2), current: randomValue(), next: randomValue(), projectile: null, mergeAnimation: null, popAnimation: null, pendingScore: 0, particles: [], messageTimer: 0 }; els.overlay.hidden = true; updateHud(); }
+      function updateHud() { if (!state) return; els.score.textContent = state.score.toLocaleString(); els.combo.textContent = 'x' + state.combo; els.shots.textContent = state.shots; els.next.textContent = state.next; els.next.style.background = ballGradient(state.next); els.pause.textContent = state.paused ? t('resume') : t('pause'); els.status.textContent = state.over ? t('gameOver') : state.paused ? t('paused') : t('ready'); }
+      function ballGradient(value) { const pair = colors[value] || colors[1024]; return `radial-gradient(circle at 32% 25%, #fff8, transparent 22%), linear-gradient(145deg, ${pair[0]}, ${pair[1]})`; }
+      function startOverlay(title, intro, result) { els.overlayTitle.textContent = title; els.overlayText.textContent = intro; els.result.hidden = !result; if (result) els.result.textContent = result; els.start.textContent = t(state && state.over ? 'playAgain' : state && state.paused ? 'continue' : 'start'); els.overlay.hidden = false; }
+      function findMatch() { for (let row = 0; row < ROWS; row++) for (let col = 0; col < COLS; col++) { const value = grid[row][col]; if (!value) continue; if (col + 1 < COLS && grid[row][col + 1] === value) return [row, col, row, col + 1, value]; if (row + 1 < ROWS && grid[row + 1][col] === value) return [row, col, row + 1, col, value]; } return null; }
+      function resolveNextMerge() { const match = findMatch(); if (!match) { settle(); state.resolving = false; state.shots++; if (state.pendingScore) { state.combo = Math.min(9, state.combo + 1); state.score += state.pendingScore * state.combo; } else state.combo = 1; state.pendingScore = 0; if (grid[DANGER_ROW].some(Boolean)) gameOver(); updateHud(); return; } const [row, col, matchRow, matchCol, value] = match; const duration = 540; state.mergeAnimation = { row, col, matchRow, matchCol, value, start: performance.now(), duration }; setTimeout(() => { if (!state || state.over) return; grid[row][col] = value * 2; grid[matchRow][matchCol] = 0; state.pendingScore += value * 2; state.mergeAnimation = null; settle(); const resultRow = grid.findIndex(line => line[col] === value * 2); state.popAnimation = { row: resultRow, col, value: value * 2, start: performance.now(), duration: 280 }; burst(matchCol, matchRow, value); burst(col, resultRow, value * 2); setTimeout(resolveNextMerge, 280); }, duration); }
+      function settle() { for (let c = 0; c < COLS; c++) { let write = 0; for (let r = 0; r < ROWS; r++) if (grid[r][c]) { const v = grid[r][c]; grid[r][c] = 0; grid[write++][c] = v; } } }
+      function shoot(targetCol) { if (!state.running || state.paused || state.over || state.projectile || state.resolving) return; state.col = Math.max(0, Math.min(COLS - 1, targetCol)); let landRow = 0; for (let row = ROWS - 1; row >= 0; row--) if (grid[row][state.col]) { landRow = row + 1; break; } if (landRow >= ROWS) { gameOver(); return; } state.projectile = { x: state.col, y: ROWS - .38, target: state.col, targetRow: landRow, value: state.current, progress: 0 }; state.current = state.next; state.next = randomValue(); updateHud(); }
+      function finishShot() { const shot = state.projectile, landRow = shot.targetRow; grid[landRow][shot.target] = shot.value; state.projectile = null; state.resolving = true; state.pendingScore = 0; resolveNextMerge(); }
+      function gameOver() { state.over = true; state.running = false; state.projectile = null; updateHud(); startOverlay(t('gameOver'), t('intro'), `${t('finalScore')}: ${state.score.toLocaleString()}`); }
+      function burst(col, row, value) { const pair = colors[value] || colors[1024]; for (let i = 0; i < 7; i++) state.particles.push({ x: col + .5, y: row + .5, vx: (Math.random() - .5) * 3, vy: (Math.random() - .8) * 3, life: .55 + Math.random() * .4, color: pair[0] }); }
+      function draw() { const w = canvas.width, h = canvas.height, cw = w / COLS, ch = h / ROWS, merge = state && state.mergeAnimation, now = performance.now(); ctx.clearRect(0, 0, w, h); const bg = theme === 'dark' ? '#0b1022' : '#eef0fa'; ctx.fillStyle = bg; ctx.fillRect(0, 0, w, h); for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) { ctx.fillStyle = r === DANGER_ROW ? 'rgba(255,111,145,.09)' : 'rgba(255,255,255,.045)'; roundRect(c * cw + 4, r * ch + 4, cw - 8, ch - 8, 12); ctx.fill(); if (grid[r][c] && !(merge && r === merge.matchRow && c === merge.matchCol)) { const pop = state.popAnimation && state.popAnimation.row === r && state.popAnimation.col === c ? 1 + Math.sin(Math.min(1, (now - state.popAnimation.start) / state.popAnimation.duration) * Math.PI) * .18 : 1; drawBall(c + .5, r + .5, grid[r][c], Math.min(cw, ch) * .38 * pop); } } if (merge) { const progress = Math.min(1, (now - merge.start) / merge.duration), ease = 1 - Math.pow(1 - progress, 3); drawBall(merge.matchCol + .5 + (merge.col - merge.matchCol) * ease, merge.matchRow + .5 + (merge.row - merge.matchRow) * ease, merge.value, Math.min(cw, ch) * .38 * (1 - ease * .28)); } ctx.strokeStyle = 'rgba(255,111,145,.55)'; ctx.setLineDash([10, 9]); ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(0, (DANGER_ROW + 1) * ch); ctx.lineTo(w, (DANGER_ROW + 1) * ch); ctx.stroke(); ctx.setLineDash([]); if (state && !state.projectile) { ctx.strokeStyle = 'rgba(255,255,255,.2)'; ctx.setLineDash([5, 10]); ctx.beginPath(); ctx.moveTo((state.col + .5) * cw, h - 75); ctx.lineTo((state.col + .5) * cw, h - 12); ctx.stroke(); ctx.setLineDash([]); drawBall(state.col + .5, ROWS - .38, state.current, Math.min(cw, ch) * .31); } if (state && state.projectile) drawBall(state.projectile.x + .5, state.projectile.y + .5, state.projectile.value, Math.min(cw, ch) * .36); if (state) state.particles.forEach(p => { ctx.globalAlpha = Math.max(0, p.life); ctx.fillStyle = p.color; ctx.beginPath(); ctx.arc((p.x) * cw, (p.y) * ch, 4, 0, Math.PI * 2); ctx.fill(); }); ctx.globalAlpha = 1; }
+      function roundRect(x, y, w, h, radius) { ctx.beginPath(); ctx.roundRect(x, y, w, h, radius); }
+      function drawBall(x, y, value, radius) { ctx.save(); ctx.translate(x * canvas.width / COLS, y * canvas.height / ROWS); const pair = colors[value] || colors[1024]; const gradient = ctx.createLinearGradient(-radius, -radius, radius, radius); gradient.addColorStop(0, pair[0]); gradient.addColorStop(1, pair[1]); ctx.fillStyle = gradient; ctx.shadowColor = pair[0]; ctx.shadowBlur = 13; ctx.beginPath(); ctx.arc(0, 0, radius, 0, Math.PI * 2); ctx.fill(); ctx.shadowBlur = 0; ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = `950 ${Math.max(15, radius * (value > 99 ? .65 : .82))}px system-ui`; ctx.fillText(value, 0, 1); ctx.restore(); }
+      function tick(time) { const dt = Math.min(.04, (time - lastTime) / 1000 || 0); lastTime = time; if (state) { if (state.projectile && state.running && !state.paused) { state.projectile.progress += dt * 3.8; const shot = state.projectile; shot.y = (ROWS - .38) + (shot.targetRow + .5 - (ROWS - .38)) * Math.min(1, shot.progress); if (state.projectile.progress >= 1) finishShot(); } state.particles = state.particles.filter(p => { p.life -= dt; p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 2.8 * dt; return p.life > 0; }); if (state.popAnimation && time - state.popAnimation.start >= state.popAnimation.duration) state.popAnimation = null; draw(); } requestAnimationFrame(tick); }
+      function pointerColumn(event) { const rect = canvas.getBoundingClientRect(); return Math.floor(((event.clientX - rect.left) / rect.width) * COLS); }
+      canvas.addEventListener('pointermove', e => { if (state && state.running && !state.paused && !state.projectile) state.col = Math.max(0, Math.min(COLS - 1, pointerColumn(e))); });
+      canvas.addEventListener('pointerdown', e => { e.preventDefault(); shoot(pointerColumn(e)); });
+      document.addEventListener('keydown', e => { if (e.key === 'ArrowLeft' || e.key.toLowerCase() === 'a') { state.col = Math.max(0, state.col - 1); e.preventDefault(); } if (e.key === 'ArrowRight' || e.key.toLowerCase() === 'd') { state.col = Math.min(COLS - 1, state.col + 1); e.preventDefault(); } if (e.key === ' ' || e.key === 'Enter') { shoot(state.col); e.preventDefault(); } if (e.key.toLowerCase() === 'p') togglePause(); });
+      function togglePause() { if (!state || state.over) return; state.paused = !state.paused; updateHud(); if (state.paused) startOverlay(t('paused'), t('intro'), null); else els.overlay.hidden = true; }
+      els.start.addEventListener('click', () => { if (state && state.paused) { state.paused = false; els.overlay.hidden = true; updateHud(); } else newGame(); });
+      els.pause.addEventListener('click', togglePause); els.theme.addEventListener('click', setTheme); document.querySelectorAll('.lang-btn').forEach(btn => btn.addEventListener('click', () => setLanguage(btn.dataset.lang)));
+      setLanguage('en'); newGame(); state.running = false; state.paused = false; startOverlay(t('welcome'), t('intro'), null); requestAnimationFrame(tick);
+    })();
+  </script>
+</body>
+</html>
