@@ -90,6 +90,37 @@
       .form-check-label small {
         color: #aaa;
       }
+
+      .nav.nav-tabs .nav-link {
+        color: var(--text-color);
+      }
+
+      .nav.nav-tabs .nav-link.active {
+        background-color: var(--card-bg-color);
+        border-color: var(--border-color) var(--border-color) var(--card-bg-color);
+        color: var(--text-color);
+      }
+
+      #useCasesTabContent h5,
+      #useCasesTabContent h6,
+      #useCasesTabContent p {
+        color: var(--text-color);
+      }
+
+      #useCasesTabContent pre {
+        background-color: var(--bg-color);
+        border: 1px solid var(--border-color);
+        border-radius: 0.25rem;
+        padding: 0.75rem 1rem;
+        margin-bottom: 1rem;
+      }
+
+      #useCasesTabContent pre code {
+        color: var(--text-color);
+        font-family: 'Courier New', Courier, monospace;
+        font-size: 0.9rem;
+        white-space: pre-wrap;
+      }
     </style>
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-NWZDZ906DJ"></script>
     <script>
@@ -173,12 +204,75 @@
       </div>
     </div>
 
+    <!-- Use Cases Tabs -->
+    <div class="container-fluid mt-4">
+      <div class="card">
+        <div class="card-header">
+          <h5 class="mb-2" data-i18n="use_cases_title">Use Cases</h5>
+          <ul class="nav nav-tabs card-header-tabs" id="useCasesTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+              <button class="nav-link active" id="mysql-tab" data-bs-toggle="tab" data-bs-target="#mysql" type="button" role="tab">MySQL</button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link" id="javascript-tab" data-bs-toggle="tab" data-bs-target="#javascript" type="button" role="tab">JavaScript</button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link" id="python-tab" data-bs-toggle="tab" data-bs-target="#python" type="button" role="tab">Python</button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link" id="php-tab" data-bs-toggle="tab" data-bs-target="#php" type="button" role="tab">PHP</button>
+            </li>
+          </ul>
+        </div>
+        <div class="tab-content card-body" id="useCasesTabContent">
+          <!-- MySQL Tab -->
+          <div class="tab-pane fade show active" id="mysql" role="tabpanel">
+            <h5 data-i18n="mysql_title">MySQL Use Cases</h5>
+            <p data-i18n="mysql_intro">Bitwise operations in MySQL are commonly used to store and query flags in a single integer field.</p>
+            <h6 data-i18n="select_bit_matching">SELECT with Bit Matching</h6>
+            <pre><code class="language-sql" id="mysql-select-code"></code></pre>
+            <h6 data-i18n="update_set_unset">UPDATE to Set/Unset Bits</h6>
+            <pre><code class="language-sql" id="mysql-update-code"></code></pre>
+          </div>
+          
+          <!-- JavaScript Tab -->
+          <div class="tab-pane fade" id="javascript" role="tabpanel">
+            <h5 data-i18n="javascript_title">JavaScript Use Cases</h5>
+            <p data-i18n="javascript_intro">Bitwise operations in JavaScript are useful for flags and permissions management.</p>
+            <h6 data-i18n="check_bit_matching">Check Bit Matching</h6>
+            <pre><code class="language-javascript" id="javascript-select-code"></code></pre>
+            <h6 data-i18n="update_set_unset">UPDATE to Set/Unset Bits</h6>
+            <pre><code class="language-javascript" id="javascript-update-code"></code></pre>
+          </div>
+          
+          <!-- Python Tab -->
+          <div class="tab-pane fade" id="python" role="tabpanel">
+            <h5 data-i18n="python_title">Python Use Cases</h5>
+            <p data-i18n="python_intro">Bitwise operations in Python are useful for flags and permissions management.</p>
+            <h6 data-i18n="check_bit_matching">Check Bit Matching</h6>
+            <pre><code class="language-python" id="python-select-code"></code></pre>
+            <h6 data-i18n="update_set_unset">UPDATE to Set/Unset Bits</h6>
+            <pre><code class="language-python" id="python-update-code"></code></pre>
+          </div>
+          
+          <!-- PHP Tab -->
+          <div class="tab-pane fade" id="php" role="tabpanel">
+            <h5 data-i18n="php_title">PHP Use Cases</h5>
+            <p data-i18n="php_intro">Bitwise operations in PHP are useful for flags and permissions management.</p>
+            <h6 data-i18n="check_bit_matching">Check Bit Matching</h6>
+            <pre><code class="language-php" id="php-select-code"></code></pre>
+            <h6 data-i18n="update_set_unset">UPDATE to Set/Unset Bits</h6>
+            <pre><code class="language-php" id="php-update-code"></code></pre>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
       document.addEventListener('DOMContentLoaded', () => {
         let MAX_BITS = 32;
         let MAX_VALUE = (1n << BigInt(MAX_BITS)) - 1n; // BigInt
-        
 
         // i18n
         const i18n = {
@@ -195,6 +289,29 @@
             checkbox_hint_prefix: 'Toggle the checkboxes to set bits (',
             none: 'None',
             select_bits_range: 'Select bits range',
+            use_cases_title: 'Use Cases',
+            mysql_title: 'MySQL Use Cases',
+            mysql_intro: 'Bitwise operations in MySQL are commonly used to store and query flags in a single integer field.',
+            javascript_title: 'JavaScript Use Cases',
+            javascript_intro: 'Bitwise operations in JavaScript are useful for flags and permissions management.',
+            python_title: 'Python Use Cases',
+            python_intro: 'Bitwise operations in Python are useful for flags and permissions management.',
+            php_title: 'PHP Use Cases',
+            php_intro: 'Bitwise operations in PHP are useful for flags and permissions management.',
+            select_bit_matching: 'SELECT with Bit Matching',
+            check_bit_matching: 'Check Bit Matching',
+            update_set_unset: 'Set/Unset Bits',
+            assume_flags_column: 'Assuming a table with flags column (integer)',
+            check_bit_set: 'Check if bit {{bit}} is set',
+            set_bit: 'Set bit {{bit}} (value = {{value}})',
+            unset_bit: 'Unset bit {{bit}} (value = {{value}})',
+            toggle_bit: 'Toggle bit {{bit}} (value = {{value}})',
+            flags_binary_decimal: 'Binary: {{binary}} (decimal: {{decimal}})',
+            check_bit_n: 'Check bit {{bit}}',
+            assuming_flags: 'Assuming flags value',
+            result_after_set: 'result after set',
+            result_after_unset: 'result after unset',
+            result_after_toggle: 'result after toggle',
           },
           pt: {
             title: 'Conversor Bitwise',
@@ -209,6 +326,29 @@
             checkbox_hint_prefix: 'Use as caixas para marcar os bits (',
             none: 'Nenhum',
             select_bits_range: 'Selecionar intervalo de bits',
+            use_cases_title: 'Casos de Uso',
+            mysql_title: 'Casos de Uso em MySQL',
+            mysql_intro: 'Operações bitwise no MySQL são comumente usadas para armazenar e consultar flags em um único campo inteiro.',
+            javascript_title: 'Casos de Uso em JavaScript',
+            javascript_intro: 'Operações bitwise em JavaScript são úteis para gerenciamento de flags e permissões.',
+            python_title: 'Casos de Uso em Python',
+            python_intro: 'Operações bitwise em Python são úteis para gerenciamento de flags e permissões.',
+            php_title: 'Casos de Uso em PHP',
+            php_intro: 'Operações bitwise em PHP são úteis para gerenciamento de flags e permissões.',
+            select_bit_matching: 'SELECT com Correspondência de Bits',
+            check_bit_matching: 'Verificação de Bits',
+            update_set_unset: 'Definir/Remover Bits',
+            assume_flags_column: 'Supondo uma tabela com coluna flags (inteiro)',
+            check_bit_set: 'Verificar se o bit {{bit}} está ativo',
+            set_bit: 'Definir bit {{bit}} (valor = {{value}})',
+            unset_bit: 'Remover bit {{bit}} (valor = {{value}})',
+            toggle_bit: 'Alternar bit {{bit}} (valor = {{value}})',
+            flags_binary_decimal: 'Binário: {{binary}} (decimal: {{decimal}})',
+            check_bit_n: 'Verificar bit {{bit}}',
+            assuming_flags: 'Supondo valor de flags',
+            result_after_set: 'resultado após definir',
+            result_after_unset: 'resultado após remover',
+            result_after_toggle: 'resultado após alternar',
           },
           ja: {
             title: 'ビット演算コンバーター',
@@ -223,6 +363,29 @@
             checkbox_hint_prefix: 'チェックでビットを設定 (',
             none: 'なし',
             select_bits_range: 'ビット範囲を選択',
+            use_cases_title: '使用例',
+            mysql_title: 'MySQL の使用例',
+            mysql_intro: 'MySQL のビット演算は、単一の整数フィールドにフラグを保存・照会する際によく使われます。',
+            javascript_title: 'JavaScript の使用例',
+            javascript_intro: 'JavaScript のビット演算は、フラグや権限の管理に便利です。',
+            python_title: 'Python の使用例',
+            python_intro: 'Python のビット演算は、フラグや権限の管理に便利です。',
+            php_title: 'PHP の使用例',
+            php_intro: 'PHP のビット演算は、フラグや権限の管理に便利です。',
+            select_bit_matching: 'ビット一致の SELECT',
+            check_bit_matching: 'ビット一致の確認',
+            update_set_unset: 'ビットの設定/解除',
+            assume_flags_column: 'flags カラム（整数）を持つテーブルを想定',
+            check_bit_set: 'ビット {{bit}} が設定されているか確認',
+            set_bit: 'ビット {{bit}} を設定 (値 = {{value}})',
+            unset_bit: 'ビット {{bit}} を解除 (値 = {{value}})',
+            toggle_bit: 'ビット {{bit}} を切り替え (値 = {{value}})',
+            flags_binary_decimal: '2進数: {{binary}} (10進数: {{decimal}})',
+            check_bit_n: 'ビット {{bit}} を確認',
+            assuming_flags: 'flags の値を想定',
+            result_after_set: '設定後の結果',
+            result_after_unset: '解除後の結果',
+            result_after_toggle: '切り替え後の結果',
           },
         };
 
@@ -243,10 +406,20 @@
         // State
         let currentLanguage = localStorage.getItem('app_lang') || 'pt';
         let currentTheme = localStorage.getItem('app_theme') || 'dark';
+        let lastToggledBit = 0;
 
         // Helpers
+        const langStrings = () => i18n[currentLanguage] || i18n.en;
+
+        const t = (key, vars = {}) => {
+          let text = langStrings()[key] || i18n.en[key] || key;
+          Object.entries(vars).forEach(([k, v]) => {
+            text = text.replace(new RegExp(`\\{\\{${k}\\}\\}`, 'g'), String(v));
+          });
+          return text;
+        };
         const applyI18n = () => {
-          const lang = i18n[currentLanguage] || i18n.en;
+          const lang = langStrings();
           document.querySelectorAll('[data-i18n]').forEach((el) => {
             const key = el.getAttribute('data-i18n');
             if (lang[key]) el.innerText = lang[key];
@@ -256,6 +429,7 @@
             if (lang[key]) el.placeholder = lang[key];
           });
           document.title = lang.title;
+          updateCodeExamples();
         };
 
         const applyTheme = (theme) => {
@@ -317,6 +491,7 @@
             if ((clamped & bitVal) !== 0n) actives.push(bitVal);
           }
           activeValuesEl.innerText = actives.length ? actives.map((v) => v.toString()).join(', ') : lang.none;
+          updateCodeExamples();
         };
 
         const valueFromCheckboxes = () => {
@@ -326,6 +501,17 @@
             if (cb && cb.checked) value += pow2(i);
           }
           return clampBigInt(value, 0n, MAX_VALUE);
+        };
+
+        const getActiveBits = (value) => {
+          const activeBits = [];
+          for (let i = 0; i < MAX_BITS; i++) {
+            const bitValue = pow2(i);
+            if ((value & bitValue) !== 0n) {
+              activeBits.push({bit: i, value: bitValue});
+            }
+          }
+          return activeBits;
         };
 
         const renderCheckboxes = () => {
@@ -365,10 +551,106 @@
           // Add listeners
           checkboxesContainer.querySelectorAll('.bit-checkbox').forEach((cb) => {
             cb.addEventListener('change', () => {
+              const bitIndex = parseInt(cb.id.replace('bit-', ''), 10);
+              lastToggledBit = bitIndex;
               const v = valueFromCheckboxes();
               setDecimalValue(v);
             });
           });
+        };
+
+        const getFocusBit = () => ({
+          bit: lastToggledBit,
+          value: pow2(lastToggledBit),
+        });
+
+        const getExampleBits = (activeBits) => {
+          if (activeBits.length > 0) return activeBits;
+          return [{ bit: 0, value: 1n }];
+        };
+
+        const formatBinaryRaw = (value) => value.toString(2).padStart(MAX_BITS, '0');
+
+        const updateCodeExamples = () => {
+          const currentValue = toBigInt(decimalInput.value);
+          const activeBits = getActiveBits(currentValue);
+          const exampleBits = getExampleBits(activeBits);
+          const focusBit = getFocusBit();
+          const binaryString = formatBinaryRaw(currentValue);
+          const binaryComment = t('flags_binary_decimal', { binary: binaryString, decimal: currentValue.toString() });
+          const focusValue = focusBit.value.toString();
+          const valueWithoutFocus = currentValue & ~focusBit.value;
+          const valueWithFocus = currentValue | focusBit.value;
+          const valueToggled = currentValue ^ focusBit.value;
+
+          // MySQL
+          let mysqlSelect = `-- ${t('assume_flags_column')}\n`;
+          exampleBits.forEach((b) => {
+            mysqlSelect += `SELECT * FROM users WHERE (flags & ${b.value}) = ${b.value};  -- ${t('check_bit_set', { bit: b.bit })}\n`;
+          });
+          document.getElementById('mysql-select-code').textContent = mysqlSelect.trimEnd();
+
+          let mysqlUpdate = `-- ${t('set_bit', { bit: focusBit.bit, value: focusValue })}\n`;
+          mysqlUpdate += `UPDATE users SET flags = flags | ${focusValue} WHERE id = 1;\n\n`;
+          mysqlUpdate += `-- ${t('unset_bit', { bit: focusBit.bit, value: focusValue })}\n`;
+          mysqlUpdate += `UPDATE users SET flags = flags & ~${focusValue} WHERE id = 1;\n\n`;
+          mysqlUpdate += `-- ${t('toggle_bit', { bit: focusBit.bit, value: focusValue })}\n`;
+          mysqlUpdate += `UPDATE users SET flags = flags ^ ${focusValue} WHERE id = 1;`;
+          document.getElementById('mysql-update-code').textContent = mysqlUpdate;
+
+          // JavaScript
+          let jsSelect = `const flags = 0b${binaryString}; // ${binaryComment}\n`;
+          exampleBits.forEach((b, i) => {
+            const varName = i === 0 ? 'hasBit' + b.bit : 'hasBit' + b.bit;
+            jsSelect += `const ${varName} = (flags & ${b.value}) === ${b.value}; // ${t('check_bit_n', { bit: b.bit })}\n`;
+          });
+          document.getElementById('javascript-select-code').textContent = jsSelect.trimEnd();
+
+          let jsUpdate = `// ${t('set_bit', { bit: focusBit.bit, value: focusValue })}\n`;
+          jsUpdate += `let flags = 0b${formatBinaryRaw(valueWithoutFocus)}; // ${binaryComment}\n`;
+          jsUpdate += `flags |= ${focusValue}; // flags = 0b${formatBinaryRaw(valueWithFocus)} (${t('result_after_set')})\n\n`;
+          jsUpdate += `// ${t('unset_bit', { bit: focusBit.bit, value: focusValue })}\n`;
+          jsUpdate += `flags &= ~${focusValue}; // flags = 0b${formatBinaryRaw(valueWithoutFocus)} (${t('result_after_unset')})\n\n`;
+          jsUpdate += `// ${t('toggle_bit', { bit: focusBit.bit, value: focusValue })}\n`;
+          jsUpdate += `flags ^= ${focusValue}; // flags = 0b${formatBinaryRaw(valueToggled)} (${t('result_after_toggle')})`;
+          document.getElementById('javascript-update-code').textContent = jsUpdate;
+
+          // Python
+          let pySelect = `# ${t('assuming_flags')}\n`;
+          pySelect += `flags = 0b${binaryString}  # ${binaryComment}\n`;
+          exampleBits.forEach((b) => {
+            pySelect += `has_bit_${b.bit} = bool(flags & ${b.value})  # ${t('check_bit_n', { bit: b.bit })}\n`;
+          });
+          document.getElementById('python-select-code').textContent = pySelect.trimEnd();
+
+          let pyUpdate = `# ${t('set_bit', { bit: focusBit.bit, value: focusValue })}\n`;
+          pyUpdate += `flags = 0b${formatBinaryRaw(valueWithoutFocus)}  # ${binaryComment}\n`;
+          pyUpdate += `flags |= ${focusValue}  # flags = 0b${formatBinaryRaw(valueWithFocus)} (${t('result_after_set')})\n\n`;
+          pyUpdate += `# ${t('unset_bit', { bit: focusBit.bit, value: focusValue })}\n`;
+          pyUpdate += `flags &= ~${focusValue}  # flags = 0b${formatBinaryRaw(valueWithoutFocus)} (${t('result_after_unset')})\n\n`;
+          pyUpdate += `# ${t('toggle_bit', { bit: focusBit.bit, value: focusValue })}\n`;
+          pyUpdate += `flags ^= ${focusValue}  # flags = 0b${formatBinaryRaw(valueToggled)} (${t('result_after_toggle')})`;
+          document.getElementById('python-update-code').textContent = pyUpdate;
+
+          // PHP
+          let phpSelect = '<?php\n';
+          phpSelect += `$flags = 0b${binaryString}; // ${binaryComment}\n`;
+          exampleBits.forEach((b) => {
+            phpSelect += `$hasBit${b.bit} = ($flags & ${b.value}) === ${b.value}; // ${t('check_bit_n', { bit: b.bit })}\n`;
+          });
+          phpSelect += '?>';
+          document.getElementById('php-select-code').textContent = phpSelect;
+
+          let phpUpdate = '<?php\n';
+          phpUpdate += `// ${t('set_bit', { bit: focusBit.bit, value: focusValue })}\n`;
+          phpUpdate += `$flags = 0b${formatBinaryRaw(valueWithoutFocus)}; // ${binaryComment}\n`;
+          phpUpdate += `$flags |= ${focusValue}; // $flags = 0b${formatBinaryRaw(valueWithFocus)} (${t('result_after_set')})\n\n`;
+          phpUpdate += `// ${t('unset_bit', { bit: focusBit.bit, value: focusValue })}\n`;
+          phpUpdate += `$flags &= ~${focusValue}; // $flags = 0b${formatBinaryRaw(valueWithoutFocus)} (${t('result_after_unset')})\n\n`;
+          phpUpdate += `// ${t('toggle_bit', { bit: focusBit.bit, value: focusValue })}\n`;
+          phpUpdate += `$flags ^= ${focusValue}; // $flags = 0b${formatBinaryRaw(valueToggled)} (${t('result_after_toggle')})\n`;
+          phpUpdate += '?>';
+          document.getElementById('php-update-code').textContent = phpUpdate;
         };
 
         // Events
@@ -404,6 +686,7 @@
         decIncBtn.addEventListener('click', () => stepDecimal(1));
         decDecBtn.addEventListener('click', () => stepDecimal(-1));
 
+        // Handle bits selection changes
         const bitsSelect = document.getElementById('bits-select');
         bitsSelect.addEventListener('change', () => {
           const newBits = parseInt(bitsSelect.value, 10);
@@ -430,4 +713,3 @@
     </script>
   </body>
   </html>
-
