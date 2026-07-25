@@ -1,0 +1,1108 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title data-i18n="title">Checklist Manager</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/fontawesome/css/all.min.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #1a1a1a;
+      --text: #f0f0f0;
+      --card-bg: #2a2a2a;
+      --border: #444;
+      --input-bg: #333;
+      --accent: #0d6efd;
+      --muted: #999;
+      --note-bg: #1e1e2e;
+      --item-hover: #333;
+      --badge-daily: #0d6efd;
+      --badge-monthly: #6f42c1;
+      --badge-activity: #20c997;
+      --done-opacity: 0.45;
+      --progress-bg: #20c997;
+    }
+    html[data-theme="light"] {
+      --bg: #f5f5f5;
+      --text: #212529;
+      --card-bg: #ffffff;
+      --border: #dee2e6;
+      --input-bg: #ffffff;
+      --muted: #6c757d;
+      --note-bg: #f8f9fa;
+      --item-hover: #f0f0f0;
+    }
+    * { box-sizing: border-box; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      margin: 0;
+      font-family: 'Noto Sans JP', sans-serif;
+      font-size: 0.95rem;
+    }
+    /* Navbar */
+    .navbar {
+      background: var(--card-bg) !important;
+      border-bottom: 1px solid var(--border);
+      padding: 0.5rem 1rem;
+    }
+    .navbar-brand { color: var(--text) !important; font-weight: 700; font-size: 1rem; }
+    /* Form controls */
+    .form-control, .form-select {
+      background: var(--input-bg) !important;
+      color: var(--text) !important;
+      border-color: var(--border) !important;
+    }
+    .form-control:focus, .form-select:focus {
+      border-color: var(--accent) !important;
+      box-shadow: 0 0 0 .2rem rgba(13,110,253,.2) !important;
+    }
+    /* Main */
+    .main-container { max-width: 780px; margin: 0 auto; padding: 1.5rem 1rem 3rem; }
+    /* View header */
+    .view-header {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+    }
+    .view-header h2 { margin: 0; font-size: 1.25rem; font-weight: 700; }
+    /* Template cards */
+    .tpl-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1rem 1.1rem;
+      margin-bottom: 0.65rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    .tpl-card-info { flex: 1; min-width: 0; }
+    .tpl-card-name { font-weight: 600; font-size: 1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .tpl-card-meta { color: var(--muted); font-size: 0.8rem; margin-top: 0.2rem; }
+    .tpl-card-actions { display: flex; gap: 0.4rem; flex-shrink: 0; }
+    /* Badge colours */
+    .bg-daily   { background-color: var(--badge-daily) !important; }
+    .bg-monthly { background-color: var(--badge-monthly) !important; }
+    .bg-activity{ background-color: var(--badge-activity) !important; }
+    /* Editor items */
+    .editor-item {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      padding: 0.5rem 0.75rem;
+      margin-bottom: 0.4rem;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+    .editor-item-label { flex: 1; font-size: 0.9rem; word-break: break-word; }
+    .editor-item-actions { display: flex; gap: 0.2rem; flex-shrink: 0; }
+    .icon-btn {
+      background: none;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      padding: 3px 6px;
+      border-radius: 5px;
+      font-size: 0.78rem;
+      transition: color .15s, background .15s;
+      line-height: 1.4;
+    }
+    .icon-btn:hover:not(:disabled) { color: var(--text); background: var(--item-hover); }
+    .icon-btn:disabled { opacity: 0.3; cursor: default; }
+    .icon-btn.active { color: #0d6efd; }
+    .icon-btn.danger:hover:not(:disabled) { color: #dc3545; }
+    .add-item-row { display: flex; gap: 0.5rem; }
+    /* Run items */
+    .run-item { margin-bottom: 0.45rem; }
+    .run-item-row {
+      display: flex;
+      align-items: center;
+      gap: 0.55rem;
+      padding: 0.5rem 0.8rem;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      transition: background .12s;
+    }
+    .run-item-row:hover { background: var(--item-hover); }
+    .run-item-label { flex: 1; font-size: 0.9rem; cursor: default; user-select: none; }
+    .run-item-label.done { text-decoration: line-through; opacity: var(--done-opacity); }
+    .note-toggle-btn {
+      background: none;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      padding: 2px 7px;
+      border-radius: 5px;
+      font-size: 0.78rem;
+      flex-shrink: 0;
+      transition: color .12s;
+    }
+    .note-toggle-btn:hover { color: var(--text); }
+    .note-collapse { display: none; padding-left: 2.25rem; padding-top: 0.3rem; }
+    .note-collapse.open { display: block; }
+    .note-collapse textarea {
+      width: 100%;
+      background: var(--note-bg) !important;
+      color: var(--text) !important;
+      border-color: var(--border) !important;
+      font-size: 0.85rem;
+      resize: vertical;
+      border-radius: 5px;
+      padding: 0.4rem 0.6rem;
+      font-family: inherit;
+    }
+    /* Progress badge */
+    .run-name-input { font-weight: 600; font-size: 1rem; flex: 1; max-width: 400px; }
+    .progress-badge { color: var(--muted); font-size: 0.82rem; white-space: nowrap; flex-shrink: 0; }
+    /* History */
+    .history-item {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 0.85rem 1rem;
+      margin-bottom: 0.6rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      cursor: pointer;
+      transition: background .12s;
+    }
+    .history-item:hover { background: var(--item-hover); }
+    .history-item-info { flex: 1; min-width: 0; }
+    .history-item-name {
+      font-weight: 600;
+      font-size: 0.95rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .history-item-meta { color: var(--muted); font-size: 0.78rem; margin-top: 0.15rem; }
+    .history-item-actions { flex-shrink: 0; }
+    .progress-mini { height: 4px; border-radius: 3px; background: var(--border); margin-top: 0.35rem; overflow: hidden; }
+    .progress-mini-bar { height: 100%; background: var(--progress-bg); border-radius: 3px; }
+    .progress-mini-count { font-size: 0.72rem; color: var(--muted); margin-top: 2px; }
+    /* Checked-at timestamp */
+    .checked-at {
+      font-size: 0.7rem;
+      color: var(--muted);
+      white-space: nowrap;
+      flex-shrink: 0;
+      font-variant-numeric: tabular-nums;
+    }
+    /* Empty state */
+    .empty-state { text-align: center; color: var(--muted); padding: 3.5rem 1rem; }
+    .empty-state i { opacity: 0.35; margin-bottom: 1rem; }
+    /* Modal overrides */
+    .modal-content {
+      background-color: var(--card-bg) !important;
+      color: var(--text) !important;
+      border-color: var(--border) !important;
+    }
+    .modal-header, .modal-footer { border-color: var(--border) !important; }
+    html[data-theme="dark"] .btn-close { filter: invert(1) grayscale(100%) brightness(200%); }
+    /* Section divider label */
+    .section-sep {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      color: var(--muted);
+      margin: 1rem 0 0.5rem;
+    }
+    @media (max-width: 500px) {
+      .tpl-card-actions, .history-item-actions { flex-wrap: wrap; }
+      .run-name-input { max-width: 180px; }
+    }
+  </style>
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-NWZDZ906DJ"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-NWZDZ906DJ');
+  </script>
+</head>
+<body>
+
+  <!-- Navbar -->
+  <nav class="navbar">
+    <div class="container-fluid px-0">
+      <span class="navbar-brand">
+        <i class="fas fa-clipboard-check me-2"></i><span data-i18n="title">Checklist Manager</span>
+      </span>
+      <div class="d-flex ms-auto gap-2 align-items-center">
+        <select id="lang-switcher" class="form-select form-select-sm" style="width:auto">
+          <option value="en">English</option>
+          <option value="pt">Português</option>
+          <option value="ja">日本語</option>
+        </select>
+        <button id="theme-btn" class="btn btn-sm btn-outline-secondary">
+          <i class="fas fa-moon"></i>
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <div class="main-container">
+
+    <!-- ── VIEW: Templates list ── -->
+    <div id="view-templates">
+      <div class="view-header">
+        <h2 data-i18n="myChecklists">My Checklists</h2>
+        <div class="ms-auto d-flex gap-2">
+          <button class="btn btn-sm btn-outline-secondary" id="btn-show-history">
+            <i class="fas fa-history me-1"></i><span data-i18n="history">History</span>
+          </button>
+          <button class="btn btn-sm btn-primary" id="btn-new-template">
+            <i class="fas fa-plus me-1"></i><span data-i18n="newChecklist">New Checklist</span>
+          </button>
+        </div>
+      </div>
+      <div id="templates-list"></div>
+      <div id="templates-empty" class="empty-state d-none">
+        <i class="fas fa-clipboard-list fa-3x d-block"></i>
+        <p data-i18n="noChecklists">No checklists yet. Create one to get started.</p>
+      </div>
+    </div>
+
+    <!-- ── VIEW: Template editor ── -->
+    <div id="view-editor" class="d-none">
+      <div class="view-header">
+        <button class="btn btn-sm btn-outline-secondary" id="btn-editor-back">
+          <i class="fas fa-arrow-left"></i>
+        </button>
+        <h2 id="editor-title" data-i18n="newChecklist">New Checklist</h2>
+      </div>
+      <div class="mb-3">
+        <label class="form-label fw-semibold" data-i18n="checklistName">Name</label>
+        <input id="tpl-name" type="text" class="form-control">
+      </div>
+      <div class="mb-3">
+        <label class="form-label fw-semibold" data-i18n="checklistType">Type</label>
+        <select id="tpl-type" class="form-select">
+          <option value="daily"    data-i18n="typeDaily">Daily</option>
+          <option value="monthly"  data-i18n="typeMonthly">Monthly</option>
+          <option value="activity" data-i18n="typeActivity">Activity</option>
+        </select>
+      </div>
+      <div class="mb-3">
+        <label class="form-label fw-semibold" data-i18n="items">Items</label>
+        <div id="items-list" class="mb-1"></div>
+        <div id="items-empty" class="d-none" style="color:var(--muted);font-size:.85rem;padding:.4rem 0" data-i18n="noItems">No items yet.</div>
+        <div class="add-item-row mt-2">
+          <input id="new-item-input" type="text" class="form-control" data-i18n-placeholder="addItemPlaceholder">
+          <button id="btn-add-item" class="btn btn-outline-primary btn-sm px-3">
+            <i class="fas fa-plus"></i>
+          </button>
+        </div>
+      </div>
+      <div class="d-flex gap-2 mt-3">
+        <button id="btn-save-tpl" class="btn btn-primary" data-i18n="save">Save</button>
+        <button id="btn-cancel-edit" class="btn btn-outline-secondary" data-i18n="cancel">Cancel</button>
+      </div>
+    </div>
+
+    <!-- ── VIEW: Run ── -->
+    <div id="view-run" class="d-none">
+      <div class="view-header">
+        <button class="btn btn-sm btn-outline-secondary" id="btn-run-back">
+          <i class="fas fa-arrow-left"></i>
+        </button>
+        <input id="run-name-input" type="text" class="form-control form-control-sm run-name-input">
+        <span id="run-progress-badge" class="progress-badge">0/0</span>
+      </div>
+      <div id="run-items-list"></div>
+      <div class="mt-4">
+        <label class="form-label fw-semibold" data-i18n="generalNotes">General Notes</label>
+        <textarea id="run-general-notes" class="form-control" rows="4"></textarea>
+      </div>
+    </div>
+
+    <!-- ── VIEW: History ── -->
+    <div id="view-history" class="d-none">
+      <div class="view-header">
+        <button class="btn btn-sm btn-outline-secondary" id="btn-history-back">
+          <i class="fas fa-arrow-left"></i>
+        </button>
+        <h2 data-i18n="history">History</h2>
+      </div>
+      <div id="history-list"></div>
+      <div id="history-empty" class="empty-state d-none">
+        <i class="fas fa-history fa-3x d-block"></i>
+        <p data-i18n="noHistory">No checklist history yet.</p>
+      </div>
+    </div>
+
+  </div><!-- /main-container -->
+
+  <!-- Modal: Confirm Delete -->
+  <div class="modal fade" id="confirm-modal" tabindex="-1" aria-modal="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" data-i18n="confirmDeleteTitle">Confirm Delete</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body" id="confirm-modal-body"></div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal" data-i18n="cancel">Cancel</button>
+          <button type="button" class="btn btn-danger btn-sm" id="confirm-ok-btn" data-i18n="confirmDeleteBtn">Delete</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: New Run -->
+  <div class="modal fade" id="run-modal" tabindex="-1" aria-modal="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" data-i18n="newRun">New Run</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <label class="form-label" data-i18n="runName">Run Name</label>
+          <input id="new-run-name" type="text" class="form-control">
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal" data-i18n="cancel">Cancel</button>
+          <button type="button" class="btn btn-primary btn-sm" id="run-start-btn" data-i18n="startRun">Start</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+  /* =========================================================
+     i18n
+  ========================================================= */
+  const I18N = {
+    en: {
+      title: "Checklist Manager",
+      myChecklists: "My Checklists",
+      newChecklist: "New Checklist",
+      editChecklist: "Edit Checklist",
+      checklistName: "Name",
+      checklistType: "Type",
+      typeDaily: "Daily",
+      typeMonthly: "Monthly",
+      typeActivity: "Activity",
+      items: "Items",
+      addItemPlaceholder: "New item…",
+      noItems: "No items yet.",
+      save: "Save",
+      cancel: "Cancel",
+      history: "History",
+      generalNotes: "General Notes",
+      noChecklists: "No checklists yet. Create one to get started.",
+      noHistory: "No checklist history yet.",
+      startRun: "Start",
+      edit: "Edit",
+      delete: "Delete",
+      confirmDeleteTitle: "Confirm Delete",
+      confirmDeleteMsg: "This action cannot be undone.",
+      confirmDeleteBtn: "Delete",
+      newRun: "New Run",
+      runName: "Run Name",
+      open: "Open",
+      moveUp: "Move up",
+      moveDown: "Move down",
+      indentMore: "Indent",
+      indentLess: "Outdent",
+      allowNote: "Allow note",
+      noteHint: "Note",
+      deleteTemplate: "Delete checklist?",
+      deleteRunMsg: "Delete this run?",
+      itemCount: n => n === 1 ? "1 item" : `${n} items`,
+      progress: (d, t) => `${d}/${t}`,
+    },
+    pt: {
+      title: "Gerenciador de Checklists",
+      myChecklists: "Meus Checklists",
+      newChecklist: "Novo Checklist",
+      editChecklist: "Editar Checklist",
+      checklistName: "Nome",
+      checklistType: "Tipo",
+      typeDaily: "Diário",
+      typeMonthly: "Mensal",
+      typeActivity: "Atividade",
+      items: "Itens",
+      addItemPlaceholder: "Novo item…",
+      noItems: "Nenhum item ainda.",
+      save: "Salvar",
+      cancel: "Cancelar",
+      history: "Histórico",
+      generalNotes: "Notas Gerais",
+      noChecklists: "Nenhum checklist ainda. Crie um para começar.",
+      noHistory: "Nenhum histórico de checklist ainda.",
+      startRun: "Iniciar",
+      edit: "Editar",
+      delete: "Excluir",
+      confirmDeleteTitle: "Confirmar Exclusão",
+      confirmDeleteMsg: "Esta ação não pode ser desfeita.",
+      confirmDeleteBtn: "Excluir",
+      newRun: "Nova Execução",
+      runName: "Nome da Execução",
+      open: "Abrir",
+      moveUp: "Mover para cima",
+      moveDown: "Mover para baixo",
+      indentMore: "Indentar",
+      indentLess: "Retirar indentação",
+      allowNote: "Permitir nota",
+      noteHint: "Nota",
+      deleteTemplate: "Excluir checklist?",
+      deleteRunMsg: "Excluir esta execução?",
+      itemCount: n => n === 1 ? "1 item" : `${n} itens`,
+      progress: (d, t) => `${d}/${t}`,
+    },
+    ja: {
+      title: "チェックリストマネージャー",
+      myChecklists: "マイチェックリスト",
+      newChecklist: "新規チェックリスト",
+      editChecklist: "チェックリストを編集",
+      checklistName: "名前",
+      checklistType: "タイプ",
+      typeDaily: "日次",
+      typeMonthly: "月次",
+      typeActivity: "アクティビティ",
+      items: "アイテム",
+      addItemPlaceholder: "新しいアイテム…",
+      noItems: "アイテムがありません。",
+      save: "保存",
+      cancel: "キャンセル",
+      history: "履歴",
+      generalNotes: "一般メモ",
+      noChecklists: "チェックリストがありません。作成してください。",
+      noHistory: "チェックリストの履歴がありません。",
+      startRun: "開始",
+      edit: "編集",
+      delete: "削除",
+      confirmDeleteTitle: "削除の確認",
+      confirmDeleteMsg: "この操作は元に戻せません。",
+      confirmDeleteBtn: "削除",
+      newRun: "新規実行",
+      runName: "実行名",
+      open: "開く",
+      moveUp: "上に移動",
+      moveDown: "下に移動",
+      indentMore: "インデント",
+      indentLess: "アウトデント",
+      allowNote: "メモを許可",
+      noteHint: "メモ",
+      deleteTemplate: "チェックリストを削除しますか？",
+      deleteRunMsg: "この実行を削除しますか？",
+      itemCount: n => `${n} アイテム`,
+      progress: (d, t) => `${d}/${t}`,
+    },
+  };
+
+  let lang = localStorage.getItem('checklist_lang') || 'en';
+
+  function t(key, ...args) {
+    const v = I18N[lang]?.[key] ?? I18N.en[key] ?? key;
+    return typeof v === 'function' ? v(...args) : v;
+  }
+
+  function applyI18n() {
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+      const k = el.getAttribute('data-i18n');
+      const v = t(k);
+      if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') el.placeholder = v;
+      else el.textContent = v;
+    });
+    document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+      el.placeholder = t(el.getAttribute('data-i18n-placeholder'));
+    });
+    document.getElementById('lang-switcher').value = lang;
+    document.documentElement.lang = lang === 'ja' ? 'ja' : lang === 'pt' ? 'pt-BR' : 'en';
+  }
+
+  /* =========================================================
+     Theme
+  ========================================================= */
+  let theme = localStorage.getItem('checklist_theme') || 'dark';
+  function applyTheme() {
+    document.documentElement.setAttribute('data-theme', theme);
+    const icon = document.querySelector('#theme-btn i');
+    if (icon) icon.className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+  }
+
+  /* =========================================================
+     IndexedDB helpers
+  ========================================================= */
+  const DB_NAME = 'ChecklistDB';
+  const DB_VERSION = 1;
+  let _db = null;
+
+  function openDB() {
+    return new Promise((resolve, reject) => {
+      if (_db) return resolve(_db);
+      const req = indexedDB.open(DB_NAME, DB_VERSION);
+      req.onupgradeneeded = e => {
+        const d = e.target.result;
+        if (!d.objectStoreNames.contains('templates'))
+          d.createObjectStore('templates', { keyPath: 'id', autoIncrement: true });
+        if (!d.objectStoreNames.contains('runs'))
+          d.createObjectStore('runs', { keyPath: 'id', autoIncrement: true });
+      };
+      req.onsuccess = () => { _db = req.result; resolve(_db); };
+      req.onerror  = () => reject(req.error);
+    });
+  }
+
+  function idbGetAll(store) {
+    return openDB().then(db => new Promise((resolve, reject) => {
+      const req = db.transaction(store, 'readonly').objectStore(store).getAll();
+      req.onsuccess = () => resolve(req.result);
+      req.onerror  = () => reject(req.error);
+    }));
+  }
+
+  function idbGet(store, id) {
+    return openDB().then(db => new Promise((resolve, reject) => {
+      const req = db.transaction(store, 'readonly').objectStore(store).get(id);
+      req.onsuccess = () => resolve(req.result);
+      req.onerror  = () => reject(req.error);
+    }));
+  }
+
+  function idbPut(store, obj) {
+    return openDB().then(db => new Promise((resolve, reject) => {
+      const req = db.transaction(store, 'readwrite').objectStore(store).put(obj);
+      req.onsuccess = () => resolve(req.result); // returns assigned key
+      req.onerror  = () => reject(req.error);
+    }));
+  }
+
+  function idbDelete(store, id) {
+    return openDB().then(db => new Promise((resolve, reject) => {
+      const req = db.transaction(store, 'readwrite').objectStore(store).delete(id);
+      req.onsuccess = () => resolve();
+      req.onerror  = () => reject(req.error);
+    }));
+  }
+
+  /* =========================================================
+     Utilities
+  ========================================================= */
+  function esc(s) {
+    return String(s ?? '')
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function genId() {
+    return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+  }
+
+  function stampNow() {
+    const d = new Date();
+    const p = n => String(n).padStart(2, '0');
+    return `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}`;
+  }
+
+  function displayDate(ts) {
+    return new Date(ts).toLocaleString(
+      lang === 'ja' ? 'ja-JP' : lang === 'pt' ? 'pt-BR' : 'en-US'
+    );
+  }
+
+  function typeBadgeClass(type) {
+    return type === 'daily' ? 'bg-daily' : type === 'monthly' ? 'bg-monthly' : 'bg-activity';
+  }
+
+  function typeLabel(type) {
+    const map = { daily: 'typeDaily', monthly: 'typeMonthly', activity: 'typeActivity' };
+    return t(map[type] || 'typeActivity');
+  }
+
+  /* =========================================================
+     View management
+  ========================================================= */
+  const ALL_VIEWS = ['view-templates', 'view-editor', 'view-run', 'view-history'];
+  function showView(id) {
+    ALL_VIEWS.forEach(v => document.getElementById(v).classList.toggle('d-none', v !== id));
+  }
+
+  /* =========================================================
+     Templates list view
+  ========================================================= */
+  async function showTemplates() {
+    showView('view-templates');
+    applyI18n();
+    const templates = await idbGetAll('templates');
+    const list = document.getElementById('templates-list');
+    const empty = document.getElementById('templates-empty');
+    if (!templates.length) {
+      list.innerHTML = '';
+      empty.classList.remove('d-none');
+      return;
+    }
+    empty.classList.add('d-none');
+    templates.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+    list.innerHTML = templates.map(tpl => `
+      <div class="tpl-card">
+        <div class="tpl-card-info">
+          <div class="tpl-card-name">${esc(tpl.name)}</div>
+          <div class="tpl-card-meta">
+            <span class="badge ${typeBadgeClass(tpl.type)}" style="font-size:.7rem">${esc(typeLabel(tpl.type))}</span>
+            &nbsp;${esc(t('itemCount', tpl.items.length))}
+          </div>
+        </div>
+        <div class="tpl-card-actions">
+          <button class="btn btn-sm btn-success"
+            onclick="openNewRunModal(${tpl.id})"
+            title="${esc(t('startRun'))}"><i class="fas fa-play"></i></button>
+          <button class="btn btn-sm btn-outline-secondary"
+            onclick="startEditTemplate(${tpl.id})"
+            title="${esc(t('edit'))}"><i class="fas fa-pencil-alt"></i></button>
+          <button class="btn btn-sm btn-outline-danger"
+            onclick="promptDeleteTemplate(${tpl.id}, '${esc(tpl.name)}')"
+            title="${esc(t('delete'))}"><i class="fas fa-trash"></i></button>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  /* =========================================================
+     Template editor
+  ========================================================= */
+  let editorItems = [];   // working copy
+  let editorTplId = null; // null = new
+
+  function startNewTemplate() {
+    editorTplId = null;
+    editorItems = [];
+    document.getElementById('tpl-name').value = '';
+    document.getElementById('tpl-type').value = 'daily';
+    document.getElementById('editor-title').setAttribute('data-i18n', 'newChecklist');
+    showView('view-editor');
+    applyI18n();
+    renderEditorItems();
+    document.getElementById('tpl-name').focus();
+  }
+
+  async function startEditTemplate(id) {
+    const tpl = await idbGet('templates', id);
+    if (!tpl) return;
+    editorTplId = id;
+    editorItems = JSON.parse(JSON.stringify(tpl.items || []));
+    document.getElementById('tpl-name').value = tpl.name;
+    document.getElementById('tpl-type').value = tpl.type;
+    document.getElementById('editor-title').setAttribute('data-i18n', 'editChecklist');
+    showView('view-editor');
+    applyI18n();
+    renderEditorItems();
+    document.getElementById('tpl-name').focus();
+  }
+
+  function renderEditorItems() {
+    const list  = document.getElementById('items-list');
+    const empty = document.getElementById('items-empty');
+    if (!editorItems.length) {
+      list.innerHTML = '';
+      empty.classList.remove('d-none');
+      return;
+    }
+    empty.classList.add('d-none');
+    list.innerHTML = editorItems.map((item, i) => {
+      const px = item.indent * 22;
+      const indentVisual = Array.from({ length: item.indent }, () =>
+        '<span style="display:inline-block;width:10px;border-left:2px solid var(--border);border-bottom:2px solid var(--border);height:10px;margin-right:3px;vertical-align:middle;border-radius:0 0 0 3px"></span>'
+      ).join('');
+      return `
+        <div class="editor-item" style="padding-left:${8 + px}px">
+          ${indentVisual}
+          <span class="editor-item-label">${esc(item.label)}</span>
+          <div class="editor-item-actions">
+            <button class="icon-btn ${item.allowNote ? 'active' : ''}"
+              onclick="itemToggleNote(${i})"
+              title="${esc(t('allowNote'))}">
+              <i class="fas fa-sticky-note"></i>
+            </button>
+            <button class="icon-btn" onclick="itemIndent(${i},-1)" title="${esc(t('indentLess'))}"
+              ${item.indent === 0 ? 'disabled' : ''}>
+              <i class="fas fa-outdent"></i>
+            </button>
+            <button class="icon-btn" onclick="itemIndent(${i},1)" title="${esc(t('indentMore'))}"
+              ${item.indent >= 3 ? 'disabled' : ''}>
+              <i class="fas fa-indent"></i>
+            </button>
+            <button class="icon-btn" onclick="itemMove(${i},-1)" title="${esc(t('moveUp'))}"
+              ${i === 0 ? 'disabled' : ''}>
+              <i class="fas fa-arrow-up"></i>
+            </button>
+            <button class="icon-btn" onclick="itemMove(${i},1)" title="${esc(t('moveDown'))}"
+              ${i === editorItems.length - 1 ? 'disabled' : ''}>
+              <i class="fas fa-arrow-down"></i>
+            </button>
+            <button class="icon-btn danger" onclick="itemDelete(${i})" title="${esc(t('delete'))}">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  function editorAddItem() {
+    const input = document.getElementById('new-item-input');
+    const label = input.value.trim();
+    if (!label) return;
+    editorItems.push({ id: genId(), label, indent: 0, allowNote: false });
+    input.value = '';
+    renderEditorItems();
+    input.focus();
+  }
+
+  function itemMove(i, dir) {
+    const j = i + dir;
+    if (j < 0 || j >= editorItems.length) return;
+    [editorItems[i], editorItems[j]] = [editorItems[j], editorItems[i]];
+    renderEditorItems();
+  }
+
+  function itemIndent(i, dir) {
+    editorItems[i].indent = Math.max(0, Math.min(3, editorItems[i].indent + dir));
+    renderEditorItems();
+  }
+
+  function itemToggleNote(i) {
+    editorItems[i].allowNote = !editorItems[i].allowNote;
+    renderEditorItems();
+  }
+
+  function itemDelete(i) {
+    editorItems.splice(i, 1);
+    renderEditorItems();
+  }
+
+  async function saveTemplateForm() {
+    const name = document.getElementById('tpl-name').value.trim();
+    if (!name) { document.getElementById('tpl-name').focus(); return; }
+    const now = Date.now();
+    let createdAt = now;
+    if (editorTplId) {
+      const ex = await idbGet('templates', editorTplId);
+      createdAt = ex?.createdAt ?? now;
+    }
+    const tpl = { name, type: document.getElementById('tpl-type').value, items: editorItems, createdAt, updatedAt: now };
+    if (editorTplId) tpl.id = editorTplId;
+    await idbPut('templates', tpl);
+    showTemplates();
+  }
+
+  /* =========================================================
+     Delete template
+  ========================================================= */
+  function promptDeleteTemplate(id, name) {
+    showConfirmModal(
+      `${t('deleteTemplate')}<br><strong>${esc(name)}</strong><br>
+       <small style="color:var(--muted)">${t('confirmDeleteMsg')}</small>`,
+      () => idbDelete('templates', id).then(showTemplates)
+    );
+  }
+
+  /* =========================================================
+     New Run modal
+  ========================================================= */
+  let pendingTplId = null;
+  const runModal = new bootstrap.Modal(document.getElementById('run-modal'));
+
+  async function openNewRunModal(tplId) {
+    const tpl = await idbGet('templates', tplId);
+    if (!tpl) return;
+    pendingTplId = tplId;
+    document.getElementById('new-run-name').value = `${tpl.name}_${stampNow()}`;
+    applyI18n();
+    runModal.show();
+    setTimeout(() => document.getElementById('new-run-name').select(), 300);
+  }
+
+  async function startRun() {
+    const name = document.getElementById('new-run-name').value.trim();
+    if (!name) return;
+    runModal.hide();
+    const tpl = await idbGet('templates', pendingTplId);
+    if (!tpl) return;
+    const run = {
+      templateId: tpl.id,
+      templateName: tpl.name,
+      templateType: tpl.type,
+      name,
+      createdAt: Date.now(),
+      items: JSON.parse(JSON.stringify(tpl.items)),
+      itemStates: tpl.items.map(item => ({ itemId: item.id, done: false, note: '' })),
+      generalNote: '',
+    };
+    const newId = await idbPut('runs', run);
+    run.id = newId;
+    prevView = 'view-templates';
+    currentRun = run;
+    renderRunView();
+  }
+
+  /* =========================================================
+     Run view
+  ========================================================= */
+  let currentRun = null;
+  let prevView = 'view-templates';
+  let autoSaveTimer = null;
+
+  async function openRun(id) {
+    const run = await idbGet('runs', id);
+    if (!run) return;
+    prevView = 'view-history';
+    currentRun = run;
+    renderRunView();
+  }
+
+  function renderRunView() {
+    showView('view-run');
+    applyI18n();
+    const run = currentRun;
+    document.getElementById('run-name-input').value = run.name;
+    document.getElementById('run-general-notes').value = run.generalNote || '';
+    updateProgress();
+
+    const stateMap = {};
+    (run.itemStates || []).forEach(s => { stateMap[s.itemId] = s; });
+
+    const list = document.getElementById('run-items-list');
+    list.innerHTML = (run.items || []).map(item => {
+      const s = stateMap[item.id] || { done: false, note: '' };
+      const px = item.indent * 24;
+      const noteOpen = item.allowNote && s.note;
+      const safeId = CSS.escape ? CSS.escape(item.id) : item.id;
+      const caText = s.done && s.checkedAt ? formatCheckedAt(s.checkedAt) : '';
+      const caTitle = s.done && s.checkedAt ? displayDate(s.checkedAt) : '';
+      return `
+        <div class="run-item" style="padding-left:${px}px">
+          <div class="run-item-row">
+            <input type="checkbox" class="form-check-input flex-shrink-0"
+              id="cb-${esc(item.id)}"
+              ${s.done ? 'checked' : ''}
+              onchange="toggleDone('${esc(item.id)}', this.checked)">
+            <label class="run-item-label${s.done ? ' done' : ''}"
+              for="cb-${esc(item.id)}">${esc(item.label)}</label>
+            <span class="checked-at" id="ca-${esc(item.id)}"
+              title="${esc(caTitle)}"
+              ${!caText ? 'style="display:none"' : ''}>${esc(caText)}</span>
+            ${item.allowNote ? `
+              <button class="note-toggle-btn"
+                onclick="toggleNote('${esc(item.id)}')"
+                title="${esc(t('noteHint'))}">
+                <i class="fas fa-chevron-${noteOpen ? 'up' : 'down'}"
+                   id="ni-${esc(item.id)}"></i>
+              </button>` : ''}
+          </div>
+          ${item.allowNote ? `
+            <div class="note-collapse${noteOpen ? ' open' : ''}" id="nc-${esc(item.id)}">
+              <textarea class="form-control" rows="2"
+                placeholder="${esc(t('noteHint'))}"
+                oninput="noteInput('${esc(item.id)}', this.value)"
+              >${esc(s.note || '')}</textarea>
+            </div>` : ''}
+        </div>`;
+    }).join('');
+  }
+
+  function updateProgress() {
+    if (!currentRun) return;
+    const total = (currentRun.itemStates || []).length;
+    const done  = (currentRun.itemStates || []).filter(s => s.done).length;
+    document.getElementById('run-progress-badge').textContent = t('progress', done, total);
+  }
+
+  function formatCheckedAt(ts) {
+    const d = new Date(ts);
+    const isToday = d.toDateString() === new Date().toDateString();
+    const loc = lang === 'ja' ? 'ja-JP' : lang === 'pt' ? 'pt-BR' : 'en-US';
+    return isToday
+      ? d.toLocaleTimeString(loc, { hour: '2-digit', minute: '2-digit' })
+      : d.toLocaleString(loc, { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+  }
+
+  function toggleDone(itemId, checked) {
+    const s = currentRun.itemStates.find(s => s.itemId === itemId);
+    if (s) {
+      s.done = checked;
+      s.checkedAt = checked ? Date.now() : null;
+    }
+    const lbl = document.querySelector(`label[for="cb-${CSS.escape(itemId)}"]`);
+    if (lbl) lbl.classList.toggle('done', checked);
+    const ca = document.getElementById(`ca-${itemId}`);
+    if (ca) {
+      if (checked && s?.checkedAt) {
+        ca.textContent = formatCheckedAt(s.checkedAt);
+        ca.title = displayDate(s.checkedAt);
+        ca.style.display = '';
+      } else {
+        ca.textContent = '';
+        ca.style.display = 'none';
+      }
+    }
+    updateProgress();
+    scheduleAutoSave();
+  }
+
+  function toggleNote(itemId) {
+    const col  = document.getElementById(`nc-${itemId}`);
+    const icon = document.getElementById(`ni-${itemId}`);
+    if (!col) return;
+    const open = col.classList.toggle('open');
+    if (icon) icon.className = open ? 'fas fa-chevron-up' : 'fas fa-chevron-down';
+  }
+
+  function noteInput(itemId, value) {
+    const s = currentRun.itemStates.find(s => s.itemId === itemId);
+    if (s) s.note = value;
+    scheduleAutoSave();
+  }
+
+  function scheduleAutoSave() {
+    if (autoSaveTimer) clearTimeout(autoSaveTimer);
+    autoSaveTimer = setTimeout(flushAutoSave, 500);
+  }
+
+  async function flushAutoSave() {
+    autoSaveTimer = null;
+    if (!currentRun?.id) return;
+    const nameEl = document.getElementById('run-name-input');
+    const noteEl = document.getElementById('run-general-notes');
+    if (nameEl) { const v = nameEl.value.trim(); if (v) currentRun.name = v; }
+    if (noteEl) currentRun.generalNote = noteEl.value;
+    await idbPut('runs', currentRun);
+  }
+
+  document.getElementById('run-name-input').addEventListener('input', scheduleAutoSave);
+  document.getElementById('run-general-notes').addEventListener('input', scheduleAutoSave);
+
+  /* =========================================================
+     History view
+  ========================================================= */
+  async function showHistory() {
+    showView('view-history');
+    applyI18n();
+    const runs = await idbGetAll('runs');
+    const list  = document.getElementById('history-list');
+    const empty = document.getElementById('history-empty');
+    if (!runs.length) {
+      list.innerHTML = '';
+      empty.classList.remove('d-none');
+      return;
+    }
+    empty.classList.add('d-none');
+    runs.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    list.innerHTML = runs.map(run => {
+      const total = (run.itemStates || []).length;
+      const done  = (run.itemStates || []).filter(s => s.done).length;
+      const pct   = total ? Math.round(done / total * 100) : 0;
+      return `
+        <div class="history-item" onclick="openRun(${run.id})">
+          <div class="history-item-info">
+            <div class="history-item-name">${esc(run.name)}</div>
+            <div class="history-item-meta">
+              <span class="badge ${typeBadgeClass(run.templateType || 'activity')}"
+                style="font-size:.68rem">${esc(typeLabel(run.templateType || 'activity'))}</span>
+              &nbsp;${esc(run.templateName)} &middot; ${esc(displayDate(run.createdAt))}
+            </div>
+            <div class="progress-mini">
+              <div class="progress-mini-bar" style="width:${pct}%"></div>
+            </div>
+            <div class="progress-mini-count">${done}/${total}</div>
+          </div>
+          <div class="history-item-actions" onclick="event.stopPropagation()">
+            <button class="btn btn-sm btn-outline-danger"
+              onclick="promptDeleteRun(${run.id}, '${esc(run.name)}')"
+              title="${esc(t('delete'))}">
+              <i class="fas fa-trash"></i>
+            </button>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  function promptDeleteRun(id, name) {
+    showConfirmModal(
+      `${t('deleteRunMsg')}<br><strong>${esc(name)}</strong><br>
+       <small style="color:var(--muted)">${t('confirmDeleteMsg')}</small>`,
+      () => idbDelete('runs', id).then(showHistory)
+    );
+  }
+
+  /* =========================================================
+     Confirm modal
+  ========================================================= */
+  let confirmCb = null;
+  const confirmModal = new bootstrap.Modal(document.getElementById('confirm-modal'));
+
+  function showConfirmModal(msg, cb) {
+    document.getElementById('confirm-modal-body').innerHTML = msg;
+    confirmCb = cb;
+    applyI18n();
+    confirmModal.show();
+  }
+
+  document.getElementById('confirm-ok-btn').addEventListener('click', () => {
+    confirmModal.hide();
+    if (confirmCb) { confirmCb(); confirmCb = null; }
+  });
+
+  /* =========================================================
+     Event wiring
+  ========================================================= */
+  document.getElementById('btn-new-template').addEventListener('click', startNewTemplate);
+  document.getElementById('btn-show-history').addEventListener('click', showHistory);
+  document.getElementById('btn-editor-back').addEventListener('click', showTemplates);
+  document.getElementById('btn-cancel-edit').addEventListener('click', showTemplates);
+  document.getElementById('btn-save-tpl').addEventListener('click', saveTemplateForm);
+  document.getElementById('btn-add-item').addEventListener('click', editorAddItem);
+  document.getElementById('new-item-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); editorAddItem(); }
+  });
+  document.getElementById('btn-run-back').addEventListener('click', async () => {
+    if (autoSaveTimer) await flushAutoSave();
+    prevView === 'view-history' ? showHistory() : showTemplates();
+  });
+  document.getElementById('btn-history-back').addEventListener('click', showTemplates);
+  document.getElementById('run-start-btn').addEventListener('click', startRun);
+  document.getElementById('new-run-name').addEventListener('keydown', e => {
+    if (e.key === 'Enter') startRun();
+  });
+
+  document.getElementById('lang-switcher').addEventListener('change', e => {
+    lang = e.target.value;
+    localStorage.setItem('checklist_lang', lang);
+    // Re-render current active view
+    const active = ALL_VIEWS.find(v => !document.getElementById(v).classList.contains('d-none'));
+    if      (active === 'view-templates') showTemplates();
+    else if (active === 'view-history')   showHistory();
+    else if (active === 'view-run' && currentRun) renderRunView();
+    else applyI18n();
+  });
+
+  document.getElementById('theme-btn').addEventListener('click', () => {
+    theme = theme === 'dark' ? 'light' : 'dark';
+    localStorage.setItem('checklist_theme', theme);
+    applyTheme();
+  });
+
+  /* =========================================================
+     Init
+  ========================================================= */
+  applyTheme();
+  applyI18n();
+  showTemplates();
+  </script>
+</body>
+</html>
