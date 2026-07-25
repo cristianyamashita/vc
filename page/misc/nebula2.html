@@ -1,0 +1,1339 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title data-i18n="title">Nebula 2 — Advanced Gravity Playground</title>
+  <style>
+    :root {
+      --bg: #0b0f1a;
+      --panel: rgba(14, 18, 34, 0.84);
+      --border: rgba(255,255,255,0.10);
+      --text: #e8ecff;
+      --muted: rgba(232,236,255,0.65);
+      --accent: #8fd3ff;
+      --accent2: #c084fc;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; background: var(--bg); color: var(--text);
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; }
+    #wrap { position: fixed; inset: 0; overflow: hidden; }
+    canvas { position: absolute; inset: 0; display: block; }
+
+    /* ---- HUD Panel ---- */
+    .hud {
+      position: absolute; left: 14px; top: 14px; z-index: 10;
+      width: min(350px, calc(100vw - 28px));
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      backdrop-filter: blur(16px);
+      box-shadow: 0 14px 44px rgba(0,0,0,0.5);
+      overflow: hidden;
+    }
+    .hud-header {
+      display: flex; align-items: flex-start; justify-content: space-between; gap: 8px;
+      padding: 11px 12px 9px;
+      border-bottom: 1px solid var(--border);
+    }
+    .hud-header h1 { font-size: 13px; font-weight: 700; letter-spacing: 0.25px; }
+    .hud-header .sub { font-size: 10px; color: var(--muted); line-height: 1.3; margin-top: 2px; }
+    .hud-right { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; flex-shrink: 0; }
+    .lang-sel { display: flex; gap: 3px; }
+    .lang-sel a { color: var(--muted); text-decoration: none; font-size: 10px; font-weight: 700;
+      padding: 2px 5px; border-radius: 5px; border: 1px solid transparent; }
+    .lang-sel a:hover { border-color: rgba(255,255,255,0.18); }
+    .lang-sel a.active { color: var(--accent); }
+    .hud-top-row { display: flex; align-items: center; gap: 5px; }
+    #collapseBtn { background: none; border: 1px solid var(--border); color: var(--muted);
+      border-radius: 7px; padding: 1px 7px; cursor: pointer; font-size: 12px; line-height: 1.5; }
+    #collapseBtn:hover { border-color: rgba(255,255,255,0.22); color: var(--text); }
+    .hud.collapsed .hud-body { display: none; }
+    .hud.collapsed .hud-header { border-bottom: none; }
+
+    /* ---- Tabs ---- */
+    .tabs { display: flex; padding: 7px 8px 0; gap: 2px; }
+    .tab-btn { flex: 1; background: none; border: none; border-bottom: 2px solid transparent;
+      color: var(--muted); font-size: 11px; font-weight: 600; padding: 4px 2px 5px;
+      cursor: pointer; border-radius: 7px 7px 0 0; transition: color 0.15s; }
+    .tab-btn:hover { color: var(--text); }
+    .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent);
+      background: rgba(143,211,255,0.05); }
+    .tab-panel { display: none; padding: 8px 10px 6px; }
+    .tab-panel.active { display: block; }
+
+    /* ---- Controls ---- */
+    .row { display: flex; align-items: center; gap: 7px; margin: 4px 0; }
+    label { font-size: 11px; color: var(--muted); min-width: 108px; flex: none; }
+    input[type="range"] { flex: 1; min-width: 0; height: 3px; accent-color: var(--accent);
+      cursor: pointer; }
+    .pill {
+      display: inline-flex; align-items: center; padding: 2px 7px;
+      border-radius: 999px; border: 1px solid var(--border);
+      background: rgba(255,255,255,0.04); font-size: 10px; color: var(--muted);
+      white-space: nowrap; flex-shrink: 0;
+    }
+    .seg-row { display: flex; align-items: center; gap: 7px; margin: 4px 0; }
+    .seg-row > label { font-size: 11px; color: var(--muted); min-width: 108px; flex: none; }
+    .segment { display: flex; border: 1px solid var(--border); border-radius: 7px;
+      overflow: hidden; flex: 1; }
+    .seg-btn { flex: 1; background: none; border: none; color: var(--muted);
+      font-size: 10px; padding: 4px 2px; cursor: pointer; transition: all 0.15s; }
+    .seg-btn + .seg-btn { border-left: 1px solid var(--border); }
+    .seg-btn:hover { color: var(--text); }
+    .seg-btn.active { background: rgba(143,211,255,0.12); color: var(--accent); }
+
+    /* ---- Toggles ---- */
+    .tog-row { display: flex; align-items: center; gap: 7px; margin: 4px 0; }
+    .tog-row > label { font-size: 11px; color: var(--muted); flex: 1; }
+    .tog { position: relative; width: 30px; height: 16px; cursor: pointer; flex-shrink: 0; }
+    .tog input { opacity: 0; width: 0; height: 0; }
+    .tog-track { position: absolute; inset: 0; background: rgba(255,255,255,0.10);
+      border-radius: 999px; transition: background 0.2s; }
+    .tog input:checked + .tog-track { background: rgba(143,211,255,0.38); }
+    .tog-track::before { content: ''; position: absolute; width: 12px; height: 12px;
+      left: 2px; top: 2px; background: #fff; border-radius: 50%; transition: transform 0.2s; }
+    .tog input:checked + .tog-track::before { transform: translateX(14px); }
+
+    /* ---- Chips ---- */
+    .chips { display: flex; flex-wrap: wrap; gap: 4px; margin: 4px 0; }
+    .chip { padding: 3px 8px; border-radius: 999px; border: 1px solid var(--border);
+      background: rgba(255,255,255,0.04); font-size: 10px; color: var(--muted);
+      cursor: pointer; transition: all 0.15s; user-select: none; }
+    .chip:hover { border-color: rgba(255,255,255,0.22); color: var(--text); }
+    .chip.active { border-color: var(--accent); color: var(--accent);
+      background: rgba(143,211,255,0.09); }
+    [data-theme="solar"].active   { border-color:#fb923c;color:#fb923c;background:rgba(251,146,60,0.09); }
+    [data-theme="emerald"].active { border-color:#34d399;color:#34d399;background:rgba(52,211,153,0.09); }
+    [data-theme="aurora"].active  { border-color:#a78bfa;color:#a78bfa;background:rgba(167,139,250,0.09); }
+    [data-theme="crimson"].active { border-color:#f87171;color:#f87171;background:rgba(248,113,113,0.09); }
+    [data-theme="void"].active    { border-color:#cbd5e1;color:#cbd5e1;background:rgba(203,213,225,0.06); }
+
+    /* ---- Tool grid ---- */
+    .tool-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 5px; margin: 4px 0; }
+    .tool-btn { background: rgba(255,255,255,0.04); border: 1px solid var(--border);
+      color: var(--muted); padding: 6px 4px; border-radius: 9px; cursor: pointer;
+      font-size: 10px; text-align: center; line-height: 1.3; transition: all 0.15s; }
+    .tool-btn:hover { border-color: rgba(255,255,255,0.2); color: var(--text); }
+    .tool-btn.active { border-color: var(--accent2); color: var(--accent2);
+      background: rgba(192,132,252,0.09); }
+    .t-icon { font-size: 13px; display: block; margin-bottom: 1px; }
+
+    /* ---- Section label ---- */
+    .slbl { font-size: 10px; color: var(--muted); font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.5px; margin: 8px 0 3px; }
+
+    /* ---- Actions bar ---- */
+    .actions { display: flex; flex-wrap: wrap; gap: 5px; padding: 7px 10px 9px;
+      border-top: 1px solid var(--border); }
+    .act-btn { background: rgba(255,255,255,0.05); border: 1px solid var(--border);
+      color: var(--text); padding: 4px 8px; border-radius: 8px; cursor: pointer;
+      font-size: 11px; transition: all 0.15s; }
+    .act-btn:hover { border-color: rgba(255,255,255,0.22); }
+    .act-btn.primary { background: rgba(143,211,255,0.09); border-color: rgba(143,211,255,0.22); }
+
+    /* ---- Footer ---- */
+    .foot { position: absolute; right: 14px; bottom: 14px; z-index: 10;
+      display: flex; gap: 6px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+  </style>
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-NWZDZ906DJ"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-NWZDZ906DJ');
+  </script>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="c"></canvas>
+
+  <div class="hud" id="hud">
+    <div class="hud-header">
+      <div>
+        <h1 data-i18n="titleShort">Nebula 2.0</h1>
+        <div class="sub" data-i18n="subtitle">Advanced Gravity Playground</div>
+      </div>
+      <div class="hud-right">
+        <div class="hud-top-row">
+          <div class="lang-sel">
+            <a href="#" data-lang="en">EN</a>
+            <a href="#" data-lang="ja">JA</a>
+            <a href="#" data-lang="pt">PT</a>
+          </div>
+          <button id="collapseBtn" title="Toggle panel">—</button>
+        </div>
+        <div class="pill" id="fpsPill">FPS: --</div>
+      </div>
+    </div>
+
+    <div class="hud-body">
+      <!-- Tabs -->
+      <div class="tabs">
+        <button class="tab-btn active" data-tab="physics" data-i18n="tabPhysics">Physics</button>
+        <button class="tab-btn" data-tab="visual" data-i18n="tabVisual">Visual</button>
+        <button class="tab-btn" data-tab="tools" data-i18n="tabTools">Tools</button>
+      </div>
+
+      <!-- Physics Tab -->
+      <div class="tab-panel active" id="tab-physics">
+        <div class="row">
+          <label data-i18n="lCount">Count</label>
+          <input id="count" type="range" min="50" max="1500" value="120" step="10">
+          <span class="pill" id="countVal">120</span>
+        </div>
+        <div class="row">
+          <label data-i18n="lGravity">Gravity (G)</label>
+          <input id="g" type="range" min="0" max="250" value="55">
+          <span class="pill" id="gVal">0.55</span>
+        </div>
+        <div class="row">
+          <label data-i18n="lSoftening">Softening</label>
+          <input id="soft" type="range" min="1" max="80" value="14">
+          <span class="pill" id="softVal">14</span>
+        </div>
+        <div class="row">
+          <label data-i18n="lDamping">Damping</label>
+          <input id="damp" type="range" min="900" max="999" value="985">
+          <span class="pill" id="dampVal">0.985</span>
+        </div>
+        <div class="row">
+          <label data-i18n="lMass">Base mass</label>
+          <input id="mass" type="range" min="1" max="80" value="10">
+          <span class="pill" id="massVal">10</span>
+        </div>
+        <div class="row">
+          <label data-i18n="lMaxVel">Max velocity</label>
+          <input id="maxVel" type="range" min="1" max="20" value="8" step="0.5">
+          <span class="pill" id="maxVelVal">8.0</span>
+        </div>
+        <div class="tog-row">
+          <label data-i18n="lMerging">Star merging</label>
+          <label class="tog"><input type="checkbox" id="merging" checked><span class="tog-track"></span></label>
+        </div>
+        <div class="seg-row">
+          <label data-i18n="lBoundary">Boundary</label>
+          <div class="segment" id="boundSeg">
+            <button class="seg-btn active" data-val="wrap" data-i18n="bWrap">Wrap</button>
+            <button class="seg-btn" data-val="bounce" data-i18n="bBounce">Bounce</button>
+            <button class="seg-btn" data-val="absorb" data-i18n="bAbsorb">Absorb</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Visual Tab -->
+      <div class="tab-panel" id="tab-visual">
+        <div class="row">
+          <label data-i18n="lTrails">Trails</label>
+          <input id="trails" type="range" min="0" max="98" value="88">
+          <span class="pill" id="trailsVal">0.88</span>
+        </div>
+        <div class="row">
+          <label data-i18n="lGlow">Glow</label>
+          <input id="glow" type="range" min="0" max="24" value="6">
+          <span class="pill" id="glowVal">6</span>
+        </div>
+        <div class="row">
+          <label data-i18n="lLinkDist">Link distance</label>
+          <input id="linkDist" type="range" min="0" max="280" value="120">
+          <span class="pill" id="linkDistVal">120</span>
+        </div>
+        <div class="tog-row">
+          <label data-i18n="lSpeedColor">Speed colors</label>
+          <label class="tog"><input type="checkbox" id="speedColor" checked><span class="tog-track"></span></label>
+        </div>
+        <div class="tog-row">
+          <label data-i18n="lShowGas">Nebula gas</label>
+          <label class="tog"><input type="checkbox" id="showGas" checked><span class="tog-track"></span></label>
+        </div>
+        <div class="slbl" data-i18n="lTheme">Theme</div>
+        <div class="chips" id="themeChips">
+          <span class="chip active" data-theme="cosmic">🔵 Cosmic</span>
+          <span class="chip" data-theme="solar">🟠 Solar</span>
+          <span class="chip" data-theme="emerald">🟢 Emerald</span>
+          <span class="chip" data-theme="aurora">🟣 Aurora</span>
+          <span class="chip" data-theme="crimson">🔴 Crimson</span>
+          <span class="chip" data-theme="void">⚪ Void</span>
+        </div>
+        <div class="slbl" data-i18n="lLinkStyle">Link style</div>
+        <div class="chips" id="linkChips">
+          <span class="chip active" data-lstyle="line" data-i18n="lsLine">Lines</span>
+          <span class="chip" data-lstyle="gradient" data-i18n="lsGrad">Gradient</span>
+          <span class="chip" data-lstyle="none" data-i18n="lsNone">None</span>
+        </div>
+      </div>
+
+      <!-- Tools Tab -->
+      <div class="tab-panel" id="tab-tools">
+        <div class="slbl" data-i18n="lTool">Tool</div>
+        <div class="tool-grid">
+          <button class="tool-btn active" data-tool="spawn"><span class="t-icon">✦</span><span data-i18n="tSpawn">Spawn</span></button>
+          <button class="tool-btn" data-tool="attract"><span class="t-icon">⦿</span><span data-i18n="tAttract">Attract</span></button>
+          <button class="tool-btn" data-tool="repel"><span class="t-icon">⊗</span><span data-i18n="tRepel">Repel</span></button>
+          <button class="tool-btn" data-tool="delete"><span class="t-icon">✕</span><span data-i18n="tDelete">Delete</span></button>
+          <button class="tool-btn" data-tool="swirl"><span class="t-icon">↺</span><span data-i18n="tSwirl">Swirl</span></button>
+          <button class="tool-btn" data-tool="blackhole"><span class="t-icon">⬛</span><span data-i18n="tBlackhole">Black Hole</span></button>
+        </div>
+        <div class="slbl" data-i18n="lFormation">Formation</div>
+        <div class="chips" id="formChips">
+          <span class="chip active" data-form="nebula" data-i18n="fNebula">Nebula</span>
+          <span class="chip" data-form="spiral" data-i18n="fSpiral">Spiral</span>
+          <span class="chip" data-form="ring" data-i18n="fRing">Ring</span>
+          <span class="chip" data-form="binary" data-i18n="fBinary">Binary</span>
+          <span class="chip" data-form="bigbang" data-i18n="fBigBang">Big Bang</span>
+          <span class="chip" data-form="vortex" data-i18n="fVortex">Vortex</span>
+          <span class="chip" data-form="collision" data-i18n="fCollision">Collision</span>
+        </div>
+        <div class="slbl" data-i18n="lHelp">Controls</div>
+        <div style="font-size:10px;color:var(--muted);line-height:1.55;">
+          <span data-i18n="helpLine1">Click: spawn star | Shift+click: heavy star | Scroll: brush mass</span><br>
+          <span data-i18n="helpLine2">Space: pause | R: reset | B: burst | T: clear | S: screenshot</span><br>
+          <span data-i18n="helpLine3">1–7: formation preset | Q: cycle render quality</span>
+        </div>
+      </div>
+
+      <!-- Actions (always visible) -->
+      <div class="actions">
+        <button class="act-btn primary" id="resetBtn" data-i18n="btnReset">Reset</button>
+        <button class="act-btn" id="toggleBtn" data-i18n="btnPause">Pause</button>
+        <button class="act-btn" id="burstBtn" data-i18n="btnBurst">Burst</button>
+        <button class="act-btn" id="supernovaBtn" data-i18n="btnSupernova">Supernova</button>
+        <button class="act-btn" id="clearBtn" data-i18n="btnClear">Clear</button>
+        <button class="act-btn" id="screenshotBtn" title="Screenshot">📷</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="foot">
+    <div class="pill" id="qualPill" style="cursor:pointer" title="Click to cycle quality">Q: High</div>
+    <div class="pill" id="toolPill">Spawn</div>
+    <div class="pill" id="brushPill"><span data-i18n="brushLabel">Mass</span>: <b id="brushVal">18</b></div>
+    <div class="pill" id="bodyPill">⬟ 120</div>
+  </div>
+</div>
+
+<script>
+(() => {
+// ---- Canvas ----
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d', { alpha: false });
+let W = 0, H = 0, DPR = 1;
+
+// ---- Helper functions (declared first so they can be referenced in THEMES) ----
+function rand(a, b) { return a + Math.random() * (b - a); }
+function mkBody(x, y, vx, vy, m) {
+  const mass = Math.max(1, m);
+  return { x, y, vx, vy, ax: 0, ay: 0, m: mass, r: Math.max(1.2, Math.sqrt(mass) * 0.48), _dead: false };
+}
+
+// ---- Themes ----
+const THEMES = {
+  cosmic:  { bg:[11,15,26],   hueBase:205, hueRange:30,  sat:'95%', glow:'rgba(140,210,255,0.9)', lHue:200  },
+  solar:   { bg:[22,9,0],     hueBase:18,  hueRange:28,  sat:'98%', glow:'rgba(255,170,60,0.9)',  lHue:28   },
+  emerald: { bg:[7,20,8],     hueBase:148, hueRange:24,  sat:'95%', glow:'rgba(80,255,150,0.9)', lHue:155  },
+  aurora:  { bg:[5,8,24],     hueBase:-1,  hueRange:360, sat:'88%', glow:'rgba(200,150,255,0.9)', lHue:-1  },
+  crimson: { bg:[21,3,8],     hueBase:335, hueRange:30,  sat:'95%', glow:'rgba(255,70,120,0.9)', lHue:340  },
+  void:    { bg:[0,0,0],      hueBase:220, hueRange:0,   sat:'15%', glow:'rgba(220,220,255,0.9)', lHue:220 },
+};
+
+function starHue(b, speed) {
+  const th = THEMES[state.theme];
+  let base;
+  if (th.hueBase < 0) {
+    // Aurora: position-based rainbow
+    base = (b.x / (W || 1) * 300 + b.m * 2) % 360;
+  } else {
+    base = th.hueBase + (b.m % 12) * (th.hueRange / 24);
+  }
+  if (ui && ui.speedColor && ui.speedColor.checked && speed > 0.1) {
+    // Fast stars shift slightly toward blue-white
+    const t = Math.min(1, speed / 5);
+    base = base + (210 - base) * t * 0.35;
+  }
+  return base;
+}
+
+function linkHue(a, b) {
+  const th = THEMES[state.theme];
+  if (th.lHue < 0) return (a.x / (W || 1) * 300 + 90) % 360;
+  return th.lHue;
+}
+
+// ---- State ----
+const state = {
+  theme: 'cosmic',
+  formation: 'nebula',
+  tool: 'spawn',
+  boundary: 'wrap',
+  linkStyle: 'line',
+  quality: 1,          // 1=high 2=medium 3=low
+  running: true,
+};
+
+let bodies = [];
+let blackHole = null;      // { x, y, m, eventR }
+let toolForce = null;      // ephemeral {x,y,m,sign} for attract/repel tool
+let dragging = null;       // { b, ox, oy } or { bh: true }
+let brushMass = 18;
+let supernovas = [];       // { x, y, t, dur, hue }
+let gasBlobs = [];         // nebula background blobs
+let pointer = { x: 0, y: 0, down: false };
+let fpsEMA = 60;
+let lastT = performance.now();
+
+const SUPERNOVA_MASS = 300;
+const Q_LABELS = ['High', 'Medium', 'Low'];
+const FORM_KEYS = ['nebula','spiral','ring','binary','bigbang','vortex','collision'];
+
+// ---- UI references ----
+const ui = {
+  count:    document.getElementById('count'),
+  g:        document.getElementById('g'),
+  soft:     document.getElementById('soft'),
+  damp:     document.getElementById('damp'),
+  mass:     document.getElementById('mass'),
+  maxVel:   document.getElementById('maxVel'),
+  trails:   document.getElementById('trails'),
+  glow:     document.getElementById('glow'),
+  linkDist: document.getElementById('linkDist'),
+  merging:  document.getElementById('merging'),
+  speedColor:document.getElementById('speedColor'),
+  showGas:  document.getElementById('showGas'),
+
+  countVal:   document.getElementById('countVal'),
+  gVal:       document.getElementById('gVal'),
+  softVal:    document.getElementById('softVal'),
+  dampVal:    document.getElementById('dampVal'),
+  massVal:    document.getElementById('massVal'),
+  maxVelVal:  document.getElementById('maxVelVal'),
+  trailsVal:  document.getElementById('trailsVal'),
+  glowVal:    document.getElementById('glowVal'),
+  linkDistVal:document.getElementById('linkDistVal'),
+
+  fpsPill:    document.getElementById('fpsPill'),
+  qualPill:   document.getElementById('qualPill'),
+  toolPill:   document.getElementById('toolPill'),
+  brushVal:   document.getElementById('brushVal'),
+  bodyPill:   document.getElementById('bodyPill'),
+
+  resetBtn:      document.getElementById('resetBtn'),
+  toggleBtn:     document.getElementById('toggleBtn'),
+  burstBtn:      document.getElementById('burstBtn'),
+  supernovaBtn:  document.getElementById('supernovaBtn'),
+  clearBtn:      document.getElementById('clearBtn'),
+  screenshotBtn: document.getElementById('screenshotBtn'),
+  collapseBtn:   document.getElementById('collapseBtn'),
+  hud:           document.getElementById('hud'),
+  boundSeg:      document.getElementById('boundSeg'),
+};
+
+// ---- I18N ----
+const I18N = {
+  en: {
+    title:'Nebula 2 — Advanced Gravity Playground', titleShort:'Nebula 2.0',
+    subtitle:'Advanced Gravity Playground',
+    tabPhysics:'Physics', tabVisual:'Visual', tabTools:'Tools',
+    lCount:'Count', lGravity:'Gravity (G)', lSoftening:'Softening',
+    lDamping:'Damping', lMass:'Base mass', lMaxVel:'Max velocity',
+    lMerging:'Star merging', lBoundary:'Boundary',
+    bWrap:'Wrap', bBounce:'Bounce', bAbsorb:'Absorb',
+    lTrails:'Trails', lGlow:'Glow', lLinkDist:'Link dist.',
+    lSpeedColor:'Speed colors', lShowGas:'Nebula gas',
+    lTheme:'Theme', lLinkStyle:'Link style',
+    lsLine:'Lines', lsGrad:'Gradient', lsNone:'None',
+    lTool:'Tool', lFormation:'Formation',
+    tSpawn:'Spawn', tAttract:'Attract', tRepel:'Repel',
+    tDelete:'Delete', tSwirl:'Swirl', tBlackhole:'Black Hole',
+    fNebula:'Nebula', fSpiral:'Spiral', fRing:'Ring',
+    fBinary:'Binary', fBigBang:'Big Bang', fVortex:'Vortex', fCollision:'Collision',
+    lHelp:'Controls',
+    helpLine1:'Click: spawn star | Shift+click: heavy star | Scroll: brush mass',
+    helpLine2:'Space: pause | R: reset | B: burst | T: clear | S: screenshot',
+    helpLine3:'1–7: formation preset | Q: cycle render quality',
+    btnReset:'Reset', btnPause:'Pause', btnResume:'Resume',
+    btnBurst:'Burst', btnSupernova:'Supernova', btnClear:'Clear',
+    brushLabel:'Mass', fpsLabel:'FPS',
+  },
+  pt: {
+    title:'Nebula 2 — Simulador de Gravidade Avançado', titleShort:'Nebula 2.0',
+    subtitle:'Simulador de Gravidade Avançado',
+    tabPhysics:'Física', tabVisual:'Visual', tabTools:'Ferramentas',
+    lCount:'Quantidade', lGravity:'Gravidade (G)', lSoftening:'Softening',
+    lDamping:'Amortecimento', lMass:'Massa base', lMaxVel:'Vel. máxima',
+    lMerging:'Fusão estelar', lBoundary:'Borda',
+    bWrap:'Teleportar', bBounce:'Ricochetear', bAbsorb:'Absorver',
+    lTrails:'Trilhas', lGlow:'Brilho', lLinkDist:'Dist. link',
+    lSpeedColor:'Cores de vel.', lShowGas:'Gás nebular',
+    lTheme:'Tema', lLinkStyle:'Estilo de link',
+    lsLine:'Linhas', lsGrad:'Gradiente', lsNone:'Nenhum',
+    lTool:'Ferramenta', lFormation:'Formação',
+    tSpawn:'Criar', tAttract:'Atrair', tRepel:'Repelir',
+    tDelete:'Deletar', tSwirl:'Redemoinho', tBlackhole:'Buraco Negro',
+    fNebula:'Nebulosa', fSpiral:'Espiral', fRing:'Anel',
+    fBinary:'Binário', fBigBang:'Big Bang', fVortex:'Vórtice', fCollision:'Colisão',
+    lHelp:'Controles',
+    helpLine1:'Clique: criar estrela | Shift+clique: estrela pesada | Roda: massa',
+    helpLine2:'Espaço: pausar | R: reset | B: explosão | T: limpar | S: screenshot',
+    helpLine3:'1–7: formação | Q: qualidade de renderização',
+    btnReset:'Reset', btnPause:'Pausar', btnResume:'Continuar',
+    btnBurst:'Explosão', btnSupernova:'Supernova', btnClear:'Limpar',
+    brushLabel:'Massa', fpsLabel:'FPS',
+  },
+  ja: {
+    title:'星雲2 — 高度な重力シミュレーター', titleShort:'星雲 2.0',
+    subtitle:'高度な重力シミュレーター',
+    tabPhysics:'物理', tabVisual:'ビジュアル', tabTools:'ツール',
+    lCount:'数', lGravity:'重力 (G)', lSoftening:'ソフトニング',
+    lDamping:'減衰', lMass:'基準質量', lMaxVel:'最大速度',
+    lMerging:'星の合体', lBoundary:'境界',
+    bWrap:'ループ', bBounce:'跳ね返り', bAbsorb:'吸収',
+    lTrails:'軌跡', lGlow:'グロー', lLinkDist:'リンク距離',
+    lSpeedColor:'速度カラー', lShowGas:'星雲ガス',
+    lTheme:'テーマ', lLinkStyle:'リンクスタイル',
+    lsLine:'ライン', lsGrad:'グラデ', lsNone:'なし',
+    lTool:'ツール', lFormation:'フォーメーション',
+    tSpawn:'生成', tAttract:'引力', tRepel:'斥力',
+    tDelete:'削除', tSwirl:'旋回', tBlackhole:'ブラックホール',
+    fNebula:'星雲', fSpiral:'スパイラル', fRing:'リング',
+    fBinary:'バイナリ', fBigBang:'ビッグバン', fVortex:'渦', fCollision:'衝突',
+    lHelp:'操作',
+    helpLine1:'クリック: 星を生成 | Shift: 重い星 | ホイール: ブラシ質量',
+    helpLine2:'Space: 一時停止 | R: リセット | B: バースト | T: クリア | S: スクショ',
+    helpLine3:'1–7: フォーメーション | Q: 描画品質',
+    btnReset:'リセット', btnPause:'一時停止', btnResume:'再開',
+    btnBurst:'バースト', btnSupernova:'超新星', btnClear:'クリア',
+    brushLabel:'質量', fpsLabel:'FPS',
+  }
+};
+
+let currentLang = (() => { try { return localStorage.getItem('nebula2_lang') || 'pt'; } catch(e) { return 'pt'; } })();
+function t(k) { return (I18N[currentLang] || I18N.en)[k] || (I18N.en)[k] || k; }
+
+function applyLang(lang) {
+  currentLang = lang;
+  try { localStorage.setItem('nebula2_lang', lang); } catch(e) {}
+  document.documentElement.lang = lang === 'ja' ? 'ja' : lang === 'pt' ? 'pt-BR' : 'en';
+  document.title = t('title');
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const v = t(el.dataset.i18n);
+    if (v) el.textContent = v;
+  });
+  ui.toggleBtn.textContent = state.running ? t('btnPause') : t('btnResume');
+  document.querySelectorAll('.lang-sel a').forEach(a =>
+    a.classList.toggle('active', a.dataset.lang === lang));
+  syncFooter();
+}
+
+// ---- Resize ----
+function resize() {
+  DPR = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+  W = window.innerWidth;
+  H = window.innerHeight;
+  canvas.width = Math.floor(W * DPR);
+  canvas.height = Math.floor(H * DPR);
+  canvas.style.width = W + 'px';
+  canvas.style.height = H + 'px';
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  clearHard();
+  initGas();
+}
+window.addEventListener('resize', resize);
+
+function clearHard() {
+  const bg = THEMES[state.theme].bg;
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.fillStyle = `rgb(${bg.join(',')})`;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.restore();
+}
+
+// ---- Gas blobs (nebula background) ----
+function initGas() {
+  gasBlobs = [];
+  const n = 16 + Math.floor(Math.random() * 14);
+  for (let i = 0; i < n; i++) {
+    gasBlobs.push({
+      x: Math.random() * W, y: Math.random() * H,
+      rx: 70 + Math.random() * 200, ry: 50 + Math.random() * 130,
+      rot: Math.random() * Math.PI,
+      a: 0.008 + Math.random() * 0.018,
+      hOff: (Math.random() - 0.5) * 40,
+    });
+  }
+}
+
+// ---- Formations ----
+function initBodies(type, n) {
+  bodies = [];
+  blackHole = null;
+  supernovas = [];
+  const cx = W / 2, cy = H / 2;
+  const bm = Number(ui.mass.value);
+  switch (type) {
+    case 'spiral':    genSpiral(n, cx, cy, bm); break;
+    case 'ring':      genRing(n, cx, cy, bm);   break;
+    case 'binary':    genBinary(n, cx, cy, bm);  break;
+    case 'bigbang':   genBigBang(n, cx, cy, bm); break;
+    case 'vortex':    genVortex(n, cx, cy, bm);  break;
+    case 'collision': genCollision(n, cx, cy, bm); break;
+    default:          genNebula(n, cx, cy, bm);
+  }
+  clearHard();
+  initGas();
+}
+
+function genNebula(n, cx, cy, bm) {
+  for (let i = 0; i < n; i++) {
+    const ang = Math.random() * Math.PI * 2;
+    const r = Math.pow(Math.random(), 0.55) * Math.min(W, H) * 0.38;
+    const ex = r * Math.cos(ang) * rand(0.75, 1.25);
+    const ey = r * Math.sin(ang) * rand(0.55, 1.35);
+    const x = cx + ex + rand(-18, 18), y = cy + ey + rand(-18, 18);
+    const m = Math.max(1, bm * rand(0.4, 1.7));
+    bodies.push(mkBody(x, y, -ey * 0.0009 * rand(0.6, 1.3), ex * 0.0009 * rand(0.6, 1.3), m));
+  }
+}
+
+function genSpiral(n, cx, cy, bm) {
+  const arms = 3, winding = Math.PI * 2.8;
+  for (let i = 0; i < n; i++) {
+    const arm = i % arms;
+    const t2 = Math.pow(Math.random(), 0.6);
+    const rr = t2 * Math.min(W, H) * 0.42;
+    const ang = (arm / arms) * Math.PI * 2 + t2 * winding + rand(-0.15, 0.15);
+    const x = cx + rr * Math.cos(ang) + rand(-12, 12);
+    const y = cy + rr * Math.sin(ang) + rand(-12, 12);
+    const tang = ang + Math.PI / 2;
+    const spd = (0.55 + t2 * 0.45) * 0.95;
+    const m = Math.max(1, bm * (0.3 + t2 * 0.7) * rand(0.8, 1.4));
+    bodies.push(mkBody(x, y, Math.cos(tang) * spd * rand(0.85, 1.15),
+                              Math.sin(tang) * spd * rand(0.85, 1.15), m));
+  }
+  // Central mass
+  bodies.push(mkBody(cx, cy, 0, 0, bm * 14));
+}
+
+function genRing(n, cx, cy, bm) {
+  const rInner = Math.min(W, H) * 0.10, rOuter = Math.min(W, H) * 0.40;
+  for (let i = 0; i < n; i++) {
+    const ang = Math.random() * Math.PI * 2;
+    const rr = rInner + Math.random() * (rOuter - rInner);
+    const x = cx + Math.cos(ang) * rr + rand(-8, 8);
+    const y = cy + Math.sin(ang) * rr + rand(-8, 8);
+    const spd = rand(0.4, 0.8);
+    const tang = ang + Math.PI / 2;
+    bodies.push(mkBody(x, y, Math.cos(tang) * spd, Math.sin(tang) * spd, bm * rand(0.5, 1.5)));
+  }
+}
+
+function genBinary(n, cx, cy, bm) {
+  const half = Math.floor(n / 2), sep = Math.min(W, H) * 0.24;
+  for (let i = 0; i < n; i++) {
+    const side = i < half ? -1 : 1;
+    const ang = Math.random() * Math.PI * 2;
+    const r = Math.pow(Math.random(), 0.5) * sep * 0.38;
+    const x = cx + side * sep * 0.5 + Math.cos(ang) * r + rand(-8, 8);
+    const y = cy + Math.sin(ang) * r + rand(-8, 8);
+    // Slight drift toward center
+    bodies.push(mkBody(x, y, rand(-0.2, 0.2) - side * 0.35, rand(-0.2, 0.2), bm * rand(0.5, 1.5)));
+  }
+}
+
+function genBigBang(n, cx, cy, bm) {
+  for (let i = 0; i < n; i++) {
+    const ang = Math.random() * Math.PI * 2;
+    const spd = rand(0.3, 3.8);
+    bodies.push(mkBody(cx + rand(-12, 12), cy + rand(-12, 12),
+      Math.cos(ang) * spd, Math.sin(ang) * spd, bm * rand(0.3, 2.2)));
+  }
+}
+
+function genVortex(n, cx, cy, bm) {
+  for (let i = 0; i < n; i++) {
+    const ang = Math.random() * Math.PI * 2;
+    const r = Math.pow(Math.random(), 0.4) * Math.min(W, H) * 0.38;
+    const x = cx + Math.cos(ang) * r + rand(-6, 6);
+    const y = cy + Math.sin(ang) * r + rand(-6, 6);
+    const spd = (0.8 + Math.random() * 1.3) * (r / Math.min(W, H) * 2.8 + 0.35);
+    const tang = ang + Math.PI / 2;
+    bodies.push(mkBody(x, y, Math.cos(tang) * spd, Math.sin(tang) * spd, bm * rand(0.5, 1.3)));
+  }
+}
+
+function genCollision(n, cx, cy, bm) {
+  const half = Math.floor(n / 2), sep = Math.min(W, H) * 0.30;
+  for (let i = 0; i < n; i++) {
+    const side = i < half ? -1 : 1;
+    const ang = Math.random() * Math.PI * 2;
+    const r = Math.pow(Math.random(), 0.55) * sep * 0.42;
+    const x = cx + side * sep + Math.cos(ang) * r;
+    const y = cy + Math.sin(ang) * r;
+    const tang = ang + Math.PI / 2;
+    const orb = r > 8 ? 0.00085 * r * rand(0.5, 1.3) : 0;
+    // drift toward center
+    bodies.push(mkBody(x, y, -Math.sin(ang) * orb * r - side * 0.55,
+                              Math.cos(ang) * orb * r, bm * rand(0.5, 1.5)));
+  }
+}
+
+function spawnSingle(x, y, m) {
+  const mass = Math.max(1, m);
+  return mkBody(x, y, rand(-0.06, 0.06), rand(-0.06, 0.06), mass);
+}
+
+// ---- Supernova ----
+function doSupernova(b) {
+  const th = THEMES[state.theme];
+  const hue = th.lHue >= 0 ? th.lHue + rand(-20, 20) : Math.random() * 360;
+  supernovas.push({ x: b.x, y: b.y, m: b.m, t: 0, dur: 85, hue });
+  const nFrags = Math.min(22, Math.floor(b.m / 14));
+  const frags = [];
+  for (let k = 0; k < nFrags; k++) {
+    const ang = (k / nFrags) * Math.PI * 2 + rand(-0.12, 0.12);
+    const spd = rand(1.0, 2.8);
+    const fm = Math.max(1, b.m / nFrags * rand(0.4, 1.6));
+    frags.push(mkBody(
+      b.x + Math.cos(ang) * b.r * 2.2, b.y + Math.sin(ang) * b.r * 2.2,
+      Math.cos(ang) * spd + b.vx * 0.2, Math.sin(ang) * spd + b.vy * 0.2, fm));
+  }
+  return frags;
+}
+
+// ---- Physics step ----
+function step(now) {
+  const dtMs = Math.min(33, Math.max(8, now - lastT));
+  lastT = now;
+  const dt = dtMs / 16.667;
+  const fps = 1000 / dtMs;
+  fpsEMA = fpsEMA * 0.92 + fps * 0.08;
+  ui.fpsPill.textContent = t('fpsLabel') + ': ' + fpsEMA.toFixed(0);
+
+  if (state.running) {
+    const G      = Number(ui.g.value) / 100;
+    const soft   = Number(ui.soft.value);
+    const soft2  = soft * soft;
+    const damp   = Number(ui.damp.value) / 1000;
+    const maxV   = Number(ui.maxVel.value);
+    const N      = bodies.length;
+    const skip   = state.quality; // 1=all pairs, 2=half, 3=third
+
+    // zero accels
+    for (let i = 0; i < N; i++) { bodies[i].ax = 0; bodies[i].ay = 0; }
+
+    // N-body gravity
+    for (let i = 0; i < N; i++) {
+      const bi = bodies[i];
+      for (let j = i + skip; j < N; j += skip) {
+        const bj = bodies[j];
+        const dx = bj.x - bi.x, dy = bj.y - bi.y;
+        const r2 = dx * dx + dy * dy + soft2;
+        const invR3 = 1 / (r2 * Math.sqrt(r2));
+        const f = G * invR3;
+        bi.ax += dx * f * bj.m;
+        bi.ay += dy * f * bj.m;
+        bj.ax -= dx * f * bi.m;
+        bj.ay -= dy * f * bi.m;
+      }
+    }
+
+    // Tool force (attract / repel)
+    if (toolForce && pointer.down) {
+      for (const b of bodies) {
+        const dx = toolForce.x - b.x, dy = toolForce.y - b.y;
+        const r2 = dx * dx + dy * dy + soft2;
+        const invR3 = 1 / (r2 * Math.sqrt(r2));
+        const f = G * toolForce.sign * invR3 * toolForce.m;
+        b.ax += dx * f;
+        b.ay += dy * f;
+      }
+    }
+
+    // Swirl tool
+    if (state.tool === 'swirl' && pointer.down) {
+      const sR = 130, sStr = 0.07;
+      for (const b of bodies) {
+        const dx = b.x - pointer.x, dy = b.y - pointer.y;
+        const d2 = dx * dx + dy * dy;
+        if (d2 < sR * sR) {
+          const d = Math.sqrt(d2) + 0.1;
+          const t2 = 1 - d / sR;
+          b.ax += (-dy / d) * sStr * t2 * G * 120;
+          b.ay += ( dx / d) * sStr * t2 * G * 120;
+        }
+      }
+    }
+
+    // Black hole gravity + absorption
+    if (blackHole) {
+      for (const b of bodies) {
+        const dx = blackHole.x - b.x, dy = blackHole.y - b.y;
+        const d2 = dx * dx + dy * dy;
+        const d = Math.sqrt(d2);
+        if (d < blackHole.eventR) {
+          b._dead = true;
+          blackHole.m = Math.min(15000, blackHole.m + b.m * 0.05);
+          continue;
+        }
+        const r2 = d2 + soft2;
+        const invR3 = 1 / (r2 * Math.sqrt(r2));
+        const f = G * 2.8 * invR3 * blackHole.m;
+        b.ax += dx * f;
+        b.ay += dy * f;
+      }
+      bodies = bodies.filter(b => !b._dead);
+    }
+
+    // Delete tool
+    if (state.tool === 'delete' && pointer.down) {
+      const dR = Math.max(10, Math.sqrt(brushMass) * 1.3);
+      const dR2 = dR * dR;
+      bodies = bodies.filter(b => {
+        const dx = b.x - pointer.x, dy = b.y - pointer.y;
+        return dx * dx + dy * dy > dR2;
+      });
+    }
+
+    // Integrate
+    for (const b of bodies) {
+      b.vx = (b.vx + b.ax * dt) * damp;
+      b.vy = (b.vy + b.ay * dt) * damp;
+      const spd = Math.hypot(b.vx, b.vy);
+      if (spd > maxV) { const s = maxV / spd; b.vx *= s; b.vy *= s; }
+      b.x += b.vx * dt;
+      b.y += b.vy * dt;
+      applyBoundary(b);
+    }
+
+    // Absorb boundary cleanup
+    bodies = bodies.filter(b => !b._dead);
+
+    // Star merging
+    if (ui.merging.checked) checkMerges();
+
+    // Cap
+    capBodies();
+  }
+
+  // Age supernovas
+  supernovas = supernovas.filter(f => { f.t++; return f.t < f.dur; });
+
+  draw();
+  ui.bodyPill.textContent = '⬟ ' + bodies.length;
+  requestAnimationFrame(step);
+}
+
+function applyBoundary(b) {
+  const pad = 45;
+  if (state.boundary === 'wrap') {
+    if (b.x < -pad) b.x = W + pad;
+    else if (b.x > W + pad) b.x = -pad;
+    if (b.y < -pad) b.y = H + pad;
+    else if (b.y > H + pad) b.y = -pad;
+  } else if (state.boundary === 'bounce') {
+    if (b.x < 0)  { b.x = 0;  b.vx = Math.abs(b.vx) * 0.82; }
+    if (b.x > W)  { b.x = W;  b.vx = -Math.abs(b.vx) * 0.82; }
+    if (b.y < 0)  { b.y = 0;  b.vy = Math.abs(b.vy) * 0.82; }
+    if (b.y > H)  { b.y = H;  b.vy = -Math.abs(b.vy) * 0.82; }
+  } else { // absorb
+    if (b.x < -pad || b.x > W + pad || b.y < -pad || b.y > H + pad) b._dead = true;
+  }
+}
+
+function checkMerges() {
+  const N = bodies.length;
+  const newFrags = [];
+  for (let i = 0; i < N; i++) {
+    const a = bodies[i];
+    if (a._dead) continue;
+    for (let j = i + 1; j < N; j++) {
+      const b = bodies[j];
+      if (b._dead) continue;
+      const dx = b.x - a.x, dy = b.y - a.y;
+      const touchR = a.r + b.r;
+      if (dx * dx + dy * dy < touchR * touchR) {
+        const totalM = a.m + b.m;
+        a.x = (a.x * a.m + b.x * b.m) / totalM;
+        a.y = (a.y * a.m + b.y * b.m) / totalM;
+        a.vx = (a.vx * a.m + b.vx * b.m) / totalM;
+        a.vy = (a.vy * a.m + b.vy * b.m) / totalM;
+        a.m = totalM;
+        a.r = Math.max(1.5, Math.sqrt(totalM) * 0.5);
+        b._dead = true;
+        if (a.m > SUPERNOVA_MASS) {
+          const frags = doSupernova(a);
+          newFrags.push(...frags);
+          a._dead = true;
+        }
+        break;
+      }
+    }
+  }
+  bodies = bodies.filter(b => !b._dead).concat(newFrags);
+}
+
+function capBodies() {
+  const maxN = Number(ui.count.value);
+  if (bodies.length > maxN) bodies.splice(0, bodies.length - maxN);
+}
+
+// ---- Drawing ----
+function draw() {
+  const th = THEMES[state.theme];
+  const trailsA = Number(ui.trails.value) / 100;
+  const glowAmt  = Number(ui.glow.value);
+  const linkD    = Number(ui.linkDist.value);
+  const linkD2   = linkD * linkD;
+  const N = bodies.length;
+
+  // Fade (trails)
+  ctx.save();
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.fillStyle = `rgba(${th.bg.join(',')},${1 - trailsA})`;
+  ctx.fillRect(0, 0, W, H);
+  ctx.restore();
+
+  // Nebula gas
+  if (ui.showGas.checked) {
+    ctx.save();
+    ctx.globalCompositeOperation = 'screen';
+    const baseH = th.lHue >= 0 ? th.lHue : 200;
+    for (const g of gasBlobs) {
+      const grad = ctx.createRadialGradient(g.x, g.y, 0, g.x, g.y, Math.max(g.rx, g.ry));
+      const hue = baseH + g.hOff;
+      grad.addColorStop(0,   `hsla(${hue},65%,38%,${g.a * 2.5})`);
+      grad.addColorStop(0.45,`hsla(${hue},55%,22%,${g.a})`);
+      grad.addColorStop(1,   `hsla(${hue},45%,8%,0)`);
+      ctx.fillStyle = grad;
+      ctx.save();
+      ctx.translate(g.x, g.y);
+      ctx.rotate(g.rot);
+      ctx.scale(g.rx / Math.max(g.rx, g.ry), g.ry / Math.max(g.rx, g.ry));
+      ctx.beginPath();
+      ctx.arc(0, 0, Math.max(g.rx, g.ry), 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+    ctx.restore();
+  }
+
+  // Links
+  if (state.linkStyle !== 'none' && linkD > 0) {
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.lineWidth = 1;
+    const skipJ = N > 650 ? 3 : N > 380 ? 2 : 1;
+    for (let i = 0; i < N; i++) {
+      const a = bodies[i];
+      for (let j = i + skipJ; j < N; j += skipJ) {
+        const b = bodies[j];
+        const dx = b.x - a.x, dy = b.y - a.y;
+        const d2 = dx * dx + dy * dy;
+        if (d2 < linkD2) {
+          const d = Math.sqrt(d2);
+          const frac = 1 - d / linkD;
+          const mFac = Math.min(1, (a.m + b.m) / 55);
+          const alpha = (0.035 + 0.28 * frac * frac) * (0.45 + 0.55 * mFac);
+          if (state.linkStyle === 'gradient') {
+            const gr = ctx.createLinearGradient(a.x, a.y, b.x, b.y);
+            const ha = starHue(a, 0), hb = starHue(b, 0);
+            gr.addColorStop(0, `hsla(${ha},${th.sat},68%,${alpha})`);
+            gr.addColorStop(1, `hsla(${hb},${th.sat},68%,${alpha})`);
+            ctx.strokeStyle = gr;
+          } else {
+            const lh = linkHue(a, b);
+            ctx.strokeStyle = `hsla(${lh},90%,68%,${alpha})`;
+          }
+          ctx.beginPath();
+          ctx.moveTo(a.x, a.y);
+          ctx.lineTo(b.x, b.y);
+          ctx.stroke();
+        }
+      }
+    }
+    ctx.restore();
+  }
+
+  // Stars
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.shadowBlur = glowAmt;
+  ctx.shadowColor = th.glow;
+  for (const b of bodies) {
+    const spd = Math.hypot(b.vx, b.vy);
+    const hue = starHue(b, spd);
+    const lum = Math.min(92, 52 + b.m * 0.65);
+    ctx.fillStyle = `hsla(${hue},${th.sat},${lum}%,0.92)`;
+    ctx.beginPath();
+    ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+    ctx.fill();
+    if (b.m > 18) {
+      ctx.globalAlpha = 0.15;
+      ctx.beginPath();
+      ctx.arc(b.x, b.y, b.r * 2.8, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+  }
+  ctx.restore();
+
+  // Black hole
+  if (blackHole) {
+    ctx.save();
+    const bh = blackHole;
+    // Accretion disk glow
+    ctx.globalCompositeOperation = 'screen';
+    ctx.shadowBlur = 28;
+    ctx.shadowColor = 'rgba(255,140,60,0.8)';
+    const diskGrad = ctx.createRadialGradient(bh.x, bh.y, bh.eventR * 0.6, bh.x, bh.y, bh.eventR * 3.2);
+    diskGrad.addColorStop(0,   'rgba(255,130,30,0.7)');
+    diskGrad.addColorStop(0.45,'rgba(200,60,20,0.25)');
+    diskGrad.addColorStop(1,   'rgba(0,0,0,0)');
+    ctx.fillStyle = diskGrad;
+    ctx.save();
+    ctx.translate(bh.x, bh.y);
+    ctx.scale(1, 0.38);
+    ctx.rotate(0.4);
+    ctx.beginPath();
+    ctx.arc(0, 0, bh.eventR * 3.2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    // Event horizon
+    ctx.shadowBlur = 0;
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.fillStyle = '#000';
+    ctx.beginPath();
+    ctx.arc(bh.x, bh.y, bh.eventR, 0, Math.PI * 2);
+    ctx.fill();
+    // Ring
+    ctx.strokeStyle = 'rgba(255,200,80,0.5)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(bh.x, bh.y, bh.eventR + 2, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // Supernova flashes
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  for (const f of supernovas) {
+    const p = f.t / f.dur;
+    const maxR = Math.min(W, H) * 0.38 * Math.min(1, f.m / 240);
+    const r = maxR * Math.sin(p * Math.PI);
+    if (r <= 0) continue;
+    const alpha = (1 - p) * 0.85;
+    const grad = ctx.createRadialGradient(f.x, f.y, 0, f.x, f.y, r);
+    grad.addColorStop(0,    `hsla(${f.hue + 50},100%,95%,${alpha})`);
+    grad.addColorStop(0.25, `hsla(${f.hue + 20},95%,70%,${alpha * 0.8})`);
+    grad.addColorStop(0.65, `hsla(${f.hue},85%,50%,${alpha * 0.4})`);
+    grad.addColorStop(1,    `hsla(${f.hue - 20},70%,30%,0)`);
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(f.x, f.y, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+
+  // Cursor preview
+  ctx.save();
+  ctx.globalCompositeOperation = 'screen';
+  const pr = Math.max(6, Math.sqrt(brushMass) * 1.2);
+  const cColors = {
+    spawn:'rgba(143,211,255,0.4)', attract:'rgba(80,255,160,0.5)',
+    repel:'rgba(255,100,100,0.5)', delete:'rgba(255,60,60,0.55)',
+    swirl:'rgba(200,140,255,0.5)', blackhole:'rgba(255,200,80,0.55)',
+  };
+  ctx.strokeStyle = cColors[state.tool] || cColors.spawn;
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.arc(pointer.x, pointer.y, pr, 0, Math.PI * 2);
+  ctx.stroke();
+  if (state.tool === 'delete' || state.tool === 'blackhole') {
+    const h = pr * 0.65;
+    ctx.beginPath();
+    ctx.moveTo(pointer.x - h, pointer.y); ctx.lineTo(pointer.x + h, pointer.y);
+    ctx.moveTo(pointer.x, pointer.y - h); ctx.lineTo(pointer.x, pointer.y + h);
+    ctx.stroke();
+  }
+  if (state.tool === 'swirl') {
+    ctx.beginPath();
+    ctx.arc(pointer.x, pointer.y, 55, 0, Math.PI * 1.6);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+// ---- Interaction ----
+function pPos(ev) {
+  const r = canvas.getBoundingClientRect();
+  if (ev.touches && ev.touches[0])
+    return { x: ev.touches[0].clientX - r.left, y: ev.touches[0].clientY - r.top };
+  return { x: ev.clientX - r.left, y: ev.clientY - r.top };
+}
+
+function nearest(x, y, maxD = 28) {
+  let best = null, bestD2 = maxD * maxD;
+  for (const b of bodies) {
+    const dx = b.x - x, dy = b.y - y, d2 = dx * dx + dy * dy;
+    if (d2 < bestD2) { bestD2 = d2; best = b; }
+  }
+  return best;
+}
+
+function onDown(ev) {
+  ev.preventDefault();
+  const p = pPos(ev);
+  pointer.x = p.x; pointer.y = p.y; pointer.down = true;
+  dragging = null; toolForce = null;
+
+  if (state.tool === 'spawn') {
+    const nb = nearest(p.x, p.y, 30);
+    if (nb) {
+      dragging = { b: nb, ox: nb.x - p.x, oy: nb.y - p.y };
+    } else {
+      const heavy = ev.shiftKey || (ev.touches && ev.touches.length > 1);
+      bodies.push(spawnSingle(p.x, p.y, heavy ? brushMass * 3.5 : brushMass));
+      capBodies();
+    }
+  } else if (state.tool === 'attract') {
+    toolForce = { x: p.x, y: p.y, m: 5500, sign: 1 };
+  } else if (state.tool === 'repel') {
+    toolForce = { x: p.x, y: p.y, m: 4500, sign: -1 };
+  } else if (state.tool === 'blackhole') {
+    if (!blackHole) {
+      blackHole = { x: p.x, y: p.y, m: 7500, eventR: 20 };
+    }
+    dragging = { bh: true };
+  }
+}
+
+function onMove(ev) {
+  const p = pPos(ev);
+  pointer.x = p.x; pointer.y = p.y;
+  if (pointer.down) {
+    if (dragging) {
+      if (dragging.bh && blackHole) {
+        blackHole.x = p.x; blackHole.y = p.y;
+      } else if (dragging.b) {
+        dragging.b.x = p.x + dragging.ox;
+        dragging.b.y = p.y + dragging.oy;
+        dragging.b.vx *= 0.45;
+        dragging.b.vy *= 0.45;
+      }
+    }
+    if (toolForce) {
+      toolForce.x = p.x; toolForce.y = p.y;
+    }
+  }
+}
+
+function onUp() {
+  pointer.down = false;
+  dragging = null;
+  toolForce = null;
+}
+
+canvas.addEventListener('mousedown', onDown);
+window.addEventListener('mousemove', onMove);
+window.addEventListener('mouseup', onUp);
+canvas.addEventListener('touchstart', onDown, { passive: false });
+window.addEventListener('touchmove', onMove, { passive: false });
+window.addEventListener('touchend', onUp);
+
+canvas.addEventListener('wheel', ev => {
+  ev.preventDefault();
+  brushMass = Math.min(320, Math.max(3, brushMass - Math.sign(ev.deltaY) * 3));
+  syncFooter();
+}, { passive: false });
+
+window.addEventListener('keydown', ev => {
+  const k = ev.key.toLowerCase();
+  if (ev.code === 'Space') { ev.preventDefault(); ui.toggleBtn.click(); }
+  if (k === 'r') ui.resetBtn.click();
+  if (k === 'b') ui.burstBtn.click();
+  if (k === 't') ui.clearBtn.click();
+  if (k === 's') ui.screenshotBtn.click();
+  if (k === 'q') cycleQuality();
+  const fidx = parseInt(ev.key) - 1;
+  if (fidx >= 0 && fidx < FORM_KEYS.length) {
+    setFormation(FORM_KEYS[fidx]);
+  }
+});
+
+// ---- Burst ----
+function burst() {
+  const cx = W / 2, cy = H / 2;
+  for (const b of bodies) {
+    const dx = b.x - cx, dy = b.y - cy;
+    const d = Math.hypot(dx, dy) + 0.001;
+    const s = 0.3 + Math.random() * 0.7;
+    b.vx += (dx / d) * s;
+    b.vy += (dy / d) * s;
+  }
+}
+
+// ---- Manual supernova ----
+function manualSupernova() {
+  if (!bodies.length) return;
+  let biggest = bodies[0];
+  for (const b of bodies) if (b.m > biggest.m) biggest = b;
+  const idx = bodies.indexOf(biggest);
+  const frags = doSupernova(biggest);
+  bodies.splice(idx, 1, ...frags);
+  capBodies();
+}
+
+// ---- Quality cycling ----
+function cycleQuality() {
+  state.quality = state.quality % 3 + 1;
+  ui.qualPill.textContent = 'Q: ' + Q_LABELS[state.quality - 1];
+}
+
+// ---- Formation ----
+function setFormation(f) {
+  state.formation = f;
+  document.querySelectorAll('[data-form]').forEach(c =>
+    c.classList.toggle('active', c.dataset.form === f));
+  initBodies(f, Number(ui.count.value));
+}
+
+// ---- Sync ----
+function syncLabels() {
+  ui.countVal.textContent   = ui.count.value;
+  ui.gVal.textContent       = (Number(ui.g.value) / 100).toFixed(2);
+  ui.softVal.textContent    = ui.soft.value;
+  ui.dampVal.textContent    = (Number(ui.damp.value) / 1000).toFixed(3);
+  ui.massVal.textContent    = ui.mass.value;
+  ui.maxVelVal.textContent  = Number(ui.maxVel.value).toFixed(1);
+  ui.trailsVal.textContent  = (Number(ui.trails.value) / 100).toFixed(2);
+  ui.glowVal.textContent    = ui.glow.value;
+  ui.linkDistVal.textContent= ui.linkDist.value;
+}
+
+function syncFooter() {
+  ui.brushVal.textContent = Math.round(brushMass);
+  const toolKey = 't' + state.tool.charAt(0).toUpperCase() + state.tool.slice(1);
+  ui.toolPill.textContent = t(toolKey);
+}
+
+// ---- UI event bindings ----
+// Sliders
+for (const k of ['count','g','soft','damp','mass','maxVel','trails','glow','linkDist']) {
+  ui[k].addEventListener('input', () => {
+    syncLabels();
+    if (k === 'count') {
+      const target = Number(ui.count.value);
+      if (Math.abs(target - bodies.length) > 120) {
+        initBodies(state.formation, target);
+      } else {
+        while (bodies.length < target) bodies.push(spawnSingle(rand(0, W), rand(0, H), brushMass * rand(0.4, 0.9)));
+        while (bodies.length > target) bodies.pop();
+      }
+    }
+  });
+}
+
+// Tabs
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    const panel = document.getElementById('tab-' + btn.dataset.tab);
+    if (panel) panel.classList.add('active');
+  });
+});
+
+// Theme chips
+document.querySelectorAll('[data-theme]').forEach(chip => {
+  chip.addEventListener('click', () => {
+    state.theme = chip.dataset.theme;
+    document.querySelectorAll('[data-theme]').forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+    try { localStorage.setItem('nebula2_theme', state.theme); } catch(e) {}
+    clearHard();
+  });
+});
+
+// Link style
+document.querySelectorAll('[data-lstyle]').forEach(chip => {
+  chip.addEventListener('click', () => {
+    state.linkStyle = chip.dataset.lstyle;
+    document.querySelectorAll('[data-lstyle]').forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+  });
+});
+
+// Formations
+document.querySelectorAll('[data-form]').forEach(chip => {
+  chip.addEventListener('click', () => setFormation(chip.dataset.form));
+});
+
+// Tools
+document.querySelectorAll('[data-tool]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    state.tool = btn.dataset.tool;
+    if (state.tool !== 'blackhole') blackHole = null;
+    document.querySelectorAll('[data-tool]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    syncFooter();
+  });
+});
+
+// Boundary segment
+document.querySelectorAll('#boundSeg .seg-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    state.boundary = btn.dataset.val;
+    document.querySelectorAll('#boundSeg .seg-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  });
+});
+
+// Actions
+ui.resetBtn.addEventListener('click', () => initBodies(state.formation, Number(ui.count.value)));
+ui.toggleBtn.addEventListener('click', () => {
+  state.running = !state.running;
+  ui.toggleBtn.textContent = state.running ? t('btnPause') : t('btnResume');
+});
+ui.burstBtn.addEventListener('click', burst);
+ui.supernovaBtn.addEventListener('click', manualSupernova);
+ui.clearBtn.addEventListener('click', clearHard);
+ui.screenshotBtn.addEventListener('click', () => {
+  const a = document.createElement('a');
+  a.href = canvas.toDataURL('image/png');
+  a.download = 'nebula2-' + Date.now() + '.png';
+  a.click();
+});
+ui.collapseBtn.addEventListener('click', () => {
+  ui.hud.classList.toggle('collapsed');
+  ui.collapseBtn.textContent = ui.hud.classList.contains('collapsed') ? '☰' : '—';
+});
+ui.qualPill.addEventListener('click', cycleQuality);
+
+// Lang
+document.querySelectorAll('.lang-sel a').forEach(a => {
+  a.addEventListener('click', ev => { ev.preventDefault(); applyLang(a.dataset.lang); });
+});
+
+// Load saved theme
+try {
+  const saved = localStorage.getItem('nebula2_theme');
+  if (saved && THEMES[saved]) {
+    state.theme = saved;
+    document.querySelectorAll('[data-theme]').forEach(c =>
+      c.classList.toggle('active', c.dataset.theme === state.theme));
+  }
+} catch(e) {}
+
+// ---- Boot ----
+resize();
+syncLabels();
+syncFooter();
+initBodies(state.formation, Number(ui.count.value));
+applyLang(currentLang);
+requestAnimationFrame(step);
+})();
+</script>
+</body>
+</html>
