@@ -1,0 +1,993 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Images to PDF</title>
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-NWZDZ906DJ"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-NWZDZ906DJ');
+  </script>
+  <style>
+    :root {
+      --bg: #111316;
+      --bg-soft: #1a1f24;
+      --panel: rgba(19, 23, 28, 0.84);
+      --panel-strong: rgba(15, 18, 22, 0.96);
+      --ink: #f4efe6;
+      --muted: #a6afb7;
+      --border: rgba(255, 255, 255, 0.14);
+      --accent: #1fbf9b;
+      --accent-strong: #148a71;
+      --accent-warm: #ff885b;
+      --danger: #de5d5d;
+      --shadow: 0 24px 60px rgba(0,0,0,0.34);
+      --radius: 8px;
+      --thumb-size: 130px;
+    }
+    html[data-theme="light"] {
+      --bg: #f5f4ef;
+      --bg-soft: #e8ece8;
+      --panel: rgba(255,255,255,0.88);
+      --panel-strong: rgba(255,255,255,0.98);
+      --ink: #172028;
+      --muted: #62707b;
+      --border: rgba(23,32,40,0.14);
+      --accent: #067a68;
+      --accent-strong: #045f52;
+      --accent-warm: #db6b3f;
+      --danger: #bb3f3f;
+      --shadow: 0 20px 52px rgba(42,53,61,0.15);
+    }
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body { min-height: 100%; margin: 0; }
+    body {
+      color: var(--ink);
+      font: 15px/1.5 "Noto Sans JP", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at top left, color-mix(in srgb, var(--accent) 20%, transparent), transparent 30%),
+        radial-gradient(circle at bottom right, color-mix(in srgb, var(--accent-warm) 18%, transparent), transparent 32%),
+        linear-gradient(180deg, var(--bg), var(--bg-soft));
+      background-attachment: fixed;
+    }
+    button, input, select { font: inherit; }
+    button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible {
+      outline: 3px solid color-mix(in srgb, var(--accent) 58%, transparent);
+      outline-offset: 3px;
+    }
+
+    /* Layout */
+    .app {
+      width: min(1100px, 100%);
+      margin: 0 auto;
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* Top bar */
+    .topbar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 16px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--panel);
+      backdrop-filter: blur(16px);
+      box-shadow: var(--shadow);
+    }
+    .topbar h1 {
+      margin: 0;
+      font-size: 1.1rem;
+      font-weight: 600;
+      flex: 1;
+    }
+    .topbar .controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Buttons */
+    .btn {
+      padding: 7px 14px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: var(--panel-strong);
+      color: var(--ink);
+      cursor: pointer;
+      font-size: 0.875rem;
+      transition: background 0.15s, border-color 0.15s;
+      white-space: nowrap;
+    }
+    .btn:hover { background: color-mix(in srgb, var(--accent) 14%, var(--panel-strong)); border-color: var(--accent); }
+    .btn.primary {
+      background: var(--accent);
+      border-color: var(--accent-strong);
+      color: #fff;
+      font-weight: 600;
+    }
+    .btn.primary:hover { background: var(--accent-strong); }
+    .btn.danger { border-color: var(--danger); color: var(--danger); }
+    .btn.danger:hover { background: color-mix(in srgb, var(--danger) 14%, var(--panel-strong)); }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn-icon {
+      padding: 5px 8px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 1rem;
+      transition: background 0.15s, color 0.15s;
+      line-height: 1;
+    }
+    .btn-icon:hover { background: var(--panel); color: var(--ink); }
+
+    /* Language pill */
+    .lang-pill {
+      display: flex;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+    .lang-pill button {
+      padding: 4px 9px;
+      border: none;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 0.78rem;
+      font-weight: 600;
+      transition: background 0.12s, color 0.12s;
+    }
+    .lang-pill button.active {
+      background: var(--accent);
+      color: #fff;
+    }
+    .lang-pill button:hover:not(.active) { background: color-mix(in srgb, var(--accent) 18%, transparent); color: var(--ink); }
+
+    /* Panel */
+    .panel {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--panel);
+      backdrop-filter: blur(16px);
+      box-shadow: var(--shadow);
+      padding: 16px;
+    }
+    .panel-title {
+      font-size: 0.8rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: var(--muted);
+      margin: 0 0 12px;
+    }
+
+    /* Drop zone */
+    .dropzone {
+      border: 2px dashed var(--border);
+      border-radius: var(--radius);
+      padding: 40px 24px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+      background: var(--panel);
+      backdrop-filter: blur(12px);
+    }
+    .dropzone.dragging {
+      border-color: var(--accent);
+      background: color-mix(in srgb, var(--accent) 10%, var(--panel));
+    }
+    .dropzone:hover { border-color: var(--accent); }
+    .dropzone .dz-icon { font-size: 2.2rem; margin-bottom: 10px; opacity: 0.6; }
+    .dropzone .dz-main { font-size: 1rem; font-weight: 600; margin-bottom: 4px; }
+    .dropzone .dz-sub { font-size: 0.83rem; color: var(--muted); }
+    .dropzone .dz-sub span { color: var(--accent); font-weight: 600; cursor: pointer; }
+    #fileInput { display: none; }
+
+    /* Options grid */
+    .options-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 12px;
+    }
+    .opt-group {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .opt-group label {
+      font-size: 0.8rem;
+      color: var(--muted);
+      font-weight: 600;
+    }
+    .opt-group select, .opt-group input[type="number"] {
+      padding: 7px 10px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: var(--panel-strong);
+      color: var(--ink);
+      width: 100%;
+      transition: border-color 0.15s;
+    }
+    .opt-group select:focus, .opt-group input[type="number"]:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    /* Image list */
+    .img-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      min-height: 60px;
+    }
+    .img-list:empty::after {
+      content: attr(data-empty);
+      color: var(--muted);
+      font-size: 0.88rem;
+      text-align: center;
+      padding: 20px 0;
+      display: block;
+    }
+
+    /* Image item */
+    .img-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--panel-strong);
+      cursor: grab;
+      transition: background 0.12s, box-shadow 0.12s, opacity 0.12s;
+      user-select: none;
+    }
+    .img-item:active { cursor: grabbing; }
+    .img-item.dragging-item {
+      opacity: 0.4;
+    }
+    .img-item.drag-over {
+      box-shadow: 0 0 0 2px var(--accent);
+      background: color-mix(in srgb, var(--accent) 10%, var(--panel-strong));
+    }
+    .img-item .drag-handle {
+      color: var(--muted);
+      font-size: 1rem;
+      cursor: grab;
+      padding: 0 4px;
+    }
+    .img-item .thumb {
+      width: var(--thumb-size);
+      height: 80px;
+      object-fit: contain;
+      border-radius: 4px;
+      background: var(--bg-soft);
+      flex-shrink: 0;
+    }
+    .img-item .info {
+      flex: 1;
+      min-width: 0;
+    }
+    .img-item .info .fname {
+      font-weight: 600;
+      font-size: 0.9rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .img-item .info .fmeta {
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+    .img-item .item-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      flex-shrink: 0;
+    }
+    .item-move {
+      padding: 4px 7px;
+      border-radius: 5px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 0.75rem;
+      transition: background 0.12s, color 0.12s;
+      line-height: 1;
+    }
+    .item-move:hover { background: var(--panel); color: var(--ink); }
+    .item-remove {
+      padding: 4px 7px;
+      border-radius: 5px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--danger);
+      cursor: pointer;
+      font-size: 0.8rem;
+      transition: background 0.12s;
+      line-height: 1;
+    }
+    .item-remove:hover { background: color-mix(in srgb, var(--danger) 14%, transparent); }
+
+    /* Bottom action bar */
+    .action-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .action-bar .left { display: flex; gap: 8px; flex-wrap: wrap; }
+    .action-bar .right { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    .count-badge {
+      font-size: 0.8rem;
+      color: var(--muted);
+      padding: 6px 0;
+    }
+
+    /* Progress */
+    .progress-wrap {
+      display: none;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .progress-wrap.active { display: flex; }
+    .progress-bar-track {
+      height: 6px;
+      border-radius: 3px;
+      background: var(--border);
+      overflow: hidden;
+    }
+    .progress-bar-fill {
+      height: 100%;
+      border-radius: 3px;
+      background: var(--accent);
+      width: 0%;
+      transition: width 0.12s;
+    }
+    .progress-label { font-size: 0.8rem; color: var(--muted); }
+
+    /* Toast */
+    .toast-container {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      z-index: 999;
+    }
+    .toast {
+      padding: 10px 16px;
+      border-radius: var(--radius);
+      background: var(--panel-strong);
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
+      font-size: 0.875rem;
+      animation: toast-in 0.2s ease;
+      max-width: 340px;
+    }
+    .toast.success { border-color: var(--accent); color: var(--accent); }
+    .toast.error { border-color: var(--danger); color: var(--danger); }
+    @keyframes toast-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+    /* Responsive */
+    @media (max-width: 600px) {
+      :root { --thumb-size: 80px; }
+      .options-grid { grid-template-columns: 1fr 1fr; }
+      .img-item .thumb { height: 60px; }
+      .topbar h1 { font-size: 0.95rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <!-- Top bar -->
+    <header class="topbar">
+      <h1 data-i18n="title">Images → PDF</h1>
+      <div class="controls">
+        <div class="lang-pill">
+          <button onclick="setLang('en')" id="lang-en">EN</button>
+          <button onclick="setLang('pt')" id="lang-pt">PT</button>
+          <button onclick="setLang('ja')" id="lang-ja">JA</button>
+        </div>
+        <button class="btn-icon" id="themeToggle" title="Toggle theme" aria-label="Toggle theme">🌙</button>
+      </div>
+    </header>
+
+    <!-- Drop zone -->
+    <div class="dropzone" id="dropzone" role="button" tabindex="0" aria-label="Drop images here">
+      <div class="dz-icon">🖼️</div>
+      <div class="dz-main" data-i18n="dropMain">Drop images here</div>
+      <div class="dz-sub"><span data-i18n="browseLink" id="browseLink">Browse files</span> &nbsp;·&nbsp; <span data-i18n="dropSub">or drag &amp; drop</span></div>
+    </div>
+    <input type="file" id="fileInput" accept="image/*" multiple />
+
+    <!-- Options -->
+    <div class="panel">
+      <p class="panel-title" data-i18n="optionsTitle">Options</p>
+      <div class="options-grid">
+        <div class="opt-group">
+          <label for="optPageSize" data-i18n="optPageSizeLabel">Page size</label>
+          <select id="optPageSize">
+            <option value="auto" data-i18n="optPageSizeAuto">Auto (image size)</option>
+            <option value="a4" selected>A4</option>
+            <option value="letter">Letter</option>
+            <option value="legal">Legal</option>
+            <option value="a3">A3</option>
+          </select>
+        </div>
+        <div class="opt-group">
+          <label for="optOrientation" data-i18n="optOrientationLabel">Orientation</label>
+          <select id="optOrientation">
+            <option value="portrait" data-i18n="optPortrait">Portrait</option>
+            <option value="landscape" data-i18n="optLandscape">Landscape</option>
+          </select>
+        </div>
+        <div class="opt-group">
+          <label for="optFit" data-i18n="optFitLabel">Fit mode</label>
+          <select id="optFit">
+            <option value="contain" data-i18n="optContain">Contain (letterbox)</option>
+            <option value="stretch" data-i18n="optStretch">Stretch to fill</option>
+            <option value="actual" data-i18n="optActual">Actual size (clip if needed)</option>
+          </select>
+        </div>
+        <div class="opt-group">
+          <label for="optMargin" data-i18n="optMarginLabel">Margin (mm)</label>
+          <input type="number" id="optMargin" value="10" min="0" max="40" step="1" />
+        </div>
+        <div class="opt-group">
+          <label for="optCompression" data-i18n="optCompressionLabel">Compression</label>
+          <select id="optCompression">
+            <option value="none" data-i18n="optCompressNone">None (original)</option>
+            <option value="low" data-i18n="optCompressLow">Low (JPEG 85%)</option>
+            <option value="medium" selected data-i18n="optCompressMedium">Medium (JPEG 65%)</option>
+            <option value="high" data-i18n="optCompressHigh">High (JPEG 35%)</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Image list -->
+    <div class="panel">
+      <p class="panel-title" data-i18n="imagesTitle">Images</p>
+      <div class="img-list" id="imgList" data-empty="No images added yet."></div>
+    </div>
+
+    <!-- Action bar -->
+    <div class="action-bar">
+      <div class="left">
+        <span class="count-badge" id="countBadge"></span>
+      </div>
+      <div class="right">
+        <!-- Progress -->
+        <div class="progress-wrap" id="progressWrap">
+          <div class="progress-bar-track">
+            <div class="progress-bar-fill" id="progressFill"></div>
+          </div>
+          <span class="progress-label" id="progressLabel"></span>
+        </div>
+        <button class="btn danger" id="clearBtn" data-i18n="clearBtn">Clear all</button>
+        <button class="btn primary" id="generateBtn" data-i18n="generateBtn" disabled>Generate PDF</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast container -->
+  <div class="toast-container" id="toastContainer" aria-live="polite"></div>
+
+  <!-- jsPDF CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+  <script>
+    // ── i18n ────────────────────────────────────────────────────────────────
+    const i18n = {
+      en: {
+        title: "Images → PDF",
+        dropMain: "Drop images here",
+        browseLink: "Browse files",
+        dropSub: "or drag & drop",
+        optionsTitle: "Options",
+        optPageSizeLabel: "Page size",
+        optPageSizeAuto: "Auto (image size)",
+        optOrientationLabel: "Orientation",
+        optPortrait: "Portrait",
+        optLandscape: "Landscape",
+        optFitLabel: "Fit mode",
+        optContain: "Contain (letterbox)",
+        optStretch: "Stretch to fill",
+        optActual: "Actual size (clip if needed)",
+        optMarginLabel: "Margin (mm)",
+        optCompressionLabel: "Compression",
+        optCompressNone: "None (original)",
+        optCompressLow: "Low (JPEG 85%)",
+        optCompressMedium: "Medium (JPEG 65%)",
+        optCompressHigh: "High (JPEG 35%)",
+        imagesTitle: "Images",
+        emptyList: "No images added yet.",
+        clearBtn: "Clear all",
+        generateBtn: "Generate PDF",
+        countOne: "1 image",
+        countMany: "{n} images",
+        generating: "Generating… {n}/{total}",
+        done: "PDF ready — downloading.",
+        errorLibrary: "jsPDF library failed to load. Please check your internet connection.",
+        errorNoImages: "Add at least one image first.",
+        errorRead: "Failed to read: {name}",
+        moveUp: "↑",
+        moveDown: "↓",
+        remove: "✕",
+      },
+      pt: {
+        title: "Imagens → PDF",
+        dropMain: "Solte as imagens aqui",
+        browseLink: "Selecionar arquivos",
+        dropSub: "ou arraste e solte",
+        optionsTitle: "Opções",
+        optPageSizeLabel: "Tamanho da página",
+        optPageSizeAuto: "Auto (tamanho da imagem)",
+        optOrientationLabel: "Orientação",
+        optPortrait: "Retrato",
+        optLandscape: "Paisagem",
+        optFitLabel: "Modo de ajuste",
+        optContain: "Conter (letterbox)",
+        optStretch: "Esticar para preencher",
+        optActual: "Tamanho real (recortar se necessário)",
+        optMarginLabel: "Margem (mm)",
+        optCompressionLabel: "Compressão",
+        optCompressNone: "Nenhuma (original)",
+        optCompressLow: "Baixa (JPEG 85%)",
+        optCompressMedium: "Média (JPEG 65%)",
+        optCompressHigh: "Alta (JPEG 35%)",
+        imagesTitle: "Imagens",
+        emptyList: "Nenhuma imagem adicionada.",
+        clearBtn: "Limpar tudo",
+        generateBtn: "Gerar PDF",
+        countOne: "1 imagem",
+        countMany: "{n} imagens",
+        generating: "Gerando… {n}/{total}",
+        done: "PDF pronto — baixando.",
+        errorLibrary: "jsPDF não carregou. Verifique sua conexão.",
+        errorNoImages: "Adicione pelo menos uma imagem.",
+        errorRead: "Falha ao ler: {name}",
+        moveUp: "↑",
+        moveDown: "↓",
+        remove: "✕",
+      },
+      ja: {
+        title: "画像 → PDF",
+        dropMain: "ここに画像をドロップ",
+        browseLink: "ファイルを選択",
+        dropSub: "またはドラッグ＆ドロップ",
+        optionsTitle: "オプション",
+        optPageSizeLabel: "ページサイズ",
+        optPageSizeAuto: "自動（画像サイズ）",
+        optOrientationLabel: "向き",
+        optPortrait: "縦向き",
+        optLandscape: "横向き",
+        optFitLabel: "フィットモード",
+        optContain: "フィット（レターボックス）",
+        optStretch: "引き伸ばして塗りつぶす",
+        optActual: "実際のサイズ（はみ出す場合は切り取り）",
+        optMarginLabel: "余白（mm）",
+        optCompressionLabel: "圧縮",
+        optCompressNone: "なし（オリジナル）",
+        optCompressLow: "低（JPEG 85%）",
+        optCompressMedium: "中（JPEG 65%）",
+        optCompressHigh: "高（JPEG 35%）",
+        imagesTitle: "画像",
+        emptyList: "画像がありません。",
+        clearBtn: "全て削除",
+        generateBtn: "PDF を生成",
+        countOne: "1 枚の画像",
+        countMany: "{n} 枚の画像",
+        generating: "生成中… {n}/{total}",
+        done: "PDF 完成 — ダウンロード中。",
+        errorLibrary: "jsPDF の読み込みに失敗しました。インターネット接続を確認してください。",
+        errorNoImages: "先に画像を 1 枚以上追加してください。",
+        errorRead: "読み取り失敗: {name}",
+        moveUp: "↑",
+        moveDown: "↓",
+        remove: "✕",
+      },
+    };
+
+    let lang = localStorage.getItem('app_lang') || 'en';
+    if (!i18n[lang]) lang = 'en';
+
+    function t(key, vars) {
+      let str = (i18n[lang] || i18n.en)[key] || key;
+      if (vars) Object.entries(vars).forEach(([k, v]) => { str = str.replace('{' + k + '}', v); });
+      return str;
+    }
+
+    function applyI18n() {
+      document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        if (key) el.textContent = t(key);
+      });
+      document.getElementById('imgList').setAttribute('data-empty', t('emptyList'));
+      updateCountBadge();
+    }
+
+    function setLang(l) {
+      lang = l;
+      localStorage.setItem('app_lang', lang);
+      document.documentElement.lang = lang === 'ja' ? 'ja' : lang === 'pt' ? 'pt' : 'en';
+      document.querySelectorAll('.lang-pill button').forEach(b => b.classList.remove('active'));
+      const btn = document.getElementById('lang-' + lang);
+      if (btn) btn.classList.add('active');
+      applyI18n();
+      renderList();
+    }
+
+    // ── Theme ───────────────────────────────────────────────────────────────
+    let theme = localStorage.getItem('app_theme') || 'dark';
+
+    function applyTheme() {
+      document.documentElement.setAttribute('data-theme', theme);
+      document.getElementById('themeToggle').textContent = theme === 'dark' ? '🌙' : '☀️';
+    }
+
+    document.getElementById('themeToggle').addEventListener('click', () => {
+      theme = theme === 'dark' ? 'light' : 'dark';
+      localStorage.setItem('app_theme', theme);
+      applyTheme();
+    });
+
+    // ── State ───────────────────────────────────────────────────────────────
+    /** @type {{ id: number, file: File, dataUrl: string, w: number, h: number }[]} */
+    let images = [];
+    let nextId = 0;
+
+    function updateCountBadge() {
+      const badge = document.getElementById('countBadge');
+      const n = images.length;
+      if (n === 0) { badge.textContent = ''; }
+      else if (n === 1) { badge.textContent = t('countOne'); }
+      else { badge.textContent = t('countMany', { n }); }
+      document.getElementById('generateBtn').disabled = n === 0;
+    }
+
+    // ── Drop zone ───────────────────────────────────────────────────────────
+    const dropzone = document.getElementById('dropzone');
+    const fileInput = document.getElementById('fileInput');
+
+    dropzone.addEventListener('click', () => fileInput.click());
+    dropzone.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') fileInput.click(); });
+
+    document.getElementById('browseLink').addEventListener('click', e => {
+      e.stopPropagation();
+      fileInput.click();
+    });
+
+    ['dragenter', 'dragover'].forEach(evt => {
+      dropzone.addEventListener(evt, e => { e.preventDefault(); dropzone.classList.add('dragging'); });
+    });
+    ['dragleave', 'drop'].forEach(evt => {
+      dropzone.addEventListener(evt, e => { e.preventDefault(); dropzone.classList.remove('dragging'); });
+    });
+    dropzone.addEventListener('drop', e => {
+      const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
+      addFiles(files);
+    });
+
+    fileInput.addEventListener('change', () => {
+      addFiles(Array.from(fileInput.files));
+      fileInput.value = '';
+    });
+
+    function addFiles(files) {
+      const promises = files.map(file => loadFile(file));
+      Promise.allSettled(promises).then(results => {
+        results.forEach(r => {
+          if (r.status === 'rejected') showToast(r.reason, 'error');
+        });
+        renderList();
+      });
+    }
+
+    function loadFile(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = e => {
+          const img = new Image();
+          img.onload = () => {
+            images.push({ id: nextId++, file, dataUrl: e.target.result, w: img.naturalWidth, h: img.naturalHeight });
+            resolve();
+          };
+          img.onerror = () => reject(t('errorRead', { name: file.name }));
+          img.src = e.target.result;
+        };
+        reader.onerror = () => reject(t('errorRead', { name: file.name }));
+        reader.readAsDataURL(file);
+      });
+    }
+
+    // ── Render list ─────────────────────────────────────────────────────────
+    function renderList() {
+      const list = document.getElementById('imgList');
+      list.innerHTML = '';
+      images.forEach((img, idx) => {
+        const item = document.createElement('div');
+        item.className = 'img-item';
+        item.setAttribute('draggable', 'true');
+        item.dataset.id = img.id;
+
+        const sizeKB = (img.file.size / 1024).toFixed(0);
+        item.innerHTML = `
+          <span class="drag-handle" title="Drag to reorder">⠿</span>
+          <img class="thumb" src="${img.dataUrl}" alt="${escapeHtml(img.file.name)}" loading="lazy" />
+          <div class="info">
+            <div class="fname" title="${escapeHtml(img.file.name)}">${escapeHtml(img.file.name)}</div>
+            <div class="fmeta">${img.w} × ${img.h} px · ${sizeKB} KB</div>
+          </div>
+          <div class="item-actions">
+            <button class="item-move" data-action="up" data-idx="${idx}" ${idx === 0 ? 'disabled' : ''}>${t('moveUp')}</button>
+            <button class="item-move" data-action="down" data-idx="${idx}" ${idx === images.length - 1 ? 'disabled' : ''}>${t('moveDown')}</button>
+            <button class="item-remove" data-idx="${idx}">${t('remove')}</button>
+          </div>
+        `;
+
+        // Move up/down
+        item.querySelectorAll('.item-move').forEach(btn => {
+          btn.addEventListener('click', e => {
+            e.stopPropagation();
+            const i = parseInt(btn.dataset.idx);
+            const dir = btn.dataset.action === 'up' ? -1 : 1;
+            const target = i + dir;
+            if (target < 0 || target >= images.length) return;
+            [images[i], images[target]] = [images[target], images[i]];
+            renderList();
+          });
+        });
+
+        // Remove
+        item.querySelector('.item-remove').addEventListener('click', e => {
+          e.stopPropagation();
+          const i = parseInt(item.querySelector('.item-remove').dataset.idx);
+          images.splice(i, 1);
+          renderList();
+        });
+
+        // Drag-to-reorder
+        item.addEventListener('dragstart', e => {
+          e.dataTransfer.effectAllowed = 'move';
+          e.dataTransfer.setData('text/plain', img.id);
+          setTimeout(() => item.classList.add('dragging-item'), 0);
+        });
+        item.addEventListener('dragend', () => item.classList.remove('dragging-item'));
+        item.addEventListener('dragover', e => { e.preventDefault(); item.classList.add('drag-over'); });
+        item.addEventListener('dragleave', () => item.classList.remove('drag-over'));
+        item.addEventListener('drop', e => {
+          e.preventDefault();
+          item.classList.remove('drag-over');
+          const fromId = parseInt(e.dataTransfer.getData('text/plain'));
+          const fromIdx = images.findIndex(x => x.id === fromId);
+          const toIdx = idx;
+          if (fromIdx === toIdx) return;
+          const [moved] = images.splice(fromIdx, 1);
+          images.splice(toIdx, 0, moved);
+          renderList();
+        });
+
+        list.appendChild(item);
+      });
+
+      updateCountBadge();
+    }
+
+    function escapeHtml(str) {
+      return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    // ── Clear ────────────────────────────────────────────────────────────────
+    document.getElementById('clearBtn').addEventListener('click', () => {
+      images = [];
+      renderList();
+    });
+
+    // ── Generate PDF ─────────────────────────────────────────────────────────
+    document.getElementById('generateBtn').addEventListener('click', generatePDF);
+
+    async function generatePDF() {
+      if (typeof window.jspdf === 'undefined' && typeof window.jsPDF === 'undefined') {
+        showToast(t('errorLibrary'), 'error');
+        return;
+      }
+      if (images.length === 0) {
+        showToast(t('errorNoImages'), 'error');
+        return;
+      }
+
+      const { jsPDF } = window.jspdf || window;
+
+      const pageSize    = document.getElementById('optPageSize').value;
+      const orientation  = document.getElementById('optOrientation').value;
+      const fitMode     = document.getElementById('optFit').value;
+      const margin      = Math.max(0, parseFloat(document.getElementById('optMargin').value) || 0);
+      const compression = document.getElementById('optCompression').value;
+      const qualityMap  = { none: null, low: 0.85, medium: 0.65, high: 0.35 };
+      const jpegQuality = qualityMap[compression];
+
+      // Show progress
+      const progressWrap  = document.getElementById('progressWrap');
+      const progressFill  = document.getElementById('progressFill');
+      const progressLabel = document.getElementById('progressLabel');
+      progressWrap.classList.add('active');
+      document.getElementById('generateBtn').disabled = true;
+
+      // Page dimensions in mm
+      const pageDims = getPageDimsMm(pageSize, orientation, images);
+
+      let pdf = null;
+
+      for (let i = 0; i < images.length; i++) {
+        const img = images[i];
+
+        // Update progress
+        progressFill.style.width = ((i / images.length) * 100) + '%';
+        progressLabel.textContent = t('generating', { n: i + 1, total: images.length });
+        await tick();
+
+        // Determine page dimensions for this page
+        let pw, ph;
+        if (pageSize === 'auto') {
+          // mm = px * 25.4 / dpi; assume 96 dpi
+          pw = img.w * 25.4 / 96;
+          ph = img.h * 25.4 / 96;
+        } else {
+          pw = pageDims.w;
+          ph = pageDims.h;
+        }
+
+        // Create or add page
+        if (i === 0) {
+          pdf = new jsPDF({ unit: 'mm', format: pageSize === 'auto' ? [pw, ph] : pageSize, orientation: pageSize === 'auto' ? (pw > ph ? 'landscape' : 'portrait') : orientation });
+        } else {
+          if (pageSize === 'auto') {
+            pdf.addPage([pw, ph], pw > ph ? 'landscape' : 'portrait');
+          } else {
+            pdf.addPage();
+          }
+        }
+
+        // Compute image rect
+        const { x, y, w, h } = computeRect(img.w, img.h, pw, ph, margin, fitMode);
+
+        // Re-encode as JPEG if compression is requested
+        let imgData, fmt;
+        if (jpegQuality !== null) {
+          imgData = await compressToJpeg(img.dataUrl, img.w, img.h, jpegQuality);
+          fmt = 'JPEG';
+        } else {
+          imgData = img.dataUrl;
+          fmt = detectFormat(img.file.type);
+        }
+        pdf.addImage(imgData, fmt, x, y, w, h, undefined, 'FAST');
+      }
+
+      progressFill.style.width = '100%';
+      progressLabel.textContent = t('done');
+
+      // Download
+      pdf.save('images.pdf');
+
+      await sleep(1000);
+      progressWrap.classList.remove('active');
+      progressFill.style.width = '0%';
+      progressLabel.textContent = '';
+      document.getElementById('generateBtn').disabled = images.length === 0;
+      showToast(t('done'), 'success');
+    }
+
+    function getPageDimsMm(size, orientation, imgs) {
+      // Returns {w, h} in mm for a named page size + orientation
+      const sizes = { a4: [210, 297], letter: [215.9, 279.4], legal: [215.9, 355.6], a3: [297, 420] };
+      let [w, h] = sizes[size] || sizes.a4;
+      if (orientation === 'landscape') [w, h] = [h, w];
+      return { w, h };
+    }
+
+    function computeRect(imgW, imgH, pageW, pageH, margin, fitMode) {
+      const availW = pageW - margin * 2;
+      const availH = pageH - margin * 2;
+
+      if (fitMode === 'actual') {
+        // Place image at actual size (mm = px * 25.4 / 96 dpi), top-left with margin
+        const mmW = imgW * 25.4 / 96;
+        const mmH = imgH * 25.4 / 96;
+        return { x: margin, y: margin, w: mmW, h: mmH };
+      }
+
+      const imgAspect = imgW / imgH;
+      const pageAspect = availW / availH;
+
+      let w, h;
+      if (fitMode === 'stretch') {
+        w = availW;
+        h = availH;
+      } else {
+        // contain
+        if (imgAspect > pageAspect) {
+          w = availW;
+          h = availW / imgAspect;
+        } else {
+          h = availH;
+          w = availH * imgAspect;
+        }
+      }
+
+      const x = margin + (availW - w) / 2;
+      const y = margin + (availH - h) / 2;
+      return { x, y, w, h };
+    }
+
+    function compressToJpeg(dataUrl, w, h, quality) {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          // Fill white background (JPEG has no alpha channel)
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, w, h);
+          ctx.drawImage(img, 0, 0, w, h);
+          resolve(canvas.toDataURL('image/jpeg', quality));
+        };
+        img.onerror = () => reject(new Error('canvas compress failed'));
+        img.src = dataUrl;
+      });
+    }
+
+    function detectFormat(mimeType) {
+      const map = {
+        'image/jpeg': 'JPEG',
+        'image/jpg':  'JPEG',
+        'image/png':  'PNG',
+        'image/webp': 'WEBP',
+        'image/gif':  'GIF',
+        'image/bmp':  'BMP',
+      };
+      return map[mimeType] || 'JPEG';
+    }
+
+    function tick() { return new Promise(r => setTimeout(r, 0)); }
+    function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+    // ── Toast ────────────────────────────────────────────────────────────────
+    function showToast(msg, type = '') {
+      const container = document.getElementById('toastContainer');
+      const el = document.createElement('div');
+      el.className = 'toast' + (type ? ' ' + type : '');
+      el.textContent = msg;
+      container.appendChild(el);
+      setTimeout(() => { el.remove(); }, 3500);
+    }
+
+    // ── Init ─────────────────────────────────────────────────────────────────
+    (function init() {
+      applyTheme();
+      // Apply lang pill
+      document.querySelectorAll('.lang-pill button').forEach(b => b.classList.remove('active'));
+      const btn = document.getElementById('lang-' + lang);
+      if (btn) btn.classList.add('active');
+      applyI18n();
+      renderList();
+    })();
+  </script>
+</body>
+</html>
