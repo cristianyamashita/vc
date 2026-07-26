@@ -1,0 +1,2752 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title data-i18n="appTitle">3D Electronics Lab</title>
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-NWZDZ906DJ"></script>
+  <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','G-NWZDZ906DJ');</script>
+  <link rel="stylesheet" href="../assets/fontawesome/css/all.min.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;600;700&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet">
+  <style>
+    :root{
+      --bg:#0d1117;--bg2:#161b22;--surface:#21262d;--surface2:#2d333b;
+      --border:#30363d;--text:#e6edf3;--muted:#8b949e;--accent:#388bfd;
+      --shadow:0 4px 16px rgba(0,0,0,.5);
+    }
+    html[data-theme="light"]{
+      --bg:#f0f2f5;--bg2:#ffffff;--surface:#f6f8fa;--surface2:#eaeef2;
+      --border:#d0d7de;--text:#1f2328;--muted:#656d76;--accent:#0969da;
+      --shadow:0 4px 12px rgba(0,0,0,.12);
+    }
+    *{box-sizing:border-box;margin:0;padding:0}
+    html{overflow:hidden;height:100%}
+    body{font-family:'Noto Sans JP',system-ui,sans-serif;background:var(--bg);color:var(--text);height:100vh;display:flex;flex-direction:column;overflow:hidden}
+    /* Topbar */
+    .topbar{display:flex;align-items:center;gap:5px;padding:0 10px;height:46px;background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0}
+    .logo{font-weight:700;font-size:13px;display:flex;align-items:center;gap:6px;margin-right:4px;white-space:nowrap}
+    .logo i{color:#4fc3f7}
+    .tbtn{padding:4px 9px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text);font:inherit;font-size:11px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:4px;white-space:nowrap}
+    .tbtn:hover{background:var(--surface2)}
+    .tbtn.run{border-color:#3fb950;color:#3fb950}
+    .tbtn.run:hover{background:rgba(63,185,80,.1)}
+    .tbtn.stop{border-color:#f85149;color:#f85149}
+    .tbtn.stop:hover{background:rgba(248,81,73,.1)}
+    .spacer{flex:1}
+    .sep{width:1px;height:22px;background:var(--border);flex-shrink:0;margin:0 2px}
+    .lang-row{display:flex;gap:2px}
+    .lang-btn{padding:2px 6px;border-radius:4px;border:1px solid transparent;background:none;color:var(--muted);font:inherit;font-size:10px;font-weight:700;cursor:pointer}
+    .lang-btn:hover{color:var(--text);border-color:var(--border)}
+    .lang-btn.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+    .icon-btn{width:28px;height:28px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text);cursor:pointer;display:grid;place-items:center;font-size:12px}
+    .icon-btn:hover{background:var(--surface2);color:var(--accent)}
+    /* Layout */
+    .main{flex:1;display:flex;overflow:hidden}
+    /* Sidebar */
+    .sidebar{width:108px;background:var(--bg2);border-right:1px solid var(--border);overflow-y:auto;flex-shrink:0;padding:4px;display:flex;flex-direction:column;gap:1px}
+    .sidebar::-webkit-scrollbar{width:4px}.sidebar::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+    .sb-sec{font-size:8px;font-weight:700;color:var(--muted);letter-spacing:.08em;padding:7px 4px 2px;text-transform:uppercase}
+    .comp-btn{display:flex;flex-direction:column;align-items:center;gap:2px;padding:5px 2px;border-radius:5px;border:1px solid transparent;background:none;cursor:pointer;color:var(--text);font:inherit;font-size:9px;font-weight:600;text-align:center;transition:background .1s,border-color .1s;width:100%}
+    .comp-btn:hover{background:var(--surface);border-color:var(--border)}
+    .comp-btn.active{background:rgba(56,139,253,.15);border-color:var(--accent);color:var(--accent)}
+    .comp-btn .ci{font-size:18px;line-height:1}
+    /* Canvas wrap */
+    .canvas-wrap{flex:1;position:relative;overflow:hidden;background:#0d1117}
+    #canvas3d{display:block;position:absolute;top:0;left:0}
+    #label-wrap{position:absolute;top:0;left:0;pointer-events:none;width:100%;height:100%}
+    /* Mode indicator */
+    #mode-ind{position:absolute;top:8px;left:8px;background:var(--bg2);border:1px solid var(--border);border-radius:5px;padding:3px 9px;font-size:10px;font-weight:700;color:var(--muted);pointer-events:none;z-index:5}
+    /* Props panel */
+    #props-panel{position:absolute;top:8px;right:8px;width:192px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px;box-shadow:var(--shadow);display:none;z-index:10;max-height:calc(100% - 16px);overflow-y:auto}
+    #props-panel.vis{display:block}
+    .pp-title{font-size:11px;font-weight:700;color:var(--accent);display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+    .pp-row{display:flex;justify-content:space-between;font-size:10px;margin-bottom:3px;gap:4px}
+    .pp-key{color:var(--muted)}
+    .pp-val{color:var(--text);font-weight:600;word-break:break-all}
+    .pp-sep{height:1px;background:var(--border);margin:6px 0}
+    .pp-lbl{font-size:10px;color:var(--muted);margin-top:4px;margin-bottom:2px}
+    .pp-input{width:100%;padding:3px 6px;border-radius:4px;border:1px solid var(--border);background:var(--surface);color:var(--text);font:inherit;font-size:11px}
+    .color-swatches{display:flex;gap:4px;flex-wrap:wrap;margin-top:4px}
+    .color-sw{width:18px;height:18px;border-radius:50%;border:2px solid transparent;cursor:pointer}
+    .color-sw.sel{border-color:var(--text)}
+    .pp-btn{width:100%;margin-top:6px;padding:4px;border-radius:5px;border:1px solid var(--border);background:var(--surface);color:var(--text);font:inherit;font-size:10px;cursor:pointer}
+    .pp-btn:hover{background:var(--surface2)}
+    .pp-del{border-color:#f85149;color:#f85149}
+    .pp-del:hover{background:rgba(248,81,73,.1)}
+    /* Bottom panel */
+    .resize-h{height:4px;background:var(--border);cursor:ns-resize;flex-shrink:0}
+    .resize-h:hover{background:var(--accent)}
+    .bottom{height:185px;background:var(--bg2);border-top:1px solid var(--border);display:flex;flex-shrink:0}
+    .code-col{flex:1;display:flex;flex-direction:column;overflow:hidden;border-right:1px solid var(--border);min-height:0}
+    .code-hdr{display:flex;align-items:center;gap:6px;padding:4px 8px;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0}
+    .code-hdr label{font-size:10px;font-weight:700;color:var(--muted)}
+    .board-sel{padding:2px 5px;border-radius:4px;border:1px solid var(--border);background:var(--bg2);color:var(--text);font:inherit;font-size:10px}
+    .code-hint{font-size:9px;color:var(--muted)}
+    .code-hint code{background:var(--surface2);padding:1px 4px;border-radius:3px;font-size:9px}
+    .code-wrap{flex:1;position:relative;overflow:hidden;min-height:0;background:var(--bg)}
+    #code-editor{position:absolute;inset:0}
+    .cm-editor{height:100%;background:var(--bg);color:var(--text);font-size:11px}
+    .cm-editor.cm-focused{outline:none}
+    .cm-scroller{overflow:auto;font-family:'Fira Code','Cascadia Code','Courier New',monospace}
+    .cm-content,.cm-gutter{font-family:'Fira Code','Cascadia Code','Courier New',monospace;font-size:11px;line-height:1.5}
+    .cm-content{padding:6px 0 24px}
+    .cm-line{padding:0 8px}
+    .cm-gutters{background:var(--surface);color:var(--muted);border-right:1px solid var(--border);padding-top:6px}
+    .cm-gutterElement{padding:0 8px 0 6px}
+    .cm-activeLine{background:rgba(56,139,253,.08)}
+    html[data-theme="light"] .cm-activeLine{background:rgba(9,105,218,.08)}
+    .cm-activeLineGutter{background:transparent}
+    .cm-cursor,.cm-dropCursor{border-left-color:var(--text)}
+    .cm-selectionBackground, .cm-content ::selection{background:rgba(56,139,253,.25) !important}
+    html[data-theme="light"] .cm-selectionBackground, html[data-theme="light"] .cm-content ::selection{background:rgba(9,105,218,.22) !important}
+    .con-col{width:210px;display:flex;flex-direction:column;overflow:hidden}
+    .con-hdr{padding:4px 8px;border-bottom:1px solid var(--border);background:var(--surface);font-size:10px;font-weight:700;color:var(--muted);flex-shrink:0}
+    #con-out{flex:1;overflow-y:auto;padding:5px 8px;font-family:monospace;font-size:10px;background:var(--bg);line-height:1.5}
+    #con-out .li{color:var(--text)}
+    #con-out .le{color:#f85149}
+    #con-out .lo{color:#3fb950}
+    /* Modals */
+    .modal-ov{position:fixed;inset:0;background:rgba(0,0,0,.65);display:flex;align-items:center;justify-content:center;z-index:1000}
+    .modal-ov.hid{display:none}
+    .modal-box{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:18px;width:400px;max-width:92vw;box-shadow:var(--shadow)}
+    .modal-title{font-size:14px;font-weight:700;margin-bottom:12px}
+    .modal-inp{width:100%;padding:7px 10px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text);font:inherit;font-size:12px;margin-bottom:10px}
+    .modal-list{max-height:180px;overflow-y:auto;border:1px solid var(--border);border-radius:6px;margin-bottom:10px}
+    .mli{padding:7px 10px;cursor:pointer;font-size:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+    .mli:last-child{border-bottom:none}
+    .mli:hover{background:var(--surface)}
+    .mli.sel{background:rgba(56,139,253,.15)}
+    .mli-date{font-size:9px;color:var(--muted)}
+    .modal-acts{display:flex;gap:6px;justify-content:flex-end}
+    .mbn{padding:5px 12px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text);font:inherit;font-size:11px;font-weight:600;cursor:pointer}
+    .mbn:hover{background:var(--surface2)}
+    .mbn.prim{background:var(--accent);border-color:var(--accent);color:#fff}
+    .mbn.danger{border-color:#f85149;color:#f85149}
+    .mbn.danger:hover{background:rgba(248,81,73,.1)}
+    /* prevent page scroll/zoom over 3D canvas */
+    .canvas-wrap{touch-action:none}
+    /* CSS2D pin labels */
+    .plabel{background:rgba(0,0,0,.7);color:#eee;font-family:monospace;font-size:8px;padding:1px 4px;border-radius:2px;pointer-events:none;white-space:nowrap;user-select:none}
+    html[data-theme="light"] .plabel{background:rgba(255,255,255,.85);color:#222}
+    /* Status bar */
+    .statusbar{height:20px;background:var(--bg2);border-top:1px solid var(--border);display:flex;align-items:center;padding:0 10px;gap:10px;font-size:9px;color:var(--muted);flex-shrink:0}
+    /* Minimap */
+    #minimap{position:absolute;bottom:10px;right:10px;width:186px;height:114px;border:1px solid var(--border);border-radius:5px;cursor:crosshair;z-index:6;background:rgba(13,17,23,.88)}
+    html[data-theme="light"] #minimap{background:rgba(240,242,245,.92)}
+    #mm-lbl{position:absolute;bottom:130px;right:10px;font-size:8px;color:var(--muted);background:var(--bg2);border:1px solid var(--border);border-radius:3px;padding:1px 5px;z-index:6;pointer-events:none}
+    /* Bottom tabs */
+    .tab-bar{display:flex;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0}
+    .tab-btn{padding:4px 14px;font:inherit;font-size:10px;font-weight:700;border:none;border-right:1px solid var(--border);background:none;color:var(--muted);cursor:pointer;transition:color .1s}
+    .tab-btn:hover{color:var(--text)}
+    .tab-btn.act{background:var(--bg2);color:var(--accent)}
+    /* Docs panel */
+    #docs-pane{flex:1;overflow-y:auto;padding:8px 12px;font-size:10px;line-height:1.55;background:var(--bg);display:none}
+    #docs-pane.vis{display:block}
+    #docs-pane h3{font-size:11px;font-weight:700;color:var(--accent);margin:10px 0 3px;border-bottom:1px solid var(--border);padding-bottom:2px}
+    #docs-pane h4{font-size:10px;font-weight:700;color:var(--text);margin:7px 0 2px}
+    #docs-pane p{color:var(--muted);margin-bottom:3px}
+    #docs-pane code{background:var(--surface2);padding:1px 4px;border-radius:3px;font-family:monospace;font-size:9px;color:var(--text)}
+    #docs-pane pre{background:var(--surface2);padding:5px 7px;border-radius:4px;font-size:9px;font-family:monospace;margin:3px 0 7px;overflow-x:auto;white-space:pre;color:var(--text)}
+    /* Component info in props */
+    .pp-info{margin-top:6px;padding-top:6px;border-top:1px solid var(--border)}
+    .pp-info-desc{font-size:9px;color:var(--muted);line-height:1.4;margin-bottom:4px}
+    .pp-info-pins{font-size:8px;color:var(--muted);font-family:monospace;background:var(--surface2);padding:3px 5px;border-radius:3px;margin-bottom:3px}
+    .pp-info-ex pre{font-size:8px;color:var(--text);background:var(--surface2);padding:4px 5px;border-radius:3px;font-family:monospace;white-space:pre;overflow-x:auto}
+    /* Rotation row */
+    #pp-rot-row{display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:7px;padding-bottom:6px;border-bottom:1px solid var(--border)}
+    .pp-rot-btn{width:36px;height:26px;border-radius:5px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:15px;cursor:pointer;display:grid;place-items:center;line-height:1}
+    .pp-rot-btn:hover{background:var(--surface2);color:var(--accent);border-color:var(--accent)}
+    #pp-rot-deg{font-size:10px;color:var(--muted);font-weight:700;min-width:34px;text-align:center}
+  </style>
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.165.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.165.0/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+<body>
+  <!-- Topbar -->
+  <div class="topbar">
+    <div class="logo"><i class="fas fa-flask"></i><span data-i18n="appTitle">3D Electronics Lab</span></div>
+    <div class="sep"></div>
+    <button class="tbtn" id="btn-new"><i class="fas fa-file"></i><span data-i18n="new">New</span></button>
+    <button class="tbtn" id="btn-save"><i class="fas fa-save"></i><span data-i18n="save">Save</span></button>
+    <button class="tbtn" id="btn-load"><i class="fas fa-folder-open"></i><span data-i18n="load">Load</span></button>
+    <div class="sep"></div>
+    <button class="tbtn" id="btn-sample" style="border-color:#3fb950;color:#3fb950" title="Load sample demo"><i class="fas fa-bolt"></i><span data-i18n="sample">Sample</span></button>
+    <div class="sep"></div>
+    <button class="tbtn run" id="btn-run"><i class="fas fa-play"></i><span data-i18n="run">Run</span></button>
+    <button class="tbtn stop" id="btn-stop" style="display:none"><i class="fas fa-stop"></i><span data-i18n="stop">Stop</span></button>
+    <div class="spacer"></div>
+    <button class="icon-btn" id="btn-theme"><i class="fas fa-moon"></i></button>
+    <div class="sep"></div>
+    <div class="lang-row">
+      <button class="lang-btn" data-lang="en">EN</button>
+      <button class="lang-btn" data-lang="pt">PT</button>
+      <button class="lang-btn" data-lang="ja">JA</button>
+    </div>
+  </div>
+
+  <!-- Main -->
+  <div class="main">
+    <!-- Palette -->
+    <div class="sidebar" id="palette">
+      <div class="sb-sec" data-i18n="secControl">Control</div>
+      <button class="comp-btn" data-type="ArduinoUno"><span class="ci">🔵</span><span data-i18n="cArduino">Arduino</span></button>
+      <button class="comp-btn" data-type="PushButton"><span class="ci">🔴</span><span data-i18n="cButton">Button</span></button>
+      <button class="comp-btn" data-type="ToggleSwitch"><span class="ci">🟤</span><span data-i18n="cSwitch">Switch</span></button>
+      <div class="sb-sec" data-i18n="secOutput">Output</div>
+      <button class="comp-btn" data-type="LED"><span class="ci">💡</span><span>LED</span></button>
+      <button class="comp-btn" data-type="DCMotor"><span class="ci">⚙️</span><span data-i18n="cMotor">Motor</span></button>
+      <button class="comp-btn" data-type="Servo"><span class="ci">🔩</span><span>Servo</span></button>
+      <button class="comp-btn" data-type="SevenSeg"><span class="ci">📟</span><span>7-Seg</span></button>
+      <button class="comp-btn" data-type="Piston"><span class="ci">🔧</span><span data-i18n="cPiston">Piston</span></button>
+      <div class="sb-sec" data-i18n="secPassive">Passive</div>
+      <button class="comp-btn" data-type="Resistor"><span class="ci">〰️</span><span data-i18n="cResistor">Resistor</span></button>
+      <button class="comp-btn" data-type="Protoboard"><span class="ci">🟦</span><span data-i18n="cProto">Protoboard</span></button>
+      <div class="sb-sec" data-i18n="secPower">Power</div>
+      <button class="comp-btn" data-type="PowerSource"><span class="ci">🔋</span><span data-i18n="cPower">Power</span></button>
+    </div>
+
+    <!-- 3D Canvas -->
+    <div class="canvas-wrap" id="cwrap">
+      <canvas id="canvas3d"></canvas>
+      <div id="label-wrap"></div>
+      <div id="mm-lbl" data-i18n="minimapLbl">Minimap — click to pan</div>
+      <canvas id="minimap" width="186" height="114" title="Click to pan"></canvas>
+      <div id="mode-ind" data-i18n="mOrbit">Orbit</div>
+      <!-- Props Panel -->
+      <div id="props-panel">
+        <div class="pp-title">
+          <span id="pp-type">Component</span>
+          <button id="pp-close" style="background:none;border:none;color:var(--muted);cursor:pointer"><i class="fas fa-times"></i></button>
+        </div>
+        <div id="pp-rot-row">
+          <button class="pp-rot-btn" id="pp-rot-ccw" title="Rotate CCW 45° (Q)">&#8634;</button>
+          <span id="pp-rot-deg">0°</span>
+          <button class="pp-rot-btn" id="pp-rot-cw"  title="Rotate CW 45° (E)">&#8635;</button>
+        </div>
+        <div id="pp-body"></div>
+        <button class="pp-btn pp-del" id="btn-del" data-i18n="delete">Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Resize handle -->
+  <div class="resize-h" id="rhandle"></div>
+
+  <!-- Bottom panel -->
+  <div class="bottom" id="bottom">
+    <div class="code-col">
+      <div class="tab-bar">
+        <button class="tab-btn act" id="tab-code" data-i18n="tabCode">Code</button>
+        <button class="tab-btn" id="tab-docs" data-i18n="tabDocs">Docs</button>
+      </div>
+      <div id="code-hdr-bar" class="code-hdr">
+        <label data-i18n="board">Board:</label>
+        <select class="board-sel" id="board-sel"></select>
+        <div class="spacer"></div>
+        <span class="code-hint" data-i18n="useAwait">Use <code>await delay(ms)</code></span>
+      </div>
+      <div id="code-area" class="code-wrap">
+        <div id="code-editor"></div>
+      </div>
+      <div id="docs-pane"></div>
+    </div>
+    <div class="con-col">
+      <div class="con-hdr" data-i18n="console">Console</div>
+      <div id="con-out"></div>
+    </div>
+  </div>
+
+  <!-- Statusbar -->
+  <div class="statusbar">
+    <span id="stat-comps">0 components</span>
+    <span>|</span>
+    <span id="stat-wires">0 wires</span>
+    <span>|</span>
+    <span data-i18n="hint3d">Orbit: drag | Zoom: scroll | Pan: right-drag</span>
+  </div>
+
+  <!-- Save Modal -->
+  <div class="modal-ov hid" id="modal-save">
+    <div class="modal-box">
+      <div class="modal-title" data-i18n="saveProject">Save Project</div>
+      <input class="modal-inp" id="save-name" type="text" data-i18n-placeholder="projectName" placeholder="Project name...">
+      <div class="modal-acts">
+        <button class="mbn" id="save-cancel" data-i18n="cancel">Cancel</button>
+        <button class="mbn prim" id="save-ok" data-i18n="save">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Load Modal -->
+  <div class="modal-ov hid" id="modal-load">
+    <div class="modal-box">
+      <div class="modal-title" data-i18n="loadProject">Load Project</div>
+      <div class="modal-list" id="load-list"></div>
+      <div class="modal-acts">
+        <button class="mbn danger" id="load-del" data-i18n="delete">Delete</button>
+        <button class="mbn" id="load-cancel" data-i18n="cancel">Cancel</button>
+        <button class="mbn prim" id="load-ok" data-i18n="load">Load</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-core.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
+
+  <script type="module">
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  3D Electronics Lab — v1.0
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+import { EditorState, Compartment } from 'https://esm.sh/@codemirror/state@6.5.0';
+import { EditorView, lineNumbers, highlightActiveLineGutter, highlightActiveLine, drawSelection, keymap } from 'https://esm.sh/@codemirror/view@6.38.1';
+import { defaultKeymap, history, historyKeymap, indentWithTab } from 'https://esm.sh/@codemirror/commands@6.8.1';
+import { javascript } from 'https://esm.sh/@codemirror/lang-javascript@6.2.4';
+import { syntaxHighlighting, HighlightStyle, indentOnInput, bracketMatching } from 'https://esm.sh/@codemirror/language@6.11.0';
+import { tags as t } from 'https://esm.sh/@lezer/highlight@1.2.1';
+
+// ── Constants ────────────────────────────────────────────────
+const GRID    = 0.5;
+const TABLE_Y = 0.15;
+const PIN_R   = 0.038;
+const WIRE_R  = 0.038;
+const SIG_HI  = 1;
+const SIG_LO  = 0;
+const SIG_NC  = -1;
+
+// ── Renderer & Camera ────────────────────────────────────────
+const cvs  = document.getElementById('canvas3d');
+const cwrap = document.getElementById('cwrap');
+
+const renderer = new THREE.WebGLRenderer({ canvas: cvs, antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+const labelRenderer = new CSS2DRenderer();
+labelRenderer.domElement.style.cssText = 'position:absolute;top:0;left:0;pointer-events:none;';
+document.getElementById('label-wrap').appendChild(labelRenderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0d1117);
+
+const camera = new THREE.PerspectiveCamera(48, 1, 0.05, 400);
+camera.position.set(0, 13, 11);
+
+const controls = new OrbitControls(camera, cvs);
+controls.target.set(0, 0, 0);
+controls.minPolarAngle = 0.04;
+controls.maxPolarAngle = Math.PI * 0.48;
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.mouseButtons = { LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN };
+
+// ── Lights ───────────────────────────────────────────────────
+scene.add(new THREE.AmbientLight(0xffffff, 0.55));
+
+const sun = new THREE.DirectionalLight(0xfff8e7, 1.3);
+sun.position.set(8, 20, 10);
+sun.castShadow = true;
+Object.assign(sun.shadow.mapSize, { width: 2048, height: 2048 });
+Object.assign(sun.shadow.camera, { near: 1, far: 80, left: -25, right: 25, top: 25, bottom: -25 });
+scene.add(sun);
+
+const fillLight = new THREE.DirectionalLight(0xddeeff, 0.28);
+fillLight.position.set(-8, 10, -5);
+scene.add(fillLight);
+
+// ── Workbench ────────────────────────────────────────────────
+const tableMat = new THREE.MeshStandardMaterial({ color: 0x5c3d1a, roughness: 0.8 });
+const tableMesh = new THREE.Mesh(new THREE.BoxGeometry(42, 0.3, 30), tableMat);
+tableMesh.position.y = -0.15;
+tableMesh.receiveShadow = true;
+scene.add(tableMesh);
+
+let gridHelper = createGrid('dark');
+scene.add(gridHelper);
+
+function createGrid(theme) {
+  const c1 = theme === 'dark' ? 0x2a2a2a : 0xaaaaaa;
+  const c2 = theme === 'dark' ? 0x222222 : 0xcccccc;
+  const g = new THREE.GridHelper(42, 84, c1, c2);
+  g.position.y = TABLE_Y;
+  return g;
+}
+
+// ── Raycasting ───────────────────────────────────────────────
+const raycaster = new THREE.Raycaster();
+const mouseNDC  = new THREE.Vector2();
+const tablePlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -TABLE_Y);
+
+let compEntries = [];  // {mesh, comp}
+let pinEntries  = [];  // {mesh, comp, pinIdx}
+let wireEntries = [];  // {mesh, wire}
+
+// ── Scene state ───────────────────────────────────────────────
+let components  = [];
+let wires       = [];
+let selectedComp = null;
+let wiringFrom  = null;  // {comp, pinIdx}
+let placingType = null;
+let mode = 'ORBIT';
+
+let uidSeq = 1;
+function uid(pre) { return `${pre}_${uidSeq++}`; }
+
+// ── Shared materials ──────────────────────────────────────────
+const MAT_PIN = new THREE.MeshStandardMaterial({ color: 0xdddddd, metalness: 0.8, roughness: 0.3 });
+const MAT_PIN_HOV = new THREE.MeshStandardMaterial({ color: 0xffee00, emissive: 0x887700, metalness: 0.6, roughness: 0.3 });
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  Component Base
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+class Component3D {
+  constructor(type, id) {
+    this.type = type;
+    this.id   = id;
+    this.group = new THREE.Group();
+    this.group.userData = { compId: id, isComp: true };
+    this.pinDefs   = [];  // [{name, localPos, mode}]
+    this.pinValues = [];  // SIG_HI | SIG_LO | SIG_NC
+  }
+
+  build() {}
+  tick(_dt) {}
+  onPinChange(_idx, _val, _analog) {}
+
+  getPinWorld(idx) {
+    return this.group.localToWorld(this.pinDefs[idx].localPos.clone());
+  }
+
+  _pinGeo() { return new THREE.SphereGeometry(PIN_R, 8, 6); }
+
+  addPin(name, localPos, mode, idx) {
+    const m = new THREE.Mesh(this._pinGeo(), MAT_PIN.clone());
+    m.position.copy(localPos);
+    m.userData = { isPinMesh: true, compId: this.id, pinIdx: idx, pinName: name };
+    this.group.add(m);
+    pinEntries.push({ mesh: m, comp: this, pinIdx: idx });
+    return m;
+  }
+
+  addCSS2D(text, localPos, extra = '') {
+    const div = document.createElement('div');
+    div.className = 'plabel';
+    if (extra) div.style.cssText += extra;
+    div.textContent = text;
+    const obj = new CSS2DObject(div);
+    obj.position.copy(localPos);
+    this.group.add(obj);
+    return obj;
+  }
+
+  place(wx, wz) {
+    const sx = Math.round(wx / GRID) * GRID;
+    const sz = Math.round(wz / GRID) * GRID;
+    this.group.position.set(sx, TABLE_Y, sz);
+    scene.add(this.group);
+    this.group.traverse(m => {
+      if (m.isMesh && !m.userData.isPinMesh) {
+        m.userData.compId = this.id;
+        m.castShadow = true;
+        m.receiveShadow = true;
+        compEntries.push({ mesh: m, comp: this });
+      }
+    });
+  }
+
+  dispose() {
+    scene.remove(this.group);
+    this.group.traverse(m => {
+      if (m.isMesh) { m.geometry.dispose(); if (!m.material._shared) m.material.dispose(); }
+    });
+    compEntries = compEntries.filter(e => e.comp !== this);
+    pinEntries  = pinEntries.filter(e => e.comp !== this);
+  }
+
+  serialize() {
+    return {
+      id:       this.id,
+      type:     this.type,
+      position: this.group.position.toArray(),
+      rotation: [this.group.rotation.x, this.group.rotation.y, this.group.rotation.z],
+      state:    this.serializeState()
+    };
+  }
+  serializeState()  { return {}; }
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  ArduinoUno
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+class ArduinoUno extends Component3D {
+  constructor(id) {
+    super('ArduinoUno', id);
+    this.code = `// Board: ${id}\nasync function setup() {\n  pinMode(13, OUTPUT);\n}\n\nasync function loop() {\n  digitalWrite(13, HIGH);\n  await delay(500);\n  digitalWrite(13, LOW);\n  await delay(500);\n}`;
+    this.board = new ArduinoBoard(this);
+    this.build();
+  }
+
+  build() {
+    const W = 2.8, H = 0.08, D = 2.0;
+    const pcbMat = new THREE.MeshStandardMaterial({ color: 0x155b34, roughness: 0.55, metalness: 0.1 });
+    const pcb = new THREE.Mesh(new THREE.BoxGeometry(W, H, D), pcbMat);
+    pcb.position.y = H / 2;
+    this.group.add(pcb);
+
+    // USB
+    const usb = new THREE.Mesh(
+      new THREE.BoxGeometry(0.42, 0.22, 0.3),
+      new THREE.MeshStandardMaterial({ color: 0x999999, metalness: 0.7, roughness: 0.3 })
+    );
+    usb.position.set(W / 2 + 0.18, H / 2 + 0.06, -0.22);
+    this.group.add(usb);
+
+    // MCU chip
+    const chipMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.5 });
+    const chip = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.065, 0.5), chipMat);
+    chip.position.set(-0.15, H + 0.033, 0.1);
+    this.group.add(chip);
+
+    // Power LED
+    const pwrled = new THREE.Mesh(
+      new THREE.BoxGeometry(0.07, 0.06, 0.07),
+      new THREE.MeshStandardMaterial({ color: 0x00ff00, emissive: 0x003300, emissiveIntensity: 1 })
+    );
+    pwrled.position.set(0.9, H + 0.03, -0.75);
+    this.group.add(pwrled);
+
+    // Board label
+    this.addCSS2D(this.id, new THREE.Vector3(0, 0.28, 0), 'font-size:9px;font-weight:700');
+
+    const digitalY = H + 0.042;
+    const legMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.5 });
+
+    // Digital pins D0-D13: along right edge (Z axis)
+    for (let i = 0; i < 14; i++) {
+      const z = (D / 2 - 0.13) - i * ((D - 0.26) / 13);
+      const lp = new THREE.Vector3(W / 2 + 0.055, digitalY, z);
+      this.pinDefs.push({ name: `D${i}`, localPos: lp, mode: 'io' });
+      this.pinValues.push(SIG_NC);
+      this.addPin(`D${i}`, lp, 'io', i);
+      const hdr = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.12, 0.06), legMat.clone());
+      hdr.position.copy(lp);
+      this.group.add(hdr);
+      if (i % 2 === 0) this.addCSS2D(`D${i}`, lp.clone().add(new THREE.Vector3(0.16, 0.1, 0)));
+    }
+
+    // Analog A0-A5: left edge
+    for (let i = 0; i < 6; i++) {
+      const z = -D / 2 + 0.13 + i * ((D * 0.5 - 0.2) / 5);
+      const lp = new THREE.Vector3(-W / 2 - 0.055, digitalY, z);
+      const idx = this.pinDefs.length;
+      this.pinDefs.push({ name: `A${i}`, localPos: lp, mode: 'io' });
+      this.pinValues.push(SIG_NC);
+      this.addPin(`A${i}`, lp, 'io', idx);
+      const hdr = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.12, 0.06), legMat.clone());
+      hdr.position.copy(lp);
+      this.group.add(hdr);
+      this.addCSS2D(`A${i}`, lp.clone().add(new THREE.Vector3(-0.18, 0.1, 0)));
+    }
+
+    // Power pins: front edge
+    const pwrNames = ['GND', '5V', '3.3V', 'Vin', 'RST'];
+    for (let i = 0; i < pwrNames.length; i++) {
+      const x = -W / 4 + i * 0.28;
+      const lp = new THREE.Vector3(x, digitalY, -D / 2 - 0.055);
+      const idx = this.pinDefs.length;
+      this.pinDefs.push({ name: pwrNames[i], localPos: lp, mode: 'pwr' });
+      this.pinValues.push(pwrNames[i] === '5V' ? SIG_HI : SIG_LO);
+      this.addPin(pwrNames[i], lp, 'pwr', idx);
+      this.addCSS2D(pwrNames[i], lp.clone().add(new THREE.Vector3(0, 0.1, -0.18)));
+    }
+  }
+
+  serializeState() { return { code: this.code }; }
+
+  static deserialize(d) {
+    const c = new ArduinoUno(d.id);
+    if (d.state?.code) c.code = d.state.code;
+    return c;
+  }
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  Arduino Simulation Board
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+class ArduinoBoard {
+  constructor(comp) {
+    this.comp = comp;
+    this.pins = Array.from({ length: 20 }, () => ({ mode: 'INPUT', digital: 0, analog: 0 }));
+    this.t0 = Date.now();
+    this.running = false;
+  }
+
+  api() {
+    const self = this;
+    return {
+      INPUT: 0, OUTPUT: 1, INPUT_PULLUP: 2, HIGH: 1, LOW: 0,
+      A0: 14, A1: 15, A2: 16, A3: 17, A4: 18, A5: 19,
+      pinMode(pin, mode) {
+        if (pin >= 0 && pin < 20) self.pins[pin].mode = ['INPUT','OUTPUT','INPUT_PULLUP'][mode] ?? 'INPUT';
+      },
+      digitalWrite(pin, val) {
+        if (pin < 0 || pin >= 20) return;
+        const v = val ? SIG_HI : SIG_LO;
+        self.pins[pin].digital = v;
+        self.pins[pin].analog  = v === SIG_HI ? 255 : 0;
+        propagateSignal(self.comp, pin, v, null);
+      },
+      digitalRead(pin) {
+        return resolveInput(self.comp, pin);
+      },
+      analogWrite(pin, val) {
+        if (pin < 0 || pin >= 20) return;
+        const v = Math.max(0, Math.min(255, val | 0));
+        self.pins[pin].analog  = v;
+        self.pins[pin].digital = v > 0 ? 1 : 0;
+        propagateSignal(self.comp, pin, v > 0 ? SIG_HI : SIG_LO, v / 255);
+      },
+      analogRead(pin) {
+        return Math.round(resolveInput(self.comp, pin >= 14 ? pin : pin + 14) * 1023);
+      },
+      delay: (ms) => new Promise(r => setTimeout(r, ms)),
+      millis: () => Date.now() - self.t0,
+      print:   v => clog(String(v), 'li'),
+      println: v => clog(String(v), 'li'),
+    };
+  }
+
+  async run(code) {
+    this.running = true;
+    this.t0 = Date.now();
+    const a = this.api();
+    const AsyncFn = Object.getPrototypeOf(async function(){}).constructor;
+    const keys = Object.keys(a);
+    const vals = Object.values(a);
+    const body = `${code}
+const _s = typeof setup === 'function' ? setup : async()=>{};
+const _l = typeof loop  === 'function' ? loop  : async()=>{};
+try { await _s(); } catch(e) { print('setup error: '+e.message); return; }
+while(__sig.running) {
+  try { await _l(); } catch(e) { print('loop error: '+e.message); __sig.running=false; break; }
+  await delay(10);
+}`;
+    try {
+      const fn = new AsyncFn(...keys, '__sig', body);
+      await fn(...vals, this);
+    } catch(e) {
+      clog('Error: ' + e.message, 'le');
+    }
+    this.running = false;
+    clog('Stopped.', 'lo');
+    document.getElementById('btn-run').style.display = '';
+    document.getElementById('btn-stop').style.display = 'none';
+  }
+
+  stop() { this.running = false; }
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  LED
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+const LED_COLS = {
+  red:    { hex: 0xff2222, em: 0x880000, css: '#ff2222' },
+  green:  { hex: 0x22ee22, em: 0x006600, css: '#22ee22' },
+  blue:   { hex: 0x2255ff, em: 0x001188, css: '#2255ff' },
+  yellow: { hex: 0xffee00, em: 0x886600, css: '#ffee00' },
+  white:  { hex: 0xffffff, em: 0x888888, css: '#ffffff' },
+};
+
+class LED extends Component3D {
+  constructor(id) {
+    super('LED', id);
+    this.color = 'red';
+    this.lit = false;
+    this.ledMat = null;
+    this._glow  = null;
+    this.build();
+  }
+
+  build() {
+    this._clear();
+    const col = LED_COLS[this.color];
+
+    const dome = new THREE.Mesh(
+      new THREE.SphereGeometry(0.14, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2),
+      (this.ledMat = new THREE.MeshStandardMaterial({
+        color: col.hex, emissive: 0x000000, emissiveIntensity: 0,
+        transparent: true, opacity: 0.88
+      }))
+    );
+    dome.position.y = 0.14;
+    this.group.add(dome);
+
+    const ledRing = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 0.02, 12),
+      new THREE.MeshStandardMaterial({ color: col.hex, transparent: true, opacity: 0.6 }));
+    ledRing.position.set(0, 0.01, 0);
+    this.group.add(ledRing);
+
+    const legMat = new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.85 });
+    [[0.055, -0.21, 0, 0.44], [-0.055, -0.19, 0, 0.36]].forEach(([x, cy, z, h]) => {
+      const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.011, 0.011, h, 6), legMat.clone());
+      leg.position.set(x, cy, z);
+      this.group.add(leg);
+    });
+
+    this._glow = new THREE.PointLight(col.hex, 0, 1.6);
+    this._glow.position.y = 0.28;
+    this.group.add(this._glow);
+
+    const aPos = new THREE.Vector3(0.055, -0.42, 0);
+    const kPos = new THREE.Vector3(-0.055, -0.35, 0);
+    this.pinDefs = [
+      { name: 'A+', localPos: aPos, mode: 'in' },
+      { name: 'K-', localPos: kPos, mode: 'in' },
+    ];
+    this.pinValues = [SIG_NC, SIG_NC];
+    this.addPin('A+', aPos, 'in', 0);
+    this.addPin('K-', kPos, 'in', 1);
+    this.addCSS2D('A+', aPos.clone().add(new THREE.Vector3(0.1, 0, 0)));
+  }
+
+  _clear() {
+    const keep = [];
+    this.group.traverse(c => { if (c !== this.group) keep.push(c); });
+    keep.forEach(c => this.group.remove(c));
+    compEntries = compEntries.filter(e => e.comp !== this);
+    pinEntries  = pinEntries.filter(e => e.comp !== this);
+    this.pinDefs = []; this.pinValues = [];
+  }
+
+  setColor(c) {
+    this.color = c;
+    this.build();
+    this.group.traverse(m => {
+      if (m.isMesh && !m.userData.isPinMesh) {
+        m.userData.compId = this.id;
+        compEntries.push({ mesh: m, comp: this });
+      }
+    });
+    if (this.lit) this.onPinChange(0, SIG_HI, null);
+  }
+
+  onPinChange(idx, val, _analog) {
+    if (idx !== 0) return;
+    this.lit = val === SIG_HI;
+    const col = LED_COLS[this.color];
+    if (this.ledMat) {
+      this.ledMat.emissive.set(this.lit ? col.em : 0x000000);
+      this.ledMat.emissiveIntensity = this.lit ? 1 : 0;
+    }
+    if (this._glow) this._glow.intensity = this.lit ? 2.2 : 0;
+  }
+
+  serializeState() { return { color: this.color }; }
+  static deserialize(d) {
+    const c = new LED(d.id);
+    if (d.state?.color) c.setColor(d.state.color);
+    return c;
+  }
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  PushButton
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+class PushButton extends Component3D {
+  constructor(id) {
+    super('PushButton', id);
+    this.pressed = false;
+    this.build();
+  }
+
+  build() {
+    const baseMat = new THREE.MeshStandardMaterial({ color: 0x3a3a3a, roughness: 0.5 });
+    const base = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.08, 0.38), baseMat);
+    base.position.y = 0.04;
+    this.group.add(base);
+
+    this._cap = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.1, 0.1, 0.09, 12),
+      new THREE.MeshStandardMaterial({ color: 0xdd1111, roughness: 0.4 })
+    );
+    this._cap.position.y = 0.125;
+    this.group.add(this._cap);
+
+    const legMat = new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.8 });
+    [[-0.13,-0.13],[0.13,-0.13],[-0.13,0.13],[0.13,0.13]].forEach(([x,z]) => {
+      const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.013,0.013,0.18,6), legMat.clone());
+      leg.position.set(x,-0.05,z);
+      this.group.add(leg);
+    });
+
+    this.addCSS2D('BTN', new THREE.Vector3(0, 0.28, 0));
+
+    const pA = new THREE.Vector3(-0.13, -0.13, -0.13);
+    const pB = new THREE.Vector3( 0.13, -0.13, -0.13);
+    this.pinDefs = [
+      { name: 'A', localPos: pA, mode: 'out' },
+      { name: 'B', localPos: pB, mode: 'out' },
+    ];
+    this.pinValues = [SIG_LO, SIG_LO];
+    this.addPin('A', pA, 'out', 0);
+    this.addPin('B', pB, 'out', 1);
+  }
+
+  press(down) {
+    this.pressed = down;
+    if (this._cap) this._cap.position.y = down ? 0.09 : 0.125;
+    const v = down ? SIG_HI : SIG_LO;
+    this.pinValues[0] = v; this.pinValues[1] = v;
+    propagateSignal(this, 0, v, null);
+    propagateSignal(this, 1, v, null);
+  }
+
+  serializeState() { return {}; }
+  static deserialize(d) { return new PushButton(d.id); }
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  ToggleSwitch
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+class ToggleSwitch extends Component3D {
+  constructor(id) {
+    super('ToggleSwitch', id);
+    this.on = false;
+    this.build();
+  }
+
+  build() {
+    const swBase = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.1, 0.38),
+      new THREE.MeshStandardMaterial({ color: 0x282828, roughness: 0.5 }));
+    swBase.position.set(0, 0.05, 0);
+    this.group.add(swBase);
+
+    this._lever = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.028, 0.028, 0.3, 8),
+      new THREE.MeshStandardMaterial({ color: 0xbbbbbb, metalness: 0.6, roughness: 0.3 })
+    );
+    this._lever.rotation.x = 0.55;
+    this._lever.position.set(0, 0.2, 0);
+    this.group.add(this._lever);
+
+    this.addCSS2D('SW', new THREE.Vector3(0, 0.42, 0));
+
+    const legMat = new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.8 });
+    [[0,-0.17,0.1],[0,-0.17,-0.1]].forEach(([x,y,z],i) => {
+      const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.013,0.013,0.15,6), legMat.clone());
+      leg.position.set(x,y,z);
+      this.group.add(leg);
+    });
+
+    const pA = new THREE.Vector3(0,-0.23,0.1);
+    const pB = new THREE.Vector3(0,-0.23,-0.1);
+    this.pinDefs = [
+      { name:'COM', localPos:pA, mode:'io' },
+      { name:'OUT', localPos:pB, mode:'out' },
+    ];
+    this.pinValues = [SIG_LO, SIG_LO];
+    this.addPin('COM', pA, 'io', 0);
+    this.addPin('OUT', pB, 'out', 1);
+  }
+
+  toggle() {
+    this.on = !this.on;
+    if (this._lever) this._lever.rotation.x = this.on ? -0.55 : 0.55;
+    const v = this.on ? SIG_HI : SIG_LO;
+    this.pinValues[1] = v;
+    propagateSignal(this, 1, v, null);
+  }
+
+  serializeState() { return { on: this.on }; }
+  static deserialize(d) {
+    const c = new ToggleSwitch(d.id);
+    if (d.state?.on) c.toggle();
+    return c;
+  }
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  DC Motor
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+class DCMotor extends Component3D {
+  constructor(id) {
+    super('DCMotor', id);
+    this.speed = 0;
+    this._angle = 0;
+    this._shaft = null;
+    this.build();
+  }
+
+  build() {
+    const body = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.28, 0.28, 0.65, 16),
+      new THREE.MeshStandardMaterial({ color: 0x444444, roughness: 0.4, metalness: 0.3 })
+    );
+    body.rotation.z = Math.PI / 2;
+    body.position.set(0, 0.3, 0);
+    this.group.add(body);
+
+    // Front cap
+    const cap = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.28, 0.28, 0.06, 16),
+      new THREE.MeshStandardMaterial({ color: 0x666666, metalness: 0.5 })
+    );
+    cap.rotation.z = Math.PI / 2;
+    cap.position.set(0.355, 0.3, 0);
+    this.group.add(cap);
+
+    // Shaft group
+    this._shaft = new THREE.Group();
+    this._shaft.position.set(0.42, 0.3, 0);
+    const shaft = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.035, 0.035, 0.45, 8),
+      new THREE.MeshStandardMaterial({ color: 0xdddddd, metalness: 0.9 })
+    );
+    shaft.rotation.z = Math.PI / 2;
+    const blade = new THREE.Mesh(
+      new THREE.BoxGeometry(0.22, 0.04, 0.04),
+      new THREE.MeshStandardMaterial({ color: 0x888888, metalness: 0.4 })
+    );
+    blade.position.y = 0.11;
+    const blade2 = blade.clone();
+    blade2.position.y = -0.11;
+    this._shaft.add(shaft, blade, blade2);
+    this.group.add(this._shaft);
+
+    this.addCSS2D('MOTOR', new THREE.Vector3(0, 0.66, 0));
+
+    const legMat = new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.8 });
+    const pP = new THREE.Vector3(-0.38, 0.05, 0.17);
+    const pN = new THREE.Vector3(-0.38, 0.05,-0.17);
+    [pP, pN].forEach((p, i) => {
+      const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.013,0.013,0.28,6), legMat.clone());
+      leg.position.copy(p).y -= 0.12;
+      this.group.add(leg);
+      this.pinDefs.push({ name: i===0?'+':'-', localPos: p, mode: 'in' });
+      this.pinValues.push(SIG_LO);
+      this.addPin(i===0?'+':'-', p, 'in', i);
+    });
+  }
+
+  onPinChange(idx, val, analog) {
+    if (idx === 0) this.speed = analog !== null ? analog : (val === SIG_HI ? 1 : 0);
+  }
+
+  tick(dt) {
+    if (this.speed > 0 && this._shaft) {
+      this._angle += this.speed * dt * 12;
+      this._shaft.rotation.x = this._angle;
+    }
+  }
+
+  serializeState() { return {}; }
+  static deserialize(d) { return new DCMotor(d.id); }
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  Servo
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+class Servo extends Component3D {
+  constructor(id) {
+    super('Servo', id);
+    this.angle = 0;
+    this._horn = null;
+    this.build();
+  }
+
+  build() {
+    const body = new THREE.Mesh(
+      new THREE.BoxGeometry(0.52, 0.32, 0.38),
+      new THREE.MeshStandardMaterial({ color: 0x1a1aaa, roughness: 0.4 })
+    );
+    body.position.y = 0.16;
+    this.group.add(body);
+
+    // Mounting tabs
+    [-0.32, 0.32].forEach(x => {
+      const tab = new THREE.Mesh(
+        new THREE.BoxGeometry(0.12, 0.04, 0.44),
+        new THREE.MeshStandardMaterial({ color: 0x1a1aaa, roughness: 0.4 })
+      );
+      tab.position.set(x, 0.18, 0);
+      this.group.add(tab);
+    });
+
+    // Horn group
+    this._horn = new THREE.Group();
+    this._horn.position.set(0, 0.33, 0.08);
+    const hornBase = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.065, 0.065, 0.045, 10),
+      new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 })
+    );
+    const hornArm = new THREE.Mesh(
+      new THREE.BoxGeometry(0.26, 0.04, 0.04),
+      new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 })
+    );
+    hornArm.position.x = 0.11;
+    this._horn.add(hornBase, hornArm);
+    this.group.add(this._horn);
+
+    this.addCSS2D('SERVO', new THREE.Vector3(0, 0.48, 0));
+
+    const legMat = new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.8 });
+    const pinConf = [['GND',-0.13,'pwr'],['VCC',0,'pwr'],['SIG',0.13,'in']];
+    pinConf.forEach(([name, z, m], i) => {
+      const lp = new THREE.Vector3(-0.28, -0.01, z);
+      const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.012,0.012,0.17,6), legMat.clone());
+      leg.position.copy(lp).y -= 0.09;
+      this.group.add(leg);
+      this.pinDefs.push({ name, localPos: lp, mode: m });
+      this.pinValues.push(SIG_NC);
+      this.addPin(name, lp, m, i);
+    });
+  }
+
+  onPinChange(idx, val, analog) {
+    if (idx === 2) {
+      const deg = analog !== null ? analog * 180 : (val === SIG_HI ? 90 : 0);
+      this.setAngle(deg);
+    }
+  }
+
+  setAngle(deg) {
+    this.angle = Math.max(0, Math.min(180, deg));
+    if (this._horn) this._horn.rotation.y = (this.angle - 90) * Math.PI / 180;
+  }
+
+  serializeState() { return { angle: this.angle }; }
+  static deserialize(d) {
+    const c = new Servo(d.id);
+    if (d.state?.angle !== undefined) c.setAngle(d.state.angle);
+    return c;
+  }
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  7-Segment Display
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+const SEG_PAT = {
+  0:[1,1,1,1,1,1,0], 1:[0,1,1,0,0,0,0], 2:[1,1,0,1,1,0,1],
+  3:[1,1,1,1,0,0,1], 4:[0,1,1,0,0,1,1], 5:[1,0,1,1,0,1,1],
+  6:[1,0,1,1,1,1,1], 7:[1,1,1,0,0,0,0], 8:[1,1,1,1,1,1,1], 9:[1,1,1,1,0,1,1]
+};
+
+class SevenSeg extends Component3D {
+  constructor(id) {
+    super('SevenSeg', id);
+    this._segs = [];
+    this.build();
+  }
+
+  build() {
+    // Panel
+    const segPanel = new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.06, 1.04),
+      new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.5 }));
+    segPanel.position.set(0, 0.03, 0);
+    this.group.add(segPanel);
+
+    // Segments: a-g
+    //  aaa
+    // f   b
+    //  ggg
+    // e   c
+    //  ddd
+    const SW = 0.06, SH = 0.28, T = 0.042;
+    const segDefs = [
+      [true,  0,    -0.38], // a (top)
+      [false, 0.27, -0.24], // b (top-right)
+      [false, 0.27,  0.1],  // c (bot-right)
+      [true,  0,    0.38],  // d (bottom)
+      [false,-0.27,  0.1],  // e (bot-left)
+      [false,-0.27, -0.24], // f (top-left)
+      [true,  0,   -0.02],  // g (mid)
+    ];
+
+    const offMat = () => new THREE.MeshStandardMaterial({ color: 0x1a0000, roughness: 0.5 });
+    const onMat  = () => new THREE.MeshStandardMaterial({ color: 0xff2200, emissive: 0x991100, emissiveIntensity: 1 });
+
+    segDefs.forEach(([horiz, x, z]) => {
+      const geo = horiz ? new THREE.BoxGeometry(SH, T, SW) : new THREE.BoxGeometry(SW, T, SH);
+      const m = new THREE.Mesh(geo, offMat());
+      m.position.set(x, 0.065, z);
+      this.group.add(m);
+      this._segs.push({ mesh: m, offMat: m.material, onMat: onMat() });
+    });
+
+    this.addCSS2D('7SEG', new THREE.Vector3(0, 0.26, 0));
+
+    // Pins a-g + GND + VCC
+    const legMat = new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.8 });
+    const pNames = ['a','b','c','d','e','f','g','GND','VCC'];
+    const pRow1  = pNames.slice(0,7).map((n,i) => new THREE.Vector3(-0.26 + i*0.085, -0.06, 0.48));
+    const pRow2  = [new THREE.Vector3(-0.2,-0.06,-0.48), new THREE.Vector3(0,-0.06,-0.48)];
+    const allPos = [...pRow1, ...pRow2];
+
+    allPos.forEach((p, i) => {
+      const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.011,0.011,0.1,6), legMat.clone());
+      leg.position.copy(p).y -= 0.05;
+      this.group.add(leg);
+      this.pinDefs.push({ name: pNames[i], localPos: p, mode: i < 7 ? 'in' : 'pwr' });
+      this.pinValues.push(SIG_LO);
+      this.addPin(pNames[i], p, i<7?'in':'pwr', i);
+    });
+
+    this.showDigit(8);
+  }
+
+  showDigit(d) {
+    const pat = SEG_PAT[d] ?? [0,0,0,0,0,0,0];
+    this._segs.forEach((s, i) => { s.mesh.material = pat[i] ? s.onMat : s.offMat; });
+  }
+
+  onPinChange(idx, val, _analog) {
+    if (idx < 7) {
+      this.pinValues[idx] = val;
+      const pat = this.pinValues.slice(0, 7).map(v => v === SIG_HI ? 1 : 0);
+      // find matching digit
+      const match = Object.entries(SEG_PAT).find(([,p]) => p.every((v,i) => v === pat[i]));
+      if (match) this.showDigit(Number(match[0]));
+      else this._segs.forEach((s, i) => { s.mesh.material = pat[i] ? s.onMat : s.offMat; });
+    }
+  }
+
+  serializeState() { return {}; }
+  static deserialize(d) { return new SevenSeg(d.id); }
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  Piston
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+class Piston extends Component3D {
+  constructor(id) {
+    super('Piston', id);
+    this._rod = null;
+    this.build();
+  }
+
+  build() {
+    const bodyMat = new THREE.MeshStandardMaterial({ color: 0x445566, roughness: 0.4, metalness: 0.3 });
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.62, 12), bodyMat);
+    body.position.y = 0.31;
+    this.group.add(body);
+
+    // Rod group
+    this._rod = new THREE.Group();
+    this._rod.position.set(0, 0.62, 0);
+    const rod = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.058, 0.058, 0.52, 10),
+      new THREE.MeshStandardMaterial({ color: 0xdddddd, metalness: 0.88 })
+    );
+    rod.position.y = 0.06;
+    const tip = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.09, 0.058, 0.07, 10),
+      new THREE.MeshStandardMaterial({ color: 0xbbbbbb, metalness: 0.7 })
+    );
+    tip.position.y = 0.33;
+    this._rod.add(rod, tip);
+    this.group.add(this._rod);
+
+    this.addCSS2D('PISTON', new THREE.Vector3(0, 1.08, 0));
+
+    const legMat = new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.8 });
+    const pP = new THREE.Vector3(-0.17, -0.01, 0.16);
+    const pN = new THREE.Vector3( 0.17, -0.01, 0.16);
+    [pP, pN].forEach((p, i) => {
+      const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.013,0.013,0.1,6), legMat.clone());
+      leg.position.copy(p).y -= 0.05;
+      this.group.add(leg);
+      this.pinDefs.push({ name: i===0?'+':'-', localPos: p, mode: 'in' });
+      this.pinValues.push(SIG_LO);
+      this.addPin(i===0?'+':'-', p, 'in', i);
+    });
+  }
+
+  onPinChange(idx, val, _analog) {
+    if (idx === 0 && this._rod) {
+      this._rod.position.y = val === SIG_HI ? 1.0 : 0.62;
+    }
+  }
+
+  serializeState() { return {}; }
+  static deserialize(d) { return new Piston(d.id); }
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  Resistor
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+class Resistor extends Component3D {
+  constructor(id) {
+    super('Resistor', id);
+    this.resistance = '10kΩ';
+    this.build();
+  }
+
+  build() {
+    const resBod = new THREE.Mesh(new THREE.CylinderGeometry(0.065, 0.065, 0.42, 10),
+      new THREE.MeshStandardMaterial({ color: 0xd4a86a, roughness: 0.6 }));
+    resBod.position.set(0, 0.065, 0);
+    resBod.rotation.set(0, 0, Math.PI / 2);
+    this.group.add(resBod);
+
+    // Color bands (brown-black-orange-gold = 10kΩ)
+    [0x8B4513, 0x111111, 0xFF6600, 0xFFDD00].forEach((col, i) => {
+      const band = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.068, 0.068, 0.038, 10),
+        new THREE.MeshStandardMaterial({ color: col })
+      );
+      band.position.set(-0.095 + i * 0.066, 0.065, 0);
+      band.rotation.z = Math.PI / 2;
+      this.group.add(band);
+    });
+
+    const legMat = new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.85 });
+    const pA = new THREE.Vector3(-0.34, 0.065, 0);
+    const pB = new THREE.Vector3( 0.34, 0.065, 0);
+    [pA, pB].forEach((p, i) => {
+      const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.011,0.011,0.22,6), legMat.clone());
+      leg.position.copy(p);
+      leg.rotation.z = Math.PI/2;
+      this.group.add(leg);
+      this.pinDefs.push({ name: i===0?'A':'B', localPos: p, mode: 'io' });
+      this.pinValues.push(SIG_NC);
+      this.addPin(i===0?'A':'B', p, 'io', i);
+    });
+  }
+
+  serializeState() { return { resistance: this.resistance }; }
+  static deserialize(d) {
+    const c = new Resistor(d.id);
+    if (d.state?.resistance) c.resistance = d.state.resistance;
+    return c;
+  }
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  Protoboard (breadboard)
+//  Rows × 10 cols (a-j), 4 power rails, real connectivity nets
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+class Protoboard extends Component3D {
+  constructor(id) {
+    super('Protoboard', id);
+    this.rows = 12;
+    this._nets = {};  // pinIdx → netId
+    this.build();
+  }
+
+  build() {
+    const ROWS = this.rows, COLS = 10;
+    const HS  = 0.19;  // hole spacing
+    const BW  = HS * (COLS + 3.5);
+    const BD  = HS * (ROWS + 1.5);
+
+    // Board
+    const board = new THREE.Mesh(
+      new THREE.BoxGeometry(BW, 0.065, BD),
+      new THREE.MeshStandardMaterial({ color: 0x2255aa, roughness: 0.6 })
+    );
+    board.position.y = 0.033;
+    this.group.add(board);
+
+    // Center divider strip
+    const div = new THREE.Mesh(
+      new THREE.BoxGeometry(BW - 0.1, 0.072, 0.05),
+      new THREE.MeshStandardMaterial({ color: 0x1144aa, roughness: 0.7 })
+    );
+    div.position.set(0, 0.04, 0);
+    this.group.add(div);
+
+    const holeMat = new THREE.MeshStandardMaterial({ color: 0x0a0a0a });
+    const holeGeo = new THREE.CylinderGeometry(0.028, 0.028, 0.07, 6);
+    let pinIdx = 0;
+
+    const addHole = (x, z, netId, name) => {
+      const hole = new THREE.Mesh(holeGeo, holeMat.clone());
+      hole.position.set(x, 0.036, z);
+      this.group.add(hole);
+      const lp = new THREE.Vector3(x, 0.072, z);
+      this.pinDefs.push({ name, localPos: lp, mode: 'io' });
+      this.pinValues.push(SIG_NC);
+      this._nets[pinIdx] = netId;
+      this.addPin(name, lp, 'io', pinIdx);
+      pinIdx++;
+    };
+
+    // Power rails: 2 on left side, 2 on right side (+ and -)
+    const railX = [-BW/2 + 0.085, -BW/2 + 0.085 + HS, BW/2 - 0.085 - HS, BW/2 - 0.085];
+    const railNames = ['+L', '-L', '+R', '-R'];
+    railX.forEach((rx, ri) => {
+      for (let row = 0; row < ROWS; row++) {
+        const z = -BD/2 + HS + row * HS;
+        addHole(rx, z, `rail_${ri}`, `${railNames[ri]}${row}`);
+      }
+    });
+
+    // Main grid columns a-j, split into two halves (a-e | f-j) with gap
+    const gapX = 0.12;
+    const gridStartX = -BW/2 + HS * 2.8;
+    for (let col = 0; col < COLS; col++) {
+      const colName = 'abcdefghij'[col];
+      const isRight = col >= 5;
+      const colOffset = isRight ? gapX : 0;
+      const x = gridStartX + col * HS + colOffset;
+      const netSuffix = isRight ? 'R' : 'L';
+      for (let row = 0; row < ROWS; row++) {
+        const z = -BD/2 + HS + row * HS;
+        addHole(x, z, `row_${netSuffix}_${row}`, `${colName}${row}`);
+      }
+    }
+
+    this.addCSS2D('PROTOBOARD', new THREE.Vector3(0, 0.22, -BD/2 - 0.1), 'font-size:9px;font-weight:700');
+    // Row numbers on left edge
+    for (let row = 0; row < ROWS; row++) {
+      const z = -BD/2 + HS + row * HS;
+      this.addCSS2D(String(row+1), new THREE.Vector3(-BW/2 - 0.08, 0.1, z), 'font-size:6px;');
+    }
+  }
+
+  getPinsInNet(pinIdx) {
+    const net = this._nets[pinIdx];
+    if (!net) return [];
+    return Object.entries(this._nets)
+      .filter(([k,v]) => v === net && Number(k) !== pinIdx)
+      .map(([k]) => Number(k));
+  }
+
+  serializeState() { return { rows: this.rows }; }
+  static deserialize(d) { return new Protoboard(d.id); }
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  Power Source
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+class PowerSource extends Component3D {
+  constructor(id) {
+    super('PowerSource', id);
+    this.build();
+  }
+
+  build() {
+    // Battery body
+    const bodyMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.5 });
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.72, 14), bodyMat);
+    body.position.set(0, 0.36, 0);
+    this.group.add(body);
+
+    // Positive cap
+    const cap = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.1, 0.1, 0.08, 12),
+      new THREE.MeshStandardMaterial({ color: 0xeeeeee, metalness: 0.8 })
+    );
+    cap.position.set(0, 0.76, 0);
+    this.group.add(cap);
+
+    // Label band (red)
+    const band = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.222, 0.222, 0.18, 14),
+      new THREE.MeshStandardMaterial({ color: 0xcc1111, roughness: 0.4 })
+    );
+    band.position.set(0, 0.55, 0);
+    this.group.add(band);
+
+    // Black band
+    const band2 = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.222, 0.222, 0.1, 14),
+      new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.4 })
+    );
+    band2.position.set(0, 0.36, 0);
+    this.group.add(band2);
+
+    this.addCSS2D('9V', new THREE.Vector3(0, 0.92, 0), 'font-size:10px;font-weight:700;color:#ffdd00');
+
+    const legMat = new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.8 });
+    const pVCC = new THREE.Vector3(0.1, -0.01, 0.18);
+    const pGND = new THREE.Vector3(-0.1, -0.01, 0.18);
+    [pVCC, pGND].forEach((p, i) => {
+      const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.013, 0.013, 0.1, 6), legMat.clone());
+      leg.position.copy(p); leg.position.y -= 0.05;
+      this.group.add(leg);
+      const nm = i === 0 ? 'VCC' : 'GND';
+      this.pinDefs.push({ name: nm, localPos: p, mode: 'pwr' });
+      this.pinValues.push(i === 0 ? SIG_HI : SIG_LO);
+      this.addPin(nm, p, 'pwr', i);
+    });
+    this.addCSS2D('+', pVCC.clone().add(new THREE.Vector3(0.12, 0.08, 0)));
+    this.addCSS2D('–', pGND.clone().add(new THREE.Vector3(-0.12, 0.08, 0)));
+  }
+
+  serializeState() { return {}; }
+  static deserialize(d) { return new PowerSource(d.id); }
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  Component descriptions (for props panel + docs)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+const COMP_DESC = {
+  ArduinoUno: {
+    desc: 'Microcontroller with 14 digital I/O pins (D0–D13) and 6 analog inputs (A0–A5). Write async setup()/loop() functions in the Code editor.',
+    pins: 'D0–D13: digital I/O  |  A0–A5: analog in  |  5V/GND: power',
+    ex: 'async function setup() { pinMode(13, OUTPUT); }\nasync function loop() {\n  digitalWrite(13, HIGH); await delay(500);\n  digitalWrite(13, LOW);  await delay(500);\n}'
+  },
+  LED: {
+    desc: 'Lights up when the Anode (A+) pin receives HIGH. Always use a series resistor to protect it.',
+    pins: 'A+ (anode): connect via resistor to digital pin  |  K– (cathode): GND',
+    ex: '// Blink on D13\ndigitalWrite(13, HIGH); await delay(500);\ndigitalWrite(13, LOW);  await delay(500);'
+  },
+  PushButton: {
+    desc: 'Momentary button: outputs HIGH while pressed, LOW when released. Use the "Press & Hold" control in this panel to interact.',
+    pins: 'A and B: connected when button is pressed',
+    ex: 'pinMode(2, INPUT);\nif (digitalRead(2) === 1) print("Pressed!");'
+  },
+  ToggleSwitch: {
+    desc: 'Latching switch. Click "Toggle" in this panel to flip between ON (HIGH) and OFF (LOW).',
+    pins: 'COM: common input  |  OUT: output (HIGH when switched on)',
+    ex: 'pinMode(4, INPUT);\nconst sw = digitalRead(4); // 1=on, 0=off'
+  },
+  DCMotor: {
+    desc: 'DC motor. Connect + to a PWM pin for variable speed. The animated shaft speed is proportional to the signal.',
+    pins: '+ (power): connect to PWM output  |  – (ground): connect to GND',
+    ex: 'analogWrite(3, 180); // ~70% speed\nawait delay(2000);\nanalogWrite(3, 0);   // stop'
+  },
+  Servo: {
+    desc: 'Servo motor. analogWrite(0–255) maps linearly to 0–180°. Requires VCC, GND and a signal (PWM) pin.',
+    pins: 'GND: ground  |  VCC: 5V power  |  SIG: PWM signal pin',
+    ex: 'analogWrite(6, 0);   // 0°\nanalogWrite(6, 127); // ~90°\nanalogWrite(6, 255); // 180°'
+  },
+  SevenSeg: {
+    desc: '7-segment numeric display. Connect 7 digital pins to segments a–g. HIGH turns a segment on. Supports digits 0–9.',
+    pins: 'a–g: segment pins  |  GND: ground  |  VCC: 5V',
+    ex: '// Display "1" (b and c segments)\nconst seg = [0,1,1,0,0,0,0];\nfor(let i=0;i<7;i++) digitalWrite(7+i, seg[i]);'
+  },
+  Piston: {
+    desc: 'Linear actuator. The rod extends when the + pin is HIGH and retracts when LOW.',
+    pins: '+ : connect to digital output  |  – : connect to GND',
+    ex: 'digitalWrite(5, HIGH); await delay(1000); // extend\ndigitalWrite(5, LOW);  await delay(1000); // retract'
+  },
+  Resistor: {
+    desc: 'Passive current-limiting component. Place between a digital output pin and an LED anode to protect the LED. Value is decorative in this simulator.',
+    pins: 'A and B: two terminals — bidirectional, no polarity',
+    ex: '// No code needed.\n// Place between Arduino pin and LED A+.'
+  },
+  Protoboard: {
+    desc: 'Breadboard for prototyping. Columns a–e share a connection per row; columns f–j share per row. Power rails (+/–) are continuous.',
+    pins: 'Rows a–e connected  |  Rows f–j connected  |  +/– rails: full-length power',
+    ex: '// Wire PowerSource VCC → + rail\n// Wire PowerSource GND → – rail\n// Connect components via column holes'
+  },
+  PowerSource: {
+    desc: 'Constant power supply. VCC pin is always HIGH, GND pin is always LOW. Use to power components independently. Voltage/current not simulated.',
+    pins: 'VCC: always HIGH  |  GND: always LOW',
+    ex: '// No code needed — always on.\n// Connect VCC to component power pins.\n// Connect GND to ground pins.'
+  },
+};
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  Sample project code
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+const SAMPLE_CODE = `// 3D Electronics Lab — Sample Project
+// Demonstrates: LED, Button, Switch, Motor,
+//               Servo, 7-Seg, Piston, Resistor, Protoboard
+
+const DIGITS = [
+  [1,1,1,1,1,1,0],[0,1,1,0,0,0,0],[1,1,0,1,1,0,1],
+  [1,1,1,1,0,0,1],[0,1,1,0,0,1,1],[1,0,1,1,0,1,1],
+  [1,0,1,1,1,1,1],[1,1,1,0,0,0,0],[1,1,1,1,1,1,1],[1,1,1,1,0,1,1]
+];
+
+async function setup() {
+  pinMode(0, OUTPUT); // LED (through resistor)
+  pinMode(2, INPUT);  // Button
+  pinMode(3, OUTPUT); // Motor (PWM)
+  pinMode(4, INPUT);  // Switch
+  pinMode(5, OUTPUT); // Piston
+  pinMode(6, OUTPUT); // Servo (PWM)
+  for (let i = 7; i <= 13; i++) pinMode(i, OUTPUT); // 7-seg a–g
+  print('Sample ready! Press button or toggle switch.');
+}
+
+let t = 0;
+async function loop() {
+  t++;
+  // LED blinks every 600 ms
+  digitalWrite(0, t % 6 < 3 ? HIGH : LOW);
+  // Button controls piston
+  const btn = digitalRead(2);
+  // Switch controls motor speed
+  const sw = digitalRead(4);
+  analogWrite(3, sw ? 200 : 55);
+  // Piston: button overrides timed alternation
+  digitalWrite(5, btn || (t % 12 < 6) ? HIGH : LOW);
+  // Servo sweeps smoothly back and forth
+  analogWrite(6, Math.round(127 + 127 * Math.sin(t * 0.18)));
+  // 7-segment counts 0–9
+  const d = DIGITS[Math.floor(t / 4) % 10];
+  for (let i = 0; i < 7; i++) digitalWrite(7 + i, d[i]);
+  await delay(200);
+}`;
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  Component registry
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+const COMP_CLS = {
+  ArduinoUno, LED, PushButton, ToggleSwitch, DCMotor,
+  Servo, SevenSeg, Piston, Resistor, Protoboard, PowerSource
+};
+const COMP_PRE = {
+  ArduinoUno:'ard', LED:'led', PushButton:'btn', ToggleSwitch:'sw',
+  DCMotor:'mot', Servo:'srv', SevenSeg:'seg', Piston:'pst',
+  Resistor:'res', Protoboard:'pb', PowerSource:'pwr'
+};
+
+function makeComp(type) {
+  const Cls = COMP_CLS[type];
+  return Cls ? new Cls(uid(COMP_PRE[type] || 'c')) : null;
+}
+
+function addComp(comp, wx = 0, wz = 0) {
+  comp.place(wx, wz);
+  components.push(comp);
+  if (comp.type === 'ArduinoUno') refreshBoardSel();
+  updateStatus();
+  return comp;
+}
+
+function removeComp(comp) {
+  const toRemove = wires.filter(w => w.fromCompId === comp.id || w.toCompId === comp.id);
+  toRemove.forEach(w => { removeWireMesh(w); wires = wires.filter(x => x !== w); });
+  wireEntries = wireEntries.filter(e => !toRemove.includes(e.wire));
+  comp.dispose();
+  components = components.filter(c => c !== comp);
+  if (comp === selectedComp) { selectedComp = null; hidePP(); }
+  if (comp.type === 'ArduinoUno') refreshBoardSel();
+  updateStatus();
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  Wire system
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+const WCOL = { [SIG_HI]: 0xff3333, [SIG_LO]: 0x2233cc, [SIG_NC]: 0x666666 };
+const WCOL_ANALOG = 0xffaa00;
+
+function wireColor(sig, isAnalog) {
+  if (isAnalog && sig !== SIG_NC) return WCOL_ANALOG;
+  return WCOL[sig] ?? WCOL[SIG_NC];
+}
+
+function buildWireMesh(pA, pB, col) {
+  const arc = 0.55 + Math.random() * 0.22;
+  const m1 = pA.clone().lerp(pB, 0.28).add(new THREE.Vector3((Math.random()-0.5)*0.2, arc, (Math.random()-0.5)*0.2));
+  const m2 = pA.clone().lerp(pB, 0.72).add(new THREE.Vector3((Math.random()-0.5)*0.2, arc, (Math.random()-0.5)*0.2));
+  const curve = new THREE.CatmullRomCurve3([pA, m1, m2, pB]);
+  const geo = new THREE.TubeGeometry(curve, 22, WIRE_R, 6, false);
+  const mat = new THREE.MeshStandardMaterial({ color: col, roughness: 0.5 });
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.castShadow = false;
+  return mesh;
+}
+
+function createWire(fComp, fPin, tComp, tPin) {
+  // Prevent duplicate
+  if (wires.some(w => w.fromCompId===fComp.id && w.fromPinIdx===fPin && w.toCompId===tComp.id && w.toPinIdx===tPin)) return null;
+  const pA = fComp.getPinWorld(fPin);
+  const pB = tComp.getPinWorld(tPin);
+  const sig = fComp.pinValues[fPin] ?? SIG_NC;
+  const mesh = buildWireMesh(pA, pB, wireColor(sig, false));
+  mesh.userData.isWire = true;
+  scene.add(mesh);
+  const wire = { id: uid('w'), fromCompId: fComp.id, fromPinIdx: fPin, toCompId: tComp.id, toPinIdx: tPin, mesh, signal: sig, analog: false };
+  wires.push(wire);
+  wireEntries.push({ mesh, wire });
+  updateStatus();
+  return wire;
+}
+
+function createWireFromData(d) {
+  const f = components.find(c => c.id === d.fromCompId);
+  const t = components.find(c => c.id === d.toCompId);
+  if (f && t) createWire(f, d.fromPinIdx, t, d.toPinIdx);
+}
+
+function removeWireMesh(wire) {
+  scene.remove(wire.mesh);
+  wire.mesh.geometry.dispose();
+  wire.mesh.material.dispose();
+  wireEntries = wireEntries.filter(e => e.wire !== wire);
+}
+
+function updateWireSignal(wire, sig, analog) {
+  wire.signal = sig;
+  wire.analog = analog;
+  if (wire.mesh?.material) wire.mesh.material.color.set(wireColor(sig, analog));
+}
+
+function rebuildWiresFor(comp) {
+  wires.filter(w => w.fromCompId === comp.id || w.toCompId === comp.id).forEach(w => {
+    const f = components.find(c => c.id === w.fromCompId);
+    const t = components.find(c => c.id === w.toCompId);
+    if (!f || !t) return;
+    scene.remove(w.mesh);
+    w.mesh.geometry.dispose();
+    wireEntries = wireEntries.filter(e => e.wire !== w);
+    const col = wireColor(w.signal, w.analog);
+    w.mesh = buildWireMesh(f.getPinWorld(w.fromPinIdx), t.getPinWorld(w.toPinIdx), col);
+    w.mesh.userData.isWire = true;
+    scene.add(w.mesh);
+    wireEntries.push({ mesh: w.mesh, wire: w });
+  });
+}
+
+// Rubber-band line
+let rubberMesh = null;
+function updateRubber(a, b) {
+  clearRubber();
+  const geo = new THREE.BufferGeometry().setFromPoints([a.clone(), b.clone()]);
+  rubberMesh = new THREE.Line(geo, new THREE.LineBasicMaterial({ color: 0xffff00 }));
+  scene.add(rubberMesh);
+}
+function clearRubber() {
+  if (rubberMesh) { scene.remove(rubberMesh); rubberMesh.geometry.dispose(); rubberMesh = null; }
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  Signal propagation
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function propagateSignal(fromComp, pinIdx, sig, analog) {
+  fromComp.pinValues[pinIdx] = sig;
+  wires.forEach(w => {
+    if (w.fromCompId !== fromComp.id || w.fromPinIdx !== pinIdx) return;
+    updateWireSignal(w, sig, analog !== null);
+    const toComp = components.find(c => c.id === w.toCompId);
+    if (!toComp) return;
+    toComp.pinValues[w.toPinIdx] = sig;
+    toComp.onPinChange(w.toPinIdx, sig, analog);
+    // Protoboard net propagation
+    if (toComp instanceof Protoboard) {
+      toComp.getPinsInNet(w.toPinIdx).forEach(netPin => {
+        toComp.pinValues[netPin] = sig;
+        wires.forEach(w2 => {
+          if (w2.fromCompId === toComp.id && w2.fromPinIdx === netPin) {
+            updateWireSignal(w2, sig, analog !== null);
+            const c2 = components.find(c => c.id === w2.toCompId);
+            if (c2) { c2.pinValues[w2.toPinIdx] = sig; c2.onPinChange(w2.toPinIdx, sig, analog); }
+          }
+        });
+      });
+    }
+  });
+}
+
+function resolveInput(fromComp, pinIdx) {
+  // Find a wire whose destination is this comp/pin and return its signal
+  for (const w of wires) {
+    if (w.toCompId === fromComp.id && w.toPinIdx === pinIdx) {
+      const src = components.find(c => c.id === w.fromCompId);
+      if (src) return src.pinValues[w.fromPinIdx] === SIG_HI ? 1 : 0;
+    }
+  }
+  // Also check protoboard connectivity
+  for (const w of wires) {
+    if (w.toCompId === fromComp.id && w.toPinIdx === pinIdx) return 0;
+    if (w.fromCompId === fromComp.id && w.fromPinIdx === pinIdx) {
+      const src = components.find(c => c.id === w.toCompId);
+      if (src instanceof Protoboard) {
+        const nets = src.getPinsInNet(w.toPinIdx);
+        for (const np of nets) {
+          for (const w2 of wires) {
+            if (w2.toCompId === src.id && w2.toPinIdx === np) {
+              const s2 = components.find(c => c.id === w2.fromCompId);
+              if (s2) return s2.pinValues[w2.fromPinIdx] === SIG_HI ? 1 : 0;
+            }
+          }
+        }
+      }
+    }
+  }
+  return 0;
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  Pointer / Interaction
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+let pDown = null;
+let moved = false;
+let dragging = false;
+let dragComp = null;
+const dragOffset = new THREE.Vector3();
+let hoveredPin = null;
+
+function ndcFromEvent(e) {
+  const r = cwrap.getBoundingClientRect();
+  return {
+    x:  (e.clientX - r.left)  / r.width  *  2 - 1,
+    y: -(e.clientY - r.top)   / r.height *  2 + 1,
+  };
+}
+function tablePoint(e) {
+  const { x, y } = ndcFromEvent(e);
+  mouseNDC.set(x, y);
+  raycaster.setFromCamera(mouseNDC, camera);
+  const pt = new THREE.Vector3();
+  return raycaster.ray.intersectPlane(tablePlane, pt) ? pt : null;
+}
+function castPins(e) {
+  const { x, y } = ndcFromEvent(e);
+  mouseNDC.set(x, y);
+  raycaster.setFromCamera(mouseNDC, camera);
+  return raycaster.intersectObjects(pinEntries.map(p => p.mesh), false);
+}
+function castComps(e) {
+  const { x, y } = ndcFromEvent(e);
+  mouseNDC.set(x, y);
+  raycaster.setFromCamera(mouseNDC, camera);
+  const meshes = [...compEntries.map(e => e.mesh), ...wireEntries.map(e => e.mesh)];
+  return raycaster.intersectObjects(meshes, false);
+}
+
+cvs.addEventListener('pointermove', e => {
+  if (pDown) moved = (Math.hypot(e.clientX - pDown.x, e.clientY - pDown.y) > 4);
+
+  // Pin hover highlight
+  const phits = castPins(e);
+  const newHov = phits.length > 0 ? pinEntries.find(p => p.mesh === phits[0].object) : null;
+  if (newHov !== hoveredPin) {
+    if (hoveredPin) { hoveredPin.mesh.material = MAT_PIN.clone(); }
+    hoveredPin = newHov;
+    if (hoveredPin) { hoveredPin.mesh.material = MAT_PIN_HOV.clone(); }
+  }
+
+  // Drag component
+  if (dragging && dragComp) {
+    const pt = tablePoint(e);
+    if (pt) {
+      const np = pt.add(dragOffset);
+      dragComp.group.position.set(
+        Math.round(np.x / GRID) * GRID, TABLE_Y, Math.round(np.z / GRID) * GRID
+      );
+      rebuildWiresFor(dragComp);
+    }
+    return;
+  }
+
+  // Rubber-band during wiring
+  if (mode === 'WIRING' && wiringFrom) {
+    const pt = tablePoint(e);
+    if (pt) updateRubber(wiringFrom.comp.getPinWorld(wiringFrom.pinIdx), pt);
+  }
+});
+
+cvs.addEventListener('pointerdown', e => {
+  pDown = { x: e.clientX, y: e.clientY };
+  moved = false;
+});
+
+cvs.addEventListener('pointerup', e => {
+  const wasClick = !moved && e.button === 0;
+  const pt = tablePoint(e);
+
+  if (dragging) {
+    dragging = false;
+    dragComp = null;
+    controls.enabled = true;
+    pDown = null;
+    return;
+  }
+
+  if (!wasClick) { pDown = null; return; }
+
+  // PLACE mode
+  if (mode === 'PLACE' && pt) {
+    const comp = makeComp(placingType);
+    if (comp) addComp(comp, pt.x, pt.z);
+    pDown = null;
+    return;
+  }
+
+  // Try pins first
+  const phits = castPins(e);
+  if (phits.length > 0) {
+    const pe = pinEntries.find(p => p.mesh === phits[0].object);
+    if (pe) {
+      if (mode === 'WIRING') {
+        if (wiringFrom && (pe.comp !== wiringFrom.comp || pe.pinIdx !== wiringFrom.pinIdx)) {
+          createWire(wiringFrom.comp, wiringFrom.pinIdx, pe.comp, pe.pinIdx);
+        }
+        clearRubber();
+        wiringFrom = null;
+        setMode('ORBIT');
+      } else {
+        wiringFrom = { comp: pe.comp, pinIdx: pe.pinIdx };
+        setMode('WIRING');
+      }
+      pDown = null;
+      return;
+    }
+  }
+
+  // Try component / wire meshes
+  const chits = castComps(e);
+  if (chits.length > 0) {
+    const we = wireEntries.find(x => x.mesh === chits[0].object);
+    if (we) {
+      // Wire selected — handled by context menu for delete
+      pDown = null;
+      return;
+    }
+    const ce = compEntries.find(x => x.mesh === chits[0].object);
+    if (ce?.comp) {
+      if (selectedComp === ce.comp && mode === 'SELECTED') {
+        // Start drag
+        dragging = true;
+        dragComp = ce.comp;
+        controls.enabled = false;
+        if (pt) dragOffset.copy(ce.comp.group.position).sub(pt);
+      } else {
+        selectComp(ce.comp);
+      }
+      pDown = null;
+      return;
+    }
+  }
+
+  // Click on empty → deselect / cancel
+  if (mode === 'WIRING') { clearRubber(); wiringFrom = null; setMode('ORBIT'); }
+  else { deselect(); }
+  pDown = null;
+});
+
+cvs.addEventListener('contextmenu', e => {
+  e.preventDefault();
+  if (mode === 'WIRING') { clearRubber(); wiringFrom = null; setMode('ORBIT'); return; }
+  if (mode === 'PLACE')  { setMode('ORBIT'); placingType = null; refreshPalActive(null); return; }
+  // Delete wire on right-click
+  const chits = castComps(e);
+  if (chits.length > 0) {
+    const we = wireEntries.find(x => x.mesh === chits[0].object);
+    if (we) {
+      const w = we.wire;
+      removeWireMesh(w);
+      wires = wires.filter(x => x !== w);
+      updateStatus();
+    }
+  }
+});
+
+document.addEventListener('keydown', e => {
+  const tag = document.activeElement?.tagName;
+  if (tag === 'TEXTAREA' || tag === 'INPUT') return;
+  if (e.key === 'Escape') {
+    if (mode === 'PLACE')  { setMode('ORBIT'); placingType = null; refreshPalActive(null); }
+    else if (mode === 'WIRING') { clearRubber(); wiringFrom = null; setMode('ORBIT'); }
+    else deselect();
+  }
+  if ((e.key === 'Delete' || e.key === 'Backspace') && selectedComp && mode === 'SELECTED') {
+    removeComp(selectedComp);
+  }
+  // Q = rotate CCW, E = rotate CW
+  if ((e.key === 'q' || e.key === 'Q') && selectedComp) rotateSelected(1);
+  if ((e.key === 'e' || e.key === 'E') && selectedComp) rotateSelected(-1);
+});
+
+// ── Mode management ───────────────────────────────────────────
+function setMode(m) {
+  mode = m;
+  controls.enabled = (m !== 'PLACE' && m !== 'WIRING');
+  const labels = { ORBIT: tr('mOrbit'), PLACE: tr('mPlace'), WIRING: tr('mWiring'), SELECTED: tr('mSelected') };
+  document.getElementById('mode-ind').textContent = labels[m] || m;
+}
+
+function selectComp(comp) {
+  selectedComp = comp;
+  setMode('SELECTED');
+  showPP(comp);
+}
+function deselect() {
+  selectedComp = null;
+  setMode('ORBIT');
+  hidePP();
+}
+
+// ── Palette ───────────────────────────────────────────────────
+function refreshPalActive(btn) {
+  document.querySelectorAll('.comp-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+}
+document.querySelectorAll('.comp-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    placingType = btn.dataset.type;
+    refreshPalActive(btn);
+    setMode('PLACE');
+  });
+});
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  Properties Panel
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function showPP(comp) {
+  const panel = document.getElementById('props-panel');
+  panel.classList.add('vis');
+  document.getElementById('pp-type').textContent = `${comp.type} · ${comp.id}`;
+  syncRotDeg();
+  const body = document.getElementById('pp-body');
+  body.innerHTML = '';
+
+  // Pin table
+  comp.pinDefs.forEach((p, i) => {
+    const row = document.createElement('div'); row.className = 'pp-row';
+    const sv = comp.pinValues[i];
+    const vs = sv === SIG_HI ? 'HIGH' : sv === SIG_LO ? 'LOW' : 'NC';
+    row.innerHTML = `<span class="pp-key">${p.name} (${p.mode})</span><span class="pp-val">${vs}</span>`;
+    body.appendChild(row);
+  });
+
+  // Type-specific controls
+  if (comp instanceof LED) {
+    const sep = document.createElement('div'); sep.className = 'pp-sep'; body.appendChild(sep);
+    const lbl = document.createElement('div'); lbl.className = 'pp-lbl'; lbl.textContent = tr('color'); body.appendChild(lbl);
+    const row = document.createElement('div'); row.className = 'color-swatches'; body.appendChild(row);
+    Object.keys(LED_COLS).forEach(cn => {
+      const sw = document.createElement('div');
+      sw.className = 'color-sw' + (comp.color === cn ? ' sel' : '');
+      sw.style.background = LED_COLS[cn].css;
+      sw.title = cn;
+      sw.addEventListener('click', () => { comp.setColor(cn); showPP(comp); });
+      row.appendChild(sw);
+    });
+  }
+
+  if (comp instanceof Resistor) {
+    const sep = document.createElement('div'); sep.className = 'pp-sep'; body.appendChild(sep);
+    const lbl = document.createElement('div'); lbl.className = 'pp-lbl'; lbl.textContent = tr('resistance'); body.appendChild(lbl);
+    const inp = document.createElement('input'); inp.className = 'pp-input'; inp.value = comp.resistance;
+    inp.addEventListener('change', () => { comp.resistance = inp.value; });
+    body.appendChild(inp);
+  }
+
+  if (comp instanceof Servo) {
+    const sep = document.createElement('div'); sep.className = 'pp-sep'; body.appendChild(sep);
+    const lbl = document.createElement('div'); lbl.className = 'pp-lbl'; lbl.textContent = `Angle: ${Math.round(comp.angle)}°`; body.appendChild(lbl);
+    const inp = document.createElement('input');
+    inp.type = 'range'; inp.min = 0; inp.max = 180; inp.value = comp.angle;
+    inp.style.width = '100%';
+    inp.addEventListener('input', () => { comp.setAngle(Number(inp.value)); lbl.textContent = `Angle: ${Math.round(comp.angle)}°`; });
+    body.appendChild(inp);
+  }
+
+  if (comp instanceof PushButton) {
+    const sep = document.createElement('div'); sep.className = 'pp-sep'; body.appendChild(sep);
+    const btn = document.createElement('button'); btn.className = 'pp-btn'; btn.textContent = tr('pressHold');
+    btn.addEventListener('mousedown', () => comp.press(true));
+    btn.addEventListener('mouseup', () => comp.press(false));
+    btn.addEventListener('mouseleave', () => comp.press(false));
+    body.appendChild(btn);
+  }
+
+  if (comp instanceof ToggleSwitch) {
+    const sep = document.createElement('div'); sep.className = 'pp-sep'; body.appendChild(sep);
+    const btn = document.createElement('button'); btn.className = 'pp-btn';
+    btn.textContent = comp.on ? tr('switchOn') : tr('switchOff');
+    btn.addEventListener('click', () => { comp.toggle(); showPP(comp); });
+    body.appendChild(btn);
+  }
+
+  // Component info / documentation
+  const info = COMP_DESC[comp.type];
+  if (info) {
+    const wrap = document.createElement('div'); wrap.className = 'pp-info';
+    const desc = document.createElement('div'); desc.className = 'pp-info-desc'; desc.textContent = info.desc;
+    const pins = document.createElement('div'); pins.className = 'pp-info-pins'; pins.textContent = info.pins;
+    wrap.appendChild(desc);
+    wrap.appendChild(pins);
+    if (info.ex) {
+      const exWrap = document.createElement('div'); exWrap.className = 'pp-info-ex';
+      const pre = document.createElement('pre'); pre.textContent = info.ex;
+      exWrap.appendChild(pre);
+      wrap.appendChild(exWrap);
+    }
+    body.appendChild(wrap);
+  }
+}
+function hidePP() { document.getElementById('props-panel').classList.remove('vis'); }
+document.getElementById('pp-close').addEventListener('click', deselect);
+document.getElementById('btn-del').addEventListener('click', () => { if (selectedComp) removeComp(selectedComp); });
+
+// ── Rotation buttons ─────────────────────────────────────────────────────
+const ROT_STEP = Math.PI / 4; // 45° per click
+
+function rotateSelected(dir) {
+  if (!selectedComp) return;
+  selectedComp.group.rotation.y += dir * ROT_STEP;
+  // Snap to nearest 45°
+  const snapped = Math.round(selectedComp.group.rotation.y / ROT_STEP) * ROT_STEP;
+  selectedComp.group.rotation.y = snapped;
+  // Update display
+  const deg = ((Math.round(snapped * 180 / Math.PI) % 360) + 360) % 360;
+  document.getElementById('pp-rot-deg').textContent = deg + '°';
+  // Rebuild wires so they follow the new pin positions
+  rebuildWiresFor(selectedComp);
+}
+
+function syncRotDeg() {
+  if (!selectedComp) return;
+  const deg = ((Math.round(selectedComp.group.rotation.y * 180 / Math.PI) % 360) + 360) % 360;
+  document.getElementById('pp-rot-deg').textContent = deg + '°';
+}
+
+document.getElementById('pp-rot-ccw').addEventListener('click', () => rotateSelected(1));
+document.getElementById('pp-rot-cw' ).addEventListener('click', () => rotateSelected(-1));
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  Code Editor
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+const codeThemeCompartment = new Compartment();
+let codeView = null;
+
+const codeHighlightStyle = HighlightStyle.define([
+  { tag: [t.keyword, t.modifier], color: '#ff7ab8', fontWeight: '700' },
+  { tag: [t.controlKeyword, t.operatorKeyword], color: '#ff7ab8', fontWeight: '700' },
+  { tag: [t.function(t.variableName), t.function(t.propertyName)], color: '#4fc1ff' },
+  { tag: [t.variableName], color: '#e6edf3' },
+  { tag: [t.propertyName], color: '#9cdcfe' },
+  { tag: [t.number, t.integer, t.float], color: '#f5c56a' },
+  { tag: [t.string], color: '#8ad272' },
+  { tag: [t.bool, t.null, t.atom], color: '#c792ea' },
+  { tag: [t.comment], color: '#7f8c98', fontStyle: 'italic' },
+  { tag: [t.punctuation, t.separator], color: '#a8b3bd' },
+  { tag: [t.bracket], color: '#d7dee5' },
+  { tag: [t.operator], color: '#ff9e64' },
+  { tag: [t.definition(t.variableName), t.className, t.typeName], color: '#ffd580' }
+]);
+
+function buildCodeTheme(themeMode) {
+  const dark = themeMode === 'dark';
+  return [
+    EditorView.theme({
+      '&': { backgroundColor: 'var(--bg)', color: 'var(--text)' },
+      '.cm-gutters': { backgroundColor: 'var(--surface)', color: 'var(--muted)', borderRight: '1px solid var(--border)' },
+      '.cm-activeLine': { backgroundColor: dark ? 'rgba(56,139,253,.08)' : 'rgba(9,105,218,.08)' },
+      '.cm-activeLineGutter': { backgroundColor: 'transparent' },
+      '.cm-selectionBackground, .cm-content ::selection': {
+        backgroundColor: dark ? 'rgba(56,139,253,.25) !important' : 'rgba(9,105,218,.22) !important'
+      },
+      '.cm-cursor, .cm-dropCursor': { borderLeftColor: 'var(--text)' }
+    }, { dark }),
+    syntaxHighlighting(codeHighlightStyle)
+  ];
+}
+
+function getCodeValue() {
+  return codeView ? codeView.state.doc.toString() : '';
+}
+
+function setCodeValue(text) {
+  if (!codeView) return;
+  const next = text || '';
+  const prev = codeView.state.doc.toString();
+  if (prev === next) return;
+  codeView.dispatch({ changes: { from: 0, to: codeView.state.doc.length, insert: next } });
+}
+
+function initCodeEditor() {
+  if (codeView) return;
+  codeView = new EditorView({
+    state: EditorState.create({
+      doc: '',
+      extensions: [
+        lineNumbers(),
+        highlightActiveLineGutter(),
+        drawSelection(),
+        history(),
+        indentOnInput(),
+        bracketMatching(),
+        highlightActiveLine(),
+        keymap.of([indentWithTab, ...defaultKeymap, ...historyKeymap]),
+        javascript(),
+        codeThemeCompartment.of(buildCodeTheme(document.documentElement.getAttribute('data-theme') || 'dark')),
+        EditorView.updateListener.of((update) => {
+          if (update.docChanged) saveCodeToBoard();
+        })
+      ]
+    }),
+    parent: document.getElementById('code-editor')
+  });
+}
+
+function saveCodeToBoard() {
+  const sel = document.getElementById('board-sel');
+  const comp = components.find(c => c.id === sel.value);
+  if (comp instanceof ArduinoUno) comp.code = getCodeValue();
+}
+
+function refreshBoardSel() {
+  const sel = document.getElementById('board-sel');
+  const prev = sel.value;
+  sel.innerHTML = '';
+  const boards = components.filter(c => c.type === 'ArduinoUno');
+  if (!boards.length) {
+    sel.innerHTML = `<option value="">${tr('noBoards')}</option>`;
+    setCodeValue('');
+    return;
+  }
+  boards.forEach(a => {
+    const opt = document.createElement('option');
+    opt.value = a.id; opt.textContent = a.id;
+    sel.appendChild(opt);
+  });
+  sel.value = boards.find(a => a.id === prev) ? prev : boards[0].id;
+  loadCodeFromBoard();
+}
+
+function loadCodeFromBoard() {
+  const sel = document.getElementById('board-sel');
+  const comp = components.find(c => c.id === sel.value);
+  if (comp instanceof ArduinoUno) setCodeValue(comp.code);
+}
+
+document.getElementById('board-sel').addEventListener('change', loadCodeFromBoard);
+
+// ── Console ───────────────────────────────────────────────────
+function clog(msg, cls = 'li') {
+  const out = document.getElementById('con-out');
+  const div = document.createElement('div');
+  div.className = cls;
+  div.textContent = msg;
+  out.appendChild(div);
+  out.scrollTop = out.scrollHeight;
+  while (out.children.length > 300) out.removeChild(out.firstChild);
+}
+
+// ── Run / Stop ────────────────────────────────────────────────
+document.getElementById('btn-run').addEventListener('click', () => {
+  const boards = components.filter(c => c.type === 'ArduinoUno');
+  if (!boards.length) { clog('No Arduino found.', 'le'); return; }
+  document.getElementById('btn-run').style.display = 'none';
+  document.getElementById('btn-stop').style.display = '';
+  clog('Running...', 'lo');
+  boards.forEach(a => {
+    a.board.stop();
+    setTimeout(() => a.board.run(a.code), 80);
+  });
+});
+
+document.getElementById('btn-stop').addEventListener('click', () => {
+  components.filter(c => c.type === 'ArduinoUno').forEach(a => a.board.stop());
+  document.getElementById('btn-run').style.display = '';
+  document.getElementById('btn-stop').style.display = 'none';
+  clog('Stopped.', 'li');
+});
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  IndexedDB
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+const IDB_NAME = 'electronics_lab_3d', IDB_VER = 1, IDB_STORE = 'projects';
+
+function idb() {
+  return new Promise((res, rej) => {
+    const req = indexedDB.open(IDB_NAME, IDB_VER);
+    req.onupgradeneeded = e => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains(IDB_STORE)) db.createObjectStore(IDB_STORE, { keyPath: 'name' });
+    };
+    req.onsuccess = () => res(req.result);
+    req.onerror = () => rej(req.error);
+  });
+}
+
+async function idbPut(data)   { const db = await idb(); return new Promise((r,j) => { const tx=db.transaction(IDB_STORE,'readwrite'); tx.objectStore(IDB_STORE).put(data); tx.oncomplete=r; tx.onerror=()=>j(tx.error); }); }
+async function idbGet(name)   { const db = await idb(); return new Promise((r,j) => { const req=db.transaction(IDB_STORE,'readonly').objectStore(IDB_STORE).get(name); req.onsuccess=()=>r(req.result); req.onerror=()=>j(req.error); }); }
+async function idbGetAll()    { const db = await idb(); return new Promise((r,j) => { const req=db.transaction(IDB_STORE,'readonly').objectStore(IDB_STORE).getAll(); req.onsuccess=()=>r(req.result); req.onerror=()=>j(req.error); }); }
+async function idbDelete(nm)  { const db = await idb(); return new Promise((r,j) => { const tx=db.transaction(IDB_STORE,'readwrite'); tx.objectStore(IDB_STORE).delete(nm); tx.oncomplete=r; tx.onerror=()=>j(tx.error); }); }
+
+function serializeProject(name) {
+  return {
+    name,
+    savedAt: new Date().toISOString(),
+    uidSeq,
+    camera: { pos: camera.position.toArray(), tgt: controls.target.toArray() },
+    components: components.map(c => c.serialize()),
+    wires: wires.map(w => ({ fromCompId:w.fromCompId, fromPinIdx:w.fromPinIdx, toCompId:w.toCompId, toPinIdx:w.toPinIdx }))
+  };
+}
+
+async function applyProject(data) {
+  clearScene();
+  if (data.uidSeq) uidSeq = data.uidSeq;
+  for (const cd of data.components) {
+    const Cls = COMP_CLS[cd.type];
+    if (!Cls) continue;
+    const comp = Cls.deserialize ? Cls.deserialize(cd) : new Cls(cd.id);
+    if (cd.position) comp.group.position.fromArray(cd.position); // pre-set so place() can override
+    addComp(comp, cd.position?.[0] ?? 0, cd.position?.[2] ?? 0);
+    if (cd.position) comp.group.position.fromArray(cd.position);
+    if (cd.rotation) comp.group.rotation.set(...cd.rotation);
+  }
+  for (const wd of data.wires) createWireFromData(wd);
+  if (data.camera) {
+    camera.position.fromArray(data.camera.pos);
+    controls.target.fromArray(data.camera.tgt);
+    controls.update();
+  }
+  refreshBoardSel();
+  clog(`Loaded: ${data.name}`, 'lo');
+}
+
+function clearScene() {
+  components.filter(c => c.type === 'ArduinoUno').forEach(a => a.board.stop());
+  document.getElementById('btn-run').style.display = '';
+  document.getElementById('btn-stop').style.display = 'none';
+  [...components].forEach(c => c.dispose());
+  components = [];
+  wires.forEach(w => removeWireMesh(w));
+  wires = [];
+  wireEntries = [];
+  compEntries = [];
+  pinEntries  = [];
+  uidSeq = 1;
+  selectedComp = null;
+  setMode('ORBIT');
+  hidePP();
+  refreshBoardSel();
+  updateStatus();
+}
+
+// ── Save Modal ────────────────────────────────────────────────
+document.getElementById('btn-save').addEventListener('click', () => {
+  document.getElementById('modal-save').classList.remove('hid');
+  document.getElementById('save-name').focus();
+});
+document.getElementById('save-cancel').addEventListener('click', () => document.getElementById('modal-save').classList.add('hid'));
+document.getElementById('save-ok').addEventListener('click', async () => {
+  const name = document.getElementById('save-name').value.trim();
+  if (!name) return;
+  await idbPut(serializeProject(name));
+  document.getElementById('modal-save').classList.add('hid');
+  clog(`Saved: ${name}`, 'lo');
+});
+document.getElementById('save-name').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('save-ok').click();
+  if (e.key === 'Escape') document.getElementById('save-cancel').click();
+});
+
+// ── Load Modal ────────────────────────────────────────────────
+let selProject = null;
+
+async function openLoadModal() {
+  selProject = null;
+  document.getElementById('modal-load').classList.remove('hid');
+  const list = document.getElementById('load-list');
+  list.innerHTML = '';
+  const all = await idbGetAll();
+  if (!all.length) {
+    list.innerHTML = `<div style="padding:10px;color:var(--muted);text-align:center">${tr('noSaved')}</div>`;
+    return;
+  }
+  all.sort((a,b) => (b.savedAt||'').localeCompare(a.savedAt||''));
+  all.forEach(p => {
+    const item = document.createElement('div'); item.className = 'mli';
+    const d = p.savedAt ? new Date(p.savedAt).toLocaleString() : '';
+    item.innerHTML = `<span>${p.name}</span><span class="mli-date">${d}</span>`;
+    item.addEventListener('click', () => {
+      document.querySelectorAll('.mli').forEach(i => i.classList.remove('sel'));
+      item.classList.add('sel');
+      selProject = p.name;
+    });
+    list.appendChild(item);
+  });
+}
+
+document.getElementById('btn-load').addEventListener('click', openLoadModal);
+document.getElementById('load-cancel').addEventListener('click', () => document.getElementById('modal-load').classList.add('hid'));
+document.getElementById('load-ok').addEventListener('click', async () => {
+  if (!selProject) return;
+  const data = await idbGet(selProject);
+  if (data) await applyProject(data);
+  document.getElementById('modal-load').classList.add('hid');
+});
+document.getElementById('load-del').addEventListener('click', async () => {
+  if (!selProject) return;
+  if (!confirm(`Delete "${selProject}"?`)) return;
+  await idbDelete(selProject);
+  openLoadModal();
+});
+
+// ── New ───────────────────────────────────────────────────────
+document.getElementById('btn-new').addEventListener('click', () => {
+  if (!confirm(tr('newConfirm'))) return;
+  clearScene();
+  clog(tr('newProject'), 'li');
+});
+
+// ── Sample Project ────────────────────────────────────────────
+function loadSampleProject() {
+  clearScene();
+  uidSeq = 1;
+
+  const ard = addComp(new ArduinoUno(uid('ard')), -2.5, 0);
+  const pwr = addComp(new PowerSource(uid('pwr')), -6.5, -3);
+  const res = addComp(new Resistor(uid('res')),   3,   -3);
+  const led = addComp(new LED(uid('led')),         5,   -3.5);
+  const btn = addComp(new PushButton(uid('btn')), -5.5, -3.5);
+  const sw  = addComp(new ToggleSwitch(uid('sw')), -5.5, 2);
+  const mot = addComp(new DCMotor(uid('mot')),     5.5,  1.5);
+  const srv = addComp(new Servo(uid('srv')),       5.5,  4.5);
+  const seg = addComp(new SevenSeg(uid('seg')),    0.5,  5.5);
+  const pst = addComp(new Piston(uid('pst')),     -2,    5.5);
+  const pb  = addComp(new Protoboard(uid('pb')),   1,   -5);
+
+  // LED circuit: D0 → Resistor → LED A+, PowerSource GND → LED K–
+  createWire(ard, 0, res, 0);
+  createWire(res, 1, led, 0);
+  createWire(pwr, 1, led, 1);
+
+  // Button: VCC → Button B, Button A → D2
+  createWire(pwr, 0, btn, 1);
+  createWire(btn, 0, ard, 2);
+
+  // Switch: VCC → COM, OUT → D4
+  createWire(pwr, 0, sw, 0);
+  createWire(sw,  1, ard, 4);
+
+  // Motor: D3 → +, GND → –
+  createWire(ard, 3, mot, 0);
+  createWire(pwr, 1, mot, 1);
+
+  // Servo: D6 → SIG, VCC → VCC, GND → GND
+  createWire(ard, 6, srv, 2);
+  createWire(pwr, 0, srv, 1);
+  createWire(pwr, 1, srv, 0);
+
+  // Piston: D5 → +, GND → –
+  createWire(ard, 5, pst, 0);
+  createWire(pwr, 1, pst, 1);
+
+  // 7-Seg: D7–D13 → a–g, VCC → VCC, GND → GND
+  for (let i = 0; i < 7; i++) createWire(ard, 7 + i, seg, i);
+  createWire(pwr, 0, seg, 8);
+  createWire(pwr, 1, seg, 7);
+
+  // Protoboard: connect power rails
+  createWire(pwr, 0, pb, 0);
+  createWire(pwr, 1, pb, 12);
+
+  // Load sample code
+  ard.code = SAMPLE_CODE;
+  refreshBoardSel();
+  loadCodeFromBoard();
+
+  camera.position.set(0, 17, 13);
+  controls.target.set(0, 0, 0);
+  controls.update();
+  clog('Sample project loaded! Click ▶ Run to simulate.', 'lo');
+  clog('Press button or toggle the switch to interact.', 'li');
+}
+
+document.getElementById('btn-sample').addEventListener('click', () => {
+  if (components.length > 0 && !confirm(tr('newConfirm'))) return;
+  loadSampleProject();
+});
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  i18n
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+const LANG = {
+  en: {
+    appTitle:'3D Electronics Lab', new:'New', save:'Save', load:'Load', run:'Run', stop:'Stop',
+    cancel:'Cancel', delete:'Delete', sample:'Sample',
+    secControl:'Control', secOutput:'Output', secPassive:'Passive', secPower:'Power',
+    cArduino:'Arduino', cButton:'Button', cSwitch:'Switch', cMotor:'Motor',
+    cPiston:'Piston', cResistor:'Resistor', cProto:'Protoboard', cPower:'Power',
+    board:'Board:', noBoards:'-- No Boards --', console:'Console',
+    useAwait:'Use await delay(ms)',
+    saveProject:'Save Project', loadProject:'Load Project',
+    projectName:'Project name…', noSaved:'No saved projects',
+    tabCode:'Code', tabDocs:'Docs', minimapLbl:'Minimap — click to pan',
+    mOrbit:'Orbit  |  drag=rotate  scroll=zoom  right=pan',
+    mPlace:'Place Mode — click to place, ESC to exit',
+    mWiring:'Wiring — click a pin to connect, ESC to cancel',
+    mSelected:'Selected — drag to move, DEL to delete',
+    color:'Color:', resistance:'Resistance:', pressHold:'Press & Hold',
+    switchOn:'ON ▶ click to toggle', switchOff:'OFF ▶ click to toggle',
+    hint3d:'Orbit: drag | Zoom: scroll | Pan: right-drag',
+    newConfirm:'Start new project? Unsaved changes will be lost.', newProject:'New project.',
+  },
+  pt: {
+    appTitle:'Lab de Eletrônica 3D', new:'Novo', save:'Salvar', load:'Carregar', run:'Executar', stop:'Parar',
+    cancel:'Cancelar', delete:'Excluir', sample:'Exemplo',
+    secControl:'Controle', secOutput:'Saída', secPassive:'Passivo', secPower:'Energia',
+    cArduino:'Arduino', cButton:'Botão', cSwitch:'Chave', cMotor:'Motor',
+    cPiston:'Pistão', cResistor:'Resistor', cProto:'Protoboard', cPower:'Fonte',
+    board:'Placa:', noBoards:'-- Sem Placas --', console:'Console',
+    useAwait:'Use await delay(ms)',
+    saveProject:'Salvar Projeto', loadProject:'Carregar Projeto',
+    projectName:'Nome do projeto…', noSaved:'Nenhum projeto salvo',
+    tabCode:'Código', tabDocs:'Docs', minimapLbl:'Minimapa — clique para mover',
+    mOrbit:'Orbital  |  arraste=girar  scroll=zoom  dir=pan',
+    mPlace:'Modo Colocar — clique para colocar, ESC para sair',
+    mWiring:'Fiação — clique num pino para conectar, ESC cancela',
+    mSelected:'Selecionado — arraste para mover, DEL para excluir',
+    color:'Cor:', resistance:'Resistência:', pressHold:'Pressionar',
+    switchOn:'LIGADO ▶ clique para alternar', switchOff:'DESLIGADO ▶ clique para alternar',
+    hint3d:'Orbital: arrastar | Zoom: scroll | Pan: botão direito',
+    newConfirm:'Iniciar novo projeto? Alterações não salvas serão perdidas.', newProject:'Novo projeto.',
+  },
+  ja: {
+    appTitle:'3D電子工作ラボ', new:'新規', save:'保存', load:'読込', run:'実行', stop:'停止',
+    cancel:'キャンセル', delete:'削除',
+    secControl:'コントロール', secOutput:'出力', secPassive:'パッシブ',
+    cArduino:'Arduino', cButton:'ボタン', cSwitch:'スイッチ', cMotor:'モーター',
+    cPiston:'ピストン', cResistor:'抵抗', cProto:'ブレッドボード',
+    board:'ボード:', noBoards:'-- ボードなし --', console:'コンソール',
+    useAwait:'await delay(ms) を使用',
+    saveProject:'プロジェクト保存', loadProject:'プロジェクト読込',
+    projectName:'プロジェクト名…', noSaved:'保存済みプロジェクトなし',
+    tabCode:'コード', tabDocs:'ドキュメント', minimapLbl:'ミニマップ — クリックで移動',
+    mOrbit:'オービット  |  ドラッグ=回転  スクロール=ズーム  右=移動',
+    mPlace:'配置モード — クリックで配置、ESCで終了',
+    mWiring:'配線 — ピンをクリックして接続、ESCでキャンセル',
+    mSelected:'選択中 — ドラッグで移動、DELで削除',
+    color:'色:', resistance:'抵抗値:', pressHold:'押し続ける',
+    switchOn:'オン ▶ クリックで切替', switchOff:'オフ ▶ クリックで切替',
+    hint3d:'オービット:ドラッグ | ズーム:スクロール | パン:右クリック',
+    newConfirm:'新しいプロジェクトを開始しますか？', newProject:'新規プロジェクト。',
+  }
+};
+
+let lang = localStorage.getItem('elab3d_lang') || 'en';
+function tr(k) { return LANG[lang]?.[k] ?? LANG.en[k] ?? k; }
+
+function applyI18n() {
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const t = tr(el.getAttribute('data-i18n'));
+    if (t) el.textContent = t;
+  });
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+    const t = tr(el.getAttribute('data-i18n-placeholder'));
+    if (t) el.placeholder = t;
+  });
+  document.querySelectorAll('.lang-btn').forEach(b => b.classList.toggle('active', b.dataset.lang === lang));
+  setMode(mode);
+}
+
+function setLang(l) {
+  lang = l;
+  localStorage.setItem('elab3d_lang', l);
+  document.documentElement.lang = l;
+  applyI18n();
+  renderDocs();
+}
+
+// ── Docs content (i18n) ───────────────────────────────────────────────
+const DOCS = {
+  en: {
+    apiTitle:'Arduino API', pinSetup:'Pin Setup', pinSetupD:'configure pin direction',
+    digIO:'Digital I/O', digWrD:'set digital output', digRdD:'read digital input → 0 or 1',
+    analog:'Analog / PWM', anaWrD:'PWM: speed, servo angle, brightness', anaRdD:'read analog input → 0–1023',
+    timeOut:'Time & Output', delayD:'wait (must use await!)', millisD:'ms elapsed since start', printD:'console output',
+    const_:'Constants', compGuide:'Component Guide', quickEx:'Quick Example', quickExD:'Button controls LED:',
+    comps:{
+      Arduino:['14 digital pins (D0–D13) and 6 analog (A0–A5). D3,D5,D6,D9,D10,D11 support PWM (analogWrite).'],
+      LED:    ['Lights when A+ gets HIGH. Always use a series resistor to protect it.'],
+      Button: ['Outputs HIGH while pressed. Wire one leg to VCC, the other to a digital input.'],
+      Switch: ['Latches ON/OFF. Connect COM → VCC, OUT → digital input pin.'],
+      Motor:  ['Use analogWrite for variable speed (0=stop, 255=full). Connect – to GND.'],
+      Servo:  ['analogWrite(0–255) maps to 0–180°. Wire VCC+GND, signal to a PWM pin.'],
+      SevenSeg:['Connect 7 digital pins to segments a–g. HIGH = segment on. Match digit patterns.'],
+      Piston: ['Extends when + gets HIGH, retracts on LOW. Connect – to GND.'],
+      Proto:  ['Columns a–e connected per row; f–j per row. Power rails run the full length.'],
+      Power:  ['VCC always HIGH, GND always LOW. Powers components independently of Arduino.'],
+    }
+  },
+  pt: {
+    apiTitle:'API Arduino', pinSetup:'Modo do Pino', pinSetupD:'configurar direção do pino',
+    digIO:'I/O Digital', digWrD:'definir saída digital', digRdD:'ler entrada digital → 0 ou 1',
+    analog:'Analógico / PWM', anaWrD:'PWM: velocidade, ângulo do servo, brilho', anaRdD:'ler entrada analógica → 0–1023',
+    timeOut:'Tempo e Saída', delayD:'aguardar (deve usar await!)', millisD:'ms desde o início', printD:'saída no console',
+    const_:'Constantes', compGuide:'Guia de Componentes', quickEx:'Exemplo Rápido', quickExD:'Botão controla LED:',
+    comps:{
+      Arduino:['14 pinos digitais (D0–D13) e 6 analógicos (A0–A5). D3,D5,D6,D9,D10,D11 suportam PWM (analogWrite).'],
+      LED:    ['Acende quando A+ recebe HIGH. Use sempre um resistor em série para proteção.'],
+      Button: ['Gera HIGH enquanto pressionado. Um lado no VCC, outro num pino de entrada digital.'],
+      Switch: ['Trava em ON/OFF. Conecte COM → VCC, OUT → pino de entrada digital.'],
+      Motor:  ['Use analogWrite para velocidade (0=parado, 255=máximo). Conecte – ao GND.'],
+      Servo:  ['analogWrite(0–255) mapeia para 0–180°. Conecte VCC+GND e sinal a pino PWM.'],
+      SevenSeg:['Conecte 7 pinos digitais aos segmentos a–g. HIGH = segmento aceso.'],
+      Piston: ['Estende quando + recebe HIGH, retrai no LOW. Conecte – ao GND.'],
+      Proto:  ['Colunas a–e conectadas por fileira; f–j por fileira. Trilhos de energia percorrem todo o comprimento.'],
+      Power:  ['VCC sempre HIGH, GND sempre LOW. Alimenta componentes independentemente do Arduino.'],
+    }
+  },
+  ja: {
+    apiTitle:'Arduino API', pinSetup:'ピンモード設定', pinSetupD:'ピンの方向を設定する',
+    digIO:'デジタル入出力', digWrD:'デジタル出力を設定', digRdD:'デジタル入力を読む → 0 または 1',
+    analog:'アナログ / PWM', anaWrD:'PWM: 速度・サーボ角度・明るさ', anaRdD:'アナログ入力を読む → 0–1023',
+    timeOut:'時間・出力', delayD:'待機する（必ずawaitを使用！）', millisD:'開始からの経過ミリ秒', printD:'コンソール出力',
+    const_:'定数', compGuide:'コンポーネントガイド', quickEx:'クイックサンプル', quickExD:'ボタンでLEDを制御:',
+    comps:{
+      Arduino:['デジタルD0–D13（14本）とアナロA0–A5（6本）。D3,D5,D6,D9,D10,D11はPWM対応。'],
+      LED:    ['A+のHIGHで点灯。保護のため必ず直列抗抗を使用すること。'],
+      Button: ['押している間HIGHを出力。一方をVCC、もう一方をデジタル入力ピンへ。'],
+      Switch: ['ON/OFFをラッチ。COM→VCC、OUT→デジタル入力ピンへ接続。'],
+      Motor:  ['analogWriteで速度制御（0=停止》255=全速）。–をGNDへ接続。'],
+      Servo:  ['analogWrite(0–255)が0–180°に対応。VCC+GNDとPWMピンへ信号接続。'],
+      SevenSeg:['デジタル7本をセグメントa–gへ接続。HIGH=セグメント点灯。'],
+      Piston: ['+のHIGHで伸長、LOWで収縮。–をGNDへ接続。'],
+      Proto:  ['列a–eは行ごとに接続，f–jも行ごと。電源レールは全長にわたって連続。'],
+      Power:  ['VCCは常にHIGH、GNDは常にLOW。Arduinoピンとは独立してコンポーネントに電力供給。'],
+    }
+  }
+};
+
+const DOCS_COMP_EX = {
+  Arduino: `async function setup() { pinMode(13, OUTPUT); }\nasync function loop() {\n  digitalWrite(13, HIGH); await delay(500);\n  digitalWrite(13, LOW);  await delay(500);\n}`,
+  LED:     `// LED on D13 via resistor\ndigitalWrite(13, HIGH);\ndigitalWrite(13, LOW);`,
+  Button:  `pinMode(2, INPUT);\nconst pressed = digitalRead(2); // 1=pressed`,
+  Switch:  `const state = digitalRead(4); // 1=on, 0=off`,
+  Motor:   `analogWrite(3, 180); // ~70% speed\nawait delay(2000);\nanalogWrite(3, 0);   // stop`,
+  Servo:   `analogWrite(6, 0);   await delay(600); // 0°\nanalogWrite(6, 127); await delay(600); // 90°\nanalogWrite(6, 255); await delay(600); // 180°`,
+  SevenSeg:`const D1 = [0,1,1,0,0,0,0];\nfor (let i=0;i<7;i++) digitalWrite(7+i, D1[i]);`,
+  Piston:  `digitalWrite(5, HIGH); await delay(1000);\ndigitalWrite(5, LOW);  await delay(1000);`,
+  Proto:   `// Wire PowerSource VCC → + rail\n// Wire PowerSource GND → – rail`,
+  Power:   `// No code needed — always on.`,
+};
+
+const DOCS_ICONS = [
+  ['Arduino','🔵','Arduino Uno'],['LED','💡','LED'],['Button','🔴','PushButton'],
+  ['Switch','🟤','ToggleSwitch'],['Motor','⚙️','DCMotor'],['Servo','🔩','Servo'],
+  ['SevenSeg','📡','7-Segment'],['Piston','🔧','Piston'],
+  ['Proto','🟦','Protoboard'],['Power','🔋','PowerSource'],
+];
+
+function renderDocs() {
+  const d = DOCS[lang] || DOCS.en;
+  let html = `
+    <h3>${d.apiTitle}</h3>
+    <h4>${d.pinSetup}</h4>
+    <p><code>pinMode(pin, OUTPUT|INPUT|INPUT_PULLUP)</code> — ${d.pinSetupD}</p>
+    <h4>${d.digIO}</h4>
+    <p><code>digitalWrite(pin, HIGH|LOW)</code> — ${d.digWrD}</p>
+    <p><code>digitalRead(pin)</code> — ${d.digRdD}</p>
+    <h4>${d.analog}</h4>
+    <p><code>analogWrite(pin, 0–255)</code> — ${d.anaWrD}</p>
+    <p><code>analogRead(A0–A5)</code> — ${d.anaRdD}</p>
+    <h4>${d.timeOut}</h4>
+    <p><code>await delay(ms)</code> — ${d.delayD}</p>
+    <p><code>millis()</code> — ${d.millisD}</p>
+    <p><code>print(val)</code> / <code>println(val)</code> — ${d.printD}</p>
+    <h4>${d.const_}</h4>
+    <p><code>HIGH=1, LOW=0, INPUT=0, OUTPUT=1, A0=14 … A5=19</code></p>
+    <h3>${d.compGuide}</h3>`;
+  for (const [key, icon, name] of DOCS_ICONS) {
+    const desc = d.comps[key]?.[0] ?? '';
+    const ex   = DOCS_COMP_EX[key] ?? '';
+    html += `<h4>${icon} ${name}</h4><p>${desc}</p><pre>${ex}</pre>`;
+  }
+  html += `<h3>${d.quickEx}</h3><p>${d.quickExD}</p>
+    <pre>async function setup() {\n  pinMode(13, OUTPUT); // LED\n  pinMode(2, INPUT);   // Button\n}\nasync function loop() {\n  digitalWrite(13, digitalRead(2));\n  await delay(50);\n}</pre>`;
+  document.getElementById('docs-pane').innerHTML = html;
+}
+
+document.querySelectorAll('.lang-btn').forEach(b => b.addEventListener('click', () => setLang(b.dataset.lang)));
+
+// ── Code / Docs tab switching ─────────────────────────────────────────
+const elTabCode = document.getElementById('tab-code');
+const elTabDocs = document.getElementById('tab-docs');
+const elCodeHdr = document.getElementById('code-hdr-bar');
+const elCodeArea = document.getElementById('code-area');
+const elDocPane  = document.getElementById('docs-pane');
+
+function showTab(t) {
+  const isCode = t === 'code';
+  elTabCode.classList.toggle('act', isCode);
+  elTabDocs.classList.toggle('act', !isCode);
+  elCodeHdr.style.display  = isCode ? '' : 'none';
+  elCodeArea.style.display = isCode ? '' : 'none';
+  elDocPane.classList.toggle('vis', !isCode);
+}
+elTabCode.addEventListener('click', () => showTab('code'));
+elTabDocs.addEventListener('click', () => showTab('docs'));
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  Theme
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function applyTheme(t) {
+  document.documentElement.setAttribute('data-theme', t);
+  localStorage.setItem('elab3d_theme', t);
+  scene.background = new THREE.Color(t === 'dark' ? 0x0d1117 : 0xdde3ec);
+  tableMat.color.set(t === 'dark' ? 0x5c3d1a : 0x8b6d3a);
+  scene.remove(gridHelper);
+  gridHelper = createGrid(t);
+  scene.add(gridHelper);
+  document.getElementById('btn-theme').innerHTML = t === 'dark'
+    ? '<i class="fas fa-sun"></i>' : '<i class="fas fa-moon"></i>';
+  if (codeView) codeView.dispatch({ effects: codeThemeCompartment.reconfigure(buildCodeTheme(t)) });
+}
+document.getElementById('btn-theme').addEventListener('click', () => {
+  applyTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+});
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  Resize panel
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+const rh = document.getElementById('rhandle');
+const btm = document.getElementById('bottom');
+let rDrag = false, rY0 = 0, rH0 = 0;
+rh.addEventListener('mousedown', e => { rDrag=true; rY0=e.clientY; rH0=btm.offsetHeight; e.preventDefault(); });
+document.addEventListener('mousemove', e => {
+  if (!rDrag) return;
+  btm.style.height = Math.min(480, Math.max(80, rH0 + rY0 - e.clientY)) + 'px';
+});
+document.addEventListener('mouseup', () => { rDrag = false; });
+
+// Prevent browser scroll/zoom while mouse is over the 3D viewport
+// (OrbitControls only prevents wheel when controls.enabled=true;
+// this covers drag/place/wiring modes where enabled=false)
+cwrap.addEventListener('wheel',         e => e.preventDefault(), { passive: false });
+cwrap.addEventListener('gesturestart',  e => e.preventDefault(), { passive: false });
+cwrap.addEventListener('gesturechange', e => e.preventDefault(), { passive: false });
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  Renderer resize
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function resize() {
+  const w = cwrap.clientWidth, h = cwrap.clientHeight;
+  renderer.setSize(w, h);
+  labelRenderer.setSize(w, h);
+  cvs.style.width  = w + 'px';
+  cvs.style.height = h + 'px';
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+}
+new ResizeObserver(resize).observe(cwrap);
+resize();
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  Status bar
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function updateStatus() {
+  document.getElementById('stat-comps').textContent = `${components.length} components`;
+  document.getElementById('stat-wires').textContent = `${wires.length} wires`;
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  Minimap
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+const mmCanvas = document.getElementById('minimap');
+const mmCtx = mmCanvas.getContext('2d');
+const MM_W = 186, MM_H = 114;
+const WX = 21, WZ = 15; // world half-extents
+
+const MM_COLS = {
+  ArduinoUno:'#4fc3f7', LED:'#ffee22', PushButton:'#ff4444',
+  ToggleSwitch:'#ffaa00', DCMotor:'#44ff88', Servo:'#8888ff',
+  SevenSeg:'#ff88ff', Piston:'#00ffcc', Resistor:'#ffaa44',
+  Protoboard:'#4488ff', PowerSource:'#ffdd44'
+};
+
+function worldToMM(wx, wz) {
+  return {
+    px: Math.round((wx + WX) / (WX * 2) * MM_W),
+    py: Math.round((wz + WZ) / (WZ * 2) * MM_H)
+  };
+}
+
+function drawMinimap() {
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  mmCtx.clearRect(0, 0, MM_W, MM_H);
+  // Background
+  mmCtx.fillStyle = isDark ? 'rgba(13,17,23,0.9)' : 'rgba(240,242,245,0.92)';
+  mmCtx.fillRect(0, 0, MM_W, MM_H);
+  // Workbench border
+  mmCtx.strokeStyle = isDark ? '#30363d' : '#c8d0d8';
+  mmCtx.lineWidth = 1;
+  mmCtx.strokeRect(0.5, 0.5, MM_W - 1, MM_H - 1);
+  // Light grid
+  mmCtx.strokeStyle = isDark ? '#1e2530' : '#dde3ec';
+  mmCtx.lineWidth = 0.5;
+  for (let x = 0; x <= MM_W; x += MM_W / 8) { mmCtx.beginPath(); mmCtx.moveTo(x, 0); mmCtx.lineTo(x, MM_H); mmCtx.stroke(); }
+  for (let y = 0; y <= MM_H; y += MM_H / 5) { mmCtx.beginPath(); mmCtx.moveTo(0, y); mmCtx.lineTo(MM_W, y); mmCtx.stroke(); }
+
+  // Components as dots
+  components.forEach(c => {
+    const { px, py } = worldToMM(c.group.position.x, c.group.position.z);
+    const col = MM_COLS[c.type] || '#888';
+    // Shadow
+    mmCtx.fillStyle = 'rgba(0,0,0,0.4)';
+    mmCtx.beginPath(); mmCtx.arc(px + 0.5, py + 0.5, 4, 0, Math.PI * 2); mmCtx.fill();
+    // Dot
+    mmCtx.fillStyle = col;
+    mmCtx.beginPath(); mmCtx.arc(px, py, 4, 0, Math.PI * 2); mmCtx.fill();
+    // Initial letter
+    mmCtx.fillStyle = '#000';
+    mmCtx.font = 'bold 6px monospace';
+    mmCtx.textAlign = 'center';
+    mmCtx.textBaseline = 'middle';
+    mmCtx.fillText(c.type[0], px, py);
+  });
+
+  // Camera target crosshair
+  const { px, py } = worldToMM(controls.target.x, controls.target.z);
+  mmCtx.strokeStyle = isDark ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.5)';
+  mmCtx.lineWidth = 1;
+  mmCtx.beginPath();
+  mmCtx.moveTo(Math.max(0, px - 8), py); mmCtx.lineTo(Math.min(MM_W, px + 8), py);
+  mmCtx.moveTo(px, Math.max(0, py - 8)); mmCtx.lineTo(px, Math.min(MM_H, py + 8));
+  mmCtx.stroke();
+  // Small circle at target
+  mmCtx.beginPath(); mmCtx.arc(px, py, 3, 0, Math.PI * 2);
+  mmCtx.strokeStyle = '#4fc3f7'; mmCtx.lineWidth = 1.5; mmCtx.stroke();
+}
+
+mmCanvas.addEventListener('click', e => {
+  const r = mmCanvas.getBoundingClientRect();
+  const mx = (e.clientX - r.left) * (MM_W / r.width);
+  const my = (e.clientY - r.top)  * (MM_H / r.height);
+  const wx = mx / MM_W * (WX * 2) - WX;
+  const wz = my / MM_H * (WZ * 2) - WZ;
+  const dx = camera.position.x - controls.target.x;
+  const dy = camera.position.y - controls.target.y;
+  const dz = camera.position.z - controls.target.z;
+  controls.target.set(wx, 0, wz);
+  camera.position.set(wx + dx, dy + 0, wz + dz);
+  controls.update();
+});
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  Animation loop
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+let lastT = performance.now();
+function animate() {
+  requestAnimationFrame(animate);
+  const now = performance.now();
+  const dt = Math.min((now - lastT) / 1000, 0.05);
+  lastT = now;
+  controls.update();
+  components.forEach(c => c.tick(dt));
+  renderer.render(scene, camera);
+  labelRenderer.render(scene, camera);
+  drawMinimap();
+}
+animate();
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  Init
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+applyTheme(localStorage.getItem('elab3d_theme') || 'dark');
+initCodeEditor();
+setLang(lang);
+renderDocs();
+clog('3D Electronics Lab ready. Place an Arduino from the palette!', 'lo');
+clog('Click a pin to start a wire. Right-click a wire to delete it.', 'li');
+
+  </script>
+</body>
+</html>
