@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title data-i18n="title">Morse Code</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="../assets/fontawesome/css/all.min.css" />
+    <style>
+      :root {
+        --bg-color: #1a1a1a;
+        --text-color: #f0f0f0;
+        --card-bg-color: #2a2a2a;
+        --border-color: #444;
+        --accent-color: #0d6efd;
+        --muted-color: #aaa;
+        --chart-bg: #222;
+      }
+
+      html[data-theme='light'] {
+        --bg-color: #f8f9fa;
+        --text-color: #212529;
+        --card-bg-color: #fff;
+        --border-color: #dee2e6;
+        --accent-color: #0d6efd;
+        --muted-color: #6c757d;
+        --chart-bg: #f1f3f5;
+      }
+
+      body {
+        background-color: var(--bg-color);
+        color: var(--text-color);
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+        margin: 0;
+      }
+
+      .container-fluid {
+        padding-top: 20px;
+        padding-bottom: 20px;
+        flex: 1;
+      }
+
+      .card {
+        background-color: var(--card-bg-color);
+        border-color: var(--border-color);
+      }
+
+      .card-header {
+        border-bottom-color: var(--border-color);
+      }
+
+      .navbar-brand,
+      .form-label {
+        color: var(--text-color);
+      }
+
+      .form-control {
+        background-color: var(--card-bg-color);
+        color: var(--text-color);
+        border-color: var(--border-color);
+        font-family: 'Courier New', Courier, monospace;
+      }
+
+      .form-control:focus {
+        background-color: var(--card-bg-color);
+        color: var(--text-color);
+        border-color: var(--accent-color);
+        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+      }
+
+      textarea.form-control {
+        min-height: 140px;
+        resize: vertical;
+      }
+
+      .help-text {
+        font-size: 0.85rem;
+        color: var(--muted-color);
+      }
+
+      .swap-row {
+        display: flex;
+        justify-content: center;
+        gap: 8px;
+        margin: 8px 0;
+      }
+
+      .status-msg {
+        font-size: 0.85rem;
+        color: var(--muted-color);
+        min-height: 1.2em;
+      }
+
+      .status-msg.ok {
+        color: #28a745;
+      }
+
+      .status-msg.warn {
+        color: #ffc107;
+      }
+
+      .chart-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+        gap: 6px;
+      }
+
+      .chart-item {
+        background: var(--chart-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 6px;
+        padding: 6px 4px;
+        text-align: center;
+        font-family: 'Courier New', Courier, monospace;
+        font-size: 0.8rem;
+      }
+
+      .chart-item .ch {
+        display: block;
+        font-weight: 700;
+        color: var(--accent-color);
+        margin-bottom: 2px;
+      }
+
+      .chart-item .code {
+        color: var(--muted-color);
+        letter-spacing: 0.05em;
+      }
+    </style>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-NWZDZ906DJ"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-NWZDZ906DJ');
+    </script>
+  </head>
+  <body>
+    <nav class="navbar navbar-expand-lg" style="background-color: var(--card-bg-color); border-bottom: 1px solid var(--border-color)">
+      <div class="container-fluid">
+        <a class="navbar-brand" href="#" data-i18n="title">Morse Code</a>
+        <div class="d-flex ms-auto gap-2">
+          <select id="lang-switcher" class="form-select form-select-sm" style="width: auto;">
+            <option value="en">English</option>
+            <option value="pt">Português</option>
+            <option value="ja">日本語</option>
+          </select>
+          <button id="theme-switcher" class="btn btn-sm btn-outline-secondary" type="button" title="Toggle theme">
+            <i class="fas fa-moon"></i>
+          </button>
+        </div>
+      </div>
+    </nav>
+
+    <div class="container-fluid">
+      <div class="row justify-content-center">
+        <div class="col-xl-7 col-lg-8 col-md-10">
+          <div class="card mb-3">
+            <div class="card-header">
+              <h4 class="mb-0" data-i18n="cardTitle">Text ↔ Morse</h4>
+            </div>
+            <div class="card-body">
+              <div class="mb-2">
+                <label class="form-label" for="text-input" data-i18n="textLabel">Text</label>
+                <textarea id="text-input" class="form-control" data-i18n-placeholder="textPlaceholder" placeholder="Type text here..."></textarea>
+                <div class="help-text mt-1" data-i18n="textHint">Letters, numbers and common punctuation. Accented letters are normalized when possible.</div>
+              </div>
+
+              <div class="swap-row">
+                <button id="to-morse-btn" class="btn btn-primary btn-sm" type="button">
+                  <i class="fas fa-arrow-down me-1"></i><span data-i18n="toMorse">To Morse</span>
+                </button>
+                <button id="swap-btn" class="btn btn-outline-secondary btn-sm" type="button" title="Swap">
+                  <i class="fas fa-exchange-alt"></i>
+                </button>
+                <button id="to-text-btn" class="btn btn-primary btn-sm" type="button">
+                  <i class="fas fa-arrow-up me-1"></i><span data-i18n="toText">To Text</span>
+                </button>
+              </div>
+
+              <div class="mb-2">
+                <label class="form-label" for="morse-input" data-i18n="morseLabel">Morse</label>
+                <textarea id="morse-input" class="form-control" data-i18n-placeholder="morsePlaceholder" placeholder="Type Morse here... (· − /)"></textarea>
+                <div class="help-text mt-1" data-i18n="morseHint">Separate letters with spaces and words with / or |. Dots: . or · — Dashes: - or − or _</div>
+              </div>
+
+              <div class="d-flex flex-wrap gap-2 mt-3">
+                <button id="copy-text-btn" class="btn btn-outline-secondary btn-sm" type="button">
+                  <i class="fas fa-copy me-1"></i><span data-i18n="copyText">Copy text</span>
+                </button>
+                <button id="copy-morse-btn" class="btn btn-outline-secondary btn-sm" type="button">
+                  <i class="fas fa-copy me-1"></i><span data-i18n="copyMorse">Copy Morse</span>
+                </button>
+                <button id="play-btn" class="btn btn-outline-secondary btn-sm" type="button">
+                  <i class="fas fa-volume-up me-1"></i><span data-i18n="play">Play</span>
+                </button>
+                <button id="stop-btn" class="btn btn-outline-secondary btn-sm" type="button">
+                  <i class="fas fa-stop me-1"></i><span data-i18n="stop">Stop</span>
+                </button>
+                <button id="clear-btn" class="btn btn-outline-secondary btn-sm" type="button">
+                  <i class="fas fa-eraser me-1"></i><span data-i18n="clear">Clear</span>
+                </button>
+              </div>
+              <div id="status" class="status-msg mt-2"></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <h5 class="mb-0" data-i18n="chartTitle">Reference chart</h5>
+            </div>
+            <div class="card-body">
+              <div id="chart" class="chart-grid"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+      const MORSE = {
+        A: '.-', B: '-...', C: '-.-.', D: '-..', E: '.', F: '..-.',
+        G: '--.', H: '....', I: '..', J: '.---', K: '-.-', L: '.-..',
+        M: '--', N: '-.', O: '---', P: '.--.', Q: '--.-', R: '.-.',
+        S: '...', T: '-', U: '..-', V: '...-', W: '.--', X: '-..-',
+        Y: '-.--', Z: '--..',
+        '0': '-----', '1': '.----', '2': '..---', '3': '...--', '4': '....-',
+        '5': '.....', '6': '-....', '7': '--...', '8': '---..', '9': '----.',
+        '.': '.-.-.-', ',': '--..--', '?': '..--..', "'": '.----.',
+        '!': '-.-.--', '/': '-..-.', '(': '-.--.', ')': '-.--.-',
+        '&': '.-...', ':': '---...', ';': '-.-.-.', '=': '-...-',
+        '+': '.-.-.', '-': '-....-', '_': '..--.-', '"': '.-..-.',
+        '$': '...-..-', '@': '.--.-.', ' ': '/'
+      };
+
+      const REVERSE = {};
+      Object.keys(MORSE).forEach((ch) => {
+        if (ch !== ' ') REVERSE[MORSE[ch]] = ch;
+      });
+
+      const i18n = {
+        en: {
+          title: 'Morse Code',
+          cardTitle: 'Text ↔ Morse',
+          textLabel: 'Text',
+          morseLabel: 'Morse',
+          textPlaceholder: 'Type text here...',
+          morsePlaceholder: 'Type Morse here... (· − /)',
+          textHint: 'Letters, numbers and common punctuation. Accented letters are normalized when possible.',
+          morseHint: 'Separate letters with spaces and words with / or |. Dots: . or · — Dashes: - or − or _',
+          toMorse: 'To Morse',
+          toText: 'To Text',
+          copyText: 'Copy text',
+          copyMorse: 'Copy Morse',
+          play: 'Play',
+          stop: 'Stop',
+          clear: 'Clear',
+          chartTitle: 'Reference chart',
+          themeBtn: 'Toggle theme',
+          copied: 'Copied!',
+          copyFail: 'Could not copy.',
+          unknownChars: 'Some characters could not be converted and were skipped.',
+          unknownCodes: 'Some Morse codes could not be decoded and were marked with ?.',
+          empty: 'Nothing to convert.',
+          playing: 'Playing…'
+        },
+        pt: {
+          title: 'Código Morse',
+          cardTitle: 'Texto ↔ Morse',
+          textLabel: 'Texto',
+          morseLabel: 'Morse',
+          textPlaceholder: 'Digite o texto aqui...',
+          morsePlaceholder: 'Digite o Morse aqui... (· − /)',
+          textHint: 'Letras, números e pontuação comum. Acentos são normalizados quando possível.',
+          morseHint: 'Separe letras com espaços e palavras com / ou |. Pontos: . ou · — Traços: - ou − ou _',
+          toMorse: 'Para Morse',
+          toText: 'Para Texto',
+          copyText: 'Copiar texto',
+          copyMorse: 'Copiar Morse',
+          play: 'Tocar',
+          stop: 'Parar',
+          clear: 'Limpar',
+          chartTitle: 'Tabela de referência',
+          themeBtn: 'Alternar tema',
+          copied: 'Copiado!',
+          copyFail: 'Não foi possível copiar.',
+          unknownChars: 'Alguns caracteres não puderam ser convertidos e foram ignorados.',
+          unknownCodes: 'Alguns códigos Morse não puderam ser decodificados e foram marcados com ?.',
+          empty: 'Nada para converter.',
+          playing: 'Reproduzindo…'
+        },
+        ja: {
+          title: 'モールス符号',
+          cardTitle: 'テキスト ↔ モールス',
+          textLabel: 'テキスト',
+          morseLabel: 'モールス',
+          textPlaceholder: 'ここにテキストを入力...',
+          morsePlaceholder: 'ここにモールスを入力... (· − /)',
+          textHint: '英数字と一般的な記号に対応。アクセント付き文字は可能な限り正規化します。',
+          morseHint: '文字はスペース、単語は / または | で区切ってください。点: . または · — 線: - または − または _',
+          toMorse: 'モールスへ',
+          toText: 'テキストへ',
+          copyText: 'テキストをコピー',
+          copyMorse: 'モールスをコピー',
+          play: '再生',
+          stop: '停止',
+          clear: 'クリア',
+          chartTitle: '対照表',
+          themeBtn: 'テーマ切替',
+          copied: 'コピーしました！',
+          copyFail: 'コピーできませんでした。',
+          unknownChars: '変換できない文字があり、スキップされました。',
+          unknownCodes: '解読できないモールスがあり、? で示しました。',
+          empty: '変換するものがありません。',
+          playing: '再生中…'
+        }
+      };
+
+      function normalizeChar(ch) {
+        try {
+          return ch.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
+        } catch (_) {
+          return ch.toUpperCase();
+        }
+      }
+
+      function textToMorse(text) {
+        const skipped = [];
+        const words = text.trim().split(/\s+/).filter(Boolean);
+        const encoded = words.map((word) => {
+          return Array.from(word).map((ch) => {
+            const n = normalizeChar(ch);
+            if (MORSE[n]) return MORSE[n];
+            skipped.push(ch);
+            return null;
+          }).filter(Boolean).join(' ');
+        }).filter(Boolean).join(' / ');
+        return { result: encoded, skipped };
+      }
+
+      function normalizeMorseToken(token) {
+        return token
+          .replace(/[·•]/g, '.')
+          .replace(/[−—_]/g, '-')
+          .replace(/\s+/g, '')
+          .trim();
+      }
+
+      function morseToText(morse) {
+        const unknown = [];
+        const cleaned = morse.trim()
+          .replace(/\|/g, '/')
+          .replace(/\s*\/\s*/g, ' / ');
+        if (!cleaned) return { result: '', unknown };
+
+        const words = cleaned.split(/\s+\/\s+/);
+        const decoded = words.map((word) => {
+          const tokens = word.trim().split(/\s+/).filter(Boolean);
+          return tokens.map((tok) => {
+            const code = normalizeMorseToken(tok);
+            if (!code) return '';
+            if (REVERSE[code]) return REVERSE[code];
+            unknown.push(tok);
+            return '?';
+          }).join('');
+        }).join(' ');
+        return { result: decoded, unknown };
+      }
+
+      document.addEventListener('DOMContentLoaded', () => {
+        const langSwitcher = document.getElementById('lang-switcher');
+        const themeSwitcher = document.getElementById('theme-switcher');
+        const textInput = document.getElementById('text-input');
+        const morseInput = document.getElementById('morse-input');
+        const statusEl = document.getElementById('status');
+        const chartEl = document.getElementById('chart');
+
+        let currentLang = localStorage.getItem('morse_lang') || 'en';
+        let currentTheme = localStorage.getItem('morse_theme') || 'dark';
+        let audioCtx = null;
+        let playToken = 0;
+
+        function t() {
+          return i18n[currentLang];
+        }
+
+        function setStatus(msg, kind) {
+          statusEl.textContent = msg || '';
+          statusEl.className = 'status-msg mt-2' + (kind ? ' ' + kind : '');
+        }
+
+        function applyI18n(lang) {
+          const dict = i18n[lang];
+          document.querySelectorAll('[data-i18n]').forEach((el) => {
+            const key = el.getAttribute('data-i18n');
+            if (dict[key] !== undefined) el.textContent = dict[key];
+          });
+          document.querySelectorAll('[data-i18n-placeholder]').forEach((el) => {
+            const key = el.getAttribute('data-i18n-placeholder');
+            if (dict[key] !== undefined) el.placeholder = dict[key];
+          });
+          document.documentElement.lang = lang;
+          document.title = dict.title;
+          themeSwitcher.title = dict.themeBtn;
+        }
+
+        function applyTheme(theme) {
+          document.documentElement.setAttribute('data-theme', theme);
+          themeSwitcher.innerHTML = theme === 'dark'
+            ? '<i class="fas fa-sun"></i>'
+            : '<i class="fas fa-moon"></i>';
+        }
+
+        function renderChart() {
+          const entries = Object.keys(MORSE)
+            .filter((ch) => ch !== ' ')
+            .sort((a, b) => {
+              const rank = (c) => (/[A-Z]/.test(c) ? 0 : /[0-9]/.test(c) ? 1 : 2);
+              const ra = rank(a);
+              const rb = rank(b);
+              if (ra !== rb) return ra - rb;
+              return a.localeCompare(b);
+            });
+          chartEl.innerHTML = entries.map((ch) => {
+            const display = ch === '"' ? '&quot;' : ch;
+            const visual = MORSE[ch].replace(/\./g, '·').replace(/-/g, '−');
+            return `<div class="chart-item"><span class="ch">${display}</span><span class="code">${visual}</span></div>`;
+          }).join('');
+        }
+
+        function convertToMorse() {
+          const src = textInput.value;
+          if (!src.trim()) {
+            setStatus(t().empty, 'warn');
+            return;
+          }
+          const { result, skipped } = textToMorse(src);
+          morseInput.value = result;
+          setStatus(skipped.length ? t().unknownChars : '', skipped.length ? 'warn' : '');
+        }
+
+        function convertToText() {
+          const src = morseInput.value;
+          if (!src.trim()) {
+            setStatus(t().empty, 'warn');
+            return;
+          }
+          const { result, unknown } = morseToText(src);
+          textInput.value = result;
+          setStatus(unknown.length ? t().unknownCodes : '', unknown.length ? 'warn' : '');
+        }
+
+        async function copyValue(value) {
+          if (!value) {
+            setStatus(t().empty, 'warn');
+            return;
+          }
+          try {
+            await navigator.clipboard.writeText(value);
+            setStatus(t().copied, 'ok');
+          } catch (_) {
+            setStatus(t().copyFail, 'warn');
+          }
+        }
+
+        function stopAudio() {
+          playToken += 1;
+          if (audioCtx && audioCtx.state !== 'closed') {
+            try { audioCtx.close(); } catch (_) {}
+          }
+          audioCtx = null;
+        }
+
+        function sleep(ms, token) {
+          return new Promise((resolve) => {
+            setTimeout(() => resolve(token === playToken), ms);
+          });
+        }
+
+        async function playMorse() {
+          let code = morseInput.value.trim();
+          if (!code) {
+            const encoded = textToMorse(textInput.value);
+            code = encoded.result;
+            if (code) morseInput.value = code;
+          }
+          if (!code) {
+            setStatus(t().empty, 'warn');
+            return;
+          }
+
+          stopAudio();
+          const token = ++playToken;
+          setStatus(t().playing, 'ok');
+
+          const unit = 80;
+          audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+          async function beep(duration) {
+            if (token !== playToken || !audioCtx) return false;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'sine';
+            osc.frequency.value = 600;
+            gain.gain.value = 0.08;
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            const ok = await sleep(duration, token);
+            try { osc.stop(); } catch (_) {}
+            return ok;
+          }
+
+          const tokens = code
+            .replace(/\|/g, '/')
+            .trim()
+            .split(/\s+/)
+            .filter(Boolean);
+
+          for (let i = 0; i < tokens.length; i++) {
+            const tok = tokens[i];
+            if (tok === '/') {
+              if (!(await sleep(unit * 7, token))) return;
+              continue;
+            }
+            const symbols = normalizeMorseToken(tok);
+            for (let j = 0; j < symbols.length; j++) {
+              const s = symbols[j];
+              if (s === '.') {
+                if (!(await beep(unit))) return;
+              } else if (s === '-') {
+                if (!(await beep(unit * 3))) return;
+              }
+              if (j < symbols.length - 1) {
+                if (!(await sleep(unit, token))) return;
+              }
+            }
+            if (i < tokens.length - 1 && tokens[i + 1] !== '/') {
+              if (!(await sleep(unit * 3, token))) return;
+            }
+          }
+
+          if (token === playToken) {
+            setStatus('', '');
+            stopAudio();
+          }
+        }
+
+        langSwitcher.value = currentLang;
+        langSwitcher.addEventListener('change', () => {
+          currentLang = langSwitcher.value;
+          localStorage.setItem('morse_lang', currentLang);
+          applyI18n(currentLang);
+          setStatus('', '');
+        });
+
+        applyTheme(currentTheme);
+        themeSwitcher.addEventListener('click', () => {
+          currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
+          localStorage.setItem('morse_theme', currentTheme);
+          applyTheme(currentTheme);
+        });
+
+        document.getElementById('to-morse-btn').addEventListener('click', convertToMorse);
+        document.getElementById('to-text-btn').addEventListener('click', convertToText);
+        document.getElementById('swap-btn').addEventListener('click', () => {
+          const a = textInput.value;
+          textInput.value = morseInput.value;
+          morseInput.value = a;
+          setStatus('', '');
+        });
+        document.getElementById('copy-text-btn').addEventListener('click', () => copyValue(textInput.value));
+        document.getElementById('copy-morse-btn').addEventListener('click', () => copyValue(morseInput.value));
+        document.getElementById('play-btn').addEventListener('click', playMorse);
+        document.getElementById('stop-btn').addEventListener('click', () => {
+          stopAudio();
+          setStatus('', '');
+        });
+        document.getElementById('clear-btn').addEventListener('click', () => {
+          stopAudio();
+          textInput.value = '';
+          morseInput.value = '';
+          setStatus('', '');
+        });
+
+        // Live convert while typing in either field when user presses Enter with Ctrl/Cmd
+        textInput.addEventListener('keydown', (e) => {
+          if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') convertToMorse();
+        });
+        morseInput.addEventListener('keydown', (e) => {
+          if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') convertToText();
+        });
+
+        applyI18n(currentLang);
+        renderChart();
+      });
+    </script>
+  </body>
+</html>
