@@ -11,6 +11,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;600;700&display=swap" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.18/lib/codemirror.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.18/theme/material-darker.min.css">
   <style>
     :root{
       --bg:#0d1117;--bg2:#161b22;--surface:#21262d;--surface2:#2d333b;
@@ -41,6 +43,9 @@
     .lang-btn{padding:2px 6px;border-radius:4px;border:1px solid transparent;background:none;color:var(--muted);font:inherit;font-size:10px;font-weight:700;cursor:pointer}
     .lang-btn:hover{color:var(--text);border-color:var(--border)}
     .lang-btn.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+    .check-row{display:flex;align-items:center;gap:6px;color:var(--muted);font-size:10px;font-weight:700;white-space:nowrap}
+    .check-row input{accent-color:var(--accent);cursor:pointer}
+    .check-row label{cursor:pointer}
     .icon-btn{width:28px;height:28px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text);cursor:pointer;display:grid;place-items:center;font-size:12px}
     .icon-btn:hover{background:var(--surface2);color:var(--accent)}
     /* Layout */
@@ -55,6 +60,8 @@
     .comp-btn .ci{font-size:18px;line-height:1}
     /* Canvas wrap */
     .canvas-wrap{flex:1;position:relative;overflow:hidden;background:#0d1117}
+    .canvas-wrap.space-pan{cursor:grab}
+    .canvas-wrap.space-pan.panning{cursor:grabbing}
     #canvas3d{display:block;position:absolute;top:0;left:0}
     #label-wrap{position:absolute;top:0;left:0;pointer-events:none;width:100%;height:100%}
     /* Mode indicator */
@@ -88,20 +95,19 @@
     .code-hint code{background:var(--surface2);padding:1px 4px;border-radius:3px;font-size:9px}
     .code-wrap{flex:1;position:relative;overflow:hidden;min-height:0;background:var(--bg)}
     #code-editor{position:absolute;inset:0}
-    .cm-editor{height:100%;background:var(--bg);color:var(--text);font-size:11px}
-    .cm-editor.cm-focused{outline:none}
-    .cm-scroller{overflow:auto;font-family:'Fira Code','Cascadia Code','Courier New',monospace}
-    .cm-content,.cm-gutter{font-family:'Fira Code','Cascadia Code','Courier New',monospace;font-size:11px;line-height:1.5}
-    .cm-content{padding:6px 0 24px}
-    .cm-line{padding:0 8px}
-    .cm-gutters{background:var(--surface);color:var(--muted);border-right:1px solid var(--border);padding-top:6px}
-    .cm-gutterElement{padding:0 8px 0 6px}
-    .cm-activeLine{background:rgba(56,139,253,.08)}
-    html[data-theme="light"] .cm-activeLine{background:rgba(9,105,218,.08)}
-    .cm-activeLineGutter{background:transparent}
-    .cm-cursor,.cm-dropCursor{border-left-color:var(--text)}
-    .cm-selectionBackground, .cm-content ::selection{background:rgba(56,139,253,.25) !important}
-    html[data-theme="light"] .cm-selectionBackground, html[data-theme="light"] .cm-content ::selection{background:rgba(9,105,218,.22) !important}
+    .CodeMirror{height:100% !important;background:var(--bg);color:var(--text);font-family:'Fira Code','Cascadia Code','Courier New',monospace;font-size:11px;line-height:1.5}
+    .CodeMirror-gutters{background:var(--surface);border-right:1px solid var(--border)}
+    .CodeMirror-linenumber{color:var(--muted)}
+    .CodeMirror-lines{padding:6px 0 24px}
+    .CodeMirror pre{padding:0 8px}
+    .CodeMirror-cursor{border-left:1px solid var(--text)}
+    .CodeMirror-selected{background:rgba(56,139,253,.25) !important}
+    html[data-theme="light"] .CodeMirror-selected{background:rgba(9,105,218,.22) !important}
+    .cm-s-material-darker.CodeMirror{background:var(--bg);color:var(--text)}
+    .cm-s-material-darker .CodeMirror-gutters{background:var(--surface);border-right:1px solid var(--border)}
+    .cm-s-material-darker .CodeMirror-linenumber{color:var(--muted)}
+    .cm-s-material-darker .CodeMirror-activeline-background{background:rgba(56,139,253,.08)}
+    html[data-theme="light"] .cm-s-material-darker .CodeMirror-activeline-background{background:rgba(9,105,218,.08)}
     .con-col{width:210px;display:flex;flex-direction:column;overflow:hidden}
     .con-hdr{padding:4px 8px;border-bottom:1px solid var(--border);background:var(--surface);font-size:10px;font-weight:700;color:var(--muted);flex-shrink:0}
     #con-out{flex:1;overflow-y:auto;padding:5px 8px;font-family:monospace;font-size:10px;background:var(--bg);line-height:1.5}
@@ -184,6 +190,10 @@
     <button class="tbtn run" id="btn-run"><i class="fas fa-play"></i><span data-i18n="run">Run</span></button>
     <button class="tbtn stop" id="btn-stop" style="display:none"><i class="fas fa-stop"></i><span data-i18n="stop">Stop</span></button>
     <div class="spacer"></div>
+    <div class="check-row">
+      <input id="toggle-labels" type="checkbox" checked>
+      <label for="toggle-labels" data-i18n="showLabels">Labels</label>
+    </div>
     <button class="icon-btn" id="btn-theme"><i class="fas fa-moon"></i></button>
     <div class="sep"></div>
     <div class="lang-row">
@@ -301,6 +311,10 @@
 
   <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-core.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.18/lib/codemirror.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.18/mode/javascript/javascript.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.18/addon/edit/matchbrackets.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.18/addon/selection/active-line.min.js"></script>
 
   <script type="module">
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -309,12 +323,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
-import { EditorState, Compartment } from 'https://esm.sh/@codemirror/state@6.5.0';
-import { EditorView, lineNumbers, highlightActiveLineGutter, highlightActiveLine, drawSelection, keymap } from 'https://esm.sh/@codemirror/view@6.38.1';
-import { defaultKeymap, history, historyKeymap, indentWithTab } from 'https://esm.sh/@codemirror/commands@6.8.1';
-import { javascript } from 'https://esm.sh/@codemirror/lang-javascript@6.2.4';
-import { syntaxHighlighting, HighlightStyle, indentOnInput, bracketMatching } from 'https://esm.sh/@codemirror/language@6.11.0';
-import { tags as t } from 'https://esm.sh/@lezer/highlight@1.2.1';
 
 // ── Constants ────────────────────────────────────────────────
 const GRID    = 0.5;
@@ -351,6 +359,19 @@ controls.maxPolarAngle = Math.PI * 0.48;
 controls.enableDamping = true;
 controls.dampingFactor = 0.08;
 controls.mouseButtons = { LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN };
+
+let spacePanActive = false;
+let spacePanDragging = false;
+
+function setSpacePan(active) {
+  spacePanActive = active;
+  controls.mouseButtons.LEFT = active ? THREE.MOUSE.PAN : THREE.MOUSE.ROTATE;
+  cwrap.classList.toggle('space-pan', active);
+  if (!active) {
+    spacePanDragging = false;
+    cwrap.classList.remove('panning');
+  }
+}
 
 // ── Lights ───────────────────────────────────────────────────
 scene.add(new THREE.AmbientLight(0xffffff, 0.55));
@@ -392,14 +413,17 @@ const tablePlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -TABLE_Y);
 let compEntries = [];  // {mesh, comp}
 let pinEntries  = [];  // {mesh, comp, pinIdx}
 let wireEntries = [];  // {mesh, wire}
+let labelObjects = [];
 
 // ── Scene state ───────────────────────────────────────────────
 let components  = [];
 let wires       = [];
 let selectedComp = null;
+let selectedWire = null;
 let wiringFrom  = null;  // {comp, pinIdx}
 let placingType = null;
 let mode = 'ORBIT';
+let showLabels = true;
 
 let uidSeq = 1;
 function uid(pre) { return `${pre}_${uidSeq++}`; }
@@ -446,8 +470,12 @@ class Component3D {
     if (extra) div.style.cssText += extra;
     div.textContent = text;
     const obj = new CSS2DObject(div);
+    obj.userData = { compId: this.id, isLabel: true };
+    obj.visible = showLabels;
+    obj.element.style.display = showLabels ? '' : 'none';
     obj.position.copy(localPos);
     this.group.add(obj);
+    labelObjects.push(obj);
     return obj;
   }
 
@@ -473,6 +501,7 @@ class Component3D {
     });
     compEntries = compEntries.filter(e => e.comp !== this);
     pinEntries  = pinEntries.filter(e => e.comp !== this);
+    labelObjects = labelObjects.filter(obj => obj.userData?.compId !== this.id);
   }
 
   serialize() {
@@ -699,18 +728,34 @@ class LED extends Component3D {
     this.group.add(ledRing);
 
     const legMat = new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.85 });
-    [[0.055, -0.21, 0, 0.44], [-0.055, -0.19, 0, 0.36]].forEach(([x, cy, z, h]) => {
+    [[0.055, -0.08, 0, 0.18], [-0.055, -0.06, 0, 0.14]].forEach(([x, cy, z, h]) => {
       const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.011, 0.011, h, 6), legMat.clone());
       leg.position.set(x, cy, z);
       this.group.add(leg);
+    });
+
+    const terminalMat = new THREE.MeshStandardMaterial({ color: 0xaeb7c2, metalness: 0.7, roughness: 0.35 });
+    const terminalGeo = new THREE.CylinderGeometry(0.026, 0.026, 0.12, 10);
+    const terminalDefs = [[0.16, 0.06, 'A+'], [-0.16, 0.06, 'K-']];
+    terminalDefs.forEach(([x, y, name]) => {
+      const terminal = new THREE.Mesh(terminalGeo, terminalMat.clone());
+      terminal.position.set(x, y, 0);
+      this.group.add(terminal);
+      const collar = new THREE.Mesh(
+        new THREE.TorusGeometry(0.028, 0.008, 8, 14),
+        new THREE.MeshStandardMaterial({ color: name === 'A+' ? 0xdd4444 : 0x6666aa, metalness: 0.35, roughness: 0.45 })
+      );
+      collar.rotation.x = Math.PI / 2;
+      collar.position.set(x, y + 0.055, 0);
+      this.group.add(collar);
     });
 
     this._glow = new THREE.PointLight(col.hex, 0, 1.6);
     this._glow.position.y = 0.28;
     this.group.add(this._glow);
 
-    const aPos = new THREE.Vector3(0.055, -0.42, 0);
-    const kPos = new THREE.Vector3(-0.055, -0.35, 0);
+    const aPos = new THREE.Vector3(0.16, 0.12, 0);
+    const kPos = new THREE.Vector3(-0.16, 0.12, 0);
     this.pinDefs = [
       { name: 'A+', localPos: aPos, mode: 'in' },
       { name: 'K-', localPos: kPos, mode: 'in' },
@@ -718,7 +763,8 @@ class LED extends Component3D {
     this.pinValues = [SIG_NC, SIG_NC];
     this.addPin('A+', aPos, 'in', 0);
     this.addPin('K-', kPos, 'in', 1);
-    this.addCSS2D('A+', aPos.clone().add(new THREE.Vector3(0.1, 0, 0)));
+    this.addCSS2D('A+', aPos.clone().add(new THREE.Vector3(0.12, 0.03, 0)));
+    this.addCSS2D('K-', kPos.clone().add(new THREE.Vector3(-0.12, 0.03, 0)));
   }
 
   _clear() {
@@ -844,14 +890,30 @@ class ToggleSwitch extends Component3D {
     this.addCSS2D('SW', new THREE.Vector3(0, 0.42, 0));
 
     const legMat = new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.8 });
-    [[0,-0.17,0.1],[0,-0.17,-0.1]].forEach(([x,y,z],i) => {
-      const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.013,0.013,0.15,6), legMat.clone());
+    [[0,0.03,0.1],[0,0.03,-0.1]].forEach(([x,y,z],i) => {
+      const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.013,0.013,0.08,6), legMat.clone());
       leg.position.set(x,y,z);
       this.group.add(leg);
     });
 
-    const pA = new THREE.Vector3(0,-0.23,0.1);
-    const pB = new THREE.Vector3(0,-0.23,-0.1);
+    const terminalMat = new THREE.MeshStandardMaterial({ color: 0xaeb7c2, metalness: 0.7, roughness: 0.35 });
+    const terminalGeo = new THREE.CylinderGeometry(0.026, 0.026, 0.12, 10);
+    [[0,0.12,0.1,'COM',0x44aa88],[0,0.12,-0.1,'OUT',0xaa8844]].forEach(([x,y,z,name,ringColor]) => {
+      const terminal = new THREE.Mesh(terminalGeo, terminalMat.clone());
+      terminal.position.set(x, y, z);
+      this.group.add(terminal);
+      const collar = new THREE.Mesh(
+        new THREE.TorusGeometry(0.028, 0.008, 8, 14),
+        new THREE.MeshStandardMaterial({ color: ringColor, metalness: 0.35, roughness: 0.45 })
+      );
+      collar.rotation.x = Math.PI / 2;
+      collar.position.set(x, y + 0.055, z);
+      this.group.add(collar);
+      this.addCSS2D(name, new THREE.Vector3(x + 0.12, y + 0.02, z));
+    });
+
+    const pA = new THREE.Vector3(0,0.18,0.1);
+    const pB = new THREE.Vector3(0,0.18,-0.1);
     this.pinDefs = [
       { name:'COM', localPos:pA, mode:'io' },
       { name:'OUT', localPos:pB, mode:'out' },
@@ -1225,6 +1287,12 @@ class Resistor extends Component3D {
     });
   }
 
+  onPinChange(idx, val, analog) {
+    const otherIdx = idx === 0 ? 1 : 0;
+    if (this.pinValues[otherIdx] === val) return;
+    propagateSignal(this, otherIdx, val, analog);
+  }
+
   serializeState() { return { resistance: this.resistance }; }
   static deserialize(d) {
     const c = new Resistor(d.id);
@@ -1537,10 +1605,51 @@ function removeComp(comp) {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 const WCOL = { [SIG_HI]: 0xff3333, [SIG_LO]: 0x2233cc, [SIG_NC]: 0x666666 };
 const WCOL_ANALOG = 0xffaa00;
+const WIRE_COLOR_OPTIONS = {
+  auto:   null,
+  red:    '#ff4444',
+  blue:   '#4477ff',
+  yellow: '#ffbb00',
+  green:  '#33cc66',
+  gray:   '#8a8a8a',
+  white:  '#f2f2f2'
+};
 
 function wireColor(sig, isAnalog) {
   if (isAnalog && sig !== SIG_NC) return WCOL_ANALOG;
   return WCOL[sig] ?? WCOL[SIG_NC];
+}
+
+function wireDisplayColor(wire, sig = wire.signal, isAnalog = wire.analog) {
+  return wire.manualColor || wireColor(sig, isAnalog);
+}
+
+function applyWireAppearance(wire, sig = wire.signal, isAnalog = wire.analog) {
+  if (!wire?.mesh?.material) return;
+  const baseColor = new THREE.Color(wireDisplayColor(wire, sig, isAnalog));
+  const material = wire.mesh.material;
+  material.color.copy(baseColor);
+  material.emissive = material.emissive || new THREE.Color(0x000000);
+  material.transparent = true;
+
+  if (isAnalog || sig === SIG_HI) {
+    material.emissive.copy(baseColor);
+    material.emissiveIntensity = isAnalog ? 0.55 : 0.75;
+    material.opacity = 1;
+    material.roughness = 0.28;
+  } else if (sig === SIG_LO) {
+    material.emissive.copy(baseColor);
+    material.emissiveIntensity = 0.18;
+    material.opacity = 0.88;
+    material.roughness = 0.42;
+  } else {
+    material.emissive.set(0x000000);
+    material.emissiveIntensity = 0;
+    material.opacity = 0.62;
+    material.roughness = 0.5;
+  }
+
+  material.needsUpdate = true;
 }
 
 function buildWireMesh(pA, pB, col) {
@@ -1549,7 +1658,7 @@ function buildWireMesh(pA, pB, col) {
   const m2 = pA.clone().lerp(pB, 0.72).add(new THREE.Vector3((Math.random()-0.5)*0.2, arc, (Math.random()-0.5)*0.2));
   const curve = new THREE.CatmullRomCurve3([pA, m1, m2, pB]);
   const geo = new THREE.TubeGeometry(curve, 22, WIRE_R, 6, false);
-  const mat = new THREE.MeshStandardMaterial({ color: col, roughness: 0.5 });
+  const mat = new THREE.MeshStandardMaterial({ color: col, roughness: 0.5, transparent: true, opacity: 0.62 });
   const mesh = new THREE.Mesh(geo, mat);
   mesh.castShadow = false;
   return mesh;
@@ -1564,9 +1673,14 @@ function createWire(fComp, fPin, tComp, tPin) {
   const mesh = buildWireMesh(pA, pB, wireColor(sig, false));
   mesh.userData.isWire = true;
   scene.add(mesh);
-  const wire = { id: uid('w'), fromCompId: fComp.id, fromPinIdx: fPin, toCompId: tComp.id, toPinIdx: tPin, mesh, signal: sig, analog: false };
+  const wire = { id: uid('w'), fromCompId: fComp.id, fromPinIdx: fPin, toCompId: tComp.id, toPinIdx: tPin, mesh, signal: sig, analog: false, manualColor: null };
+  applyWireAppearance(wire, sig, false);
   wires.push(wire);
   wireEntries.push({ mesh, wire });
+  // Apply the source's current signal immediately so always-on sources and
+  // already-configured outputs affect the destination without waiting for a change event.
+  tComp.pinValues[tPin] = sig;
+  tComp.onPinChange(tPin, sig, null);
   updateStatus();
   return wire;
 }
@@ -1574,7 +1688,13 @@ function createWire(fComp, fPin, tComp, tPin) {
 function createWireFromData(d) {
   const f = components.find(c => c.id === d.fromCompId);
   const t = components.find(c => c.id === d.toCompId);
-  if (f && t) createWire(f, d.fromPinIdx, t, d.toPinIdx);
+  if (f && t) {
+    const wire = createWire(f, d.fromPinIdx, t, d.toPinIdx);
+    if (wire && d.manualColor) {
+      wire.manualColor = d.manualColor;
+      applyWireAppearance(wire, wire.signal, wire.analog);
+    }
+  }
 }
 
 function removeWireMesh(wire) {
@@ -1584,10 +1704,18 @@ function removeWireMesh(wire) {
   wireEntries = wireEntries.filter(e => e.wire !== wire);
 }
 
+function removeWire(wire) {
+  if (!wire) return;
+  removeWireMesh(wire);
+  wires = wires.filter(x => x !== wire);
+  if (selectedWire === wire) selectedWire = null;
+  updateStatus();
+}
+
 function updateWireSignal(wire, sig, analog) {
   wire.signal = sig;
   wire.analog = analog;
-  if (wire.mesh?.material) wire.mesh.material.color.set(wireColor(sig, analog));
+  applyWireAppearance(wire, sig, analog);
 }
 
 function rebuildWiresFor(comp) {
@@ -1598,10 +1726,11 @@ function rebuildWiresFor(comp) {
     scene.remove(w.mesh);
     w.mesh.geometry.dispose();
     wireEntries = wireEntries.filter(e => e.wire !== w);
-    const col = wireColor(w.signal, w.analog);
+    const col = wireDisplayColor(w);
     w.mesh = buildWireMesh(f.getPinWorld(w.fromPinIdx), t.getPinWorld(w.toPinIdx), col);
     w.mesh.userData.isWire = true;
     scene.add(w.mesh);
+    applyWireAppearance(w, w.signal, w.analog);
     wireEntries.push({ mesh: w.mesh, wire: w });
   });
 }
@@ -1714,6 +1843,10 @@ function castComps(e) {
 }
 
 cvs.addEventListener('pointermove', e => {
+  if (spacePanActive && pDown) {
+    spacePanDragging = true;
+    cwrap.classList.add('panning');
+  }
   if (pDown) moved = (Math.hypot(e.clientX - pDown.x, e.clientY - pDown.y) > 4);
 
   // Pin hover highlight
@@ -1746,11 +1879,21 @@ cvs.addEventListener('pointermove', e => {
 });
 
 cvs.addEventListener('pointerdown', e => {
+  if (spacePanActive && e.button === 0) {
+    cwrap.classList.add('panning');
+  }
   pDown = { x: e.clientX, y: e.clientY };
   moved = false;
 });
 
 cvs.addEventListener('pointerup', e => {
+  if (spacePanActive) {
+    pDown = null;
+    moved = false;
+    spacePanDragging = false;
+    cwrap.classList.remove('panning');
+    return;
+  }
   const wasClick = !moved && e.button === 0;
   const pt = tablePoint(e);
 
@@ -1798,12 +1941,18 @@ cvs.addEventListener('pointerup', e => {
   if (chits.length > 0) {
     const we = wireEntries.find(x => x.mesh === chits[0].object);
     if (we) {
-      // Wire selected — handled by context menu for delete
+      selectWire(we.wire);
       pDown = null;
       return;
     }
     const ce = compEntries.find(x => x.mesh === chits[0].object);
     if (ce?.comp) {
+      if (isSimulationRunning() && ce.comp instanceof ToggleSwitch) {
+        ce.comp.toggle();
+        if (selectedComp === ce.comp) showPP(ce.comp);
+        pDown = null;
+        return;
+      }
       if (selectedComp === ce.comp && mode === 'SELECTED') {
         // Start drag
         dragging = true;
@@ -1833,17 +1982,21 @@ cvs.addEventListener('contextmenu', e => {
   if (chits.length > 0) {
     const we = wireEntries.find(x => x.mesh === chits[0].object);
     if (we) {
-      const w = we.wire;
-      removeWireMesh(w);
-      wires = wires.filter(x => x !== w);
-      updateStatus();
+      removeWire(we.wire);
+      hidePP();
     }
   }
 });
 
 document.addEventListener('keydown', e => {
   const tag = document.activeElement?.tagName;
+  if (document.activeElement?.closest?.('.CodeMirror')) return;
   if (tag === 'TEXTAREA' || tag === 'INPUT') return;
+  if (e.code === 'Space' && !e.repeat) {
+    e.preventDefault();
+    setSpacePan(true);
+    return;
+  }
   if (e.key === 'Escape') {
     if (mode === 'PLACE')  { setMode('ORBIT'); placingType = null; refreshPalActive(null); }
     else if (mode === 'WIRING') { clearRubber(); wiringFrom = null; setMode('ORBIT'); }
@@ -1857,6 +2010,10 @@ document.addEventListener('keydown', e => {
   if ((e.key === 'e' || e.key === 'E') && selectedComp) rotateSelected(-1);
 });
 
+document.addEventListener('keyup', e => {
+  if (e.code === 'Space') setSpacePan(false);
+});
+
 // ── Mode management ───────────────────────────────────────────
 function setMode(m) {
   mode = m;
@@ -1866,14 +2023,28 @@ function setMode(m) {
 }
 
 function selectComp(comp) {
+  selectedWire = null;
   selectedComp = comp;
   setMode('SELECTED');
   showPP(comp);
 }
+
+function selectWire(wire) {
+  selectedComp = null;
+  selectedWire = wire;
+  setMode('SELECTED');
+  showWirePP(wire);
+}
+
 function deselect() {
   selectedComp = null;
+  selectedWire = null;
   setMode('ORBIT');
   hidePP();
+}
+
+function isSimulationRunning() {
+  return document.getElementById('btn-stop').style.display !== 'none';
 }
 
 // ── Palette ───────────────────────────────────────────────────
@@ -1895,6 +2066,7 @@ document.querySelectorAll('.comp-btn').forEach(btn => {
 function showPP(comp) {
   const panel = document.getElementById('props-panel');
   panel.classList.add('vis');
+  document.getElementById('pp-rot-row').style.display = '';
   document.getElementById('pp-type').textContent = `${comp.type} · ${comp.id}`;
   syncRotDeg();
   const body = document.getElementById('pp-body');
@@ -1976,9 +2148,56 @@ function showPP(comp) {
     body.appendChild(wrap);
   }
 }
+
+function showWirePP(wire) {
+  const panel = document.getElementById('props-panel');
+  panel.classList.add('vis');
+  document.getElementById('pp-rot-row').style.display = 'none';
+  document.getElementById('pp-type').textContent = `${tr('wireName')} · ${wire.id}`;
+  const body = document.getElementById('pp-body');
+  body.innerHTML = '';
+
+  const fromComp = components.find(c => c.id === wire.fromCompId);
+  const toComp = components.find(c => c.id === wire.toCompId);
+  const fromPin = fromComp?.pinDefs?.[wire.fromPinIdx]?.name || wire.fromPinIdx;
+  const toPin = toComp?.pinDefs?.[wire.toPinIdx]?.name || wire.toPinIdx;
+  const signalText = wire.signal === SIG_HI ? 'HIGH' : wire.signal === SIG_LO ? 'LOW' : 'NC';
+
+  [
+    [tr('wireFrom'), `${fromComp?.id || wire.fromCompId}:${fromPin}`],
+    [tr('wireTo'), `${toComp?.id || wire.toCompId}:${toPin}`],
+    [tr('wireSignal'), wire.analog ? `${signalText} / PWM` : signalText]
+  ].forEach(([key, value]) => {
+    const row = document.createElement('div');
+    row.className = 'pp-row';
+    row.innerHTML = `<span class="pp-key">${key}</span><span class="pp-val">${value}</span>`;
+    body.appendChild(row);
+  });
+
+  const sep = document.createElement('div'); sep.className = 'pp-sep'; body.appendChild(sep);
+  const lbl = document.createElement('div'); lbl.className = 'pp-lbl'; lbl.textContent = tr('wireColor'); body.appendChild(lbl);
+  const row = document.createElement('div'); row.className = 'color-swatches'; body.appendChild(row);
+  Object.entries(WIRE_COLOR_OPTIONS).forEach(([name, value]) => {
+    const sw = document.createElement('div');
+    const selected = (value === null && wire.manualColor === null) || wire.manualColor === value;
+    sw.className = 'color-sw' + (selected ? ' sel' : '');
+    sw.style.background = value || '#b7c0ca';
+    sw.title = value ? name : tr('wireAuto');
+    sw.addEventListener('click', () => {
+      wire.manualColor = value;
+      wire.mesh.material.color.set(wireDisplayColor(wire));
+      showWirePP(wire);
+    });
+    row.appendChild(sw);
+  });
+}
+
 function hidePP() { document.getElementById('props-panel').classList.remove('vis'); }
 document.getElementById('pp-close').addEventListener('click', deselect);
-document.getElementById('btn-del').addEventListener('click', () => { if (selectedComp) removeComp(selectedComp); });
+document.getElementById('btn-del').addEventListener('click', () => {
+  if (selectedComp) removeComp(selectedComp);
+  else if (selectedWire) { removeWire(selectedWire); hidePP(); }
+});
 
 // ── Rotation buttons ─────────────────────────────────────────────────────
 const ROT_STEP = Math.PI / 4; // 45° per click
@@ -2008,77 +2227,40 @@ document.getElementById('pp-rot-cw' ).addEventListener('click', () => rotateSele
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 //  Code Editor
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-const codeThemeCompartment = new Compartment();
 let codeView = null;
 
-const codeHighlightStyle = HighlightStyle.define([
-  { tag: [t.keyword, t.modifier], color: '#ff7ab8', fontWeight: '700' },
-  { tag: [t.controlKeyword, t.operatorKeyword], color: '#ff7ab8', fontWeight: '700' },
-  { tag: [t.function(t.variableName), t.function(t.propertyName)], color: '#4fc1ff' },
-  { tag: [t.variableName], color: '#e6edf3' },
-  { tag: [t.propertyName], color: '#9cdcfe' },
-  { tag: [t.number, t.integer, t.float], color: '#f5c56a' },
-  { tag: [t.string], color: '#8ad272' },
-  { tag: [t.bool, t.null, t.atom], color: '#c792ea' },
-  { tag: [t.comment], color: '#7f8c98', fontStyle: 'italic' },
-  { tag: [t.punctuation, t.separator], color: '#a8b3bd' },
-  { tag: [t.bracket], color: '#d7dee5' },
-  { tag: [t.operator], color: '#ff9e64' },
-  { tag: [t.definition(t.variableName), t.className, t.typeName], color: '#ffd580' }
-]);
-
-function buildCodeTheme(themeMode) {
-  const dark = themeMode === 'dark';
-  return [
-    EditorView.theme({
-      '&': { backgroundColor: 'var(--bg)', color: 'var(--text)' },
-      '.cm-gutters': { backgroundColor: 'var(--surface)', color: 'var(--muted)', borderRight: '1px solid var(--border)' },
-      '.cm-activeLine': { backgroundColor: dark ? 'rgba(56,139,253,.08)' : 'rgba(9,105,218,.08)' },
-      '.cm-activeLineGutter': { backgroundColor: 'transparent' },
-      '.cm-selectionBackground, .cm-content ::selection': {
-        backgroundColor: dark ? 'rgba(56,139,253,.25) !important' : 'rgba(9,105,218,.22) !important'
-      },
-      '.cm-cursor, .cm-dropCursor': { borderLeftColor: 'var(--text)' }
-    }, { dark }),
-    syntaxHighlighting(codeHighlightStyle)
-  ];
-}
-
 function getCodeValue() {
-  return codeView ? codeView.state.doc.toString() : '';
+  return codeView ? codeView.getValue() : '';
 }
 
 function setCodeValue(text) {
   if (!codeView) return;
   const next = text || '';
-  const prev = codeView.state.doc.toString();
-  if (prev === next) return;
-  codeView.dispatch({ changes: { from: 0, to: codeView.state.doc.length, insert: next } });
+  if (codeView.getValue() === next) return;
+  const scroll = codeView.getScrollInfo();
+  codeView.setValue(next);
+  codeView.scrollTo(scroll.left, scroll.top);
 }
 
 function initCodeEditor() {
-  if (codeView) return;
-  codeView = new EditorView({
-    state: EditorState.create({
-      doc: '',
-      extensions: [
-        lineNumbers(),
-        highlightActiveLineGutter(),
-        drawSelection(),
-        history(),
-        indentOnInput(),
-        bracketMatching(),
-        highlightActiveLine(),
-        keymap.of([indentWithTab, ...defaultKeymap, ...historyKeymap]),
-        javascript(),
-        codeThemeCompartment.of(buildCodeTheme(document.documentElement.getAttribute('data-theme') || 'dark')),
-        EditorView.updateListener.of((update) => {
-          if (update.docChanged) saveCodeToBoard();
-        })
-      ]
-    }),
-    parent: document.getElementById('code-editor')
+  if (codeView || !window.CodeMirror) return;
+  codeView = window.CodeMirror(document.getElementById('code-editor'), {
+    value: '',
+    mode: 'javascript',
+    theme: 'material-darker',
+    lineNumbers: true,
+    indentUnit: 2,
+    tabSize: 2,
+    indentWithTabs: false,
+    lineWrapping: false,
+    matchBrackets: true,
+    styleActiveLine: true,
+    autofocus: false,
+    extraKeys: {
+      Tab: (cm) => cm.replaceSelection('  ', 'end')
+    }
   });
+  codeView.on('change', () => saveCodeToBoard());
 }
 
 function saveCodeToBoard() {
@@ -2148,7 +2330,7 @@ document.getElementById('btn-stop').addEventListener('click', () => {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 //  IndexedDB
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-const IDB_NAME = 'electronics_lab_3d', IDB_VER = 1, IDB_STORE = 'projects';
+const IDB_NAME = 'electronics_lab_3d', IDB_VER = 2, IDB_STORE = 'projects', IDB_SETTINGS = 'settings';
 
 function idb() {
   return new Promise((res, rej) => {
@@ -2156,6 +2338,7 @@ function idb() {
     req.onupgradeneeded = e => {
       const db = e.target.result;
       if (!db.objectStoreNames.contains(IDB_STORE)) db.createObjectStore(IDB_STORE, { keyPath: 'name' });
+      if (!db.objectStoreNames.contains(IDB_SETTINGS)) db.createObjectStore(IDB_SETTINGS, { keyPath: 'key' });
     };
     req.onsuccess = () => res(req.result);
     req.onerror = () => rej(req.error);
@@ -2166,6 +2349,27 @@ async function idbPut(data)   { const db = await idb(); return new Promise((r,j)
 async function idbGet(name)   { const db = await idb(); return new Promise((r,j) => { const req=db.transaction(IDB_STORE,'readonly').objectStore(IDB_STORE).get(name); req.onsuccess=()=>r(req.result); req.onerror=()=>j(req.error); }); }
 async function idbGetAll()    { const db = await idb(); return new Promise((r,j) => { const req=db.transaction(IDB_STORE,'readonly').objectStore(IDB_STORE).getAll(); req.onsuccess=()=>r(req.result); req.onerror=()=>j(req.error); }); }
 async function idbDelete(nm)  { const db = await idb(); return new Promise((r,j) => { const tx=db.transaction(IDB_STORE,'readwrite'); tx.objectStore(IDB_STORE).delete(nm); tx.oncomplete=r; tx.onerror=()=>j(tx.error); }); }
+async function idbPutSetting(key, value) { const db = await idb(); return new Promise((r,j) => { const tx=db.transaction(IDB_SETTINGS,'readwrite'); tx.objectStore(IDB_SETTINGS).put({ key, value }); tx.oncomplete=r; tx.onerror=()=>j(tx.error); }); }
+async function idbGetSetting(key) { const db = await idb(); return new Promise((r,j) => { const req=db.transaction(IDB_SETTINGS,'readonly').objectStore(IDB_SETTINGS).get(key); req.onsuccess=()=>r(req.result?.value); req.onerror=()=>j(req.error); }); }
+
+function applyLabelsVisibility() {
+  labelObjects.forEach(obj => {
+    obj.visible = showLabels;
+    if (obj.element) obj.element.style.display = showLabels ? '' : 'none';
+  });
+  const checkbox = document.getElementById('toggle-labels');
+  if (checkbox) checkbox.checked = showLabels;
+}
+
+async function loadLabelPreference() {
+  try {
+    const saved = await idbGetSetting('showLabels');
+    if (typeof saved === 'boolean') showLabels = saved;
+  } catch (_err) {
+    // ignore and keep default
+  }
+  applyLabelsVisibility();
+}
 
 function serializeProject(name) {
   return {
@@ -2174,7 +2378,7 @@ function serializeProject(name) {
     uidSeq,
     camera: { pos: camera.position.toArray(), tgt: controls.target.toArray() },
     components: components.map(c => c.serialize()),
-    wires: wires.map(w => ({ fromCompId:w.fromCompId, fromPinIdx:w.fromPinIdx, toCompId:w.toCompId, toPinIdx:w.toPinIdx }))
+    wires: wires.map(w => ({ fromCompId:w.fromCompId, fromPinIdx:w.fromPinIdx, toCompId:w.toCompId, toPinIdx:w.toPinIdx, manualColor:w.manualColor }))
   };
 }
 
@@ -2213,6 +2417,7 @@ function clearScene() {
   pinEntries  = [];
   uidSeq = 1;
   selectedComp = null;
+  selectedWire = null;
   setMode('ORBIT');
   hidePP();
   refreshBoardSel();
@@ -2300,6 +2505,7 @@ function loadSampleProject() {
   const mot = addComp(new DCMotor(uid('mot')),     5.5,  1.5);
   const srv = addComp(new Servo(uid('srv')),       5.5,  4.5);
   const seg = addComp(new SevenSeg(uid('seg')),    0.5,  5.5);
+  seg.group.rotation.y = Math.PI;
   const pst = addComp(new Piston(uid('pst')),     -2,    5.5);
   const pb  = addComp(new Protoboard(uid('pb')),   1,   -5);
 
@@ -2361,7 +2567,7 @@ document.getElementById('btn-sample').addEventListener('click', () => {
 const LANG = {
   en: {
     appTitle:'3D Electronics Lab', new:'New', save:'Save', load:'Load', run:'Run', stop:'Stop',
-    cancel:'Cancel', delete:'Delete', sample:'Sample',
+    cancel:'Cancel', delete:'Delete', sample:'Sample', showLabels:'Labels',
     secControl:'Control', secOutput:'Output', secPassive:'Passive', secPower:'Power',
     cArduino:'Arduino', cButton:'Button', cSwitch:'Switch', cMotor:'Motor',
     cPiston:'Piston', cResistor:'Resistor', cProto:'Protoboard', cPower:'Power',
@@ -2375,13 +2581,14 @@ const LANG = {
     mWiring:'Wiring — click a pin to connect, ESC to cancel',
     mSelected:'Selected — drag to move, DEL to delete',
     color:'Color:', resistance:'Resistance:', pressHold:'Press & Hold',
+    wireName:'Wire', wireFrom:'From', wireTo:'To', wireSignal:'Signal', wireColor:'Wire Color:', wireAuto:'Auto',
     switchOn:'ON ▶ click to toggle', switchOff:'OFF ▶ click to toggle',
     hint3d:'Orbit: drag | Zoom: scroll | Pan: right-drag',
     newConfirm:'Start new project? Unsaved changes will be lost.', newProject:'New project.',
   },
   pt: {
     appTitle:'Lab de Eletrônica 3D', new:'Novo', save:'Salvar', load:'Carregar', run:'Executar', stop:'Parar',
-    cancel:'Cancelar', delete:'Excluir', sample:'Exemplo',
+    cancel:'Cancelar', delete:'Excluir', sample:'Exemplo', showLabels:'Labels',
     secControl:'Controle', secOutput:'Saída', secPassive:'Passivo', secPower:'Energia',
     cArduino:'Arduino', cButton:'Botão', cSwitch:'Chave', cMotor:'Motor',
     cPiston:'Pistão', cResistor:'Resistor', cProto:'Protoboard', cPower:'Fonte',
@@ -2395,13 +2602,14 @@ const LANG = {
     mWiring:'Fiação — clique num pino para conectar, ESC cancela',
     mSelected:'Selecionado — arraste para mover, DEL para excluir',
     color:'Cor:', resistance:'Resistência:', pressHold:'Pressionar',
+    wireName:'Fio', wireFrom:'Origem', wireTo:'Destino', wireSignal:'Sinal', wireColor:'Cor do Fio:', wireAuto:'Auto',
     switchOn:'LIGADO ▶ clique para alternar', switchOff:'DESLIGADO ▶ clique para alternar',
     hint3d:'Orbital: arrastar | Zoom: scroll | Pan: botão direito',
     newConfirm:'Iniciar novo projeto? Alterações não salvas serão perdidas.', newProject:'Novo projeto.',
   },
   ja: {
     appTitle:'3D電子工作ラボ', new:'新規', save:'保存', load:'読込', run:'実行', stop:'停止',
-    cancel:'キャンセル', delete:'削除',
+    cancel:'キャンセル', delete:'削除', showLabels:'ラベル',
     secControl:'コントロール', secOutput:'出力', secPassive:'パッシブ',
     cArduino:'Arduino', cButton:'ボタン', cSwitch:'スイッチ', cMotor:'モーター',
     cPiston:'ピストン', cResistor:'抵抗', cProto:'ブレッドボード',
@@ -2415,6 +2623,7 @@ const LANG = {
     mWiring:'配線 — ピンをクリックして接続、ESCでキャンセル',
     mSelected:'選択中 — ドラッグで移動、DELで削除',
     color:'色:', resistance:'抵抗値:', pressHold:'押し続ける',
+    wireName:'ワイヤー', wireFrom:'始点', wireTo:'終点', wireSignal:'信号', wireColor:'ワイヤー色:', wireAuto:'自動',
     switchOn:'オン ▶ クリックで切替', switchOff:'オフ ▶ クリックで切替',
     hint3d:'オービット:ドラッグ | ズーム:スクロール | パン:右クリック',
     newConfirm:'新しいプロジェクトを開始しますか？', newProject:'新規プロジェクト。',
@@ -2444,6 +2653,13 @@ function setLang(l) {
   applyI18n();
   renderDocs();
 }
+
+document.querySelectorAll('.lang-btn').forEach(b => b.addEventListener('click', () => setLang(b.dataset.lang)));
+document.getElementById('toggle-labels').addEventListener('change', async (e) => {
+  showLabels = !!e.target.checked;
+  applyLabelsVisibility();
+  try { await idbPutSetting('showLabels', showLabels); } catch (_err) {}
+});
 
 // ── Docs content (i18n) ───────────────────────────────────────────────
 const DOCS = {
@@ -2555,8 +2771,6 @@ function renderDocs() {
   document.getElementById('docs-pane').innerHTML = html;
 }
 
-document.querySelectorAll('.lang-btn').forEach(b => b.addEventListener('click', () => setLang(b.dataset.lang)));
-
 // ── Code / Docs tab switching ─────────────────────────────────────────
 const elTabCode = document.getElementById('tab-code');
 const elTabDocs = document.getElementById('tab-docs');
@@ -2588,7 +2802,6 @@ function applyTheme(t) {
   scene.add(gridHelper);
   document.getElementById('btn-theme').innerHTML = t === 'dark'
     ? '<i class="fas fa-sun"></i>' : '<i class="fas fa-moon"></i>';
-  if (codeView) codeView.dispatch({ effects: codeThemeCompartment.reconfigure(buildCodeTheme(t)) });
 }
 document.getElementById('btn-theme').addEventListener('click', () => {
   applyTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
@@ -2742,6 +2955,7 @@ animate();
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 applyTheme(localStorage.getItem('elab3d_theme') || 'dark');
 initCodeEditor();
+await loadLabelPreference();
 setLang(lang);
 renderDocs();
 clog('3D Electronics Lab ready. Place an Arduino from the palette!', 'lo');
