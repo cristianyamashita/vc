@@ -182,8 +182,8 @@
 
               <div class="mb-2">
                 <label class="form-label" for="morse-input" data-i18n="morseLabel">Morse</label>
-                <textarea id="morse-input" class="form-control" data-i18n-placeholder="morsePlaceholder" placeholder="Type Morse here... (· − /)"></textarea>
-                <div class="help-text mt-1" data-i18n="morseHint">Separate letters with spaces and words with / or |. Dots: . or · — Dashes: - or − or _</div>
+                <textarea id="morse-input" class="form-control" data-i18n-placeholder="morsePlaceholder" placeholder="Type Morse here... (· −  /)"></textarea>
+                <div class="help-text mt-1" data-i18n="morseHint">Separate letters with spaces and words with two spaces or /. Dots: . or · — Dashes: - or − or _</div>
               </div>
 
               <div class="d-flex flex-wrap gap-2 mt-3">
@@ -248,9 +248,9 @@
           textLabel: 'Text',
           morseLabel: 'Morse',
           textPlaceholder: 'Type text here...',
-          morsePlaceholder: 'Type Morse here... (· − /)',
+          morsePlaceholder: 'Type Morse here... (· −  /)',
           textHint: 'Letters, numbers and common punctuation. Accented letters are normalized when possible.',
-          morseHint: 'Separate letters with spaces and words with / or |. Dots: . or · — Dashes: - or − or _',
+          morseHint: 'Separate letters with spaces and words with two spaces or /. Dots: . or · — Dashes: - or − or _',
           toMorse: 'To Morse',
           toText: 'To Text',
           copyText: 'Copy text',
@@ -273,9 +273,9 @@
           textLabel: 'Texto',
           morseLabel: 'Morse',
           textPlaceholder: 'Digite o texto aqui...',
-          morsePlaceholder: 'Digite o Morse aqui... (· − /)',
+          morsePlaceholder: 'Digite o Morse aqui... (· −  /)',
           textHint: 'Letras, números e pontuação comum. Acentos são normalizados quando possível.',
-          morseHint: 'Separe letras com espaços e palavras com / ou |. Pontos: . ou · — Traços: - ou − ou _',
+          morseHint: 'Separe letras com espaços e palavras com dois espaços ou /. Pontos: . ou · — Traços: - ou − ou _',
           toMorse: 'Para Morse',
           toText: 'Para Texto',
           copyText: 'Copiar texto',
@@ -298,9 +298,9 @@
           textLabel: 'テキスト',
           morseLabel: 'モールス',
           textPlaceholder: 'ここにテキストを入力...',
-          morsePlaceholder: 'ここにモールスを入力... (· − /)',
+          morsePlaceholder: 'ここにモールスを入力... (· −  /)',
           textHint: '英数字と一般的な記号に対応。アクセント付き文字は可能な限り正規化します。',
-          morseHint: '文字はスペース、単語は / または | で区切ってください。点: . または · — 線: - または − または _',
+          morseHint: '文字はスペース、単語は2つのスペースまたは / で区切ってください。点: . または · — 線: - または − または _',
           toMorse: 'モールスへ',
           toText: 'テキストへ',
           copyText: 'テキストをコピー',
@@ -337,7 +337,7 @@
             skipped.push(ch);
             return null;
           }).filter(Boolean).join(' ');
-        }).filter(Boolean).join(' / ');
+          }).filter(Boolean).join('  ');
         return { result: encoded, skipped };
       }
 
@@ -351,12 +351,10 @@
 
       function morseToText(morse) {
         const unknown = [];
-        const cleaned = morse.trim()
-          .replace(/\|/g, '/')
-          .replace(/\s*\/\s*/g, ' / ');
+        const cleaned = morse.trim().replace(/\|/g, '/');
         if (!cleaned) return { result: '', unknown };
 
-        const words = cleaned.split(/\s+\/\s+/);
+        const words = cleaned.split(/\s*\/\s*|\s{2,}/);
         const decoded = words.map((word) => {
           const tokens = word.trim().split(/\s+/).filter(Boolean);
           return tokens.map((tok) => {
