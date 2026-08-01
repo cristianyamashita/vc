@@ -90,12 +90,24 @@
       box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
     }
 
+    .form-label,
+    .text-muted,
+    .unit-timing-info,
+    .unit-timing-progress-label {
+      color: var(--text-color) !important;
+    }
+
     #countdown-days::placeholder,
     #countdown-hours::placeholder,
     #countdown-minutes::placeholder,
     #countdown-seconds::placeholder {
       color: var(--text-color);
       opacity: 1;
+    }
+
+    .progress {
+      height: 1.25rem;
+      background-color: var(--border-color);
     }
   </style>
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-NWZDZ906DJ"></script>
@@ -139,6 +151,9 @@
                     <li class="nav-item" role="presentation">
                         <button class="nav-link" id="clock-tab" data-bs-toggle="tab" data-bs-target="#clock" type="button" role="tab" aria-controls="clock" aria-selected="false" data-i18n="clock">Clock</button>
                     </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="unit-timing-tab" data-bs-toggle="tab" data-bs-target="#unit-timing" type="button" role="tab" aria-controls="unit-timing" aria-selected="false" data-i18n="unitTiming">Unit Timing</button>
+                    </li>
                 </ul>
             </div>
             <div class="card-body">
@@ -171,6 +186,46 @@
                     <div class="tab-pane fade" id="clock" role="tabpanel" aria-labelledby="clock-tab">
                         <div class="display" id="clock-display">00:00:00</div>
                     </div>
+                    <!-- Unit Timing -->
+                    <div class="tab-pane fade" id="unit-timing" role="tabpanel" aria-labelledby="unit-timing-tab">
+                        <div class="row g-3 mb-3">
+                            <div class="col-12">
+                                <label for="unit-timing-quantity" class="form-label" data-i18n="unitQuantity">Number of units</label>
+                                <input type="number" id="unit-timing-quantity" class="form-control" min="1" step="1" placeholder="Units" data-i18n-placeholder="units">
+                            </div>
+                            <div class="col-6 col-md-4">
+                                <label for="unit-timing-hours" class="form-label" data-i18n="hours">Hours</label>
+                                <input type="number" id="unit-timing-hours" class="form-control" min="0" step="1" placeholder="Hours" data-i18n-placeholder="hours">
+                            </div>
+                            <div class="col-6 col-md-4">
+                                <label for="unit-timing-minutes" class="form-label" data-i18n="minutes">Minutes</label>
+                                <input type="number" id="unit-timing-minutes" class="form-control" min="0" step="1" placeholder="Minutes" data-i18n-placeholder="minutes">
+                            </div>
+                            <div class="col-6 col-md-4">
+                                <label for="unit-timing-seconds" class="form-label" data-i18n="seconds">Seconds</label>
+                                <input type="number" id="unit-timing-seconds" class="form-control" min="0" step="1" placeholder="Seconds" data-i18n-placeholder="seconds">
+                            </div>
+                        </div>
+                        <div class="text-center">
+                            <div class="small text-muted" data-i18n="totalTimeRemaining">Total time remaining</div>
+                            <div class="display" id="unit-timing-display">00:00:00</div>
+                            <div class="mb-3 unit-timing-info"><span data-i18n="unitsRemaining">Units remaining</span>: <strong id="unit-timing-remaining-units">0</strong></div>
+                            <div class="mb-3 unit-timing-info"><span data-i18n="finishesAt">Finishes at</span>: <strong id="unit-timing-end-time">—</strong></div>
+                            <div class="text-start mb-3">
+                                <div class="small mb-1 unit-timing-progress-label" data-i18n="unitProgress">Current unit progress</div>
+                                <div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-label="Current unit progress">
+                                    <div class="progress-bar bg-success" id="unit-timing-unit-progress" style="width: 0%"></div>
+                                </div>
+                                <div class="small mt-3 mb-1 unit-timing-progress-label" data-i18n="totalProgress">Total progress</div>
+                                <div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-label="Total progress">
+                                    <div class="progress-bar bg-info" id="unit-timing-total-progress" style="width: 0%"></div>
+                                </div>
+                            </div>
+                            <button class="btn btn-lg btn-success" id="unit-timing-start" data-i18n="start">Start</button>
+                            <button class="btn btn-lg btn-danger" id="unit-timing-stop" data-i18n="stop">Stop</button>
+                            <button class="btn btn-lg btn-warning" id="unit-timing-reset" data-i18n="reset">Reset</button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -187,6 +242,14 @@
           stopwatch: "Stopwatch",
           countdown: "Countdown",
           clock: "Clock",
+          unitTiming: "Unit Timing",
+          unitQuantity: "Number of units",
+          units: "Units",
+          totalTimeRemaining: "Total time remaining",
+          unitsRemaining: "Units remaining",
+          finishesAt: "Finishes at",
+          unitProgress: "Current unit progress",
+          totalProgress: "Total progress",
           start: "Start",
           stop: "Stop",
           reset: "Reset",
@@ -200,6 +263,14 @@
           stopwatch: "Cronômetro",
           countdown: "Contagem Regressiva",
           clock: "Relógio",
+          unitTiming: "Tempo por Unidade",
+          unitQuantity: "Quantidade de unidades",
+          units: "Unidades",
+          totalTimeRemaining: "Tempo total restante",
+          unitsRemaining: "Unidades restantes",
+          finishesAt: "Termina em",
+          unitProgress: "Progresso da unidade atual",
+          totalProgress: "Progresso total",
           start: "Iniciar",
           stop: "Parar",
           reset: "Zerar",
@@ -213,6 +284,14 @@
           stopwatch: "ストップウォッチ",
           countdown: "カウントダウン",
           clock: "時計",
+          unitTiming: "単位ごとの時間",
+          unitQuantity: "単位数",
+          units: "単位",
+          totalTimeRemaining: "残り合計時間",
+          unitsRemaining: "残りの単位数",
+          finishesAt: "終了予定",
+          unitProgress: "現在の単位の進捗",
+          totalProgress: "全体の進捗",
           start: "スタート",
           stop: "ストップ",
           reset: "リセット",
@@ -246,6 +325,20 @@
       // Clock
       const clockDisplay = document.getElementById('clock-display');
 
+      // Unit Timing
+      const unitTimingQuantityInput = document.getElementById('unit-timing-quantity');
+      const unitTimingHoursInput = document.getElementById('unit-timing-hours');
+      const unitTimingMinutesInput = document.getElementById('unit-timing-minutes');
+      const unitTimingSecondsInput = document.getElementById('unit-timing-seconds');
+      const unitTimingDisplay = document.getElementById('unit-timing-display');
+      const unitTimingRemainingUnits = document.getElementById('unit-timing-remaining-units');
+      const unitTimingEndTime = document.getElementById('unit-timing-end-time');
+      const unitTimingUnitProgress = document.getElementById('unit-timing-unit-progress');
+      const unitTimingTotalProgress = document.getElementById('unit-timing-total-progress');
+      const unitTimingStartBtn = document.getElementById('unit-timing-start');
+      const unitTimingStopBtn = document.getElementById('unit-timing-stop');
+      const unitTimingResetBtn = document.getElementById('unit-timing-reset');
+
       // --- State ---
       let currentLanguage = localStorage.getItem('app_lang') || 'en';
       let currentTheme = localStorage.getItem('app_theme') || 'dark';
@@ -258,6 +351,14 @@
       // Countdown state
       let countdownInterval;
       let countdownTotalSeconds = 0;
+
+      // Unit Timing state
+      let unitTimingInterval;
+      let unitTimingTotalSeconds = 0;
+      let unitTimingUnitSeconds = 0;
+      let unitTimingInitialTotalSeconds = 0;
+      let unitTimingInputSignature = '';
+      let unitTimingLastTick;
 
       // --- I18n & Theme ---
       const applyI18n = () => {
@@ -382,6 +483,109 @@
         countdownStopBtn.disabled = true;
       };
 
+      // --- Unit Timing ---
+      const formatDateTime = (date) => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        const seconds = String(date.getSeconds()).padStart(2, '0');
+        return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+      };
+
+      const updateUnitTimingDisplay = () => {
+        unitTimingDisplay.textContent = formatCountdownTime(Math.ceil(unitTimingTotalSeconds));
+        const remainingUnits = unitTimingTotalSeconds > 0 && unitTimingUnitSeconds > 0
+          ? Math.ceil(unitTimingTotalSeconds / unitTimingUnitSeconds)
+          : 0;
+        unitTimingRemainingUnits.textContent = remainingUnits;
+        unitTimingEndTime.textContent = unitTimingTotalSeconds > 0
+          ? formatDateTime(new Date(Date.now() + unitTimingTotalSeconds * 1000))
+          : '—';
+        const totalProgress = unitTimingInitialTotalSeconds > 0
+          ? Math.min(100, Math.max(0, ((unitTimingInitialTotalSeconds - unitTimingTotalSeconds) / unitTimingInitialTotalSeconds) * 100))
+          : 0;
+        const unitRemainder = unitTimingUnitSeconds > 0
+          ? unitTimingTotalSeconds % unitTimingUnitSeconds
+          : 0;
+        const unitProgress = unitTimingTotalSeconds > 0 && unitTimingUnitSeconds > 0
+          ? unitRemainder === 0
+            ? 0
+            : Math.min(100, Math.max(0, ((unitTimingUnitSeconds - unitRemainder) / unitTimingUnitSeconds) * 100))
+          : unitTimingTotalSeconds <= 0 && unitTimingInitialTotalSeconds > 0 ? 100 : 0;
+        unitTimingUnitProgress.style.width = `${unitProgress}%`;
+        unitTimingTotalProgress.style.width = `${totalProgress}%`;
+        unitTimingUnitProgress.parentElement.setAttribute('aria-valuenow', Math.round(unitProgress));
+        unitTimingTotalProgress.parentElement.setAttribute('aria-valuenow', Math.round(totalProgress));
+      };
+
+      const startUnitTiming = () => {
+        const quantity = parseInt(unitTimingQuantityInput.value, 10) || 0;
+        const unitSeconds =
+            (parseInt(unitTimingHoursInput.value, 10) || 0) * 3600 +
+            (parseInt(unitTimingMinutesInput.value, 10) || 0) * 60 +
+            (parseInt(unitTimingSecondsInput.value, 10) || 0);
+        const inputSignature = `${quantity}:${unitSeconds}`;
+        if (unitTimingTotalSeconds <= 0 || inputSignature !== unitTimingInputSignature) {
+          if (quantity <= 0 || unitSeconds <= 0) return;
+          unitTimingUnitSeconds = unitSeconds;
+          unitTimingTotalSeconds = quantity * unitTimingUnitSeconds;
+          unitTimingInitialTotalSeconds = unitTimingTotalSeconds;
+          unitTimingInputSignature = inputSignature;
+        }
+
+        clearInterval(unitTimingInterval);
+        unitTimingLastTick = Date.now();
+        updateUnitTimingDisplay();
+        unitTimingInterval = setInterval(() => {
+          const now = Date.now();
+          unitTimingTotalSeconds = Math.max(0, unitTimingTotalSeconds - (now - unitTimingLastTick) / 1000);
+          unitTimingLastTick = now;
+          updateUnitTimingDisplay();
+          if (unitTimingTotalSeconds <= 0) {
+            clearInterval(unitTimingInterval);
+            unitTimingInterval = null;
+            unitTimingStartBtn.disabled = false;
+            unitTimingStopBtn.disabled = true;
+          }
+        }, 250);
+        unitTimingStartBtn.disabled = true;
+        unitTimingStopBtn.disabled = false;
+      };
+
+      const stopUnitTiming = () => {
+        if (unitTimingInterval) {
+          const now = Date.now();
+          unitTimingTotalSeconds = Math.max(0, unitTimingTotalSeconds - (now - unitTimingLastTick) / 1000);
+        }
+        clearInterval(unitTimingInterval);
+        unitTimingInterval = null;
+        updateUnitTimingDisplay();
+        unitTimingStartBtn.disabled = false;
+        unitTimingStopBtn.disabled = true;
+      };
+
+      const resetUnitTiming = () => {
+        clearInterval(unitTimingInterval);
+        unitTimingTotalSeconds = 0;
+        unitTimingUnitSeconds = 0;
+        unitTimingInitialTotalSeconds = 0;
+        unitTimingInputSignature = '';
+        unitTimingLastTick = null;
+        unitTimingDisplay.textContent = formatCountdownTime(0);
+        unitTimingRemainingUnits.textContent = '0';
+        unitTimingEndTime.textContent = '—';
+        unitTimingUnitProgress.style.width = '0%';
+        unitTimingTotalProgress.style.width = '0%';
+        unitTimingQuantityInput.value = '';
+        unitTimingHoursInput.value = '';
+        unitTimingMinutesInput.value = '';
+        unitTimingSecondsInput.value = '';
+        unitTimingStartBtn.disabled = false;
+        unitTimingStopBtn.disabled = true;
+      };
+
       // --- Event Listeners ---
       langSwitcher.addEventListener('change', (e) => {
         currentLanguage = e.target.value;
@@ -402,6 +606,10 @@
       countdownStopBtn.addEventListener('click', stopCountdown);
       countdownResetBtn.addEventListener('click', resetCountdown);
 
+      unitTimingStartBtn.addEventListener('click', startUnitTiming);
+      unitTimingStopBtn.addEventListener('click', stopUnitTiming);
+      unitTimingResetBtn.addEventListener('click', resetUnitTiming);
+
       // --- Initial Setup ---
       langSwitcher.value = currentLanguage;
       applyI18n();
@@ -410,6 +618,7 @@
       updateClock(); // Initial call
       stopwatchStopBtn.disabled = true;
       countdownStopBtn.disabled = true;
+      unitTimingStopBtn.disabled = true;
     });
   </script>
 </body>
