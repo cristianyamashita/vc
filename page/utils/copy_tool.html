@@ -100,7 +100,7 @@
             color: var(--add-button-hover-border);
         }
         
-        .delete-button, .edit-button {
+        .delete-button, .edit-button, .clone-button {
             background: none;
             border: none;
             cursor: pointer;
@@ -118,6 +118,11 @@
             color: #28a745; /* A shade of green */
             margin-left: 8px;
         }
+
+        .clone-button {
+            color: #0d6efd;
+            margin-left: 8px;
+        }
         
         .delete-button:hover {
             color: var(--delete-hover-color);
@@ -126,6 +131,11 @@
 
         .edit-button:hover {
             color: #218838; /* A darker green */
+            transform: scale(1.1);
+        }
+
+        .clone-button:hover {
+            color: #0a58ca;
             transform: scale(1.1);
         }
         
@@ -193,7 +203,8 @@
         
         .edit-mode-off .add-button,
         .edit-mode-off .delete-button,
-        .edit-mode-off .edit-button {
+        .edit-mode-off .edit-button,
+        .edit-mode-off .clone-button {
             display: none !important;
         }
         
@@ -539,6 +550,7 @@
                 deleteWorkspaceTitle: "Delete Workspace",
                 addNewButtonTitle: "Add new button",
                 addButtonToRowTitle: "Add button to this row",
+                cloneButtonTitle: "Clone button",
                 alert_enterButtonText: "Please enter button text",
                 alert_selectRow: "Please select a row",
                 alert_cannotDeleteLastWorkspace: "You cannot delete the last workspace.",
@@ -581,6 +593,7 @@
                 deleteWorkspaceTitle: "ワークスペースを削除",
                 addNewButtonTitle: "新しいボタンを追加",
                 addButtonToRowTitle: "この行にボタンを追加",
+                cloneButtonTitle: "ボタンを複製",
                 alert_enterButtonText: "ボタンのテキストを入力してください",
                 alert_selectRow: "行を選択してください",
                 alert_cannotDeleteLastWorkspace: "最後のワークスペースは削除できません。",
@@ -623,6 +636,7 @@
                 deleteWorkspaceTitle: "Excluir Espaço de Trabalho",
                 addNewButtonTitle: "Adicionar novo botão",
                 addButtonToRowTitle: "Adicionar botão a esta linha",
+                cloneButtonTitle: "Clonar botão",
                 alert_enterButtonText: "Por favor, insira o texto do botão",
                 alert_selectRow: "Por favor, selecione uma linha",
                 alert_cannotDeleteLastWorkspace: "Você não pode excluir o último espaço de trabalho.",
@@ -1111,6 +1125,12 @@
             editBtn.onclick = () => showAddModal(button.id, true);
             editBtn.title = 'Edit Button';
 
+            const cloneBtn = document.createElement('button');
+            cloneBtn.className = 'clone-button';
+            cloneBtn.innerHTML = '<i class="fas fa-clone"></i>';
+            cloneBtn.onclick = () => cloneButton(button.id);
+            cloneBtn.title = translations[currentLang].cloneButtonTitle;
+
             const deleteBtn = document.createElement('button');
             deleteBtn.className = 'delete-button';
             deleteBtn.innerHTML = '<i class="fas fa-times"></i>';
@@ -1119,9 +1139,31 @@
 
             buttonDiv.appendChild(copyBtn);
             buttonDiv.appendChild(editBtn);
+            buttonDiv.appendChild(cloneBtn);
             buttonDiv.appendChild(deleteBtn);
 
             return buttonDiv;
+        }
+
+        // Clone a button with the same content and style
+        function cloneButton(buttonId) {
+            const source = buttons.find(b => b.id === buttonId);
+            if (!source) return;
+
+            const clonedButton = {
+                id: Date.now().toString(),
+                text: source.text,
+                rowId: source.rowId,
+                label: source.label || '',
+                bgColor: source.bgColor || '',
+                outline: !!source.outline,
+                fontColor: source.fontColor || ''
+            };
+
+            const sourceIndex = buttons.findIndex(b => b.id === buttonId);
+            buttons.splice(sourceIndex + 1, 0, clonedButton);
+            saveButtons();
+            renderButtons();
         }
 
         // Create an add button
