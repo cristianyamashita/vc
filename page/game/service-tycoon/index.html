@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#071a22" />
+    <title>Service Floor Tycoon</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="game-shell" id="game-shell">
+      <header class="topbar">
+        <div class="brand-block">
+          <div class="brand-mark" aria-hidden="true">S</div>
+          <div>
+            <p class="eyebrow" data-i18n="managementGame">MANAGEMENT GAME</p>
+            <h1 id="scenario-title">Bright Path Academy</h1>
+          </div>
+        </div>
+        <div class="stats" aria-label="Game statistics" data-i18n-aria="gameStats">
+          <div class="stat stat-money"><span data-i18n="cash">Cash</span><strong id="cash-stat">$0</strong></div>
+          <div class="stat"><span data-i18n="earned">Earned</span><strong id="earned-stat">$0</strong></div>
+          <div class="stat"><span data-i18n="staff">Teachers</span><strong id="staff-stat">1</strong></div>
+          <div class="stat"><span data-i18n="served">Students served</span><strong id="served-stat">0</strong></div>
+          <div class="stat"><span data-i18n="waiting">Waiting</span><strong id="waiting-stat">0</strong></div>
+        </div>
+        <div class="language-switcher" aria-label="Language" data-i18n-aria="language">
+          <button type="button" data-lang="en" class="active">EN</button>
+          <button type="button" data-lang="pt">PT</button>
+          <button type="button" data-lang="ja">JP</button>
+        </div>
+      </header>
+
+      <nav class="toolbar" aria-label="Game controls" data-i18n-aria="gameControls">
+        <div class="toolbar-group">
+          <button type="button" class="tool-btn primary" id="open-studio-btn"><span class="tool-icon">✦</span><span data-i18n="scenarioStudio">Scenario studio</span></button>
+          <button type="button" class="tool-btn" id="hire-btn"><span class="tool-icon">＋</span><span data-i18n="hireStaff">Hire teacher</span><small id="hire-cost">$180</small></button>
+          <button type="button" class="tool-btn" id="buy-room-btn"><span class="tool-icon">▦</span><span data-i18n="openRoom">Open classroom</span><small id="room-cost">$260</small></button>
+          <button type="button" class="tool-btn" id="upgrade-staff-btn"><span class="tool-icon">↟</span><span data-i18n="trainStaff">Train team</span><small id="staff-upgrade-cost">$220</small></button>
+          <button type="button" class="tool-btn" id="upgrade-waiting-btn"><span class="tool-icon">▰</span><span data-i18n="addWaitingChairs">Add waiting chairs</span><small id="waiting-upgrade-cost">$90</small></button>
+          <button type="button" class="tool-btn" id="upgrade-lounge-btn"><span class="tool-icon">▰</span><span data-i18n="addLoungeChairs">Add lounge chairs</span><small id="lounge-upgrade-cost">$75</small></button>
+          <button type="button" class="tool-btn" id="add-elevator-btn"><span class="tool-icon">▥</span><span data-i18n="addElevator">Add elevator</span><small id="elevator-cost">$320</small></button>
+          <button type="button" class="tool-btn" id="upgrade-elevator-btn"><span class="tool-icon">↟</span><span data-i18n="upgradeElevator">Faster elevators</span><small id="elevator-speed-cost">$180</small></button>
+        </div>
+        <div class="toolbar-group right">
+          <span class="save-status" id="save-status" data-i18n="saved">Saved</span>
+          <button type="button" class="icon-btn" id="pause-btn" aria-label="Pause" data-i18n-aria="pause">Ⅱ</button>
+          <button type="button" class="speed-btn active" data-speed="1">1×</button>
+          <button type="button" class="speed-btn" data-speed="2">2×</button>
+          <button type="button" class="speed-btn" data-speed="4">4×</button>
+        </div>
+      </nav>
+
+      <section class="game-stage" id="game-stage">
+        <button type="button" class="floor-label" id="open-floor-manager-btn" aria-label="Floor upgrades" data-i18n-aria="manageFloor">
+          <span data-i18n="floor">FLOOR</span>
+          <strong>01</strong>
+          <span class="live-dot"><i></i><span data-i18n="open">OPEN</span></span>
+        </button>
+        <div class="floor-grid" id="floor-grid" aria-label="Floor plan" data-i18n-aria="floorPlan"></div>
+        <div class="people-layer" id="people-layer" aria-hidden="true"></div>
+      </section>
+
+      <section class="ground-floor" id="ground-floor">
+        <div class="lobby-zone elevator-zone" id="elevator-zone">
+          <div class="zone-sign"><span data-i18n="elevators">ELEVATORS</span><strong id="elevator-badge">1 · LV. 1</strong></div>
+          <div class="elevator-bank" id="elevator-bank"></div>
+        </div>
+        <div class="lobby-zone waiting-zone" id="waiting-zone">
+          <div class="zone-heading">
+            <span data-i18n="waitingRoom">WAITING ROOM</span>
+            <strong id="waiting-badge">0 / 8</strong>
+          </div>
+          <div class="seats" id="waiting-seats"></div>
+        </div>
+        <div class="lobby-zone lounge-zone" id="lounge-zone">
+          <div class="zone-heading">
+            <span data-i18n="staffLounge">TEACHER LOUNGE</span>
+            <strong id="idle-badge">1</strong>
+          </div>
+          <div class="seats lounge-seats" id="lounge-seats"></div>
+        </div>
+      </section>
+
+      <aside class="selection-panel" id="selection-panel" hidden>
+        <button class="panel-close" id="selection-close" aria-label="Close" data-i18n-aria="close">×</button>
+        <p class="panel-kicker" data-i18n="selectedRoom">SELECTED ROOM</p>
+        <h2 id="selected-room-title">Classroom 01</h2>
+        <div class="panel-state"><span id="selected-state-dot"></span><strong id="selected-state">Empty</strong></div>
+        <div class="room-metrics">
+          <div><span data-i18n="roomLevel">Room level</span><strong id="selected-level">1</strong></div>
+          <div><span data-i18n="equipment">Equipment</span><strong id="selected-equipment">1</strong></div>
+          <div><span data-i18n="revenue">Revenue</span><strong id="selected-revenue">$25</strong></div>
+        </div>
+        <button type="button" class="upgrade-btn" id="upgrade-room-btn"><span data-i18n="upgradeRoom">Upgrade room</span><strong id="upgrade-room-cost">$120</strong></button>
+        <button type="button" class="upgrade-btn secondary" id="upgrade-equipment-btn"><span data-i18n="upgradeEquipment">Upgrade equipment</span><strong id="upgrade-equipment-cost">$90</strong></button>
+      </aside>
+
+      <div class="toast-region" id="toast-region" aria-live="polite"></div>
+    </main>
+
+    <div class="modal-backdrop" id="floor-manager-modal" hidden>
+      <section class="floor-manager" role="dialog" aria-modal="true" aria-labelledby="floor-manager-title">
+        <header class="studio-header">
+          <div>
+            <p class="eyebrow" data-i18n="floor">FLOOR</p>
+            <h2 id="floor-manager-title"><span data-i18n="manageFloor">Floor upgrades</span> · 01</h2>
+          </div>
+          <button type="button" class="modal-close" id="close-floor-manager-btn" aria-label="Close" data-i18n-aria="close">×</button>
+        </header>
+        <div class="floor-manager-summary">
+          <p data-i18n="floorUpgradeHint">Upgrade several rooms without leaving this panel.</p>
+          <div><span data-i18n="cash">Cash</span><strong id="floor-manager-cash">$0</strong></div>
+          <div><span data-i18n="openRooms">Open rooms</span><strong id="floor-manager-room-count">1 / 25</strong></div>
+          <button type="button" class="floor-upgrade-all" id="upgrade-all-rooms-btn">
+            <span data-i18n="upgradeAllRooms">Upgrade all rooms + equipment</span>
+            <strong id="upgrade-all-rooms-cost">$210</strong>
+          </button>
+        </div>
+        <div class="floor-upgrade-grid" id="floor-upgrade-grid"></div>
+      </section>
+    </div>
+
+    <div class="modal-backdrop" id="studio-modal" hidden>
+      <section class="studio" role="dialog" aria-modal="true" aria-labelledby="studio-title">
+        <header class="studio-header">
+          <div>
+            <p class="eyebrow" data-i18n="customizeEverything">CUSTOMIZE EVERYTHING</p>
+            <h2 id="studio-title" data-i18n="scenarioStudio">Scenario studio</h2>
+          </div>
+          <button type="button" class="modal-close" id="close-studio-btn" aria-label="Close" data-i18n-aria="close">×</button>
+        </header>
+        <div class="studio-layout">
+          <aside class="scenario-library">
+            <div class="library-heading"><span data-i18n="yourScenarios">Your scenarios</span><button id="new-scenario-btn" type="button">＋ <span data-i18n="newScenario">New</span></button></div>
+            <div id="scenario-list" class="scenario-list"></div>
+            <div class="library-actions">
+              <label class="file-btn"><input id="import-config-input" type="file" accept="application/json" /><span data-i18n="importJson">Import JSON</span></label>
+              <button type="button" id="export-config-btn" data-i18n="exportJson">Export JSON</button>
+            </div>
+          </aside>
+          <div class="editor-pane">
+            <div class="editor-tabs" role="tablist">
+              <button type="button" class="active" data-tab="visual" data-i18n="quickEdit">Quick edit</button>
+              <button type="button" data-tab="json">JSON</button>
+              <a href="README.md" target="_blank" data-i18n="documentation">Documentation ↗</a>
+            </div>
+            <form id="visual-editor" class="visual-editor">
+              <label><span data-i18n="scenarioName">Scenario name</span><input name="name" required /></label>
+              <div class="form-grid">
+                <label><span data-i18n="currencySymbol">Currency symbol</span><input name="currencySymbol" maxlength="3" /></label>
+                <label><span data-i18n="scenarioIcon">Scenario icon</span><input name="scenarioIcon" maxlength="16" data-icon-input="scenarioIcon" /></label>
+                <label><span data-i18n="customerIcon">Customer icon</span><input name="customerIcon" maxlength="16" data-icon-input="customerIcon" /></label>
+                <label><span data-i18n="staffIcon">Staff icon</span><input name="staffIcon" maxlength="16" data-icon-input="staffIcon" /></label>
+                <label><span data-i18n="roomIcon">Room icon</span><input name="roomIcon" maxlength="16" data-icon-input="roomIcon" /></label>
+                <label><span data-i18n="equipmentIcon">Equipment icon</span><input name="equipmentIcon" maxlength="16" data-icon-input="equipmentIcon" /></label>
+                <label><span data-i18n="activityIcon">Activity icon</span><input name="activityIcon" maxlength="16" data-icon-input="activityIcon" /></label>
+                <label><span data-i18n="minDuration">Min. duration (sec)</span><input name="minDuration" type="number" min="2" max="120" /></label>
+                <label><span data-i18n="maxDuration">Max. duration (sec)</span><input name="maxDuration" type="number" min="2" max="180" /></label>
+                <label><span data-i18n="baseRevenue">Base revenue</span><input name="baseRevenue" type="number" min="1" /></label>
+                <label><span data-i18n="arrivalRate">Arrival interval (sec)</span><input name="arrivalRate" type="number" min="1" max="60" step="0.5" /></label>
+                <label><span data-i18n="staffPerRoom">Staff per service</span><input name="staffPerRoom" type="number" min="1" max="5" /></label>
+                <label><span data-i18n="waitingCapacity">Waiting capacity</span><input name="waitingCapacity" type="number" min="1" max="30" /></label>
+                <label><span data-i18n="floorColumns">Rooms horizontally</span><input name="floorColumns" type="number" min="1" max="8" /></label>
+                <label><span data-i18n="floorRows">Rooms vertically</span><input name="floorRows" type="number" min="1" max="8" /></label>
+                <label><span data-i18n="maxElevators">Maximum elevators</span><input name="maxElevators" type="number" min="1" max="8" /></label>
+                <label><span data-i18n="elevatorTravelTime">Base elevator time (sec)</span><input name="elevatorTravelTime" type="number" min="0.2" max="30" step="0.1" /></label>
+                <label><span data-i18n="staffServicePosition">Staff during service</span><select name="staffServicePosition"><option value="inside" data-i18n="insideRoom">Inside room</option><option value="outside" data-i18n="outsideRoom">Outside room</option></select></label>
+                <label><span data-i18n="restPolicy">Rest policy</span><select name="restPolicy"><option value="queueAware" data-i18n="restWhenEmpty">Only when queue is empty</option><option value="timed" data-i18n="timedBreak">Timed break between services</option></select></label>
+                <label><span data-i18n="restMin">Minimum break (sec)</span><input name="restMin" type="number" min="0" max="60" step="0.5" /></label>
+                <label><span data-i18n="restMax">Maximum break (sec)</span><input name="restMax" type="number" min="0" max="60" step="0.5" /></label>
+              </div>
+              <section class="icon-picker-panel" aria-labelledby="icon-picker-title">
+                <div class="icon-picker-head">
+                  <div><span class="form-section-label" id="icon-picker-title" data-i18n="iconGallery">Icon gallery</span><small id="icon-gallery-count"></small></div>
+                  <input id="icon-search" type="search" data-i18n-placeholder="searchIcons" placeholder="Search icons…" autocomplete="off" />
+                </div>
+                <div class="icon-targets" id="icon-targets">
+                  <button type="button" class="active" data-icon-target="customerIcon" data-i18n="customerIcon">Customer icon</button>
+                  <button type="button" data-icon-target="staffIcon" data-i18n="staffIcon">Staff icon</button>
+                  <button type="button" data-icon-target="roomIcon" data-i18n="roomIcon">Room icon</button>
+                  <button type="button" data-icon-target="equipmentIcon" data-i18n="equipmentIcon">Equipment icon</button>
+                  <button type="button" data-icon-target="activityIcon" data-i18n="activityIcon">Activity icon</button>
+                  <button type="button" data-icon-target="scenarioIcon" data-i18n="scenarioIcon">Scenario icon</button>
+                </div>
+                <div class="icon-gallery" id="icon-gallery"></div>
+              </section>
+              <fieldset>
+                <legend data-i18n="labels">Labels (EN / PT / JP)</legend>
+                <div class="form-grid three">
+                  <label><span data-i18n="customerSingular">Customer</span><input name="customer_en" /></label>
+                  <label><span>PT</span><input name="customer_pt" /></label>
+                  <label><span>JP</span><input name="customer_ja" /></label>
+                  <label><span data-i18n="staffSingular">Staff</span><input name="staff_en" /></label>
+                  <label><span>PT</span><input name="staff_pt" /></label>
+                  <label><span>JP</span><input name="staff_ja" /></label>
+                  <label><span data-i18n="roomSingular">Room</span><input name="room_en" /></label>
+                  <label><span>PT</span><input name="room_pt" /></label>
+                  <label><span>JP</span><input name="room_ja" /></label>
+                </div>
+              </fieldset>
+            </form>
+            <div id="json-editor" class="json-editor" hidden>
+              <div class="json-note" data-i18n="jsonHint">Advanced mode: edit the complete scenario. Invalid JSON cannot be saved.</div>
+              <textarea id="json-textarea" spellcheck="false"></textarea>
+              <div id="json-error" class="json-error" role="alert"></div>
+            </div>
+          </div>
+        </div>
+        <footer class="studio-footer">
+          <button type="button" class="danger-btn" id="reset-progress-btn" data-i18n="resetProgress">Reset progress</button>
+          <label class="preserve-option">
+            <input type="checkbox" id="preserve-reconfigure-checkbox" checked>
+            <span>
+              <strong data-i18n="preserveReconfigure">Preserve value when reconfiguring</strong>
+              <small data-i18n="preserveReconfigureHelp">Purchased rooms, upgrades and facilities return to cash. Uncheck to reset everything.</small>
+            </span>
+          </label>
+          <button type="button" class="save-btn" id="save-scenario-btn" data-i18n="saveAndPlay">Save & play</button>
+        </footer>
+      </section>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>
