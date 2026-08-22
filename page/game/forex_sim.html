@@ -1,0 +1,1524 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#0b0f14" />
+    <title>VC Forex</title>
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" />
+    <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.2.3/dist/lightweight-charts.standalone.production.js"></script>
+    <style>
+      :root {
+        --bg: #0b0f14;
+        --panel: #121820;
+        --panel2: #18222c;
+        --ink: #e8eef4;
+        --muted: #8b9aab;
+        --line: #26313c;
+        --accent: #19c39f;
+        --buy: #26a69a;
+        --sell: #ef5350;
+        --warn: #f2c94c;
+        --shadow: 0 18px 50px rgba(0, 0, 0, 0.38);
+        --chip: rgba(255, 255, 255, 0.06);
+        --input: #0d141b;
+        --header-h: 64px;
+      }
+      html[data-theme='light'] {
+        --bg: #eef2f5;
+        --panel: #ffffff;
+        --panel2: #f4f7fa;
+        --ink: #172027;
+        --muted: #5d6d7a;
+        --line: #d5dee6;
+        --accent: #0e8f78;
+        --buy: #18856f;
+        --sell: #c62828;
+        --warn: #b8860b;
+        --shadow: 0 16px 40px rgba(23, 40, 52, 0.12);
+        --chip: rgba(14, 143, 120, 0.08);
+        --input: #ffffff;
+      }
+      * { box-sizing: border-box; }
+      html, body { height: 100%; margin: 0; }
+      body {
+        color: var(--ink);
+        background: var(--bg);
+        font: 14px/1.45 'Noto Sans JP', system-ui, -apple-system, Segoe UI, sans-serif;
+      }
+      button, input, select { font: inherit; color: inherit; }
+      button { cursor: pointer; }
+      button:focus-visible, input:focus-visible, select:focus-visible {
+        outline: 3px solid color-mix(in srgb, var(--accent) 55%, transparent);
+        outline-offset: 2px;
+      }
+      .app {
+        display: grid;
+        grid-template-rows: var(--header-h) 1fr;
+        height: 100%;
+      }
+      header.top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 0 16px;
+        background: var(--panel);
+        border-bottom: 1px solid var(--line);
+      }
+      .brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
+      .logo {
+        width: 38px; height: 38px; border-radius: 10px;
+        display: grid; place-items: center;
+        background: var(--accent); color: #06241d; font-weight: 800;
+      }
+      .brand h1 { margin: 0; font-size: 16px; letter-spacing: 0.02em; }
+      .brand small { color: var(--muted); display: block; margin-top: 1px; }
+      .balances { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+      .chip {
+        border: 1px solid var(--line);
+        background: var(--chip);
+        border-radius: 10px;
+        padding: 6px 12px;
+        min-width: 132px;
+        text-align: left;
+      }
+      .chip span { display: block; color: var(--muted); font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+      .chip strong { font-variant-numeric: tabular-nums; font-size: 15px; }
+      .chip.pos strong { color: var(--buy); }
+      .chip.neg strong { color: var(--sell); }
+      button.chip { cursor: pointer; }
+      button.chip:hover { border-color: var(--accent); }
+      .tools { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+      .btn {
+        border: 1px solid var(--line);
+        background: var(--panel2);
+        border-radius: 9px;
+        padding: 7px 10px;
+        font-weight: 700;
+      }
+      .btn:hover { border-color: var(--accent); }
+      .btn.primary { background: var(--accent); border-color: var(--accent); color: #06241d; }
+      .btn.buy { background: var(--buy); border-color: var(--buy); color: #06241d; }
+      .btn.sell { background: var(--sell); border-color: var(--sell); color: #fff; }
+      .btn.ghost { background: transparent; }
+      .btn.danger { color: var(--sell); }
+      .btn.icon { width: 36px; height: 36px; padding: 0; }
+      .lang { display: flex; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; }
+      .lang button {
+        border: 0; background: var(--panel2); padding: 7px 9px; font-weight: 800; font-size: 12px;
+      }
+      .lang button.active { background: var(--accent); color: #06241d; }
+      .workspace {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 320px;
+        min-height: 0;
+      }
+      .chart-col {
+        display: grid;
+        grid-template-rows: auto minmax(0, 1fr) auto;
+        min-height: 0;
+        border-right: 1px solid var(--line);
+      }
+      .chart-bar {
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        align-items: center;
+        padding: 8px 12px;
+        background: var(--panel);
+        border-bottom: 1px solid var(--line);
+        flex-wrap: wrap;
+      }
+      .tfs { display: flex; gap: 4px; flex-wrap: wrap; }
+      .tfs button, .ind-toggle {
+        border: 1px solid var(--line);
+        background: var(--panel2);
+        border-radius: 7px;
+        padding: 5px 8px;
+        font-size: 12px;
+        font-weight: 700;
+      }
+      .tfs button.active { background: var(--accent); border-color: var(--accent); color: #06241d; }
+      .ind-menu { position: relative; }
+      .ind-pop {
+        display: none;
+        position: absolute;
+        right: 0; top: calc(100% + 6px);
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 10px;
+        min-width: 210px;
+        box-shadow: var(--shadow);
+        z-index: 5;
+      }
+      .ind-menu.open .ind-pop { display: grid; gap: 8px; }
+      .ind-pop label { display: flex; gap: 8px; align-items: center; font-size: 13px; }
+      .chart-wrap, .ind-wrap { min-width: 0; background: #0e141b; }
+      html[data-theme='light'] .chart-wrap,
+      html[data-theme='light'] .ind-wrap { background: #f7f9fb; }
+      .chart-wrap { position: relative; min-height: 240px; height: 100%; }
+      #chart { height: 100%; }
+      .level-handles {
+        position: absolute; inset: 0;
+        pointer-events: none;
+        z-index: 4;
+        overflow: hidden;
+      }
+      .handle {
+        position: absolute;
+        right: 62px;
+        height: 22px;
+        margin-top: -11px;
+        padding: 0 8px;
+        border: 0;
+        border-radius: 5px;
+        font: 700 11px ui-monospace, SFMono-Regular, Menlo, monospace;
+        pointer-events: auto;
+        cursor: ns-resize;
+        user-select: none;
+        touch-action: none;
+        white-space: nowrap;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+      }
+      .handle.sl { background: #ef5350; color: #fff; }
+      .handle.tp { background: #26a69a; color: #06241d; }
+      .handle.entry { background: #5b9fd6; color: #fff; cursor: default; pointer-events: none; }
+      .chart-wrap.dragging, .chart-wrap.dragging .handle { cursor: ns-resize; }
+      .drag-hint { color: var(--muted); font-size: 11px; }
+      .ind-wrap { height: 0; overflow: hidden; border-top: 0; }
+      .ind-wrap.on { height: 148px; border-top: 1px solid var(--line); }
+      .trade {
+        display: grid;
+        grid-template-rows: auto auto 1fr;
+        min-height: 0;
+        background: var(--panel);
+      }
+      .quote {
+        padding: 14px 14px 10px;
+        border-bottom: 1px solid var(--line);
+      }
+      .quote .pair { color: var(--muted); font-size: 11px; font-weight: 800; letter-spacing: 0.1em; }
+      .quote .px {
+        font: 800 28px/1.1 ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-variant-numeric: tabular-nums;
+      }
+      .quote .px.up { color: var(--buy); }
+      .quote .px.down { color: var(--sell); }
+      .quote .meta { color: var(--muted); font-size: 12px; margin-top: 4px; }
+      .form { padding: 12px 14px; display: grid; gap: 8px; border-bottom: 1px solid var(--line); }
+      .field { display: grid; gap: 4px; }
+      .field span { color: var(--muted); font-size: 11px; font-weight: 700; }
+      .field input {
+        width: 100%;
+        border: 1px solid var(--line);
+        background: var(--input);
+        border-radius: 8px;
+        padding: 8px 10px;
+      }
+      .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+      .trade-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+      .positions { min-height: 0; overflow: auto; padding: 12px 14px 16px; }
+      .positions h2 { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+      .pos {
+        border: 1px solid var(--line);
+        background: var(--panel2);
+        border-radius: 10px;
+        padding: 10px;
+        margin-bottom: 8px;
+      }
+      .pos header { display: flex; justify-content: space-between; gap: 8px; align-items: center; }
+      .side { font-weight: 800; font-size: 12px; }
+      .side.buy { color: var(--buy); }
+      .side.sell { color: var(--sell); }
+      .pos dl { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 8px; margin: 8px 0; }
+      .pos dt { color: var(--muted); font-size: 11px; }
+      .pos dd { margin: 0; font-variant-numeric: tabular-nums; font-size: 12px; font-weight: 700; }
+      .pos dd small { display: block; font-size: 11px; font-weight: 800; margin-top: 2px; }
+      .money-up { color: var(--buy); }
+      .money-dn { color: var(--sell); }
+      .empty { color: var(--muted); font-size: 13px; }
+      .modal {
+        position: fixed; top: var(--header-h); left: 0; right: 0; bottom: 0;
+        background: rgba(6, 10, 14, 0.62);
+        display: grid; place-items: center;
+        padding: 16px;
+        z-index: 20;
+      }
+      .modal.hidden { display: none; }
+      .dialog {
+        width: min(520px, 100%);
+        max-height: min(90vh, 760px);
+        overflow: auto;
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        padding: 20px;
+        box-shadow: var(--shadow);
+      }
+      .dialog.wide { width: min(640px, 100%); }
+      .dialog h2 { margin: 0 0 6px; }
+      .dialog p { color: var(--muted); margin: 0 0 14px; }
+      .dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+      .bank-section { margin-top: 16px; }
+      .bank-section h3 { margin: 0 0 8px; font-size: 13px; }
+      .contract {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 8px;
+        align-items: center;
+        border: 1px solid var(--line);
+        background: var(--panel2);
+        border-radius: 10px;
+        padding: 10px;
+        margin-bottom: 8px;
+      }
+      .contract strong { display: block; }
+      .contract small { color: var(--muted); }
+      .inline { display: flex; gap: 6px; align-items: center; }
+      .inline input { width: 110px; border: 1px solid var(--line); background: var(--input); border-radius: 8px; padding: 6px 8px; }
+      .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+      .stat {
+        border: 1px solid var(--line);
+        background: var(--panel2);
+        border-radius: 10px;
+        padding: 10px;
+      }
+      .stat span { color: var(--muted); font-size: 11px; display: block; }
+      .stat strong { font-size: 16px; }
+      .toast {
+        position: fixed; left: 50%; bottom: 18px;
+        transform: translateX(-50%);
+        background: var(--ink); color: var(--bg);
+        padding: 10px 14px; border-radius: 9px;
+        box-shadow: var(--shadow); z-index: 30;
+      }
+      .toast.hidden { display: none; }
+      .err { color: var(--sell); font-size: 13px; min-height: 1.2em; }
+      @media (max-width: 900px) {
+        .app { grid-template-rows: auto 1fr; }
+        header.top { height: auto; padding: 8px 10px; flex-wrap: wrap; }
+        .workspace { grid-template-columns: 1fr; grid-template-rows: minmax(340px, 52vh) auto; }
+        .chart-col { border-right: 0; border-bottom: 1px solid var(--line); }
+        .brand small, .action-label { display: none; }
+        .chip { min-width: 108px; padding: 5px 8px; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <header class="top">
+        <div class="brand">
+          <div class="logo">VC</div>
+          <div>
+            <h1 data-i18n="title">VC Forex</h1>
+            <small data-i18n="subtitle">USD/VC live desk</small>
+          </div>
+        </div>
+        <div class="balances">
+          <button type="button" class="chip" id="bank-chip" aria-haspopup="dialog">
+            <span data-i18n="bank">Bank</span>
+            <strong id="bank-bal">$0.00</strong>
+          </button>
+          <div class="chip">
+            <span data-i18n="wallet">Wallet</span>
+            <strong id="wallet-bal">$0.00</strong>
+          </div>
+        </div>
+        <div class="tools">
+          <div class="lang" role="group" aria-label="Language">
+            <button type="button" data-lang="en">EN</button>
+            <button type="button" data-lang="pt">PT</button>
+            <button type="button" data-lang="ja">JA</button>
+          </div>
+          <button type="button" class="btn icon" id="page-theme" data-i18n-aria="pageTheme" aria-label="Page theme">◐</button>
+          <button type="button" class="btn danger" id="reset-btn" data-i18n="reset">Reset</button>
+        </div>
+      </header>
+      <div class="workspace">
+        <section class="chart-col">
+          <div class="chart-bar">
+            <div class="tfs" id="tfs"></div>
+            <div class="tools">
+              <div class="ind-menu" id="ind-menu">
+                <button type="button" class="ind-toggle" id="ind-btn" data-i18n="indicators">Indicators</button>
+                <div class="ind-pop" id="ind-pop"></div>
+              </div>
+              <button type="button" class="btn" id="chart-theme" data-i18n="chartTheme">Chart theme</button>
+            </div>
+          </div>
+          <div class="chart-wrap" id="chart-wrap">
+            <div id="chart"></div>
+            <div class="level-handles" id="level-handles"></div>
+          </div>
+          <div class="ind-wrap" id="ind-chart"></div>
+        </section>
+        <aside class="trade">
+          <div class="quote">
+            <div class="pair">USD / VC</div>
+            <div class="px" id="live-px">150.00000</div>
+            <div class="meta"><span data-i18n="equity">Equity</span>: <strong id="equity">$0.00</strong></div>
+          </div>
+          <form class="form" id="trade-form">
+            <div class="field">
+              <span data-i18n="amount">Amount (USD)</span>
+              <input id="amount" type="number" min="0.01" step="0.01" value="50" required />
+            </div>
+            <div class="err" id="trade-err"></div>
+            <div class="trade-actions">
+              <button type="button" class="btn buy" id="buy-btn" data-i18n="buy">Buy</button>
+              <button type="button" class="btn sell" id="sell-btn" data-i18n="sell">Sell</button>
+            </div>
+          </form>
+          <div class="positions">
+            <h2 data-i18n="openPositions">Open positions</h2>
+            <div id="pos-list"></div>
+          </div>
+        </aside>
+      </div>
+    </div>
+
+    <div class="modal hidden" id="bank-modal" role="dialog" aria-modal="true" aria-labelledby="bank-title">
+      <div class="dialog wide">
+        <h2 id="bank-title" data-i18n="bankTitle">Bank</h2>
+        <p data-i18n="bankLead">Loans charge 5%–20%/h. Deposits earn 0.5%–2.5%/h. Each contract keeps its own rate.</p>
+        <div class="stats">
+          <div class="stat"><span data-i18n="bankNet">Bank net</span><strong id="bank-net">$0.00</strong></div>
+          <div class="stat"><span data-i18n="nextRate">Next loan rate</span><strong id="next-rate">5.00%/h</strong></div>
+        </div>
+        <div class="row2">
+          <div class="field">
+            <span data-i18n="borrowAmount">Borrow amount</span>
+            <div class="inline">
+              <input id="borrow-amt" type="number" min="1" step="0.01" value="100" />
+              <button type="button" class="btn" id="borrow-btn" data-i18n="borrow">Borrow</button>
+            </div>
+          </div>
+          <div class="field">
+            <span data-i18n="depositAmount">Deposit amount</span>
+            <div class="inline">
+              <input id="deposit-amt" type="number" min="0.01" step="0.01" value="50" />
+              <button type="button" class="btn" id="deposit-btn" data-i18n="deposit">Deposit</button>
+            </div>
+          </div>
+        </div>
+        <div class="bank-section">
+          <h3 data-i18n="loans">Loans</h3>
+          <div id="loan-list"></div>
+        </div>
+        <div class="bank-section">
+          <h3 data-i18n="deposits">Deposits</h3>
+          <div id="deposit-list"></div>
+        </div>
+        <div class="dialog-actions">
+          <button type="button" class="btn primary" id="close-bank" data-i18n="close">Close</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal hidden" id="starter-modal" role="dialog" aria-modal="true" aria-labelledby="starter-title">
+      <div class="dialog">
+        <h2 id="starter-title" data-i18n="starterTitle">Starter loan</h2>
+        <p data-i18n="starterLead">You start with $0. Borrow about $100 to fund the wallet, then trade USD/VC. Interest runs on every loan until you repay it.</p>
+        <div class="field">
+          <span data-i18n="borrowAmount">Borrow amount</span>
+          <input id="starter-amt" type="number" min="1" step="0.01" value="100" />
+        </div>
+        <p class="meta" id="starter-rate"></p>
+        <div class="dialog-actions">
+          <button type="button" class="btn ghost" id="skip-loan" data-i18n="skip">Skip</button>
+          <button type="button" class="btn primary" id="take-loan" data-i18n="takeLoan">Take loan</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal hidden" id="reset-modal" role="dialog" aria-modal="true" aria-labelledby="reset-title">
+      <div class="dialog">
+        <h2 id="reset-title" data-i18n="resetTitle">Reset the desk?</h2>
+        <p data-i18n="resetLead">This clears wallet, bank, trades, and chart history. You cannot undo it.</p>
+        <div class="dialog-actions">
+          <button type="button" class="btn ghost" id="cancel-reset" data-i18n="cancel">Cancel</button>
+          <button type="button" class="btn danger" id="confirm-reset" data-i18n="confirmReset">Reset</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal hidden" id="over-modal" role="dialog" aria-modal="true" aria-labelledby="over-title">
+      <div class="dialog">
+        <h2 id="over-title" data-i18n="gameOverTitle">Game over</h2>
+        <p data-i18n="gameOverLead">Net worth reached −$100,000,000. Reset the desk to start again.</p>
+        <div class="dialog-actions">
+          <button type="button" class="btn primary" id="over-reset" data-i18n="playAgain">Reset and play</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="toast hidden" id="toast" role="status" aria-live="polite"></div>
+
+    <script>
+const SAVE = 'vc-forex-sim-v1';
+const BASE_PRICE = 150;
+const MAX_CANDLES = 500;
+const GAME_OVER_EQUITY = -100000000;
+const TFS = [
+  ['1m', 60], ['5m', 300], ['15m', 900], ['30m', 1800],
+  ['1h', 3600], ['4h', 14400], ['1d', 86400],
+];
+const IND_KEYS = [
+  ['sma20', 'SMA 20'], ['sma50', 'SMA 50'], ['ema12', 'EMA 12'],
+  ['bb', 'Bollinger'], ['rsi', 'RSI 14'], ['macd', 'MACD'],
+];
+const I = {
+  en: {
+    title: 'VC Forex', subtitle: 'USD/VC live desk', bank: 'Bank', wallet: 'Wallet',
+    reset: 'Reset', pageTheme: 'Page theme', chartTheme: 'Chart theme',
+    indicators: 'Indicators', equity: 'Equity', amount: 'Amount (USD)',
+    sl: 'Stop loss', tp: 'Take profit', buy: 'Buy', sell: 'Sell',
+    addSl: 'Add SL', addTp: 'Add TP',
+    projSl: 'SL {n}', projTp: 'TP {n}',
+    openPositions: 'Open positions', noPositions: 'No open trades.',
+    entry: 'Entry', pnl: 'P&L', close: 'Close', size: 'Size',
+    bankTitle: 'Bank', bankLead: 'Loans charge 5%–20%/h. Deposits earn 0.5%–2.5%/h. Each contract keeps its own rate.',
+    bankNet: 'Bank net', nextRate: 'Next loan rate', borrowAmount: 'Borrow amount',
+    depositAmount: 'Deposit amount', borrow: 'Borrow', deposit: 'Deposit',
+    loans: 'Loans', deposits: 'Deposits', noLoans: 'No loans.', noDeposits: 'No deposits.',
+    pay: 'Pay', payAll: 'Pay all', withdraw: 'Withdraw', rate: 'Rate', owed: 'Owed',
+    starterTitle: 'Starter loan', starterLead: 'You start with $0. Borrow about $100 to fund the wallet, then trade USD/VC. Interest runs on every loan until you repay it.',
+    takeLoan: 'Take loan', skip: 'Skip', starterRate: 'This loan: {r}/h',
+    resetTitle: 'Reset the desk?', resetLead: 'This clears wallet, bank, trades, and chart history. You cannot undo it.',
+    cancel: 'Cancel', confirmReset: 'Reset',
+    gameOverTitle: 'Game over', gameOverLead: 'Net worth reached −$100,000,000. Reset the desk to start again.',
+    playAgain: 'Reset and play',
+    insufficient: 'Not enough wallet funds.', invalidAmount: 'Enter a valid amount.',
+    invalidSlTp: 'SL/TP do not match this side.', gameOverBlock: 'The desk is closed.',
+    borrowed: 'Borrowed {n} at {r}/h.', deposited: 'Deposited {n} at {r}/h.',
+    paid: 'Paid {n}.', withdrew: 'Withdrew {n}.', opened: '{side} {n} at {p}.',
+    closed: 'Closed {side} · P&L {n}.', slHit: 'Stop loss hit.', tpHit: 'Take profit hit.',
+    liquidated: 'Position liquidated.',
+  },
+  pt: {
+    title: 'VC Forex', subtitle: 'Mesa ao vivo USD/VC', bank: 'Banco', wallet: 'Carteira',
+    reset: 'Resetar', pageTheme: 'Tema da página', chartTheme: 'Tema do gráfico',
+    indicators: 'Indicadores', equity: 'Patrimônio', amount: 'Valor (USD)',
+    sl: 'Stop loss', tp: 'Take profit', buy: 'Comprar', sell: 'Vender',
+    addSl: 'Adicionar SL', addTp: 'Adicionar TP',
+    projSl: 'SL {n}', projTp: 'TP {n}',
+    openPositions: 'Posições abertas', noPositions: 'Nenhum trade aberto.',
+    entry: 'Entrada', pnl: 'P&L', close: 'Fechar', size: 'Tamanho',
+    bankTitle: 'Banco', bankLead: 'Empréstimos cobram 5%–20%/h. Depósitos rendem 0,5%–2,5%/h. Cada contrato mantém a própria taxa.',
+    bankNet: 'Saldo do banco', nextRate: 'Próxima taxa', borrowAmount: 'Valor do empréstimo',
+    depositAmount: 'Valor do depósito', borrow: 'Emprestar', deposit: 'Depositar',
+    loans: 'Empréstimos', deposits: 'Depósitos', noLoans: 'Nenhum empréstimo.', noDeposits: 'Nenhum depósito.',
+    pay: 'Pagar', payAll: 'Pagar tudo', withdraw: 'Retirar', rate: 'Taxa', owed: 'Devido',
+    starterTitle: 'Empréstimo inicial', starterLead: 'Você começa com $0. Pegue cerca de $100 para abastecer a carteira e então operar USD/VC. Os juros correm em cada empréstimo até você pagar.',
+    takeLoan: 'Pegar empréstimo', skip: 'Pular', starterRate: 'Este empréstimo: {r}/h',
+    resetTitle: 'Resetar a mesa?', resetLead: 'Isso apaga carteira, banco, trades e o histórico do gráfico. Não dá para desfazer.',
+    cancel: 'Cancelar', confirmReset: 'Resetar',
+    gameOverTitle: 'Fim de jogo', gameOverLead: 'O patrimônio chegou a −$100.000.000. Resetar a mesa para começar de novo.',
+    playAgain: 'Resetar e jogar',
+    insufficient: 'Saldo da carteira insuficiente.', invalidAmount: 'Informe um valor válido.',
+    invalidSlTp: 'SL/TP não combinam com este lado.', gameOverBlock: 'A mesa está fechada.',
+    borrowed: 'Emprestado {n} a {r}/h.', deposited: 'Depositado {n} a {r}/h.',
+    paid: 'Pago {n}.', withdrew: 'Retirado {n}.', opened: '{side} {n} a {p}.',
+    closed: 'Fechado {side} · P&L {n}.', slHit: 'Stop loss atingido.', tpHit: 'Take profit atingido.',
+    liquidated: 'Posição liquidada.',
+  },
+  ja: {
+    title: 'VC Forex', subtitle: 'USD/VC ライブデスク', bank: '銀行', wallet: 'ウォレット',
+    reset: 'リセット', pageTheme: 'ページテーマ', chartTheme: 'チャートテーマ',
+    indicators: 'インジケーター', equity: '純資産', amount: '金額 (USD)',
+    sl: '損切り', tp: '利確', buy: '買い', sell: '売り',
+    addSl: 'SLを追加', addTp: 'TPを追加',
+    projSl: 'SL {n}', projTp: 'TP {n}',
+    openPositions: '建玉', noPositions: '建玉はありません。',
+    entry: '約定', pnl: '損益', close: '決済', size: 'サイズ',
+    bankTitle: '銀行', bankLead: '借入は 5%〜20%/時。預金は 0.5%〜2.5%/時。契約ごとに金利が残ります。',
+    bankNet: '銀行ネット', nextRate: '次の借入金利', borrowAmount: '借入額',
+    depositAmount: '預金額', borrow: '借りる', deposit: '預ける',
+    loans: '借入', deposits: '預金', noLoans: '借入はありません。', noDeposits: '預金はありません。',
+    pay: '返済', payAll: '全額返済', withdraw: '引出', rate: '金利', owed: '残高',
+    starterTitle: '初期ローン', starterLead: '所持金は $0 から始まります。約 $100 を借りてウォレットに入れ、USD/VC を取引します。返済するまで各ローンに金利がかかります。',
+    takeLoan: '借りる', skip: 'スキップ', starterRate: 'このローン: {r}/時',
+    resetTitle: 'デスクをリセットしますか？', resetLead: 'ウォレット、銀行、取引、チャート履歴がすべて消えます。元に戻せません。',
+    cancel: 'キャンセル', confirmReset: 'リセット',
+    gameOverTitle: 'ゲームオーバー', gameOverLead: '純資産が −$100,000,000 に達しました。リセットして再開できます。',
+    playAgain: 'リセットして再開',
+    insufficient: 'ウォレット残高が足りません。', invalidAmount: '正しい金額を入力してください。',
+    invalidSlTp: 'SL/TP がこの売買方向と合いません。', gameOverBlock: 'デスクは終了しています。',
+    borrowed: '{n} を {r}/時 で借入。', deposited: '{n} を {r}/時 で預金。',
+    paid: '{n} を返済。', withdrew: '{n} を引出。', opened: '{side} {n} @ {p}',
+    closed: '{side} を決済 · 損益 {n}', slHit: '損切りに到達。', tpHit: '利確に到達。',
+    liquidated: '強制決済されました。',
+  },
+};
+
+const $ = (s) => document.querySelector(s);
+const round2 = (n) => Math.round(n * 100) / 100;
+const roundP = (n) => Math.round(n * 1e5) / 1e5;
+const uid = () => 'id_' + Math.random().toString(36).slice(2, 9) + Date.now().toString(36);
+const tfSec = (id) => TFS.find((x) => x[0] === id)[1];
+const emptyCandles = () => Object.fromEntries(TFS.map(([id]) => [id, []]));
+
+function fmtMoney(n) {
+  const sign = n < 0 ? '-' : '';
+  const a = Math.abs(n);
+  if (a >= 1e9) return sign + '$' + (a / 1e9).toFixed(2) + 'B';
+  if (a >= 1e6) return sign + '$' + (a / 1e6).toFixed(2) + 'M';
+  if (a >= 1e5) return sign + '$' + (a / 1e3).toFixed(1) + 'K';
+  return sign + '$' + a.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+function fmtPx(n) { return roundP(n).toFixed(5); }
+function fmtRate(r) { return (r * 100).toFixed(2) + '%'; }
+function fmtSigned(n) {
+  if (n == null || !Number.isFinite(n)) return '—';
+  if (Math.abs(n) < 0.005) return fmtMoney(0);
+  return (n > 0 ? '+' : '') + fmtMoney(n);
+}
+
+let lang = 'en';
+function t(k, v = {}) {
+  let s = (I[lang] && I[lang][k]) || I.en[k] || k;
+  for (const [a, b] of Object.entries(v)) s = s.replaceAll('{' + a + '}', b);
+  return s;
+}
+
+function defaultState() {
+  return {
+    wallet: 0,
+    loans: [],
+    deposits: [],
+    positions: [],
+    price: BASE_PRICE,
+    regime: null,
+    candles: emptyCandles(),
+    pageTheme: localStorage.getItem('app_theme') || 'dark',
+    chartTheme: 'dark',
+    lang: localStorage.getItem('app_lang') || 'en',
+    loanCount: 0,
+    lastTickAt: Date.now(),
+    gameOver: false,
+    tf: '5m',
+    indicators: { sma20: true, sma50: false, ema12: false, bb: false, rsi: false, macd: false },
+    seenIntro: false,
+    engineVersion: 2,
+  };
+}
+
+let state = defaultState();
+let saveTimer = 0;
+let lastPrice = BASE_PRICE;
+let chart, candleSeries, indChart;
+let overlaySeries = {};
+let indSeries = {};
+let priceLines = [];
+let liveTimer = 0;
+let drag = null;
+
+function owed(contract, now = Date.now()) {
+  const hours = Math.max(0, (now - contract.openedAt) / 3600000);
+  return contract.principal * Math.pow(1 + contract.ratePerHour, hours);
+}
+function nextLoanRate() { return Math.min(0.2, 0.05 + 0.03 * state.loanCount); }
+function depositRate() { return 0.005 + Math.random() * 0.02; }
+function loansOwed(now) { return state.loans.reduce((s, c) => s + owed(c, now), 0); }
+function depositsOwed(now) { return state.deposits.reduce((s, c) => s + owed(c, now), 0); }
+function bankNet(now) { return depositsOwed(now) - loansOwed(now); }
+function posPnl(p, price = state.price) {
+  const move = (price - p.entry) / p.entry;
+  return p.amount * (p.side === 'buy' ? move : -move);
+}
+function floatingPnl() { return state.positions.reduce((s, p) => s + posPnl(p), 0); }
+function equity() { return state.wallet + bankNet() + floatingPnl(); }
+
+function persist() {
+  try { localStorage.setItem(SAVE, JSON.stringify(state)); } catch (e) { /* quota */ }
+}
+function scheduleSave() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(persist, 800);
+}
+
+function newRegime(price, nowSec) {
+  const duration = 1 + Math.random() * 299;
+  let direction = Math.random() < 0.5 ? 1 : -1;
+  const drift = (BASE_PRICE - price) / BASE_PRICE;
+  if (Math.abs(drift) > 0.12 && Math.random() < 0.7) direction = Math.sign(drift) || 1;
+  const mag = Math.random() * 0.2 * price;
+  return {
+    startAt: nowSec,
+    duration,
+    direction,
+    startPrice: price,
+    targetPrice: Math.max(8, price + direction * mag),
+    micro: null,
+  };
+}
+
+function newMicro(price, nowSec, lastDir, macroDir) {
+  const duration = 3 + Math.random() * 12;
+  const roll = Math.random();
+  let direction;
+  if (lastDir && roll < 0.64) direction = -lastDir;
+  else if (roll < 0.84) direction = macroDir || (Math.random() < 0.5 ? 1 : -1);
+  else direction = Math.random() < 0.5 ? 1 : -1;
+  const mag = price * (0.0025 + Math.random() * 0.015);
+  return {
+    startAt: nowSec,
+    duration,
+    direction,
+    startPrice: price,
+    targetPrice: Math.max(8, price + direction * mag),
+  };
+}
+
+function stepPrice(nowSec) {
+  let r = state.regime;
+  if (!r || nowSec >= r.startAt + r.duration) {
+    r = state.regime = newRegime(state.price, nowSec);
+  }
+  let micro = r.micro;
+  if (!micro || nowSec >= micro.startAt + micro.duration) {
+    micro = r.micro = newMicro(state.price, nowSec, micro && micro.direction, r.direction);
+  }
+  const macroProgress = Math.min(1, Math.max(0, (nowSec - r.startAt) / r.duration));
+  const macroExpected = r.startPrice + (r.targetPrice - r.startPrice) * macroProgress;
+  const microProgress = Math.min(1, Math.max(0, (nowSec - micro.startAt) / micro.duration));
+  const ease = microProgress * microProgress * (3 - 2 * microProgress);
+  const microExpected = micro.startPrice + (micro.targetPrice - micro.startPrice) * ease;
+  const noise = (Math.random() * 2 - 1) * state.price * (0.0005 + Math.random() * 0.0009);
+  state.price = Math.max(
+    8,
+    state.price + (macroExpected - state.price) * 0.028 + (microExpected - state.price) * 0.3 + noise
+  );
+  return state.price;
+}
+
+function pushCandle(tf, bucket, price) {
+  const arr = state.candles[tf];
+  const last = arr[arr.length - 1];
+  if (!last || last.time < bucket) {
+    arr.push({ time: bucket, open: price, high: price, low: price, close: price });
+    if (arr.length > MAX_CANDLES) arr.shift();
+  } else if (last.time === bucket) {
+    last.high = Math.max(last.high, price);
+    last.low = Math.min(last.low, price);
+    last.close = price;
+  }
+}
+
+function applyTick(unix, price) {
+  for (const [id, sec] of TFS) pushCandle(id, Math.floor(unix / sec) * sec, price);
+}
+
+function aggregateFromM1(m1) {
+  const out = emptyCandles();
+  out['1m'] = m1.slice(-MAX_CANDLES);
+  for (const [id, sec] of TFS) {
+    if (id === '1m') continue;
+    const map = new Map();
+    for (const c of m1) {
+      const b = Math.floor(c.time / sec) * sec;
+      const prev = map.get(b);
+      if (!prev) map.set(b, { time: b, open: c.open, high: c.high, low: c.low, close: c.close });
+      else {
+        prev.high = Math.max(prev.high, c.high);
+        prev.low = Math.min(prev.low, c.low);
+        prev.close = c.close;
+      }
+    }
+    out[id] = [...map.values()].slice(-MAX_CANDLES);
+  }
+  return out;
+}
+
+function generateHistory(endPrice = BASE_PRICE) {
+  const now = Math.floor(Date.now() / 1000);
+  let t = Math.floor((now - 14 * 86400) / 60) * 60;
+  state.price = BASE_PRICE;
+  state.regime = newRegime(state.price, t);
+  const m1 = [];
+  while (t <= now) {
+    const open = state.price;
+    let high = open, low = open;
+    for (let i = 0; i < 20; i++) {
+      stepPrice(t + i * 3);
+      high = Math.max(high, state.price);
+      low = Math.min(low, state.price);
+    }
+    m1.push({ time: t, open, high, low, close: state.price });
+    t += 60;
+  }
+  const lastClose = m1[m1.length - 1].close || BASE_PRICE;
+  const factor = endPrice / lastClose;
+  for (const c of m1) {
+    c.open = roundP(c.open * factor);
+    c.high = roundP(c.high * factor);
+    c.low = roundP(c.low * factor);
+    c.close = roundP(c.close * factor);
+  }
+  state.price = m1[m1.length - 1].close;
+  state.regime = newRegime(state.price, now);
+  state.candles = aggregateFromM1(m1);
+  state.engineVersion = 2;
+}
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(SAVE);
+    if (!raw) return false;
+    const saved = JSON.parse(raw);
+    state = { ...defaultState(), ...saved };
+    if (!I[state.lang]) state.lang = 'en';
+    if (!state.candles || !state.candles['1m'] || !state.candles['1m'].length || (state.engineVersion || 0) < 2) {
+      generateHistory(state.price || BASE_PRICE);
+    }
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+function sma(data, period) {
+  const out = [];
+  let sum = 0;
+  for (let i = 0; i < data.length; i++) {
+    sum += data[i].close;
+    if (i >= period) sum -= data[i - period].close;
+    if (i >= period - 1) out.push({ time: data[i].time, value: sum / period });
+  }
+  return out;
+}
+function ema(data, period) {
+  const k = 2 / (period + 1);
+  const out = [];
+  let prev;
+  for (let i = 0; i < data.length; i++) {
+    prev = prev === undefined ? data[i].close : data[i].close * k + prev * (1 - k);
+    if (i >= period - 1) out.push({ time: data[i].time, value: prev });
+  }
+  return out;
+}
+function bollinger(data, period = 20, mult = 2) {
+  const mid = [], up = [], lo = [];
+  for (let i = 0; i < data.length; i++) {
+    if (i < period - 1) continue;
+    const slice = data.slice(i - period + 1, i + 1).map((c) => c.close);
+    const mean = slice.reduce((a, b) => a + b, 0) / period;
+    const sd = Math.sqrt(slice.reduce((a, b) => a + (b - mean) ** 2, 0) / period);
+    mid.push({ time: data[i].time, value: mean });
+    up.push({ time: data[i].time, value: mean + mult * sd });
+    lo.push({ time: data[i].time, value: mean - mult * sd });
+  }
+  return { mid, up, lo };
+}
+function rsi(data, period = 14) {
+  const out = [];
+  let avgG = 0, avgL = 0;
+  for (let i = 1; i < data.length; i++) {
+    const ch = data[i].close - data[i - 1].close;
+    const g = Math.max(0, ch), l = Math.max(0, -ch);
+    if (i <= period) { avgG += g; avgL += l; if (i === period) { avgG /= period; avgL /= period; } }
+    else { avgG = (avgG * (period - 1) + g) / period; avgL = (avgL * (period - 1) + l) / period; }
+    if (i >= period) {
+      const rs = avgL === 0 ? 100 : 100 - 100 / (1 + avgG / avgL);
+      out.push({ time: data[i].time, value: rs });
+    }
+  }
+  return out;
+}
+function macd(data) {
+  const e12 = ema(data, 12);
+  const e26 = ema(data, 26);
+  const map12 = new Map(e12.map((x) => [x.time, x.value]));
+  const line = [];
+  for (const x of e26) {
+    if (!map12.has(x.time)) continue;
+    line.push({ time: x.time, value: map12.get(x.time) - x.value });
+  }
+  const signal = ema(line.map((x) => ({ time: x.time, close: x.value })), 9);
+  const sigMap = new Map(signal.map((x) => [x.time, x.value]));
+  const hist = [];
+  for (const x of line) {
+    if (!sigMap.has(x.time)) continue;
+    const v = x.value - sigMap.get(x.time);
+    hist.push({ time: x.time, value: v, color: v >= 0 ? '#26a69a' : '#ef5350' });
+  }
+  return { line, signal, hist };
+}
+
+function chartColors() {
+  const dark = state.chartTheme === 'dark';
+  return {
+    bg: dark ? '#0e141b' : '#f7f9fb',
+    text: dark ? '#c5d0da' : '#3a4550',
+    grid: dark ? '#1a2530' : '#e6ebf0',
+    border: dark ? '#1a2530' : '#d8e0e8',
+  };
+}
+
+function chartOptions(extra = {}) {
+  const c = chartColors();
+  return {
+    autoSize: true,
+    layout: { background: { color: c.bg }, textColor: c.text },
+    grid: { vertLines: { color: c.grid }, horzLines: { color: c.grid } },
+    rightPriceScale: { borderColor: c.border },
+    timeScale: { borderColor: c.border, timeVisible: true, secondsVisible: state.tf === '1m' },
+    crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
+    ...extra,
+  };
+}
+
+function disposeCharts() {
+  chart?.remove();
+  indChart?.remove();
+  chart = candleSeries = indChart = null;
+  overlaySeries = {};
+  indSeries = {};
+  priceLines = [];
+}
+
+function makeCandleSeries(target) {
+  return target.addCandlestickSeries({
+    upColor: '#26a69a',
+    downColor: '#ef5350',
+    borderUpColor: '#26a69a',
+    borderDownColor: '#ef5350',
+    wickUpColor: '#26a69a',
+    wickDownColor: '#ef5350',
+  });
+}
+
+function ensureCharts() {
+  if (!window.LightweightCharts) {
+    $('#chart').textContent = 'Chart library failed to load.';
+    return;
+  }
+  if (chart) return;
+  chart = LightweightCharts.createChart($('#chart'), chartOptions());
+  candleSeries = makeCandleSeries(chart);
+  candleSeries.setData(state.candles[state.tf] || []);
+  indChart = LightweightCharts.createChart($('#ind-chart'), chartOptions({
+    timeScale: { visible: false, borderColor: chartColors().border },
+    rightPriceScale: { borderColor: chartColors().border, scaleMargins: { top: 0.1, bottom: 0.08 } },
+  }));
+  chart.timeScale().subscribeVisibleLogicalRangeChange((range) => {
+    if (range && indChart) indChart.timeScale().setVisibleLogicalRange(range);
+    syncHandles();
+  });
+  rebuildIndicators(true);
+  refreshPriceLines();
+  bindChartDrag();
+}
+
+function applyChartTheme() {
+  if (!chart) return;
+  chart.applyOptions(chartOptions());
+  indChart?.applyOptions(chartOptions({
+    timeScale: { visible: false, borderColor: chartColors().border },
+  }));
+  $('#chart-wrap').style.background = chartColors().bg;
+  $('#ind-chart').style.background = chartColors().bg;
+}
+
+function rebuildIndicators(full) {
+  if (!chart) return;
+  const data = state.candles[state.tf] || [];
+  const ind = state.indicators;
+  const need = (key) => {
+    if (!overlaySeries[key]) {
+      const colors = { sma20: '#f2c94c', sma50: '#5b9fd6', ema12: '#c084fc', bbMid: '#8b9aab', bbUp: '#8b9aab', bbLo: '#8b9aab' };
+      overlaySeries[key] = chart.addLineSeries({
+        color: colors[key] || '#aaa',
+        lineWidth: key.startsWith('bb') ? 1 : 2,
+        priceLineVisible: false,
+        lastValueVisible: key === 'sma20' || key === 'ema12',
+      });
+    }
+    return overlaySeries[key];
+  };
+  const clear = (key) => {
+    if (overlaySeries[key]) { chart.removeSeries(overlaySeries[key]); delete overlaySeries[key]; }
+  };
+
+  if (ind.sma20) need('sma20').setData(sma(data, 20)); else clear('sma20');
+  if (ind.sma50) need('sma50').setData(sma(data, 50)); else clear('sma50');
+  if (ind.ema12) need('ema12').setData(ema(data, 12)); else clear('ema12');
+  if (ind.bb) {
+    const bb = bollinger(data);
+    need('bbMid').setData(bb.mid);
+    need('bbUp').setData(bb.up);
+    need('bbLo').setData(bb.lo);
+  } else {
+    clear('bbMid'); clear('bbUp'); clear('bbLo');
+  }
+
+  const showInd = ind.rsi || ind.macd;
+  $('#ind-chart').classList.toggle('on', showInd);
+  if (!indChart) return;
+  const wipe = (key) => {
+    if (indSeries[key]) { indChart.removeSeries(indSeries[key]); delete indSeries[key]; }
+  };
+  if (ind.rsi) {
+    if (!indSeries.rsi) {
+      indSeries.rsi = indChart.addLineSeries({ color: '#c084fc', lineWidth: 2, priceScaleId: 'right' });
+    }
+    indSeries.rsi.setData(rsi(data));
+  } else wipe('rsi');
+  if (ind.macd) {
+    const m = macd(data);
+    if (!indSeries.macdHist) indSeries.macdHist = indChart.addHistogramSeries({ priceScaleId: 'left' });
+    if (!indSeries.macdLine) indSeries.macdLine = indChart.addLineSeries({ color: '#5b9fd6', lineWidth: 1, priceScaleId: 'left' });
+    if (!indSeries.macdSig) indSeries.macdSig = indChart.addLineSeries({ color: '#f2c94c', lineWidth: 1, priceScaleId: 'left' });
+    indSeries.macdHist.setData(m.hist);
+    indSeries.macdLine.setData(m.line);
+    indSeries.macdSig.setData(m.signal);
+  } else {
+    wipe('macdHist'); wipe('macdLine'); wipe('macdSig');
+  }
+  if (showInd) {
+    requestAnimationFrame(() => {
+      const range = chart.timeScale().getVisibleLogicalRange();
+      if (range) indChart.timeScale().setVisibleLogicalRange(range);
+    });
+  }
+  if (full) chart.timeScale().fitContent();
+}
+
+function collectLevels() {
+  const items = [];
+  for (const p of state.positions) {
+    items.push({ kind: 'entry', posId: p.id, price: p.entry, label: 'E' });
+    if (p.sl) items.push({ kind: 'sl', posId: p.id, price: p.sl, label: 'SL' });
+    if (p.tp) items.push({ kind: 'tp', posId: p.id, price: p.tp, label: 'TP' });
+  }
+  return items;
+}
+
+function refreshPriceLines() {
+  if (!candleSeries) return;
+  for (const line of priceLines) candleSeries.removePriceLine(line);
+  priceLines = [];
+  for (const item of collectLevels()) {
+    const line = candleSeries.createPriceLine({
+      price: item.price,
+      color: item.kind === 'tp' ? '#26a69a' : item.kind === 'sl' ? '#ef5350' : '#5b9fd6',
+      lineWidth: item.kind === 'entry' ? 1 : 2,
+      lineStyle: item.kind === 'entry' ? 0 : 2,
+      axisLabelVisible: true,
+      title: item.label,
+    });
+    priceLines.push(line);
+    item.line = line;
+  }
+  syncHandles();
+}
+
+function syncHandles() {
+  const box = $('#level-handles');
+  if (!box || !candleSeries) return;
+  const items = collectLevels();
+  const key = items.map((i) => i.kind + ':' + (i.posId || 'draft')).join('|');
+  if (box.dataset.key !== key && !drag) {
+    box.dataset.key = key;
+    box.innerHTML = items.map((i) =>
+      `<button type="button" class="handle ${i.kind}" data-kind="${i.kind}" data-pos="${i.posId || 'draft'}">${i.label}</button>`
+    ).join('');
+  }
+  for (const i of items) {
+    const el = box.querySelector(`[data-kind="${i.kind}"][data-pos="${i.posId || 'draft'}"]`);
+    if (!el) continue;
+    const price = drag && drag.kind === i.kind && (drag.posId || 'draft') === (i.posId || 'draft') ? drag.price : i.price;
+    const y = candleSeries.priceToCoordinate(price);
+    el.style.top = y == null ? '-99px' : y + 'px';
+    el.style.display = y == null ? 'none' : 'block';
+    el.textContent = i.kind === 'entry' ? i.label : `${i.label} ${fmtPx(price)}`;
+  }
+}
+
+function clampLevel(kind, side, entry, price) {
+  const eps = Math.max(entry * 0.0002, 0.001);
+  if (!(price > 8)) price = 8;
+  if (side === 'buy') {
+    if (kind === 'sl') return Math.min(price, Math.min(entry, state.price) - eps);
+    return Math.max(price, Math.max(entry, state.price) + eps);
+  }
+  if (kind === 'sl') return Math.max(price, Math.max(entry, state.price) + eps);
+  return Math.min(price, Math.min(entry, state.price) - eps);
+}
+
+function applyDragPrice(price) {
+  if (!drag || !Number.isFinite(price)) return;
+  price = roundP(Math.max(8, price));
+  if (drag.posId) {
+    const p = state.positions.find((x) => x.id === drag.posId);
+    if (!p) return;
+    price = roundP(clampLevel(drag.kind, p.side, p.entry, price));
+    p[drag.kind] = price;
+  }
+  drag.price = price;
+  if (drag.line) drag.line.applyOptions({ price });
+  syncHandles();
+}
+
+function bindChartDrag() {
+  const wrap = $('#chart-wrap');
+  const handles = $('#level-handles');
+  if (!wrap || wrap.dataset.dragBound) return;
+  wrap.dataset.dragBound = '1';
+  handles.addEventListener('pointerdown', (e) => {
+    const h = e.target.closest('.handle');
+    if (!h || h.classList.contains('entry')) return;
+    e.preventDefault();
+    h.setPointerCapture(e.pointerId);
+    const posId = h.dataset.pos;
+    const p = state.positions.find((x) => x.id === posId);
+    if (!p) return;
+    const price = p[h.dataset.kind];
+    const levels = collectLevels();
+    const idx = levels.findIndex((x) => x.kind === h.dataset.kind && (x.posId || null) === posId);
+    drag = { kind: h.dataset.kind, posId, price, line: priceLines[idx] || null };
+    wrap.classList.add('dragging');
+  });
+  handles.addEventListener('pointermove', (e) => {
+    if (!drag || !candleSeries) return;
+    const y = e.clientY - $('#chart').getBoundingClientRect().top;
+    applyDragPrice(candleSeries.coordinateToPrice(y));
+  });
+  wrap.addEventListener('pointermove', (e) => {
+    if (!drag || !candleSeries) return;
+    const y = e.clientY - $('#chart').getBoundingClientRect().top;
+    applyDragPrice(candleSeries.coordinateToPrice(y));
+  });
+  const endDrag = () => {
+    if (!drag) return;
+    drag = null;
+    wrap.classList.remove('dragging');
+    refreshPriceLines();
+    persist();
+    render();
+  };
+  handles.addEventListener('pointerup', endDrag);
+  handles.addEventListener('pointercancel', endDrag);
+  wrap.addEventListener('pointerup', endDrag);
+  wrap.addEventListener('pointercancel', endDrag);
+}
+
+function updateLiveCandle() {
+  if (!candleSeries) return;
+  const arr = state.candles[state.tf];
+  const last = arr[arr.length - 1];
+  if (last) candleSeries.update(last);
+  rebuildIndicators(false);
+  syncHandles();
+}
+
+function switchTf(id) {
+  state.tf = id;
+  if (candleSeries) {
+    candleSeries.setData(state.candles[id] || []);
+    chart.applyOptions({ timeScale: { timeVisible: true, secondsVisible: id === '1m' } });
+    chart.timeScale().fitContent();
+  }
+  rebuildIndicators(true);
+  refreshPriceLines();
+  renderTfs();
+  scheduleSave();
+}
+
+function toast(msg) {
+  const el = $('#toast');
+  el.textContent = msg;
+  el.classList.remove('hidden');
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => el.classList.add('hidden'), 2400);
+}
+
+function takeLoan(amount) {
+  amount = round2(amount);
+  if (!(amount > 0)) return toast(t('invalidAmount'));
+  if (state.gameOver) return toast(t('gameOverBlock'));
+  const rate = nextLoanRate();
+  state.loans.push({ id: uid(), principal: amount, ratePerHour: rate, openedAt: Date.now() });
+  state.loanCount += 1;
+  state.wallet = round2(state.wallet + amount);
+  persist();
+  render();
+  toast(t('borrowed', { n: fmtMoney(amount), r: fmtRate(rate) }));
+}
+
+function makeDeposit(amount) {
+  amount = round2(amount);
+  if (!(amount > 0)) return toast(t('invalidAmount'));
+  if (state.gameOver) return toast(t('gameOverBlock'));
+  if (amount > state.wallet + 1e-9) return toast(t('insufficient'));
+  const rate = depositRate();
+  state.wallet = round2(state.wallet - amount);
+  state.deposits.push({ id: uid(), principal: amount, ratePerHour: rate, openedAt: Date.now() });
+  persist();
+  render();
+  toast(t('deposited', { n: fmtMoney(amount), r: fmtRate(rate) }));
+}
+
+function payLoan(id, amount) {
+  const loan = state.loans.find((x) => x.id === id);
+  if (!loan) return;
+  const due = owed(loan);
+  const pay = round2(Math.min(amount, due, state.wallet));
+  if (!(pay > 0)) return toast(t('insufficient'));
+  state.wallet = round2(state.wallet - pay);
+  if (pay >= due - 0.005) state.loans = state.loans.filter((x) => x.id !== id);
+  else {
+    loan.principal = Math.max(0.01, due - pay);
+    loan.openedAt = Date.now();
+  }
+  persist();
+  render();
+  toast(t('paid', { n: fmtMoney(pay) }));
+}
+
+function withdrawDeposit(id, amount) {
+  const dep = state.deposits.find((x) => x.id === id);
+  if (!dep) return;
+  const val = owed(dep);
+  const take = round2(Math.min(amount, val));
+  if (!(take > 0)) return toast(t('invalidAmount'));
+  state.wallet = round2(state.wallet + take);
+  if (take >= val - 0.005) state.deposits = state.deposits.filter((x) => x.id !== id);
+  else {
+    dep.principal = Math.max(0.01, val - take);
+    dep.openedAt = Date.now();
+  }
+  persist();
+  render();
+  toast(t('withdrew', { n: fmtMoney(take) }));
+}
+
+const SAFE_PAD = 0.02;
+
+function safeSl(side, entry, px) {
+  if (side === 'buy') return roundP(Math.min(entry, px) * (1 - SAFE_PAD));
+  return roundP(Math.max(entry, px) * (1 + SAFE_PAD));
+}
+
+function safeTp(side, entry, px) {
+  if (side === 'buy') return roundP(Math.max(entry, px) * (1 + SAFE_PAD));
+  return roundP(Math.min(entry, px) * (1 - SAFE_PAD));
+}
+
+function addPositionLevel(id, kind) {
+  const p = state.positions.find((x) => x.id === id);
+  if (!p) return;
+  if (kind === 'sl') p.sl = safeSl(p.side, p.entry, state.price);
+  else p.tp = safeTp(p.side, p.entry, state.price);
+  refreshPriceLines();
+  persist();
+  render();
+}
+
+function openTrade(side) {
+  if (state.gameOver) return toast(t('gameOverBlock'));
+  const amount = round2(Number($('#amount').value));
+  if (!(amount > 0)) return ($('#trade-err').textContent = t('invalidAmount'));
+  if (amount > state.wallet + 1e-9) return ($('#trade-err').textContent = t('insufficient'));
+  $('#trade-err').textContent = '';
+  const entry = state.price;
+  state.wallet = round2(state.wallet - amount);
+  state.positions.push({ id: uid(), side, amount, entry, sl: null, tp: null, openedAt: Date.now() });
+  persist();
+  refreshPriceLines();
+  render();
+  toast(t('opened', { side: side === 'buy' ? t('buy') : t('sell'), n: fmtMoney(amount), p: fmtPx(entry) }));
+}
+
+function closeTrade(id, reason) {
+  const p = state.positions.find((x) => x.id === id);
+  if (!p) return;
+  const pnl = posPnl(p);
+  state.wallet = round2(state.wallet + p.amount + pnl);
+  state.positions = state.positions.filter((x) => x.id !== id);
+  persist();
+  refreshPriceLines();
+  render();
+  const msg = reason === 'sl' ? t('slHit') : reason === 'tp' ? t('tpHit') : reason === 'liq' ? t('liquidated') : t('closed', { side: p.side === 'buy' ? t('buy') : t('sell'), n: fmtMoney(pnl) });
+  toast(msg);
+}
+
+function checkStops() {
+  const px = state.price;
+  for (const p of [...state.positions]) {
+    if (drag && drag.posId === p.id) continue;
+    if (posPnl(p, px) <= -p.amount * 0.999) { closeTrade(p.id, 'liq'); continue; }
+    if (p.side === 'buy') {
+      if (p.sl != null && px <= p.sl) closeTrade(p.id, 'sl');
+      else if (p.tp != null && px >= p.tp) closeTrade(p.id, 'tp');
+    } else {
+      if (p.sl != null && px >= p.sl) closeTrade(p.id, 'sl');
+      else if (p.tp != null && px <= p.tp) closeTrade(p.id, 'tp');
+    }
+  }
+}
+
+function checkGameOver() {
+  if (state.gameOver) return;
+  if (equity() <= GAME_OVER_EQUITY) {
+    state.gameOver = true;
+    persist();
+    openModal('#over-modal');
+  }
+}
+
+function translate() {
+  document.documentElement.lang = lang;
+  document.querySelectorAll('[data-i18n]').forEach((el) => { el.textContent = t(el.dataset.i18n); });
+  document.querySelectorAll('[data-i18n-aria]').forEach((el) => { el.setAttribute('aria-label', t(el.dataset.i18nAria)); });
+  document.querySelectorAll('[data-lang]').forEach((b) => b.classList.toggle('active', b.dataset.lang === lang));
+  $('#starter-rate').textContent = t('starterRate', { r: fmtRate(nextLoanRate()) });
+  renderTfs();
+  renderIndMenu();
+  render();
+}
+
+function renderTfs() {
+  $('#tfs').innerHTML = TFS.map(([id]) => `<button type="button" data-tf="${id}" class="${state.tf === id ? 'active' : ''}">${id}</button>`).join('');
+}
+function renderIndMenu() {
+  $('#ind-pop').innerHTML = IND_KEYS.map(([k, label]) =>
+    `<label><input type="checkbox" data-ind="${k}" ${state.indicators[k] ? 'checked' : ''}> ${label}</label>`
+  ).join('');
+}
+
+function render() {
+  const net = bankNet();
+  const chip = $('#bank-chip');
+  chip.classList.toggle('pos', net > 0.004);
+  chip.classList.toggle('neg', net < -0.004);
+  $('#bank-bal').textContent = fmtMoney(net);
+  $('#wallet-bal').textContent = fmtMoney(state.wallet);
+  const px = $('#live-px');
+  px.textContent = fmtPx(state.price);
+  px.classList.toggle('up', state.price >= lastPrice);
+  px.classList.toggle('down', state.price < lastPrice);
+  $('#equity').textContent = fmtMoney(equity());
+  $('#bank-net').textContent = fmtMoney(net);
+  $('#next-rate').textContent = fmtRate(nextLoanRate()) + '/h';
+  renderPositions();
+  if (!$('#bank-modal').classList.contains('hidden')) {
+    const active = document.activeElement;
+    const typing = active && $('#bank-modal').contains(active) && active.tagName === 'INPUT';
+    if (!typing) renderBankLists();
+  }
+}
+
+function renderPositions() {
+  const box = $('#pos-list');
+  if (!state.positions.length) {
+    box.innerHTML = `<p class="empty">${t('noPositions')}</p>`;
+    return;
+  }
+  box.innerHTML = state.positions.map((p) => {
+    const pnl = posPnl(p);
+    const slPnl = p.sl ? posPnl(p, p.sl) : null;
+    const tpPnl = p.tp ? posPnl(p, p.tp) : null;
+    const slProj = p.sl
+      ? `${fmtPx(p.sl)}<small class="${slPnl >= 0 ? 'money-up' : 'money-dn'}">${t('projSl', { n: fmtSigned(slPnl) })}</small>`
+      : `— <button type="button" class="btn" data-add-sl="${p.id}">${t('addSl')}</button>`;
+    const tpProj = p.tp
+      ? `${fmtPx(p.tp)}<small class="${tpPnl >= 0 ? 'money-up' : 'money-dn'}">${t('projTp', { n: fmtSigned(tpPnl) })}</small>`
+      : `— <button type="button" class="btn" data-add-tp="${p.id}">${t('addTp')}</button>`;
+    return `<article class="pos" data-id="${p.id}">
+      <header><span class="side ${p.side}">${p.side === 'buy' ? t('buy') : t('sell')}</span>
+      <button type="button" class="btn" data-close="${p.id}">${t('close')}</button></header>
+      <dl>
+        <dt>${t('size')}</dt><dd>${fmtMoney(p.amount)}</dd>
+        <dt>${t('entry')}</dt><dd>${fmtPx(p.entry)}</dd>
+        <dt>SL</dt><dd>${slProj}</dd>
+        <dt>TP</dt><dd>${tpProj}</dd>
+        <dt>${t('pnl')}</dt><dd class="${pnl >= 0 ? 'money-up' : 'money-dn'}">${fmtSigned(pnl)}</dd>
+      </dl>
+    </article>`;
+  }).join('');
+}
+
+function renderBankLists() {
+  const loanBox = $('#loan-list');
+  if (!state.loans.length) loanBox.innerHTML = `<p class="empty">${t('noLoans')}</p>`;
+  else loanBox.innerHTML = state.loans.map((c) => {
+    const due = owed(c);
+    return `<div class="contract">
+      <div><strong>${fmtMoney(due)}</strong><small>${t('rate')} ${fmtRate(c.ratePerHour)}/h</small></div>
+      <div class="inline">
+        <input type="number" min="0.01" step="0.01" value="${round2(Math.min(state.wallet, due))}" data-pay-amt="${c.id}" />
+        <button type="button" class="btn" data-pay="${c.id}">${t('pay')}</button>
+        <button type="button" class="btn" data-payall="${c.id}">${t('payAll')}</button>
+      </div>
+    </div>`;
+  }).join('');
+  const depBox = $('#deposit-list');
+  if (!state.deposits.length) depBox.innerHTML = `<p class="empty">${t('noDeposits')}</p>`;
+  else depBox.innerHTML = state.deposits.map((c) => {
+    const val = owed(c);
+    return `<div class="contract">
+      <div><strong>${fmtMoney(val)}</strong><small>${t('rate')} ${fmtRate(c.ratePerHour)}/h</small></div>
+      <div class="inline">
+        <input type="number" min="0.01" step="0.01" value="${round2(val)}" data-wd-amt="${c.id}" />
+        <button type="button" class="btn" data-wd="${c.id}">${t('withdraw')}</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function openModal(sel) { $(sel).classList.remove('hidden'); }
+function closeModal(sel) { $(sel).classList.add('hidden'); }
+
+function applyPageTheme() {
+  document.documentElement.dataset.theme = state.pageTheme;
+  document.querySelector('meta[name="theme-color"]').setAttribute('content', state.pageTheme === 'dark' ? '#0b0f14' : '#eef2f5');
+}
+
+function hardReset() {
+  const pageTheme = state.pageTheme;
+  const chartTheme = state.chartTheme;
+  const keepLang = lang;
+  disposeCharts();
+  state = defaultState();
+  state.pageTheme = pageTheme;
+  state.chartTheme = chartTheme;
+  state.lang = keepLang;
+  generateHistory();
+  lastPrice = state.price;
+  persist();
+  ensureCharts();
+  applyPageTheme();
+  applyChartTheme();
+  closeModal('#over-modal');
+  closeModal('#reset-modal');
+  openModal('#starter-modal');
+  translate();
+}
+
+function liveTick() {
+  const nowSec = Date.now() / 1000;
+  if (!state.gameOver) {
+    lastPrice = state.price;
+    stepPrice(nowSec);
+    applyTick(Math.floor(nowSec), state.price);
+    checkStops();
+    checkGameOver();
+  }
+  state.lastTickAt = Date.now();
+  updateLiveCandle();
+  render();
+  scheduleSave();
+}
+
+function boot() {
+  const loaded = loadState();
+  lang = I[state.lang] ? state.lang : 'en';
+  if (!loaded) generateHistory();
+  lastPrice = state.price;
+  applyPageTheme();
+  translate();
+  ensureCharts();
+  applyChartTheme();
+  if (!state.seenIntro) openModal('#starter-modal');
+  if (state.gameOver) openModal('#over-modal');
+  liveTimer = setInterval(liveTick, 500);
+}
+
+$('#tfs').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-tf]');
+  if (b) switchTf(b.dataset.tf);
+});
+$('#ind-btn').addEventListener('click', (e) => {
+  e.stopPropagation();
+  $('#ind-menu').classList.toggle('open');
+});
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('#ind-menu')) $('#ind-menu').classList.remove('open');
+});
+$('#ind-pop').addEventListener('change', (e) => {
+  const box = e.target.closest('[data-ind]');
+  if (!box) return;
+  state.indicators[box.dataset.ind] = box.checked;
+  rebuildIndicators(false);
+  scheduleSave();
+});
+document.querySelectorAll('[data-lang]').forEach((b) => b.addEventListener('click', () => {
+  lang = b.dataset.lang;
+  state.lang = lang;
+  localStorage.setItem('app_lang', lang);
+  translate();
+  persist();
+}));
+$('#page-theme').addEventListener('click', () => {
+  state.pageTheme = state.pageTheme === 'dark' ? 'light' : 'dark';
+  applyPageTheme();
+  persist();
+});
+$('#chart-theme').addEventListener('click', () => {
+  state.chartTheme = state.chartTheme === 'dark' ? 'light' : 'dark';
+  applyChartTheme();
+  persist();
+});
+$('#buy-btn').addEventListener('click', () => openTrade('buy'));
+$('#sell-btn').addEventListener('click', () => openTrade('sell'));
+$('#pos-list').addEventListener('click', (e) => {
+  const close = e.target.closest('[data-close]');
+  const addSl = e.target.closest('[data-add-sl]');
+  const addTp = e.target.closest('[data-add-tp]');
+  if (close) closeTrade(close.dataset.close, 'manual');
+  else if (addSl) addPositionLevel(addSl.dataset.addSl, 'sl');
+  else if (addTp) addPositionLevel(addTp.dataset.addTp, 'tp');
+});
+$('#bank-chip').addEventListener('click', () => { renderBankLists(); openModal('#bank-modal'); });
+$('#close-bank').addEventListener('click', () => closeModal('#bank-modal'));
+$('#bank-modal').addEventListener('click', (e) => { if (e.target === $('#bank-modal')) closeModal('#bank-modal'); });
+$('#borrow-btn').addEventListener('click', () => takeLoan(Number($('#borrow-amt').value)));
+$('#deposit-btn').addEventListener('click', () => makeDeposit(Number($('#deposit-amt').value)));
+$('#loan-list').addEventListener('click', (e) => {
+  const all = e.target.closest('[data-payall]');
+  const one = e.target.closest('[data-pay]');
+  if (all) {
+    const loan = state.loans.find((x) => x.id === all.dataset.payall);
+    if (loan) payLoan(loan.id, owed(loan));
+  } else if (one) {
+    const inp = document.querySelector(`[data-pay-amt="${one.dataset.pay}"]`);
+    payLoan(one.dataset.pay, Number(inp?.value));
+  }
+});
+$('#deposit-list').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-wd]');
+  if (!b) return;
+  const inp = document.querySelector(`[data-wd-amt="${b.dataset.wd}"]`);
+  withdrawDeposit(b.dataset.wd, Number(inp?.value));
+});
+$('#take-loan').addEventListener('click', () => {
+  takeLoan(Number($('#starter-amt').value) || 100);
+  state.seenIntro = true;
+  persist();
+  closeModal('#starter-modal');
+});
+$('#skip-loan').addEventListener('click', () => {
+  state.seenIntro = true;
+  persist();
+  closeModal('#starter-modal');
+});
+$('#reset-btn').addEventListener('click', () => openModal('#reset-modal'));
+$('#cancel-reset').addEventListener('click', () => closeModal('#reset-modal'));
+$('#reset-modal').addEventListener('click', (e) => { if (e.target === $('#reset-modal')) closeModal('#reset-modal'); });
+$('#confirm-reset').addEventListener('click', hardReset);
+$('#over-reset').addEventListener('click', hardReset);
+addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape') return;
+  closeModal('#bank-modal');
+  closeModal('#reset-modal');
+  $('#ind-menu').classList.remove('open');
+});
+addEventListener('beforeunload', persist);
+
+boot();
+    </script>
+  </body>
+</html>
