@@ -15,23 +15,90 @@
     { key: 'objects', icons: '💡 🔦 🕯️ 🧯 🔌 🔋 🪫 ⚙️ 🔧 🔨 🛠️ ⛏️ 🪚 🪛 🧰 🧲 🪜 🧹 🧺 🧻 🪣 🧼 🧽 🧴 🪥 🪞 🛒 🎁 🎈 🎀 🧸 🪆 🖼️ 🪴 🌱 🌿 🌳 🌵 🌸 🌼 🪻 🐶 🐱 🐭 🐰 🦊 🐻 🐼 🐸 🐵 🦁 🐯 🐮 🐷 🐔 🐧 🦉 🦋 🐝 🐟'.split(/\s+/), tags: 'objects equipment tools decoration animals objetos equipamento ferramentas decoração animais 物 設備 道具 装飾 動物' },
     { key: 'symbols', icons: '● ○ ◉ ◎ ◌ ◍ ◐ ◑ ◒ ◓ ■ □ ▪ ▫ ▰ ▱ ▲ △ ▶ ▷ ▼ ▽ ◆ ◇ ◈ ★ ☆ ✦ ✧ ✪ ✿ ❖ ❯ ➜ ➤ ➕ ➖ ✕ ✓ ✔ ✚ ✜ ✎ ✐ ☀ ☁ ☂ ☾ ♨ ♫ ♪ ♬ ⚡ 🔥 💧 ❄️ 🌈 🌟 💫 ✨ ❤️ 🧡 💛 💚 💙 💜 🤍 🖤 ⚪ ⚫ 🟢 🔵 🟣 🟠 🟡 🔴'.split(/\s+/), tags: 'symbols shapes status color icon símbolos formas status cor ícone 記号 図形 状態 色 アイコン' }
   ];
+  const HEAD_SHAPES = ['circle', 'oval', 'square', 'diamond', 'hex'];
+  const BODY_SHAPES = ['rounded', 'square', 'tall', 'wide', 'triangle', 'capsule'];
+  const HAIR_SHAPES = ['none', 'short', 'spike', 'side', 'bob', 'long', 'bun', 'pony', 'curly'];
+  const HAIR_ALIASES = { bowl: 'bob' };
+  const HAIR_SWATCHES = ['#1c1c1c', '#3d2314', '#6b3f1f', '#8d5524', '#c68642', '#e8c56b', '#f4e3c1', '#c0392b', '#7a3e9d', '#4a5568', '#d0d5dd'];
+  const MAX_LOOKS = 12;
+  const SKIN_SWATCHES = ['#f8d5b8', '#f1c6a5', '#e8b896', '#d4a574', '#c68642', '#8d5524', '#6b3f1f'];
+  const CLOTHES_SWATCHES = ['#a7ef5b', '#44d7c2', '#7ec8ff', '#ffb25f', '#f3d675', '#ff8fab', '#c6a7ff', '#9ae6b4', '#ff6e78', '#e8e8e8', '#2b3a42', '#d4af37'];
+  const THEME_DEFAULTS = {
+    dark: { background: '#071a23', roomFill: '#0b222c' },
+    light: { background: '#dce6e5', roomFill: '#f7fbfa' }
+  };
+  const STAGE_SWATCHES = ['#071a23', '#140e08', '#120e1a', '#0b1c14', '#dce6e5', '#f4efe6', '#e8eef8', '#efe8f4'];
+  const ROOM_FILL_SWATCHES = ['#0b222c', '#24180e', '#1c1628', '#123024', '#f7fbfa', '#fff8ee', '#f4f7fc', '#fbf4f8'];
+  const ROOM_COLOR_SWATCHES = ['#44d7c2', '#a7ef5b', '#7ec8ff', '#ffb25f', '#c6a7ff', '#ff8fab', '#f3d675', '#9ae6b4'];
+  const MAX_FURNITURE = 12;
+  const MAX_STATIONS = 6;
+  const FURNITURE_KINDS = ['chair', 'table', 'desk', 'bed', 'whiteboard', 'cabinet', 'window', 'toilet', 'bath', 'plant'];
+  const FURNITURE_META = {
+    chair: { w: 14, h: 26, y: 90, color: '#d4a574' },
+    table: { w: 28, h: 18, y: 90, color: '#c68642' },
+    desk: { w: 22, h: 22, y: 90, color: '#8d6e4a' },
+    bed: { w: 38, h: 24, y: 90, color: '#9ec9ff' },
+    whiteboard: { w: 22, h: 34, y: 62, color: '#e8e8e8' },
+    cabinet: { w: 16, h: 38, y: 90, color: '#6b4f32' },
+    window: { w: 20, h: 28, y: 42, color: '#8ec8e8' },
+    toilet: { w: 12, h: 22, y: 90, color: '#e8e8e8' },
+    bath: { w: 18, h: 36, y: 90, color: '#a8d4e8' },
+    plant: { w: 10, h: 22, y: 90, color: '#6db82a' }
+  };
+  const FURNITURE_PARTS = {
+    chair: '<i class="f-back"></i><i class="f-seat"></i><i class="f-leg l"></i><i class="f-leg r"></i>',
+    table: '<i class="f-top"></i><i class="f-leg l"></i><i class="f-leg r"></i>',
+    desk: '<i class="f-top"></i><i class="f-body"></i><i class="f-leg l"></i><i class="f-leg r"></i>',
+    bed: '<i class="f-head"></i><i class="f-base"></i><i class="f-matt"></i><i class="f-pillow"></i>',
+    whiteboard: '<i class="f-board"></i><i class="f-tray"></i>',
+    cabinet: '<i class="f-body"></i><i class="f-leg l"></i><i class="f-leg r"></i>',
+    window: '<i class="f-pane"></i><i class="f-sill"></i>',
+    toilet: '<i class="f-tank"></i><i class="f-bowl"></i>',
+    bath: '<i class="f-stall"></i><i class="f-curtain"></i>',
+    plant: '<i class="f-leaf a"></i><i class="f-leaf b"></i><i class="f-leaf c"></i><i class="f-pot"></i>'
+  };
+
+  function makeLook(id, skin, body, head, bodyShape, icon, hair = 'short', hairColor = '#3d2314') {
+    return { id, skin, body, head, bodyShape, icon, hair, hairColor };
+  }
+
+  function makeFurn(id, kind, x, y, extra = {}) {
+    const meta = FURNITURE_META[kind] || FURNITURE_META.chair;
+    return { id, kind, x, y, w: extra.w || meta.w, h: extra.h || meta.h, flip: !!extra.flip, color: extra.color || meta.color };
+  }
+
+  function makeSpot(id, role, x, y, minShare, maxShare) {
+    return { id, role, x, y, minShare, maxShare };
+  }
 
   const I18N = {
     en: {
       managementGame: 'MANAGEMENT GAME', cash: 'Cash', earned: 'Earned', staff: '{staffPlural}', served: '{customerPlural} served', waiting: 'Waiting',
-      gameStats: 'Game statistics', language: 'Language', gameControls: 'Game controls', pause: 'Pause', floorPlan: 'Floor plan', close: 'Close',
+      gameStats: 'Game statistics', language: 'Language', themeToggle: 'Theme', gameControls: 'Game controls', pause: 'Pause', floorPlan: 'Floor plan', close: 'Close',
       scenarioStudio: 'Scenario studio', hireStaff: 'Hire {staff}', openRoom: 'Open {room}', trainStaff: 'Train team', saved: 'Saved', saving: 'Saving…', floor: 'FLOOR', open: 'OPEN',
       addWaitingChairs: 'Add waiting chairs', addLoungeChairs: 'Add lounge chairs', chairsAdded: '{count} chairs added', maximum: 'MAX',
       addElevator: 'Add elevator', upgradeElevator: 'Faster elevators', elevatorAdded: 'Elevator added', elevatorUpgraded: 'Elevators upgraded to level {level}', elevators: 'ELEVATORS',
       elevator: 'ELEVATOR', waitingRoom: 'WAITING ROOM', staffLounge: '{staff} LOUNGE', selectedRoom: 'SELECTED {room}', roomLevel: '{room} level', equipment: 'Equipment', revenue: 'Revenue', manageFloor: 'Floor upgrades', floorUpgradeHint: 'Upgrade several rooms without leaving this panel.', openRooms: 'Open rooms', notOpened: 'Not opened', upgradeAllRooms: 'Upgrade all rooms + equipment', allRoomsUpgraded: 'All rooms and equipment upgraded',
       upgradeRoom: 'Upgrade {room}', upgradeEquipment: 'Upgrade equipment', customizeEverything: 'CUSTOMIZE EVERYTHING', yourScenarios: 'Your scenarios', newScenario: 'New', importJson: 'Import JSON', exportJson: 'Export JSON',
-      quickEdit: 'Quick edit', documentation: 'Documentation ↗', scenarioName: 'Scenario name', currencySymbol: 'Currency symbol', scenarioIcon: 'Scenario icon', customerIcon: 'Customer icon', staffIcon: 'Staff icon', roomIcon: 'Room icon', equipmentIcon: 'Equipment icon', activityIcon: 'Activity icon',
+      quickEdit: 'Quick edit', documentation: 'Documentation ↗', scenarioName: 'Scenario name', appearance: 'Appearance', appearanceHint: 'Theme changes the interface and text colors. {room} colors stay independent.', interfaceTheme: 'Interface theme', themeDark: 'Dark', themeLight: 'Light', screenBackground: 'Screen background', roomFill: '{room} fill', roomAccent: '{room} accent', currencySymbol: 'Currency symbol', scenarioIcon: 'Scenario icon', customerIcon: 'Customer icon', staffIcon: 'Staff icon', roomIcon: 'Room icon', equipmentIcon: 'Equipment icon', activityIcon: 'Activity icon',
       iconGallery: 'Icon gallery', searchIcons: 'Search icons…', iconResults: '{count} icons', noIcons: 'No icons found', chooseIcon: 'Choose icon', iconPeople: 'People', iconEducation: 'Education', iconBusiness: 'Business & service', iconPlaces: 'Rooms & places', iconFood: 'Food & hospitality', iconTransport: 'Transport', iconObjects: 'Objects & equipment', iconSymbols: 'Symbols & shapes',
       minDuration: 'Min. duration (sec)', maxDuration: 'Max. duration (sec)', baseRevenue: 'Base revenue', arrivalRate: 'Arrival interval (sec)', staffPerRoom: 'Staff per service', waitingCapacity: 'Maximum waiting chairs', floorColumns: 'Rooms horizontally', floorRows: 'Rooms vertically',
       staffServicePosition: 'Staff during service', insideRoom: 'Inside room', outsideRoom: 'Outside room', restPolicy: 'Rest policy', restWhenEmpty: 'Only when queue is empty', timedBreak: 'Timed 3–5 sec break',
       restMin: 'Minimum break (sec)', restMax: 'Maximum break (sec)',
       maxElevators: 'Maximum elevators', elevatorTravelTime: 'Base elevator time (sec)',
       labels: 'Labels (EN / PT / JP)', customerSingular: 'Customer', staffSingular: 'Staff', roomSingular: 'Room', jsonHint: 'Advanced mode: edit the complete scenario. Invalid JSON cannot be saved.',
+      characterEditor: 'Characters', characterEditorHint: 'Design several looks for staff and customers, including hair shape and color. New people pick a random unused type first; after every type has appeared, looks can repeat.',
+      staffTypes: 'Staff types', customerTypes: 'Customer types', addType: 'Add type', duplicateType: 'Duplicate', deleteType: 'Delete',
+      headShape: 'Head', bodyShape: 'Body', hairShape: 'Hair', skinColor: 'Skin', clothesColor: 'Clothes', hairColor: 'Hair color', lookIcon: 'Badge icon', keepOneType: 'Keep at least one type.', maxTypes: 'Maximum of {count} types.',
+      shapeCircle: 'Circle', shapeOval: 'Oval', shapeSquare: 'Square', shapeDiamond: 'Diamond', shapeHex: 'Hexagon',
+      shapeRounded: 'Rounded', shapeTall: 'Tall', shapeWide: 'Wide', shapeTriangle: 'Triangle', shapeCapsule: 'Capsule',
+      hairNone: 'None', hairShort: 'Short', hairSpike: 'Spikes', hairSide: 'Side part', hairBob: 'Bob', hairLong: 'Long', hairBun: 'Bun', hairPony: 'Ponytail', hairCurly: 'Curly',
+      roomEditor: 'Room', roomEditorHint: 'Side view: drag furniture and people spots. Drag the edges of a selected object to resize it. Spots are where customers and staff can stand, plus the min/max share of service time in each place.',
+      furniture: 'Furniture', peopleSpots: 'People spots', addFurniture: 'Add', clickToSelect: 'Drag items in the room. Select a piece of furniture and drag its edges to resize it.',
+      furnChair: 'Chair', furnTable: 'Table', furnDesk: 'Desk', furnBed: 'Bed', furnWhiteboard: 'Whiteboard', furnCabinet: 'Cabinet', furnWindow: 'Window', furnToilet: 'Toilet', furnBath: 'Bathroom', furnPlant: 'Plant',
+      spotCustomer: '{customer} spot', spotStaff: '{staff} spot', spotBoth: 'Shared spot',
+      spotRole: 'Who uses it', roleCustomer: '{customer}', roleStaff: '{staff}', roleBoth: 'Both',
+      timeMin: 'Min. time share (%)', timeMax: 'Max. time share (%)', flipItem: 'Flip', itemColor: 'Color', itemWidth: 'Width', itemHeight: 'Height', maxFurniture: 'Maximum of {count} objects.', maxStations: 'Maximum of {count} spots.',
       resetProgress: 'Reset progress', preserveReconfigure: 'Preserve value when reconfiguring', preserveReconfigureHelp: 'Purchased rooms, upgrades and facilities return to cash. Uncheck to reset everything.', saveAndPlay: 'Save & play', empty: 'EMPTY', busy: 'BUSY', locked: 'AVAILABLE', level: 'LV.',
       notEnoughCash: 'Not enough cash', hired: '{staff} hired', roomOpened: '{room} opened', teamUpgraded: 'Team upgraded to level {level}', roomUpgraded: '{room} upgraded', equipmentUpgraded: 'Equipment upgraded',
       scenarioSaved: 'Scenario saved', assetsLiquidated: '{amount} recovered from purchased resources', scenarioImported: 'Scenario imported', invalidConfig: 'Invalid scenario configuration', resetConfirm: 'Reset all progress for this scenario?', newScenarioName: 'My new scenario',
@@ -39,19 +106,31 @@
     },
     pt: {
       managementGame: 'JOGO DE GESTÃO', cash: 'Caixa', earned: 'Faturamento', staff: '{staffPlural}', served: '{customerPlural} atendidos', waiting: 'Na espera',
-      gameStats: 'Estatísticas do jogo', language: 'Idioma', gameControls: 'Controles do jogo', pause: 'Pausar', floorPlan: 'Planta do andar', close: 'Fechar',
+      gameStats: 'Estatísticas do jogo', language: 'Idioma', themeToggle: 'Tema', gameControls: 'Controles do jogo', pause: 'Pausar', floorPlan: 'Planta do andar', close: 'Fechar',
       scenarioStudio: 'Estúdio de cenários', hireStaff: 'Contratar {staff}', openRoom: 'Abrir {room}', trainStaff: 'Treinar equipe', saved: 'Salvo', saving: 'Salvando…', floor: 'ANDAR', open: 'ABERTO',
       addWaitingChairs: 'Adicionar cadeiras de espera', addLoungeChairs: 'Adicionar cadeiras de descanso', chairsAdded: '{count} cadeiras adicionadas', maximum: 'MÁX.',
       addElevator: 'Adicionar elevador', upgradeElevator: 'Elevadores mais rápidos', elevatorAdded: 'Elevador adicionado', elevatorUpgraded: 'Elevadores melhorados para o nível {level}', elevators: 'ELEVADORES',
       elevator: 'ELEVADOR', waitingRoom: 'SALA DE ESPERA', staffLounge: 'DESCANSO — {staff}', selectedRoom: '{room} SELECIONADA', roomLevel: 'Nível da {room}', equipment: 'Equipamentos', revenue: 'Receita', manageFloor: 'Melhorias do andar', floorUpgradeHint: 'Melhore várias salas sem fechar este painel.', openRooms: 'Salas abertas', notOpened: 'Não aberta', upgradeAllRooms: 'Melhorar todas as salas + equipamentos', allRoomsUpgraded: 'Todas as salas e equipamentos foram melhorados',
       upgradeRoom: 'Melhorar {room}', upgradeEquipment: 'Melhorar equipamentos', customizeEverything: 'CUSTOMIZE TUDO', yourScenarios: 'Seus cenários', newScenario: 'Novo', importJson: 'Importar JSON', exportJson: 'Exportar JSON',
-      quickEdit: 'Edição rápida', documentation: 'Documentação ↗', scenarioName: 'Nome do cenário', currencySymbol: 'Símbolo da moeda', scenarioIcon: 'Ícone do cenário', customerIcon: 'Ícone do cliente', staffIcon: 'Ícone da equipe', roomIcon: 'Ícone da sala', equipmentIcon: 'Ícone do equipamento', activityIcon: 'Ícone da atividade',
+      quickEdit: 'Edição rápida', documentation: 'Documentação ↗', scenarioName: 'Nome do cenário', appearance: 'Aparência', appearanceHint: 'O tema muda a interface e as cores do texto. As cores da {room} ficam independentes.', interfaceTheme: 'Tema da interface', themeDark: 'Escuro', themeLight: 'Claro', screenBackground: 'Fundo da tela', roomFill: 'Preenchimento da {room}', roomAccent: 'Destaque da {room}', currencySymbol: 'Símbolo da moeda', scenarioIcon: 'Ícone do cenário', customerIcon: 'Ícone do cliente', staffIcon: 'Ícone da equipe', roomIcon: 'Ícone da sala', equipmentIcon: 'Ícone do equipamento', activityIcon: 'Ícone da atividade',
       iconGallery: 'Galeria de ícones', searchIcons: 'Buscar ícones…', iconResults: '{count} ícones', noIcons: 'Nenhum ícone encontrado', chooseIcon: 'Selecionar ícone', iconPeople: 'Pessoas', iconEducation: 'Educação', iconBusiness: 'Negócios e serviços', iconPlaces: 'Salas e lugares', iconFood: 'Alimentação e hotelaria', iconTransport: 'Transporte', iconObjects: 'Objetos e equipamentos', iconSymbols: 'Símbolos e formas',
       minDuration: 'Duração mín. (seg)', maxDuration: 'Duração máx. (seg)', baseRevenue: 'Receita base', arrivalRate: 'Intervalo de chegada (seg)', staffPerRoom: 'Equipe por atendimento', waitingCapacity: 'Máximo de cadeiras de espera', floorColumns: 'Salas na horizontal', floorRows: 'Salas na vertical',
       staffServicePosition: 'Equipe durante o atendimento', insideRoom: 'Dentro da sala', outsideRoom: 'Fora da sala', restPolicy: 'Política de descanso', restWhenEmpty: 'Somente com fila vazia', timedBreak: 'Pausa de 3–5 segundos',
       restMin: 'Pausa mínima (seg)', restMax: 'Pausa máxima (seg)',
       maxElevators: 'Máximo de elevadores', elevatorTravelTime: 'Tempo-base do elevador (seg)',
       labels: 'Nomes (EN / PT / JP)', customerSingular: 'Cliente', staffSingular: 'Equipe', roomSingular: 'Sala', jsonHint: 'Modo avançado: edite o cenário completo. JSON inválido não pode ser salvo.',
+      characterEditor: 'Personagens', characterEditorHint: 'Desenhe vários tipos para equipe e clientes, incluindo formato e cor do cabelo. Novas pessoas entram com um tipo ainda não usado; depois que todos aparecerem, os tipos podem repetir.',
+      staffTypes: 'Tipos de equipe', customerTypes: 'Tipos de cliente', addType: 'Novo tipo', duplicateType: 'Duplicar', deleteType: 'Excluir',
+      headShape: 'Cabeça', bodyShape: 'Corpo', hairShape: 'Cabelo', skinColor: 'Pele', clothesColor: 'Roupa', hairColor: 'Cor do cabelo', lookIcon: 'Ícone', keepOneType: 'Mantenha pelo menos um tipo.', maxTypes: 'Máximo de {count} tipos.',
+      shapeCircle: 'Círculo', shapeOval: 'Oval', shapeSquare: 'Quadrado', shapeDiamond: 'Losango', shapeHex: 'Hexágono',
+      shapeRounded: 'Arredondado', shapeTall: 'Alto', shapeWide: 'Largo', shapeTriangle: 'Triângulo', shapeCapsule: 'Cápsula',
+      hairNone: 'Nenhum', hairShort: 'Curto', hairSpike: 'Espinhos', hairSide: 'Lateral', hairBob: 'Chanel', hairLong: 'Longo', hairBun: 'Coque', hairPony: 'Rabo de cavalo', hairCurly: 'Cacheado',
+      roomEditor: 'Sala', roomEditorHint: 'Vista de lado: arraste móveis e pontos. Arraste a borda de um móvel selecionado para redimensionar. Os pontos dizem onde cliente e equipe podem ficar, e a fatia mín/máx do tempo de atendimento em cada lugar.',
+      furniture: 'Móveis', peopleSpots: 'Pontos de pessoas', addFurniture: 'Adicionar', clickToSelect: 'Arraste os itens na sala. Selecione um móvel e puxe as bordas para redimensionar.',
+      furnChair: 'Cadeira', furnTable: 'Mesa', furnDesk: 'Escrivaninha', furnBed: 'Cama', furnWhiteboard: 'Quadro', furnCabinet: 'Armário', furnWindow: 'Janela', furnToilet: 'Vaso', furnBath: 'Banheiro', furnPlant: 'Planta',
+      spotCustomer: 'Ponto do {customer}', spotStaff: 'Ponto do {staff}', spotBoth: 'Ponto compartilhado',
+      spotRole: 'Quem usa', roleCustomer: '{customer}', roleStaff: '{staff}', roleBoth: 'Os dois',
+      timeMin: 'Fatia mín. do tempo (%)', timeMax: 'Fatia máx. do tempo (%)', flipItem: 'Espelhar', itemColor: 'Cor', itemWidth: 'Largura', itemHeight: 'Altura', maxFurniture: 'Máximo de {count} objetos.', maxStations: 'Máximo de {count} pontos.',
       resetProgress: 'Zerar progresso', preserveReconfigure: 'Manter valor ao reconfigurar', preserveReconfigureHelp: 'Salas, upgrades e instalações compradas voltam para o caixa. Desmarque para zerar tudo.', saveAndPlay: 'Salvar e jogar', empty: 'VAZIA', busy: 'OCUPADA', locked: 'DISPONÍVEL', level: 'NV.',
       notEnoughCash: 'Dinheiro insuficiente', hired: '{staff} contratado', roomOpened: '{room} aberta', teamUpgraded: 'Equipe melhorada para o nível {level}', roomUpgraded: '{room} melhorada', equipmentUpgraded: 'Equipamento melhorado',
       scenarioSaved: 'Cenário salvo', assetsLiquidated: '{amount} recuperados dos recursos comprados', scenarioImported: 'Cenário importado', invalidConfig: 'Configuração de cenário inválida', resetConfirm: 'Zerar todo o progresso deste cenário?', newScenarioName: 'Meu novo cenário',
@@ -59,19 +138,31 @@
     },
     ja: {
       managementGame: '経営シミュレーション', cash: '所持金', earned: '総収益', staff: '{staffPlural}', served: '対応した{customerPlural}', waiting: '待機中',
-      gameStats: 'ゲーム統計', language: '言語', gameControls: 'ゲーム操作', pause: '一時停止', floorPlan: 'フロア図', close: '閉じる',
+      gameStats: 'ゲーム統計', language: '言語', themeToggle: 'テーマ', gameControls: 'ゲーム操作', pause: '一時停止', floorPlan: 'フロア図', close: '閉じる',
       scenarioStudio: 'シナリオスタジオ', hireStaff: '{staff}を雇う', openRoom: '{room}を開く', trainStaff: 'スタッフ研修', saved: '保存済み', saving: '保存中…', floor: 'フロア', open: '営業中',
       addWaitingChairs: '待合椅子を追加', addLoungeChairs: 'ラウンジ椅子を追加', chairsAdded: '椅子を{count}脚追加しました', maximum: '最大',
       addElevator: 'エレベーターを追加', upgradeElevator: 'エレベーター高速化', elevatorAdded: 'エレベーターを追加しました', elevatorUpgraded: 'エレベーターがレベル{level}になりました', elevators: 'エレベーター',
       elevator: 'エレベーター', waitingRoom: '待合室', staffLounge: '{staff}ラウンジ', selectedRoom: '選択中の{room}', roomLevel: '{room}レベル', equipment: '設備', revenue: '収益', manageFloor: 'フロアアップグレード', floorUpgradeHint: 'このパネルを閉じずに複数の部屋をアップグレードできます。', openRooms: '営業中の部屋', notOpened: '未開放', upgradeAllRooms: 'すべての部屋と設備をアップグレード', allRoomsUpgraded: 'すべての部屋と設備をアップグレードしました',
       upgradeRoom: '{room}をアップグレード', upgradeEquipment: '設備をアップグレード', customizeEverything: 'すべてカスタマイズ', yourScenarios: 'シナリオ', newScenario: '新規', importJson: 'JSON読込', exportJson: 'JSON出力',
-      quickEdit: '簡単編集', documentation: 'ドキュメント ↗', scenarioName: 'シナリオ名', currencySymbol: '通貨記号', scenarioIcon: 'シナリオアイコン', customerIcon: '顧客アイコン', staffIcon: 'スタッフアイコン', roomIcon: '部屋アイコン', equipmentIcon: '設備アイコン', activityIcon: '活動アイコン',
+      quickEdit: '簡単編集', documentation: 'ドキュメント ↗', scenarioName: 'シナリオ名', appearance: '外観', appearanceHint: 'テーマは画面と文字色を変えます。{room}の色はテーマと別に設定できます。', interfaceTheme: 'インターフェーステーマ', themeDark: 'ダーク', themeLight: 'ライト', screenBackground: '画面の背景', roomFill: '{room}の塗り', roomAccent: '{room}のアクセント', currencySymbol: '通貨記号', scenarioIcon: 'シナリオアイコン', customerIcon: '顧客アイコン', staffIcon: 'スタッフアイコン', roomIcon: '部屋アイコン', equipmentIcon: '設備アイコン', activityIcon: '活動アイコン',
       iconGallery: 'アイコンギャラリー', searchIcons: 'アイコンを検索…', iconResults: '{count}個のアイコン', noIcons: 'アイコンが見つかりません', chooseIcon: 'アイコンを選択', iconPeople: '人物', iconEducation: '教育', iconBusiness: 'ビジネスとサービス', iconPlaces: '部屋と場所', iconFood: '食事とホスピタリティ', iconTransport: '交通', iconObjects: '物と設備', iconSymbols: '記号と図形',
       minDuration: '最短時間（秒）', maxDuration: '最長時間（秒）', baseRevenue: '基本収益', arrivalRate: '到着間隔（秒）', staffPerRoom: 'サービス毎のスタッフ数', waitingCapacity: '待合椅子の最大数', floorColumns: '横方向の部屋数', floorRows: '縦方向の部屋数',
       staffServicePosition: 'サービス中のスタッフ', insideRoom: '部屋の中', outsideRoom: '部屋の外', restPolicy: '休憩ルール', restWhenEmpty: '待ち列が空の時のみ', timedBreak: '3〜5秒の休憩',
       restMin: '最短休憩（秒）', restMax: '最長休憩（秒）',
       maxElevators: 'エレベーター最大数', elevatorTravelTime: '基本移動時間（秒）',
       labels: '名称 (EN / PT / JP)', customerSingular: '顧客', staffSingular: 'スタッフ', roomSingular: '部屋', jsonHint: '上級モード：シナリオ全体を編集します。無効なJSONは保存できません。',
+      characterEditor: 'キャラクター', characterEditorHint: '髪の形と色を含め、スタッフと顧客の見た目を複数作れます。新しい人はまだ使っていないタイプからランダムに選ばれ、全てのタイプが出たあとは繰り返しできます。',
+      staffTypes: 'スタッフのタイプ', customerTypes: '顧客のタイプ', addType: 'タイプを追加', duplicateType: '複製', deleteType: '削除',
+      headShape: '頭', bodyShape: '体', hairShape: '髪', skinColor: '肌', clothesColor: '服', hairColor: '髪の色', lookIcon: 'バッジ', keepOneType: 'タイプは1つ以上必要です。', maxTypes: 'タイプは最大{count}個です。',
+      shapeCircle: '円', shapeOval: '楕円', shapeSquare: '四角', shapeDiamond: '菱形', shapeHex: '六角',
+      shapeRounded: '丸み', shapeTall: '縦長', shapeWide: '横長', shapeTriangle: '三角', shapeCapsule: 'カプセル',
+      hairNone: 'なし', hairShort: 'ショート', hairSpike: 'スパイク', hairSide: 'サイド', hairBob: 'ボブ', hairLong: 'ロング', hairBun: 'お団子', hairPony: 'ポニーテール', hairCurly: 'カール',
+      roomEditor: '部屋', roomEditorHint: '横から見た部屋です。家具をドラッグして配置し、選択した家具の端をドラッグすると大きさを変えられます。立ち位置は顧客とスタッフが入れる場所で、滞在時間の最小・最大割合も決められます。',
+      furniture: '家具', peopleSpots: '立ち位置', addFurniture: '追加', clickToSelect: '部屋の中をドラッグして配置します。家具を選んで端をドラッグするとサイズを変えられます。',
+      furnChair: '椅子', furnTable: 'テーブル', furnDesk: '机', furnBed: 'ベッド', furnWhiteboard: 'ホワイトボード', furnCabinet: '棚', furnWindow: '窓', furnToilet: 'トイレ', furnBath: 'バスルーム', furnPlant: '観葉植物',
+      spotCustomer: '{customer}の位置', spotStaff: '{staff}の位置', spotBoth: '共用の位置',
+      spotRole: '使う人', roleCustomer: '{customer}', roleStaff: '{staff}', roleBoth: '両方',
+      timeMin: '最短の時間割合（%）', timeMax: '最長の時間割合（%）', flipItem: '左右反転', itemColor: '色', itemWidth: '幅', itemHeight: '高さ', maxFurniture: '家具は最大{count}個です。', maxStations: '立ち位置は最大{count}個です。',
       resetProgress: '進行をリセット', preserveReconfigure: '再設定時に資産価値を維持', preserveReconfigureHelp: '購入した部屋、アップグレード、設備を現金に戻します。チェックを外すとすべてリセットされます。', saveAndPlay: '保存してプレイ', empty: '空室', busy: '使用中', locked: '利用可能', level: 'LV.',
       notEnoughCash: '資金が足りません', hired: '{staff}を雇いました', roomOpened: '{room}を開きました', teamUpgraded: 'チームがレベル{level}になりました', roomUpgraded: '{room}をアップグレードしました', equipmentUpgraded: '設備をアップグレードしました',
       scenarioSaved: 'シナリオを保存しました', assetsLiquidated: '購入済み資産から{amount}を回収しました', scenarioImported: 'シナリオを読み込みました', invalidConfig: 'シナリオ設定が無効です', resetConfirm: 'このシナリオの進行をすべてリセットしますか？', newScenarioName: '新しいシナリオ',
@@ -82,7 +173,34 @@
   const PRESETS = [
     {
       id: 'academy', name: 'Bright Path Academy', builtIn: true, icon: '📚', currencySymbol: '$', color: '#44d7c2', floor: { columns: 5, rows: 5 },
+      appearance: { theme: 'dark', background: '#071a23', roomFill: '#0b222c', roomColor: '#44d7c2' },
       icons: { customer: '●', staff: '✦', room: '▤', equipment: '▰' },
+      characters: {
+        staff: [
+          makeLook('staff-1', '#f1c6a5', '#a7ef5b', 'circle', 'rounded', '✦', 'short', '#1c1c1c'),
+          makeLook('staff-2', '#d4a574', '#2bb3a3', 'oval', 'tall', '✦', 'side', '#3d2314'),
+          makeLook('staff-3', '#e8b896', '#c6e86b', 'square', 'square', '✦', 'bun', '#6b3f1f'),
+          makeLook('staff-4', '#c68642', '#44d7c2', 'hex', 'capsule', '✦', 'spike', '#1c1c1c')
+        ],
+        customers: [
+          makeLook('customer-1', '#f8d5b8', '#44d7c2', 'circle', 'rounded', '●', 'bob', '#e8c56b'),
+          makeLook('customer-2', '#f1c6a5', '#7ec8ff', 'oval', 'tall', '●', 'long', '#3d2314'),
+          makeLook('customer-3', '#e8b896', '#ffb25f', 'square', 'wide', '●', 'short', '#1c1c1c'),
+          makeLook('customer-4', '#d4a574', '#f3d675', 'diamond', 'triangle', '●', 'pony', '#8d5524'),
+          makeLook('customer-5', '#c68642', '#ff8fab', 'hex', 'capsule', '●', 'curly', '#1c1c1c')
+        ]
+      },
+      roomLayout: {
+        furniture: [
+          makeFurn('board', 'whiteboard', 22, 58),
+          makeFurn('chair', 'chair', 54, 90),
+          makeFurn('cabinet', 'cabinet', 86, 90)
+        ],
+        stations: [
+          makeSpot('seat', 'customer', 54, 78, 45, 70),
+          makeSpot('board', 'both', 28, 72, 30, 55)
+        ]
+      },
       labels: {
         customer: { en: 'student', pt: 'aluno', ja: '生徒' }, customerPlural: { en: 'Students', pt: 'Alunos', ja: '生徒' },
         staff: { en: 'teacher', pt: 'professor', ja: '先生' }, staffPlural: { en: 'Teachers', pt: 'Professores', ja: '先生' },
@@ -102,7 +220,33 @@
     },
     {
       id: 'restaurant', name: 'Olive & Ember', builtIn: true, icon: '🍽️', currencySymbol: '$', color: '#ffb25f', floor: { columns: 5, rows: 5 },
+      appearance: { theme: 'dark', background: '#140e08', roomFill: '#24180e', roomColor: '#ffb25f' },
       icons: { customer: '●', staff: '✦', room: '▱', equipment: '◉' },
+      characters: {
+        staff: [
+          makeLook('staff-1', '#f1c6a5', '#2b3a42', 'circle', 'tall', '✦', 'short', '#1c1c1c'),
+          makeLook('staff-2', '#d4a574', '#e8e8e8', 'oval', 'rounded', '✦', 'bob', '#3d2314'),
+          makeLook('staff-3', '#c68642', '#ffb25f', 'square', 'square', '✦', 'bun', '#6b3f1f'),
+          makeLook('staff-4', '#e8b896', '#ff6e78', 'hex', 'capsule', '✦', 'spike', '#1c1c1c')
+        ],
+        customers: [
+          makeLook('customer-1', '#f8d5b8', '#ffb25f', 'circle', 'rounded', '●', 'bob', '#e8c56b'),
+          makeLook('customer-2', '#f1c6a5', '#7ec8ff', 'oval', 'wide', '●', 'long', '#3d2314'),
+          makeLook('customer-3', '#d4a574', '#c6a7ff', 'square', 'tall', '●', 'curly', '#1c1c1c'),
+          makeLook('customer-4', '#e8b896', '#9ae6b4', 'diamond', 'triangle', '●', 'pony', '#8d5524'),
+          makeLook('customer-5', '#c68642', '#ff8fab', 'hex', 'capsule', '●', 'short', '#6b3f1f')
+        ]
+      },
+      roomLayout: {
+        furniture: [
+          makeFurn('window', 'window', 20, 40),
+          makeFurn('table', 'table', 48, 90),
+          makeFurn('chair', 'chair', 66, 90)
+        ],
+        stations: [
+          makeSpot('table', 'customer', 50, 78, 100, 100)
+        ]
+      },
       labels: {
         customer: { en: 'guest', pt: 'cliente', ja: 'お客様' }, customerPlural: { en: 'Guests', pt: 'Clientes', ja: 'お客様' },
         staff: { en: 'waiter', pt: 'garçom', ja: 'ウェイター' }, staffPlural: { en: 'Waiters', pt: 'Garçons', ja: 'ウェイター' },
@@ -122,7 +266,36 @@
     },
     {
       id: 'hotel', name: 'Moonrise Hotel', builtIn: true, icon: '🛎️', currencySymbol: '$', color: '#c6a7ff', floor: { columns: 5, rows: 5 },
+      appearance: { theme: 'dark', background: '#120e1a', roomFill: '#1c1628', roomColor: '#c6a7ff' },
       icons: { customer: '●', staff: '✦', room: '▥', equipment: '◆' },
+      characters: {
+        staff: [
+          makeLook('staff-1', '#f1c6a5', '#c6a7ff', 'circle', 'tall', '✦', 'short', '#1c1c1c'),
+          makeLook('staff-2', '#d4a574', '#2b3a42', 'oval', 'rounded', '✦', 'side', '#3d2314'),
+          makeLook('staff-3', '#e8b896', '#d4af37', 'square', 'square', '✦', 'bun', '#6b3f1f'),
+          makeLook('staff-4', '#c68642', '#e8e8e8', 'hex', 'capsule', '✦', 'none', '#1c1c1c')
+        ],
+        customers: [
+          makeLook('customer-1', '#f8d5b8', '#c6a7ff', 'circle', 'rounded', '●', 'bob', '#e8c56b'),
+          makeLook('customer-2', '#f1c6a5', '#7ec8ff', 'oval', 'wide', '●', 'long', '#3d2314'),
+          makeLook('customer-3', '#e8b896', '#ffb25f', 'square', 'tall', '●', 'pony', '#8d5524'),
+          makeLook('customer-4', '#d4a574', '#ff8fab', 'diamond', 'triangle', '●', 'curly', '#1c1c1c'),
+          makeLook('customer-5', '#c68642', '#9ae6b4', 'hex', 'capsule', '●', 'spike', '#4a5568')
+        ]
+      },
+      roomLayout: {
+        furniture: [
+          makeFurn('window', 'window', 16, 38),
+          makeFurn('bed', 'bed', 38, 90),
+          makeFurn('desk', 'desk', 70, 90),
+          makeFurn('bath', 'bath', 90, 90)
+        ],
+        stations: [
+          makeSpot('bed', 'customer', 40, 78, 40, 65),
+          makeSpot('desk', 'both', 68, 78, 15, 30),
+          makeSpot('bath', 'customer', 88, 78, 15, 30)
+        ]
+      },
       labels: {
         customer: { en: 'guest', pt: 'hóspede', ja: '宿泊客' }, customerPlural: { en: 'Guests', pt: 'Hóspedes', ja: '宿泊客' },
         staff: { en: 'butler', pt: 'mordomo', ja: 'バトラー' }, staffPlural: { en: 'Butlers', pt: 'Mordomos', ja: 'バトラー' },
@@ -148,7 +321,307 @@
   const $ = (selector, parent = document) => parent.querySelector(selector);
   const $$ = (selector, parent = document) => [...parent.querySelectorAll(selector)];
   const deepCopy = (value) => JSON.parse(JSON.stringify(value));
-  const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+  function clamp(value, min, max) {
+    return Math.max(min, Math.min(max, value));
+  }
+
+  function shuffle(list) {
+    const copy = list.slice();
+    for (let index = copy.length - 1; index > 0; index -= 1) {
+      const swap = Math.floor(Math.random() * (index + 1));
+      [copy[index], copy[swap]] = [copy[swap], copy[index]];
+    }
+    return copy;
+  }
+
+  function sanitizeColor(value, fallback) {
+    const color = String(value || '').trim();
+    if (/^#([0-9a-fA-F]{3})$/.test(color)) return `#${[...color.slice(1)].map(char => char + char).join('')}`.toLowerCase();
+    return /^#([0-9a-fA-F]{6})$/.test(color) ? color.toLowerCase() : fallback;
+  }
+
+  function sameColor(a, b) {
+    return sanitizeColor(a, '') === sanitizeColor(b, '') && Boolean(sanitizeColor(a, ''));
+  }
+
+  function hexLuminance(hex) {
+    const color = sanitizeColor(hex, '#000000');
+    const channel = value => {
+      const sample = parseInt(value, 16) / 255;
+      return sample <= 0.03928 ? sample / 12.92 : Math.pow((sample + 0.055) / 1.055, 2.4);
+    };
+    return 0.2126 * channel(color.slice(1, 3)) + 0.7152 * channel(color.slice(3, 5)) + 0.0722 * channel(color.slice(5, 7));
+  }
+
+  function inkFor(background) {
+    return hexLuminance(background) > 0.42 ? '#143038' : '#eef9f6';
+  }
+
+  function mutedFor(background) {
+    return hexLuminance(background) > 0.42 ? '#5a7378' : '#8ba8ad';
+  }
+
+  function normalizeAppearance(scenario, fallbackTheme = 'dark') {
+    if (!scenario || typeof scenario !== 'object') return scenario;
+    const requested = scenario.appearance?.theme || fallbackTheme;
+    const theme = requested === 'light' ? 'light' : 'dark';
+    const defaults = THEME_DEFAULTS[theme];
+    const color = sanitizeColor(scenario.color, '#44d7c2');
+    scenario.color = color;
+    scenario.appearance = {
+      theme,
+      background: sanitizeColor(scenario.appearance?.background, defaults.background),
+      roomFill: sanitizeColor(scenario.appearance?.roomFill, defaults.roomFill),
+      roomColor: sanitizeColor(scenario.appearance?.roomColor, color)
+    };
+    return scenario;
+  }
+
+  function applyAppearance(scenario = config) {
+    const appearance = scenario?.appearance || THEME_DEFAULTS.dark;
+    const theme = appearance.theme === 'light' ? 'light' : 'dark';
+    const background = sanitizeColor(appearance.background, THEME_DEFAULTS[theme].background);
+    const roomFill = sanitizeColor(appearance.roomFill, THEME_DEFAULTS[theme].roomFill);
+    const roomColor = sanitizeColor(appearance.roomColor, scenario?.color || '#44d7c2');
+    const lightStage = hexLuminance(background) > 0.42;
+    document.documentElement.dataset.theme = theme;
+    document.documentElement.style.setProperty('--accent-2', sanitizeColor(scenario?.color, '#44d7c2'));
+    document.documentElement.style.setProperty('--stage-bg', background);
+    document.documentElement.style.setProperty('--stage-ink', inkFor(background));
+    document.documentElement.style.setProperty('--stage-muted', mutedFor(background));
+    document.documentElement.style.setProperty('--stage-grid', lightStage ? 'rgba(20, 48, 54, .07)' : 'rgba(255, 255, 255, .02)');
+    document.documentElement.style.setProperty('--locked-room', lightStage ? 'rgba(255, 255, 255, .45)' : 'rgba(6, 21, 29, .32)');
+    document.documentElement.style.setProperty('--room-fill', roomFill);
+    document.documentElement.style.setProperty('--room-color', roomColor);
+    document.documentElement.style.setProperty('--room-ink', inkFor(roomFill));
+    document.documentElement.style.setProperty('--room-muted', mutedFor(roomFill));
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.content = theme === 'light' ? '#e7eef0' : '#071a22';
+    const toggle = $('#theme-toggle');
+    if (toggle) {
+      toggle.textContent = theme === 'light' ? '☀' : '☾';
+      toggle.setAttribute('aria-label', t('themeToggle'));
+    }
+  }
+
+  function shiftThemeDefaults(appearance, fromTheme, toTheme) {
+    if (!appearance || fromTheme === toTheme) return appearance;
+    const from = THEME_DEFAULTS[fromTheme] || THEME_DEFAULTS.dark;
+    const to = THEME_DEFAULTS[toTheme] || THEME_DEFAULTS.dark;
+    if (sameColor(appearance.background, from.background)) appearance.background = to.background;
+    if (sameColor(appearance.roomFill, from.roomFill)) appearance.roomFill = to.roomFill;
+    appearance.theme = toTheme;
+    return appearance;
+  }
+
+  function defaultRoomLayout() {
+    return {
+      furniture: [makeFurn('chair-1', 'chair', 50, 90)],
+      stations: [makeSpot('spot-1', 'customer', 50, 78, 100, 100)]
+    };
+  }
+
+  function uniquifyIds(items, prefix) {
+    const used = new Set();
+    return items.map((item, index) => {
+      let id = String(item.id || `${prefix}-${index + 1}`).slice(0, 40);
+      if (!id || used.has(id)) id = `${prefix}-${index + 1}`;
+      let suffix = 2;
+      while (used.has(id)) id = `${prefix}-${index + 1}-${suffix++}`;
+      used.add(id);
+      return { ...item, id };
+    });
+  }
+
+  function normalizeFurniture(raw, index) {
+    const kind = FURNITURE_KINDS.includes(raw?.kind) ? raw.kind : 'chair';
+    const meta = FURNITURE_META[kind];
+    return {
+      id: String(raw?.id || `furn-${index + 1}`).slice(0, 40),
+      kind,
+      x: clamp(Number(raw?.x) || 50, 4, 96),
+      y: clamp(Number(raw?.y) || meta.y, 12, 96),
+      w: clamp(Number(raw?.w) || meta.w, 6, 72),
+      h: clamp(Number(raw?.h) || meta.h, 8, 80),
+      flip: !!raw?.flip,
+      color: sanitizeColor(raw?.color, meta.color)
+    };
+  }
+
+  function normalizeStation(raw, index) {
+    const role = ['customer', 'staff', 'both'].includes(raw?.role) ? raw.role : 'customer';
+    let minShare = clamp(Number(raw?.minShare) || 20, 0, 100);
+    let maxShare = clamp(Number(raw?.maxShare) || 50, 0, 100);
+    if (maxShare < minShare) [minShare, maxShare] = [maxShare, minShare];
+    return {
+      id: String(raw?.id || `spot-${index + 1}`).slice(0, 40),
+      role,
+      x: clamp(Number(raw?.x) || 50, 6, 94),
+      y: clamp(Number(raw?.y) || 78, 18, 96),
+      minShare,
+      maxShare
+    };
+  }
+
+  function normalizeRoomLayout(scenario) {
+    if (!scenario || typeof scenario !== 'object') return scenario;
+    const source = scenario.roomLayout && typeof scenario.roomLayout === 'object' ? scenario.roomLayout : defaultRoomLayout();
+    const furniture = Array.isArray(source.furniture) ? source.furniture.slice(0, MAX_FURNITURE).map(normalizeFurniture) : [];
+    const stations = Array.isArray(source.stations) ? source.stations.slice(0, MAX_STATIONS).map(normalizeStation) : [];
+    scenario.roomLayout = {
+      furniture: uniquifyIds(furniture, 'furn'),
+      stations: uniquifyIds(stations.length ? stations : defaultRoomLayout().stations, 'spot')
+    };
+    return scenario;
+  }
+
+  function roomLayoutOf(scenario = config) {
+    return normalizeRoomLayout(scenario ? { ...scenario, roomLayout: scenario.roomLayout } : {}).roomLayout;
+  }
+
+  function furnitureInner(kind) {
+    return FURNITURE_PARTS[kind] || FURNITURE_PARTS.chair;
+  }
+
+  function furnitureStyle(item) {
+    return `--x:${item.x}%;--y:${item.y}%;--wn:${item.w};--hn:${item.h};--furn:${item.color};z-index:${Math.round(item.y)}`;
+  }
+
+  function furnitureMarkup(item, extraClass = '') {
+    const editable = extraClass.includes('editable');
+    const handles = editable
+      ? `<span class="resize-handles" aria-hidden="true">${['nw', 'n', 'ne', 'w', 'e', 'sw', 's', 'se'].map(handle => `<span data-resize="${handle}"></span>`).join('')}</span>`
+      : '';
+    return `<div class="furn furn-${escapeHtml(item.kind)} ${extraClass}" data-kind="${escapeHtml(item.kind)}" data-flip="${item.flip ? 1 : 0}" data-layout-kind="furniture" data-layout-id="${escapeHtml(item.id)}" style="${furnitureStyle(item)}"><span class="furn-body">${furnitureInner(item.kind)}</span>${handles}</div>`;
+  }
+
+  function stationMarkup(item, extraClass = '') {
+    const label = item.role === 'staff' ? 'S' : item.role === 'both' ? 'B' : 'C';
+    return `<div class="spot ${extraClass}" data-role="${escapeHtml(item.role)}" data-layout-kind="station" data-layout-id="${escapeHtml(item.id)}" style="--x:${item.x}%;--y:${item.y}%;z-index:${Math.round(item.y) + 20}"><b>${label}</b></div>`;
+  }
+
+  function fallbackLook(kind, scenario = config) {
+    const isStaff = kind === 'staff';
+    return makeLook(
+      `${isStaff ? 'staff' : 'customer'}-1`,
+      '#f1c6a5',
+      isStaff ? '#a7ef5b' : (scenario?.color || '#44d7c2'),
+      'circle',
+      'rounded',
+      isStaff ? (scenario?.icons?.staff || '✦') : (scenario?.icons?.customer || '●'),
+      'short',
+      '#3d2314'
+    );
+  }
+
+  function uniquifyLookIds(looks, prefix) {
+    const used = new Set();
+    return looks.map((look, index) => {
+      let id = String(look.id || `${prefix}-${index + 1}`).slice(0, 40);
+      if (!id || used.has(id)) id = `${prefix}-${index + 1}`;
+      let suffix = 2;
+      while (used.has(id)) id = `${prefix}-${index + 1}-${suffix++}`;
+      used.add(id);
+      return { ...look, id };
+    });
+  }
+
+  function normalizeLook(raw, index, kind, scenario) {
+    const fallback = fallbackLook(kind, scenario);
+    return {
+      id: String(raw?.id || `${kind === 'staff' ? 'staff' : 'customer'}-${index + 1}`).slice(0, 40),
+      skin: sanitizeColor(raw?.skin, fallback.skin),
+      body: sanitizeColor(raw?.body, fallback.body),
+      head: HEAD_SHAPES.includes(raw?.head) ? raw.head : 'circle',
+      bodyShape: BODY_SHAPES.includes(raw?.bodyShape) ? raw.bodyShape : 'rounded',
+      hair: HAIR_SHAPES.includes(HAIR_ALIASES[raw?.hair] || raw?.hair) ? (HAIR_ALIASES[raw?.hair] || raw.hair) : 'short',
+      hairColor: sanitizeColor(raw?.hairColor, fallback.hairColor),
+      icon: String(raw?.icon ?? fallback.icon).slice(0, 16)
+    };
+  }
+
+  function defaultLooksFor(scenario, kind) {
+    const isStaff = kind === 'staff';
+    const icon = isStaff ? (scenario?.icons?.staff || '✦') : (scenario?.icons?.customer || '●');
+    const clothes = isStaff
+      ? [scenario?.color || '#44d7c2', '#a7ef5b', '#ffb25f', '#c6a7ff']
+      : [scenario?.color || '#44d7c2', '#7ec8ff', '#ffb25f', '#f3d675', '#ff8fab'];
+    const count = isStaff ? 4 : 5;
+    const hairStyles = HAIR_SHAPES.filter(shape => shape !== 'none');
+    return Array.from({ length: count }, (_, index) => makeLook(
+      `${isStaff ? 'staff' : 'customer'}-${index + 1}`,
+      SKIN_SWATCHES[index % SKIN_SWATCHES.length],
+      clothes[index % clothes.length],
+      HEAD_SHAPES[index % HEAD_SHAPES.length],
+      BODY_SHAPES[index % BODY_SHAPES.length],
+      icon,
+      hairStyles[index % hairStyles.length],
+      HAIR_SWATCHES[index % HAIR_SWATCHES.length]
+    ));
+  }
+
+  function normalizeCharacters(scenario) {
+    if (!scenario || typeof scenario !== 'object') return scenario;
+    const staffSource = Array.isArray(scenario.characters?.staff) && scenario.characters.staff.length
+      ? scenario.characters.staff.slice(0, MAX_LOOKS)
+      : defaultLooksFor(scenario, 'staff');
+    const customerSource = Array.isArray(scenario.characters?.customers) && scenario.characters.customers.length
+      ? scenario.characters.customers.slice(0, MAX_LOOKS)
+      : defaultLooksFor(scenario, 'customers');
+    scenario.characters = {
+      staff: uniquifyLookIds(staffSource.map((look, index) => normalizeLook(look, index, 'staff', scenario)), 'staff'),
+      customers: uniquifyLookIds(customerSource.map((look, index) => normalizeLook(look, index, 'customers', scenario)), 'customer')
+    };
+    return scenario;
+  }
+
+  function characterLooks(kind, scenario = config) {
+    const key = kind === 'staff' ? 'staff' : 'customers';
+    const list = scenario?.characters?.[key];
+    return Array.isArray(list) && list.length ? list : [fallbackLook(kind, scenario)];
+  }
+
+  function resolveLook(kind, lookId, scenario = config) {
+    const looks = characterLooks(kind, scenario);
+    return looks.find(look => look.id === lookId) || looks[0];
+  }
+
+  function nextLookId(kind, scenario = config) {
+    const looks = characterLooks(kind, scenario);
+    const ids = looks.map(look => look.id);
+    lookBags[kind] = (lookBags[kind] || []).filter(id => ids.includes(id));
+    if (!lookBags[kind].length) lookBags[kind] = shuffle(ids);
+    return lookBags[kind].pop() || looks[0].id;
+  }
+
+  function seedLookBag(kind, usedIds, scenario = config) {
+    const ids = characterLooks(kind, scenario).map(look => look.id);
+    const unused = ids.filter(id => !usedIds.includes(id));
+    lookBags[kind] = shuffle(unused);
+  }
+
+  function takeLooks(kind, count, scenario) {
+    const looks = characterLooks(kind, scenario);
+    const bag = shuffle(looks.map(look => look.id));
+    return Array.from({ length: count }, () => {
+      if (!bag.length) bag.push(...shuffle(looks.map(look => look.id)));
+      return bag.pop();
+    });
+  }
+
+  function personInnerHtml(look) {
+    return `<span class="person-hair-back"></span><span class="person-head"></span><span class="person-hair-front"></span><span class="person-torso"></span><span class="person-icon">${escapeHtml(look?.icon || '')}</span>`;
+  }
+
+  function applyLookToElement(element, look) {
+    if (!element || !look) return;
+    element.style.setProperty('--skin', look.skin);
+    element.style.setProperty('--person-color', look.body);
+    element.style.setProperty('--hair', look.hairColor);
+    element.dataset.head = look.head;
+    element.dataset.body = look.bodyShape;
+    element.dataset.hair = look.hair;
+  }
 
   let db;
   let scenarios = [];
@@ -170,6 +643,15 @@
   let activeIconTarget = 'customerIcon';
   let elevatorCursor = 0;
   let preserveOnReconfigure = true;
+  let userTheme = 'dark';
+  let lookBags = { staff: [], customers: [] };
+  let editorLooks = { staff: [], customers: [] };
+  let selectedLookKind = 'staff';
+  let selectedLookId = null;
+  let editorLayout = { furniture: [], stations: [] };
+  let selectedLayoutKind = '';
+  let selectedLayoutId = null;
+  let layoutDrag = null;
 
   function openDatabase() {
     return new Promise((resolve, reject) => {
@@ -198,7 +680,7 @@
     const existing = await idb('scenarios', 'readonly', store => store.getAll());
     for (const preset of PRESETS) {
       const current = existing.find(item => item.id === preset.id);
-      const next = current ? mergeDefaults(current, preset) : deepCopy(preset);
+      const next = normalizeRoomLayout(normalizeAppearance(normalizeCharacters(current ? mergeDefaults(current, preset) : deepCopy(preset))));
       if (!current || JSON.stringify(current) !== JSON.stringify(next)) {
         await idb('scenarios', 'readwrite', store => store.put(next));
       }
@@ -233,6 +715,7 @@
     const waitingSeats = clamp(Number(scenario.facilities?.waiting?.startingSeats) || Math.min(4, scenario.simulation.waitingCapacity), 1, Number(scenario.facilities?.waiting?.maxSeats) || scenario.simulation.waitingCapacity);
     const loungeSeats = clamp(Number(scenario.facilities?.lounge?.startingSeats) || 3, 1, Number(scenario.facilities?.lounge?.maxSeats) || 12);
     const elevatorCount = clamp(Number(scenario.facilities?.elevators?.startingCount) || 1, 1, Number(scenario.facilities?.elevators?.maxCount) || 6);
+    const staffLooks = takeLooks('staff', startingStaff, scenario);
     return {
       scenarioId: scenario.id,
       cash: scenario.economy.startingCash,
@@ -243,7 +726,7 @@
       loungeSeats,
       elevatorCount,
       elevatorLevel: 1,
-      staff: Array.from({ length: startingStaff }, (_, index) => ({ id: index + 1, status: 'idle' })),
+      staff: Array.from({ length: startingStaff }, (_, index) => ({ id: index + 1, status: 'idle', lookId: staffLooks[index] })),
       rooms: Array.from({ length: startingRooms }, (_, index) => ({ id: index + 1, level: 1, equipmentLevel: 1, status: 'empty' })),
       savedAt: Date.now()
     };
@@ -251,7 +734,7 @@
 
   async function loadScenario(id, fresh = false, skipCurrentSave = false) {
     if (!skipCurrentSave) await saveGame();
-    config = scenarios.find(item => item.id === id) || scenarios[0];
+    config = normalizeRoomLayout(normalizeAppearance(normalizeCharacters(deepCopy(scenarios.find(item => item.id === id) || scenarios[0])), userTheme));
     const saved = fresh ? null : await idb('saves', 'readonly', store => store.get(config.id));
     state = saved || defaultState(config);
     const defaults = defaultState(config);
@@ -259,7 +742,17 @@
     state.loungeSeats = clamp(Number(state.loungeSeats) || defaults.loungeSeats, 1, Number(config.facilities?.lounge?.maxSeats) || 12);
     state.elevatorCount = clamp(Number(state.elevatorCount) || defaults.elevatorCount, 1, Number(config.facilities?.elevators?.maxCount) || 6);
     state.elevatorLevel = Math.max(1, Number(state.elevatorLevel) || 1);
-    state.staff = (state.staff?.length ? state.staff : [{ id: 1 }]).map((member, index) => ({ id: member.id || index + 1, status: 'idle', location: 'lounge' }));
+    const staffLooks = characterLooks('staff');
+    lookBags = { staff: [], customers: [] };
+    state.staff = (state.staff?.length ? state.staff : [{ id: 1 }]).map((member, index) => ({
+      id: member.id || index + 1,
+      status: 'idle',
+      location: 'lounge',
+      lookId: staffLooks.some(look => look.id === member.lookId) ? member.lookId : null
+    }));
+    seedLookBag('staff', state.staff.map(member => member.lookId).filter(Boolean));
+    state.staff.forEach(member => { if (!member.lookId) member.lookId = nextLookId('staff'); });
+    seedLookBag('customers', []);
     state.rooms = (state.rooms?.length ? state.rooms : [{ id: 1, level: 1, equipmentLevel: 1 }]).slice(0, roomCapacity(config)).map(room => ({ ...room, status: 'empty', progress: 0 }));
     cleanupEntities();
     jobs = [];
@@ -278,7 +771,7 @@
     if (!db || !state || !config) return;
     $('#save-status').textContent = t('saving');
     const snapshot = deepCopy({ ...state, savedAt: Date.now() });
-    snapshot.staff = snapshot.staff.map(member => ({ id: member.id, status: 'idle' }));
+    snapshot.staff = snapshot.staff.map(member => ({ id: member.id, status: 'idle', lookId: member.lookId }));
     snapshot.rooms = snapshot.rooms.map(room => ({ ...room, status: 'empty', progress: 0 }));
     await idb('saves', 'readwrite', store => store.put(snapshot));
     $('#save-status').textContent = t('saved');
@@ -313,6 +806,8 @@
     $$('[data-i18n-placeholder]').forEach(element => { element.setAttribute('placeholder', t(element.dataset.i18nPlaceholder)); });
     if (db) idb('preferences', 'readwrite', store => store.put(language, 'language'));
     if ($('#icon-gallery') && config) renderIconGallery();
+    if (!$('#studio-modal')?.hidden && activeEditorTab === 'characters') renderCharacterEditor();
+    if (!$('#studio-modal')?.hidden && activeEditorTab === 'room') renderRoomEditor();
     renderAll();
   }
 
@@ -416,9 +911,9 @@
 
   function renderAll() {
     if (!config || !state) return;
+    applyAppearance(config);
     $('#scenario-title').textContent = config.name;
     document.title = `${config.name} — Service Floor Tycoon`;
-    document.documentElement.style.setProperty('--accent-2', config.color || '#44d7c2');
     renderStats();
     renderElevators();
     renderFloor();
@@ -531,10 +1026,11 @@
         element.innerHTML = `<span class="locked-label"><i>＋</i>${String(index).padStart(2, '0')} · ${t('locked')}</span><span class="room-door locked-door" aria-hidden="true"><i></i></span>`;
       } else {
         const equipment = equipmentForLevel(room.equipmentLevel);
-        element.style.setProperty('--room-color', config.color);
-        element.style.setProperty('--progress', `${room.progress || 0}%`);
         const activityName = activeJob ? localized(activeJob.activity.name) : '';
-        element.innerHTML = `<span class="room-head"><span class="room-name"><span class="room-number">${String(index).padStart(2, '0')}</span><strong>${escapeHtml(capitalize(label('room')))} ${String(index).padStart(2, '0')}</strong></span><span class="room-status"><i></i>${t(room.status === 'busy' ? 'busy' : 'empty')}</span></span><span class="room-center" title="${escapeHtml(activityName)}"><b>${escapeHtml(activeJob?.activity?.icon || config.icons.room)}</b>${activityName ? `<small>${escapeHtml(activityName)}</small>` : ''}</span><span class="room-level">${t('level')} ${room.level} · ${escapeHtml(equipment?.icon || config.icons.equipment)} ${room.equipmentLevel}</span><span class="room-door" aria-hidden="true"><i></i></span><span class="room-progress"></span>`;
+        element.style.setProperty('--progress', `${room.progress || 0}%`);
+        const layout = roomLayoutOf();
+        const furnitureHtml = layout.furniture.map(item => furnitureMarkup(item)).join('');
+        element.innerHTML = `<span class="room-head"><span class="room-name"><span class="room-number">${String(index).padStart(2, '0')}</span><strong>${escapeHtml(capitalize(label('room')))} ${String(index).padStart(2, '0')}</strong></span><span class="room-status"><i></i>${t(room.status === 'busy' ? 'busy' : 'empty')}</span></span><span class="room-interior"><span class="room-floor"></span>${furnitureHtml}<span class="room-activity" title="${escapeHtml(activityName)}">${escapeHtml(activeJob?.activity?.icon || '')}</span></span><span class="room-level">${t('level')} ${room.level} · ${escapeHtml(equipment?.icon || config.icons.equipment)} ${room.equipmentLevel}</span><span class="room-door" aria-hidden="true"><i></i></span><span class="room-progress"></span>`;
       }
       grid.appendChild(element);
     }
@@ -598,11 +1094,13 @@
     }).join('');
   }
 
-  function createPerson(type, id) {
+  function createPerson(type, id, lookId) {
+    const look = resolveLook(type, lookId);
     const element = document.createElement('div');
     element.className = `person ${type}`;
     element.id = `person-${type}-${id}`;
-    element.innerHTML = `<span class="person-icon">${escapeHtml(type === 'staff' ? config.icons.staff : config.icons.customer)}</span>`;
+    applyLookToElement(element, look);
+    element.innerHTML = personInnerHtml(look);
     $('#people-layer').appendChild(element);
     return element;
   }
@@ -641,9 +1139,73 @@
       const outsideOffsets = [0, 0, -17, 17, -34, 34];
       return { x: rect.left + rect.width / 2 + (outsideOffsets[slot] || 0), y: rect.bottom + 9 };
     }
+    const interior = $('.room-interior', element) || element;
+    const box = interior.getBoundingClientRect();
     const roomOffsets = [[-13, 0], [13, 0], [0, 16], [-18, 16], [18, 16], [0, -15]];
     const [offsetX, offsetY] = roomOffsets[slot] || [0, 0];
-    return { x: rect.left + rect.width / 2 + offsetX, y: rect.top + rect.height * .62 + offsetY };
+    return { x: box.left + box.width / 2 + offsetX, y: box.top + box.height * .78 + offsetY };
+  }
+
+  function getStationPoint(roomId, station, slot = 0) {
+    const room = $(`.room[data-room-id="${roomId}"]`);
+    if (!room || !station) return getPoint('room', roomId, slot);
+    const interior = $('.room-interior', room) || room;
+    const box = interior.getBoundingClientRect();
+    return { x: box.left + box.width * (Number(station.x) / 100) + slot * 9, y: box.top + box.height * (Number(station.y) / 100) };
+  }
+
+  function planStations(stations, duration) {
+    if (!stations.length) return [];
+    const raw = stations.map(item => ({ ...item, share: Math.max(0.01, random(item.minShare, item.maxShare) || 1) }));
+    const total = raw.reduce((sum, item) => sum + item.share, 0) || 1;
+    let elapsed = 0;
+    return raw.map(item => {
+      const length = duration * (item.share / total);
+      const start = elapsed;
+      elapsed += length;
+      return { id: item.id, x: item.x, y: item.y, start, end: elapsed };
+    });
+  }
+
+  function buildServicePlan(duration) {
+    const layout = roomLayoutOf();
+    const customerStations = layout.stations.filter(item => item.role === 'customer' || item.role === 'both');
+    const staffStations = layout.stations.filter(item => item.role === 'staff' || item.role === 'both');
+    return {
+      customer: planStations(customerStations, duration),
+      staff: planStations(staffStations, duration)
+    };
+  }
+
+  function stepAt(plan, elapsed) {
+    if (!plan?.length) return null;
+    return plan.find(step => elapsed >= step.start && elapsed < step.end - 0.0001) || plan[plan.length - 1];
+  }
+
+  function staffUsesRoomStations() {
+    return (config.routing?.staffServicePosition || 'inside') === 'inside';
+  }
+
+  function updateJobStations(job) {
+    if (job.phase !== 'service') return;
+    const customer = customers.find(item => item.id === job.customerId);
+    const room = state.rooms.find(item => item.id === job.roomId);
+    if (!customer || !room) return;
+    const customerStep = stepAt(job.customerPlan, job.elapsed);
+    if (customerStep && customerStep.id !== job.customerStationId) {
+      job.customerStationId = customerStep.id;
+      moveElement($(`#person-customer-${customer.id}`), getStationPoint(room.id, customerStep, 0), .42);
+    }
+    if (!staffUsesRoomStations()) return;
+    const staff = job.staffIds.map(id => state.staff.find(member => member.id === id)).filter(Boolean);
+    const staffStep = stepAt(job.staffPlan, job.elapsed) || customerStep;
+    if (!staffStep) return;
+    if (staffStep.id !== job.staffStationId) {
+      job.staffStationId = staffStep.id;
+      staff.forEach((member, index) => {
+        moveElement($(`#person-staff-${member.id}`), getStationPoint(room.id, staffStep, index + (customerStep && staffStep.id === customerStep.id ? 1 : 0)), .42);
+      });
+    }
   }
 
   function moveElement(element, point, duration = .6, invalidateRoute = true) {
@@ -755,9 +1317,10 @@
     const usedSeats = new Set(customers.filter(customer => ['elevator', 'waiting', 'arriving', 'assigned'].includes(customer.status)).map(customer => customer.seatIndex));
     const seatIndex = Array.from({ length: state.waitingSeats }, (_, index) => index).find(index => !usedSeats.has(index)) ?? 0;
     const id = ++entityCounter;
-    const customer = { id, status: 'elevator', timer: elevatorTravelTime(), seatIndex, elevatorIndex };
+    const lookId = nextLookId('customers');
+    const customer = { id, status: 'elevator', timer: elevatorTravelTime(), seatIndex, elevatorIndex, lookId };
     customers.push(customer);
-    const element = createPerson('customer', id);
+    const element = createPerson('customer', id, lookId);
     element.style.opacity = '0';
     moveElement(element, getPoint('elevator', elevatorIndex), 0);
     setElevatorTravelling(elevatorIndex, true);
@@ -775,8 +1338,9 @@
 
   function ensureStaffElements() {
     state.staff.forEach((member, index) => {
+      if (!member.lookId) member.lookId = nextLookId('staff');
       let element = $(`#person-staff-${member.id}`);
-      if (!element) element = createPerson('staff', member.id);
+      if (!element) element = createPerson('staff', member.id, member.lookId);
       if (member.status === 'idle') {
         member.location = member.location || 'lounge';
         moveElement(element, getPoint('lounge', index), .2);
@@ -847,13 +1411,23 @@
     const room = state.rooms.find(item => item.id === job.roomId);
     if (!customer || !room) return 'done';
     if (job.phase === 'pickup') {
+      const plan = buildServicePlan(job.duration);
+      job.customerPlan = plan.customer;
+      job.staffPlan = plan.staff;
+      job.customerStationId = plan.customer[0]?.id || null;
+      job.staffStationId = plan.staff[0]?.id || plan.customer[0]?.id || null;
       job.phase = 'toRoom';
       customer.status = 'toRoom';
-      const customerDuration = moveAlongRoute($(`#person-customer-${customer.id}`), routeGroundToRoom('waiting', room.id, getPoint('room', room.id, 0)), config.simulation.walkDuration, escortFollowDelay());
+      const customerDest = plan.customer[0] ? getStationPoint(room.id, plan.customer[0], 0) : getPoint('room', room.id, 0);
+      const customerDuration = moveAlongRoute($(`#person-customer-${customer.id}`), routeGroundToRoom('waiting', room.id, customerDest), config.simulation.walkDuration, escortFollowDelay());
       const staffDurations = staff.map((member, index) => {
-        const positionKind = (config.routing?.staffServicePosition || 'inside') === 'outside' ? 'roomDoor' : 'room';
-        const destination = getPoint(positionKind, room.id, index + 1);
-        member.location = positionKind === 'room' ? 'room' : 'roomDoor';
+        const outside = !staffUsesRoomStations();
+        const destination = outside
+          ? getPoint('roomDoor', room.id, index + 1)
+          : (plan.staff[0] || plan.customer[0])
+            ? getStationPoint(room.id, plan.staff[0] || plan.customer[0], index + 1)
+            : getPoint('room', room.id, index + 1);
+        member.location = outside ? 'roomDoor' : 'room';
         const formationDelay = index === 0 ? 0 : (index + 1) * escortFollowDelay();
         return moveAlongRoute($(`#person-staff-${member.id}`), routeGroundToRoom('waiting', room.id, destination, index + 1), config.simulation.walkDuration, formationDelay);
       });
@@ -968,6 +1542,7 @@
         job.elapsed += delta;
         const room = state.rooms.find(item => item.id === job.roomId);
         if (room) room.progress = clamp((job.elapsed / job.duration) * 100, 0, 100);
+        updateJobStations(job);
       }
     });
     jobs = jobs.filter(job => job.timer > 0 || advanceJob(job) !== 'done');
@@ -1000,7 +1575,7 @@
   function hireStaff() {
     spend(cost('hire'), () => {
       const id = Math.max(0, ...state.staff.map(member => member.id)) + 1;
-      state.staff.push({ id, status: 'idle' });
+      state.staff.push({ id, status: 'idle', lookId: nextLookId('staff') });
       ensureStaffElements();
       toast(t('hired'), 'good');
     });
@@ -1112,6 +1687,9 @@
       throw new Error(`floor.columns and floor.rows must be integers from 1 to ${MAX_FLOOR_AXIS}.`);
     }
     candidate.floor = { ...(candidate.floor || {}), columns, rows };
+    normalizeCharacters(candidate);
+    normalizeAppearance(candidate);
+    normalizeRoomLayout(candidate);
     if (Number(candidate.simulation.startingRooms) > columns * rows) throw new Error('simulation.startingRooms cannot exceed the floor capacity.');
     if (candidate.simulation.maxDuration < candidate.simulation.minDuration) throw new Error('maxDuration must be greater than or equal to minDuration.');
     if (candidate.routing) {
@@ -1147,14 +1725,20 @@
     populateEditor(config);
     $('#preserve-reconfigure-checkbox').checked = preserveOnReconfigure;
     $('#studio-modal').hidden = false;
+    syncStudioChrome();
     paused = true;
     $('#pause-btn').classList.add('active');
   }
 
   function closeStudio() {
     $('#studio-modal').hidden = true;
+    $('#studio-modal .studio')?.classList.remove('wide-canvas');
     paused = false;
     $('#pause-btn').classList.remove('active');
+  }
+
+  function syncStudioChrome() {
+    $('#studio-modal .studio')?.classList.toggle('wide-canvas', !$('#studio-modal').hidden && activeEditorTab === 'room');
   }
 
   function openFloorManager() {
@@ -1206,8 +1790,14 @@
   }
 
   function populateEditor(scenario) {
+    scenario = normalizeRoomLayout(normalizeAppearance(normalizeCharacters(deepCopy(scenario))));
     const form = $('#visual-editor');
     form.elements.name.value = scenario.name;
+    form.elements.theme.value = scenario.appearance.theme;
+    form.elements.theme.dataset.previousTheme = scenario.appearance.theme;
+    form.elements.background.value = scenario.appearance.background;
+    form.elements.roomFill.value = scenario.appearance.roomFill;
+    form.elements.roomColor.value = scenario.appearance.roomColor;
     form.elements.currencySymbol.value = scenario.currencySymbol;
     form.elements.scenarioIcon.value = scenario.icon || '✦';
     form.elements.customerIcon.value = scenario.icons.customer;
@@ -1236,7 +1826,102 @@
     });
     $('#json-textarea').value = JSON.stringify(scenario, null, 2);
     $('#json-error').textContent = '';
+    editorLooks = {
+      staff: deepCopy(characterLooks('staff', scenario)),
+      customers: deepCopy(characterLooks('customers', scenario))
+    };
+    selectedLookKind = 'staff';
+    selectedLookId = editorLooks.staff[0]?.id || null;
+    editorLayout = deepCopy(scenario.roomLayout || defaultRoomLayout());
+    selectedLayoutKind = '';
+    selectedLayoutId = null;
+    renderAppearanceSwatches();
     renderIconGallery();
+    if (activeEditorTab === 'characters') renderCharacterEditor();
+    if (activeEditorTab === 'room') renderRoomEditor();
+  }
+
+  function appearanceSwatchesFor(field) {
+    if (field === 'background') return STAGE_SWATCHES;
+    if (field === 'roomFill') return ROOM_FILL_SWATCHES;
+    return ROOM_COLOR_SWATCHES;
+  }
+
+  function renderAppearanceSwatches() {
+    const form = $('#visual-editor');
+    if (!form) return;
+    $$('.appearance-swatches').forEach(row => {
+      const field = row.dataset.swatchFor;
+      const current = form.elements[field]?.value;
+      row.innerHTML = appearanceSwatchesFor(field).map(color => `<button type="button" data-appearance-swatch="${escapeHtml(field)}" data-appearance-color="${escapeHtml(color)}" class="${sameColor(current, color) ? 'active' : ''}" style="background:${escapeHtml(color)}" aria-label="${escapeHtml(color)}"></button>`).join('');
+    });
+  }
+
+  function syncAppearanceFormToLive(field) {
+    const form = $('#visual-editor');
+    if (!form || !config || editingScenarioId !== config.id) return;
+    const previousTheme = config.appearance?.theme === 'light' ? 'light' : 'dark';
+    config.appearance = {
+      theme: form.elements.theme.value === 'light' ? 'light' : 'dark',
+      background: sanitizeColor(form.elements.background.value, THEME_DEFAULTS.dark.background),
+      roomFill: sanitizeColor(form.elements.roomFill.value, THEME_DEFAULTS.dark.roomFill),
+      roomColor: sanitizeColor(form.elements.roomColor.value, config.color)
+    };
+    if (field === 'theme' && previousTheme !== config.appearance.theme) {
+      userTheme = config.appearance.theme;
+      if (db) idb('preferences', 'readwrite', store => store.put(userTheme, 'theme'));
+    }
+    applyAppearance(config);
+    if (field === 'theme') persistLiveAppearance();
+  }
+
+  function onAppearanceFormChange(field) {
+    const form = $('#visual-editor');
+    if (!form) return;
+    if (field === 'theme') {
+      const next = form.elements.theme.value === 'light' ? 'light' : 'dark';
+      const previous = form.elements.theme.dataset.previousTheme === 'light' ? 'light' : 'dark';
+      const shifted = shiftThemeDefaults({
+        theme: previous,
+        background: form.elements.background.value,
+        roomFill: form.elements.roomFill.value
+      }, previous, next);
+      form.elements.background.value = shifted.background;
+      form.elements.roomFill.value = shifted.roomFill;
+      form.elements.theme.dataset.previousTheme = next;
+    }
+    renderAppearanceSwatches();
+    syncAppearanceFormToLive(field);
+  }
+
+  function persistLiveAppearance() {
+    if (!db || !config?.appearance) return;
+    const stored = scenarios.find(item => item.id === config.id);
+    if (stored) stored.appearance = deepCopy(config.appearance);
+    idb('scenarios', 'readwrite', store => store.put(stored || config));
+  }
+
+  function toggleTheme() {
+    const current = config?.appearance?.theme || userTheme || 'dark';
+    const next = current === 'light' ? 'dark' : 'light';
+    userTheme = next;
+    if (db) idb('preferences', 'readwrite', store => store.put(next, 'theme'));
+    if (config) {
+      normalizeAppearance(config);
+      shiftThemeDefaults(config.appearance, config.appearance.theme, next);
+      applyAppearance(config);
+      persistLiveAppearance();
+    } else {
+      document.documentElement.dataset.theme = next;
+    }
+    const form = $('#visual-editor');
+    if (form && config && editingScenarioId === config.id) {
+      form.elements.theme.value = next;
+      form.elements.theme.dataset.previousTheme = next;
+      form.elements.background.value = config.appearance.background;
+      form.elements.roomFill.value = config.appearance.roomFill;
+      renderAppearanceSwatches();
+    }
   }
 
   function scenarioFromVisual() {
@@ -1244,6 +1929,12 @@
     const form = $('#visual-editor');
     source.name = form.elements.name.value.trim() || t('newScenarioName');
     source.currencySymbol = form.elements.currencySymbol.value.trim() || '$';
+    source.appearance = {
+      theme: form.elements.theme.value === 'light' ? 'light' : 'dark',
+      background: sanitizeColor(form.elements.background.value, THEME_DEFAULTS.dark.background),
+      roomFill: sanitizeColor(form.elements.roomFill.value, THEME_DEFAULTS.dark.roomFill),
+      roomColor: sanitizeColor(form.elements.roomColor.value, source.color || '#44d7c2')
+    };
     source.icon = form.elements.scenarioIcon.value || '✦';
     source.icons.customer = form.elements.customerIcon.value || '●';
     source.icons.staff = form.elements.staffIcon.value || '✦';
@@ -1288,7 +1979,347 @@
       source.labels.staffPlural[lang] = pluralize(source.labels.staff[lang], lang);
       source.labels.roomPlural[lang] = pluralize(source.labels.room[lang], lang);
     });
+    source.characters = {
+      staff: deepCopy(editorLooks.staff),
+      customers: deepCopy(editorLooks.customers)
+    };
+    source.roomLayout = deepCopy(editorLayout);
+    if (source.characters.staff[0]?.icon) source.icons.staff = source.characters.staff[0].icon;
+    if (source.characters.customers[0]?.icon) source.icons.customer = source.characters.customers[0].icon;
     return validateConfig(source);
+  }
+
+  function selectedLayoutItem() {
+    const list = selectedLayoutKind === 'furniture' ? editorLayout.furniture : editorLayout.stations;
+    return (list || []).find(item => item.id === selectedLayoutId) || null;
+  }
+
+  function layoutItemOffset(kind, count) {
+    return { x: clamp(18 + (count % 4) * 18, 8, 90), y: kind === 'window' || kind === 'whiteboard' ? 42 + (count % 2) * 8 : 88 };
+  }
+
+  function addFurniture(kind) {
+    if (editorLayout.furniture.length >= MAX_FURNITURE) { toast(t('maxFurniture', { count: MAX_FURNITURE }), 'bad'); return; }
+    const meta = FURNITURE_META[kind] || FURNITURE_META.chair;
+    const point = layoutItemOffset(kind, editorLayout.furniture.length);
+    const item = makeFurn(`${kind}-${Date.now()}`, kind, point.x, point.y);
+    editorLayout.furniture.push(normalizeFurniture(item, editorLayout.furniture.length));
+    selectedLayoutKind = 'furniture';
+    selectedLayoutId = editorLayout.furniture[editorLayout.furniture.length - 1].id;
+    renderRoomEditor();
+  }
+
+  function addStation(role) {
+    if (editorLayout.stations.length >= MAX_STATIONS) { toast(t('maxStations', { count: MAX_STATIONS }), 'bad'); return; }
+    const point = layoutItemOffset('chair', editorLayout.stations.length);
+    const item = makeSpot(`spot-${Date.now()}`, role, point.x, 78, role === 'customer' ? 40 : 20, role === 'customer' ? 70 : 50);
+    editorLayout.stations.push(normalizeStation(item, editorLayout.stations.length));
+    selectedLayoutKind = 'station';
+    selectedLayoutId = editorLayout.stations[editorLayout.stations.length - 1].id;
+    renderRoomEditor();
+  }
+
+  function deleteSelectedLayoutItem() {
+    if (selectedLayoutKind === 'furniture') {
+      editorLayout.furniture = editorLayout.furniture.filter(item => item.id !== selectedLayoutId);
+    } else if (selectedLayoutKind === 'station') {
+      if (editorLayout.stations.length <= 1) return;
+      editorLayout.stations = editorLayout.stations.filter(item => item.id !== selectedLayoutId);
+    }
+    selectedLayoutKind = '';
+    selectedLayoutId = null;
+    renderRoomEditor();
+  }
+
+  function resizeHandleFromPoint(event, el) {
+    if (!el?.classList.contains('furn')) return '';
+    const box = el.getBoundingClientRect();
+    const pad = 10;
+    const x = event.clientX - box.left;
+    const y = event.clientY - box.top;
+    const nearL = x <= pad;
+    const nearR = x >= box.width - pad;
+    const nearT = y <= pad;
+    const nearB = y >= box.height - pad;
+    if (!nearL && !nearR && !nearT && !nearB) return '';
+    return `${nearT ? 'n' : nearB ? 's' : ''}${nearL ? 'w' : nearR ? 'e' : ''}`;
+  }
+
+  function furnitureUnit(stage) {
+    const rect = stage.getBoundingClientRect();
+    return { rect, unit: Math.min(1.05 * rect.width / 100, 2.9 * rect.height / 100) };
+  }
+
+  function resizePatchFromDrag(drag, event, stage) {
+    const { rect, unit } = furnitureUnit(stage);
+    if (unit < 0.05) return null;
+    const dx = (event.clientX - drag.x) / unit;
+    const dy = (event.clientY - drag.y) / unit;
+    const start = drag.start;
+    let x = start.x;
+    let y = start.y;
+    let w = start.w;
+    let h = start.h;
+    const handle = drag.handle || '';
+    if (handle.includes('e')) {
+      w = start.w + dx;
+      x = start.x + (dx * unit / 2) / rect.width * 100;
+    }
+    if (handle.includes('w')) {
+      w = start.w - dx;
+      x = start.x + (dx * unit / 2) / rect.width * 100;
+    }
+    if (handle.includes('n')) h = start.h - dy;
+    if (handle.includes('s')) {
+      h = start.h + dy;
+      y = start.y + (dy * unit) / rect.height * 100;
+    }
+    return { x, y, w, h };
+  }
+
+  function applyLayoutElementBox(el, item) {
+    if (!el) return;
+    el.style.setProperty('--x', `${item.x}%`);
+    el.style.setProperty('--y', `${item.y}%`);
+    el.style.setProperty('--wn', item.w);
+    el.style.setProperty('--hn', item.h);
+    el.style.zIndex = String(Math.round(item.y) + (selectedLayoutKind === 'station' ? 20 : 0));
+  }
+
+  function updateSelectedLayout(patch, options = {}) {
+    const item = selectedLayoutItem();
+    if (!item) return;
+    Object.assign(item, patch);
+    if (selectedLayoutKind === 'furniture') Object.assign(item, normalizeFurniture(item, 0), { id: item.id });
+    else Object.assign(item, normalizeStation(item, 0), { id: item.id });
+    if (layoutDrag) {
+      applyLayoutElementBox($(`#layout-stage [data-layout-id="${item.id}"]`), item);
+      if (options.syncInspectorSize) {
+        const widthInput = $('[data-layout-w]');
+        const heightInput = $('[data-layout-h]');
+        if (widthInput) widthInput.value = Math.round(item.w);
+        if (heightInput) heightInput.value = Math.round(item.h);
+      }
+      return;
+    }
+    renderLayoutStage();
+    if (!options.keepInspector) renderLayoutInspector();
+  }
+
+  function renderFurniturePalette() {
+    const palette = $('#furniture-palette');
+    if (!palette) return;
+    palette.innerHTML = FURNITURE_KINDS.map(kind => `<button type="button" class="palette-btn" data-add-furn="${kind}" ${editorLayout.furniture.length >= MAX_FURNITURE ? 'disabled' : ''}><span class="palette-mini">${furnitureMarkup({ ...makeFurn('p', kind, 50, 92), w: 72, h: 78 }, '')}</span><span>${escapeHtml(t(`furn${kind.charAt(0).toUpperCase()}${kind.slice(1)}`))}</span></button>`).join('');
+  }
+
+  function renderStationPalette() {
+    const palette = $('#station-palette');
+    if (!palette) return;
+    const full = editorLayout.stations.length >= MAX_STATIONS;
+    palette.innerHTML = [
+      ['customer', t('spotCustomer')],
+      ['staff', t('spotStaff')],
+      ['both', t('spotBoth')]
+    ].map(([role, label]) => `<button type="button" class="palette-btn" data-add-spot="${role}" ${full ? 'disabled' : ''}><span class="palette-mini">${stationMarkup({ id: 'p', role, x: 50, y: 92 })}</span><span>${escapeHtml(label)}</span></button>`).join('');
+  }
+
+  function renderLayoutStage() {
+    const stage = $('#layout-stage');
+    if (!stage) return;
+    const furnitureHtml = editorLayout.furniture.map(item => furnitureMarkup(item, `editable ${item.id === selectedLayoutId && selectedLayoutKind === 'furniture' ? 'selected' : ''}`)).join('');
+    const stationHtml = editorLayout.stations.map(item => stationMarkup(item, `editable ${item.id === selectedLayoutId && selectedLayoutKind === 'station' ? 'selected' : ''}`)).join('');
+    stage.innerHTML = `<span class="room-floor"></span><span class="room-door layout-door" aria-hidden="true"><i></i></span>${furnitureHtml}${stationHtml}`;
+  }
+
+  function renderLayoutInspector() {
+    const panel = $('#layout-inspector');
+    if (!panel) return;
+    const item = selectedLayoutItem();
+    if (!item) {
+      panel.innerHTML = `<div class="layout-inspector-empty">${escapeHtml(t('clickToSelect'))}</div>`;
+      return;
+    }
+    if (selectedLayoutKind === 'furniture') {
+      panel.innerHTML = `<h4>${escapeHtml(t(`furn${item.kind.charAt(0).toUpperCase()}${item.kind.slice(1)}`))}</h4>
+        <label><span data-i18n-keep>${escapeHtml(t('itemColor'))}</span><span class="color-line"><input type="color" data-layout-color value="${escapeHtml(item.color)}"><span class="swatch-row">${ROOM_COLOR_SWATCHES.concat(['#d4a574', '#8d6e4a', '#e8e8e8']).map(color => `<button type="button" data-layout-swatch="${escapeHtml(color)}" class="${sameColor(item.color, color) ? 'active' : ''}" style="background:${escapeHtml(color)}"></button>`).join('')}</span></span></label>
+        <div class="look-shape-row">
+          <label><span>${escapeHtml(t('itemWidth'))}</span><input type="number" min="6" max="72" data-layout-w value="${Math.round(item.w)}"></label>
+          <label><span>${escapeHtml(t('itemHeight'))}</span><input type="number" min="8" max="80" data-layout-h value="${Math.round(item.h)}"></label>
+        </div>
+        <label><span>${escapeHtml(t('flipItem'))}</span><input type="checkbox" data-layout-flip ${item.flip ? 'checked' : ''}></label>
+        <button type="button" class="danger-look" id="delete-layout-btn">${escapeHtml(t('deleteType'))}</button>`;
+      return;
+    }
+    panel.innerHTML = `<h4>${escapeHtml(t(item.role === 'staff' ? 'spotStaff' : item.role === 'both' ? 'spotBoth' : 'spotCustomer'))}</h4>
+      <label><span>${escapeHtml(t('spotRole'))}</span><select data-layout-role>
+        <option value="customer" ${item.role === 'customer' ? 'selected' : ''}>${escapeHtml(t('roleCustomer'))}</option>
+        <option value="staff" ${item.role === 'staff' ? 'selected' : ''}>${escapeHtml(t('roleStaff'))}</option>
+        <option value="both" ${item.role === 'both' ? 'selected' : ''}>${escapeHtml(t('roleBoth'))}</option>
+      </select></label>
+      <label><span>${escapeHtml(t('timeMin'))}</span><input type="number" min="0" max="100" data-layout-min value="${item.minShare}"></label>
+      <label><span>${escapeHtml(t('timeMax'))}</span><input type="number" min="0" max="100" data-layout-max value="${item.maxShare}"></label>
+      <button type="button" class="danger-look" id="delete-layout-btn" ${editorLayout.stations.length <= 1 ? 'disabled' : ''}>${escapeHtml(t('deleteType'))}</button>`;
+  }
+
+  function renderRoomEditor() {
+    if (!$('#room-editor') || $('#room-editor').hidden) return;
+    renderFurniturePalette();
+    renderStationPalette();
+    renderLayoutStage();
+    renderLayoutInspector();
+  }
+
+  function pointerToLayoutPercent(event, stage) {
+    const rect = stage.getBoundingClientRect();
+    return {
+      x: clamp(((event.clientX - rect.left) / Math.max(rect.width, 1)) * 100, 4, 96),
+      y: clamp(((event.clientY - rect.top) / Math.max(rect.height, 1)) * 100, 12, 96)
+    };
+  }
+
+  function selectedLook() {
+    return (editorLooks[selectedLookKind] || []).find(look => look.id === selectedLookId) || null;
+  }
+
+  function lookMarkup(look, extraClass = '') {
+    return `<span class="person ${escapeHtml(extraClass)}" data-head="${escapeHtml(look.head)}" data-body="${escapeHtml(look.bodyShape)}" data-hair="${escapeHtml(look.hair)}" style="--skin:${escapeHtml(look.skin)};--person-color:${escapeHtml(look.body)};--hair:${escapeHtml(look.hairColor)}">${personInnerHtml(look)}</span>`;
+  }
+
+  function renderLookList(kind) {
+    const list = $(`#${kind === 'staff' ? 'staff' : 'customer'}-look-list`);
+    if (!list) return;
+    list.innerHTML = editorLooks[kind].map((look, index) => `<button type="button" class="look-card ${look.id === selectedLookId && kind === selectedLookKind ? 'active' : ''}" data-look-kind="${kind}" data-look-id="${escapeHtml(look.id)}">${lookMarkup(look, kind)}<small>${index + 1}</small></button>`).join('');
+  }
+
+  function renderCharacterEditor() {
+    const addStaff = $('#add-staff-look-btn');
+    const addCustomer = $('#add-customer-look-btn');
+    if (addStaff) addStaff.disabled = editorLooks.staff.length >= MAX_LOOKS;
+    if (addCustomer) addCustomer.disabled = editorLooks.customers.length >= MAX_LOOKS;
+    renderLookList('staff');
+    renderLookList('customers');
+    renderLookInspector();
+  }
+
+  function renderLookInspector() {
+    const panel = $('#look-inspector');
+    if (!panel) return;
+    const look = selectedLook();
+    if (!look) {
+      panel.innerHTML = `<div class="look-inspector-empty">${escapeHtml(t('keepOneType'))}</div>`;
+      return;
+    }
+    const looks = editorLooks[selectedLookKind];
+    panel.innerHTML = `
+      <div class="look-preview-stage">${lookMarkup(look, selectedLookKind)}</div>
+      <div class="look-shape-row">
+        <div>
+          <h4>${escapeHtml(t('headShape'))}</h4>
+          <div class="shape-grid">${HEAD_SHAPES.map(shape => `<button type="button" class="shape-btn ${look.head === shape ? 'active' : ''}" data-look-field="head" data-look-value="${shape}" aria-label="${escapeHtml(t(`shape${shape.charAt(0).toUpperCase()}${shape.slice(1)}`))}"><i class="shape-swatch head-${shape}"></i></button>`).join('')}</div>
+        </div>
+        <div>
+          <h4>${escapeHtml(t('bodyShape'))}</h4>
+          <div class="shape-grid">${BODY_SHAPES.map(shape => `<button type="button" class="shape-btn ${look.bodyShape === shape ? 'active' : ''}" data-look-field="bodyShape" data-look-value="${shape}" aria-label="${escapeHtml(t(`shape${shape.charAt(0).toUpperCase()}${shape.slice(1)}`))}"><i class="shape-swatch body-${shape}"></i></button>`).join('')}</div>
+        </div>
+      </div>
+      <div>
+        <h4>${escapeHtml(t('hairShape'))}</h4>
+        <div class="shape-grid">${HAIR_SHAPES.map(shape => `<button type="button" class="shape-btn ${look.hair === shape ? 'active' : ''}" data-look-field="hair" data-look-value="${shape}" aria-label="${escapeHtml(t(`hair${shape.charAt(0).toUpperCase()}${shape.slice(1)}`))}"><i class="shape-swatch hair-${shape}"></i></button>`).join('')}</div>
+      </div>
+      <div class="look-color-row">
+        <label><span>${escapeHtml(t('skinColor'))}</span>
+          <div class="color-line"><input type="color" data-look-color="skin" value="${escapeHtml(look.skin)}">
+          <div class="swatch-row">${SKIN_SWATCHES.map(color => `<button type="button" data-look-color-swatch="skin" data-look-value="${color}" class="${look.skin.toLowerCase() === color.toLowerCase() ? 'active' : ''}" style="background:${color}" aria-label="${color}"></button>`).join('')}</div></div>
+        </label>
+        <label><span>${escapeHtml(t('clothesColor'))}</span>
+          <div class="color-line"><input type="color" data-look-color="body" value="${escapeHtml(look.body)}">
+          <div class="swatch-row">${CLOTHES_SWATCHES.map(color => `<button type="button" data-look-color-swatch="body" data-look-value="${color}" class="${look.body.toLowerCase() === color.toLowerCase() ? 'active' : ''}" style="background:${color}" aria-label="${color}"></button>`).join('')}</div></div>
+        </label>
+        <label><span>${escapeHtml(t('hairColor'))}</span>
+          <div class="color-line"><input type="color" data-look-color="hairColor" value="${escapeHtml(look.hairColor)}">
+          <div class="swatch-row">${HAIR_SWATCHES.map(color => `<button type="button" data-look-color-swatch="hairColor" data-look-value="${color}" class="${look.hairColor.toLowerCase() === color.toLowerCase() ? 'active' : ''}" style="background:${color}" aria-label="${color}"></button>`).join('')}</div></div>
+        </label>
+      </div>
+      <label class="look-icon-field"><span>${escapeHtml(t('lookIcon'))}</span><input data-look-icon maxlength="16" value="${escapeHtml(look.icon)}"></label>
+      <div class="look-inspector-actions">
+        <button type="button" id="duplicate-look-btn" ${looks.length >= MAX_LOOKS ? 'disabled' : ''}>${escapeHtml(t('duplicateType'))}</button>
+        <button type="button" class="danger-look" id="delete-look-btn" ${looks.length <= 1 ? 'disabled' : ''}>${escapeHtml(t('deleteType'))}</button>
+      </div>`;
+  }
+
+  function updateSelectedLook(patch, options = {}) {
+    const look = selectedLook();
+    if (!look) return;
+    Object.assign(look, patch);
+    if (options.keepInspector) {
+      renderLookList('staff');
+      renderLookList('customers');
+      const preview = $('#look-inspector .person');
+      if (preview) {
+        applyLookToElement(preview, look);
+        const icon = preview.querySelector('.person-icon');
+        if (icon) icon.textContent = look.icon;
+      }
+      ['skin', 'body', 'hairColor'].forEach(field => {
+        if (!(field in patch)) return;
+        $$(`#look-inspector [data-look-color-swatch="${field}"]`).forEach(button => {
+          button.classList.toggle('active', button.dataset.lookValue.toLowerCase() === look[field].toLowerCase());
+        });
+      });
+      return;
+    }
+    renderCharacterEditor();
+  }
+
+  function randomLook(kind, existing) {
+    const usedHeads = new Set(existing.map(look => look.head));
+    const usedBodies = new Set(existing.map(look => look.bodyShape));
+    const usedHair = new Set(existing.map(look => look.hair));
+    const usedClothes = new Set(existing.map(look => look.body.toLowerCase()));
+    const usedSkin = new Set(existing.map(look => look.skin.toLowerCase()));
+    const usedHairColor = new Set(existing.map(look => (look.hairColor || '').toLowerCase()));
+    const palette = kind === 'staff' ? ['#a7ef5b', '#44d7c2', '#2b3a42', '#d4af37', '#e8e8e8', '#ffb25f', '#c6a7ff', '#ff6e78'] : CLOTHES_SWATCHES;
+    const source = selectedLook() || existing[existing.length - 1] || fallbackLook(kind);
+    return normalizeLook({
+      id: `${kind === 'staff' ? 'staff' : 'customer'}-${Date.now().toString(36)}`,
+      skin: SKIN_SWATCHES.find(color => !usedSkin.has(color.toLowerCase())) || SKIN_SWATCHES[existing.length % SKIN_SWATCHES.length],
+      body: palette.find(color => !usedClothes.has(color.toLowerCase())) || palette[existing.length % palette.length],
+      head: HEAD_SHAPES.find(shape => !usedHeads.has(shape)) || HEAD_SHAPES[existing.length % HEAD_SHAPES.length],
+      bodyShape: BODY_SHAPES.find(shape => !usedBodies.has(shape)) || BODY_SHAPES[existing.length % BODY_SHAPES.length],
+      hair: HAIR_SHAPES.find(shape => !usedHair.has(shape)) || HAIR_SHAPES[existing.length % HAIR_SHAPES.length],
+      hairColor: HAIR_SWATCHES.find(color => !usedHairColor.has(color.toLowerCase())) || HAIR_SWATCHES[existing.length % HAIR_SWATCHES.length],
+      icon: source.icon
+    }, existing.length, kind);
+  }
+
+  function addEditorLook(kind, look) {
+    if (editorLooks[kind].length >= MAX_LOOKS) {
+      toast(t('maxTypes', { count: MAX_LOOKS }), 'bad');
+      return;
+    }
+    const next = uniquifyLookIds([...editorLooks[kind], look], kind === 'staff' ? 'staff' : 'customer').pop();
+    editorLooks[kind].push(next);
+    selectedLookKind = kind;
+    selectedLookId = next.id;
+    renderCharacterEditor();
+  }
+
+  function duplicateSelectedLook() {
+    const look = selectedLook();
+    if (!look) return;
+    addEditorLook(selectedLookKind, { ...deepCopy(look), id: `${look.id}-copy` });
+  }
+
+  function deleteSelectedLook() {
+    const looks = editorLooks[selectedLookKind];
+    if (looks.length <= 1) {
+      toast(t('keepOneType'), 'bad');
+      return;
+    }
+    const index = looks.findIndex(look => look.id === selectedLookId);
+    looks.splice(index, 1);
+    selectedLookId = looks[Math.max(0, index - 1)]?.id || looks[0].id;
+    renderCharacterEditor();
   }
 
   async function saveEditedScenario() {
@@ -1377,6 +2408,7 @@
 
   function bindEvents() {
     $('.language-switcher').addEventListener('click', event => { if (event.target.dataset.lang) setLanguage(event.target.dataset.lang); });
+    $('#theme-toggle').addEventListener('click', toggleTheme);
     $('#hire-btn').addEventListener('click', hireStaff);
     $('#buy-room-btn').addEventListener('click', buyRoom);
     $('#upgrade-staff-btn').addEventListener('click', upgradeStaff);
@@ -1428,16 +2460,140 @@
     $('#visual-editor').addEventListener('focusin', event => {
       if (event.target.dataset.iconInput) selectIconTarget(event.target.dataset.iconInput);
     });
+    $('#visual-editor').addEventListener('click', event => {
+      const swatch = event.target.closest('[data-appearance-swatch]');
+      if (!swatch) return;
+      const input = $('#visual-editor').elements[swatch.dataset.appearanceSwatch];
+      if (!input) return;
+      input.value = swatch.dataset.appearanceColor;
+      onAppearanceFormChange(swatch.dataset.appearanceSwatch);
+    });
     $('#visual-editor').addEventListener('input', event => {
       if (event.target.dataset.iconInput) renderIconGallery();
+      if (['background', 'roomFill', 'roomColor'].includes(event.target.name)) onAppearanceFormChange(event.target.name);
+    });
+    $('#visual-editor').addEventListener('change', event => {
+      if (event.target.name === 'theme') onAppearanceFormChange('theme');
     });
     $$('.editor-tabs button').forEach(button => button.addEventListener('click', () => {
+      if (activeEditorTab === 'json' && button.dataset.tab !== 'json') {
+        try { populateEditor(validateConfig(JSON.parse($('#json-textarea').value))); } catch {}
+      }
       activeEditorTab = button.dataset.tab;
       $$('.editor-tabs button').forEach(item => item.classList.toggle('active', item === button));
       $('#visual-editor').hidden = activeEditorTab !== 'visual';
       $('#json-editor').hidden = activeEditorTab !== 'json';
+      $('#character-editor').hidden = activeEditorTab !== 'characters';
+      $('#room-editor').hidden = activeEditorTab !== 'room';
+      syncStudioChrome();
       if (activeEditorTab === 'json') $('#json-textarea').value = JSON.stringify(scenarioFromVisual(), null, 2);
+      if (activeEditorTab === 'characters') renderCharacterEditor();
+      if (activeEditorTab === 'room') renderRoomEditor();
     }));
+    $('#room-editor').addEventListener('click', event => {
+      const furn = event.target.closest('[data-add-furn]');
+      if (furn) { addFurniture(furn.dataset.addFurn); return; }
+      const spot = event.target.closest('[data-add-spot]');
+      if (spot) { addStation(spot.dataset.addSpot); return; }
+      if (event.target.closest('#delete-layout-btn')) { deleteSelectedLayoutItem(); return; }
+      const swatch = event.target.closest('[data-layout-swatch]');
+      if (swatch) { updateSelectedLayout({ color: swatch.dataset.layoutSwatch }); return; }
+    });
+    $('#room-editor').addEventListener('change', event => {
+      if (event.target.dataset.layoutFlip !== undefined) updateSelectedLayout({ flip: event.target.checked });
+      if (event.target.dataset.layoutRole) updateSelectedLayout({ role: event.target.value });
+    });
+    $('#room-editor').addEventListener('input', event => {
+      if (event.target.dataset.layoutColor) updateSelectedLayout({ color: event.target.value }, { keepInspector: true });
+      if (event.target.dataset.layoutMin) updateSelectedLayout({ minShare: Number(event.target.value) }, { keepInspector: true });
+      if (event.target.dataset.layoutMax) updateSelectedLayout({ maxShare: Number(event.target.value) }, { keepInspector: true });
+      if (event.target.dataset.layoutW) updateSelectedLayout({ w: Number(event.target.value) }, { keepInspector: true });
+      if (event.target.dataset.layoutH) updateSelectedLayout({ h: Number(event.target.value) }, { keepInspector: true });
+    });
+    $('#layout-stage').addEventListener('pointerdown', event => {
+      const item = event.target.closest('[data-layout-id]');
+      if (!item) {
+        selectedLayoutKind = '';
+        selectedLayoutId = null;
+        $$('#layout-stage [data-layout-id]').forEach(el => el.classList.remove('selected'));
+        renderLayoutInspector();
+        return;
+      }
+      const alreadySelected = item.classList.contains('selected');
+      selectedLayoutKind = item.dataset.layoutKind;
+      selectedLayoutId = item.dataset.layoutId;
+      $$('#layout-stage [data-layout-id]').forEach(el => el.classList.toggle('selected', el.dataset.layoutId === selectedLayoutId));
+      renderLayoutInspector();
+      const current = selectedLayoutItem();
+      if (!current) return;
+      const handle = event.target.closest('[data-resize]')?.dataset.resize
+        || (alreadySelected && item.dataset.layoutKind === 'furniture' ? resizeHandleFromPoint(event, item) : '');
+      const origin = pointerToLayoutPercent(event, $('#layout-stage'));
+      layoutDrag = {
+        id: current.id,
+        kind: selectedLayoutKind,
+        mode: handle && selectedLayoutKind === 'furniture' ? 'resize' : 'move',
+        handle,
+        pointerId: event.pointerId,
+        x: event.clientX,
+        y: event.clientY,
+        offsetX: current.x - origin.x,
+        offsetY: current.y - origin.y,
+        start: { x: current.x, y: current.y, w: current.w, h: current.h },
+        moved: false
+      };
+      item.setPointerCapture?.(event.pointerId);
+      event.preventDefault();
+    });
+    window.addEventListener('pointermove', event => {
+      if (!layoutDrag) return;
+      const stage = $('#layout-stage');
+      if (!stage || $('#room-editor')?.hidden) return;
+      if (!layoutDrag.moved && Math.hypot(event.clientX - layoutDrag.x, event.clientY - layoutDrag.y) < 4) return;
+      layoutDrag.moved = true;
+      if (layoutDrag.mode === 'resize') {
+        const patch = resizePatchFromDrag(layoutDrag, event, stage);
+        if (patch) updateSelectedLayout(patch, { keepInspector: true, syncInspectorSize: true });
+        return;
+      }
+      const point = pointerToLayoutPercent(event, stage);
+      updateSelectedLayout({
+        x: clamp(point.x + layoutDrag.offsetX, 4, 96),
+        y: clamp(point.y + layoutDrag.offsetY, 12, 96)
+      }, { keepInspector: true });
+    });
+    window.addEventListener('pointerup', () => {
+      if (layoutDrag?.moved) {
+        renderLayoutStage();
+        renderLayoutInspector();
+      }
+      layoutDrag = null;
+    });
+    window.addEventListener('pointercancel', () => { layoutDrag = null; });
+    $('#add-staff-look-btn').addEventListener('click', () => addEditorLook('staff', randomLook('staff', editorLooks.staff)));
+    $('#add-customer-look-btn').addEventListener('click', () => addEditorLook('customers', randomLook('customers', editorLooks.customers)));
+    $('#character-editor').addEventListener('click', event => {
+      const card = event.target.closest('.look-card');
+      if (!card) return;
+      selectedLookKind = card.dataset.lookKind;
+      selectedLookId = card.dataset.lookId;
+      renderCharacterEditor();
+    });
+    $('#look-inspector').addEventListener('click', event => {
+      if (event.target.closest('#duplicate-look-btn')) { duplicateSelectedLook(); return; }
+      if (event.target.closest('#delete-look-btn')) { deleteSelectedLook(); return; }
+      const shape = event.target.closest('[data-look-field]');
+      if (shape) {
+        updateSelectedLook({ [shape.dataset.lookField]: shape.dataset.lookValue });
+        return;
+      }
+      const swatch = event.target.closest('[data-look-color-swatch]');
+      if (swatch) updateSelectedLook({ [swatch.dataset.lookColorSwatch]: swatch.dataset.lookValue });
+    });
+    $('#look-inspector').addEventListener('input', event => {
+      if (event.target.dataset.lookColor) updateSelectedLook({ [event.target.dataset.lookColor]: event.target.value }, { keepInspector: true });
+      if (event.target.dataset.lookIcon !== undefined) updateSelectedLook({ icon: event.target.value }, { keepInspector: true });
+    });
     $('#json-textarea').addEventListener('input', () => {
       try { JSON.parse($('#json-textarea').value); $('#json-error').textContent = ''; }
       catch (error) { $('#json-error').textContent = error.message; }
@@ -1454,6 +2610,13 @@
     window.addEventListener('beforeunload', saveGame);
     document.addEventListener('visibilitychange', () => { if (document.hidden) saveGame(); });
     document.addEventListener('keydown', event => {
+      if (event.key === 'Delete' || event.key === 'Backspace') {
+        if (!$('#studio-modal').hidden && activeEditorTab === 'room' && selectedLayoutId && !['INPUT', 'TEXTAREA', 'SELECT'].includes(event.target.tagName)) {
+          event.preventDefault();
+          deleteSelectedLayoutItem();
+          return;
+        }
+      }
       if (event.key !== 'Escape') return;
       if (!$('#floor-manager-modal').hidden) closeFloorManager();
       else if (!$('#studio-modal').hidden) closeStudio();
@@ -1486,8 +2649,10 @@
       const savedLanguage = await idb('preferences', 'readonly', store => store.get('language'));
       const activeScenario = await idb('preferences', 'readonly', store => store.get('activeScenario'));
       const savedPreserveOnReconfigure = await idb('preferences', 'readonly', store => store.get('preserveOnReconfigure'));
+      const savedTheme = await idb('preferences', 'readonly', store => store.get('theme'));
       language = savedLanguage || (navigator.language.startsWith('pt') ? 'pt' : navigator.language.startsWith('ja') ? 'ja' : 'en');
       preserveOnReconfigure = savedPreserveOnReconfigure !== false;
+      userTheme = savedTheme === 'light' ? 'light' : 'dark';
       bindEvents();
       await loadScenario(activeScenario || 'academy');
       setLanguage(language);

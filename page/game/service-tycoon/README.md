@@ -34,6 +34,14 @@ service-tycoon/
     "room": "▤",
     "equipment": "▰"
   },
+  "characters": {
+    "staff": [
+      { "id": "staff-1", "skin": "#f1c6a5", "body": "#a7ef5b", "head": "circle", "bodyShape": "rounded", "icon": "✦" }
+    ],
+    "customers": [
+      { "id": "customer-1", "skin": "#f8d5b8", "body": "#44d7c2", "head": "circle", "bodyShape": "rounded", "icon": "●" }
+    ]
+  },
   "labels": {
     "customer": { "en": "student", "pt": "aluno", "ja": "生徒" },
     "customerPlural": { "en": "Students", "pt": "Alunos", "ja": "生徒" },
@@ -126,9 +134,16 @@ service-tycoon/
 - `builtIn`: informational flag used to mark bundled examples.
 - `icon`: icon shown in the scenario library.
 - `currencySymbol`: prefix used for all prices.
-- `color`: CSS color used as the scenario accent.
+- `color`: CSS color used as the scenario accent in the interface.
+- `appearance.theme`: `dark` or `light`. Changes the interface chrome and default text colors. The header theme button stores the same preference in IndexedDB and applies it immediately.
+- `appearance.background`: color of the playable floor/stage. Independent of the interface theme. Text on the floor automatically switches between light and dark for contrast.
+- `appearance.roomFill`: interior fill of opened rooms. Independent of the theme and of the stage background. Room labels also pick a contrasting ink color.
+- `appearance.roomColor`: accent used for opened-room borders, doors, and progress. Defaults to `color` and can differ from the interface theme.
 - `floor.columns` / `floor.rows`: number of rooms shown horizontally and vertically, from `1` to `8` on each axis. Their product is the scenario's room capacity. The grid always stretches across the complete central game area, so configurations with fewer rooms display proportionally larger rooms.
 - `icons`: short text or emoji markers for customers, staff, rooms, and equipment.
+- `characters.staff` / `characters.customers`: arrays of looks used by the walking people. Each look has `id`, `skin`, `body` (clothes color), `head` (`circle`, `oval`, `square`, `diamond`, `hex`), `bodyShape` (`rounded`, `square`, `tall`, `wide`, `triangle`, `capsule`), `hair` (`none`, `short`, `spike`, `side`, `bob`, `long`, `bun`, `pony`, `curly`), `hairColor`, and an optional `icon` badge. Hair uses a back layer plus a front fringe so the cut sits over the face. `short`, `spike`, and `side` read as shorter/masculine cuts; `bob`, `long`, `bun`, `pony`, and `curly` as longer/feminine cuts. The Scenario Studio **Characters** tab edits these visually. New staff and customers pick a random look that has not been used yet in the current round; after every type has appeared, looks may repeat.
+- `roomLayout.furniture`: side-view objects drawn inside every opened room. Each item has `id`, `kind` (`chair`, `table`, `desk`, `bed`, `whiteboard`, `cabinet`, `window`, `toilet`, `bath`, `plant`), `x` / `y` (percent of the room, origin top-left, anchor at the object's feet), `w` / `h` (size), optional `flip`, and `color`. The Scenario Studio **Room** tab lets you drag these and resize them by dragging the edges of a selected object.
+- `roomLayout.stations`: standing points for people during service. Each station has `role` (`customer`, `staff`, or `both`), `x` / `y`, and `minShare` / `maxShare` (percent of the service time spent there). Shares are randomized in that range and then scaled so they fill the whole service. Staff with `routing.staffServicePosition` set to `outside` stay at the door and ignore staff/shared stations.
 - The Scenario Studio includes a searchable gallery with hundreds of portable Unicode icons. A selected icon can be applied to the scenario, customer, staff, room, equipment, or primary activity without editing JSON.
 - `labels`: singular and plural entity names in English (`en`), Portuguese (`pt`), and Japanese (`ja`). Japanese uses `ja` as its standard language code even though the switcher is labelled JP.
 - `activities`: one or more weighted service recipes. Each activity controls its localized name, room icon, duration, base revenue, and selection weight. This is how one hotel can mix room stays and food delivery.
@@ -178,6 +193,6 @@ The database contains:
 
 - `scenarios`: built-in and custom JSON configurations;
 - `saves`: cash, revenue, staff, upgrades, and opened rooms per scenario;
-- `preferences`: active scenario, language, and reconfiguration policy.
+- `preferences`: active scenario, language, interface theme, and reconfiguration policy.
 
 Use the main VC Collection **Backup & Restore** utility to export or restore this database together with the rest of the collection.

@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -24,10 +24,13 @@
           <div class="stat"><span data-i18n="served">Students served</span><strong id="served-stat">0</strong></div>
           <div class="stat"><span data-i18n="waiting">Waiting</span><strong id="waiting-stat">0</strong></div>
         </div>
-        <div class="language-switcher" aria-label="Language" data-i18n-aria="language">
-          <button type="button" data-lang="en" class="active">EN</button>
-          <button type="button" data-lang="pt">PT</button>
-          <button type="button" data-lang="ja">JP</button>
+        <div class="topbar-toggles">
+          <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Theme" data-i18n-aria="themeToggle">☾</button>
+          <div class="language-switcher" aria-label="Language" data-i18n-aria="language">
+            <button type="button" data-lang="en" class="active">EN</button>
+            <button type="button" data-lang="pt">PT</button>
+            <button type="button" data-lang="ja">JP</button>
+          </div>
         </div>
       </header>
 
@@ -142,11 +145,34 @@
           <div class="editor-pane">
             <div class="editor-tabs" role="tablist">
               <button type="button" class="active" data-tab="visual" data-i18n="quickEdit">Quick edit</button>
+              <button type="button" data-tab="room" data-i18n="roomEditor">Room</button>
+              <button type="button" data-tab="characters" data-i18n="characterEditor">Characters</button>
               <button type="button" data-tab="json">JSON</button>
               <a href="README.md" target="_blank" data-i18n="documentation">Documentation ↗</a>
             </div>
             <form id="visual-editor" class="visual-editor">
               <label><span data-i18n="scenarioName">Scenario name</span><input name="name" required /></label>
+              <fieldset class="appearance-fieldset">
+                <legend data-i18n="appearance">Appearance</legend>
+                <p class="appearance-hint" data-i18n="appearanceHint">Theme changes the interface and text colors. Classroom colors stay independent.</p>
+                <div class="form-grid">
+                  <label><span data-i18n="interfaceTheme">Interface theme</span>
+                    <select name="theme">
+                      <option value="dark" data-i18n="themeDark">Dark</option>
+                      <option value="light" data-i18n="themeLight">Light</option>
+                    </select>
+                  </label>
+                  <label><span data-i18n="screenBackground">Screen background</span>
+                    <span class="color-line"><input name="background" type="color" value="#071a23"><span class="swatch-row appearance-swatches" data-swatch-for="background"></span></span>
+                  </label>
+                  <label><span data-i18n="roomFill">Classroom fill</span>
+                    <span class="color-line"><input name="roomFill" type="color" value="#0b222c"><span class="swatch-row appearance-swatches" data-swatch-for="roomFill"></span></span>
+                  </label>
+                  <label><span data-i18n="roomAccent">Classroom accent</span>
+                    <span class="color-line"><input name="roomColor" type="color" value="#44d7c2"><span class="swatch-row appearance-swatches" data-swatch-for="roomColor"></span></span>
+                  </label>
+                </div>
+              </fieldset>
               <div class="form-grid">
                 <label><span data-i18n="currencySymbol">Currency symbol</span><input name="currencySymbol" maxlength="3" /></label>
                 <label><span data-i18n="scenarioIcon">Scenario icon</span><input name="scenarioIcon" maxlength="16" data-icon-input="scenarioIcon" /></label>
@@ -200,6 +226,45 @@
                 </div>
               </fieldset>
             </form>
+            <div id="room-editor" class="room-editor" hidden>
+              <p class="room-editor-hint" data-i18n="roomEditorHint">Side view: drag furniture and people spots. Drag the edges of a selected object to resize it. Spots control where customers and staff stand, and the min/max share of service time spent there.</p>
+              <div class="room-editor-layout">
+                <aside class="layout-palette">
+                  <div class="palette-block">
+                    <h3 data-i18n="furniture">Furniture</h3>
+                    <div class="palette-grid" id="furniture-palette"></div>
+                  </div>
+                  <div class="palette-block">
+                    <h3 data-i18n="peopleSpots">People spots</h3>
+                    <div class="palette-grid" id="station-palette"></div>
+                  </div>
+                </aside>
+                <div class="layout-canvas-wrap">
+                  <div class="layout-stage" id="layout-stage"></div>
+                </div>
+                <aside class="layout-inspector" id="layout-inspector"></aside>
+              </div>
+            </div>
+            <div id="character-editor" class="character-editor" hidden>
+              <p class="character-editor-hint" data-i18n="characterEditorHint">Design several looks for staff and customers, including hair shape and color. New people pick a random unused type first, then types can repeat.</p>
+              <div class="character-editor-layout">
+                <section class="look-column">
+                  <div class="look-column-head">
+                    <h3 id="staff-looks-title" data-i18n="staffTypes">Staff types</h3>
+                    <button type="button" id="add-staff-look-btn">＋ <span data-i18n="addType">Add type</span></button>
+                  </div>
+                  <div id="staff-look-list" class="look-list"></div>
+                </section>
+                <section class="look-inspector" id="look-inspector"></section>
+                <section class="look-column">
+                  <div class="look-column-head">
+                    <h3 id="customer-looks-title" data-i18n="customerTypes">Customer types</h3>
+                    <button type="button" id="add-customer-look-btn">＋ <span data-i18n="addType">Add type</span></button>
+                  </div>
+                  <div id="customer-look-list" class="look-list"></div>
+                </section>
+              </div>
+            </div>
             <div id="json-editor" class="json-editor" hidden>
               <div class="json-note" data-i18n="jsonHint">Advanced mode: edit the complete scenario. Invalid JSON cannot be saved.</div>
               <textarea id="json-textarea" spellcheck="false"></textarea>
