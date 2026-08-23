@@ -2,7 +2,7 @@
 
 The game is driven by a scenario JSON document. Open **Scenario studio → JSON** to edit the active scenario, or import a `.json` file. Every scenario and game save is stored locally in the browser in the `ServiceTycoonDB` IndexedDB database.
 
-Two ready-to-import examples are included in [`examples/restaurant.json`](examples/restaurant.json) and [`examples/hotel.json`](examples/hotel.json). The game also installs Academy, Restaurant, and Hotel examples automatically the first time it opens.
+A ready-to-import example is included in [`examples/restaurant.json`](examples/restaurant.json). The game also installs Academy and Restaurant examples automatically the first time it opens.
 
 ## File structure
 
@@ -13,8 +13,7 @@ service-tycoon/
 ├── app.js
 ├── README.md
 └── examples/
-    ├── restaurant.json
-    └── hotel.json
+    └── restaurant.json
 ```
 
 ## Scenario schema
