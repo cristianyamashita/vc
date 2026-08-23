@@ -239,6 +239,18 @@
       .money-up { color: var(--buy); }
       .money-dn { color: var(--sell); }
       .empty { color: var(--muted); font-size: 13px; }
+      .hist-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; }
+      .hist-list { display: grid; gap: 8px; max-height: min(52vh, 420px); overflow: auto; }
+      .hist-item {
+        border: 1px solid var(--line);
+        background: var(--panel2);
+        border-radius: 10px;
+        padding: 10px;
+      }
+      .hist-item header { display: flex; justify-content: space-between; gap: 8px; align-items: center; margin-bottom: 6px; }
+      .hist-item p { margin: 0; color: var(--muted); font-size: 12px; }
+      .hist-item .path { font-variant-numeric: tabular-nums; font-weight: 700; color: var(--ink); margin-top: 4px; }
+      .hist-check { display: flex; gap: 8px; align-items: center; margin: 0 0 12px; font-size: 13px; }
       .modal {
         position: fixed; top: var(--header-h); left: 0; right: 0; bottom: 0;
         background: rgba(6, 10, 14, 0.62);
@@ -345,6 +357,7 @@
                 <button type="button" class="ind-toggle" id="ind-btn" data-i18n="indicators">Indicators</button>
                 <div class="ind-pop" id="ind-pop"></div>
               </div>
+              <button type="button" class="btn" id="history-btn" data-i18n="history">History</button>
               <button type="button" class="btn" id="chart-theme" data-i18n="chartTheme">Chart theme</button>
             </div>
           </div>
@@ -382,10 +395,10 @@
     <div class="modal hidden" id="bank-modal" role="dialog" aria-modal="true" aria-labelledby="bank-title">
       <div class="dialog wide">
         <h2 id="bank-title" data-i18n="bankTitle">Bank</h2>
-        <p data-i18n="bankLead">Loans charge 5%–20%/h. Deposits earn 0.5%–2.5%/h. Each contract keeps its own rate.</p>
+        <p data-i18n="bankLead">Loan interest floats with USD/VC and your total debt. A higher quote or a bigger debt makes credit more expensive. Deposits earn 0.5%–2.5%/h.</p>
         <div class="stats">
           <div class="stat"><span data-i18n="bankNet">Bank net</span><strong id="bank-net">$0.00</strong></div>
-          <div class="stat"><span data-i18n="nextRate">Next loan rate</span><strong id="next-rate">5.00%/h</strong></div>
+          <div class="stat"><span data-i18n="nextRate">Credit rate</span><strong id="next-rate">5.00%/h</strong></div>
         </div>
         <div class="row2">
           <div class="field">
@@ -420,7 +433,7 @@
     <div class="modal hidden" id="starter-modal" role="dialog" aria-modal="true" aria-labelledby="starter-title">
       <div class="dialog">
         <h2 id="starter-title" data-i18n="starterTitle">Starter loan</h2>
-        <p data-i18n="starterLead">You start with $0. Borrow about $100 to fund the wallet, then trade USD/VC. Interest runs on every loan until you repay it.</p>
+        <p data-i18n="starterLead">You start with $0. Borrow about $100 to fund the wallet, then trade USD/VC. Loan interest follows the USD/VC quote and grows with your debt.</p>
         <div class="field">
           <span data-i18n="borrowAmount">Borrow amount</span>
           <input id="starter-amt" type="number" min="1" step="0.01" value="100" />
@@ -440,6 +453,23 @@
         <div class="dialog-actions">
           <button type="button" class="btn ghost" id="cancel-reset" data-i18n="cancel">Cancel</button>
           <button type="button" class="btn danger" id="confirm-reset" data-i18n="confirmReset">Reset</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal hidden" id="history-modal" role="dialog" aria-modal="true" aria-labelledby="history-title">
+      <div class="dialog wide">
+        <h2 id="history-title" data-i18n="historyTitle">Trade history</h2>
+        <p data-i18n="historyLead">Closed trades and the P&amp;L of each one. Green/red lines on the chart go from entry to exit.</p>
+        <label class="hist-check"><input type="checkbox" id="hist-lines" checked /> <span data-i18n="showLines">Show lines on chart</span></label>
+        <div class="hist-stats">
+          <div class="stat"><span data-i18n="totalPnl">Net P&amp;L</span><strong id="hist-net">$0.00</strong></div>
+          <div class="stat"><span data-i18n="wins">Wins</span><strong id="hist-wins">0</strong></div>
+          <div class="stat"><span data-i18n="losses">Losses</span><strong id="hist-losses">0</strong></div>
+        </div>
+        <div class="hist-list" id="hist-list"></div>
+        <div class="dialog-actions">
+          <button type="button" class="btn primary" id="close-history" data-i18n="close">Close</button>
         </div>
       </div>
     </div>
@@ -479,12 +509,12 @@ const I = {
     projSl: 'SL {n}', projTp: 'TP {n}',
     openPositions: 'Open positions', noPositions: 'No open trades.',
     entry: 'Entry', pnl: 'P&L', close: 'Close', size: 'Size',
-    bankTitle: 'Bank', bankLead: 'Loans charge 5%–20%/h. Deposits earn 0.5%–2.5%/h. Each contract keeps its own rate.',
-    bankNet: 'Bank net', nextRate: 'Next loan rate', borrowAmount: 'Borrow amount',
+    bankTitle: 'Bank', bankLead: 'Loan interest floats with USD/VC and your total debt. A higher quote or a bigger debt makes credit more expensive. Deposits earn 0.5%–2.5%/h.',
+    bankNet: 'Bank net', nextRate: 'Credit rate', borrowAmount: 'Borrow amount',
     depositAmount: 'Deposit amount', borrow: 'Borrow', deposit: 'Deposit',
     loans: 'Loans', deposits: 'Deposits', noLoans: 'No loans.', noDeposits: 'No deposits.',
     pay: 'Pay', payAll: 'Pay all', withdraw: 'Withdraw', rate: 'Rate', owed: 'Owed',
-    starterTitle: 'Starter loan', starterLead: 'You start with $0. Borrow about $100 to fund the wallet, then trade USD/VC. Interest runs on every loan until you repay it.',
+    starterTitle: 'Starter loan', starterLead: 'You start with $0. Borrow about $100 to fund the wallet, then trade USD/VC. Loan interest follows the USD/VC quote and grows with your debt.',
     takeLoan: 'Take loan', skip: 'Skip', starterRate: 'This loan: {r}/h',
     resetTitle: 'Reset the desk?', resetLead: 'This clears wallet, bank, trades, and chart history. You cannot undo it.',
     cancel: 'Cancel', confirmReset: 'Reset',
@@ -496,6 +526,11 @@ const I = {
     paid: 'Paid {n}.', withdrew: 'Withdrew {n}.', opened: '{side} {n} at {p}.',
     closed: 'Closed {side} · P&L {n}.', slHit: 'Stop loss hit.', tpHit: 'Take profit hit.',
     liquidated: 'Position liquidated.',
+    history: 'History', historyTitle: 'Trade history',
+    historyLead: 'Closed trades and the P&L of each one. Green/red lines on the chart go from entry to exit.',
+    showLines: 'Show lines on chart', noHistory: 'No closed trades yet.',
+    totalPnl: 'Net P&L', wins: 'Wins', losses: 'Losses', exitPx: 'Exit',
+    reasonManual: 'Manual', reasonSl: 'SL', reasonTp: 'TP', reasonLiq: 'Liquidation',
   },
   pt: {
     title: 'VC Forex', subtitle: 'Mesa ao vivo USD/VC', bank: 'Banco', wallet: 'Carteira',
@@ -506,12 +541,12 @@ const I = {
     projSl: 'SL {n}', projTp: 'TP {n}',
     openPositions: 'Posições abertas', noPositions: 'Nenhum trade aberto.',
     entry: 'Entrada', pnl: 'P&L', close: 'Fechar', size: 'Tamanho',
-    bankTitle: 'Banco', bankLead: 'Empréstimos cobram 5%–20%/h. Depósitos rendem 0,5%–2,5%/h. Cada contrato mantém a própria taxa.',
-    bankNet: 'Saldo do banco', nextRate: 'Próxima taxa', borrowAmount: 'Valor do empréstimo',
+    bankTitle: 'Banco', bankLead: 'Os juros dos empréstimos acompanham o USD/VC e o tamanho da dívida. Cotação ou dívida maior encarece o crédito. Depósitos rendem 0,5%–2,5%/h.',
+    bankNet: 'Saldo do banco', nextRate: 'Taxa de crédito', borrowAmount: 'Valor do empréstimo',
     depositAmount: 'Valor do depósito', borrow: 'Emprestar', deposit: 'Depositar',
     loans: 'Empréstimos', deposits: 'Depósitos', noLoans: 'Nenhum empréstimo.', noDeposits: 'Nenhum depósito.',
     pay: 'Pagar', payAll: 'Pagar tudo', withdraw: 'Retirar', rate: 'Taxa', owed: 'Devido',
-    starterTitle: 'Empréstimo inicial', starterLead: 'Você começa com $0. Pegue cerca de $100 para abastecer a carteira e então operar USD/VC. Os juros correm em cada empréstimo até você pagar.',
+    starterTitle: 'Empréstimo inicial', starterLead: 'Você começa com $0. Pegue cerca de $100 para abastecer a carteira e então operar USD/VC. Os juros acompanham a cotação USD/VC e sobem com o tamanho da dívida.',
     takeLoan: 'Pegar empréstimo', skip: 'Pular', starterRate: 'Este empréstimo: {r}/h',
     resetTitle: 'Resetar a mesa?', resetLead: 'Isso apaga carteira, banco, trades e o histórico do gráfico. Não dá para desfazer.',
     cancel: 'Cancelar', confirmReset: 'Resetar',
@@ -523,6 +558,11 @@ const I = {
     paid: 'Pago {n}.', withdrew: 'Retirado {n}.', opened: '{side} {n} a {p}.',
     closed: 'Fechado {side} · P&L {n}.', slHit: 'Stop loss atingido.', tpHit: 'Take profit atingido.',
     liquidated: 'Posição liquidada.',
+    history: 'Histórico', historyTitle: 'Histórico de operações',
+    historyLead: 'Trades fechados e o lucro ou prejuízo de cada um. As linhas verde/vermelha no gráfico vão da entrada até a saída.',
+    showLines: 'Mostrar linhas no gráfico', noHistory: 'Nenhum trade fechado ainda.',
+    totalPnl: 'P&L líquido', wins: 'Ganhos', losses: 'Perdas', exitPx: 'Saída',
+    reasonManual: 'Manual', reasonSl: 'SL', reasonTp: 'TP', reasonLiq: 'Liquidação',
   },
   ja: {
     title: 'VC Forex', subtitle: 'USD/VC ライブデスク', bank: '銀行', wallet: 'ウォレット',
@@ -533,12 +573,12 @@ const I = {
     projSl: 'SL {n}', projTp: 'TP {n}',
     openPositions: '建玉', noPositions: '建玉はありません。',
     entry: '約定', pnl: '損益', close: '決済', size: 'サイズ',
-    bankTitle: '銀行', bankLead: '借入は 5%〜20%/時。預金は 0.5%〜2.5%/時。契約ごとに金利が残ります。',
-    bankNet: '銀行ネット', nextRate: '次の借入金利', borrowAmount: '借入額',
+    bankTitle: '銀行', bankLead: '借入金利は USD/VC と負債額に連動します。レートや借金が大きいほど信用コストが上がります。預金は 0.5%〜2.5%/時。',
+    bankNet: '銀行ネット', nextRate: '信用金利', borrowAmount: '借入額',
     depositAmount: '預金額', borrow: '借りる', deposit: '預ける',
     loans: '借入', deposits: '預金', noLoans: '借入はありません。', noDeposits: '預金はありません。',
     pay: '返済', payAll: '全額返済', withdraw: '引出', rate: '金利', owed: '残高',
-    starterTitle: '初期ローン', starterLead: '所持金は $0 から始まります。約 $100 を借りてウォレットに入れ、USD/VC を取引します。返済するまで各ローンに金利がかかります。',
+    starterTitle: '初期ローン', starterLead: '所持金は $0 から始まります。約 $100 を借りてウォレットに入れ、USD/VC を取引します。借入金利は USD/VC に連動し、負債が大きいほど上がります。',
     takeLoan: '借りる', skip: 'スキップ', starterRate: 'このローン: {r}/時',
     resetTitle: 'デスクをリセットしますか？', resetLead: 'ウォレット、銀行、取引、チャート履歴がすべて消えます。元に戻せません。',
     cancel: 'キャンセル', confirmReset: 'リセット',
@@ -550,6 +590,11 @@ const I = {
     paid: '{n} を返済。', withdrew: '{n} を引出。', opened: '{side} {n} @ {p}',
     closed: '{side} を決済 · 損益 {n}', slHit: '損切りに到達。', tpHit: '利確に到達。',
     liquidated: '強制決済されました。',
+    history: '履歴', historyTitle: '取引履歴',
+    historyLead: '決済済みの取引と各損益。チャートの緑/赤の線はエントリーから決済までを結びます。',
+    showLines: 'チャートに線を表示', noHistory: '決済した取引はまだありません。',
+    totalPnl: '純損益', wins: '勝ち', losses: '負け', exitPx: '決済',
+    reasonManual: '手動', reasonSl: 'SL', reasonTp: 'TP', reasonLiq: '強制決済',
   },
 };
 
@@ -589,6 +634,8 @@ function defaultState() {
     loans: [],
     deposits: [],
     positions: [],
+    history: [],
+    showHistoryLines: true,
     price: BASE_PRICE,
     regime: null,
     candles: emptyCandles(),
@@ -596,6 +643,8 @@ function defaultState() {
     chartTheme: 'dark',
     lang: localStorage.getItem('app_lang') || 'en',
     loanCount: 0,
+    lastLoanAccrueAt: Date.now(),
+    creditVersion: 1,
     lastTickAt: Date.now(),
     gameOver: false,
     tf: '5m',
@@ -612,16 +661,59 @@ let chart, candleSeries, indChart;
 let overlaySeries = {};
 let indSeries = {};
 let priceLines = [];
+let historySeries = [];
 let liveTimer = 0;
 let drag = null;
 
+function debtPrincipal() {
+  return (state.loans || []).reduce((s, c) => s + (Number(c.principal) || 0), 0);
+}
+
+function creditRate(extraDebt = 0) {
+  const priceFactor = Math.max(8, state.price || BASE_PRICE) / BASE_PRICE;
+  const debt = Math.max(0, debtPrincipal() + extraDebt);
+  const debtPremium = 0.04 * Math.log10(1 + debt / 80);
+  return Math.min(0.45, Math.max(0.008, 0.05 * priceFactor + debtPremium));
+}
+
+function migrateCredit() {
+  if ((state.creditVersion || 0) >= 1) return;
+  const now = Date.now();
+  for (const loan of state.loans || []) {
+    const hours = Math.max(0, (now - (loan.openedAt || now)) / 3600000);
+    const r = Number(loan.ratePerHour);
+    loan.principal = (Number(loan.principal) || 0) * Math.pow(1 + (Number.isFinite(r) ? r : 0.05), hours);
+    loan.openedAt = now;
+  }
+  state.lastLoanAccrueAt = now;
+  state.creditVersion = 1;
+}
+
+function settleLoans(now = Date.now()) {
+  migrateCredit();
+  const prev = state.lastLoanAccrueAt || now;
+  const hours = Math.max(0, (now - prev) / 3600000);
+  state.lastLoanAccrueAt = now;
+  const rate = creditRate();
+  for (const loan of state.loans) {
+    if (hours > 0) loan.principal *= Math.pow(1 + rate, hours);
+    loan.ratePerHour = rate;
+  }
+}
+
 function owed(contract, now = Date.now()) {
+  if (state.loans.some((x) => x.id === contract.id)) {
+    settleLoans(now);
+    return contract.principal;
+  }
   const hours = Math.max(0, (now - contract.openedAt) / 3600000);
   return contract.principal * Math.pow(1 + contract.ratePerHour, hours);
 }
-function nextLoanRate() { return Math.min(0.2, 0.05 + 0.03 * state.loanCount); }
 function depositRate() { return 0.005 + Math.random() * 0.02; }
-function loansOwed(now) { return state.loans.reduce((s, c) => s + owed(c, now), 0); }
+function loansOwed(now) {
+  settleLoans(now);
+  return debtPrincipal();
+}
 function depositsOwed(now) { return state.deposits.reduce((s, c) => s + owed(c, now), 0); }
 function bankNet(now) { return depositsOwed(now) - loansOwed(now); }
 function posPnl(p, price = state.price) {
@@ -768,8 +860,13 @@ function loadState() {
     const raw = localStorage.getItem(SAVE);
     if (!raw) return false;
     const saved = JSON.parse(raw);
+    const hadCredit = saved.creditVersion != null;
     state = { ...defaultState(), ...saved };
     if (!I[state.lang]) state.lang = 'en';
+    if (!Array.isArray(state.history)) state.history = [];
+    if (state.showHistoryLines == null) state.showHistoryLines = true;
+    if (!hadCredit) state.creditVersion = 0;
+    migrateCredit();
     if (!state.candles || !state.candles['1m'] || !state.candles['1m'].length || (state.engineVersion || 0) < 2) {
       generateHistory(state.price || BASE_PRICE);
     }
@@ -877,6 +974,7 @@ function disposeCharts() {
   overlaySeries = {};
   indSeries = {};
   priceLines = [];
+  historySeries = [];
 }
 
 function makeCandleSeries(target) {
@@ -909,6 +1007,7 @@ function ensureCharts() {
   });
   rebuildIndicators(true);
   refreshPriceLines();
+  rebuildHistoryLines();
   bindChartDrag();
 }
 
@@ -1139,8 +1238,10 @@ function takeLoan(amount) {
   amount = round2(amount);
   if (!(amount > 0)) return toast(t('invalidAmount'));
   if (state.gameOver) return toast(t('gameOverBlock'));
-  const rate = nextLoanRate();
-  state.loans.push({ id: uid(), principal: amount, ratePerHour: rate, openedAt: Date.now() });
+  settleLoans();
+  state.loans.push({ id: uid(), principal: amount, ratePerHour: creditRate(amount), openedAt: Date.now() });
+  const rate = creditRate();
+  for (const loan of state.loans) loan.ratePerHour = rate;
   state.loanCount += 1;
   state.wallet = round2(state.wallet + amount);
   persist();
@@ -1164,15 +1265,15 @@ function makeDeposit(amount) {
 function payLoan(id, amount) {
   const loan = state.loans.find((x) => x.id === id);
   if (!loan) return;
-  const due = owed(loan);
+  settleLoans();
+  const due = loan.principal;
   const pay = round2(Math.min(amount, due, state.wallet));
   if (!(pay > 0)) return toast(t('insufficient'));
   state.wallet = round2(state.wallet - pay);
   if (pay >= due - 0.005) state.loans = state.loans.filter((x) => x.id !== id);
-  else {
-    loan.principal = Math.max(0.01, due - pay);
-    loan.openedAt = Date.now();
-  }
+  else loan.principal = Math.max(0.01, due - pay);
+  const rate = creditRate();
+  for (const c of state.loans) c.ratePerHour = rate;
   persist();
   render();
   toast(t('paid', { n: fmtMoney(pay) }));
@@ -1236,13 +1337,98 @@ function closeTrade(id, reason) {
   const p = state.positions.find((x) => x.id === id);
   if (!p) return;
   const pnl = posPnl(p);
+  const exit = state.price;
+  const closedAt = Date.now();
   state.wallet = round2(state.wallet + p.amount + pnl);
   state.positions = state.positions.filter((x) => x.id !== id);
+  if (!Array.isArray(state.history)) state.history = [];
+  state.history.push({
+    id: p.id,
+    side: p.side,
+    amount: p.amount,
+    entry: p.entry,
+    exit,
+    openedAt: p.openedAt,
+    closedAt,
+    pnl,
+    reason: reason || 'manual',
+  });
+  if (state.history.length > 150) state.history = state.history.slice(-150);
   persist();
   refreshPriceLines();
+  rebuildHistoryLines();
   render();
   const msg = reason === 'sl' ? t('slHit') : reason === 'tp' ? t('tpHit') : reason === 'liq' ? t('liquidated') : t('closed', { side: p.side === 'buy' ? t('buy') : t('sell'), n: fmtMoney(pnl) });
   toast(msg);
+}
+
+function rebuildHistoryLines() {
+  if (!chart) return;
+  for (const series of historySeries) {
+    try { chart.removeSeries(series); } catch (e) { /* already gone */ }
+  }
+  historySeries = [];
+  if (!state.showHistoryLines) return;
+  const items = (state.history || []).slice(-60);
+  for (const h of items) {
+    let t0 = Math.floor(Number(h.openedAt) / 1000);
+    let t1 = Math.floor(Number(h.closedAt) / 1000);
+    if (!(t0 > 0) || !(t1 > 0) || !Number.isFinite(h.entry) || !Number.isFinite(h.exit)) continue;
+    if (t1 <= t0) t1 = t0 + 1;
+    const series = chart.addLineSeries({
+      color: (h.pnl || 0) >= 0 ? '#26a69a' : '#ef5350',
+      lineWidth: 2,
+      priceLineVisible: false,
+      lastValueVisible: false,
+      crosshairMarkerVisible: false,
+    });
+    series.setData([
+      { time: t0, value: h.entry },
+      { time: t1, value: h.exit },
+    ]);
+    historySeries.push(series);
+  }
+}
+
+function reasonLabel(reason) {
+  if (reason === 'sl') return t('reasonSl');
+  if (reason === 'tp') return t('reasonTp');
+  if (reason === 'liq') return t('reasonLiq');
+  return t('reasonManual');
+}
+
+function fmtWhen(ms) {
+  if (!ms) return '—';
+  const locale = lang === 'ja' ? 'ja' : lang === 'pt' ? 'pt-BR' : 'en';
+  return new Date(ms).toLocaleString(locale, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+function renderHistoryList() {
+  const items = [...(state.history || [])].reverse();
+  const net = items.reduce((s, h) => s + (Number(h.pnl) || 0), 0);
+  const wins = items.filter((h) => h.pnl > 0).length;
+  const losses = items.filter((h) => h.pnl < 0).length;
+  $('#hist-net').textContent = fmtSigned(net);
+  $('#hist-net').className = net >= 0 ? 'money-up' : 'money-dn';
+  $('#hist-wins').textContent = String(wins);
+  $('#hist-losses').textContent = String(losses);
+  $('#hist-lines').checked = state.showHistoryLines !== false;
+  if (!items.length) {
+    $('#hist-list').innerHTML = `<p class="empty">${t('noHistory')}</p>`;
+    return;
+  }
+  $('#hist-list').innerHTML = items.map((h) => {
+    const pnlCls = (h.pnl || 0) >= 0 ? 'money-up' : 'money-dn';
+    return `<article class="hist-item">
+      <header>
+        <span class="side ${h.side}">${h.side === 'buy' ? t('buy') : t('sell')}</span>
+        <strong class="${pnlCls}">${fmtSigned(h.pnl)}</strong>
+      </header>
+      <p>${fmtMoney(h.amount)} · ${reasonLabel(h.reason)}</p>
+      <p class="path">${fmtPx(h.entry)} → ${fmtPx(h.exit)}</p>
+      <p>${fmtWhen(h.openedAt)} → ${fmtWhen(h.closedAt)}</p>
+    </article>`;
+  }).join('');
 }
 
 function checkStops() {
@@ -1274,10 +1460,11 @@ function translate() {
   document.querySelectorAll('[data-i18n]').forEach((el) => { el.textContent = t(el.dataset.i18n); });
   document.querySelectorAll('[data-i18n-aria]').forEach((el) => { el.setAttribute('aria-label', t(el.dataset.i18nAria)); });
   document.querySelectorAll('[data-lang]').forEach((b) => b.classList.toggle('active', b.dataset.lang === lang));
-  $('#starter-rate').textContent = t('starterRate', { r: fmtRate(nextLoanRate()) });
+  $('#starter-rate').textContent = t('starterRate', { r: fmtRate(creditRate(Number($('#starter-amt').value) || 0)) });
   renderTfs();
   renderIndMenu();
   render();
+  if (!$('#history-modal').classList.contains('hidden')) renderHistoryList();
 }
 
 function renderTfs() {
@@ -1302,7 +1489,10 @@ function render() {
   px.classList.toggle('down', state.price < lastPrice);
   $('#equity').textContent = fmtMoney(equity());
   $('#bank-net').textContent = fmtMoney(net);
-  $('#next-rate').textContent = fmtRate(nextLoanRate()) + '/h';
+  $('#next-rate').textContent = fmtRate(creditRate()) + '/h';
+  if (!$('#starter-modal').classList.contains('hidden')) {
+    $('#starter-rate').textContent = t('starterRate', { r: fmtRate(creditRate(Number($('#starter-amt').value) || 0)) });
+  }
   renderPositions();
   if (!$('#bank-modal').classList.contains('hidden')) {
     const active = document.activeElement;
@@ -1347,7 +1537,7 @@ function renderBankLists() {
   else loanBox.innerHTML = state.loans.map((c) => {
     const due = owed(c);
     return `<div class="contract">
-      <div><strong>${fmtMoney(due)}</strong><small>${t('rate')} ${fmtRate(c.ratePerHour)}/h</small></div>
+      <div><strong>${fmtMoney(due)}</strong><small>${t('rate')} ${fmtRate(creditRate())}/h</small></div>
       <div class="inline">
         <input type="number" min="0.01" step="0.01" value="${round2(Math.min(state.wallet, due))}" data-pay-amt="${c.id}" />
         <button type="button" class="btn" data-pay="${c.id}">${t('pay')}</button>
@@ -1394,6 +1584,7 @@ function hardReset() {
   applyChartTheme();
   closeModal('#over-modal');
   closeModal('#reset-modal');
+  closeModal('#history-modal');
   openModal('#starter-modal');
   translate();
 }
@@ -1404,6 +1595,7 @@ function liveTick() {
     lastPrice = state.price;
     stepPrice(nowSec);
     applyTick(Math.floor(nowSec), state.price);
+    settleLoans(Date.now());
     checkStops();
     checkGameOver();
   }
@@ -1494,6 +1686,9 @@ $('#deposit-list').addEventListener('click', (e) => {
   const inp = document.querySelector(`[data-wd-amt="${b.dataset.wd}"]`);
   withdrawDeposit(b.dataset.wd, Number(inp?.value));
 });
+$('#starter-amt').addEventListener('input', () => {
+  $('#starter-rate').textContent = t('starterRate', { r: fmtRate(creditRate(Number($('#starter-amt').value) || 0)) });
+});
 $('#take-loan').addEventListener('click', () => {
   takeLoan(Number($('#starter-amt').value) || 100);
   state.seenIntro = true;
@@ -1505,6 +1700,17 @@ $('#skip-loan').addEventListener('click', () => {
   persist();
   closeModal('#starter-modal');
 });
+$('#history-btn').addEventListener('click', () => {
+  renderHistoryList();
+  openModal('#history-modal');
+});
+$('#close-history').addEventListener('click', () => closeModal('#history-modal'));
+$('#history-modal').addEventListener('click', (e) => { if (e.target === $('#history-modal')) closeModal('#history-modal'); });
+$('#hist-lines').addEventListener('change', () => {
+  state.showHistoryLines = $('#hist-lines').checked;
+  rebuildHistoryLines();
+  persist();
+});
 $('#reset-btn').addEventListener('click', () => openModal('#reset-modal'));
 $('#cancel-reset').addEventListener('click', () => closeModal('#reset-modal'));
 $('#reset-modal').addEventListener('click', (e) => { if (e.target === $('#reset-modal')) closeModal('#reset-modal'); });
@@ -1514,6 +1720,7 @@ addEventListener('keydown', (e) => {
   if (e.key !== 'Escape') return;
   closeModal('#bank-modal');
   closeModal('#reset-modal');
+  closeModal('#history-modal');
   $('#ind-menu').classList.remove('open');
 });
 addEventListener('beforeunload', persist);
