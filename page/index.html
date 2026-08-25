@@ -1,6 +1,8 @@
 <!doctype html>
 <html lang="en">
   <head>
+    <link rel="icon" href="assets/icons/ico/index.ico" type="image/x-icon">
+
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>VC Collection — Index</title>
@@ -441,15 +443,19 @@
         opacity: 1;
       }
       .row {
-        display: flex;
-        align-items: flex-start;
-        gap: 8px;
-        justify-content: space-between;
-        flex-wrap: wrap;
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        grid-template-areas:
+          'icon name pin'
+          'seq tag tag';
+        align-items: center;
+        column-gap: 8px;
+        row-gap: 8px;
       }
       .row[data-seq]::before {
         content: attr(data-seq);
-        order: 1;
+        grid-area: seq;
+        justify-self: start;
         display: inline-flex;
         align-items: center;
         padding: 4px 8px;
@@ -462,9 +468,16 @@
         letter-spacing: 0.08em;
         line-height: 1;
       }
+      .card-icon {
+        grid-area: icon;
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
+        object-fit: contain;
+        background: #008f7d;
+      }
       .row > .link {
-        order: 2;
-        flex: 1 1 100%;
+        grid-area: name;
         min-width: 0;
       }
       .name {
@@ -525,10 +538,10 @@
       a.link:hover .name {
         color: var(--accent);
       }
-      .tag {
-        order: 1;
-        flex: 0 0 auto;
-        max-width: 48%;
+      .row > .tag {
+        grid-area: tag;
+        justify-self: start;
+        max-width: 100%;
         padding: 3px 8px;
         background: var(--tag-bg);
         color: var(--tag-color);
@@ -538,17 +551,15 @@
         text-overflow: ellipsis;
       }
       .pin-btn {
-        order: 1;
+        grid-area: pin;
         width: 30px;
         height: 30px;
-        flex: 0 0 auto;
         display: grid;
         place-items: center;
         background: transparent;
         border: 1px solid transparent;
         cursor: pointer;
         padding: 0;
-        margin-left: auto;
         color: var(--muted);
         opacity: 0.72;
         border-radius: 8px;
@@ -668,8 +679,7 @@
         }
       }
     </style>
-    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath fill='%234ea1ff' d='M6 6h20v6H6z'/%3E%3Cpath fill='%2386efac' d='M6 14h20v12H6z'/%3E%3C/svg%3E" />
-    <meta name="description" content="Collection of small games, physics sandboxes and utils. Single-file HTML demos." />
+<meta name="description" content="Collection of small games, physics sandboxes and utils. Single-file HTML demos." />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet" />
@@ -744,6 +754,19 @@
       <section id="utils">
         <h2 data-i18n="utilsTitle">Utils</h2>
         <div class="grid">
+          <article class="card">
+            <div class="row">
+              <a class="link" href="os/index.html" target="_blank" rel="noopener">
+                <div class="name" data-i18n="desktopOsName">Desktop OS</div>
+              </a>
+              <span class="tag" data-i18n="desktopOsTag">Shell</span>
+            </div>
+            <div class="desc" data-i18n="desktopOsDesc">Windows-like desktop that opens the other pages as apps in windows, with a Start menu, installable apps, and a persistent session.</div>
+            <div class="actions">
+              <a class="btn primary" href="os/index.html" target="_blank" rel="noopener" data-i18n="open">Open</a>
+              <span class="k">os/index.html</span>
+            </div>
+          </article>
           <article class="card"><div class="row"><a class="link" href="utils/flashcards_srs.html" target="_blank" rel="noopener"><div class="name" data-i18n="flashcardsSrsName">Orbit Cards</div></a><span class="tag" data-i18n="flashcardsSrsTag">Learning</span></div><div class="desc" data-i18n="flashcardsSrsDesc">Spaced-repetition flashcards with decks, due reviews, CSV import/export, and offline IndexedDB storage.</div><div class="actions"><a class="btn primary" href="utils/flashcards_srs.html" target="_blank" rel="noopener" data-i18n="open">Open</a><span class="k">utils/flashcards_srs.html</span></div></article>
 
           <article class="card"><div class="row"><a class="link" href="utils/data_explorer.html" target="_blank" rel="noopener"><div class="name" data-i18n="dataExplorerName">Atlas Data Explorer</div></a><span class="tag" data-i18n="dataExplorerTag">Data</span></div><div class="desc" data-i18n="dataExplorerDesc">Open, filter, sort, profile, chart, and convert JSON, CSV, or TSV datasets entirely in the browser.</div><div class="actions"><a class="btn primary" href="utils/data_explorer.html" target="_blank" rel="noopener" data-i18n="open">Open</a><span class="k">utils/data_explorer.html</span></div></article>
@@ -2527,6 +2550,7 @@
         'misc/fluid_lab.html': '#125',
         'misc/webcam_music_controller.html': '#126',
         'game/forex_sim.html': '#127',
+        'os/index.html': '#128',
       };
 
       const translations = {
@@ -2770,6 +2794,9 @@
           laserMirrorsTag: 'Physics',
           laserMirrorsDesc: 'Laser reflection puzzle game with mirrors, obstacles, and 8 challenging stages. Rotate mirrors in 45° steps to guide the laser to targets.',
           utilsTitle: 'Utils',
+          desktopOsName: 'Desktop OS',
+          desktopOsTag: 'Shell',
+          desktopOsDesc: 'Windows-like desktop that opens the other pages as apps in windows, with a Start menu, installable apps, and a persistent session.',
           whiteboardName: 'Whiteboard',
           whiteboardTag: 'Canvas',
           whiteboardDesc: 'Full-screen multilingual whiteboard with tools, pan/zoom, tabs, and persistence. Created by multiple AI models.',
@@ -3179,6 +3206,9 @@
           laserMirrorsTag: '物理',
           laserMirrorsDesc: '鏡、障害物、8つの挑戦的なステージを備えたレーザー反射パズルゲーム。鏡を45°刻みで回転させてレーザーをターゲットに導きます。',
           utilsTitle: 'ユーティリティ',
+          desktopOsName: 'デスクトップ OS',
+          desktopOsTag: 'シェル',
+          desktopOsDesc: '他のページをウィンドウ内のアプリとして開く Windows 風デスクトップ。スタートメニュー、アプリのインストール、セッションの保存に対応。',
           whiteboardName: 'ホワイトボード',
           whiteboardTag: 'キャンバス',
           whiteboardDesc: 'ツール、パン/ズーム、タブ、永続性を備えたフルスクリーン多言語ホワイトボード。複数のAIモデルによって作成。',
@@ -3589,6 +3619,9 @@
           laserMirrorsTag: 'Física',
           laserMirrorsDesc: 'Jogo de quebra-cabeça de reflexão de laser com espelhos, obstáculos e 8 estágios desafiadores. Gire espelhos em passos de 45° para guiar o laser aos alvos.',
           utilsTitle: 'Utilitários',
+          desktopOsName: 'Desktop OS',
+          desktopOsTag: 'Shell',
+          desktopOsDesc: 'Desktop no estilo Windows que abre as outras páginas como apps em janelas, com menu Iniciar, apps instaláveis e sessão persistente.',
           whiteboardName: 'Quadro Branco',
           whiteboardTag: 'Canvas',
           whiteboardDesc: 'Quadro branco multilíngue em tela cheia com ferramentas, pan/zoom, abas e persistência. Criado por vários modelos de IA.',
@@ -3803,6 +3836,7 @@
 
       document.addEventListener('DOMContentLoaded', () => {
         initializeCardSequences();
+        initializeCardIcons();
         rememberOriginalCardPositions();
 
         const langSelector = document.querySelector('.lang-selector');
@@ -3871,6 +3905,37 @@
           if (name) {
             name.removeAttribute('data-seq');
           }
+        });
+      }
+
+      function hrefToIconSlug(href) {
+        if (!href) return null;
+        const clean = href.split('?')[0].split('#')[0].replace(/^\.\//, '');
+        const parts = clean.split('/').filter(Boolean);
+        if (!parts.length) return 'index';
+        const stem = parts[parts.length - 1].replace(/\.html$/i, '');
+        if (parts.length === 1) return stem === 'index' ? 'index' : stem;
+        if (stem === 'index' && parts.length >= 2) return parts.slice(0, -1).join('-');
+        return `${parts[0]}-${stem}`;
+      }
+
+      function initializeCardIcons() {
+        document.querySelectorAll('.card').forEach((card) => {
+          const row = card.querySelector('.row');
+          const href = card.querySelector('a.link')?.getAttribute('href');
+          if (!row || !href || row.querySelector('.card-icon')) return;
+          const slug = hrefToIconSlug(href);
+          if (!slug) return;
+          const img = document.createElement('img');
+          img.className = 'card-icon';
+          img.src = `assets/icons/svg/${slug}.svg`;
+          img.alt = '';
+          img.width = 36;
+          img.height = 36;
+          img.decoding = 'async';
+          const link = row.querySelector('a.link');
+          if (link) row.insertBefore(img, link);
+          else row.prepend(img);
         });
       }
 
