@@ -8,6 +8,8 @@ window.OSStart = (function () {
     return window.OSI18n.t(key);
   }
 
+  let contextHandler = null;
+
   function closeMenu() {
     if (!menu) return;
     menu.hidden = true;
@@ -19,6 +21,7 @@ window.OSStart = (function () {
     if (!context) return;
     context.hidden = true;
     contextAppId = null;
+    contextHandler = null;
   }
 
   function isOpen() {
@@ -162,19 +165,7 @@ window.OSStart = (function () {
     window.OSWindows.open(id);
   }
 
-  function showContext(appId, x, y) {
-    const app = window.OSCatalog.byId(appId);
-    if (!app) {
-      closeContext();
-      return;
-    }
-    contextAppId = appId;
-    const onDesktop = window.OS.state.desktopIcons.includes(appId);
-    const onFav = window.OS.state.favorites.includes(appId);
-    context.innerHTML = `
-      <button type="button" data-act="desktop">${escapeHtml(onDesktop ? t("removeDesktop") : t("addDesktop"))}</button>
-      <button type="button" data-act="favorites">${escapeHtml(onFav ? t("removeFavorites") : t("addFavorites"))}</button>
-    `;
+  function placeContext(x, y) {
     context.hidden = false;
     const pad = 8;
     const rect = context.getBoundingClientRect();
@@ -182,6 +173,36 @@ window.OSStart = (function () {
     const top = Math.min(y, window.innerHeight - rect.height - pad);
     context.style.left = Math.max(pad, left) + "px";
     context.style.top = Math.max(pad, top) + "px";
+  }
+
+  function showContext(appId, x, y) {
+    const app = window.OSCatalog.byId(appId);
+    if (!app) {
+      closeContext();
+      return;
+    }
+    contextAppId = appId;
+    contextHandler = null;
+    const onDesktop = window.OS.state.desktopIcons.includes(appId);
+    const onFav = window.OS.state.favorites.includes(appId);
+    context.innerHTML = `
+      <button type="button" data-act="desktop">${escapeHtml(onDesktop ? t("removeDesktop") : t("addDesktop"))}</button>
+      <button type="button" data-act="favorites">${escapeHtml(onFav ? t("removeFavorites") : t("addFavorites"))}</button>
+    `;
+    placeContext(x, y);
+  }
+
+  function showItems(items, x, y, onPick) {
+    contextAppId = null;
+    contextHandler = typeof onPick === "function" ? onPick : null;
+    context.innerHTML = (items || [])
+      .map((item) => {
+        if (item.sep) return `<div class="context-sep"></div>`;
+        const disabled = item.disabled ? " disabled" : "";
+        return `<button type="button" data-act="${escapeHtml(item.act)}"${disabled}>${escapeHtml(item.label)}</button>`;
+      })
+      .join("");
+    placeContext(x, y);
   }
 
   function focusSearch(caret) {
@@ -248,8 +269,16 @@ window.OSStart = (function () {
       showContext(btn.dataset.appId, e.clientX, e.clientY);
     });
     context.addEventListener("click", (e) => {
-      const act = e.target.closest("button")?.dataset.act;
-      if (!act || !contextAppId) return;
+      const btn = e.target.closest("button");
+      const act = btn && btn.dataset.act;
+      if (!act || btn.disabled) return;
+      if (contextHandler) {
+        const fn = contextHandler;
+        closeContext();
+        fn(act);
+        return;
+      }
+      if (!contextAppId) return;
       if (act === "desktop") window.OS.toggleDesktopIcon(contextAppId);
       if (act === "favorites") window.OS.toggleFavorite(contextAppId);
       closeContext();
@@ -268,5 +297,5 @@ window.OSStart = (function () {
     });
   }
 
-  return { init, render, close: closeMenu, closeContext, isOpen, showContext };
+  return { init, render, close: closeMenu, closeContext, isOpen, showContext, showItems };
 })();

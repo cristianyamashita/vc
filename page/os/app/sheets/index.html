@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <link rel="icon" href="../../../assets/icons/ico/os-sheets.ico" type="image/x-icon">
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Sheets</title>
+    <link rel="stylesheet" href="sheets.css" />
+  </head>
+  <body>
+    <div id="sheets-root"></div>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="sheets-icons.js"></script>
+    <script src="sheets-engine.js"></script>
+    <script src="sheets.js"></script>
+    <script>
+      (function () {
+        function inFrame() {
+          try {
+            return window.parent && window.parent !== window;
+          } catch (_err) {
+            return false;
+          }
+        }
+
+        function htmlLang(lang) {
+          if (lang === "pt") return "pt";
+          if (lang === "ja") return "ja";
+          return "en";
+        }
+
+        function syncFromHost() {
+          if (inFrame()) {
+            try {
+              if (window.parent.OS) window.OS = window.parent.OS;
+              if (window.parent.OSI18n) window.OSI18n = window.parent.OSI18n;
+            } catch (_err) {}
+          }
+          const theme = (window.OS && window.OS.theme) || localStorage.getItem("app_theme") || "dark";
+          const lang = (window.OS && window.OS.lang) || localStorage.getItem("app_lang") || "en";
+          document.documentElement.dataset.theme = theme === "light" ? "light" : "dark";
+          document.documentElement.lang = htmlLang(lang);
+          if (!window.OS) window.OS = { lang: lang, theme: theme };
+          if (window.OSI18n) document.title = window.OSI18n.t("sheetsWorkbook");
+        }
+
+        function start() {
+          syncFromHost();
+          if (window.OSSheets) window.OSSheets.mount(document.getElementById("sheets-root"));
+        }
+
+        window.addEventListener("message", function (e) {
+          if (e.origin !== location.origin) return;
+          if (!e.data || e.data.type !== "os-host-sync") return;
+          syncFromHost();
+          if (window.OSSheets) window.OSSheets.remountOpen();
+        });
+
+        if (inFrame() || window.OSI18n) {
+          start();
+          return;
+        }
+        const script = document.createElement("script");
+        script.src = "../../js/i18n.js";
+        script.onload = start;
+        script.onerror = start;
+        document.head.appendChild(script);
+      })();
+    </script>
+  </body>
+</html>

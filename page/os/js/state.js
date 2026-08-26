@@ -1,9 +1,11 @@
 window.OSState = (function () {
   const DB_NAME = "DesktopOSDB";
-  const DB_VERSION = 5;
+  const DB_VERSION = 6;
   const STORE = "state";
   const WALL_STORE = "wallpapers";
   const USER_STORE = "userApps";
+  const FS_NODES = "fsNodes";
+  const FS_BLOBS = "fsBlobs";
   const KEY = "desktop";
   const SAVE_DEBOUNCE_MS = 300;
 
@@ -33,7 +35,7 @@ window.OSState = (function () {
       username: "User",
       installed,
       favorites: [...window.OSCatalog.DEFAULT_INSTALLED],
-      desktopIcons: ["app-builder", ...window.OSCatalog.DEFAULT_INSTALLED],
+      desktopIcons: ["sheets", "app-builder", ...window.OSCatalog.DEFAULT_INSTALLED],
       windows: [],
       placements: {},
       wallpaperId: "bloom",
@@ -60,13 +62,22 @@ window.OSState = (function () {
     }
     ensureKeyedStore(db, upgradeTx, WALL_STORE);
     ensureKeyedStore(db, upgradeTx, USER_STORE);
+    ensureKeyedStore(db, upgradeTx, FS_NODES);
+    ensureKeyedStore(db, upgradeTx, FS_BLOBS);
+    if (upgradeTx && db.objectStoreNames.contains(FS_NODES)) {
+      const nodes = upgradeTx.objectStore(FS_NODES);
+      if (!nodes.indexNames.contains("parentId")) nodes.createIndex("parentId", "parentId", { unique: false });
+      if (!nodes.indexNames.contains("kind")) nodes.createIndex("kind", "kind", { unique: false });
+    }
   }
 
   function hasRequiredStores(db) {
     return (
       db.objectStoreNames.contains(STORE) &&
       db.objectStoreNames.contains(WALL_STORE) &&
-      db.objectStoreNames.contains(USER_STORE)
+      db.objectStoreNames.contains(USER_STORE) &&
+      db.objectStoreNames.contains(FS_NODES) &&
+      db.objectStoreNames.contains(FS_BLOBS)
     );
   }
 
@@ -345,5 +356,8 @@ window.OSState = (function () {
     getUserApp,
     putUserApp,
     deleteUserApp,
+    openDb,
+    FS_NODES,
+    FS_BLOBS,
   };
 })();

@@ -32,8 +32,30 @@ window.OSWindows = (function () {
     };
   }
 
+  function appIdOf(id) {
+    if (!id) return id;
+    const text = String(id);
+    const i = text.indexOf("::");
+    return i > 0 ? text.slice(0, i) : text;
+  }
+
   function appOf(id) {
-    return window.OSCatalog.byId(id);
+    return window.OSCatalog.byId(appIdOf(id));
+  }
+
+  function isMulti(app) {
+    return !!(app && app.multiInstance);
+  }
+
+  function newInstanceId(appId) {
+    const uuid = crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + "-" + Math.random().toString(16).slice(2);
+    return appId + "::" + uuid;
+  }
+
+  function latestOf(appId) {
+    return Array.from(windows.values())
+      .filter((win) => (win.appId || appIdOf(win.id)) === appId)
+      .sort((a, b) => (b.z || 0) - (a.z || 0))[0] || null;
   }
 
   function clampRect(x, y, w, h) {
@@ -204,6 +226,8 @@ window.OSWindows = (function () {
   function serialize() {
     return Array.from(windows.values()).map((win) => ({
       id: win.id,
+      appId: win.appId || appIdOf(win.id),
+      path: win.path || null,
       x: win.x,
       y: win.y,
       w: win.w,
@@ -282,7 +306,17 @@ window.OSWindows = (function () {
     `;
     el.querySelector(".titlebar-title").textContent = name;
     const body = el.querySelector(".os-window-body");
-    if (app.kind === "native") {
+    if (app.kind === "native" && app.href) {
+      const iframe = document.createElement("iframe");
+      iframe.className = "native-frame";
+      iframe.src = window.OSCatalog.resolveHref(app);
+      iframe.title = name;
+      iframe.setAttribute(
+        "allow",
+        "camera; microphone; fullscreen; clipboard-read; clipboard-write; autoplay"
+      );
+      body.appendChild(iframe);
+    } else if (app.kind === "native") {
       const root = document.createElement("div");
       root.className = "native-root";
       body.appendChild(root);
@@ -331,7 +365,7 @@ window.OSWindows = (function () {
     if (ext) {
       ext.addEventListener("click", (e) => {
         e.stopPropagation();
-        const href = window.OSCatalog.resolveHref(appOf(win.id));
+        const href = window.OSCatalog.resolveHref(appOf(win.appId || win.id));
         if (href) window.open(href, "_blank", "noopener");
       });
     }
@@ -422,21 +456,60 @@ window.OSWindows = (function () {
   }
 
   function mountNative(win) {
-    const app = appOf(win.id);
+    const app = appOf(win.appId || win.id);
     const root = win.el.querySelector(".native-root");
     if (!app || !root) return;
     if (app.id === "settings" && window.OSSettings) window.OSSettings.mount(root);
     if (app.id === "app-builder" && window.OSAppBuilder) window.OSAppBuilder.mount(root);
+    if (app.id === "file-explorer" && window.OSFileExplorer) {
+      window.OSFileExplorer.mount(root, { winId: win.id, path: win.path || "/" });
+    }
+  }
+
+  function makeWin(app, winId, rect, maximized) {
+    const win = {
+      id: winId,
+      appId: app.id,
+      path: null,
+      el: createChrome(app),
+      x: rect.x,
+      y: rect.y,
+      w: rect.w,
+      h: rect.h,
+      minimized: false,
+      maximized: !!maximized,
+      z: ++zCounter,
+    };
+    win.el.dataset.winId = winId;
+    win.el.style.zIndex = String(win.z);
+    return win;
   }
 
   function open(id, opts) {
     opts = opts || {};
-    const app = appOf(id);
+    const appId = appIdOf(id);
+    const app = window.OSCatalog.byId(appId);
     if (!app) return null;
-    if (app.kind !== "native" && window.OS && !window.OS.isInstalled(id)) return null;
-    closedThisSession.delete(id);
-    let win = windows.get(id);
-    if (win) {
+    if (app.kind !== "native" && window.OS && !window.OS.isInstalled(appId)) return null;
+
+    const multi = isMulti(app);
+    let winId = id;
+    if (opts.newInstance && multi) {
+      winId = newInstanceId(app.id);
+    } else if (multi && id === app.id && !windows.has(id)) {
+      const existing = latestOf(app.id);
+      if (existing && !opts.forceNew) {
+        if (opts.path) existing.path = opts.path;
+        existing.minimized = false;
+        applyRect(existing);
+        setFocused(existing.id);
+        if (opts.path && window.OSFileExplorer) window.OSFileExplorer.navigate(existing.id, opts.path);
+        return existing;
+      }
+      winId = newInstanceId(app.id);
+    } else if (windows.has(id)) {
+      const win = windows.get(id);
+      closedThisSession.delete(id);
       if (opts.x != null) {
         const rect = clampRect(opts.x, opts.y, opts.w, opts.h);
         win.x = rect.x;
@@ -445,65 +518,40 @@ window.OSWindows = (function () {
         win.h = rect.h;
         applyRect(win);
       }
+      if (opts.path) {
+        win.path = opts.path;
+        if (window.OSFileExplorer) window.OSFileExplorer.navigate(win.id, opts.path);
+      }
       win.minimized = false;
       applyRect(win);
       setFocused(id);
       return win;
     }
+
+    closedThisSession.delete(winId);
     const area = workArea();
     let rect;
+    let maximized = false;
     if (opts.x != null) {
       rect = clampRect(opts.x, opts.y, opts.w || DEFAULT_W, opts.h || DEFAULT_H);
-      const almostFull =
-        Math.abs(rect.w - area.w) < 8 && Math.abs(rect.h - area.h) < 8 && rect.x <= 4 && rect.y <= 4;
-      win = {
-        id,
-        el: createChrome(app),
-        x: rect.x,
-        y: rect.y,
-        w: rect.w,
-        h: rect.h,
-        minimized: false,
-        maximized: almostFull,
-        z: ++zCounter,
-      };
+      maximized = Math.abs(rect.w - area.w) < 8 && Math.abs(rect.h - area.h) < 8 && rect.x <= 4 && rect.y <= 4;
     } else {
-      const saved = savedPlacement(id);
+      const saved = savedPlacement(winId) || (!multi ? savedPlacement(app.id) : null);
       if (saved) {
         rect = clampRect(saved.x, saved.y, saved.w || DEFAULT_W, saved.h || DEFAULT_H);
-        win = {
-          id,
-          el: createChrome(app),
-          x: rect.x,
-          y: rect.y,
-          w: rect.w,
-          h: rect.h,
-          minimized: false,
-          maximized: !!saved.maximized,
-          z: ++zCounter,
-        };
+        maximized = !!saved.maximized;
       } else {
         rect = nextCascade();
-        win = {
-          id,
-          el: createChrome(app),
-          x: rect.x,
-          y: rect.y,
-          w: rect.w,
-          h: rect.h,
-          minimized: false,
-          maximized: false,
-          z: ++zCounter,
-        };
       }
     }
-    win.el.style.zIndex = String(win.z);
+    const win = makeWin(app, winId, rect, maximized);
+    if (opts.path) win.path = opts.path;
     layer.appendChild(win.el);
-    windows.set(id, win);
+    windows.set(winId, win);
     bindWindow(win);
     applyRect(win);
-    if (app.kind === "native") mountNative(win);
-    setFocused(id);
+    if (app.kind === "native" && !app.href) mountNative(win);
+    setFocused(winId);
     persist();
     return win;
   }
@@ -539,6 +587,9 @@ window.OSWindows = (function () {
     if (!win) return;
     rememberPlacement(win);
     closedThisSession.add(id);
+    if ((win.appId || appIdOf(id)) === "file-explorer" && window.OSFileExplorer) {
+      window.OSFileExplorer.unmount(id);
+    }
     revokeHtmlBlob(win.el);
     win.el.remove();
     windows.delete(id);
@@ -572,9 +623,11 @@ window.OSWindows = (function () {
   function restoreList(list, focusId) {
     const sorted = (list || []).slice().sort((a, b) => (a.z || 0) - (b.z || 0));
     sorted.forEach((saved) => {
-      if (!appOf(saved.id)) return;
-      if (appOf(saved.id).kind !== "native" && window.OS && !window.OS.isInstalled(saved.id)) return;
-      const win = open(saved.id, { x: saved.x, y: saved.y, w: saved.w, h: saved.h });
+      const appId = saved.appId || appIdOf(saved.id);
+      const app = window.OSCatalog.byId(appId);
+      if (!app) return;
+      if (app.kind !== "native" && window.OS && !window.OS.isInstalled(appId)) return;
+      const win = open(saved.id, { x: saved.x, y: saved.y, w: saved.w, h: saved.h, path: saved.path || null });
       if (!win) return;
       win.minimized = !!saved.minimized;
       win.maximized = !!saved.maximized;
@@ -598,15 +651,17 @@ window.OSWindows = (function () {
     const app = hash && appOf(hash.id);
     if (!hash || !app) return;
     if (app.kind !== "native" && window.OS && !window.OS.isInstalled(app.id)) return;
-    open(app.id, { x: hash.x, y: hash.y, w: hash.w, h: hash.h });
+    open(hash.id, { x: hash.x, y: hash.y, w: hash.w, h: hash.h });
   }
 
   function refreshTitles() {
     windows.forEach((win) => {
-      const app = appOf(win.id);
+      const app = appOf(win.appId || win.id);
       if (!app) return;
-      const name = window.OSCatalog.displayName(app, lang());
-      win.el.querySelector(".titlebar-title").textContent = name;
+      let name = window.OSCatalog.displayName(app, lang());
+      if (win.titleName) name = win.titleName;
+      const title = win.el.querySelector(".titlebar-title");
+      if (title) title.textContent = name;
       const icon = win.el.querySelector(".titlebar-icon");
       if (icon && app.icon) icon.src = app.icon;
       const iframe = win.el.querySelector("iframe");
@@ -660,7 +715,9 @@ window.OSWindows = (function () {
     refreshTitles,
     refreshUserApp,
     closedThisSession,
+    appIdOf,
     list: () => Array.from(windows.values()),
     has: (id) => windows.has(id),
+    get: (id) => windows.get(id) || null,
   };
 })();

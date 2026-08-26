@@ -50,6 +50,55 @@ window.OSCatalog = (function () {
     }
   },
   {
+    "id": "sheets",
+    "href": "os/app/sheets/index.html",
+    "icon": "../assets/icons/svg/os-sheets.svg",
+    "kind": "native",
+    "uninstallable": false,
+    "defaultInstalled": true,
+    "channel": "stable",
+    "tag": {
+      "en": "System",
+      "pt": "Sistema",
+      "ja": "システム"
+    },
+    "name": {
+      "en": "Sheets",
+      "pt": "Planilhas",
+      "ja": "表計算"
+    },
+    "desc": {
+      "en": "Spreadsheet with multiple sheets, formulas, and Excel-style references.",
+      "pt": "Planilha com várias abas, fórmulas e referências no estilo Excel.",
+      "ja": "複数シート、数式、Excel 風の参照に対応した表計算アプリ。"
+    }
+  },
+  {
+    "id": "file-explorer",
+    "href": null,
+    "icon": "../assets/icons/svg/os-file_explorer.svg",
+    "kind": "native",
+    "uninstallable": false,
+    "defaultInstalled": true,
+    "multiInstance": true,
+    "channel": "stable",
+    "tag": {
+      "en": "System",
+      "pt": "Sistema",
+      "ja": "システム"
+    },
+    "name": {
+      "en": "File Explorer",
+      "pt": "Explorador de Arquivos",
+      "ja": "エクスプローラー"
+    },
+    "desc": {
+      "en": "Browse folders and files stored in this desktop, with icons or details view.",
+      "pt": "Navegue pastas e arquivos deste desktop, em ícones ou detalhes.",
+      "ja": "このデスクトップに保存したフォルダーとファイルをアイコンまたは詳細表示で参照します。"
+    }
+  },
+  {
     "id": "mobile-ar_object_scanner",
     "href": "mobile/ar_object_scanner.html",
     "icon": "../assets/icons/svg/mobile-ar_object_scanner.svg",

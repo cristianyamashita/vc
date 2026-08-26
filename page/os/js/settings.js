@@ -50,6 +50,9 @@ window.OSSettings = (function () {
   function paneHtml() {
     if (currentPane === "install") return installHtml();
     if (currentPane === "appearance") return appearanceHtml();
+    if (currentPane === "registry") {
+      return `<div id="os-registry-root" class="registry-root"></div>`;
+    }
     if (currentPane === "more") {
       return `<h2>${escapeHtml(t("comingSoon"))}</h2><p class="muted">${escapeHtml(t("comingSoon"))}</p>`;
     }
@@ -192,6 +195,7 @@ window.OSSettings = (function () {
           <button type="button" data-pane="preferences" class="${currentPane === "preferences" ? "active" : ""}">${escapeHtml(t("preferences"))}</button>
           <button type="button" data-pane="appearance" class="${currentPane === "appearance" ? "active" : ""}">${escapeHtml(t("appearance"))}</button>
           <button type="button" data-pane="install" class="${currentPane === "install" ? "active" : ""}">${escapeHtml(t("installApps"))}</button>
+          <button type="button" data-pane="registry" class="${currentPane === "registry" ? "active" : ""}">${escapeHtml(t("registry"))}</button>
           <button type="button" data-pane="more" class="${currentPane === "more" ? "active" : ""}">${escapeHtml(t("more"))}</button>
         </nav>
         <div class="settings-panel">${paneHtml()}</div>
@@ -200,6 +204,10 @@ window.OSSettings = (function () {
     bind(root);
     const next = root.querySelector(".settings-panel");
     if (next) next.scrollTop = scrollTop;
+    if (currentPane === "registry" && window.OSRegistry) {
+      const registryRoot = root.querySelector("#os-registry-root");
+      if (registryRoot) window.OSRegistry.mount(registryRoot);
+    }
   }
 
   async function mount(root) {

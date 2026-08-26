@@ -107,6 +107,26 @@ ICONS: dict[str, list[Shape]] = {
         r(18, 16, 6, 6, rad=1, fill=DARK),
         r(24, 16, 6, 6, rad=1),
     ],
+    # Desktop OS File Explorer (native)
+    "os-file_explorer": [
+        r(5, 10, 14, 13, rad=1.5),
+        p([(5, 12), (5, 8), (10, 8), (12, 10), (19, 10), (19, 12)], fill=WHITE),
+        r(15, 6, 12, 16, rad=1.5, fill=DARK),
+        r(18, 9, 6, 1.2),
+        r(18, 12, 6, 1.2),
+        r(18, 15, 4, 1.2),
+    ],
+    # Desktop OS Sheets (native spreadsheet)
+    "os-sheets": [
+        r(6, 6, 20, 20, rad=2),
+        r(6, 6, 20, 5, fill=DARK),
+        l(6, 11, 26, 11, sw=1.2),
+        l(6, 16, 26, 16, sw=1.2, stroke=DARK),
+        l(6, 21, 26, 21, sw=1.2, stroke=DARK),
+        l(11, 6, 11, 26, sw=1.2),
+        l(16.5, 11, 16.5, 26, sw=1.2, stroke=DARK),
+        l(22, 11, 22, 26, sw=1.2, stroke=DARK),
+    ],
     # Mobile
     "mobile-ar_object_scanner": [
         r(7, 9, 18, 14, rad=2, fill=None, stroke=WHITE, sw=2),
