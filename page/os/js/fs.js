@@ -1,6 +1,9 @@
 window.OSFS = (function () {
   const ROOT_ID = "root";
   const DESKTOP_ID = "desktop";
+  const DOCUMENTS_ID = "documents";
+  const SHEETS_DIR_ID = "documents-sheets";
+  const SHEETS_EXTS = ["vcsh", "xlsx", "xls", "csv"];
   const TEXT_MAX = 2 * 1024 * 1024;
   const MIME_BY_EXT = {
     txt: "text/plain",
@@ -18,6 +21,9 @@ window.OSFS = (function () {
     htm: "text/html",
     xml: "application/xml",
     csv: "text/csv",
+    vcsh: "application/vnd.vc.sheets+json",
+    xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    xls: "application/vnd.ms-excel",
     tsv: "text/tab-separated-values",
     log: "text/plain",
     ini: "text/plain",
@@ -85,7 +91,14 @@ window.OSFS = (function () {
   }
 
   function isSystem(node) {
-    return !!(node && (node.system || node.id === ROOT_ID || node.id === DESKTOP_ID));
+    return !!(
+      node &&
+      (node.system ||
+        node.id === ROOT_ID ||
+        node.id === DESKTOP_ID ||
+        node.id === DOCUMENTS_ID ||
+        node.id === SHEETS_DIR_ID)
+    );
   }
 
   function emit(detail) {
@@ -139,19 +152,45 @@ window.OSFS = (function () {
   async function seed() {
     const db = await window.OSState.openDb();
     const readTx = db.transaction([nodesStore()], "readonly");
-    const read = readTx.objectStore(nodesStore());
-    const rootP = reqToPromise(read.get(ROOT_ID));
-    const desktopP = reqToPromise(read.get(DESKTOP_ID));
-    const [root, desktop] = await Promise.all([rootP, desktopP]);
-    if (root && root.system && desktop && desktop.system && desktop.parentId === ROOT_ID) return;
+    const all = (await reqToPromise(readTx.objectStore(nodesStore()).getAll())) || [];
+    const byId = new Map(all.map((n) => [n.id, n]));
+    function kidsOf(parentId) {
+      return all.filter((n) => n.parentId === parentId);
+    }
     const write = db.transaction([nodesStore()], "readwrite");
     const store = write.objectStore(nodesStore());
-    if (!root) store.put(folderNode(ROOT_ID, null, "", true));
-    else if (!root.system) store.put(Object.assign({}, root, { system: true, name: "" }));
-    if (!desktop) store.put(folderNode(DESKTOP_ID, ROOT_ID, "Desktop", true));
-    else if (!desktop.system || desktop.parentId !== ROOT_ID) {
-      store.put(Object.assign({}, desktop, { system: true, parentId: ROOT_ID, name: "Desktop" }));
+    function ensure(id, parentId, name) {
+      const existing = byId.get(id);
+      if (existing) {
+        const next = Object.assign({}, existing, {
+          kind: "folder",
+          system: true,
+          parentId,
+          name,
+        });
+        store.put(next);
+        byId.set(id, next);
+        return next;
+      }
+      const named = kidsOf(parentId).find(
+        (n) => n.kind === "folder" && String(n.name || "").toLowerCase() === name.toLowerCase()
+      );
+      if (named) {
+        const next = Object.assign({}, named, { system: true, name, kind: "folder" });
+        store.put(next);
+        byId.set(named.id, next);
+        return next;
+      }
+      const node = folderNode(id, parentId, name, true);
+      store.put(node);
+      byId.set(id, node);
+      all.push(node);
+      return node;
     }
+    ensure(ROOT_ID, null, "");
+    ensure(DESKTOP_ID, ROOT_ID, "Desktop");
+    const docs = ensure(DOCUMENTS_ID, ROOT_ID, "Documents");
+    ensure(SHEETS_DIR_ID, docs.id, "Sheets");
     await waitTx(write);
   }
 
@@ -300,6 +339,65 @@ window.OSFS = (function () {
     const label = (name || "New Text Document.txt").trim();
     const blob = new Blob([""], { type: "text/plain" });
     return createFile(parentId, { name: label, mime: "text/plain", blob });
+  }
+
+  async function writeFile(id, blob, spec) {
+    await ready();
+    const node = await get(id);
+    if (!node || node.kind !== "file") throw new Error("missing");
+    const nextBlob =
+      blob instanceof Blob
+        ? blob
+        : new Blob([blob || ""], { type: (spec && spec.mime) || node.mime || "application/octet-stream" });
+    const t = now();
+    node.size = nextBlob.size;
+    node.modifiedAt = t;
+    if (spec && spec.mime) node.mime = spec.mime;
+    if (spec && spec.name && spec.name !== node.name) {
+      node.name = await uniqueName(node.parentId, spec.name);
+      node.mime = mimeOf(node.name, node.mime);
+    }
+    const parent = node.parentId ? await get(node.parentId) : null;
+    const db = await window.OSState.openDb();
+    const transaction = db.transaction([nodesStore(), blobsStore()], "readwrite");
+    const nodes = transaction.objectStore(nodesStore());
+    nodes.put(node);
+    transaction.objectStore(blobsStore()).put({ id, blob: nextBlob });
+    if (parent) {
+      parent.modifiedAt = t;
+      nodes.put(parent);
+    }
+    await waitTx(transaction);
+    emit({ type: "write", id, parentId: node.parentId });
+    return node;
+  }
+
+  async function allNodes() {
+    await ready();
+    const db = await window.OSState.openDb();
+    const store = db.transaction(nodesStore(), "readonly").objectStore(nodesStore());
+    return (await reqToPromise(store.getAll())) || [];
+  }
+
+  async function listFilesByExt(exts) {
+    const set = new Set((exts || []).map((e) => String(e).replace(/^\./, "").toLowerCase()));
+    const nodes = await allNodes();
+    return nodes.filter((n) => n.kind === "file" && set.has(extOf(n.name)));
+  }
+
+  async function ensureSheetsFolder() {
+    await ready();
+    let sheets = await get(SHEETS_DIR_ID);
+    if (sheets && sheets.kind === "folder") return sheets;
+    const byPath = await nodeAtPath("/Documents/Sheets");
+    if (byPath && byPath.kind === "folder") return byPath;
+    let docs = await get(DOCUMENTS_ID);
+    if (!docs || docs.kind !== "folder") docs = await nodeAtPath("/Documents");
+    if (!docs || docs.kind !== "folder") docs = await createFolder(ROOT_ID, "Documents");
+    const kids = await list(docs.id);
+    const named = kids.find((n) => n.kind === "folder" && n.name.toLowerCase() === "sheets");
+    if (named) return named;
+    return createFolder(docs.id, "Sheets");
   }
 
   async function rename(id, name) {
@@ -561,7 +659,7 @@ window.OSFS = (function () {
     const mime = node.mime || "";
     if (mime.startsWith("text/")) return true;
     if (["application/json", "application/xml", "application/javascript"].includes(mime)) return true;
-    return ["txt", "md", "json", "js", "css", "html", "htm", "xml", "csv", "tsv", "log", "ini", "yaml", "yml", "py", "ts", "tsx", "jsx", "sh", "sql"].includes(extOf(node.name));
+    return ["txt", "md", "json", "js", "css", "html", "htm", "xml", "tsv", "log", "ini", "yaml", "yml", "py", "ts", "tsx", "jsx", "sh", "sql"].includes(extOf(node.name));
   }
 
   function isImageNode(node) {
@@ -580,9 +678,23 @@ window.OSFS = (function () {
     return !!(node && node.kind === "file" && (node.mime === "application/pdf" || extOf(node.name) === "pdf"));
   }
 
+  function isSheetsNode(node) {
+    if (!node || node.kind !== "file") return false;
+    const ext = extOf(node.name);
+    if (SHEETS_EXTS.includes(ext)) return true;
+    const mime = node.mime || "";
+    return (
+      mime === "application/vnd.vc.sheets+json" ||
+      mime === "application/vnd.ms-excel" ||
+      mime === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
+      mime === "text/csv"
+    );
+  }
+
   function openKind(node) {
     if (!node) return "none";
     if (node.kind === "folder") return "folder";
+    if (isSheetsNode(node)) return "sheets";
     if (isImageNode(node)) return "image";
     if (isAudioNode(node)) return "audio";
     if (isVideoNode(node)) return "video";
@@ -608,6 +720,7 @@ window.OSFS = (function () {
     if (kind === "audio") return t ? t("feAudio") : "Audio";
     if (kind === "video") return t ? t("feVideo") : "Video";
     if (kind === "pdf") return t ? t("fePdf") : "PDF";
+    if (kind === "sheets") return t ? t("feSpreadsheet") : "Spreadsheet";
     if (kind === "text") return t ? t("feText") : "Text";
     return t ? t("feFile") : "File";
   }
@@ -627,6 +740,9 @@ window.OSFS = (function () {
     }
     if (kind === "video") {
       return `<svg class="fe-glyph" viewBox="0 0 40 40" aria-hidden="true"><rect x="6" y="10" width="28" height="20" rx="3" fill="#c45c8a"/><path d="M17 16l9 4-9 4z" fill="#fff"/></svg>`;
+    }
+    if (kind === "sheets") {
+      return `<svg class="fe-glyph" viewBox="0 0 40 40" aria-hidden="true"><path d="M10 6h14l8 8v20a2 2 0 0 1-2 2H10a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2z" fill="#008f7d"/><path d="M24 6v8h8" fill="#006056"/><path d="M12 18h16M12 23h16M12 28h16M17 18v10M22 18v10" fill="none" stroke="#fff" stroke-width="1.4"/></svg>`;
     }
     if (kind === "text") {
       return `<svg class="fe-glyph" viewBox="0 0 40 40" aria-hidden="true"><path d="M12 6h12l8 8v20a2 2 0 0 1-2 2H12a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2z" fill="#f4f4f4"/><path d="M24 6v8h8" fill="#d0d0d0"/><rect x="12" y="20" width="16" height="2" fill="#6a6a6a"/><rect x="12" y="25" width="12" height="2" fill="#6a6a6a"/></svg>`;
@@ -658,18 +774,23 @@ window.OSFS = (function () {
   return {
     ROOT_ID,
     DESKTOP_ID,
+    DOCUMENTS_ID,
+    SHEETS_DIR_ID,
+    SHEETS_EXTS,
     TEXT_MAX,
     ready,
     get,
     list,
     listFolders,
     listDesktop: () => list(DESKTOP_ID),
+    listFilesByExt,
     pathOf,
     nodeAtPath,
     uniqueName,
     createFolder,
     createFile,
     createTextFile,
+    writeFile,
     rename,
     remove,
     move,
@@ -677,6 +798,7 @@ window.OSFS = (function () {
     getBlob,
     download,
     readText,
+    ensureSheetsFolder,
     importFiles,
     importDataTransfer,
     setClipboard,
@@ -688,6 +810,7 @@ window.OSFS = (function () {
     isAudioNode,
     isVideoNode,
     isPdfNode,
+    isSheetsNode,
     openKind,
     formatSize,
     typeLabel,

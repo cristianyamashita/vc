@@ -94,8 +94,17 @@ window.OSFileExplorer = (function () {
       </div>`;
   }
 
+  function defaultExpanded(sheetsDir) {
+    const ids = [window.OSFS.ROOT_ID, window.OSFS.DESKTOP_ID, window.OSFS.DOCUMENTS_ID, window.OSFS.SHEETS_DIR_ID];
+    if (sheetsDir) {
+      ids.push(sheetsDir.id);
+      if (sheetsDir.parentId) ids.push(sheetsDir.parentId);
+    }
+    return new Set(ids.filter(Boolean));
+  }
+
   function ensureExpanded(inst, folderId) {
-    if (!inst.expanded) inst.expanded = new Set([window.OSFS.ROOT_ID, window.OSFS.DESKTOP_ID]);
+    if (!inst.expanded) inst.expanded = defaultExpanded();
     inst.expanded.add(folderId);
   }
 
@@ -130,7 +139,7 @@ window.OSFileExplorer = (function () {
   }
 
   async function renderTree(inst) {
-    if (!inst.expanded) inst.expanded = new Set([window.OSFS.ROOT_ID, window.OSFS.DESKTOP_ID]);
+    if (!inst.expanded) inst.expanded = defaultExpanded();
     const folders = await window.OSFS.listFolders();
     const byParent = new Map();
     folders.forEach((folder) => {
@@ -364,6 +373,10 @@ window.OSFileExplorer = (function () {
       return;
     }
     const kind = window.OSFS.openKind(node);
+    if (kind === "sheets") {
+      window.OSWindows.open("sheets", { fileId: node.id });
+      return;
+    }
     if (kind === "download") {
       await window.OSFS.download(node.id);
       return;
@@ -680,7 +693,7 @@ window.OSFileExplorer = (function () {
         e.preventDefault();
         e.stopPropagation();
         const id = twisty.dataset.toggle;
-        if (!inst.expanded) inst.expanded = new Set([window.OSFS.ROOT_ID, window.OSFS.DESKTOP_ID]);
+        if (!inst.expanded) inst.expanded = defaultExpanded();
         if (inst.expanded.has(id)) inst.expanded.delete(id);
         else inst.expanded.add(id);
         await renderTree(inst);
@@ -856,6 +869,7 @@ window.OSFileExplorer = (function () {
   async function mount(root, opts) {
     opts = opts || {};
     await window.OSFS.ready();
+    const sheetsDir = await window.OSFS.ensureSheetsFolder();
     root.innerHTML = shellHtml();
     const start = opts.path ? await window.OSFS.nodeAtPath(opts.path) : await window.OSFS.get(window.OSFS.ROOT_ID);
     const cwdId = start && start.kind === "folder" ? start.id : window.OSFS.ROOT_ID;
@@ -872,7 +886,7 @@ window.OSFileExplorer = (function () {
       sortDir: "asc",
       search: "",
       previewUrl: null,
-      expanded: new Set([window.OSFS.ROOT_ID, window.OSFS.DESKTOP_ID]),
+      expanded: defaultExpanded(sheetsDir),
     };
     instances.set(opts.winId, inst);
     bind(inst);
@@ -906,6 +920,10 @@ window.OSFileExplorer = (function () {
     if (node.kind === "folder") {
       const path = await window.OSFS.pathOf(node.id);
       await openPath(path);
+      return;
+    }
+    if (window.OSFS.openKind(node) === "sheets") {
+      window.OSWindows.open("sheets", { fileId: node.id });
       return;
     }
     const parent = await window.OSFS.get(node.parentId);

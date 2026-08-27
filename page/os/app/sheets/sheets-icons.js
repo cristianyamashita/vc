@@ -14,6 +14,7 @@ window.OSSheetsIcons = (function () {
     fileNew: svg('<path d="M4 2.5h5.5L12 5v8.5H4z" ' + stroke + '/><path d="M9.5 2.5V5H12" ' + stroke + '/>'),
     fileOpen: svg('<path d="M2.5 13V4.5h3l1.2 1.5H13.5V13z" ' + stroke + '/>'),
     fileSave: svg('<path d="M3 3h8.5L13 4.5V13H3z" ' + stroke + '/><path d="M5 3v3.5h6V3M5 13v-4h6v4" ' + stroke + '/>'),
+    fileSaveAs: svg('<path d="M2.5 3h7.5L12 4.5V12H2.5z" ' + stroke + '/><path d="M4.5 3v3h5V3M4.5 12V8.5h5V12" ' + stroke + '/><path d="M13 9.5v4M11.2 11.7 13 13.5l1.8-1.8" ' + stroke + '/>'),
     fileImport: svg('<path d="M8 2.5v7M5.5 7.5 8 10l2.5-2.5" ' + stroke + '/><path d="M3 11.5V13.5h10v-2" ' + stroke + '/>'),
     fileExport: svg('<path d="M8 10.5v-8M5.5 5 8 2.5 10.5 5" ' + stroke + '/><path d="M3 11.5V13.5h10v-2" ' + stroke + '/>'),
     undo: svg('<path d="M4 7h6.5a3 3 0 0 1 0 6H8" ' + stroke + '/><path d="M4 7 6.5 4.5M4 7l2.5 2.5" ' + stroke + '/>'),

@@ -56,6 +56,12 @@ window.OSSheets = (function () {
   let bound = false;
   let fileInput = null;
   let status = "";
+  let fsFileId = null;
+  let fsSaveTimer = null;
+  let openingFile = false;
+  let pendingOpenId = null;
+  const VCSH_MIME = "application/vnd.vc.sheets+json";
+  const VCSH_EXT = ".vcsh";
 
   function hostWin() {
     try {
@@ -66,6 +72,227 @@ window.OSSheets = (function () {
   function t(key, vars) {
     const i18n = hostWin().OSI18n || window.OSI18n;
     return i18n.t(key, vars);
+  }
+  function osfs() {
+    const host = hostWin();
+    return host.OSFS || window.OSFS || null;
+  }
+  function extOf(name) {
+    const i = String(name || "").lastIndexOf(".");
+    if (i <= 0) return "";
+    return name.slice(i + 1).toLowerCase();
+  }
+  function stripExt(name) {
+    const i = String(name || "").lastIndexOf(".");
+    if (i <= 0) return String(name || "");
+    return name.slice(0, i);
+  }
+  function safeFileBase(name) {
+    return String(name || "Book")
+      .replace(/[\\/:*?"<>|]/g, "_")
+      .trim() || "Book";
+  }
+  function ensureVcsh(name) {
+    const base = safeFileBase(stripExt(name) || name || "Book");
+    return base + VCSH_EXT;
+  }
+  function fileNameForNode(node, bookName) {
+    const ext = extOf(node && node.name) || "vcsh";
+    return safeFileBase(bookName || (node && stripExt(node.name)) || "Book") + "." + ext;
+  }
+  function pendingHostFileId() {
+    const host = hostWin();
+    if (!host.OSWindows || !host.OSWindows.list) return null;
+    const win = host.OSWindows.list().find(function (w) {
+      return w.appId === "sheets" || w.id === "sheets";
+    });
+    return (win && win.fileId) || null;
+  }
+  function rememberFsFile(id) {
+    fsFileId = id || null;
+    const host = hostWin();
+    if (host.OSWindows && host.OSWindows.list) {
+      const win = host.OSWindows.list().find(function (w) {
+        return w.appId === "sheets" || w.id === "sheets";
+      });
+      if (win) win.fileId = fsFileId;
+    }
+    if (id) E.putMeta({ lastFsFileId: id, lastWorkbookId: api && api.data && api.data.id }).catch(function () {});
+  }
+  function vcshBlob() {
+    const data = api.toJSON();
+    data.format = "vcsh";
+    data.version = 1;
+    data.updatedAt = Date.now();
+    api.data.updatedAt = data.updatedAt;
+    return new Blob([JSON.stringify(data)], { type: VCSH_MIME });
+  }
+  function blobForNode(node) {
+    const ext = extOf(node && node.name);
+    if (ext === "csv") return new Blob([E.exportCsv(api, sheetId())], { type: "text/csv" });
+    if (ext === "xlsx" || ext === "xls") {
+      const buf = E.exportXlsx(api);
+      return new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    }
+    return vcshBlob();
+  }
+  function persistSoon() {
+    const fs = osfs();
+    if (!fs) {
+      E.scheduleSave(api);
+      return;
+    }
+    E.scheduleSave(api);
+    clearTimeout(fsSaveTimer);
+    fsSaveTimer = setTimeout(function () {
+      persistNow().catch(function () {});
+    }, 400);
+  }
+  async function persistNow() {
+    if (!api) return null;
+    const fs = osfs();
+    if (!fs) {
+      await E.saveWorkbook(api);
+      return null;
+    }
+    await fs.ready();
+    let node = fsFileId ? await fs.get(fsFileId) : null;
+    if (!node || node.kind !== "file") {
+      const folder = await fs.ensureSheetsFolder();
+      node = await fs.createFile(folder.id, {
+        name: ensureVcsh(api.data.name),
+        mime: VCSH_MIME,
+        blob: vcshBlob(),
+      });
+      rememberFsFile(node.id);
+      return node;
+    }
+    try {
+      node = await fs.writeFile(node.id, blobForNode(node));
+    } catch (_err) {
+      const folder = await fs.ensureSheetsFolder();
+      node = await fs.createFile(folder.id, {
+        name: ensureVcsh(api.data.name),
+        mime: VCSH_MIME,
+        blob: vcshBlob(),
+      });
+      rememberFsFile(node.id);
+      return node;
+    }
+    const want = fileNameForNode(node, api.data.name);
+    if (want !== node.name) {
+      try {
+        node = await fs.rename(node.id, want);
+      } catch (_err) {}
+    }
+    rememberFsFile(node.id);
+    return node;
+  }
+  async function saveAsTo(parentId, fileName) {
+    const fs = osfs();
+    if (!fs) return null;
+    const name = ensureVcsh(fileName || api.data.name);
+    const kids = await fs.list(parentId);
+    const existing = kids.find(function (n) {
+      return n.kind === "file" && n.name.toLowerCase() === name.toLowerCase();
+    });
+    const blob = vcshBlob();
+    let node;
+    if (existing) {
+      node = await fs.writeFile(existing.id, blob, { mime: VCSH_MIME });
+    } else {
+      node = await fs.createFile(parentId, { name: name, mime: VCSH_MIME, blob: blob });
+    }
+    api.data.name = stripExt(node.name) || api.data.name;
+    rememberFsFile(node.id);
+    return node;
+  }
+  function applyLoadedBook() {
+    visRows = Math.max(MIN_ROWS, api.usedRange(api.data.activeSheetId).r + GROW);
+    visCols = Math.max(MIN_COLS, api.usedRange(api.data.activeSheetId).c + 8);
+    setSel(0, 0);
+    hookWorkbook();
+  }
+  async function loadFromFs(fileId) {
+    const fs = osfs();
+    if (!fs || !fileId) return false;
+    const node = await fs.get(fileId);
+    if (!node || node.kind !== "file") return false;
+    const blob = await fs.getBlob(fileId);
+    if (!blob) return false;
+    const ext = extOf(node.name);
+    const mime = node.mime || blob.type || "";
+    if (ext === "xlsx" || ext === "xls" || mime.indexOf("spreadsheet") >= 0 || mime.indexOf("ms-excel") >= 0) {
+      api = E.importXlsx(await blob.arrayBuffer());
+      api.data.name = stripExt(node.name) || api.data.name;
+    } else if (ext === "csv" || mime === "text/csv" || mime === "application/csv") {
+      api = E.importCsv(await blob.text());
+      api.data.name = stripExt(node.name) || api.data.name;
+    } else {
+      const text = await blob.text();
+      const data = JSON.parse(text);
+      if (!data || !Array.isArray(data.sheets)) throw new Error("vcsh");
+      api = E.fromData(data);
+      if (!api.data.name) api.data.name = stripExt(node.name);
+    }
+    rememberFsFile(node.id);
+    applyLoadedBook();
+    if (root) paint();
+    return true;
+  }
+  async function migrateWorkbooksToFs(fs) {
+    const meta = (await E.getMeta()) || {};
+    if (meta.migratedFs) return;
+    const folder = await fs.ensureSheetsFolder();
+    const existing = await fs.list(folder.id);
+    const hasVcsh = existing.some(function (n) {
+      return n.kind === "file" && extOf(n.name) === "vcsh";
+    });
+    const books = await E.listWorkbooks();
+    let lastFs = meta.lastFsFileId || null;
+    const lastId = await E.lastWorkbookId();
+    if (!hasVcsh) {
+      for (let i = 0; i < books.length; i++) {
+        const book = books[i];
+        const blob = new Blob([JSON.stringify(book)], { type: VCSH_MIME });
+        const node = await fs.createFile(folder.id, {
+          name: ensureVcsh(book.name || t("sheetsBook")),
+          mime: VCSH_MIME,
+          blob: blob,
+        });
+        if (book.id === lastId) lastFs = node.id;
+      }
+    }
+    await E.putMeta({ migratedFs: true, lastFsFileId: lastFs || null });
+  }
+  async function openFsFile(fileId) {
+    if (!fileId) return;
+    if (openingFile) {
+      pendingOpenId = fileId;
+      return;
+    }
+    if (fsFileId === fileId && api) return;
+    openingFile = true;
+    pendingOpenId = null;
+    try {
+      if (editing) commitEdit();
+      if (api && fsFileId && fsFileId !== fileId) {
+        try {
+          await persistNow();
+        } catch (_err) {}
+      }
+      await loadFromFs(fileId);
+    } catch (_err) {
+      status = t("sheetsImportFail");
+      if (root) updateStatus();
+    } finally {
+      openingFile = false;
+      if (pendingOpenId && pendingOpenId !== fsFileId) {
+        const next = pendingOpenId;
+        pendingOpenId = null;
+        openFsFile(next);
+      }
+    }
   }
   function escapeHtml(value) {
     return String(value)
@@ -240,19 +467,53 @@ window.OSSheets = (function () {
 
   async function ensureLoaded() {
     if (api) return;
+    openingFile = true;
+    const fs = osfs();
+    const pending = pendingOpenId || pendingHostFileId();
+    pendingOpenId = null;
     try {
-      const last = await E.lastWorkbookId();
-      if (last) api = await E.loadWorkbook(last);
-    } catch (_err) {}
-    if (!api) api = E.createWorkbook(t("sheetsBook") + " 1");
-    hookWorkbook();
-    try {
-      await E.saveWorkbook(api);
-    } catch (_err) {}
+      if (fs) {
+        try {
+          await fs.ready();
+          await migrateWorkbooksToFs(fs);
+        } catch (_err) {}
+      }
+      if (pending) {
+        try {
+          if (await loadFromFs(pending)) return;
+        } catch (_err) {}
+      }
+      if (fs) {
+        try {
+          const lastFs = await E.lastFsFileId();
+          if (lastFs && (await loadFromFs(lastFs))) return;
+        } catch (_err) {}
+      }
+      try {
+        const last = await E.lastWorkbookId();
+        if (last) api = await E.loadWorkbook(last);
+      } catch (_err) {}
+      if (!api) api = E.createWorkbook(t("sheetsBook") + " 1");
+      hookWorkbook();
+      try {
+        await persistNow();
+      } catch (_err) {
+        try {
+          await E.saveWorkbook(api);
+        } catch (_e) {}
+      }
+    } finally {
+      openingFile = false;
+      if (pendingOpenId && pendingOpenId !== fsFileId) {
+        const next = pendingOpenId;
+        pendingOpenId = null;
+        openFsFile(next);
+      }
+    }
   }
   function hookWorkbook() {
     api.onChange(function () {
-      E.scheduleSave(api);
+      persistSoon();
       if (root) paintLive();
     });
   }
@@ -262,8 +523,9 @@ window.OSSheets = (function () {
     visRows = MIN_ROWS;
     visCols = MIN_COLS;
     setSel(0, 0);
+    fsFileId = null;
     hookWorkbook();
-    await E.saveWorkbook(api);
+    await persistNow();
     paint();
   }
   async function openBook(id) {
@@ -274,8 +536,9 @@ window.OSSheets = (function () {
     visRows = Math.max(MIN_ROWS, api.usedRange(api.data.activeSheetId).r + GROW);
     visCols = Math.max(MIN_COLS, api.usedRange(api.data.activeSheetId).c + 8);
     setSel(0, 0);
+    fsFileId = null;
     hookWorkbook();
-    await E.saveWorkbook(api);
+    await persistNow();
     closeMenu();
     paint();
   }
@@ -318,7 +581,7 @@ window.OSSheets = (function () {
       "</div></div>" +
       tabsHtml() +
       statusHtml() +
-      '<input class="sheets-file" type="file" accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>' +
+      '<input class="sheets-file" type="file" accept=".vcsh,.csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.vc.sheets+json" hidden>' +
       "</div>";
     bound = false;
     bind();
@@ -353,6 +616,7 @@ window.OSSheets = (function () {
       btn("fileNew", "sheetsNew") +
       btn("fileOpen", "sheetsOpen") +
       btn("fileSave", "sheetsSave") +
+      btn("fileSaveAs", "sheetsSaveAs") +
       btn("fileImport", "sheetsImport") +
       btn("fileExport", "sheetsExport") +
       "</div>" +
@@ -1346,12 +1610,18 @@ window.OSSheets = (function () {
     if (name === "fileNew") return newBook();
     if (name === "fileOpen") return showOpen();
     if (name === "fileSave") {
-      E.saveWorkbook(api).then(function () {
-        status = t("sheetsSaved");
-        updateStatus();
-      });
+      persistNow()
+        .then(function () {
+          status = t("sheetsSaved");
+          updateStatus();
+        })
+        .catch(function () {
+          status = t("sheetsExportFail");
+          updateStatus();
+        });
       return;
     }
+    if (name === "fileSaveAs") return showSaveAs();
     if (name === "fileImport") {
       fileInput.click();
       return;
@@ -1437,7 +1707,11 @@ window.OSSheets = (function () {
     if (!file) return;
     const name = file.name.toLowerCase();
     try {
-      if (name.endsWith(".csv") || file.type.indexOf("csv") >= 0) {
+      if (name.endsWith(".vcsh") || name.endsWith(".json")) {
+        const data = JSON.parse(await file.text());
+        api = E.fromData(data);
+        api.setName(file.name.replace(/\.(vcsh|json)$/i, "") || api.data.name);
+      } else if (name.endsWith(".csv") || file.type.indexOf("csv") >= 0) {
         const text = await file.text();
         api = E.importCsv(text);
         api.setName(file.name.replace(/\.csv$/i, ""));
@@ -1449,8 +1723,9 @@ window.OSSheets = (function () {
       setSel(0, 0);
       visRows = Math.max(MIN_ROWS, api.usedRange(api.data.activeSheetId).r + GROW);
       visCols = Math.max(MIN_COLS, api.usedRange(api.data.activeSheetId).c + 8);
+      fsFileId = null;
       hookWorkbook();
-      await E.saveWorkbook(api);
+      await persistNow();
       paint();
     } catch (_err) {
       status = t("sheetsImportFail");
@@ -1484,17 +1759,158 @@ window.OSSheets = (function () {
     ]);
   }
   async function showOpen() {
-    const list = await E.listWorkbooks();
-    const items = list.map(function (row) {
-      return [
-        row.name + "  ·  " + new Date(row.updatedAt || 0).toLocaleString(),
-        function () {
-          openBook(row.id);
-        },
-      ];
+    closeMenu();
+    const fs = osfs();
+    if (!fs) {
+      const list = await E.listWorkbooks();
+      const items = list.map(function (row) {
+        return [
+          row.name + "  ·  " + new Date(row.updatedAt || 0).toLocaleString(),
+          function () {
+            openBook(row.id);
+          },
+        ];
+      });
+      if (!items.length) items.push([t("sheetsNoBooks"), function () {}]);
+      showMenuFrom(root.querySelector('[data-act="fileOpen"]'), items);
+      return;
+    }
+    const files = await fs.listFilesByExt(fs.SHEETS_EXTS || ["vcsh", "xlsx", "xls", "csv"]);
+    files.sort(function (a, b) {
+      return (b.modifiedAt || 0) - (a.modifiedAt || 0);
     });
-    if (!items.length) items.push([t("sheetsNoBooks"), function () {}]);
-    showMenuFrom(root.querySelector('[data-act="fileOpen"]'), items);
+    const overlay = document.createElement("div");
+    overlay.className = "sheets-overlay";
+    let rows = "";
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const path = await fs.pathOf(file.parentId || fs.ROOT_ID);
+      rows +=
+        '<button type="button" class="sheets-fx-item" data-id="' +
+        escapeHtml(file.id) +
+        '"><strong>' +
+        escapeHtml(file.name) +
+        "</strong><span>" +
+        escapeHtml(path) +
+        "</span></button>";
+    }
+    if (!rows) rows = "<p>" + escapeHtml(t("sheetsNoBooks")) + "</p>";
+    overlay.innerHTML =
+      '<div class="sheets-modal">' +
+      "<h2>" +
+      escapeHtml(t("sheetsOpen")) +
+      "</h2>" +
+      '<div class="sheets-fx-list sheets-picker-list">' +
+      rows +
+      "</div>" +
+      '<div class="sheets-modal-actions"><button type="button" class="sheets-close-modal">' +
+      escapeHtml(t("sheetsClose")) +
+      "</button></div></div>";
+    root.querySelector(".sheets-shell").appendChild(overlay);
+    overlay.querySelector(".sheets-close-modal").addEventListener("click", function () {
+      overlay.remove();
+    });
+    overlay.addEventListener("click", function (e) {
+      if (e.target === overlay) overlay.remove();
+    });
+    overlay.querySelectorAll("[data-id]").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        overlay.remove();
+        openFsFile(btn.getAttribute("data-id"));
+      });
+    });
+  }
+  async function showSaveAs() {
+    closeMenu();
+    commitEdit();
+    const fs = osfs();
+    if (!fs) {
+      download(ensureVcsh(api.data.name), vcshBlob());
+      status = t("sheetsSaved");
+      updateStatus();
+      return;
+    }
+    await fs.ready();
+    let selectedId = null;
+    if (fsFileId) {
+      const cur = await fs.get(fsFileId);
+      selectedId = cur && cur.parentId;
+    }
+    if (!selectedId) {
+      const folder = await fs.ensureSheetsFolder();
+      selectedId = folder.id;
+    }
+    const folders = await fs.listFolders();
+    const withPath = [];
+    for (let i = 0; i < folders.length; i++) {
+      withPath.push({ folder: folders[i], path: await fs.pathOf(folders[i].id) });
+    }
+    withPath.sort(function (a, b) {
+      return a.path.localeCompare(b.path, undefined, { sensitivity: "base" });
+    });
+    const overlay = document.createElement("div");
+    overlay.className = "sheets-overlay";
+    overlay.innerHTML =
+      '<div class="sheets-modal">' +
+      "<h2>" +
+      escapeHtml(t("sheetsSaveAs")) +
+      "</h2>" +
+      '<label class="sheets-field">' +
+      escapeHtml(t("sheetsFileName")) +
+      '<input class="sheets-save-name" value="' +
+      escapeHtml(stripExt(ensureVcsh(api.data.name))) +
+      '"></label>' +
+      '<div class="sheets-field">' +
+      escapeHtml(t("sheetsFolder")) +
+      '<div class="sheets-fx-list sheets-picker-list"></div></div>' +
+      '<div class="sheets-modal-actions">' +
+      '<button type="button" class="sheets-close-modal">' +
+      escapeHtml(t("feCancel")) +
+      "</button>" +
+      '<button type="button" class="sheets-save-confirm">' +
+      escapeHtml(t("sheetsSave")) +
+      "</button></div></div>";
+    const listEl = overlay.querySelector(".sheets-picker-list");
+    withPath.forEach(function (row) {
+      const depth = String(row.path || "/").split("/").filter(Boolean).length;
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "sheets-fx-item sheets-picker-item" + (row.folder.id === selectedId ? " active" : "");
+      b.dataset.id = row.folder.id;
+      b.style.paddingLeft = 8 + depth * 12 + "px";
+      b.innerHTML = "<strong>" + escapeHtml(row.path || "/") + "</strong>";
+      b.addEventListener("click", function () {
+        selectedId = row.folder.id;
+        listEl.querySelectorAll(".sheets-picker-item").forEach(function (el) {
+          el.classList.toggle("active", el.dataset.id === selectedId);
+        });
+      });
+      listEl.appendChild(b);
+    });
+    root.querySelector(".sheets-shell").appendChild(overlay);
+    const nameInput = overlay.querySelector(".sheets-save-name");
+    overlay.querySelector(".sheets-close-modal").addEventListener("click", function () {
+      overlay.remove();
+    });
+    overlay.addEventListener("click", function (e) {
+      if (e.target === overlay) overlay.remove();
+    });
+    overlay.querySelector(".sheets-save-confirm").addEventListener("click", function () {
+      const name = nameInput.value.trim() || api.data.name;
+      overlay.remove();
+      saveAsTo(selectedId, name)
+        .then(function () {
+          status = t("sheetsSaved");
+          if (root) paintLive();
+          updateStatus();
+        })
+        .catch(function () {
+          status = t("sheetsExportFail");
+          updateStatus();
+        });
+    });
+    nameInput.focus();
+    nameInput.select();
   }
 
   function showPalette(kind) {
@@ -1697,5 +2113,5 @@ window.OSSheets = (function () {
     document.removeEventListener("mousedown", onDoc, true);
   }
 
-  return { mount: mount, remountOpen: remountOpen };
+  return { mount: mount, remountOpen: remountOpen, openFile: openFsFile };
 })();

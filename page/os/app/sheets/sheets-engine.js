@@ -2966,10 +2966,12 @@ window.OSSheetsEngine = (function () {
     const data = api.toJSON();
     data.updatedAt = Date.now();
     api.data.updatedAt = data.updatedAt;
+    const meta = (await getMeta()) || { id: "state" };
+    meta.lastWorkbookId = data.id;
     const tx = db.transaction(["workbooks", "meta"], "readwrite");
     tx.objectStore("workbooks").put(data);
-    tx.objectStore("meta").put({ id: "state", lastWorkbookId: data.id });
-    return idbReq(tx.objectStore("meta").get("state")).then(function () {
+    tx.objectStore("meta").put(meta);
+    return idbReq(tx.objectStore("workbooks").get(data.id)).then(function () {
       return data;
     });
   }
@@ -2979,11 +2981,26 @@ window.OSSheetsEngine = (function () {
     tx.objectStore("workbooks").delete(id);
     return idbReq(tx.objectStore("workbooks").get(id));
   }
-  async function lastWorkbookId() {
+  async function getMeta() {
     const db = await openDb();
     const tx = db.transaction("meta", "readonly");
-    const row = await idbReq(tx.objectStore("meta").get("state"));
+    return idbReq(tx.objectStore("meta").get("state"));
+  }
+  async function putMeta(patch) {
+    const db = await openDb();
+    const cur = (await getMeta()) || { id: "state" };
+    const next = Object.assign({}, cur, patch || {}, { id: "state" });
+    const tx = db.transaction("meta", "readwrite");
+    tx.objectStore("meta").put(next);
+    return idbReq(tx.objectStore("meta").get("state"));
+  }
+  async function lastWorkbookId() {
+    const row = await getMeta();
     return row && row.lastWorkbookId;
+  }
+  async function lastFsFileId() {
+    const row = await getMeta();
+    return row && row.lastFsFileId;
   }
 
   let saveTimer = null;
@@ -3096,10 +3113,15 @@ window.OSSheetsEngine = (function () {
     });
     return XLSX.write(book, { type: "array", bookType: "xlsx" });
   }
+  function toUint8(buffer) {
+    if (!buffer) return buffer;
+    if (typeof buffer.byteLength === "number") return new Uint8Array(buffer);
+    return buffer;
+  }
   function importXlsx(buffer) {
     const XLSX = window.XLSX;
     if (!XLSX) throw new Error("xlsx");
-    const book = XLSX.read(buffer, { type: "array", cellFormula: true });
+    const book = XLSX.read(toUint8(buffer), { type: "array", cellFormula: true });
     const sheets = book.SheetNames.map(function (name) {
       const ws = book.Sheets[name];
       const sh = emptySheet(name);
@@ -3151,7 +3173,10 @@ window.OSSheetsEngine = (function () {
     loadWorkbook: loadWorkbook,
     saveWorkbook: saveWorkbook,
     deleteWorkbook: deleteWorkbook,
+    getMeta: getMeta,
+    putMeta: putMeta,
     lastWorkbookId: lastWorkbookId,
+    lastFsFileId: lastFsFileId,
     scheduleSave: scheduleSave,
     exportCsv: exportCsv,
     importCsv: importCsv,

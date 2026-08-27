@@ -34,6 +34,7 @@
             try {
               if (window.parent.OS) window.OS = window.parent.OS;
               if (window.parent.OSI18n) window.OSI18n = window.parent.OSI18n;
+              if (window.parent.OSFS) window.OSFS = window.parent.OSFS;
             } catch (_err) {}
           }
           const theme = (window.OS && window.OS.theme) || localStorage.getItem("app_theme") || "dark";
@@ -51,9 +52,15 @@
 
         window.addEventListener("message", function (e) {
           if (e.origin !== location.origin) return;
-          if (!e.data || e.data.type !== "os-host-sync") return;
-          syncFromHost();
-          if (window.OSSheets) window.OSSheets.remountOpen();
+          if (!e.data) return;
+          if (e.data.type === "os-host-sync") {
+            syncFromHost();
+            if (window.OSSheets) window.OSSheets.remountOpen();
+            return;
+          }
+          if (e.data.type === "os-sheets-open" && e.data.fileId && window.OSSheets) {
+            window.OSSheets.openFile(e.data.fileId);
+          }
         });
 
         if (inFrame() || window.OSI18n) {

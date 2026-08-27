@@ -471,6 +471,7 @@ window.OSWindows = (function () {
       id: winId,
       appId: app.id,
       path: null,
+      fileId: null,
       el: createChrome(app),
       x: rect.x,
       y: rect.y,
@@ -483,6 +484,25 @@ window.OSWindows = (function () {
     win.el.dataset.winId = winId;
     win.el.style.zIndex = String(win.z);
     return win;
+  }
+
+  function notifySheetsOpen(win, fileId) {
+    if (!win) return;
+    if (fileId) win.fileId = fileId;
+    if ((win.appId || appIdOf(win.id)) !== "sheets" || !win.fileId) return;
+    const iframe = win.el.querySelector("iframe.native-frame");
+    if (!iframe) return;
+    const send = () => {
+      if (!win.fileId) return;
+      try {
+        iframe.contentWindow.postMessage({ type: "os-sheets-open", fileId: win.fileId }, location.origin);
+      } catch (_err) {}
+    };
+    if (!iframe.dataset.sheetsOpenBound) {
+      iframe.dataset.sheetsOpenBound = "1";
+      iframe.addEventListener("load", send);
+    }
+    send();
   }
 
   function open(id, opts) {
@@ -522,6 +542,7 @@ window.OSWindows = (function () {
         win.path = opts.path;
         if (window.OSFileExplorer) window.OSFileExplorer.navigate(win.id, opts.path);
       }
+      if (opts.fileId) notifySheetsOpen(win, opts.fileId);
       win.minimized = false;
       applyRect(win);
       setFocused(id);
@@ -546,11 +567,13 @@ window.OSWindows = (function () {
     }
     const win = makeWin(app, winId, rect, maximized);
     if (opts.path) win.path = opts.path;
-    layer.appendChild(win.el);
+    if (opts.fileId) win.fileId = opts.fileId;
     windows.set(winId, win);
+    layer.appendChild(win.el);
     bindWindow(win);
     applyRect(win);
     if (app.kind === "native" && !app.href) mountNative(win);
+    if (opts.fileId) notifySheetsOpen(win, opts.fileId);
     setFocused(winId);
     persist();
     return win;
