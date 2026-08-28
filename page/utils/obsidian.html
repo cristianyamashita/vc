@@ -11,6 +11,7 @@
   <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+  <script src="../os/js/file-client.js"></script>
   <style>
     :root {
       --bg: #17191f;
@@ -82,6 +83,7 @@
       flex-wrap: wrap;
       justify-content: flex-end;
     }
+    #os-file-bar[hidden] { display: none !important; }
     .btn-icon {
       width: 36px;
       height: 36px;
@@ -477,6 +479,11 @@
         <button id="new-doc-btn" class="btn-icon btn-accent" type="button" data-i18n-title="newDoc" title="New document"><i class="fas fa-file-circle-plus"></i></button>
         <button id="new-folder-btn" class="btn-icon" type="button" data-i18n-title="newFolder" title="New folder"><i class="fas fa-folder-plus"></i></button>
         <button id="export-btn" class="btn-icon" type="button" data-i18n-title="exportVault" title="Export vault ZIP"><i class="fas fa-file-zipper"></i></button>
+        <span id="os-file-bar" hidden>
+          <button id="os-open" class="btn-icon" type="button" data-i18n-title="osOpen" title="Open"><i class="fas fa-folder-open"></i></button>
+          <button id="os-save" class="btn-icon" type="button" data-i18n-title="osSave" title="Save"><i class="fas fa-floppy-disk"></i></button>
+          <button id="os-save-as" class="btn-icon" type="button" data-i18n-title="osSaveAs" title="Save as"><i class="fas fa-copy"></i></button>
+        </span>
         <select id="lang-switcher" class="form-select form-select-sm" style="width:auto">
           <option value="en">EN</option>
           <option value="pt">PT</option>
@@ -601,7 +608,10 @@
         noTags: 'No tags found',
         noBacklinks: 'No backlinks yet',
         linkedDocs: '{n} document(s)',
-        commandClickHint: 'Command/Ctrl-click opens links'
+        commandClickHint: 'Command/Ctrl-click opens links',
+        osOpen: 'Open',
+        osSave: 'Save',
+        osSaveAs: 'Save as'
       },
       pt: {
         appName: 'Vault Markdown',
@@ -642,7 +652,10 @@
         noTags: 'Nenhuma tag encontrada',
         noBacklinks: 'Ainda não há backlinks',
         linkedDocs: '{n} documento(s)',
-        commandClickHint: 'Command/Ctrl+clique abre links'
+        commandClickHint: 'Command/Ctrl+clique abre links',
+        osOpen: 'Abrir',
+        osSave: 'Salvar',
+        osSaveAs: 'Salvar como'
       },
       ja: {
         appName: 'Vault Markdown',
@@ -683,7 +696,10 @@
         noTags: 'タグが見つかりません',
         noBacklinks: 'バックリンクはまだありません',
         linkedDocs: '{n}件のドキュメント',
-        commandClickHint: 'Command/Ctrlクリックでリンクを開く'
+        commandClickHint: 'Command/Ctrlクリックでリンクを開く',
+        osOpen: '開く',
+        osSave: '保存',
+        osSaveAs: '名前を付けて保存'
       }
     };
 
@@ -1391,6 +1407,9 @@
       renderTree();
       renderPreview();
       renderInspector();
+      if (osFiles && osFiles.hosted && updated.osFileId && osFiles.currentId && osFiles.currentId() === updated.osFileId) {
+        osFiles.save().catch(function () {});
+      }
       el.status.textContent = t('saved');
       setTimeout(() => { if (el.status.textContent === t('saved')) el.status.textContent = ''; }, 1200);
     }
@@ -1548,10 +1567,52 @@
       renderAll();
     }
 
-    init().catch(err => {
+    init().then(() => setupOsFiles()).catch(err => {
       console.error(err);
       showToast(err.message || 'Error');
     });
+
+    let osFiles = { hosted: false };
+
+    async function loadOsMarkdown(blob, node) {
+      const file = new File([blob], node.name, { type: blob.type || 'text/markdown' });
+      const doc = await importMarkdownFile(file, node.name);
+      doc.osFileId = node.id;
+      await put('docs', doc);
+      state.docId = doc.id;
+      await refreshData();
+      saveState();
+      renderAll();
+      if (osFiles.remember) osFiles.remember(node.id);
+    }
+
+    function setupOsFiles() {
+      if (!window.OSFileClient) return;
+      osFiles = window.OSFileClient.connect({
+        appId: 'utils-obsidian',
+        exts: ['md', 'markdown'],
+        defaultExt: 'md',
+        defaultName: 'note.md',
+        load: loadOsMarkdown,
+        serialize: async function () {
+          const text = el.editor.value || (currentDoc && currentDoc.content) || '';
+          const name = (currentDoc && currentDoc.path) || 'note.md';
+          const fileName = /\.(md|markdown)$/i.test(name) ? name.split('/').pop() : (basename(name) + '.md');
+          return { blob: new Blob([text], { type: 'text/markdown' }), name: fileName, mime: 'text/markdown' };
+        }
+      });
+      if (!osFiles.hosted) return;
+      const bar = document.getElementById('os-file-bar');
+      if (bar) bar.hidden = false;
+      document.getElementById('os-open').addEventListener('click', () => osFiles.openPicker());
+      document.getElementById('os-save').addEventListener('click', () => osFiles.save());
+      document.getElementById('os-save-as').addEventListener('click', async () => {
+        const node = await osFiles.saveAs();
+        if (!node || !currentDoc) return;
+        currentDoc.osFileId = node.id;
+        await put('docs', currentDoc);
+      });
+    }
   </script>
 </body>
 </html>

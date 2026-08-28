@@ -56,6 +56,9 @@ window.OSFileExplorer = (function () {
     newWindow: svgIcon('<rect x="3" y="5" width="9" height="8" rx="1" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M6 5V3.5A1 1 0 0 1 7 2.5h5.5A1 1 0 0 1 13.5 3.5V10" fill="none" stroke="currentColor" stroke-width="1.3"/>'),
     "view-icons": svgIcon('<rect x="2.5" y="2.5" width="4.5" height="4.5" rx=".8" fill="currentColor"/><rect x="9" y="2.5" width="4.5" height="4.5" rx=".8" fill="currentColor"/><rect x="2.5" y="9" width="4.5" height="4.5" rx=".8" fill="currentColor"/><rect x="9" y="9" width="4.5" height="4.5" rx=".8" fill="currentColor"/>'),
     "view-details": svgIcon('<path d="M3 4h10M3 8h10M3 12h10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="4.5" cy="4" r="1" fill="currentColor"/><circle cx="4.5" cy="8" r="1" fill="currentColor"/><circle cx="4.5" cy="12" r="1" fill="currentColor"/>'),
+    restore: svgIcon('<path d="M4 8a6 6 0 1 0 2-4.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M4 3.5v3.2h3.2" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>'),
+    restoreAll: svgIcon('<path d="M3.5 8.2a6 6 0 1 0 2-4.6" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M3.5 3.4v3.1h3.1" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 13.2h7.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>'),
+    emptyTrash: svgIcon('<path d="M3.5 5h9M6 5V3.8A.8.8 0 0 1 6.8 3h2.4a.8.8 0 0 1 .8.8V5M5 5.5l.6 7.2a1 1 0 0 0 1 .9h2.8a1 1 0 0 0 1-.9l.6-7.2" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>'),
   };
 
   function toolbarBtn(act, label) {
@@ -78,6 +81,11 @@ window.OSFileExplorer = (function () {
             ${toolbarBtn("upload", t("feUpload"))}
             ${toolbarBtn("newWindow", t("feNewWindow"))}
           </div>
+          <div class="fe-btn-group fe-trash-tools" hidden>
+            ${toolbarBtn("restore", t("recycleRestore"))}
+            ${toolbarBtn("restoreAll", t("recycleRestoreAll"))}
+            ${toolbarBtn("emptyTrash", t("recycleEmpty"))}
+          </div>
           <div class="fe-btn-group">
             <button type="button" class="fe-btn fe-icon-btn fe-view" data-act="view-icons" title="${escapeHtml(t("feIcons"))}" aria-label="${escapeHtml(t("feIcons"))}">${TOOL_ICONS["view-icons"]}</button>
             <button type="button" class="fe-btn fe-icon-btn fe-view" data-act="view-details" title="${escapeHtml(t("feDetails"))}" aria-label="${escapeHtml(t("feDetails"))}">${TOOL_ICONS["view-details"]}</button>
@@ -95,7 +103,7 @@ window.OSFileExplorer = (function () {
   }
 
   function defaultExpanded(sheetsDir) {
-    const ids = [window.OSFS.ROOT_ID, window.OSFS.DESKTOP_ID, window.OSFS.DOCUMENTS_ID, window.OSFS.SHEETS_DIR_ID];
+    const ids = [window.OSFS.ROOT_ID, window.OSFS.DESKTOP_ID, window.OSFS.DOCUMENTS_ID, window.OSFS.SHEETS_DIR_ID, window.OSFS.TRASH_ID];
     if (sheetsDir) {
       ids.push(sheetsDir.id);
       if (sheetsDir.parentId) ids.push(sheetsDir.parentId);
@@ -132,7 +140,12 @@ window.OSFileExplorer = (function () {
     const win = window.OSWindows.get(inst.winId);
     if (win) {
       win.path = await window.OSFS.pathOf(node.id);
-      win.titleName = node.id === window.OSFS.ROOT_ID ? t("fileExplorer") : node.name || t("fileExplorer");
+      win.titleName =
+        node.id === window.OSFS.ROOT_ID
+          ? t("fileExplorer")
+          : node.id === window.OSFS.TRASH_ID
+            ? t("recycleBin")
+            : node.name || t("fileExplorer");
       window.OSWindows.refreshTitles();
     }
     await render(inst);
@@ -147,7 +160,18 @@ window.OSFileExplorer = (function () {
       if (!byParent.has(key)) byParent.set(key, []);
       byParent.get(key).push(folder);
     });
-    byParent.forEach((list) => list.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" })));
+    byParent.forEach((list) =>
+      list.sort((a, b) => {
+        if (a.id === window.OSFS.TRASH_ID) return 1;
+        if (b.id === window.OSFS.TRASH_ID) return -1;
+        return a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
+      })
+    );
+    let trashFilled = false;
+    try {
+      const trashKids = await window.OSFS.list(window.OSFS.TRASH_ID);
+      trashFilled = !!(trashKids && trashKids.length);
+    } catch (_err) {}
 
     function branch(parentId, depth) {
       const kids = byParent.get(parentId) || [];
@@ -157,14 +181,15 @@ window.OSFileExplorer = (function () {
           const hasKids = childFolders.length > 0;
           const isExpanded = inst.expanded.has(folder.id);
           const active = inst.cwdId === folder.id ? " open" : "";
-          const label = folder.name || "/";
+          const label = window.OSFS.displayName(folder, t) || "/";
+          const iconNode = folder.id === window.OSFS.TRASH_ID ? Object.assign({}, folder, { trashFilled }) : folder;
           const twisty = hasKids
             ? `<button type="button" class="fe-twisty${isExpanded ? " expanded" : ""}" data-toggle="${escapeHtml(folder.id)}" aria-label="${escapeHtml(isExpanded ? t("feCollapse") : t("feExpand"))}"></button>`
             : `<span class="fe-twisty-spacer"></span>`;
           const kidsHtml = hasKids && isExpanded ? branch(folder.id, depth + 1) : "";
           return `<div class="fe-tree-row" style="padding-left:${6 + depth * 12}px">
             ${twisty}
-            <button type="button" class="fe-tree-item${active} fe-drop-target" data-id="${escapeHtml(folder.id)}" data-drop="${escapeHtml(folder.id)}">${window.OSFS.iconFor(folder)}<span>${escapeHtml(label)}</span></button>
+            <button type="button" class="fe-tree-item${active} fe-drop-target" data-id="${escapeHtml(folder.id)}" data-drop="${escapeHtml(folder.id)}">${window.OSFS.iconFor(iconNode)}<span>${escapeHtml(label)}</span></button>
           </div>${kidsHtml}`;
         })
         .join("");
@@ -259,11 +284,23 @@ window.OSFileExplorer = (function () {
       } else if (key === "size") {
         av = a.kind === "folder" || a.kind === "shortcut" ? -1 : a.size;
         bv = b.kind === "folder" || b.kind === "shortcut" ? -1 : b.size;
+      } else if (key === "origin") {
+        av = a.trashedFromPath || "";
+        bv = b.trashedFromPath || "";
       }
       if (av < bv) return -1 * dir;
       if (av > bv) return 1 * dir;
       return a.name.localeCompare(b.name);
     });
+
+    const inTrash = inst.cwdId === window.OSFS.TRASH_ID || (await window.OSFS.isInTrash(inst.cwdId));
+    const atTrash = inst.cwdId === window.OSFS.TRASH_ID;
+    const newFolderBtn = inst.root.querySelector('[data-act="newFolder"]');
+    const uploadBtn = inst.root.querySelector('[data-act="upload"]');
+    const trashTools = inst.root.querySelector(".fe-trash-tools");
+    if (newFolderBtn) newFolderBtn.hidden = inTrash;
+    if (uploadBtn) uploadBtn.hidden = inTrash;
+    if (trashTools) trashTools.hidden = !atTrash;
 
     const main = inst.root.querySelector(".fe-main");
     const mode = viewMode();
@@ -279,6 +316,7 @@ window.OSFileExplorer = (function () {
           <thead><tr>
             <th data-sort="name">${escapeHtml(t("feName"))}</th>
             <th data-sort="modified">${escapeHtml(t("feModified"))}</th>
+            ${atTrash ? `<th data-sort="origin">${escapeHtml(t("recycleOriginal"))}</th>` : ""}
             <th data-sort="type">${escapeHtml(t("feType"))}</th>
             <th data-sort="size">${escapeHtml(t("feSize"))}</th>
           </tr></thead>
@@ -292,6 +330,7 @@ window.OSFileExplorer = (function () {
                 return `<tr class="fe-row${sel}${n.kind === "folder" ? " fe-drop-target" : ""}${isShortcut(n) ? " fe-shortcut" : ""}" data-id="${escapeHtml(n.id)}"${n.kind === "folder" ? ` data-drop="${escapeHtml(n.id)}"` : ""}${drag}>
                   <td>${window.OSFS.iconFor(n)}<span>${escapeHtml(n.name)}</span></td>
                   <td>${escapeHtml(date)}</td>
+                  ${atTrash ? `<td>${escapeHtml(n.trashedFromPath || "—")}</td>` : ""}
                   <td>${escapeHtml(window.OSFS.typeLabel(n, t))}</td>
                   <td>${escapeHtml(size)}</td>
                 </tr>`;
@@ -322,7 +361,10 @@ window.OSFileExplorer = (function () {
     inst.root.querySelector(".fe-status").textContent = status;
     const pathInput = inst.root.querySelector(".fe-path");
     if (document.activeElement !== pathInput) {
-      pathInput.value = await window.OSFS.pathOf(inst.cwdId);
+      pathInput.value = (await window.OSFS.pathOf(inst.cwdId)).replace(
+        /(^|\/)Recycle Bin(?=\/|$)/g,
+        "$1" + t("recycleBin")
+      );
     }
   }
 
@@ -361,7 +403,7 @@ window.OSFileExplorer = (function () {
     await renderMain(inst);
   }
 
-  async function openNode(inst, node) {
+  async function openNode(inst, node, appId) {
     if (!node) return;
     if (isShortcut(node)) {
       if (node.appId) window.OSWindows.open(node.appId);
@@ -372,11 +414,12 @@ window.OSFileExplorer = (function () {
       await go(inst, node.id);
       return;
     }
-    const kind = window.OSFS.openKind(node);
-    if (kind === "sheets") {
-      window.OSWindows.open("sheets", { fileId: node.id });
+    const target = appId || (window.OSFileApps && window.OSFileApps.defaultAppIdFor(node));
+    if (target) {
+      await window.OSFileApps.openFile(node.id, target);
       return;
     }
+    const kind = window.OSFS.openKind(node);
     if (kind === "download") {
       await window.OSFS.download(node.id);
       return;
@@ -436,11 +479,13 @@ window.OSFileExplorer = (function () {
       [t("feSize"), node.kind === "folder" || isShortcut(node) ? "—" : window.OSFS.formatSize(node.size)],
       [t("feCreated"), isShortcut(node) ? "—" : new Date(node.createdAt).toLocaleString()],
       [t("feModified"), isShortcut(node) ? "—" : new Date(node.modifiedAt).toLocaleString()],
-    ]
+    ];
+    if (node.trashedFromPath) rows.push([t("recycleOriginal"), node.trashedFromPath]);
+    const html = rows
       .map(([k, v]) => `<div class="fe-prop"><span>${escapeHtml(k)}</span><strong>${escapeHtml(String(v))}</strong></div>`)
       .join("");
     const modal = inst.root.querySelector(".fe-modal");
-    modal.innerHTML = modalFrame(t("feProperties"), rows);
+    modal.innerHTML = modalFrame(t("feProperties"), html);
     modal.hidden = false;
   }
 
@@ -498,7 +543,8 @@ window.OSFileExplorer = (function () {
     const shortcuts = nodes.filter(isShortcut);
     const files = nodes.filter((n) => !isShortcut(n) && !window.OSFS.isSystem(n));
     if (!shortcuts.length && !files.length) return;
-    if (!confirm(t("feConfirmDelete"))) return;
+    const forever = files.length ? await window.OSFS.isInTrash(files[0].id) : false;
+    if (!confirm(t(forever ? "recycleDeleteForever" : "feConfirmDelete"))) return;
     for (const node of shortcuts) {
       if (node.appId && window.OS.state.desktopIcons.includes(node.appId)) {
         window.OS.toggleDesktopIcon(node.appId);
@@ -515,11 +561,13 @@ window.OSFileExplorer = (function () {
 
   async function dropOn(inst, destId, event) {
     const ids = parseDrag(event);
+    const destInTrash = destId === window.OSFS.TRASH_ID || (await window.OSFS.isInTrash(destId));
     if (ids && ids.length) {
-      if (event.ctrlKey || event.altKey) await window.OSFS.copy(ids, destId);
+      if ((event.ctrlKey || event.altKey) && !destInTrash) await window.OSFS.copy(ids, destId);
       else await window.OSFS.move(ids, destId);
       return;
     }
+    if (destInTrash) return;
     if (event.dataTransfer) await window.OSFS.importDataTransfer(destId, event.dataTransfer);
   }
 
@@ -539,10 +587,20 @@ window.OSFileExplorer = (function () {
     if (target) target.classList.add("fe-drop-hover");
   }
 
-  function contextItems(inst, node, onEmpty) {
+  async function contextItems(inst, node, onEmpty) {
     const clip = window.OSFS.getClipboard();
     const canPaste = !!(clip && clip.ids.length);
+    const inTrash = inst.cwdId === window.OSFS.TRASH_ID || (await window.OSFS.isInTrash(inst.cwdId));
     if (onEmpty) {
+      if (inTrash) {
+        return [
+          { act: "restoreAll", label: t("recycleRestoreAll") },
+          { act: "emptyTrash", label: t("recycleEmpty") },
+          { sep: true },
+          { act: "view-icons", label: t("feIcons") },
+          { act: "view-details", label: t("feDetails") },
+        ];
+      }
       return [
         { act: "newFolder", label: t("feNewFolder") },
         { act: "newText", label: t("feNewText") },
@@ -563,7 +621,23 @@ window.OSFileExplorer = (function () {
       );
       return items;
     }
-    if (node.kind === "file") items.push({ act: "download", label: t("feDownload") });
+    if (inTrash) {
+      items.push(
+        { sep: true },
+        { act: "restore", label: t("recycleRestore") },
+        { act: "delete", label: t("recycleDeleteForever"), disabled: window.OSFS.isSystem(node) },
+        { sep: true },
+        { act: "properties", label: t("feProperties") }
+      );
+      return items;
+    }
+    if (node.kind === "file") {
+      const openAs = window.OSFileApps ? window.OSFileApps.openAsItems(node) : [];
+      if (openAs.length) items.push({ act: "openAs", label: t("feOpenAs"), children: openAs });
+      const kind = window.OSFS.openKind(node);
+      if (kind !== "download" && kind !== "none") items.push({ act: "preview", label: t("fePreview") });
+      items.push({ act: "download", label: t("feDownload") });
+    }
     items.push(
       { sep: true },
       { act: "cut", label: t("feCut"), disabled: window.OSFS.isSystem(node) },
@@ -599,15 +673,18 @@ window.OSFileExplorer = (function () {
       return;
     }
     if (act === "newFolder") {
+      if (await window.OSFS.isInTrash(inst.cwdId)) return;
       await newFolder(inst.cwdId);
       return;
     }
     if (act === "newText") {
+      if (await window.OSFS.isInTrash(inst.cwdId)) return;
       const name = await promptName(t("feNewText"), t("feNewTextName"));
       if (name) await window.OSFS.createTextFile(inst.cwdId, name.endsWith(".txt") ? name : name + ".txt");
       return;
     }
     if (act === "upload") {
+      if (await window.OSFS.isInTrash(inst.cwdId)) return;
       inst.root.querySelector(".fe-file").click();
       return;
     }
@@ -627,6 +704,7 @@ window.OSFileExplorer = (function () {
       return;
     }
     if (act === "paste") {
+      if (await window.OSFS.isInTrash(inst.cwdId)) return;
       await window.OSFS.paste(inst.cwdId);
       return;
     }
@@ -649,8 +727,39 @@ window.OSFileExplorer = (function () {
       await deleteSelected(inst);
       return;
     }
+    if (act === "restore") {
+      const ids = [...inst.selected].filter((id) => {
+        const n = findItem(inst, id);
+        return n && !isShortcut(n) && !window.OSFS.isSystem(n);
+      });
+      if (ids.length) await window.OSFS.restore(ids);
+      inst.selected.clear();
+      await render(inst);
+      return;
+    }
+    if (act === "restoreAll") {
+      await window.OSFS.restoreAll();
+      inst.selected.clear();
+      await render(inst);
+      return;
+    }
+    if (act === "emptyTrash") {
+      if (!confirm(t("recycleEmptyConfirm"))) return;
+      await window.OSFS.emptyTrash();
+      inst.selected.clear();
+      await render(inst);
+      return;
+    }
     if (act === "open" && node) {
       await openNode(inst, node);
+      return;
+    }
+    if (act === "preview" && node) {
+      await previewNodeAt(inst, node);
+      return;
+    }
+    if (typeof act === "string" && act.startsWith("openAs:") && node) {
+      await openNode(inst, node, act.slice(7));
       return;
     }
     if (act === "download" && node) {
@@ -745,13 +854,13 @@ window.OSFileExplorer = (function () {
         }
         const node = findItem(inst, row.dataset.id) || (await window.OSFS.get(row.dataset.id));
         window.OSStart.close();
-        window.OSStart.showItems(contextItems(inst, node, false), e.clientX, e.clientY, (act) => runAct(inst, act, node));
+        window.OSStart.showItems(await contextItems(inst, node, false), e.clientX, e.clientY, (act) => runAct(inst, act, node));
         return;
       }
       if (e.target.closest(".fe-main") || e.target.closest(".fe-tree")) {
         e.preventDefault();
         window.OSStart.close();
-        window.OSStart.showItems(contextItems(inst, null, true), e.clientX, e.clientY, (act) => runAct(inst, act));
+        window.OSStart.showItems(await contextItems(inst, null, true), e.clientX, e.clientY, (act) => runAct(inst, act));
       }
     });
 
@@ -915,25 +1024,46 @@ window.OSFileExplorer = (function () {
     return win;
   }
 
-  async function openDesktopNode(node) {
+  async function previewNodeAt(inst, node) {
+    if (!node || node.kind !== "file") return;
+    const kind = window.OSFS.openKind(node);
+    if (kind === "download") {
+      await window.OSFS.download(node.id);
+      return;
+    }
+    await showViewer(inst, node, kind);
+  }
+
+  async function previewNode(node) {
+    if (!node || node.kind !== "file") return;
+    const parent = await window.OSFS.get(node.parentId);
+    const path = parent ? await window.OSFS.pathOf(parent.id) : "/";
+    const win = await openPath(path);
+    const inst = win ? instOf(win.id) : null;
+    if (inst) {
+      inst.selected = new Set([node.id]);
+      await renderMain(inst);
+      await previewNodeAt(inst, node);
+    }
+  }
+
+  async function openDesktopNode(node, appId) {
     if (!node) return;
+    if (isShortcut(node)) {
+      if (node.appId) window.OSWindows.open(node.appId);
+      return;
+    }
     if (node.kind === "folder") {
       const path = await window.OSFS.pathOf(node.id);
       await openPath(path);
       return;
     }
-    if (window.OSFS.openKind(node) === "sheets") {
-      window.OSWindows.open("sheets", { fileId: node.id });
+    const target = appId || (window.OSFileApps && window.OSFileApps.defaultAppIdFor(node));
+    if (target) {
+      await window.OSFileApps.openFile(node.id, target);
       return;
     }
-    const parent = await window.OSFS.get(node.parentId);
-    const path = parent ? await window.OSFS.pathOf(parent.id) : "/Desktop";
-    const win = await openPath(path);
-    const inst = win ? instOf(win.id) : null;
-    if (inst) {
-      inst.selected = new Set([node.id]);
-      await openNode(inst, node);
-    }
+    await previewNode(node);
   }
 
   async function propertiesFor(node) {
@@ -973,6 +1103,7 @@ window.OSFileExplorer = (function () {
     navigate,
     openPath,
     openDesktopNode,
+    previewNode,
     remountOpen,
     refreshOpen,
     promptName,

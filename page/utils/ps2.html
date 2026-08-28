@@ -88,6 +88,7 @@
     gtag('js', new Date());
     gtag('config', 'G-NWZDZ906DJ');
   </script>
+  <script src="../os/js/file-client.js"></script>
 </head>
 <body>
 <div id="app">
@@ -95,8 +96,10 @@
   <div class="menubar">
     <div class="menu-group">
       <button class="btn small" id="newDoc">New</button>
-      <label class="btn small" for="fileOpen">Open</label>
+      <button class="btn small" id="btnOpen">Open</button>
       <input id="fileOpen" type="file" accept="image/*" style="display:none">
+      <button class="btn small" id="btnSave" hidden>Save</button>
+      <button class="btn small" id="btnSaveAs" hidden>Save as</button>
       <button class="btn small" id="savePNG">Export</button>
       <button class="btn small" id="saveJSON" title="Export project (layers)">Export .json</button>
       <label class="btn small" for="fileOpenJSON">Import .json</label>
@@ -871,6 +874,7 @@
   $('#saveJSON').addEventListener('click',exportJSON);
   $('#fileOpen').addEventListener('change',handleOpenImage);
   $('#fileOpenJSON').addEventListener('change',handleImportJSON);
+  $('#btnOpen').addEventListener('click',()=> $('#fileOpen').click());
   $('#clearLayerBtn').addEventListener('click',()=>{ snapshotBegin(); getActiveCtx().clearRect(0,0,docW,docH); render(); });
   $('#undoBtn').addEventListener('click',undo);
   $('#redoBtn').addEventListener('click',redo);
@@ -914,6 +918,52 @@
 
   // Startup
   initDocument(1024,768,true);
+
+  function composeBlob(mime, quality){
+    mime=mime||'image/png';
+    const c=makeCanvas(docW,docH); composeTo(c, null);
+    return new Promise(res=> c.toBlob(b=>res(b), mime, mime==='image/png'?undefined:quality));
+  }
+  function mimeForExt(ext){
+    if(ext==='jpg'||ext==='jpeg') return 'image/jpeg';
+    if(ext==='webp') return 'image/webp';
+    if(ext==='gif') return 'image/gif';
+    return 'image/png';
+  }
+  async function loadOsImage(blob, node){
+    const url=URL.createObjectURL(blob);
+    try{
+      const img=new Image();
+      await new Promise((ok,err)=>{ img.onload=ok; img.onerror=err; img.src=url; });
+      initDocument(img.width||docW, img.height||docH, true);
+      const L=layers[0]||newLayer(node.name||'Background');
+      L.canvas.getContext('2d').drawImage(img,0,0);
+      if(!layers.includes(L)) layers.push(L);
+      activeLayer=layers.indexOf(L);
+      refreshLayersPanel(); render();
+    } finally { URL.revokeObjectURL(url); }
+  }
+  let osFileName=null;
+  const osFiles=window.OSFileClient&&window.OSFileClient.connect({
+    appId:'utils-ps2',
+    exts:['png','jpg','jpeg','gif','webp','bmp','avif','ico','svg'],
+    defaultExt:'png',
+    defaultName:'image.png',
+    load:async(blob,node)=>{ osFileName=node.name; await loadOsImage(blob,node); },
+    serialize:async()=>{
+      const ext=(window.OSFileClient&&window.OSFileClient.extOfName(osFileName))||'png';
+      const mime=mimeForExt(ext);
+      const blob=await composeBlob(mime, parseFloat($('#exportQuality').value||'0.92'));
+      const name=osFileName&&window.OSFileClient.extOfName(osFileName)?osFileName:((osFileName||'image').replace(/\.[^.]+$/,'')+'.'+(ext==='jpeg'?'jpg':ext));
+      return {blob, name, mime};
+    }
+  });
+  if(osFiles&&osFiles.hosted){
+    $('#btnSave').hidden=false; $('#btnSaveAs').hidden=false;
+    $('#btnOpen').addEventListener('click', e=>{ e.stopImmediatePropagation(); e.preventDefault(); osFiles.openPicker(); }, true);
+    $('#btnSave').addEventListener('click', ()=> osFiles.save());
+    $('#btnSaveAs').addEventListener('click', async()=>{ const n=await osFiles.saveAs(); if(n) osFileName=n.name; });
+  }
 
   // Drag & drop to import images
   const viewEl = document.getElementById('canvasWrap');

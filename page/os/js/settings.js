@@ -1,5 +1,4 @@
 window.OSSettings = (function () {
-  const BUILTIN_WALLPAPERS = ["bloom", "playground-dark", "playground-light", "aurora", "dusk", "horizon"];
   const MAX_WALLPAPER_BYTES = 8 * 1024 * 1024;
   const IMAGE_EXT = /\.(png|jpe?g|jfif|gif|webp|bmp|svg|avif|heic|heif|tif|tiff)$/i;
 
@@ -10,8 +9,12 @@ window.OSSettings = (function () {
   let fileBound = false;
   const customUrls = new Map();
 
-  function t(key) {
-    return window.OSI18n.t(key);
+  function t(key, vars) {
+    return window.OSI18n.t(key, vars);
+  }
+
+  function builtinWallpapers() {
+    return (window.OS && window.OS.BUILTIN_WALLPAPERS) || ["bloom", "aurora", "dusk", "horizon"];
   }
 
   function escapeHtml(value) {
@@ -38,18 +41,32 @@ window.OSSettings = (function () {
   }
 
   function wallpaperLabel(id) {
-    if (id === "bloom") return t("wallpaperBloom");
-    if (id === "aurora") return t("wallpaperAurora");
-    if (id === "dusk") return t("wallpaperDusk");
-    if (id === "horizon") return t("wallpaperHorizon");
-    if (id === "playground-dark") return t("wallpaperPlaygroundDark");
-    if (id === "playground-light") return t("wallpaperPlaygroundLight");
+    const keys = {
+      bloom: "wallpaperBloom",
+      aurora: "wallpaperAurora",
+      dusk: "wallpaperDusk",
+      horizon: "wallpaperHorizon",
+      "playground-dark": "wallpaperPlaygroundDark",
+      "playground-light": "wallpaperPlaygroundLight",
+      wp1: "wallpaperWp1",
+      wp2: "wallpaperWp2",
+      wp3: "wallpaperWp3",
+      wp4: "wallpaperWp4",
+      wp5: "wallpaperWp5",
+      wp6: "wallpaperWp6",
+      wp7: "wallpaperWp7",
+      wp8: "wallpaperWp8",
+    };
+    if (keys[id]) return t(keys[id]);
+    const wp = /^wp(\d+)$/.exec(id);
+    if (wp) return t("wallpaperWpN", { n: wp[1] });
     return id;
   }
 
   function paneHtml() {
     if (currentPane === "install") return installHtml();
     if (currentPane === "appearance") return appearanceHtml();
+    if (currentPane === "file-types") return fileTypesHtml();
     if (currentPane === "registry") {
       return `<div id="os-registry-root" class="registry-root"></div>`;
     }
@@ -78,10 +95,61 @@ window.OSSettings = (function () {
     `;
   }
 
+  function fileTypesHtml() {
+    if (!window.OSFileApps) {
+      return `<h2>${escapeHtml(t("fileTypes"))}</h2><p class="muted">${escapeHtml(t("comingSoon"))}</p>`;
+    }
+    const lang = (window.OS && window.OS.lang) || "en";
+    const prefs = window.OSFileApps.prefs();
+    const cards = window.OSFileApps.allExts()
+      .map((ext) => {
+        const pref = prefs[ext] || { apps: [], default: null };
+        const capable = window.OSFileApps.capableAppIds(ext);
+        const options = [`<option value=""${!pref.default ? " selected" : ""}>${escapeHtml(t("fileTypesNone"))}</option>`]
+          .concat(
+            pref.apps.map((appId) => {
+              const app = window.OSCatalog.byId(appId);
+              const name = app ? window.OSCatalog.displayName(app, lang) : appId;
+              return `<option value="${escapeHtml(appId)}"${pref.default === appId ? " selected" : ""}>${escapeHtml(name)}</option>`;
+            })
+          )
+          .join("");
+        const checks = capable
+          .map((appId) => {
+            const app = window.OSCatalog.byId(appId);
+            const name = app ? window.OSCatalog.displayName(app, lang) : appId;
+            const icon = app && app.icon ? `<img src="${escapeHtml(app.icon)}" alt="">` : "";
+            const checked = pref.apps.includes(appId) ? " checked" : "";
+            return `<label class="file-types-app">${icon}<input type="checkbox" data-file-ext="${escapeHtml(ext)}" data-file-app="${escapeHtml(appId)}"${checked}><span>${escapeHtml(name)}</span></label>`;
+          })
+          .join("");
+        return `<div class="file-types-card">
+          <div class="file-types-ext">.${escapeHtml(ext)}</div>
+          <div class="settings-field">
+            <label>${escapeHtml(t("fileTypesDefault"))}</label>
+            <select data-file-default="${escapeHtml(ext)}">${options}</select>
+          </div>
+          <div class="file-types-apps">
+            <span class="muted">${escapeHtml(t("fileTypesApps"))}</span>
+            ${checks}
+          </div>
+        </div>`;
+      })
+      .join("");
+    return `
+      <h2>${escapeHtml(t("fileTypes"))}</h2>
+      <div class="file-types-toolbar">
+        <p class="muted">${escapeHtml(t("fileTypesHint"))}</p>
+        <button type="button" class="file-types-reset" id="os-file-types-reset">${escapeHtml(t("fileTypesReset"))}</button>
+      </div>
+      ${cards}
+    `;
+  }
+
   function appearanceHtml() {
     const theme = window.OS.theme;
     const current = window.OS.state.wallpaperId || "bloom";
-    const builtinTiles = BUILTIN_WALLPAPERS.map((id) => {
+    const builtinTiles = builtinWallpapers().map((id) => {
       const selected = current === id ? " selected" : "";
       const imageSrc = window.OS.wallpaperImageSrc(id);
       const preview = imageSrc
@@ -194,6 +262,7 @@ window.OSSettings = (function () {
         <nav class="settings-nav">
           <button type="button" data-pane="preferences" class="${currentPane === "preferences" ? "active" : ""}">${escapeHtml(t("preferences"))}</button>
           <button type="button" data-pane="appearance" class="${currentPane === "appearance" ? "active" : ""}">${escapeHtml(t("appearance"))}</button>
+          <button type="button" data-pane="file-types" class="${currentPane === "file-types" ? "active" : ""}">${escapeHtml(t("fileTypes"))}</button>
           <button type="button" data-pane="install" class="${currentPane === "install" ? "active" : ""}">${escapeHtml(t("installApps"))}</button>
           <button type="button" data-pane="registry" class="${currentPane === "registry" ? "active" : ""}">${escapeHtml(t("registry"))}</button>
           <button type="button" data-pane="more" class="${currentPane === "more" ? "active" : ""}">${escapeHtml(t("more"))}</button>
@@ -366,6 +435,32 @@ window.OSSettings = (function () {
     if (theme) theme.addEventListener("change", () => window.OS.setTheme(theme.value));
     const langSel = root.querySelector("#os-lang");
     if (langSel) langSel.addEventListener("change", () => window.OS.setLang(langSel.value));
+    const resetTypes = root.querySelector("#os-file-types-reset");
+    if (resetTypes) {
+      resetTypes.addEventListener("click", () => {
+        if (window.OSFileApps) window.OSFileApps.resetDefaults();
+        paint(root);
+      });
+    }
+    root.querySelectorAll("[data-file-app]").forEach((box) => {
+      box.addEventListener("change", () => {
+        const ext = box.dataset.fileExt;
+        const checked = Array.from(root.querySelectorAll(`[data-file-ext="${ext}"]`))
+          .filter((el) => el.checked)
+          .map((el) => el.dataset.fileApp);
+        const current = window.OSFileApps.prefFor(ext);
+        window.OSFileApps.setExtPref(ext, { apps: checked, default: current.default });
+        paint(root);
+      });
+    });
+    root.querySelectorAll("[data-file-default]").forEach((sel) => {
+      sel.addEventListener("change", () => {
+        const ext = sel.dataset.fileDefault;
+        const current = window.OSFileApps.prefFor(ext);
+        window.OSFileApps.setExtPref(ext, { apps: current.apps, default: sel.value || null });
+        paint(root);
+      });
+    });
     const filter = root.querySelector("#os-install-filter");
     if (filter) {
       filter.addEventListener("input", () => {

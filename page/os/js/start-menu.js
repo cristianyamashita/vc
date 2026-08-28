@@ -192,17 +192,71 @@ window.OSStart = (function () {
     placeContext(x, y);
   }
 
-  function showItems(items, x, y, onPick) {
-    contextAppId = null;
-    contextHandler = typeof onPick === "function" ? onPick : null;
-    context.innerHTML = (items || [])
+  function renderContextItems(items) {
+    return (items || [])
       .map((item) => {
         if (item.sep) return `<div class="context-sep"></div>`;
         const disabled = item.disabled ? " disabled" : "";
+        if (item.children && item.children.length) {
+          const kids = item.children
+            .map((child) => {
+              const childDisabled = child.disabled ? " disabled" : "";
+              return `<button type="button" data-act="${escapeHtml(child.act)}"${childDisabled}>${escapeHtml(child.label)}</button>`;
+            })
+            .join("");
+          return `<div class="context-sub">
+            <button type="button" class="context-sub-btn"${disabled}>${escapeHtml(item.label)}<span class="context-caret" aria-hidden="true">›</span></button>
+            <div class="context-submenu" hidden>${kids}</div>
+          </div>`;
+        }
         return `<button type="button" data-act="${escapeHtml(item.act)}"${disabled}>${escapeHtml(item.label)}</button>`;
       })
       .join("");
+  }
+
+  function placeSubmenu(sub) {
+    const menu = sub.querySelector(".context-submenu");
+    if (!menu) return;
+    menu.hidden = false;
+    menu.style.left = "100%";
+    menu.style.right = "auto";
+    menu.style.top = "0";
+    menu.style.bottom = "auto";
+    const rect = menu.getBoundingClientRect();
+    if (rect.right > window.innerWidth - 8) {
+      menu.style.left = "auto";
+      menu.style.right = "100%";
+    }
+    if (rect.bottom > window.innerHeight - 8) {
+      menu.style.top = "auto";
+      menu.style.bottom = "0";
+    }
+  }
+
+  function bindSubmenus(root) {
+    root.querySelectorAll(".context-sub").forEach((sub) => {
+      const btn = sub.querySelector(".context-sub-btn");
+      sub.addEventListener("mouseenter", () => placeSubmenu(sub));
+      sub.addEventListener("mouseleave", () => {
+        const menu = sub.querySelector(".context-submenu");
+        if (menu) menu.hidden = true;
+      });
+      if (btn) {
+        btn.addEventListener("click", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          placeSubmenu(sub);
+        });
+      }
+    });
+  }
+
+  function showItems(items, x, y, onPick) {
+    contextAppId = null;
+    contextHandler = typeof onPick === "function" ? onPick : null;
+    context.innerHTML = renderContextItems(items);
     placeContext(x, y);
+    bindSubmenus(context);
   }
 
   function focusSearch(caret) {
@@ -270,8 +324,10 @@ window.OSStart = (function () {
     });
     context.addEventListener("click", (e) => {
       const btn = e.target.closest("button");
-      const act = btn && btn.dataset.act;
-      if (!act || btn.disabled) return;
+      if (!btn || btn.disabled) return;
+      if (btn.classList.contains("context-sub-btn")) return;
+      const act = btn.dataset.act;
+      if (!act) return;
       if (contextHandler) {
         const fn = contextHandler;
         closeContext();

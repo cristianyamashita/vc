@@ -38,6 +38,10 @@
         margin: 0;
       }
 
+      #os-file-bar[hidden] {
+        display: none !important;
+      }
+
       body {
         background-color: var(--bg-color);
         color: var(--text-color);
@@ -577,6 +581,11 @@
       <div class="container-fluid">
         <a class="navbar-brand" href="#" data-i18n="title">Markdown Editor</a>
         <div class="d-flex ms-auto gap-2 align-items-center">
+          <div id="os-file-bar" class="d-flex gap-1" hidden>
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="os-open" data-i18n="osOpen">Open</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="os-save" data-i18n="osSave">Save</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="os-save-as" data-i18n="osSaveAs">Save as</button>
+          </div>
           <div class="input-group input-group-sm" style="width: 250px;">
             <span class="input-group-text" style="background-color: var(--card-bg-color); border-color: var(--border-color); color: var(--text-color);">
               <i class="fas fa-search"></i>
@@ -703,6 +712,7 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/markdown-it@14.1.0/dist/markdown-it.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <script src="../os/js/file-client.js"></script>
     <script>
       // ============================================
       // i18n Translations
@@ -716,6 +726,9 @@
           addProject: 'Add Project',
           addBook: 'Add Book',
           addSheet: 'Add Document',
+          osOpen: 'Open',
+          osSave: 'Save',
+          osSaveAs: 'Save as',
           searchPlaceholder: 'Search content...',
           searchResults: 'Search Results',
           noResults: 'No results found',
@@ -744,6 +757,9 @@
           addProject: 'Adicionar Projeto',
           addBook: 'Adicionar Livro',
           addSheet: 'Adicionar Documento',
+          osOpen: 'Abrir',
+          osSave: 'Salvar',
+          osSaveAs: 'Salvar como',
           searchPlaceholder: 'Buscar conteúdo...',
           searchResults: 'Resultados da Busca',
           noResults: 'Nenhum resultado encontrado',
@@ -772,6 +788,9 @@
           addProject: 'プロジェクト追加',
           addBook: 'ブック追加',
           addSheet: 'ドキュメント追加',
+          osOpen: '開く',
+          osSave: '保存',
+          osSaveAs: '名前を付けて保存',
           searchPlaceholder: 'コンテンツを検索...',
           searchResults: '検索結果',
           noResults: '結果が見つかりません',
@@ -1419,6 +1438,9 @@
         sheet.updatedAt = Date.now();
         await dbPut('sheets', sheet);
         renderMarkdownPreview();
+        if (osFiles && osFiles.hosted && sheet.osFileId && osFiles.currentId && osFiles.currentId() === sheet.osFileId) {
+          osFiles.save().catch(function () {});
+        }
 
         saveStatus.textContent = t('saved');
         saveStatus.className = 'save-status saved';
@@ -1592,6 +1614,92 @@
         return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       };
 
+      let osFiles = { hosted: false };
+      let osFileName = null;
+
+      async function ensureOsContainer() {
+        let project = state.projects.find((p) => p.osBridge);
+        if (!project) {
+          project = { id: generateId(), name: 'Files', order: state.projects.length, createdAt: Date.now(), osBridge: true };
+          await dbAdd('projects', project);
+          state.projects.push(project);
+        }
+        let book = state.books.find((b) => b.osBridge && b.projectId === project.id);
+        if (!book) {
+          book = { id: generateId(), projectId: project.id, name: 'Desktop', order: 0, createdAt: Date.now(), osBridge: true };
+          await dbAdd('books', book);
+          state.books.push(book);
+        }
+        return { project, book };
+      }
+
+      async function loadOsMarkdown(blob, node) {
+        const text = await blob.text();
+        osFileName = node.name;
+        const pack = await ensureOsContainer();
+        let sheet = state.sheets.find((s) => s.osFileId === node.id);
+        const title = (window.OSFileClient && window.OSFileClient.stripExt(node.name)) || node.name;
+        if (!sheet) {
+          sheet = {
+            id: generateId(),
+            bookId: pack.book.id,
+            name: title,
+            content: text,
+            order: state.sheets.filter((s) => s.bookId === pack.book.id).length,
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+            osFileId: node.id
+          };
+          await dbAdd('sheets', sheet);
+          state.sheets.push(sheet);
+        } else {
+          sheet.content = text;
+          sheet.name = title;
+          sheet.updatedAt = Date.now();
+          sheet.osFileId = node.id;
+          await dbPut('sheets', sheet);
+        }
+        state.selectedProjectId = pack.project.id;
+        state.selectedBookId = pack.book.id;
+        await selectSheet(sheet.id);
+        renderProjects();
+        renderBooks();
+        renderSheets();
+      }
+
+      function setupOsFiles() {
+        if (!window.OSFileClient) return;
+        osFiles = window.OSFileClient.connect({
+          appId: 'utils-markdown',
+          exts: ['md', 'markdown'],
+          defaultExt: 'md',
+          defaultName: 'note.md',
+          load: loadOsMarkdown,
+          serialize: async () => {
+            const text = contentEditor.value || '';
+            const sheet = state.sheets.find((s) => s.id === state.selectedSheetId);
+            const base = (sheet && sheet.name) || 'note';
+            const name = osFileName && window.OSFileClient.extOfName(osFileName) ? osFileName : base.replace(/\.[^.]+$/, '') + '.md';
+            return { blob: new Blob([text], { type: 'text/markdown' }), name, mime: 'text/markdown' };
+          }
+        });
+        if (!osFiles.hosted) return;
+        const bar = document.getElementById('os-file-bar');
+        if (bar) bar.hidden = false;
+        document.getElementById('os-open').addEventListener('click', () => osFiles.openPicker());
+        document.getElementById('os-save').addEventListener('click', () => osFiles.save());
+        document.getElementById('os-save-as').addEventListener('click', async () => {
+          const node = await osFiles.saveAs();
+          if (!node) return;
+          osFileName = node.name;
+          const sheet = state.sheets.find((s) => s.id === state.selectedSheetId);
+          if (sheet) {
+            sheet.osFileId = node.id;
+            await dbPut('sheets', sheet);
+          }
+        });
+      }
+
       // ============================================
       // Event Listeners
       // ============================================
@@ -1681,6 +1789,7 @@
 
         // Setup events
         setupEventListeners();
+        setupOsFiles();
       };
 
       // Start the app

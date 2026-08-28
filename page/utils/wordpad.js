@@ -220,9 +220,47 @@ function scheduleAutosave() {
   }, 800);
 }
 
+let osFileName = null;
+let osSaveTimer = null;
+const osFiles = window.OSFileClient && window.OSFileClient.connect({
+  appId: 'utils-wordpad',
+  exts: ['txt', 'html', 'htm'],
+  defaultExt: 'txt',
+  defaultName: 'document.txt',
+  load: async function (blob, node) {
+    const ext = window.OSFileClient.extOfName(node.name);
+    osFileName = node.name;
+    const text = await blob.text();
+    if (ext === 'html' || ext === 'htm') editor.innerHTML = text;
+    else editor.innerHTML = '<p>' + escapeHtml(text).replace(/\n/g, '<br>') + '</p>';
+    titleInput.value = window.OSFileClient.stripExt(node.name) || defaultDocName();
+    isDirty = false;
+    updateStatus();
+  },
+  serialize: async function () {
+    const ext = window.OSFileClient.extOfName(osFileName) || 'txt';
+    const base = safeFileName(titleInput.value || window.OSFileClient.stripExt(osFileName) || 'document');
+    if (ext === 'html' || ext === 'htm') {
+      const html = `<!doctype html><meta charset="utf-8"><title>${escapeHtml(titleInput.value || 'document')}</title><body>${editor.innerHTML}</body>`;
+      return { blob: new Blob([html], { type: 'text/html;charset=utf-8' }), name: base + '.html', mime: 'text/html' };
+    }
+    const text = editor.innerText.replace(/\n{3,}/g, '\n\n');
+    return { blob: new Blob([text], { type: 'text/plain;charset=utf-8' }), name: base + '.txt', mime: 'text/plain' };
+  }
+});
+
+function scheduleOsSave() {
+  if (!osFiles || !osFiles.hosted) return;
+  clearTimeout(osSaveTimer);
+  osSaveTimer = setTimeout(function () {
+    osFiles.save().catch(function () {});
+  }, 500);
+}
+
 editor.addEventListener('input', () => {
   isDirty = true;
-  scheduleAutosave();
+  if (osFiles && osFiles.hosted) scheduleOsSave();
+  else scheduleAutosave();
   updateStatus();
 });
 
@@ -235,9 +273,17 @@ $('#btnNew').addEventListener('click', async () => {
   if (!ok) return;
   editor.innerHTML = '<p></p>';
   isDirty = true;
+  if (osFiles && osFiles.hosted) {
+    osFileName = null;
+    if (osFiles.remember) osFiles.remember(null);
+  }
   await saveCurrentDocument(true);
 });
 $('#btnOpen').addEventListener('click', () => {
+  if (osFiles && osFiles.hosted) {
+    osFiles.openPicker();
+    return;
+  }
   renderRecent();
   openModal.showModal();
 });
@@ -245,8 +291,24 @@ $('#btnOpenClose').addEventListener('click', () => openModal.close());
 $('#btnExportClose').addEventListener('click', () => exportModal.close());
 $('#btnFindClose').addEventListener('click', () => findModal.close());
 
-$('#btnSave').addEventListener('click', () => saveCurrentDocument(true));
+$('#btnSave').addEventListener('click', () => {
+  if (osFiles && osFiles.hosted) {
+    osFiles.save().then(() => { isDirty = false; updateStatus(); });
+    return;
+  }
+  saveCurrentDocument(true);
+});
 $('#btnSaveAs').addEventListener('click', async () => {
+  if (osFiles && osFiles.hosted) {
+    const node = await osFiles.saveAs();
+    if (node) {
+      osFileName = node.name;
+      titleInput.value = window.OSFileClient.stripExt(node.name) || titleInput.value;
+      isDirty = false;
+      updateStatus();
+    }
+    return;
+  }
   const baseName = prompt('Save as:', titleInput.value || defaultDocName());
   if (!baseName) return;
   const id = 'doc_' + Date.now();
@@ -544,8 +606,18 @@ document.addEventListener('keydown', (e) => {
   if (k === 'u') { e.preventDefault(); document.execCommand('underline'); return; }
   if (k === 'z') { /* default undo */ return; }
   if (k === 'y' || (e.shiftKey && k === 'z')) { e.preventDefault(); document.execCommand('redo'); return; }
-  if (k === 's') { e.preventDefault(); saveCurrentDocument(true); return; }
-  if (k === 'o') { e.preventDefault(); renderRecent(); openModal.showModal(); return; }
+  if (k === 's') {
+    e.preventDefault();
+    if (osFiles && osFiles.hosted) osFiles.save().then(() => { isDirty = false; updateStatus(); });
+    else saveCurrentDocument(true);
+    return;
+  }
+  if (k === 'o') {
+    e.preventDefault();
+    if (osFiles && osFiles.hosted) osFiles.openPicker();
+    else { renderRecent(); openModal.showModal(); }
+    return;
+  }
   if (k === 'f') { e.preventDefault(); openFindModal(); return; }
   if (k === 'n') { e.preventDefault(); $('#btnNew').click(); return; }
 });
@@ -602,6 +674,14 @@ function renderTabs() {
     documents = loadDocuments();
   }
   const autosaved = (() => { try { return JSON.parse(localStorage.getItem(AUTOSAVE_KEY) || 'null'); } catch { return null; } })();
+  if (osFiles && osFiles.hosted) {
+    if (documents.length === 0) createNewDocument();
+    else if (!(osFiles.pendingId && osFiles.pendingId())) openDocument(documents[0].id);
+    else currentDocumentId = documents[0].id;
+    renderTabs();
+    if (osFiles.reloadPending) await osFiles.reloadPending();
+    return;
+  }
   if (documents.length === 0) {
     createNewDocument();
   } else {

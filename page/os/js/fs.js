@@ -3,6 +3,7 @@ window.OSFS = (function () {
   const DESKTOP_ID = "desktop";
   const DOCUMENTS_ID = "documents";
   const SHEETS_DIR_ID = "documents-sheets";
+  const TRASH_ID = "recycle-bin";
   const SHEETS_EXTS = ["vcsh", "xlsx", "xls", "csv"];
   const TEXT_MAX = 2 * 1024 * 1024;
   const MIME_BY_EXT = {
@@ -97,7 +98,8 @@ window.OSFS = (function () {
         node.id === ROOT_ID ||
         node.id === DESKTOP_ID ||
         node.id === DOCUMENTS_ID ||
-        node.id === SHEETS_DIR_ID)
+        node.id === SHEETS_DIR_ID ||
+        node.id === TRASH_ID)
     );
   }
 
@@ -191,6 +193,7 @@ window.OSFS = (function () {
     ensure(DESKTOP_ID, ROOT_ID, "Desktop");
     const docs = ensure(DOCUMENTS_ID, ROOT_ID, "Documents");
     ensure(SHEETS_DIR_ID, docs.id, "Sheets");
+    ensure(TRASH_ID, ROOT_ID, "Recycle Bin");
     await waitTx(write);
   }
 
@@ -262,9 +265,14 @@ window.OSFS = (function () {
       .split("/")
       .filter(Boolean);
     let cur = await get(ROOT_ID);
+    const trashAliases = new Set(["recycle bin", "lixeira", "ごみ箱"]);
     for (const part of clean) {
       const kids = await list(cur.id);
-      const next = kids.find((n) => n.name.toLowerCase() === part.toLowerCase());
+      const want = part.toLowerCase();
+      const next = kids.find((n) => {
+        if (String(n.name || "").toLowerCase() === want) return true;
+        return n.id === TRASH_ID && trashAliases.has(want);
+      });
       if (!next) return null;
       cur = next;
     }
@@ -292,6 +300,7 @@ window.OSFS = (function () {
     await ready();
     const parent = await get(parentId);
     if (!parent || parent.kind !== "folder") throw new Error("invalid parent");
+    if (parentId === TRASH_ID || (await isInTrash(parentId))) throw new Error("trash");
     const label = (name || "").trim() || "New folder";
     const node = folderNode(crypto.randomUUID(), parentId, await uniqueName(parentId, label), false);
     parent.modifiedAt = now();
@@ -309,6 +318,7 @@ window.OSFS = (function () {
     await ready();
     const parent = await get(parentId);
     if (!parent || parent.kind !== "folder") throw new Error("invalid parent");
+    if (parentId === TRASH_ID || (await isInTrash(parentId))) throw new Error("trash");
     const fileName = await uniqueName(parentId, spec.name || "New file.txt");
     const blob = spec.blob instanceof Blob ? spec.blob : new Blob([spec.blob || ""], { type: spec.mime || "text/plain" });
     const id = crypto.randomUUID();
@@ -382,7 +392,8 @@ window.OSFS = (function () {
   async function listFilesByExt(exts) {
     const set = new Set((exts || []).map((e) => String(e).replace(/^\./, "").toLowerCase()));
     const nodes = await allNodes();
-    return nodes.filter((n) => n.kind === "file" && set.has(extOf(n.name)));
+    const hidden = await trashIdSet();
+    return nodes.filter((n) => n.kind === "file" && set.has(extOf(n.name)) && !hidden.has(n.id));
   }
 
   async function ensureSheetsFolder() {
@@ -443,10 +454,136 @@ window.OSFS = (function () {
     return false;
   }
 
-  async function remove(id) {
+  function isTrashFolder(node) {
+    return !!(node && node.id === TRASH_ID);
+  }
+
+  async function isInTrash(id) {
+    if (!id) return false;
+    if (id === TRASH_ID) return true;
+    return isDescendant(id, TRASH_ID);
+  }
+
+  async function trashIdSet() {
+    const tree = await collectTree(TRASH_ID);
+    return new Set(tree.map((n) => n.id));
+  }
+
+  function clearTrashMeta(node) {
+    delete node.trashedFromId;
+    delete node.trashedFromPath;
+    delete node.trashedAt;
+    delete node.originalName;
+    return node;
+  }
+
+  async function topLevelIds(ids) {
+    const set = new Set((ids || []).filter(Boolean));
+    const out = [];
+    for (const id of set) {
+      let skip = false;
+      let cur = await get(id);
+      const guard = new Set();
+      while (cur && cur.parentId) {
+        if (set.has(cur.parentId)) {
+          skip = true;
+          break;
+        }
+        if (guard.has(cur.id)) break;
+        guard.add(cur.id);
+        cur = await get(cur.parentId);
+      }
+      if (!skip) out.push(id);
+    }
+    return out;
+  }
+
+  async function putNode(node) {
+    const db = await window.OSState.openDb();
+    const transaction = db.transaction(nodesStore(), "readwrite");
+    transaction.objectStore(nodesStore()).put(node);
+    await waitTx(transaction);
+  }
+
+  async function trash(ids) {
+    await ready();
+    const tops = await topLevelIds(ids);
+    const moved = [];
+    for (const id of tops) {
+      const node = await get(id);
+      if (!node || isSystem(node)) continue;
+      if (await isInTrash(id)) continue;
+      const fromId = node.parentId || DESKTOP_ID;
+      const fromPath = await pathOf(fromId);
+      const parent = fromId ? await get(fromId) : null;
+      node.originalName = node.name;
+      node.trashedFromId = fromId;
+      node.trashedFromPath = fromPath;
+      node.trashedAt = now();
+      node.parentId = TRASH_ID;
+      node.name = await uniqueName(TRASH_ID, node.name);
+      node.modifiedAt = now();
+      if (parent) {
+        parent.modifiedAt = node.modifiedAt;
+        await putNode(parent);
+      }
+      await putNode(node);
+      moved.push(node.id);
+    }
+    if (moved.length) emit({ type: "trash", ids: moved, parentId: TRASH_ID });
+    return moved;
+  }
+
+  async function restoreDestId(node) {
+    let dest = node && node.trashedFromId ? await get(node.trashedFromId) : null;
+    if (dest && dest.kind === "folder" && dest.id !== TRASH_ID && !(await isInTrash(dest.id))) return dest.id;
+    return DESKTOP_ID;
+  }
+
+  async function restore(ids, destParentId) {
+    await ready();
+    const tops = await topLevelIds(ids);
+    const restored = [];
+    for (const id of tops) {
+      const node = await get(id);
+      if (!node || isSystem(node)) continue;
+      if (!(await isInTrash(id))) continue;
+      const destId = destParentId || (await restoreDestId(node));
+      const dest = await get(destId);
+      if (!dest || dest.kind !== "folder" || destId === TRASH_ID || (await isInTrash(destId))) continue;
+      const want = node.originalName || node.name;
+      node.parentId = destId;
+      node.name = await uniqueName(destId, want);
+      node.modifiedAt = now();
+      clearTrashMeta(node);
+      dest.modifiedAt = node.modifiedAt;
+      await putNode(dest);
+      await putNode(node);
+      restored.push(node.id);
+    }
+    if (restored.length) emit({ type: "restore", ids: restored });
+    return restored;
+  }
+
+  async function restoreAll() {
+    const kids = await list(TRASH_ID);
+    return restore(kids.map((n) => n.id));
+  }
+
+  async function emptyTrash() {
+    const kids = await list(TRASH_ID);
+    for (const kid of kids) await remove(kid.id, { permanent: true });
+  }
+
+  async function remove(id, opts) {
     const node = await get(id);
     if (!node) return;
     if (isSystem(node)) throw new Error("system");
+    opts = opts || {};
+    if (!opts.permanent && !(await isInTrash(id))) {
+      await trash([id]);
+      return;
+    }
     const tree = await collectTree(id);
     const parent = node.parentId ? await get(node.parentId) : null;
     const db = await window.OSState.openDb();
@@ -468,22 +605,34 @@ window.OSFS = (function () {
   async function move(ids, destParentId) {
     const dest = await get(destParentId);
     if (!dest || dest.kind !== "folder") throw new Error("invalid dest");
-    for (const id of ids) {
+    const destInTrash = destParentId === TRASH_ID || (await isInTrash(destParentId));
+    const tops = await topLevelIds(ids);
+    const toTrash = [];
+    const toRestore = [];
+    const toShuffle = [];
+    for (const id of tops) {
       const node = await get(id);
       if (!node || isSystem(node)) continue;
       if (node.parentId === destParentId) continue;
       if (node.kind === "folder" && (node.id === destParentId || (await isDescendant(destParentId, node.id)))) {
         continue;
       }
+      const srcInTrash = await isInTrash(id);
+      if (!srcInTrash && destInTrash) toTrash.push(id);
+      else if (srcInTrash && !destInTrash) toRestore.push(id);
+      else toShuffle.push(id);
+    }
+    if (toTrash.length) await trash(toTrash);
+    if (toRestore.length) await restore(toRestore, destParentId);
+    for (const id of toShuffle) {
+      const node = await get(id);
+      if (!node) continue;
       node.parentId = destParentId;
       node.name = await uniqueName(destParentId, node.name);
       node.modifiedAt = now();
-      const db = await window.OSState.openDb();
-      const transaction = db.transaction(nodesStore(), "readwrite");
-      transaction.objectStore(nodesStore()).put(node);
-      await waitTx(transaction);
+      await putNode(node);
     }
-    emit({ type: "move", ids, parentId: destParentId });
+    if (toShuffle.length) emit({ type: "move", ids: toShuffle, parentId: destParentId });
   }
 
   async function copyOne(node, destParentId, idMap) {
@@ -491,14 +640,16 @@ window.OSFS = (function () {
     idMap.set(node.id, newId);
     const name = await uniqueName(destParentId, node.name);
     const t = now();
-    const copy = Object.assign({}, node, {
-      id: newId,
-      parentId: destParentId,
-      name,
-      createdAt: t,
-      modifiedAt: t,
-      system: false,
-    });
+    const copy = clearTrashMeta(
+      Object.assign({}, node, {
+        id: newId,
+        parentId: destParentId,
+        name,
+        createdAt: t,
+        modifiedAt: t,
+        system: false,
+      })
+    );
     const blob = copy.kind === "file" ? await getBlob(node.id) : null;
     const db = await window.OSState.openDb();
     const stores = copy.kind === "file" ? [nodesStore(), blobsStore()] : [nodesStore()];
@@ -516,6 +667,7 @@ window.OSFS = (function () {
   async function copy(ids, destParentId) {
     const dest = await get(destParentId);
     if (!dest || dest.kind !== "folder") throw new Error("invalid dest");
+    if (destParentId === TRASH_ID || (await isInTrash(destParentId))) throw new Error("trash");
     const created = [];
     for (const id of ids) {
       const node = await get(id);
@@ -644,6 +796,15 @@ window.OSFS = (function () {
 
   async function paste(parentId) {
     if (!clipboard || !clipboard.ids.length) return [];
+    if (parentId === TRASH_ID || (await isInTrash(parentId))) {
+      if (clipboard.mode === "cut") {
+        await trash(clipboard.ids);
+        const ids = clipboard.ids.slice();
+        clipboard = null;
+        return ids;
+      }
+      return [];
+    }
     if (clipboard.mode === "cut") {
       await move(clipboard.ids, parentId);
       const ids = clipboard.ids.slice();
@@ -711,6 +872,11 @@ window.OSFS = (function () {
     return (v / (1024 * 1024 * 1024)).toFixed(1) + " GB";
   }
 
+  function displayName(node, translate) {
+    if (node && node.id === TRASH_ID) return translate ? translate("recycleBin") : "Recycle Bin";
+    return node && node.name ? node.name : "";
+  }
+
   function typeLabel(node, t) {
     if (!node) return "";
     if (node.kind === "folder") return t ? t("feFolder") : "Folder";
@@ -728,6 +894,13 @@ window.OSFS = (function () {
   function glyph(kind) {
     if (kind === "folder") {
       return `<svg class="fe-glyph" viewBox="0 0 40 40" aria-hidden="true"><rect x="4" y="14" width="32" height="20" rx="3" fill="#e6c35c"/><path d="M4 16V12c0-1.2 1-2 2.2-2h9.2L18 14h16.8c1.2 0 2.2.8 2.2 2" fill="#f0d78a"/><rect x="4" y="16" width="32" height="18" rx="3" fill="#d4b24a"/></svg>`;
+    }
+    if (kind === "trash" || kind === "trash-full") {
+      const papers =
+        kind === "trash-full"
+          ? `<path d="M14 12.5l3-5.5 5 2-2 4z" fill="#f4f4f4"/><path d="M22 11l4-4.5 4 3-3 4z" fill="#e8e8e8"/>`
+          : "";
+      return `<svg class="fe-glyph" viewBox="0 0 40 40" aria-hidden="true">${papers}<rect x="11" y="14" width="18" height="20" rx="2" fill="#008f7d"/><path d="M9 14h22" stroke="#006056" stroke-width="3" stroke-linecap="round"/><rect x="16" y="8" width="8" height="4" rx="1" fill="#006056"/><path d="M16 19v10M20 19v10M24 19v10" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round"/></svg>`;
     }
     if (kind === "shortcut") {
       return `<svg class="fe-glyph" viewBox="0 0 40 40" aria-hidden="true"><rect x="8" y="8" width="24" height="24" rx="5" fill="#008f7d"/><path d="M16 20h8M20 16v8" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>`;
@@ -759,6 +932,7 @@ window.OSFS = (function () {
 
   function iconFor(node) {
     if (!node) return glyph("file");
+    if (node.id === TRASH_ID || isTrashFolder(node)) return glyph(node.trashFilled ? "trash-full" : "trash");
     if (node.kind === "folder") return glyph("folder");
     if (node.kind === "shortcut") {
       if (node.icon) {
@@ -776,6 +950,7 @@ window.OSFS = (function () {
     DESKTOP_ID,
     DOCUMENTS_ID,
     SHEETS_DIR_ID,
+    TRASH_ID,
     SHEETS_EXTS,
     TEXT_MAX,
     ready,
@@ -793,6 +968,11 @@ window.OSFS = (function () {
     writeFile,
     rename,
     remove,
+    trash,
+    restore,
+    restoreAll,
+    emptyTrash,
+    isInTrash,
     move,
     copy,
     getBlob,
@@ -814,6 +994,7 @@ window.OSFS = (function () {
     openKind,
     formatSize,
     typeLabel,
+    displayName,
     iconFor,
     onChange,
   };

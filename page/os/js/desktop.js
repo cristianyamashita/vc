@@ -74,10 +74,15 @@ window.OS = (function () {
   }
 
   const GRADIENT_WALLPAPERS = ["bloom", "aurora", "dusk", "horizon"];
+  const PHOTO_WALLPAPER_COUNT = 25;
+  const PHOTO_WALLPAPER_IDS = Array.from({ length: PHOTO_WALLPAPER_COUNT }, (_, i) => `wp${i + 1}`);
   const IMAGE_WALLPAPERS = {
     "playground-dark": "../assets/images/hero-playground-dark.png",
     "playground-light": "../assets/images/hero-playground-light.png",
   };
+  PHOTO_WALLPAPER_IDS.forEach((id) => {
+    IMAGE_WALLPAPERS[id] = `../assets/images/${id}.png`;
+  });
   let wallpaperObjectUrl = null;
 
   function wallpaperImageSrc(id) {
@@ -240,6 +245,20 @@ window.OS = (function () {
     refreshInstalledChrome();
   }
 
+  function ensureInstalled(id) {
+    const app = window.OSCatalog.byId(id);
+    if (!app) return false;
+    if (app.kind === "native" || app.kind === "user") return true;
+    if (!api.state) return false;
+    if (!api.state.installed.includes(id)) {
+      api.state.installed.push(id);
+      persistNow();
+      if (window.OSStart && window.OSStart.isOpen()) window.OSStart.render();
+      renderTaskbar();
+    }
+    return true;
+  }
+
   function registerUserApp(id) {
     if (!id || !api.state) return;
     if (!api.state.installed.includes(id)) api.state.installed.push(id);
@@ -257,6 +276,214 @@ window.OS = (function () {
   }
 
   let desktopGen = 0;
+  const DESK_MIME = "application/x-os-desktop-icon";
+  const RECYCLE_KEY = "recycle";
+  let draggingDeskKey = null;
+  let suppressIconClick = false;
+
+  function deskKeyApp(id) {
+    return "app:" + id;
+  }
+
+  function deskKeyFs(id) {
+    return "fs:" + id;
+  }
+
+  function layoutMap() {
+    if (!api.state.desktopLayout || typeof api.state.desktopLayout !== "object") api.state.desktopLayout = {};
+    return api.state.desktopLayout;
+  }
+
+  function gridMetrics() {
+    const desktop = document.getElementById("desktop");
+    const styles = desktop ? getComputedStyle(desktop) : null;
+    const cellW = Math.max(64, parseFloat(styles && styles.getPropertyValue("--icon-col")) || 92);
+    const cellH = Math.max(72, parseFloat(styles && styles.getPropertyValue("--icon-row")) || 104);
+    const padX = 8;
+    const padY = 12;
+    const width = desktop ? desktop.clientWidth : 800;
+    const height = desktop ? desktop.clientHeight : 600;
+    const cols = Math.max(1, Math.floor((width - padX) / cellW));
+    const rows = Math.max(1, Math.floor((height - padY) / cellH));
+    return { cellW, cellH, padX, padY, cols, rows };
+  }
+
+  function cellId(pos) {
+    return pos.c + "," + pos.r;
+  }
+
+  function cellStyle(pos, metrics) {
+    metrics = metrics || gridMetrics();
+    const left = metrics.padX + pos.c * metrics.cellW;
+    const top = metrics.padY + pos.r * metrics.cellH;
+    return `left:${left}px;top:${top}px;`;
+  }
+
+  function cellFromPoint(clientX, clientY) {
+    const desktop = document.getElementById("desktop");
+    const metrics = gridMetrics();
+    const rect = desktop.getBoundingClientRect();
+    let c = Math.floor((clientX - rect.left - metrics.padX) / metrics.cellW);
+    let r = Math.floor((clientY - rect.top - metrics.padY) / metrics.cellH);
+    c = Math.max(0, Math.min(metrics.cols - 1, c));
+    r = Math.max(0, Math.min(metrics.rows - 1, r));
+    return { c, r };
+  }
+
+  function firstFreeCell(taken, metrics) {
+    const cols = Math.max(metrics.cols, 1);
+    const rows = Math.max(metrics.rows, 1);
+    for (let c = 0; c < cols + 24; c++) {
+      for (let r = 0; r < rows; r++) {
+        if (!taken.has(c + "," + r)) return { c, r };
+      }
+    }
+    return { c: cols, r: 0 };
+  }
+
+  function keyAtCell(c, r) {
+    const layout = layoutMap();
+    const want = c + "," + r;
+    return (
+      Object.keys(layout).find((key) => layout[key] && layout[key].c + "," + layout[key].r === want) || null
+    );
+  }
+
+  function ensureLayout(keys) {
+    const metrics = gridMetrics();
+    const layout = layoutMap();
+    let changed = false;
+    const valid = new Set(keys);
+    Object.keys(layout).forEach((key) => {
+      if (!valid.has(key)) {
+        delete layout[key];
+        changed = true;
+      }
+    });
+    const taken = new Set();
+    function tryKeep(pos) {
+      if (!pos || !Number.isFinite(pos.c) || !Number.isFinite(pos.r)) return false;
+      const id = cellId(pos);
+      if (taken.has(id)) return false;
+      taken.add(id);
+      return true;
+    }
+    if (valid.has(RECYCLE_KEY)) {
+      if (!tryKeep(layout[RECYCLE_KEY])) {
+        layout[RECYCLE_KEY] = { c: 0, r: 0 };
+        taken.add("0,0");
+        changed = true;
+      }
+    }
+    keys.forEach((key) => {
+      if (key === RECYCLE_KEY) return;
+      if (tryKeep(layout[key])) return;
+      const pos = firstFreeCell(taken, metrics);
+      layout[key] = pos;
+      taken.add(cellId(pos));
+      changed = true;
+    });
+    return changed;
+  }
+
+  function moveIconToCell(key, cell) {
+    const layout = layoutMap();
+    const occupant = keyAtCell(cell.c, cell.r);
+    const prev = layout[key] ? { c: layout[key].c, r: layout[key].r } : null;
+    if (occupant && occupant !== key) {
+      if (prev) layout[occupant] = prev;
+      else {
+        const taken = new Set(
+          Object.keys(layout)
+            .filter((k) => k !== occupant)
+            .map((k) => cellId(layout[k]))
+        );
+        layout[occupant] = firstFreeCell(taken, gridMetrics());
+      }
+    }
+    layout[key] = { c: cell.c, r: cell.r };
+  }
+
+  function arrangeDesktopIcons(keys) {
+    const metrics = gridMetrics();
+    const layout = layoutMap();
+    const others = keys
+      .filter((k) => k !== RECYCLE_KEY)
+      .sort((a, b) => {
+        const pa = layout[a] || { c: 999, r: 999 };
+        const pb = layout[b] || { c: 999, r: 999 };
+        if (pa.c !== pb.c) return pa.c - pb.c;
+        if (pa.r !== pb.r) return pa.r - pb.r;
+        return a.localeCompare(b);
+      });
+    const ordered = keys.includes(RECYCLE_KEY) ? [RECYCLE_KEY].concat(others) : others;
+    const next = {};
+    const taken = new Set();
+    ordered.forEach((key) => {
+      const pos = firstFreeCell(taken, metrics);
+      next[key] = pos;
+      taken.add(cellId(pos));
+    });
+    api.state.desktopLayout = next;
+  }
+
+  async function currentDesktopKeys() {
+    const keys = [RECYCLE_KEY];
+    (api.state.desktopIcons || []).forEach((id) => {
+      const app = window.OSCatalog.byId(id);
+      if (app && isInstalled(app.id)) keys.push(deskKeyApp(app.id));
+    });
+    if (window.OSFS) {
+      try {
+        await window.OSFS.ready();
+        const files = await window.OSFS.listDesktop();
+        files.forEach((node) => keys.push(deskKeyFs(node.id)));
+      } catch (_err) {}
+    }
+    return keys;
+  }
+
+  async function arrangeDesktop() {
+    const keys = await currentDesktopKeys();
+    arrangeDesktopIcons(keys);
+    persistNow();
+    await renderDesktop();
+  }
+
+  function showDeskSlot(cell) {
+    const desktop = document.getElementById("desktop");
+    let slot = desktop.querySelector(".desktop-slot");
+    if (!slot) {
+      slot = document.createElement("div");
+      slot.className = "desktop-slot";
+      slot.setAttribute("aria-hidden", "true");
+      desktop.appendChild(slot);
+    }
+    slot.style.cssText = cellStyle(cell);
+    slot.hidden = false;
+  }
+
+  function hideDeskSlot() {
+    const slot = document.querySelector("#desktop .desktop-slot");
+    if (slot) slot.hidden = true;
+  }
+
+  async function recycleIconHtml(style) {
+    if (!window.OSFS) return "";
+    try {
+      const node = await window.OSFS.get(window.OSFS.TRASH_ID);
+      if (!node) return "";
+      const kids = await window.OSFS.list(window.OSFS.TRASH_ID);
+      const iconNode = Object.assign({}, node, { trashFilled: !!(kids && kids.length) });
+      const label = window.OSFS.displayName(node, window.OSI18n.t.bind(window.OSI18n));
+      return `<button type="button" class="desktop-icon desktop-recycle fe-drop-target" data-desk-key="${RECYCLE_KEY}" data-fs-id="${escapeHtml(node.id)}" data-recycle="1" data-drop="${escapeHtml(node.id)}" draggable="true" style="${style}">
+          ${window.OSFS.iconFor(iconNode)}
+          <span>${escapeHtml(label)}</span>
+        </button>`;
+    } catch (_err) {
+      return "";
+    }
+  }
 
   async function renderDesktop() {
     const root = document.getElementById("desktop");
@@ -275,25 +502,37 @@ window.OS = (function () {
       files = [];
     }
     if (gen !== desktopGen) return;
+    const keys = [RECYCLE_KEY].concat(apps.map((app) => deskKeyApp(app.id))).concat(files.map((node) => deskKeyFs(node.id)));
+    const changed = ensureLayout(keys);
+    if (changed) window.OSState.scheduleSave(api.state);
+    if (gen !== desktopGen) return;
+    const metrics = gridMetrics();
+    const layout = layoutMap();
     const appHtml = apps
-      .map(
-        (app) => `
-        <button type="button" class="desktop-icon" data-app-id="${escapeHtml(app.id)}">
-          <img src="${escapeHtml(app.icon)}" alt="">
+      .map((app) => {
+        const key = deskKeyApp(app.id);
+        const pos = layout[key] || { c: 0, r: 0 };
+        return `
+        <button type="button" class="desktop-icon" data-desk-key="${escapeHtml(key)}" data-app-id="${escapeHtml(app.id)}" draggable="true" style="${cellStyle(pos, metrics)}">
+          <img src="${escapeHtml(app.icon)}" alt="" draggable="false">
           <span>${escapeHtml(window.OSCatalog.displayName(app, lang))}</span>
-        </button>`
-      )
+        </button>`;
+      })
       .join("");
     const fileHtml = files
       .map((node) => {
-        return `<button type="button" class="desktop-icon desktop-fs" data-fs-id="${escapeHtml(node.id)}" draggable="true">
+        const key = deskKeyFs(node.id);
+        const pos = layout[key] || { c: 0, r: 0 };
+        return `<button type="button" class="desktop-icon desktop-fs" data-desk-key="${escapeHtml(key)}" data-fs-id="${escapeHtml(node.id)}" draggable="true" style="${cellStyle(pos, metrics)}">
           ${window.OSFS.iconFor(node)}
           <span>${escapeHtml(node.name)}</span>
         </button>`;
       })
       .join("");
-    const empty = !apps.length && !files.length ? `<p class="desktop-empty">${window.OSI18n.t("emptyDesktop")}</p>` : "";
-    root.innerHTML = appHtml + fileHtml + empty;
+    const recyclePos = layout[RECYCLE_KEY] || { c: 0, r: 0 };
+    const recycleHtml = await recycleIconHtml(cellStyle(recyclePos, metrics));
+    if (gen !== desktopGen) return;
+    root.innerHTML = recycleHtml + appHtml + fileHtml;
   }
 
   function renderTaskbar() {
@@ -412,6 +651,10 @@ window.OS = (function () {
   function bindUi() {
     const desktop = document.getElementById("desktop");
     desktop.addEventListener("click", (e) => {
+      if (suppressIconClick) {
+        suppressIconClick = false;
+        return;
+      }
       const icon = e.target.closest(".desktop-icon");
       desktop.querySelectorAll(".desktop-icon").forEach((el) => el.classList.remove("selected"));
       if (icon) icon.classList.add("selected");
@@ -437,6 +680,34 @@ window.OS = (function () {
         window.OSStart.showContext(icon.dataset.appId, e.clientX, e.clientY);
         return;
       }
+      if (icon && icon.dataset.recycle) {
+        e.preventDefault();
+        e.stopPropagation();
+        desktop.querySelectorAll(".desktop-icon").forEach((el) => el.classList.remove("selected"));
+        icon.classList.add("selected");
+        const kids = await window.OSFS.list(window.OSFS.TRASH_ID);
+        const empty = !kids.length;
+        window.OSStart.showItems(
+          [
+            { act: "open", label: window.OSI18n.t("feOpen") },
+            { act: "restoreAll", label: window.OSI18n.t("recycleRestoreAll"), disabled: empty },
+            { act: "emptyTrash", label: window.OSI18n.t("recycleEmpty"), disabled: empty },
+          ],
+          e.clientX,
+          e.clientY,
+          async (act) => {
+            if (act === "open") {
+              const node = await window.OSFS.get(window.OSFS.TRASH_ID);
+              await window.OSFileExplorer.openDesktopNode(node);
+            }
+            if (act === "restoreAll") await window.OSFS.restoreAll();
+            if (act === "emptyTrash") {
+              if (confirm(window.OSI18n.t("recycleEmptyConfirm"))) await window.OSFS.emptyTrash();
+            }
+          }
+        );
+        return;
+      }
       if (icon && icon.dataset.fsId) {
         e.preventDefault();
         e.stopPropagation();
@@ -444,8 +715,14 @@ window.OS = (function () {
         icon.classList.add("selected");
         const node = await window.OSFS.get(icon.dataset.fsId);
         const clip = window.OSFS.getClipboard();
-        const items = [
-          { act: "open", label: window.OSI18n.t("feOpen") },
+        const items = [{ act: "open", label: window.OSI18n.t("feOpen") }];
+        if (node.kind === "file") {
+          const openAs = window.OSFileApps ? window.OSFileApps.openAsItems(node) : [];
+          if (openAs.length) items.push({ act: "openAs", label: window.OSI18n.t("feOpenAs"), children: openAs });
+          const kind = window.OSFS.openKind(node);
+          if (kind !== "download" && kind !== "none") items.push({ act: "preview", label: window.OSI18n.t("fePreview") });
+        }
+        items.push(
           { act: "cut", label: window.OSI18n.t("feCut") },
           { act: "copy", label: window.OSI18n.t("feCopy") },
           { act: "paste", label: window.OSI18n.t("fePaste"), disabled: !(clip && clip.ids.length) },
@@ -453,11 +730,15 @@ window.OS = (function () {
           { act: "rename", label: window.OSI18n.t("feRename") },
           { act: "delete", label: window.OSI18n.t("feDelete") },
           { sep: true },
-          { act: "properties", label: window.OSI18n.t("feProperties") },
-        ];
+          { act: "properties", label: window.OSI18n.t("feProperties") }
+        );
         window.OSStart.showItems(items, e.clientX, e.clientY, async (act) => {
           if (!node) return;
           if (act === "open") await window.OSFileExplorer.openDesktopNode(node);
+          if (act === "preview") await window.OSFileExplorer.previewNode(node);
+          if (typeof act === "string" && act.startsWith("openAs:")) {
+            await window.OSFileExplorer.openDesktopNode(node, act.slice(7));
+          }
           if (act === "cut") window.OSFS.setClipboard("cut", [node.id]);
           if (act === "copy") window.OSFS.setClipboard("copy", [node.id]);
           if (act === "paste") await window.OSFS.paste(window.OSFS.DESKTOP_ID);
@@ -488,27 +769,101 @@ window.OS = (function () {
       );
     });
     desktop.addEventListener("dragstart", (e) => {
-      const icon = e.target.closest("[data-fs-id]");
-      if (!icon || !window.OSFileExplorer) return;
-      e.dataTransfer.setData(window.OSFileExplorer.DRAG_MIME, JSON.stringify({ ids: [icon.dataset.fsId] }));
+      const icon = e.target.closest(".desktop-icon");
+      if (!icon || !icon.dataset.deskKey) return;
+      draggingDeskKey = icon.dataset.deskKey;
+      icon.classList.add("dragging");
+      e.dataTransfer.setData(DESK_MIME, draggingDeskKey);
+      e.dataTransfer.setData("text/plain", draggingDeskKey);
+      if (icon.dataset.fsId && !icon.dataset.recycle && window.OSFileExplorer) {
+        e.dataTransfer.setData(window.OSFileExplorer.DRAG_MIME, JSON.stringify({ ids: [icon.dataset.fsId] }));
+      }
       e.dataTransfer.effectAllowed = "copyMove";
+    });
+    desktop.addEventListener("dragend", () => {
+      desktop.querySelectorAll(".desktop-icon.dragging").forEach((el) => el.classList.remove("dragging"));
+      hideDeskSlot();
+      draggingDeskKey = null;
+      suppressIconClick = true;
     });
     desktop.addEventListener("dragover", (e) => {
       if (!e.dataTransfer) return;
       const types = [...e.dataTransfer.types];
-      if (!types.includes("Files") && !(window.OSFileExplorer && types.includes(window.OSFileExplorer.DRAG_MIME))) return;
+      const ours =
+        draggingDeskKey ||
+        types.includes("Files") ||
+        types.includes(DESK_MIME) ||
+        types.includes("text/plain") ||
+        (window.OSFileExplorer && types.includes(window.OSFileExplorer.DRAG_MIME));
+      if (!ours) return;
       e.preventDefault();
-      e.dataTransfer.dropEffect = e.ctrlKey ? "copy" : "move";
+      const recycle = e.target.closest("[data-recycle]");
+      e.dataTransfer.dropEffect = recycle && draggingDeskKey !== RECYCLE_KEY ? "move" : e.ctrlKey ? "copy" : "move";
+      showDeskSlot(cellFromPoint(e.clientX, e.clientY));
+    });
+    desktop.addEventListener("dragleave", (e) => {
+      if (!desktop.contains(e.relatedTarget)) hideDeskSlot();
     });
     desktop.addEventListener("drop", async (e) => {
       e.preventDefault();
-      const folder = e.target.closest("[data-fs-id]");
-      let dest = window.OSFS.DESKTOP_ID;
-      if (folder) {
-        const node = await window.OSFS.get(folder.dataset.fsId);
-        if (node && node.kind === "folder") dest = node.id;
+      hideDeskSlot();
+      const cell = cellFromPoint(e.clientX, e.clientY);
+      const types = e.dataTransfer ? [...e.dataTransfer.types] : [];
+      const fsIds = window.OSFileExplorer ? window.OSFileExplorer.parseDrag(e) : null;
+      const deskKey = draggingDeskKey;
+      const overKey = keyAtCell(cell.c, cell.r);
+      const overEl = overKey ? desktop.querySelector('[data-desk-key="' + overKey.replace(/"/g, '\\"') + '"]') : null;
+      const overRecycle = overKey === RECYCLE_KEY || !!(overEl && overEl.dataset.recycle);
+      const overFsId = overEl && overEl.dataset.fsId ? overEl.dataset.fsId : "";
+      draggingDeskKey = null;
+
+      const isExternal = types.includes("Files") && !(window.OSFileExplorer && types.includes(window.OSFileExplorer.DRAG_MIME));
+      if (isExternal && window.OSFileExplorer) {
+        if (overRecycle) return;
+        const destNode = overFsId ? await window.OSFS.get(overFsId) : null;
+        const destId =
+          destNode && destNode.kind === "folder" && destNode.id !== window.OSFS.TRASH_ID ? destNode.id : window.OSFS.DESKTOP_ID;
+        await window.OSFileExplorer.dropOn(null, destId, e);
+        return;
       }
-      await window.OSFileExplorer.dropOn(null, dest, e);
+
+      if (overRecycle && fsIds && fsIds.length && deskKey !== RECYCLE_KEY) {
+        await window.OSFS.trash(fsIds);
+        return;
+      }
+
+      if (overFsId && fsIds && fsIds.length && !fsIds.includes(overFsId)) {
+        const destNode = await window.OSFS.get(overFsId);
+        if (destNode && destNode.kind === "folder" && destNode.id !== window.OSFS.TRASH_ID) {
+          await window.OSFileExplorer.dropOn(null, destNode.id, e);
+          return;
+        }
+      }
+
+      if (deskKey) {
+        moveIconToCell(deskKey, cell);
+        persistNow();
+        await renderDesktop();
+        return;
+      }
+
+      if (fsIds && fsIds.length && window.OSFileExplorer) {
+        await window.OSFileExplorer.dropOn(null, window.OSFS.DESKTOP_ID, e);
+        const layout = layoutMap();
+        const metrics = gridMetrics();
+        const taken = new Set(Object.keys(layout).map((k) => cellId(layout[k])));
+        fsIds.forEach((id, i) => {
+          const key = deskKeyFs(id);
+          taken.delete(layout[key] ? cellId(layout[key]) : "");
+          let pos;
+          if (i === 0 && !keyAtCell(cell.c, cell.r)) pos = cell;
+          else pos = firstFreeCell(taken, metrics);
+          layout[key] = pos;
+          taken.add(cellId(pos));
+        });
+        persistNow();
+        await renderDesktop();
+      }
     });
     document.getElementById("taskbar-apps").addEventListener("click", (e) => {
       const btn = e.target.closest("[data-task-id]");
@@ -578,7 +933,9 @@ window.OS = (function () {
   }
 
   api.isInstalled = isInstalled;
+  api.ensureInstalled = ensureInstalled;
   api.persistSession = persistSession;
+  api.persistNow = persistNow;
   api.setTheme = setTheme;
   api.setLang = setLang;
   api.setUsername = setUsername;
@@ -593,7 +950,12 @@ window.OS = (function () {
   api.setWallpaper = setWallpaper;
   api.applyWallpaper = applyWallpaper;
   api.wallpaperImageSrc = wallpaperImageSrc;
-  api.BUILTIN_WALLPAPERS = [...GRADIENT_WALLPAPERS, "playground-dark", "playground-light"];
+  api.BUILTIN_WALLPAPERS = [
+    ...GRADIENT_WALLPAPERS,
+    "playground-dark",
+    "playground-light",
+    ...PHOTO_WALLPAPER_IDS,
+  ];
   api.renderDesktop = renderDesktop;
   api.renderTaskbar = renderTaskbar;
   api.refreshChrome = refreshChrome;

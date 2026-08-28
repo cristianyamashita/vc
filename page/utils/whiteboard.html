@@ -6,6 +6,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Whiteboard</title>
+  <script src="../os/js/file-client.js"></script>
   <link rel="stylesheet" href="https://cristianyamashita.github.io/vc/page/assets/fontawesome/css/all.min.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -107,6 +108,21 @@
       background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02));
       border-bottom: 1px solid rgba(255,255,255,0.08);
     }
+    .topbar .group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .topbar button {
+      border: 1px solid rgba(255,255,255,0.14);
+      background: rgba(255,255,255,0.06);
+      color: inherit;
+      border-radius: 8px;
+      padding: 4px 8px;
+      cursor: pointer;
+    }
+    .topbar button:hover { background: rgba(255,255,255,0.1); }
+    #os-file-bar[hidden] { display: none !important; }
 
     .bottombar {
       grid-area: bottombar;
@@ -607,6 +623,10 @@
         <label id="lblGridSize">Size</label>
         <input type="range" id="gridSize" min="8" max="64" value="24" />
       </div>
+      <div class="group" id="os-file-bar" hidden>
+        <button type="button" id="osSaveBtn">Save</button>
+        <button type="button" id="osSaveAsBtn">Save as</button>
+      </div>
       <div class="group" id="autosaveGroup">
         <label id="lblAutosave">Autosave</label>
         <input type="checkbox" id="autosaveToggle" />
@@ -745,21 +765,21 @@
         Text: 'Text', Icons: 'Icons', SelectMove: 'Select/Move', Undo: 'Undo', Redo: 'Redo', Import: 'Import', Export: 'Export', Fullscreen: 'Fullscreen',
         Color: 'Color', Size: 'Size', Fill: 'Fill', Opacity: 'Opacity', Font: 'Font', Arrowheads: 'Arrowheads', Radius: 'Radius', Recent: 'Recent',
         Smooth: 'Smooth', Grid: 'Grid', GridSize: 'Grid Size', Align: 'Align', Bold: 'Bold', Italic: 'Italic', GridType: 'Grid Type', Sides: 'Sides', Points: 'Points', Inner: 'Inner',
-        Theme: 'Theme', Dark: 'Dark', Light: 'Light', Autosave: 'Autosave', SaveNow: 'Save now', ArrowSize: 'Arrow Size', Dashed: 'Dashed', Dash: 'Dash', FontStandard: 'Standard', FontHandwriting: 'Handwriting', FontPreviewSample: 'Quick note', Apply: 'Apply', Cancel: 'Cancel', ImageReady: 'Image ready: move, resize, rotate, then Apply', ImageApplied: 'Image applied', ImageCanceled: 'Image canceled', CouldNotPasteImage: 'Could not paste image', NothingToPaste: 'Nothing to paste (no image/text found)'
+        Theme: 'Theme', Dark: 'Dark', Light: 'Light', Autosave: 'Autosave', SaveNow: 'Save now', Open: 'Open', Save: 'Save', SaveAs: 'Save as', ArrowSize: 'Arrow Size', Dashed: 'Dashed', Dash: 'Dash', FontStandard: 'Standard', FontHandwriting: 'Handwriting', FontPreviewSample: 'Quick note', Apply: 'Apply', Cancel: 'Cancel', ImageReady: 'Image ready: move, resize, rotate, then Apply', ImageApplied: 'Image applied', ImageCanceled: 'Image canceled', CouldNotPasteImage: 'Could not paste image', NothingToPaste: 'Nothing to paste (no image/text found)'
       },
       ja: {
         Pen: 'ペン', Marker: 'マーカー', Eraser: '消しゴム', Line: '直線', Rectangle: '四角形', Ellipse: '楕円', Triangle: '三角形', Polygon: '多角形', Star: '星', Eyedropper: 'スポイト', Hand: 'ハンド',
         Text: 'テキスト', Icons: 'アイコン', SelectMove: '選択/移動', Undo: '元に戻す', Redo: 'やり直し', Import: 'インポート', Export: 'エクスポート', Fullscreen: '全画面',
         Color: '色', Size: 'サイズ', Fill: '塗り', Opacity: '不透明度', Font: 'フォント', Arrowheads: '矢じり', Radius: '角丸', Recent: '最近',
         Smooth: 'スムージング', Grid: 'グリッド', GridSize: 'グリッドサイズ', Align: '配置', Bold: '太字', Italic: '斜体', GridType: 'グリッドタイプ', Sides: '辺数', Points: '点数', Inner: '内側',
-        Theme: 'テーマ', Dark: 'ダーク', Light: 'ライト', Autosave: '自動保存', SaveNow: '今すぐ保存', ArrowSize: '矢じりサイズ', Dashed: '破線', Dash: 'ダッシュ', FontStandard: '標準', FontHandwriting: '手書き', FontPreviewSample: 'メモ', Apply: '適用', Cancel: 'キャンセル', ImageReady: '画像を移動・サイズ変更・回転してから適用', ImageApplied: '画像を適用しました', ImageCanceled: '画像をキャンセルしました', CouldNotPasteImage: '画像を貼り付けできませんでした', NothingToPaste: '貼り付ける画像/テキストがありません'
+        Theme: 'テーマ', Dark: 'ダーク', Light: 'ライト', Autosave: '自動保存', SaveNow: '今すぐ保存', Open: '開く', Save: '保存', SaveAs: '名前を付けて保存', ArrowSize: '矢じりサイズ', Dashed: '破線', Dash: 'ダッシュ', FontStandard: '標準', FontHandwriting: '手書き', FontPreviewSample: 'メモ', Apply: '適用', Cancel: 'キャンセル', ImageReady: '画像を移動・サイズ変更・回転してから適用', ImageApplied: '画像を適用しました', ImageCanceled: '画像をキャンセルしました', CouldNotPasteImage: '画像を貼り付けできませんでした', NothingToPaste: '貼り付ける画像/テキストがありません'
       },
       pt: {
         Pen: 'Caneta', Marker: 'Marcador', Eraser: 'Borracha', Line: 'Linha', Rectangle: 'Retângulo', Ellipse: 'Elipse', Triangle: 'Triângulo', Polygon: 'Polígono', Star: 'Estrela', Eyedropper: 'Conta-gotas', Hand: 'Mão',
         Text: 'Texto', Icons: 'Ícones', SelectMove: 'Selecionar/Mover', Undo: 'Desfazer', Redo: 'Refazer', Import: 'Importar', Export: 'Exportar', Fullscreen: 'Tela cheia',
         Color: 'Cor', Size: 'Tamanho', Fill: 'Preenchimento', Opacity: 'Opacidade', Font: 'Fonte', Arrowheads: 'Pontas de seta', Radius: 'Raio', Recent: 'Recentes',
         Smooth: 'Suavizar', Grid: 'Grade', GridSize: 'Tamanho da grade', Align: 'Alinhar', Bold: 'Negrito', Italic: 'Itálico', GridType: 'Tipo de grade', Sides: 'Lados', Points: 'Pontos', Inner: 'Interno',
-        Theme: 'Tema', Dark: 'Escuro', Light: 'Claro', Autosave: 'Auto salvar', SaveNow: 'Salvar agora', ArrowSize: 'Tam. seta', Dashed: 'Tracejado', Dash: 'Traço', FontStandard: 'Padrão', FontHandwriting: 'Escrita à mão', FontPreviewSample: 'Nota rápida', Apply: 'Aplicar', Cancel: 'Cancelar', ImageReady: 'Imagem pronta: mova, redimensione, gire e aplique', ImageApplied: 'Imagem aplicada', ImageCanceled: 'Imagem cancelada', CouldNotPasteImage: 'Não foi possível colar a imagem', NothingToPaste: 'Nada para colar (sem imagem/texto)'
+        Theme: 'Tema', Dark: 'Escuro', Light: 'Claro', Autosave: 'Auto salvar', SaveNow: 'Salvar agora', Open: 'Abrir', Save: 'Salvar', SaveAs: 'Salvar como', ArrowSize: 'Tam. seta', Dashed: 'Tracejado', Dash: 'Traço', FontStandard: 'Padrão', FontHandwriting: 'Escrita à mão', FontPreviewSample: 'Nota rápida', Apply: 'Aplicar', Cancel: 'Cancelar', ImageReady: 'Imagem pronta: mova, redimensione, gire e aplique', ImageApplied: 'Imagem aplicada', ImageCanceled: 'Imagem cancelada', CouldNotPasteImage: 'Não foi possível colar a imagem', NothingToPaste: 'Nada para colar (sem imagem/texto)'
       }
     };
 
@@ -890,6 +910,9 @@
     let canvasLogicalHeight = 0;
     let tabs = [];
     let activeTabId = null;
+    let osFiles = { hosted: false };
+    let osFileName = null;
+    let osSaveTimer = null;
 
     let history = [];
     let future = [];
@@ -1095,7 +1118,8 @@
         if (history.length > HISTORY_LIMIT) history.shift();
         future = [];
         updateUndoRedoButtons();
-        if (persist && autosaveToggle.checked) saveToStorage();
+        if (persist && osFiles && osFiles.hosted) scheduleOsSave();
+        else if (persist && autosaveToggle.checked) saveToStorage();
       } catch (e) { /* ignore if too large */ }
     }
 
@@ -2290,7 +2314,11 @@
       const btn = e.target.closest('.tool-btn'); if (!btn) return;
       if (btn.id === 'undoBtn') return undo();
       if (btn.id === 'redoBtn') return redo();
-      if (btn.id === 'importBtn') { fileInput.click(); return; }
+      if (btn.id === 'importBtn') {
+        if (osFiles && osFiles.hosted) osFiles.openPicker();
+        else fileInput.click();
+        return;
+      }
       if (btn.id === 'exportBtn') { doExport(); return; }
       if (btn.id === 'fullscreenBtn') { toggleFullscreen(); return; }
       if (btn.dataset.tool) setTool(btn.dataset.tool);
@@ -2499,7 +2527,10 @@
       if (loaded && autosaveToggle.checked) saveToStorage(id);
       return loaded;
     }
-    saveNowBtn.addEventListener('click', () => { saveToStorage(); });
+    saveNowBtn.addEventListener('click', () => {
+      if (osFiles && osFiles.hosted) osFiles.save();
+      else saveToStorage();
+    });
 
     // Clear all
     clearBtn.addEventListener('click', () => {
@@ -2574,6 +2605,82 @@
       const ts = new Date().toISOString().replace(/[:.]/g,'-');
       a.download = `whiteboard-${ts}.${wantJPEG ? 'jpg' : 'png'}`;
       a.href = data; a.click();
+    }
+
+    function mimeForExt(ext) {
+      if (ext === 'jpg' || ext === 'jpeg') return 'image/jpeg';
+      if (ext === 'webp') return 'image/webp';
+      return 'image/png';
+    }
+
+    function flattenBoardBlob(mime) {
+      mime = mime || 'image/png';
+      const c = document.createElement('canvas');
+      c.width = Math.max(1, canvasLogicalWidth || board.width);
+      c.height = Math.max(1, canvasLogicalHeight || board.height);
+      const x = c.getContext('2d');
+      if (mime !== 'image/png') {
+        x.fillStyle = '#ffffff';
+        x.fillRect(0, 0, c.width, c.height);
+      }
+      x.drawImage(board, 0, 0, c.width, c.height);
+      return canvasToBlob(c, mime);
+    }
+
+    function scheduleOsSave() {
+      if (!osFiles || !osFiles.hosted) return;
+      clearTimeout(osSaveTimer);
+      osSaveTimer = setTimeout(() => { osFiles.save().catch(() => {}); }, 600);
+    }
+
+    async function loadOsImage(blob, node) {
+      osFileName = node && node.name;
+      const url = URL.createObjectURL(blob);
+      try {
+        const img = new Image();
+        await new Promise((ok, err) => { img.onload = ok; img.onerror = err; img.src = url; });
+        const width = Math.max(1, img.naturalWidth || img.width || 1);
+        const height = Math.max(1, img.naturalHeight || img.height || 1);
+        resizeCanvasWorld(width, height, 0, 0);
+        ctx.clearRect(0, 0, canvasLogicalWidth, canvasLogicalHeight);
+        ctx.drawImage(img, 0, 0, canvasLogicalWidth, canvasLogicalHeight);
+        history = [];
+        future = [];
+        pushHistory(false);
+        if (typeof centerCanvas === 'function') centerCanvas();
+        else drawGrid();
+        redraw();
+      } finally {
+        URL.revokeObjectURL(url);
+      }
+    }
+
+    function setupOsFiles() {
+      if (!window.OSFileClient) return;
+      osFiles = window.OSFileClient.connect({
+        appId: 'utils-whiteboard',
+        exts: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'avif', 'ico', 'svg'],
+        defaultExt: 'png',
+        defaultName: 'whiteboard.png',
+        load: loadOsImage,
+        serialize: async () => {
+          const ext = (window.OSFileClient && window.OSFileClient.extOfName(osFileName)) || 'png';
+          const mime = mimeForExt(ext);
+          const blob = await flattenBoardBlob(mime);
+          const name = osFileName && window.OSFileClient.extOfName(osFileName)
+            ? osFileName
+            : ((osFileName || 'whiteboard').replace(/\.[^.]+$/, '') + '.' + (ext === 'jpeg' ? 'jpg' : ext === 'jpg' || ext === 'webp' ? ext : 'png'));
+          return { blob, name, mime };
+        }
+      });
+      if (!osFiles.hosted) return;
+      const bar = qs('#os-file-bar');
+      if (bar) bar.hidden = false;
+      qs('#osSaveBtn').addEventListener('click', () => osFiles.save());
+      qs('#osSaveAsBtn').addEventListener('click', async () => {
+        const node = await osFiles.saveAs();
+        if (node) osFileName = node.name;
+      });
     }
 
     // Drag & drop
@@ -2825,9 +2932,14 @@
       qsa('.tool-btn[data-tool="select"]').forEach(b => { b.setAttribute('data-title', S.SelectMove); b.setAttribute('aria-label', S.SelectMove); });
       undoBtn.setAttribute('data-title', S.Undo); undoBtn.setAttribute('aria-label', S.Undo);
       redoBtn.setAttribute('data-title', S.Redo); redoBtn.setAttribute('aria-label', S.Redo);
-      importBtn.setAttribute('data-title', S.Import); importBtn.setAttribute('aria-label', S.Import);
+      const importLabel = (osFiles && osFiles.hosted && S.Open) ? S.Open : S.Import;
+      importBtn.setAttribute('data-title', importLabel); importBtn.setAttribute('aria-label', importLabel);
       exportBtn.setAttribute('data-title', S.Export); exportBtn.setAttribute('aria-label', S.Export);
       fullscreenBtn.setAttribute('data-title', S.Fullscreen); fullscreenBtn.setAttribute('aria-label', S.Fullscreen);
+      const osSaveBtn = qs('#osSaveBtn');
+      const osSaveAsBtn = qs('#osSaveAsBtn');
+      if (osSaveBtn) osSaveBtn.textContent = S.Save;
+      if (osSaveAsBtn) osSaveAsBtn.textContent = S.SaveAs;
       // Labels
       qs('#lblColor').textContent = S.Color;
       qs('#lblSize').textContent = S.Size;
@@ -2892,8 +3004,13 @@
       document.body.classList.remove('theme-light');
     }
     drawGrid();
-    // Attempt to load autosave
-    loadFromStorage();
+    setupOsFiles();
+    applyLang();
+    if (osFiles && osFiles.hosted && osFiles.pendingId && osFiles.pendingId()) {
+      osFiles.reloadPending();
+    } else {
+      loadFromStorage();
+    }
     updateOptionVisibility();
 
     // Apply saved control prefs

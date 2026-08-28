@@ -29,6 +29,35 @@ window.OSState = (function () {
     return out;
   }
 
+  function normalizeDesktopLayout(raw) {
+    const out = {};
+    if (!raw || typeof raw !== "object") return out;
+    Object.keys(raw).forEach((key) => {
+      const item = raw[key];
+      if (!item || typeof item !== "object") return;
+      const c = Math.floor(Number(item.c));
+      const r = Math.floor(Number(item.r));
+      if (!Number.isFinite(c) || !Number.isFinite(r) || c < 0 || r < 0) return;
+      out[key] = { c, r };
+    });
+    return out;
+  }
+
+  function normalizeFileApps(raw) {
+    const out = {};
+    if (!raw || typeof raw !== "object") return out;
+    Object.keys(raw).forEach((ext) => {
+      const item = raw[ext];
+      if (!item || typeof item !== "object") return;
+      const key = String(ext).replace(/^\./, "").toLowerCase();
+      if (!key) return;
+      const apps = Array.isArray(item.apps) ? item.apps.filter((id) => typeof id === "string" && id) : [];
+      const def = typeof item.default === "string" && item.default ? item.default : null;
+      out[key] = { apps, default: def };
+    });
+    return out;
+  }
+
   function defaultState() {
     const installed = ["settings", ...window.OSCatalog.DEFAULT_INSTALLED];
     return {
@@ -38,8 +67,10 @@ window.OSState = (function () {
       desktopIcons: ["sheets", "app-builder", ...window.OSCatalog.DEFAULT_INSTALLED],
       windows: [],
       placements: {},
+      desktopLayout: {},
       wallpaperId: "bloom",
       focusedId: null,
+      fileApps: {},
     };
   }
 
@@ -173,8 +204,10 @@ window.OSState = (function () {
       desktopIcons: Array.isArray(raw.desktopIcons) ? raw.desktopIcons.filter(Boolean) : base.desktopIcons,
       windows: Array.isArray(raw.windows) ? raw.windows.filter((w) => w && w.id) : [],
       placements: normalizePlacements(raw.placements),
+      desktopLayout: normalizeDesktopLayout(raw.desktopLayout),
       wallpaperId: typeof raw.wallpaperId === "string" && raw.wallpaperId ? raw.wallpaperId : "bloom",
       focusedId: raw.focusedId || null,
+      fileApps: normalizeFileApps(raw.fileApps),
     };
   }
 

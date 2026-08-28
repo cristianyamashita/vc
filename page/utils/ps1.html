@@ -51,12 +51,15 @@
     gtag('js', new Date());
     gtag('config', 'G-NWZDZ906DJ');
   </script>
+  <script src="../os/js/file-client.js"></script>
 </head>
 <body>
 <div class="app">
   <header>
     <button class="btn" id="btnNew">New</button>
     <button class="btn" id="btnOpen">Open</button>
+    <button class="btn" id="btnSave" hidden>Save</button>
+    <button class="btn" id="btnSaveAs" hidden>Save as</button>
     <button class="btn" id="btnExport">Export</button>
     <div class="sep"></div>
     <button class="btn" id="btnUndo">Undo</button>
@@ -403,6 +406,42 @@
   $('#btnLayerDown').addEventListener('click', ()=> moveLayer(-1));
 
   // Init
+  function composeCanvas(){
+    const out=document.createElement('canvas'); out.width=docW; out.height=docH; const octx=out.getContext('2d');
+    octx.filter=$('#filterSel').value;
+    layers.forEach(l=>{ if(!l.visible) return; octx.globalAlpha=l.opacity; octx.globalCompositeOperation=l.blend; octx.drawImage(l.canvas,l.x,l.y); });
+    return out;
+  }
+  function canvasToBlob(canvas, mime){
+    return new Promise(res=> canvas.toBlob(b=>res(b), mime||'image/png'));
+  }
+  async function loadImageBlob(blob){
+    const url=URL.createObjectURL(blob);
+    try{
+      const img=new Image();
+      await new Promise((ok,err)=>{ img.onload=ok; img.onerror=err; img.src=url; });
+      setDocSize(img.width, img.height); layers.length=0; const base=makeLayer(docW,docH,'Background'); base.ctx.drawImage(img,0,0); layers.push(base); active=0; snapshot(); refreshLayersUI(); redraw();
+    } finally { URL.revokeObjectURL(url); }
+  }
+  let osFileName=null;
+  const osFiles=window.OSFileClient&&window.OSFileClient.connect({
+    appId:'utils-ps1',
+    exts:['png','jpg','jpeg','gif','webp','bmp','avif','ico','svg'],
+    defaultExt:'png',
+    defaultName:'image.png',
+    load:async(blob,node)=>{ osFileName=node.name; await loadImageBlob(blob); },
+    serialize:async()=>{
+      const blob=await canvasToBlob(composeCanvas(),'image/png');
+      const name=(osFileName&&/\.png$/i.test(osFileName))?osFileName:((osFileName||'image').replace(/\.[^.]+$/,'')+'.png');
+      return {blob, name, mime:'image/png'};
+    }
+  });
+  if(osFiles&&osFiles.hosted){
+    $('#btnSave').hidden=false; $('#btnSaveAs').hidden=false;
+    $('#btnOpen').addEventListener('click', e=>{ e.stopImmediatePropagation(); e.preventDefault(); osFiles.openPicker(); }, true);
+    $('#btnSave').addEventListener('click', ()=> osFiles.save());
+    $('#btnSaveAs').addEventListener('click', async()=>{ const n=await osFiles.saveAs(); if(n) osFileName=n.name; });
+  }
   function init(){ setDocSize(docW,docH); layers.push(makeLayer(docW,docH,'Background')); active=0; snapshot(); refreshLayersUI(); redraw(); fitToView(); updateZoom(1); }
   init();
 })();
