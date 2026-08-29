@@ -7,6 +7,7 @@ window.OSSettings = (function () {
   let customWalls = [];
   let uploadHint = "";
   let fileBound = false;
+  let offlineUnsub = null;
   const customUrls = new Map();
 
   function t(key, vars) {
@@ -73,11 +74,56 @@ window.OSSettings = (function () {
     if (currentPane === "more") {
       return moreHtml();
     }
+    if (currentPane === "offline") {
+      return offlineHtml();
+    }
     return preferencesHtml();
   }
 
   function shortcutRow(keys, label) {
     return `<div class="shortcut-row"><kbd>${escapeHtml(keys)}</kbd><span>${escapeHtml(label)}</span></div>`;
+  }
+
+  function formatOfflineWhen(ts) {
+    if (!ts) return t("offlineNever");
+    try {
+      const lang = (window.OS && window.OS.lang) || "en";
+      const locale = lang === "ja" ? "ja" : lang === "pt" ? "pt" : "en";
+      return new Date(ts).toLocaleString(locale);
+    } catch (_err) {
+      return String(ts);
+    }
+  }
+
+  function formatOfflineSize(bytes) {
+    if (window.OSFS && window.OSFS.formatSize) return window.OSFS.formatSize(bytes || 0);
+    const n = Number(bytes) || 0;
+    if (n < 1024) return n + " B";
+    if (n < 1024 * 1024) return Math.round(n / 1024) + " KB";
+    return (n / (1024 * 1024)).toFixed(1) + " MB";
+  }
+
+  function offlineHtml() {
+    return `
+      <h2>${escapeHtml(t("offline"))}</h2>
+      <p class="muted">${escapeHtml(t("offlineHint"))}</p>
+      <p class="offline-status" id="os-offline-status"></p>
+      <p class="muted" id="os-offline-sync"></p>
+      <p class="muted" id="os-offline-cache"></p>
+      <p class="muted" id="os-offline-progress-label"></p>
+      <div class="offline-progress" id="os-offline-progress" hidden><span></span></div>
+      <p class="muted" id="os-offline-failed"></p>
+      <p class="muted" id="os-offline-error"></p>
+      <div class="offline-actions">
+        <button type="button" class="btn-install" id="os-offline-lite">${escapeHtml(t("offlineDownloadLite"))}</button>
+        <button type="button" class="btn-install" id="os-offline-full">${escapeHtml(t("offlineDownloadFull"))}</button>
+        <button type="button" id="os-offline-update">${escapeHtml(t("offlineUpdate"))}</button>
+        <button type="button" class="btn-uninstall" id="os-offline-clear">${escapeHtml(t("offlineClear"))}</button>
+      </div>
+      <p class="muted">${escapeHtml(t("offlineLiteHint"))}</p>
+      <p class="muted">${escapeHtml(t("offlineFullHint"))}</p>
+      <p class="muted offline-limits">${escapeHtml(t("offlineLimits"))}</p>
+    `;
   }
 
   function moreHtml() {
@@ -354,6 +400,7 @@ window.OSSettings = (function () {
           <button type="button" data-pane="appearance" class="${currentPane === "appearance" ? "active" : ""}">${escapeHtml(t("appearance"))}</button>
           <button type="button" data-pane="file-types" class="${currentPane === "file-types" ? "active" : ""}">${escapeHtml(t("fileTypes"))}</button>
           <button type="button" data-pane="install" class="${currentPane === "install" ? "active" : ""}">${escapeHtml(t("installApps"))}</button>
+          <button type="button" data-pane="offline" class="${currentPane === "offline" ? "active" : ""}">${escapeHtml(t("offline"))}</button>
           <button type="button" data-pane="registry" class="${currentPane === "registry" ? "active" : ""}">${escapeHtml(t("registry"))}</button>
           <button type="button" data-pane="more" class="${currentPane === "more" ? "active" : ""}">${escapeHtml(t("more"))}</button>
         </nav>
@@ -368,6 +415,11 @@ window.OSSettings = (function () {
       if (registryRoot) window.OSRegistry.mount(registryRoot);
     }
     if (currentPane === "more") fillStorage(root);
+    if (currentPane === "offline") bindOffline(root);
+    else if (offlineUnsub) {
+      offlineUnsub();
+      offlineUnsub = null;
+    }
   }
 
   async function fillStorage(root) {
@@ -708,6 +760,110 @@ window.OSSettings = (function () {
     if (motion) {
       motion.addEventListener("change", () => {
         if (window.OS && window.OS.applyReducedMotion) window.OS.applyReducedMotion(motion.checked);
+      });
+    }
+    bindOfflineButtons(root);
+  }
+
+  function offlinePhaseLabel(info) {
+    if (!info.supported) return t("offlineUnsupported");
+    if (!info.secure) return t("offlineNeedHttps");
+    if (info.phase === "downloading" || info.phase === "registering") return t("offlineStatusDownloading");
+    if (info.phase === "clearing") return t("offlineStatusClearing");
+    if (info.phase === "error") return t("offlineStatusError");
+    if (info.enabled && info.lastSync) return t("offlineStatusReady");
+    return t("offlineStatusInactive");
+  }
+
+  function updateOfflinePane(root) {
+    if (!root || currentPane !== "offline") return;
+    const api = window.OSOffline;
+    const info = api ? api.getStatus() : { supported: false, secure: false, phase: "idle" };
+    const busy = info.phase === "downloading" || info.phase === "registering" || info.phase === "clearing";
+    const statusEl = root.querySelector("#os-offline-status");
+    const syncEl = root.querySelector("#os-offline-sync");
+    const cacheEl = root.querySelector("#os-offline-cache");
+    const progressLabel = root.querySelector("#os-offline-progress-label");
+    const progress = root.querySelector("#os-offline-progress");
+    const bar = progress ? progress.querySelector("span") : null;
+    const failedEl = root.querySelector("#os-offline-failed");
+    const errorEl = root.querySelector("#os-offline-error");
+    if (statusEl) statusEl.textContent = offlinePhaseLabel(info);
+    if (syncEl) {
+      syncEl.textContent = info.lastSync
+        ? t("offlineLastSync", { when: formatOfflineWhen(info.lastSync) })
+        : t("offlineNever");
+    }
+    if (cacheEl) {
+      const size = formatOfflineSize(info.cacheBytes || 0);
+      cacheEl.textContent = t("offlineCacheSize", { size });
+    }
+    const canNet = typeof navigator === "undefined" || navigator.onLine;
+    if (progress) progress.hidden = !info.total;
+    if (progressLabel) {
+      progressLabel.textContent = info.total ? t("offlineProgress", { done: info.done, total: info.total }) : "";
+    }
+    if (bar && info.total) bar.style.width = Math.round((info.done / info.total) * 100) + "%";
+    if (failedEl) {
+      failedEl.textContent = info.failed ? t("offlineFailed", { n: info.failed }) : "";
+    }
+    if (errorEl) {
+      let msg = "";
+      if (!info.supported) msg = t("offlineUnsupported");
+      else if (!info.secure) msg = t("offlineNeedHttps");
+      else if (!canNet && !busy) msg = t("offlineNeedOnline");
+      else if (info.error === "quota") msg = t("offlineQuota");
+      else if (info.error) msg = t("offlineStatusError");
+      else if (info.persisted && info.enabled) msg = t("offlinePersistOk");
+      else if (api && api.updateAvailable && api.updateAvailable()) msg = t("offlineUpdateHint");
+      errorEl.textContent = msg;
+    }
+    const lite = root.querySelector("#os-offline-lite");
+    const full = root.querySelector("#os-offline-full");
+    const update = root.querySelector("#os-offline-update");
+    const clear = root.querySelector("#os-offline-clear");
+    const allowDl = info.supported && info.secure && canNet && !busy;
+    if (lite) lite.disabled = !allowDl;
+    if (full) full.disabled = !allowDl;
+    if (update) update.disabled = !allowDl || !info.enabled;
+    if (clear) clear.disabled = busy || (!info.enabled && info.phase === "idle");
+  }
+
+  function bindOffline(root) {
+    if (offlineUnsub) {
+      offlineUnsub();
+      offlineUnsub = null;
+    }
+    if (currentPane !== "offline" || !window.OSOffline) return;
+    updateOfflinePane(root);
+    offlineUnsub = window.OSOffline.subscribe(() => updateOfflinePane(root));
+  }
+
+  function bindOfflineButtons(root) {
+    const lite = root.querySelector("#os-offline-lite");
+    const full = root.querySelector("#os-offline-full");
+    const update = root.querySelector("#os-offline-update");
+    const clear = root.querySelector("#os-offline-clear");
+    if (!window.OSOffline) return;
+    if (lite) {
+      lite.addEventListener("click", () => {
+        window.OSOffline.download("lite").catch(() => {});
+      });
+    }
+    if (full) {
+      full.addEventListener("click", () => {
+        window.OSOffline.download("full").catch(() => {});
+      });
+    }
+    if (update) {
+      update.addEventListener("click", () => {
+        const info = window.OSOffline.getStatus();
+        window.OSOffline.download(info.pack || "lite").catch(() => {});
+      });
+    }
+    if (clear) {
+      clear.addEventListener("click", () => {
+        window.OSOffline.disable().catch(() => {});
       });
     }
   }

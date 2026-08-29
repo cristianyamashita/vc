@@ -593,6 +593,16 @@ window.OSCatalog = (function () {{
         encoding="utf-8",
     )
     print(f"Wrote {OUT} with {len(apps)} apps ({len(apps) - native_count} site + {native_count} native)")
+    try:
+        import subprocess
+        import sys
+
+        subprocess.run(
+            [sys.executable, str(ROOT / "scripts" / "build_offline_manifest.py")],
+            check=False,
+        )
+    except Exception as exc:
+        print(f"offline manifest skipped: {exc}")
 
 
 if __name__ == "__main__":

@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Offline</title>
+    <link rel="icon" href="../assets/icons/ico/os.ico" type="image/x-icon" />
+    <style>
+      :root {
+        color-scheme: dark light;
+        --bg: #151515;
+        --ink: #f7f5ef;
+        --muted: #b8b4aa;
+        --accent: #19c39f;
+      }
+      html[data-theme="light"] {
+        --bg: #f7f8f6;
+        --ink: #171918;
+        --muted: #626861;
+        --accent: #008f7d;
+      }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        font: 15px/1.5 system-ui, sans-serif;
+        background: var(--bg);
+        color: var(--ink);
+        padding: 24px;
+      }
+      main {
+        max-width: 36rem;
+      }
+      a {
+        color: var(--accent);
+      }
+      p {
+        color: var(--muted);
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1 id="title">Offline</h1>
+      <p id="body">This page is not in the offline cache yet. Open Desktop over the network once and download a pack in Settings → Offline.</p>
+      <p><a id="home" href="index.html">Back to Desktop</a></p>
+    </main>
+    <script>
+      (function () {
+        const lang = localStorage.getItem("app_lang") || "en";
+        const theme = localStorage.getItem("app_theme") === "light" ? "light" : "dark";
+        document.documentElement.lang = lang === "pt" || lang === "ja" ? lang : "en";
+        document.documentElement.dataset.theme = theme;
+        const copy = {
+          en: {
+            title: "Offline",
+            body: "This page is not in the offline cache yet. Open Desktop over the network once and download a pack in Settings → Offline.",
+            home: "Back to Desktop",
+          },
+          pt: {
+            title: "Offline",
+            body: "Esta página ainda não está no cache offline. Abra o Desktop com rede uma vez e descarregue um pacote em Configurações → Offline.",
+            home: "Voltar ao Desktop",
+          },
+          ja: {
+            title: "オフライン",
+            body: "このページはまだオフラインキャッシュにありません。ネットワーク接続中にデスクトップを開き、設定 → オフラインでパックをダウンロードしてください。",
+            home: "デスクトップに戻る",
+          },
+        };
+        const pack = copy[lang] || copy.en;
+        document.getElementById("title").textContent = pack.title;
+        document.getElementById("body").textContent = pack.body;
+        document.getElementById("home").textContent = pack.home;
+        document.title = pack.title;
+      })();
+    </script>
+  </body>
+</html>

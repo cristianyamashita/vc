@@ -150,7 +150,13 @@ window.OS = (function () {
   function setWallpaper(id) {
     api.state.wallpaperId = id || "bloom";
     persistNow();
-    return applyWallpaper();
+    const done = applyWallpaper();
+    if (window.OSOffline && window.OSOffline.cacheCurrentWallpaper) {
+      Promise.resolve(done).then(function () {
+        window.OSOffline.cacheCurrentWallpaper();
+      });
+    }
+    return done;
   }
 
   function setIconColor(value) {
@@ -1185,6 +1191,9 @@ window.OS = (function () {
       window.OSWindows.open(hash.id, { x: hash.x, y: hash.y, w: hash.w, h: hash.h, fromHash: true });
     } else {
       window.OSWindows.restoreList(api.state.windows, api.state.focusedId);
+    }
+    if (window.OSOffline && window.OSOffline.syncFromState) {
+      window.OSOffline.syncFromState();
     }
   }
 

@@ -90,6 +90,10 @@ window.OSState = (function () {
       browser: { bookmarks: [], history: [], cookies: [], proxy: "" },
       appliedWidgets: false,
       appliedExclusiveDesktop: EXCLUSIVE_DESKTOP.slice(),
+      offlineEnabled: false,
+      offlinePack: null,
+      offlineLastSync: 0,
+      offlineCacheVersion: "",
     };
   }
 
@@ -342,6 +346,10 @@ window.OSState = (function () {
             }
           : { bookmarks: [], history: [], cookies: [] },
       appliedWidgets: !!raw.appliedWidgets,
+      offlineEnabled: !!raw.offlineEnabled,
+      offlinePack: raw.offlinePack === "full" || raw.offlinePack === "lite" ? raw.offlinePack : null,
+      offlineLastSync: Number(raw.offlineLastSync) || 0,
+      offlineCacheVersion: typeof raw.offlineCacheVersion === "string" ? raw.offlineCacheVersion : "",
     };
   }
 
