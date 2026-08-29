@@ -71,9 +71,45 @@ window.OSSettings = (function () {
       return `<div id="os-registry-root" class="registry-root"></div>`;
     }
     if (currentPane === "more") {
-      return `<h2>${escapeHtml(t("comingSoon"))}</h2><p class="muted">${escapeHtml(t("comingSoon"))}</p>`;
+      return moreHtml();
     }
     return preferencesHtml();
+  }
+
+  function shortcutRow(keys, label) {
+    return `<div class="shortcut-row"><kbd>${escapeHtml(keys)}</kbd><span>${escapeHtml(label)}</span></div>`;
+  }
+
+  function moreHtml() {
+    const motion = !!(window.OS && window.OS.state && window.OS.state.reducedMotion);
+    return `
+      <h2>${escapeHtml(t("more"))}</h2>
+      <p class="muted">${escapeHtml(t("moreHint"))}</p>
+      <h3>${escapeHtml(t("about"))}</h3>
+      <p>${escapeHtml(t("aboutBody"))}</p>
+      <p class="muted">${escapeHtml(navigator.userAgent || "")}</p>
+      <h3>${escapeHtml(t("storage"))}</h3>
+      <p id="os-storage-line" class="muted">${escapeHtml(t("registryLoading"))}</p>
+      <p><a class="settings-link" href="../utils/backup.html" target="_blank" rel="noopener">${escapeHtml(t("registryBackupLink"))}</a></p>
+      <h3>${escapeHtml(t("shortcuts"))}</h3>
+      <div class="shortcut-list">
+        ${shortcutRow("Ctrl+Esc", t("shortcutStart"))}
+        ${shortcutRow("Ctrl+Alt+Tab", t("shortcutSwitcher"))}
+        ${shortcutRow("Alt+`", t("shortcutAppSwitch"))}
+        ${shortcutRow("Ctrl+E", t("shortcutExplorer"))}
+        ${shortcutRow("Ctrl+,", t("shortcutSettings"))}
+        ${shortcutRow("Alt+R", t("shortcutRun"))}
+        ${shortcutRow("Ctrl+Alt+←/→/↑/↓", t("shortcutSnap"))}
+        ${shortcutRow("Ctrl+Shift+A", t("shortcutQuick"))}
+        ${shortcutRow("Ctrl+Shift+V", t("shortcutClipboard"))}
+        ${shortcutRow("Alt+F4", t("shortcutClose"))}
+      </div>
+      <h3>${escapeHtml(t("reducedMotion"))}</h3>
+      <label class="settings-check">
+        <input id="os-reduced-motion" type="checkbox"${motion ? " checked" : ""}>
+        <span>${escapeHtml(t("reducedMotionHint"))}</span>
+      </label>
+    `;
   }
 
   function preferencesHtml() {
@@ -149,6 +185,24 @@ window.OSSettings = (function () {
   function appearanceHtml() {
     const theme = window.OS.theme;
     const current = window.OS.state.wallpaperId || "bloom";
+    const iconColor = window.OSIconColor ? window.OSIconColor.current() : "#008f7d";
+    const st = window.OS.state || {};
+    const glass = Number.isFinite(Number(st.glass)) ? Number(st.glass) : 86;
+    const blur = Number.isFinite(Number(st.blur)) ? Number(st.blur) : 20;
+    const night = Number.isFinite(Number(st.nightLight)) ? Number(st.nightLight) : 0;
+    const iconSize = st.iconSize === "s" || st.iconSize === "l" ? st.iconSize : "m";
+    const glassPreset =
+      glass >= 98 && blur <= 1 ? "solid" : glass <= 68 && blur >= 28 ? "vibrancy" : glass >= 76 && glass <= 90 && blur >= 14 && blur <= 26 ? "acrylic" : "";
+    const presets = (window.OSIconColor && window.OSIconColor.PRESETS) || ["#008f7d"];
+    const swatches = presets
+      .map((hex) => {
+        const selected = hex === iconColor ? " selected" : "";
+        return `<button type="button" class="icon-color-swatch${selected}" data-icon-swatch="${hex}" style="background:${hex}" title="${hex}" aria-label="${hex}"></button>`;
+      })
+      .join("");
+    const iconPreview = ["os", "os-file_explorer", "os-sheets", "utils-calculator", "utils-notebook"]
+      .map((slug) => `<img src="../assets/icons/svg/${slug}.svg" alt="">`)
+      .join("");
     const builtinTiles = builtinWallpapers().map((id) => {
       const selected = current === id ? " selected" : "";
       const imageSrc = window.OS.wallpaperImageSrc(id);
@@ -185,6 +239,42 @@ window.OSSettings = (function () {
           <option value="light"${theme === "light" ? " selected" : ""}>${escapeHtml(t("light"))}</option>
         </select>
       </div>
+      <h3>${escapeHtml(t("glass"))}</h3>
+      <p class="muted icon-color-hint">${escapeHtml(t("glassHint"))}</p>
+      <div class="glass-presets">
+        <button type="button" data-glass-preset="solid"${glassPreset === "solid" ? " class=\"selected\"" : ""}>${escapeHtml(t("glassSolid"))}</button>
+        <button type="button" data-glass-preset="acrylic"${glassPreset === "acrylic" ? " class=\"selected\"" : ""}>${escapeHtml(t("glassAcrylic"))}</button>
+        <button type="button" data-glass-preset="vibrancy"${glassPreset === "vibrancy" ? " class=\"selected\"" : ""}>${escapeHtml(t("glassVibrancy"))}</button>
+      </div>
+      <div class="settings-field">
+        <label for="os-glass">${escapeHtml(t("glassOpacity"))} <span class="settings-range-val" id="os-glass-val">${glass}%</span></label>
+        <input id="os-glass" type="range" min="40" max="100" value="${glass}">
+      </div>
+      <div class="settings-field">
+        <label for="os-blur">${escapeHtml(t("glassBlur"))} <span class="settings-range-val" id="os-blur-val">${blur}px</span></label>
+        <input id="os-blur" type="range" min="0" max="40" value="${blur}">
+      </div>
+      <h3>${escapeHtml(t("nightLight"))}</h3>
+      <p class="muted icon-color-hint">${escapeHtml(t("nightLightHint"))}</p>
+      <div class="settings-field">
+        <label for="os-night">${escapeHtml(t("nightLight"))} <span class="settings-range-val" id="os-night-val">${night}%</span></label>
+        <input id="os-night" type="range" min="0" max="80" value="${night}">
+      </div>
+      <h3>${escapeHtml(t("iconSize"))}</h3>
+      <div class="settings-seg">
+        <button type="button" data-icon-size="s"${iconSize === "s" ? " class=\"selected\"" : ""}>${escapeHtml(t("iconSizeS"))}</button>
+        <button type="button" data-icon-size="m"${iconSize === "m" ? " class=\"selected\"" : ""}>${escapeHtml(t("iconSizeM"))}</button>
+        <button type="button" data-icon-size="l"${iconSize === "l" ? " class=\"selected\"" : ""}>${escapeHtml(t("iconSizeL"))}</button>
+      </div>
+      <h3>${escapeHtml(t("iconColor"))}</h3>
+      <p class="muted icon-color-hint">${escapeHtml(t("iconColorHint"))}</p>
+      <div class="icon-color-row">
+        <input type="color" id="os-icon-color" value="${escapeHtml(iconColor)}" aria-label="${escapeHtml(t("iconColor"))}">
+        <input type="text" id="os-icon-color-hex" value="${escapeHtml(iconColor.toUpperCase())}" spellcheck="false" autocomplete="off" aria-label="${escapeHtml(t("iconColorHex"))}">
+        <button type="button" class="wallpaper-upload" id="os-icon-color-reset">${escapeHtml(t("iconColorReset"))}</button>
+      </div>
+      <div class="icon-color-swatches">${swatches}</div>
+      <div class="icon-color-preview">${iconPreview}</div>
       <h3>${escapeHtml(t("wallpaper"))}</h3>
       <div class="wallpaper-grid">${builtinTiles}</div>
       <h3>${escapeHtml(t("customWallpapers"))}</h3>
@@ -276,6 +366,21 @@ window.OSSettings = (function () {
     if (currentPane === "registry" && window.OSRegistry) {
       const registryRoot = root.querySelector("#os-registry-root");
       if (registryRoot) window.OSRegistry.mount(registryRoot);
+    }
+    if (currentPane === "more") fillStorage(root);
+  }
+
+  async function fillStorage(root) {
+    const line = root.querySelector("#os-storage-line");
+    if (!line || !window.OS || !window.OS.getStorageInfo) return;
+    try {
+      const info = await window.OS.getStorageInfo();
+      const used = window.OSFS.formatSize(info.used);
+      const quota = info.quota ? window.OSFS.formatSize(info.quota) : t("storageUnknown");
+      const files = t("storageFilesLine", { n: info.files, size: window.OSFS.formatSize(info.bytes) });
+      line.textContent = info.quota ? t("storageUsedOf", { used, quota }) + " · " + files : files;
+    } catch (_err) {
+      line.textContent = t("storageUnknown");
     }
   }
 
@@ -404,6 +509,48 @@ window.OSSettings = (function () {
     if (root) await mount(root);
   }
 
+  function syncIconColorUi(root, hex) {
+    const colorInput = root.querySelector("#os-icon-color");
+    const hexInput = root.querySelector("#os-icon-color-hex");
+    if (colorInput) colorInput.value = hex;
+    if (hexInput && document.activeElement !== hexInput) hexInput.value = hex.toUpperCase();
+    root.querySelectorAll("[data-icon-swatch]").forEach((btn) => {
+      btn.classList.toggle("selected", btn.dataset.iconSwatch === hex);
+    });
+  }
+
+  function bindIconColor(root) {
+    const colorInput = root.querySelector("#os-icon-color");
+    const hexInput = root.querySelector("#os-icon-color-hex");
+    const reset = root.querySelector("#os-icon-color-reset");
+    if (!colorInput || !window.OS.setIconColor) return;
+    colorInput.addEventListener("input", () => {
+      window.OS.setIconColor(colorInput.value);
+      syncIconColorUi(root, window.OSIconColor.current());
+    });
+    if (hexInput) {
+      hexInput.addEventListener("input", () => {
+        const parsed = window.OSIconColor.parse(hexInput.value);
+        const raw = String(hexInput.value || "").trim().replace(/^#/, "");
+        if (!/^[0-9a-f]{3}$/i.test(raw) && !/^[0-9a-f]{6}$/i.test(raw)) return;
+        window.OS.setIconColor(parsed);
+        syncIconColorUi(root, parsed);
+      });
+    }
+    if (reset) {
+      reset.addEventListener("click", () => {
+        window.OS.setIconColor(window.OSIconColor.DEFAULT_TEAL);
+        syncIconColorUi(root, window.OSIconColor.DEFAULT_TEAL);
+      });
+    }
+    root.querySelectorAll("[data-icon-swatch]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        window.OS.setIconColor(btn.dataset.iconSwatch);
+        syncIconColorUi(root, window.OSIconColor.current());
+      });
+    });
+  }
+
   function bindFileInput() {
     const fileInput = document.getElementById("os-wallpaper-file");
     if (!fileInput || fileBound) return;
@@ -435,6 +582,49 @@ window.OSSettings = (function () {
     if (theme) theme.addEventListener("change", () => window.OS.setTheme(theme.value));
     const langSel = root.querySelector("#os-lang");
     if (langSel) langSel.addEventListener("change", () => window.OS.setLang(langSel.value));
+    bindIconColor(root);
+    const glass = root.querySelector("#os-glass");
+    if (glass) {
+      glass.addEventListener("input", () => {
+        const n = Number(glass.value);
+        const label = root.querySelector("#os-glass-val");
+        if (label) label.textContent = n + "%";
+        if (window.OS && window.OS.applyAppearance) window.OS.applyAppearance({ glass: n });
+      });
+    }
+    const blur = root.querySelector("#os-blur");
+    if (blur) {
+      blur.addEventListener("input", () => {
+        const n = Number(blur.value);
+        const label = root.querySelector("#os-blur-val");
+        if (label) label.textContent = n + "px";
+        if (window.OS && window.OS.applyAppearance) window.OS.applyAppearance({ blur: n });
+      });
+    }
+    const night = root.querySelector("#os-night");
+    if (night) {
+      night.addEventListener("input", () => {
+        const n = Number(night.value);
+        const label = root.querySelector("#os-night-val");
+        if (label) label.textContent = n + "%";
+        if (window.OS && window.OS.applyAppearance) window.OS.applyAppearance({ nightLight: n });
+      });
+    }
+    root.querySelectorAll("[data-glass-preset]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const id = btn.dataset.glassPreset;
+        if (id === "solid") window.OS.applyAppearance({ glass: 100, blur: 0 });
+        if (id === "acrylic") window.OS.applyAppearance({ glass: 82, blur: 20 });
+        if (id === "vibrancy") window.OS.applyAppearance({ glass: 62, blur: 32 });
+        paint(root);
+      });
+    });
+    root.querySelectorAll("[data-icon-size]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        window.OS.applyAppearance({ iconSize: btn.dataset.iconSize });
+        paint(root);
+      });
+    });
     const resetTypes = root.querySelector("#os-file-types-reset");
     if (resetTypes) {
       resetTypes.addEventListener("click", () => {
@@ -514,6 +704,12 @@ window.OSSettings = (function () {
         removeWallpaper(btn.dataset.deleteWallpaper, root);
       });
     });
+    const motion = root.querySelector("#os-reduced-motion");
+    if (motion) {
+      motion.addEventListener("change", () => {
+        if (window.OS && window.OS.applyReducedMotion) window.OS.applyReducedMotion(motion.checked);
+      });
+    }
   }
 
   return { mount, remountOpen };

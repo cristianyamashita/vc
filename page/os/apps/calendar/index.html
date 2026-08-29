@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <link rel="icon" href="../../../assets/icons/ico/os-calendar.ico" type="image/x-icon">
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Calendar</title>
+    <link rel="stylesheet" href="../apps.css" />
+    <style>
+      .shell { display: grid; grid-template-columns: minmax(280px, 1fr) 340px; height: 100%; }
+      .month { padding: 16px 18px; overflow: auto; }
+      .nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+      .nav button { border: 1px solid var(--line); background: var(--panel); border-radius: 8px; width: 36px; height: 36px; }
+      .week, .grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+      .week span { text-align: center; font-size: 11px; color: var(--muted); padding: 4px 0; }
+      .grid button { border: 0; background: var(--panel); border-radius: 8px; min-height: 44px; position: relative; }
+      .grid button.today { outline: 2px solid var(--accent); }
+      .grid button.selected { background: var(--accent); color: var(--accent-ink); }
+      .grid button.marked::after { content: ""; width: 5px; height: 5px; border-radius: 50%; background: var(--accent); position: absolute; bottom: 6px; left: 50%; transform: translateX(-50%); }
+      .grid button.selected.marked::after { background: var(--accent-ink); }
+      .side { border-left: 1px solid var(--line); padding: 16px; overflow: auto; background: var(--panel); }
+      .item { padding: 10px 0; border-bottom: 1px solid var(--line); }
+      form { display: grid; gap: 8px; margin-top: 14px; }
+      input, textarea, select { border: 1px solid var(--line); background: var(--bg); border-radius: 8px; padding: 8px; }
+      .row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+      @media (max-width: 720px) { .shell { grid-template-columns: 1fr; } .side { border-left: 0; border-top: 1px solid var(--line); } }
+    </style>
+  </head>
+  <body>
+    <div class="shell">
+      <section class="month">
+        <div class="nav">
+          <button type="button" id="prev">‹</button>
+          <h2 id="title"></h2>
+          <button type="button" id="next">›</button>
+        </div>
+        <div class="week" id="week"></div>
+        <div class="grid" id="grid"></div>
+      </section>
+      <aside class="side">
+        <h3 id="day-title"></h3>
+        <div id="items"></div>
+        <form id="form">
+          <input name="title" required>
+          <div class="row">
+            <select name="kind"><option value="event">Event</option><option value="note">Note</option></select>
+            <input name="time" type="time">
+          </div>
+          <textarea name="notes" rows="4"></textarea>
+          <button type="submit" class="primary" style="border:0;background:var(--accent);color:var(--accent-ink);border-radius:8px;padding:9px">Save</button>
+        </form>
+      </aside>
+    </div>
+    <script src="../../js/app-frame.js"></script>
+    <script>
+      const frame = window.OSAppFrame;
+      frame.sync();
+      const Desk = frame.host() && frame.host().OSDesk;
+      let view = new Date();
+      let selected = new Date();
+      function key(d) { return Desk ? Desk.dateKey(d) : ""; }
+      function paint() {
+        if (!Desk) {
+          document.getElementById("items").innerHTML = "<p class='muted'>Open this app from Desktop OS.</p>";
+          return;
+        }
+        document.getElementById("title").textContent = Desk.monthTitle(view);
+        document.getElementById("week").innerHTML = Desk.weekdayLabels().map((d) => "<span>" + d + "</span>").join("");
+        const today = Desk.dateKey(new Date());
+        const sel = key(selected);
+        document.getElementById("grid").innerHTML = Desk.buildMonthGrid(view).map((d) => {
+          if (!d) return "<span></span>";
+          const k = Desk.dateKey(d);
+          const marked = Desk.calendarItems().some((i) => i.date === k);
+          return `<button type="button" class="${k === today ? "today" : ""} ${k === sel ? "selected" : ""} ${marked ? "marked" : ""}" data-day="${k}">${d.getDate()}</button>`;
+        }).join("");
+        const locale = document.documentElement.lang === "pt" ? "pt-BR" : document.documentElement.lang === "ja" ? "ja-JP" : "en-US";
+        document.getElementById("day-title").textContent = selected.toLocaleDateString(locale, { weekday: "long", month: "long", day: "numeric" });
+        const items = Desk.calendarFor(selected);
+        document.getElementById("items").innerHTML = items.length
+          ? items.map((i) => `<div class="item"><strong>${i.time ? i.time + " · " : ""}${i.title}</strong><div class="muted">${i.kind} ${i.notes ? " · " + i.notes : ""}</div><button type="button" data-del="${i.id}">×</button></div>`).join("")
+          : "<p class='muted'>" + frame.t("calEmpty", "No events or notes") + "</p>";
+        document.querySelector("#form [name=title]").placeholder = frame.t("calTitle", "Title");
+        document.querySelector("#form [name=notes]").placeholder = frame.t("calNotes", "Notes");
+      }
+      document.getElementById("prev").onclick = () => { view = new Date(view.getFullYear(), view.getMonth() - 1, 1); paint(); };
+      document.getElementById("next").onclick = () => { view = new Date(view.getFullYear(), view.getMonth() + 1, 1); paint(); };
+      document.getElementById("grid").addEventListener("click", (e) => {
+        const b = e.target.closest("[data-day]");
+        if (!b) return;
+        selected = new Date(b.dataset.day + "T00:00:00");
+        paint();
+      });
+      document.getElementById("items").addEventListener("click", (e) => {
+        const b = e.target.closest("[data-del]");
+        if (!b || !Desk) return;
+        Desk.removeCalendar(b.dataset.del);
+        paint();
+      });
+      document.getElementById("form").addEventListener("submit", (e) => {
+        e.preventDefault();
+        if (!Desk) return;
+        const data = new FormData(e.target);
+        Desk.addCalendar({ date: selected, title: data.get("title"), time: data.get("time"), notes: data.get("notes"), kind: data.get("kind") });
+        e.target.reset();
+        paint();
+      });
+      frame.onMessage((msg) => { if (msg.type === "os-desk-change" || msg.type === "os-host-sync") paint(); });
+      paint();
+    </script>
+  </body>
+</html>

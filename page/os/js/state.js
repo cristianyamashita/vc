@@ -58,20 +58,90 @@ window.OSState = (function () {
     return out;
   }
 
+  const LEGACY_SEEDED_DEFAULTS = ["utils-calculator", "utils-notebook"];
+  const EXCLUSIVE_DESKTOP = ["notepad", "paint", "calendar", "browser"];
+
   function defaultState() {
     const installed = ["settings", ...window.OSCatalog.DEFAULT_INSTALLED];
     return {
       username: "User",
       installed,
       favorites: [...window.OSCatalog.DEFAULT_INSTALLED],
-      desktopIcons: ["sheets", "app-builder", ...window.OSCatalog.DEFAULT_INSTALLED],
+      desktopIcons: ["sheets", "app-builder", ...EXCLUSIVE_DESKTOP, ...window.OSCatalog.DEFAULT_INSTALLED],
       windows: [],
       placements: {},
       desktopLayout: {},
       wallpaperId: "bloom",
       focusedId: null,
       fileApps: {},
+      appliedDefaultApps: [...window.OSCatalog.DEFAULT_INSTALLED],
+      iconColor: "#008f7d",
+      taskbarPins: ["file-explorer", "browser"],
+      recentFiles: [],
+      reducedMotion: false,
+      glass: 86,
+      blur: 20,
+      nightLight: 0,
+      iconSize: "m",
+      clipboard: [],
+      calendarItems: [],
+      stickies: [],
+      widgets: [],
+      browser: { bookmarks: [], history: [], cookies: [], proxy: "" },
+      appliedWidgets: false,
+      appliedExclusiveDesktop: EXCLUSIVE_DESKTOP.slice(),
     };
+  }
+
+  function normalizeTaskbarPins(raw) {
+    const pins = Array.isArray(raw) ? raw.filter((id) => typeof id === "string" && id) : [];
+    return pins.length ? pins : ["file-explorer"];
+  }
+
+  function normalizeRecentFiles(raw) {
+    if (!Array.isArray(raw)) return [];
+    const seen = new Set();
+    const out = [];
+    raw.forEach((item) => {
+      if (!item || typeof item !== "object" || !item.id || seen.has(item.id)) return;
+      seen.add(item.id);
+      out.push({
+        id: String(item.id),
+        appId: typeof item.appId === "string" ? item.appId : null,
+        name: typeof item.name === "string" ? item.name : "",
+        at: Number(item.at) || 0,
+      });
+    });
+    return out.slice(0, 24);
+  }
+
+  function seedExclusiveDesktop(raw, desktopIcons) {
+    const applied = Array.isArray(raw && raw.appliedExclusiveDesktop)
+      ? raw.appliedExclusiveDesktop.filter(Boolean).slice()
+      : [];
+    EXCLUSIVE_DESKTOP.forEach((id) => {
+      if (applied.includes(id)) return;
+      applied.push(id);
+      if (!desktopIcons.includes(id)) desktopIcons.push(id);
+    });
+    return applied;
+  }
+
+  function seedNewDefaultApps(raw, installed, favorites, desktopIcons) {
+    const defaults = Array.isArray(window.OSCatalog.DEFAULT_INSTALLED)
+      ? window.OSCatalog.DEFAULT_INSTALLED
+      : [];
+    const applied = Array.isArray(raw && raw.appliedDefaultApps)
+      ? raw.appliedDefaultApps.filter(Boolean).slice()
+      : LEGACY_SEEDED_DEFAULTS.slice();
+    defaults.forEach((id) => {
+      if (applied.includes(id)) return;
+      applied.push(id);
+      if (!installed.includes(id)) installed.push(id);
+      if (!favorites.includes(id)) favorites.push(id);
+      if (!desktopIcons.includes(id)) desktopIcons.push(id);
+    });
+    return applied;
   }
 
   function ensureKeyedStore(db, upgradeTx, name) {
@@ -183,6 +253,40 @@ window.OSState = (function () {
     return openReady(attempt + 1);
   }
 
+  function clampGlass(n) {
+    const v = Number(n);
+    if (!Number.isFinite(v)) return 86;
+    return Math.min(100, Math.max(40, Math.round(v)));
+  }
+
+  function clampBlur(n) {
+    const v = Number(n);
+    if (!Number.isFinite(v)) return 20;
+    return Math.min(40, Math.max(0, Math.round(v)));
+  }
+
+  function clampNight(n) {
+    const v = Number(n);
+    if (!Number.isFinite(v)) return 0;
+    return Math.min(80, Math.max(0, Math.round(v)));
+  }
+
+  function clampIconSize(value) {
+    return value === "s" || value === "l" ? value : "m";
+  }
+
+  function normalizeClipboard(raw) {
+    if (!Array.isArray(raw)) return [];
+    return raw
+      .filter((item) => item && typeof item.text === "string" && item.text)
+      .slice(0, 30)
+      .map((item) => ({
+        id: typeof item.id === "string" ? item.id : "clip_" + Math.random().toString(36).slice(2, 8),
+        text: String(item.text).slice(0, 8000),
+        at: Number(item.at) || 0,
+      }));
+  }
+
   function openDb() {
     if (dbPromise) return dbPromise;
     dbPromise = openReady().catch((err) => {
@@ -195,19 +299,49 @@ window.OSState = (function () {
   function normalize(raw) {
     const base = defaultState();
     if (!raw || typeof raw !== "object") return base;
-    const installed = Array.isArray(raw.installed) ? raw.installed.filter(Boolean) : base.installed;
+    const installed = Array.isArray(raw.installed) ? raw.installed.filter(Boolean) : base.installed.slice();
     if (!installed.includes("settings")) installed.unshift("settings");
+    const favorites = Array.isArray(raw.favorites) ? raw.favorites.filter(Boolean) : base.favorites.slice();
+    const desktopIcons = Array.isArray(raw.desktopIcons)
+      ? raw.desktopIcons.filter(Boolean)
+      : base.desktopIcons.slice();
+    const appliedDefaultApps = seedNewDefaultApps(raw, installed, favorites, desktopIcons);
+    const appliedExclusiveDesktop = seedExclusiveDesktop(raw, desktopIcons);
     return {
       username: typeof raw.username === "string" && raw.username.trim() ? raw.username.trim() : base.username,
       installed,
-      favorites: Array.isArray(raw.favorites) ? raw.favorites.filter(Boolean) : base.favorites,
-      desktopIcons: Array.isArray(raw.desktopIcons) ? raw.desktopIcons.filter(Boolean) : base.desktopIcons,
+      favorites,
+      desktopIcons,
       windows: Array.isArray(raw.windows) ? raw.windows.filter((w) => w && w.id) : [],
       placements: normalizePlacements(raw.placements),
       desktopLayout: normalizeDesktopLayout(raw.desktopLayout),
       wallpaperId: typeof raw.wallpaperId === "string" && raw.wallpaperId ? raw.wallpaperId : "bloom",
       focusedId: raw.focusedId || null,
       fileApps: normalizeFileApps(raw.fileApps),
+      appliedDefaultApps,
+      appliedExclusiveDesktop,
+      iconColor: window.OSIconColor ? window.OSIconColor.parse(raw.iconColor) : "#008f7d",
+      taskbarPins: normalizeTaskbarPins(raw.taskbarPins),
+      recentFiles: normalizeRecentFiles(raw.recentFiles),
+      reducedMotion: !!raw.reducedMotion,
+      glass: clampGlass(raw.glass),
+      blur: clampBlur(raw.blur),
+      nightLight: clampNight(raw.nightLight),
+      iconSize: clampIconSize(raw.iconSize),
+      clipboard: normalizeClipboard(raw.clipboard),
+      calendarItems: Array.isArray(raw.calendarItems) ? raw.calendarItems.filter((item) => item && item.id) : [],
+      stickies: Array.isArray(raw.stickies) ? raw.stickies.filter((item) => item && item.id) : [],
+      widgets: Array.isArray(raw.widgets) ? raw.widgets.filter((item) => item && item.id && item.type) : [],
+      browser:
+        raw.browser && typeof raw.browser === "object"
+          ? {
+              bookmarks: Array.isArray(raw.browser.bookmarks) ? raw.browser.bookmarks : [],
+              history: Array.isArray(raw.browser.history) ? raw.browser.history : [],
+              cookies: Array.isArray(raw.browser.cookies) ? raw.browser.cookies : [],
+              proxy: typeof raw.browser.proxy === "string" ? raw.browser.proxy : "",
+            }
+          : { bookmarks: [], history: [], cookies: [] },
+      appliedWidgets: !!raw.appliedWidgets,
     };
   }
 
@@ -221,6 +355,11 @@ window.OSState = (function () {
         req.onerror = () => reject(req.error);
       });
       lastSaved = normalize(stored);
+      const prevApplied = stored && Array.isArray(stored.appliedDefaultApps) ? stored.appliedDefaultApps : null;
+      const nextApplied = lastSaved.appliedDefaultApps || [];
+      if (!prevApplied || prevApplied.join("\0") !== nextApplied.join("\0")) {
+        write(lastSaved).catch((err) => console.warn("DesktopOSDB default-app seed failed", err));
+      }
       return structuredClone(lastSaved);
     } catch (err) {
       console.warn("DesktopOSDB load failed", err);

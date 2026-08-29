@@ -1,10 +1,13 @@
 window.OSFileApps = (function () {
   const HANDLERS = [
-    { appId: "utils-wordpad", exts: ["txt", "html", "htm"], defaultFor: ["txt", "html", "htm"] },
+    { appId: "notepad", exts: ["txt", "log", "ini", "text"], defaultFor: ["txt", "log", "ini", "text"] },
+    { appId: "utils-wordpad", exts: ["txt", "html", "htm"], defaultFor: ["html", "htm"] },
     { appId: "utils-markdown", exts: ["md", "markdown"], defaultFor: ["md", "markdown"] },
     { appId: "utils-obsidian", exts: ["md", "markdown"] },
     { appId: "utils-data_explorer", exts: ["json", "csv", "tsv"], defaultFor: ["json", "tsv"] },
     { appId: "sheets", exts: ["vcsh", "xlsx", "xls", "csv", "json"], defaultFor: ["vcsh", "xlsx", "xls", "csv"] },
+    { appId: "paint", exts: ["png", "jpg", "jpeg", "gif", "webp", "bmp"] },
+    { appId: "preview", exts: ["png", "jpg", "jpeg", "gif", "webp", "bmp", "svg", "avif", "ico", "pdf"] },
     {
       appId: "utils-ps2",
       exts: ["png", "jpg", "jpeg", "gif", "webp", "bmp", "avif", "ico", "svg"],
@@ -12,6 +15,8 @@ window.OSFileApps = (function () {
     },
     { appId: "utils-ps1", exts: ["png", "jpg", "jpeg", "gif", "webp", "bmp", "avif", "ico", "svg"] },
     { appId: "utils-whiteboard", exts: ["png", "jpg", "jpeg", "gif", "webp", "bmp", "avif", "ico", "svg"] },
+    { appId: "utils-pdf_toolbox", exts: ["pdf"], defaultFor: ["pdf"] },
+    { appId: "utils-vector_editor", exts: ["svg"], defaultFor: ["svg"] },
   ];
 
   const MIME_EXT = {
@@ -174,6 +179,16 @@ window.OSFileApps = (function () {
   async function openFile(fileId, appId) {
     if (!fileId || !appId || !window.OSWindows) return null;
     if (window.OS && typeof window.OS.ensureInstalled === "function") window.OS.ensureInstalled(appId);
+    let name = "";
+    if (window.OSFS) {
+      try {
+        const node = await window.OSFS.get(fileId);
+        if (node && node.name) name = node.name;
+      } catch (_err) {}
+    }
+    if (window.OS && typeof window.OS.rememberRecentFile === "function") {
+      window.OS.rememberRecentFile(fileId, appId, name);
+    }
     return window.OSWindows.open(appId, { fileId });
   }
 

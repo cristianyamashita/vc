@@ -4,6 +4,7 @@ window.OSFS = (function () {
   const DOCUMENTS_ID = "documents";
   const SHEETS_DIR_ID = "documents-sheets";
   const TRASH_ID = "recycle-bin";
+  const BIN_ID = "bin";
   const SHEETS_EXTS = ["vcsh", "xlsx", "xls", "csv"];
   const TEXT_MAX = 2 * 1024 * 1024;
   const MIME_BY_EXT = {
@@ -99,7 +100,8 @@ window.OSFS = (function () {
         node.id === DESKTOP_ID ||
         node.id === DOCUMENTS_ID ||
         node.id === SHEETS_DIR_ID ||
-        node.id === TRASH_ID)
+        node.id === TRASH_ID ||
+        node.id === BIN_ID)
     );
   }
 
@@ -110,6 +112,15 @@ window.OSFS = (function () {
       } catch (_err) {}
     });
     document.dispatchEvent(new CustomEvent("os-fs-change", { detail: detail || {} }));
+    if (window.OSWindows && typeof window.OSWindows.list === "function") {
+      window.OSWindows.list().forEach((win) => {
+        const iframe = win.el && win.el.querySelector("iframe");
+        if (!iframe || !iframe.contentWindow) return;
+        try {
+          iframe.contentWindow.postMessage({ type: "os-fs-change", detail: detail || {} }, location.origin);
+        } catch (_err) {}
+      });
+    }
   }
 
   function onChange(fn) {
@@ -191,6 +202,7 @@ window.OSFS = (function () {
     }
     ensure(ROOT_ID, null, "");
     ensure(DESKTOP_ID, ROOT_ID, "Desktop");
+    ensure(BIN_ID, ROOT_ID, "bin");
     const docs = ensure(DOCUMENTS_ID, ROOT_ID, "Documents");
     ensure(SHEETS_DIR_ID, docs.id, "Sheets");
     ensure(TRASH_ID, ROOT_ID, "Recycle Bin");
@@ -394,6 +406,26 @@ window.OSFS = (function () {
     const nodes = await allNodes();
     const hidden = await trashIdSet();
     return nodes.filter((n) => n.kind === "file" && set.has(extOf(n.name)) && !hidden.has(n.id));
+  }
+
+  async function search(query, limit) {
+    const q = String(query || "").trim().toLowerCase();
+    const max = Math.max(1, Number(limit) || 16);
+    if (!q) return [];
+    const nodes = await allNodes();
+    const hidden = await trashIdSet();
+    const hits = [];
+    for (let i = 0; i < nodes.length; i++) {
+      const node = nodes[i];
+      if (!node || hidden.has(node.id) || node.id === ROOT_ID) continue;
+      const name = String(node.name || "").toLowerCase();
+      if (!name.includes(q)) continue;
+      const path = await pathOf(node.id);
+      if (String(path || "").toLowerCase().includes("/recycle")) continue;
+      hits.push({ node, path });
+      if (hits.length >= max) break;
+    }
+    return hits;
   }
 
   async function ensureSheetsFolder() {
@@ -900,10 +932,10 @@ window.OSFS = (function () {
         kind === "trash-full"
           ? `<path d="M14 12.5l3-5.5 5 2-2 4z" fill="#f4f4f4"/><path d="M22 11l4-4.5 4 3-3 4z" fill="#e8e8e8"/>`
           : "";
-      return `<svg class="fe-glyph" viewBox="0 0 40 40" aria-hidden="true">${papers}<rect x="11" y="14" width="18" height="20" rx="2" fill="#008f7d"/><path d="M9 14h22" stroke="#006056" stroke-width="3" stroke-linecap="round"/><rect x="16" y="8" width="8" height="4" rx="1" fill="#006056"/><path d="M16 19v10M20 19v10M24 19v10" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round"/></svg>`;
+      return `<svg class="fe-glyph" viewBox="0 0 40 40" aria-hidden="true">${papers}<rect x="11" y="14" width="18" height="20" rx="2" style="fill:var(--icon-color, #008f7d)"/><path d="M9 14h22" fill="none" stroke-width="3" stroke-linecap="round" style="stroke:var(--icon-color-dark, #006056)"/><rect x="16" y="8" width="8" height="4" rx="1" style="fill:var(--icon-color-dark, #006056)"/><path d="M16 19v10M20 19v10M24 19v10" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round"/></svg>`;
     }
     if (kind === "shortcut") {
-      return `<svg class="fe-glyph" viewBox="0 0 40 40" aria-hidden="true"><rect x="8" y="8" width="24" height="24" rx="5" fill="#008f7d"/><path d="M16 20h8M20 16v8" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>`;
+      return `<svg class="fe-glyph" viewBox="0 0 40 40" aria-hidden="true"><rect x="8" y="8" width="24" height="24" rx="5" style="fill:var(--icon-color, #008f7d)"/><path d="M16 20h8M20 16v8" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>`;
     }
     if (kind === "image") {
       return `<svg class="fe-glyph" viewBox="0 0 40 40" aria-hidden="true"><rect x="6" y="8" width="28" height="24" rx="3" fill="#3aa89a"/><circle cx="14" cy="16" r="3" fill="#fff"/><path d="M6 26l8-7 6 5 5-4 9 8v2a3 3 0 0 1-3 3H9a3 3 0 0 1-3-3z" fill="#fff" opacity=".9"/></svg>`;
@@ -915,7 +947,7 @@ window.OSFS = (function () {
       return `<svg class="fe-glyph" viewBox="0 0 40 40" aria-hidden="true"><rect x="6" y="10" width="28" height="20" rx="3" fill="#c45c8a"/><path d="M17 16l9 4-9 4z" fill="#fff"/></svg>`;
     }
     if (kind === "sheets") {
-      return `<svg class="fe-glyph" viewBox="0 0 40 40" aria-hidden="true"><path d="M10 6h14l8 8v20a2 2 0 0 1-2 2H10a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2z" fill="#008f7d"/><path d="M24 6v8h8" fill="#006056"/><path d="M12 18h16M12 23h16M12 28h16M17 18v10M22 18v10" fill="none" stroke="#fff" stroke-width="1.4"/></svg>`;
+      return `<svg class="fe-glyph" viewBox="0 0 40 40" aria-hidden="true"><path d="M10 6h14l8 8v20a2 2 0 0 1-2 2H10a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2z" style="fill:var(--icon-color, #008f7d)"/><path d="M24 6v8h8" style="fill:var(--icon-color-dark, #006056)"/><path d="M12 18h16M12 23h16M12 28h16M17 18v10M22 18v10" fill="none" stroke="#fff" stroke-width="1.4"/></svg>`;
     }
     if (kind === "text") {
       return `<svg class="fe-glyph" viewBox="0 0 40 40" aria-hidden="true"><path d="M12 6h12l8 8v20a2 2 0 0 1-2 2H12a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2z" fill="#f4f4f4"/><path d="M24 6v8h8" fill="#d0d0d0"/><rect x="12" y="20" width="16" height="2" fill="#6a6a6a"/><rect x="12" y="25" width="12" height="2" fill="#6a6a6a"/></svg>`;
@@ -951,6 +983,7 @@ window.OSFS = (function () {
     DOCUMENTS_ID,
     SHEETS_DIR_ID,
     TRASH_ID,
+    BIN_ID,
     SHEETS_EXTS,
     TEXT_MAX,
     ready,
@@ -959,6 +992,8 @@ window.OSFS = (function () {
     listFolders,
     listDesktop: () => list(DESKTOP_ID),
     listFilesByExt,
+    allNodes,
+    search,
     pathOf,
     nodeAtPath,
     uniqueName,

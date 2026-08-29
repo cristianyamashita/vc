@@ -1,0 +1,2944 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark" data-side="open">
+<head>
+  <link rel="icon" href="../assets/icons/ico/utils-terminal.ico" type="image/x-icon">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VC Terminal</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #07110e;
+      --panel: #0d1a16;
+      --ink: #d5f3ea;
+      --muted: #7ea396;
+      --line: #1e3a32;
+      --accent: #19c39f;
+      --accent-ink: #06251d;
+      --red: #ff8088;
+      --gold: #e7c36a;
+      --cyan: #7ee0d6;
+      --violet: #c4b0ff;
+      --dir: #7ee0d6;
+      --exec: #9be07a;
+      --link: #c4b0ff;
+      --cursor: #19c39f;
+      --shadow: 0 18px 50px #0008;
+    }
+    [data-theme="light"] {
+      --bg: #eef4f1;
+      --panel: #f7fbf9;
+      --ink: #163028;
+      --muted: #4f6f65;
+      --line: #c5d8d0;
+      --accent: #008f7d;
+      --accent-ink: #f4fffb;
+      --red: #c93148;
+      --gold: #8a6a12;
+      --cyan: #087f79;
+      --violet: #5b47b8;
+      --dir: #087f79;
+      --exec: #2d7a32;
+      --link: #5b47b8;
+      --cursor: #008f7d;
+      --shadow: 0 16px 40px #16302818;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; overflow: hidden; }
+    html { background: transparent; }
+    body {
+      background: radial-gradient(circle at 12% -10%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 34%), color-mix(in srgb, var(--bg) var(--glass-pct, 100%), transparent);
+      color: var(--ink);
+      font: 14px/1.45 "IBM Plex Sans", system-ui, sans-serif;
+    }
+    button, textarea, select, input { font: inherit; color: inherit; }
+    button { cursor: pointer; }
+    .shell {
+      height: 100%;
+      min-height: 0;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 280px;
+      transition: grid-template-columns .22s cubic-bezier(.22, 1, .36, 1);
+    }
+    html[data-side="closed"] .shell { grid-template-columns: minmax(0, 1fr) 0; }
+    .term-wrap { position: relative; min-width: 0; min-height: 0; height: 100%; overflow: hidden; }
+    .term {
+      height: 100%;
+      min-height: 0;
+      overflow: auto;
+      padding: 16px 18px 28px;
+      font: 13.5px/1.5 "IBM Plex Mono", ui-monospace, monospace;
+      background: var(--panel);
+      cursor: text;
+      user-select: text;
+      -webkit-user-select: text;
+    }
+    .term .line { white-space: pre-wrap; overflow-wrap: anywhere; }
+    .term .err { color: var(--red); }
+    .term .dim { color: var(--muted); }
+    .term .gold { color: var(--gold); }
+    .term .prompt-line { display: flex; gap: 8px; align-items: flex-start; }
+    .ps1 { color: var(--accent); font-weight: 600; white-space: nowrap; }
+    #cmd {
+      flex: 1;
+      min-width: 0;
+      border: 0;
+      outline: 0;
+      resize: none;
+      background: transparent;
+      padding: 0;
+      margin: 0;
+      line-height: 1.5;
+      font: inherit;
+      color: var(--ink);
+      overflow: hidden;
+    }
+    .hint { color: var(--muted); pointer-events: none; }
+    .side {
+      min-width: 0;
+      border-left: 1px solid var(--line);
+      background: color-mix(in srgb, var(--bg) 55%, var(--panel));
+      overflow: hidden;
+    }
+    html[data-side="closed"] .side {
+      background: transparent;
+      border-left-color: transparent;
+    }
+    .side-body {
+      width: 280px;
+      height: 100%;
+      overflow: auto;
+      padding: 16px;
+    }
+    .side-toggle {
+      position: absolute;
+      top: 8px;
+      right: 4px;
+      z-index: 3;
+      width: 18px;
+      height: 26px;
+      padding: 0;
+      border: 0;
+      border-radius: 6px;
+      background: transparent;
+      color: var(--muted);
+      opacity: .4;
+      display: grid;
+      place-items: center;
+      transition: opacity .15s ease, color .15s ease, background .15s ease;
+    }
+    html[data-side="closed"] .side-toggle { right: 6px; opacity: .55; }
+    .side-toggle:hover,
+    .side-toggle:focus-visible {
+      opacity: 1;
+      color: var(--accent);
+      background: color-mix(in srgb, var(--panel) 82%, transparent);
+      outline: 0;
+    }
+    .side-toggle svg {
+      width: 11px;
+      height: 11px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 1.55;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      transition: transform .22s cubic-bezier(.22, 1, .36, 1);
+    }
+    html[data-side="closed"] .side-toggle svg { transform: rotate(180deg); }
+    .side h2 {
+      margin: 0 0 10px;
+      font-size: 11px;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .cheat { display: grid; gap: 6px; margin-bottom: 18px; }
+    .cheat button {
+      text-align: left;
+      border: 1px solid transparent;
+      background: transparent;
+      border-radius: 8px;
+      padding: 7px 8px;
+    }
+    .cheat button:hover { border-color: var(--line); background: var(--panel); }
+    .cheat code { color: var(--accent); display: block; font-size: 12px; }
+    .cheat span { color: var(--muted); font-size: 11px; }
+    .overlay {
+      position: absolute; inset: 0;
+      z-index: 5;
+      background: var(--panel);
+      display: none;
+      flex-direction: column;
+      font: 13.5px/1.45 "IBM Plex Mono", ui-monospace, monospace;
+    }
+    .overlay:focus { outline: 0; }
+    .overlay.open { display: flex; }
+    .editor-body { flex: 1; overflow: auto; padding: 10px 0 10px 0; }
+    .vline {
+      display: grid;
+      grid-template-columns: 52px 1fr;
+      min-height: 1.45em;
+    }
+    .vline .nr { color: var(--muted); text-align: right; padding: 0 10px; user-select: none; }
+    .vline .tx { white-space: pre; padding-right: 16px; }
+    .vline.cur .nr { color: var(--gold); }
+    .cursor {
+      display: inline-block;
+      min-width: 8px;
+      background: var(--cursor);
+      color: var(--accent-ink);
+    }
+    [data-theme="light"] .cursor { color: #fff; }
+    .status {
+      min-height: 28px;
+      padding: 4px 12px;
+      background: var(--accent);
+      color: var(--accent-ink);
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      font-weight: 600;
+    }
+    .status.cmd { background: var(--ink); color: var(--bg); }
+    .ime {
+      position: absolute;
+      opacity: 0;
+      pointer-events: none;
+      width: 8px;
+      height: 18px;
+      border: 0;
+      padding: 0;
+    }
+    .pager-body {
+      flex: 1; overflow: auto; padding: 12px 16px;
+      white-space: pre-wrap; overflow-wrap: anywhere;
+    }
+    .nano-body {
+      flex: 1; display: flex; flex-direction: column;
+    }
+    #nano-text {
+      flex: 1; width: 100%; border: 0; outline: 0; resize: none;
+      background: transparent; padding: 12px 16px; font: inherit; color: inherit;
+    }
+    .nano-bar {
+      display: flex; flex-wrap: wrap; gap: 10px;
+      padding: 8px 12px; border-top: 1px solid var(--line); color: var(--muted);
+    }
+    .nano-bar b { color: var(--ink); }
+    .toast {
+      position: fixed; right: 18px; bottom: 18px;
+      background: var(--ink); color: var(--bg);
+      padding: 10px 14px; border-radius: 9px;
+      box-shadow: var(--shadow); display: none; z-index: 9;
+    }
+    @media (max-width: 860px) {
+      .shell { grid-template-columns: minmax(0, 1fr) 0; }
+      html[data-side="open"] .shell { grid-template-columns: minmax(0, 1fr) min(280px, 78vw); }
+      .side-toggle { opacity: .55; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .shell, .side-toggle svg { transition: none; }
+    }
+  </style>
+  <script>
+    (function () {
+      try {
+        const saved = localStorage.getItem("term-side");
+        if (saved === "open" || saved === "closed") document.documentElement.dataset.side = saved;
+        else if (window.matchMedia("(max-width: 860px)").matches) document.documentElement.dataset.side = "closed";
+      } catch (_err) {}
+    })();
+  </script>
+  <script src="../os/js/state.js"></script>
+  <script src="../os/js/fs.js"></script>
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-NWZDZ906DJ"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){ dataLayer.push(arguments); }
+    gtag('js', new Date());
+    gtag('config', 'G-NWZDZ906DJ');
+  </script>
+</head>
+<body>
+  <div class="shell">
+    <div class="term-wrap">
+      <div class="term" id="term">
+        <div id="out"></div>
+        <form id="prompt-form" class="prompt-line" autocomplete="off">
+          <span class="ps1" id="ps1"></span>
+          <textarea id="cmd" rows="1" spellcheck="false" autocapitalize="off" autocomplete="off"></textarea>
+        </form>
+      </div>
+      <div id="vim" class="overlay" tabindex="-1">
+        <div id="vim-body" class="editor-body"></div>
+        <div id="vim-status" class="status"></div>
+        <textarea id="vim-ime" class="ime" autocomplete="off"></textarea>
+      </div>
+      <div id="nano" class="overlay">
+        <div class="nano-body">
+          <textarea id="nano-text" spellcheck="false"></textarea>
+          <div class="nano-bar" id="nano-bar"></div>
+        </div>
+      </div>
+      <div id="pager" class="overlay">
+        <div id="pager-body" class="pager-body"></div>
+        <div id="pager-status" class="status"></div>
+      </div>
+      <button type="button" class="side-toggle" id="side-toggle" aria-controls="side-body" aria-expanded="true">
+        <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M4.25 2.2 8.05 6 4.25 9.8"/></svg>
+      </button>
+    </div>
+    <aside class="side" id="side">
+      <div class="side-body" id="side-body">
+        <h2 data-i18n="cheatTitle">Common commands</h2>
+        <div class="cheat" id="cheat"></div>
+        <h2 data-i18n="tipsTitle">Tips</h2>
+        <div class="cheat">
+          <div><code>Tab</code><span data-i18n="tipTab">Complete commands and paths</span></div>
+          <div><code>↑ ↓</code><span data-i18n="tipHist">Command history</span></div>
+          <div><code>cmd | cmd</code><span data-i18n="tipPipe">Pipes and &gt; &gt;&gt; redirects</span></div>
+          <div><code>⌘K K</code><span data-i18n="tipClear">Clear the screen</span></div>
+          <div><code>/bin</code><span data-i18n="tipBin">Scripts there run by name</span></div>
+        </div>
+      </div>
+    </aside>
+  </div>
+  <div class="toast" id="toast"></div>
+<script>
+const $ = (s) => document.querySelector(s);
+const I = {
+  en: {
+    cheatTitle: "Common commands", tipsTitle: "Tips",
+    sideHide: "Hide help", sideShow: "Show help",
+    tipTab: "Complete commands and paths", tipHist: "Command history",
+    tipPipe: "Pipes and > >> redirects", tipVim: "i insert, Esc, :wq save and quit",
+    tipClear: "Clear the screen", tipBin: "Scripts there run by name",
+    welcome: "VC Linux. Type `help` or `ls`. Files are shared with File Explorer (start in /Desktop).",
+    welcomeLocal: "VC Linux. Type `help` or `ls`. Files stay in this browser (start in /home/user).",
+    vimHelp: "Esc normal · i insert · :w save · :q quit · :wq save and quit",
+    nanoBar: "^O Write  ^X Exit  ^K Cut line",
+    lessBar: "j/k or arrows scroll · q quit",
+    noName: "[No Name]",
+    modified: "modified",
+  },
+  pt: {
+    cheatTitle: "Comandos comuns", tipsTitle: "Dicas",
+    sideHide: "Ocultar ajuda", sideShow: "Mostrar ajuda",
+    tipTab: "Completar comandos e caminhos", tipHist: "Histórico de comandos",
+    tipPipe: "Pipes e redirecionamentos > >>", tipVim: "i inserir, Esc, :wq salvar e sair",
+    tipClear: "Limpa a tela", tipBin: "Scripts lá rodam pelo nome",
+    welcome: "VC Linux. Digite `help` ou `ls`. Os arquivos são os mesmos do Explorador (início em /Desktop).",
+    welcomeLocal: "VC Linux. Digite `help` ou `ls`. Os arquivos ficam neste navegador (início em /home/user).",
+    vimHelp: "Esc normal · i inserir · :w salvar · :q sair · :wq salvar e sair",
+    nanoBar: "^O Gravar  ^X Sair  ^K Cortar linha",
+    lessBar: "j/k ou setas para rolar · q sair",
+    noName: "[Sem nome]",
+    modified: "modificado",
+  },
+  ja: {
+    cheatTitle: "よく使うコマンド", tipsTitle: "ヒント",
+    sideHide: "ヘルプを隠す", sideShow: "ヘルプを表示",
+    tipTab: "コマンドとパスを補完", tipHist: "コマンド履歴",
+    tipPipe: "パイプと > >> リダイレクト", tipVim: "i 挿入、Esc、:wq 保存して終了",
+    tipClear: "画面を消去", tipBin: "そこにあるスクリプトは名前だけで実行",
+    welcome: "VC Linux。`help` または `ls`。ファイルはエクスプローラーと共有されます（開始は /Desktop）。",
+    welcomeLocal: "VC Linux。`help` または `ls`。ファイルはこのブラウザに残ります（開始は /home/user）。",
+    vimHelp: "Esc 通常 · i 挿入 · :w 保存 · :q 終了 · :wq 保存して終了",
+    nanoBar: "^O 保存  ^X 終了  ^K 行切り取り",
+    lessBar: "j/k または矢印でスクロール · q で終了",
+    noName: "[無題]",
+    modified: "変更あり",
+  }
+};
+const CHEATS = [
+  ["ls -la", ["List files", "Listar arquivos", "ファイル一覧"]],
+  ["open notes.txt", ["Open in a desktop app", "Abrir no app do desktop", "デスクトップアプリで開く"]],
+  ["cd src", ["Change directory", "Mudar de pasta", "ディレクトリ移動"]],
+  ["cat notes.txt", ["Print a file", "Mostrar um arquivo", "ファイルを表示"]],
+  ["grep -n hello *", ["Search text", "Buscar texto", "テキスト検索"]],
+  ["cp a.txt b.txt", ["Copy", "Copiar", "コピー"]],
+  ["mv a.txt docs/", ["Move / rename", "Mover / renomear", "移動 / 名前変更"]],
+  ["mkdir -p a/b", ["Make folders", "Criar pastas", "フォルダ作成"]],
+  ["vim notes.txt", ["Edit with vim", "Editar com vim", "vim で編集"]],
+  ["echo hi > out.txt", ["Write with redirect", "Escrever com redirect", "リダイレクトで書き込み"]],
+  ["man grep", ["Command help", "Ajuda do comando", "コマンドの説明"]],
+  ["for i in {0..3}; do echo $i; done", ["Bash for-loop", "Loop for do bash", "bash の for ループ"]],
+];
+
+function isOsHosted() {
+  try {
+    return !!(window.parent && window.parent !== window && window.parent.OSFS);
+  } catch (_err) {
+    return false;
+  }
+}
+
+function applyHostGlass() {
+  try {
+    if (!window.parent || window.parent === window || !window.parent.document) return;
+    const src = window.parent.document.documentElement;
+    const styles = window.parent.getComputedStyle(src);
+    const pct = (src.style.getPropertyValue("--glass-pct") || styles.getPropertyValue("--glass-pct") || "100%").trim();
+    const blur = (src.style.getPropertyValue("--glass-blur") || styles.getPropertyValue("--glass-blur") || "0px").trim();
+    document.documentElement.style.setProperty("--glass-pct", pct);
+    document.documentElement.style.setProperty("--glass-blur", blur);
+    document.documentElement.style.background = "transparent";
+    document.documentElement.dataset.glass = src.dataset.glass || "";
+    const os = window.parent.OS;
+    if (os) {
+      if (os.theme) document.documentElement.dataset.theme = os.theme === "light" ? "light" : "dark";
+      if (os.lang && I[os.lang] && os.lang !== lang) {
+        lang = os.lang;
+        applyChrome();
+      }
+    }
+  } catch (_err) {}
+}
+
+window.addEventListener("message", (e) => {
+  if (e.origin !== location.origin || !e.data || e.data.type !== "os-host-sync") return;
+  applyHostGlass();
+});
+
+let lang = localStorage.getItem("term-lang") || localStorage.getItem("app_lang") || "en";
+if (!I[lang]) lang = "en";
+const t = (k) => {
+  if (!isOsHosted()) {
+    const localKey = k + "Local";
+    if (I[lang][localKey]) return I[lang][localKey];
+    if (I.en[localKey]) return I.en[localKey];
+  }
+  return I[lang][k] || I.en[k] || k;
+};
+const li = (arr) => arr[lang === "pt" ? 1 : lang === "ja" ? 2 : 0];
+
+const SESSION_KEY = "term-session";
+const USER = "user";
+const OS_HOME = "/Desktop";
+const LOCAL_HOME = "/home/user";
+let HOME = LOCAL_HOME;
+const HOST = "vc";
+const MAX_FILE = 2 * 1024 * 1024;
+let localFs = null;
+
+let cwd = HOME;
+let oldpwd = HOME;
+let lastExit = 0;
+let env = {
+  HOME, USER, PATH: "/usr/bin:/bin", PWD: HOME, SHELL: "/bin/bash",
+  TERM: "xterm-256color", HOSTNAME: HOST, LANG: "en_US.UTF-8"
+};
+let aliases = { ll: "ls -la", la: "ls -la", vi: "vim" };
+let history = [];
+let histIdx = -1;
+let histDraft = "";
+let busy = false;
+let abortRun = false;
+let stageLive = false;
+let saveTimer = 0;
+let completeState = null;
+let termMouseDown = null;
+let keyChord = null;
+let keyChordTimer = 0;
+
+function now() { return Date.now(); }
+function monthName(d) {
+  return d.toLocaleString("en-US", { month: "short" });
+}
+function fmtTime(ms) {
+  const d = new Date(ms);
+  return `${monthName(d)} ${String(d.getDate()).padStart(2, " ")} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+function modeStr(node) {
+  const m = node.mode ?? (node.type === "dir" ? 0o755 : 0o644);
+  const tch = node.type === "dir" ? "d" : node.type === "link" ? "l" : "-";
+  const bits = (n) => ((n & 4) ? "r" : "-") + ((n & 2) ? "w" : "-") + ((n & 1) ? "x" : "-");
+  return tch + bits((m >> 6) & 7) + bits((m >> 3) & 7) + bits(m & 7);
+}
+function toast(msg) {
+  const el = $("#toast");
+  el.textContent = msg;
+  el.style.display = "block";
+  clearTimeout(toast.x);
+  toast.x = setTimeout(() => { el.style.display = "none"; }, 2200);
+}
+function hostWindow() {
+  try {
+    if (window.parent && window.parent !== window && window.parent.OSFS) return window.parent;
+  } catch (_err) {}
+  return window;
+}
+function osfs() {
+  if (isOsHosted()) return window.parent.OSFS;
+  if (!localFs) throw new Error("filesystem unavailable");
+  return localFs;
+}
+function createLocalFs() {
+  const ROOT_ID = "root";
+  const HOME_DIR_ID = "home";
+  const USER_DIR_ID = "home-user";
+  const TMP_ID = "tmp";
+  const BIN_ID = "bin";
+  const nodes = new Map();
+  const TEXT_EXTS = ["txt", "md", "json", "js", "css", "html", "htm", "xml", "tsv", "log", "ini", "yaml", "yml", "py", "ts", "tsx", "jsx", "sh", "sql"];
+  let db = null;
+  let readyP = null;
+
+  function nid() {
+    return "n_" + Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+  }
+  function extOf(name) {
+    const text = String(name || "");
+    const i = text.lastIndexOf(".");
+    return i > 0 ? text.slice(i + 1).toLowerCase() : "";
+  }
+  function folder(id, parentId, name, system) {
+    const tnow = now();
+    return { id, parentId, name, kind: "folder", mime: "", size: 0, createdAt: tnow, modifiedAt: tnow, system: !!system, content: "", encoding: "utf8" };
+  }
+  function seed() {
+    nodes.clear();
+    nodes.set(ROOT_ID, folder(ROOT_ID, null, "/", true));
+    nodes.set(HOME_DIR_ID, folder(HOME_DIR_ID, ROOT_ID, "home", true));
+    nodes.set(USER_DIR_ID, folder(USER_DIR_ID, HOME_DIR_ID, "user", true));
+    nodes.set(BIN_ID, folder(BIN_ID, ROOT_ID, "bin", true));
+    nodes.set(TMP_ID, folder(TMP_ID, ROOT_ID, "tmp", false));
+    const tnow = now();
+    nodes.set("readme", {
+      id: "readme",
+      parentId: USER_DIR_ID,
+      name: "notes.txt",
+      kind: "file",
+      mime: "text/plain",
+      size: 0,
+      createdAt: tnow,
+      modifiedAt: tnow,
+      system: false,
+      encoding: "utf8",
+      content: "Welcome to VC Terminal.\nType help, ls, or vim notes.txt\n",
+    });
+    nodes.get("readme").size = nodes.get("readme").content.length;
+  }
+  function txDone(tx) {
+    return new Promise((resolve, reject) => {
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+      tx.onabort = () => reject(tx.error || new Error("aborted"));
+    });
+  }
+  async function persistNodes() {
+    if (!db) return;
+    const tx = db.transaction(["nodes", "meta"], "readwrite");
+    tx.objectStore("nodes").clear();
+    const store = tx.objectStore("nodes");
+    for (const node of nodes.values()) store.put(node, node.id);
+    tx.objectStore("meta").put({ savedAt: now() }, "info");
+    await txDone(tx);
+  }
+  function openDb() {
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open("TerminalFSDB", 1);
+      req.onupgradeneeded = () => {
+        const next = req.result;
+        if (!next.objectStoreNames.contains("nodes")) next.createObjectStore("nodes");
+        if (!next.objectStoreNames.contains("meta")) next.createObjectStore("meta");
+      };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+  }
+  async function loadNodes() {
+    db = await openDb();
+    const tx = db.transaction(["nodes"], "readonly");
+    const store = tx.objectStore("nodes");
+    const rows = await new Promise((resolve, reject) => {
+      const req = store.getAll();
+      req.onsuccess = () => resolve(req.result || []);
+      req.onerror = () => reject(req.error);
+    });
+    await txDone(tx);
+    nodes.clear();
+    rows.forEach((node) => { if (node && node.id) nodes.set(node.id, node); });
+    if (!nodes.has(ROOT_ID) || !nodes.has(USER_DIR_ID)) {
+      seed();
+      await persistNodes();
+    }
+  }
+  async function blobToRecord(blob, mime) {
+    const type = mime || (blob && blob.type) || "text/plain";
+    if (!blob) return { content: "", encoding: "utf8", mime: type, size: 0 };
+    const looksText = type.startsWith("text/") || type === "application/json" || type === "application/javascript" || type === "application/xml";
+    if (looksText) {
+      const content = await blob.text();
+      return { content, encoding: "utf8", mime: type, size: content.length };
+    }
+    const buf = await blob.arrayBuffer();
+    const bytes = new Uint8Array(buf);
+    let bin = "";
+    for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+    return { content: btoa(bin), encoding: "base64", mime: type, size: bytes.length };
+  }
+  function recordToBlob(node) {
+    if (!node) return new Blob([""], { type: "text/plain" });
+    if (node.encoding === "base64") {
+      const bin = atob(node.content || "");
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      return new Blob([bytes], { type: node.mime || "application/octet-stream" });
+    }
+    return new Blob([node.content || ""], { type: node.mime || "text/plain" });
+  }
+  function isSystem(node) {
+    return !!(node && (node.system || node.id === ROOT_ID || node.id === HOME_DIR_ID || node.id === USER_DIR_ID || node.id === BIN_ID));
+  }
+  function isTextNode(node) {
+    if (!node || node.kind !== "file") return false;
+    const mime = node.mime || "";
+    if (mime.startsWith("text/")) return true;
+    if (["application/json", "application/xml", "application/javascript"].includes(mime)) return true;
+    return TEXT_EXTS.includes(extOf(node.name));
+  }
+  function isImageNode(node) {
+    return !!(node && node.kind === "file" && ((node.mime || "").startsWith("image/") || ["png", "jpg", "jpeg", "gif", "webp", "bmp", "svg", "avif", "ico"].includes(extOf(node.name))));
+  }
+  function isAudioNode(node) {
+    return !!(node && node.kind === "file" && ((node.mime || "").startsWith("audio/") || ["mp3", "wav", "ogg"].includes(extOf(node.name))));
+  }
+  function isVideoNode(node) {
+    return !!(node && node.kind === "file" && ((node.mime || "").startsWith("video/") || ["mp4", "webm"].includes(extOf(node.name))));
+  }
+  function isPdfNode(node) {
+    return !!(node && node.kind === "file" && (node.mime === "application/pdf" || extOf(node.name) === "pdf"));
+  }
+  function typeLabel(node) {
+    if (!node) return "";
+    if (node.kind === "folder") return "directory";
+    if (isImageNode(node)) return "image";
+    if (isPdfNode(node)) return "PDF";
+    if (isTextNode(node)) return "text";
+    return "file";
+  }
+  async function get(id) {
+    return nodes.get(id) || null;
+  }
+  async function list(parentId) {
+    return Array.from(nodes.values()).filter((n) => n.parentId === parentId);
+  }
+  async function pathOf(id) {
+    if (id === ROOT_ID) return "/";
+    const parts = [];
+    let cur = nodes.get(id);
+    const guard = new Set();
+    while (cur && cur.id !== ROOT_ID) {
+      if (guard.has(cur.id)) break;
+      guard.add(cur.id);
+      parts.unshift(cur.name);
+      cur = cur.parentId ? nodes.get(cur.parentId) : null;
+    }
+    return "/" + parts.join("/");
+  }
+  async function nodeAtPath(path) {
+    const abs = String(path || "/");
+    if (abs === "/") return nodes.get(ROOT_ID) || null;
+    const parts = abs.split("/").filter(Boolean);
+    let cur = nodes.get(ROOT_ID);
+    for (const part of parts) {
+      if (!cur) return null;
+      const kids = await list(cur.id);
+      cur = kids.find((n) => n.name === part) || null;
+    }
+    return cur;
+  }
+  async function createFolder(parentId, name) {
+    const parent = nodes.get(parentId);
+    if (!parent || parent.kind !== "folder") throw new Error("No such file or directory");
+    const existing = (await list(parentId)).find((n) => n.name === name);
+    if (existing) return existing;
+    const node = folder(nid(), parentId, name, false);
+    nodes.set(node.id, node);
+    parent.modifiedAt = now();
+    await persistNodes();
+    return node;
+  }
+  async function createFile(parentId, spec) {
+    const parent = nodes.get(parentId);
+    if (!parent || parent.kind !== "folder") throw new Error("No such file or directory");
+    const rec = await blobToRecord(spec && spec.blob, spec && spec.mime);
+    const tnow = now();
+    const node = {
+      id: nid(),
+      parentId,
+      name: spec.name,
+      kind: "file",
+      mime: rec.mime,
+      size: rec.size,
+      createdAt: tnow,
+      modifiedAt: tnow,
+      system: false,
+      encoding: rec.encoding,
+      content: rec.content,
+    };
+    nodes.set(node.id, node);
+    parent.modifiedAt = tnow;
+    await persistNodes();
+    return node;
+  }
+  async function writeFile(id, blob) {
+    const node = nodes.get(id);
+    if (!node || node.kind !== "file") throw new Error("No such file or directory");
+    const rec = await blobToRecord(blob, blob && blob.type ? blob.type : node.mime);
+    node.content = rec.content;
+    node.encoding = rec.encoding;
+    node.mime = rec.mime || node.mime;
+    node.size = rec.size;
+    node.modifiedAt = now();
+    await persistNodes();
+    return node;
+  }
+  async function readText(id) {
+    const node = nodes.get(id);
+    if (!node) throw new Error("No such file or directory");
+    if (node.encoding === "base64") {
+      const blob = recordToBlob(node);
+      return blob.text();
+    }
+    return node.content || "";
+  }
+  async function getBlob(id) {
+    const node = nodes.get(id);
+    return node ? recordToBlob(node) : null;
+  }
+  async function remove(id) {
+    const node = nodes.get(id);
+    if (!node) return;
+    if (isSystem(node)) throw new Error("Permission denied");
+    const tree = [];
+    const walk = (curId) => {
+      tree.push(curId);
+      Array.from(nodes.values()).filter((n) => n.parentId === curId).forEach((n) => walk(n.id));
+    };
+    walk(id);
+    tree.reverse().forEach((nidVal) => nodes.delete(nidVal));
+    await persistNodes();
+  }
+  async function rename(id, name) {
+    const node = nodes.get(id);
+    if (!node || isSystem(node)) throw new Error("Permission denied");
+    node.name = String(name || "").trim() || node.name;
+    node.modifiedAt = now();
+    await persistNodes();
+    return node;
+  }
+  async function move(ids, destParentId) {
+    const dest = nodes.get(destParentId);
+    if (!dest || dest.kind !== "folder") throw new Error("invalid dest");
+    (ids || []).forEach((id) => {
+      const node = nodes.get(id);
+      if (!node || isSystem(node)) return;
+      node.parentId = destParentId;
+      node.modifiedAt = now();
+    });
+    dest.modifiedAt = now();
+    await persistNodes();
+  }
+  async function allNodes() {
+    return Array.from(nodes.values());
+  }
+  function ready() {
+    if (!readyP) readyP = loadNodes();
+    return readyP;
+  }
+  return {
+    ROOT_ID,
+    DESKTOP_ID: USER_DIR_ID,
+    ready,
+    get,
+    list,
+    pathOf,
+    nodeAtPath,
+    createFolder,
+    createFile,
+    writeFile,
+    readText,
+    getBlob,
+    remove,
+    rename,
+    move,
+    allNodes,
+    isSystem,
+    isTextNode,
+    isImageNode,
+    isAudioNode,
+    isVideoNode,
+    isPdfNode,
+    typeLabel,
+  };
+}
+function persist() {
+  try {
+    localStorage.setItem(SESSION_KEY, JSON.stringify({
+      cwd, oldpwd, env, aliases, history: history.slice(-300), lastExit
+    }));
+  } catch (_err) {}
+}
+function scheduleSave() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => { try { persist(); } catch (_err) {} }, 280);
+}
+function resetSession() {
+  cwd = HOME;
+  oldpwd = HOME;
+  env.PWD = cwd;
+  env.HOME = HOME;
+  env.OLDPWD = oldpwd;
+  history = [];
+  lastExit = 0;
+  persist();
+}
+function mapSessionPath(path, hosted) {
+  const s = String(path || "");
+  if (hosted) {
+    if (s === "/home/user" || s.startsWith("/home/user/")) return OS_HOME + s.slice("/home/user".length);
+    return s;
+  }
+  if (s === "/Desktop" || s.startsWith("/Desktop/")) return LOCAL_HOME + s.slice("/Desktop".length);
+  return s;
+}
+function ensurePath(raw) {
+  const dirs = String(raw || "/usr/bin:/bin").split(":").map((s) => s.trim()).filter(Boolean);
+  if (!dirs.includes("/bin")) dirs.push("/bin");
+  return dirs.join(":");
+}
+function pathDirs() {
+  return ensurePath(env.PATH).split(":");
+}
+async function lookupPathScript(name) {
+  if (!name || name.includes("/") || name === "." || name === "..") return null;
+  const files = [name];
+  if (!/\.[A-Za-z0-9]+$/.test(name)) files.push(name + ".sh");
+  for (const dir of pathDirs()) {
+    const root = dir === "/" ? "" : dir.replace(/\/+$/, "");
+    for (const file of files) {
+      const p = root + "/" + file;
+      const n = await getNode(p);
+      if (n && n.type === "file") return p;
+    }
+  }
+  return null;
+}
+async function pathCommandNames() {
+  const names = new Set();
+  for (const dir of pathDirs()) {
+    let kids = [];
+    try { kids = await children(dir); } catch (_err) { continue; }
+    for (const p of kids) {
+      if (await isDir(p)) continue;
+      const n = baseName(p);
+      names.add(n);
+      if (n.toLowerCase().endsWith(".sh") && n.length > 3) names.add(n.slice(0, -3));
+    }
+  }
+  return [...names];
+}
+async function loadState() {
+  const hosted = isOsHosted();
+  HOME = hosted ? OS_HOME : LOCAL_HOME;
+  if (!hosted) localFs = createLocalFs();
+  await osfs().ready();
+  try {
+    const session = JSON.parse(localStorage.getItem(SESSION_KEY) || "null");
+    if (session) {
+      cwd = mapSessionPath(session.cwd || HOME, hosted);
+      oldpwd = mapSessionPath(session.oldpwd || HOME, hosted);
+      env = Object.assign(env, session.env || {});
+      aliases = Object.assign(aliases, session.aliases || {});
+      history = Array.isArray(session.history) ? session.history : [];
+      lastExit = session.lastExit || 0;
+    }
+  } catch (_err) {}
+  env.HOME = HOME;
+  env.PATH = ensurePath(env.PATH);
+  try { await mkdirp("/bin"); } catch (_err) {}
+  const here = await getNode(cwd);
+  if (!here || here.type !== "dir") cwd = HOME;
+  env.PWD = cwd;
+}
+
+function splitPath(path) {
+  return path.split("/").filter(Boolean);
+}
+function joinPath(parts) {
+  return "/" + parts.join("/");
+}
+function baseName(path) {
+  if (path === "/") return "/";
+  const p = splitPath(path);
+  return p[p.length - 1] || "/";
+}
+function dirName(path) {
+  if (path === "/") return "/";
+  const p = splitPath(path);
+  p.pop();
+  return p.length ? joinPath(p) : "/";
+}
+function normalize(path, from = cwd) {
+  let raw = path == null || path === "" ? from : String(path);
+  if (raw === "~" || raw.startsWith("~/")) raw = HOME + raw.slice(1);
+  else if (raw === "-" ) raw = oldpwd;
+  const abs = raw.startsWith("/") ? raw : (from === "/" ? "/" + raw : from + "/" + raw);
+  const out = [];
+  for (const part of abs.split("/")) {
+    if (!part || part === ".") continue;
+    if (part === "..") { if (out.length) out.pop(); continue; }
+    out.push(part);
+  }
+  return joinPath(out);
+}
+function viewOf(osNode, path) {
+  if (!osNode) return null;
+  const type = osNode.kind === "folder" ? "dir" : osNode.kind === "shortcut" ? "link" : "file";
+  return {
+    path,
+    type,
+    mode: type === "dir" ? 0o755 : type === "link" ? 0o777 : 0o644,
+    mtime: osNode.modifiedAt || now(),
+    size: osNode.size || 0,
+    name: osNode.name || (path === "/" ? "/" : baseName(path)),
+    id: osNode.id,
+    mime: osNode.mime || "",
+    kind: osNode.kind,
+    os: osNode,
+    virtual: !!osNode.virtual,
+    target: osNode.appId ? "app:" + osNode.appId : "",
+  };
+}
+async function desktopShortcutViews() {
+  const fs = osfs();
+  try {
+    const host = hostWindow();
+    const state = host.OS && host.OS.state;
+    const catalog = host.OSCatalog;
+    if (!state || !catalog || !Array.isArray(state.desktopIcons)) return [];
+    const loc = (host.OS && host.OS.lang) || lang;
+    const tnow = now();
+    return state.desktopIcons.map((appId) => {
+      const app = catalog.byId(appId);
+      if (!app) return null;
+      if (host.OS && typeof host.OS.isInstalled === "function" && !host.OS.isInstalled(appId)) return null;
+      return {
+        id: "app::" + app.id,
+        appId: app.id,
+        parentId: fs.DESKTOP_ID,
+        name: catalog.displayName(app, loc),
+        kind: "shortcut",
+        mime: "application/x-os-shortcut",
+        size: 0,
+        createdAt: tnow,
+        modifiedAt: tnow,
+        icon: app.icon || "",
+        system: false,
+        virtual: true,
+      };
+    }).filter(Boolean);
+  } catch (_err) {
+    return [];
+  }
+}
+async function getNode(path) {
+  const abs = normalize(path);
+  const fs = osfs();
+  await fs.ready();
+  if (abs === "/") return viewOf(await fs.get(fs.ROOT_ID), "/");
+  const node = await fs.nodeAtPath(abs);
+  if (node) return viewOf(node, abs);
+  if (dirName(abs) === "/Desktop") {
+    const shorts = await desktopShortcutViews();
+    const want = baseName(abs).toLowerCase();
+    const hit = shorts.find((s) => String(s.name).toLowerCase() === want);
+    if (hit) return viewOf(hit, abs);
+  }
+  return null;
+}
+async function exists(path) { return !!(await getNode(path)); }
+async function isDir(path) { const n = await getNode(path); return !!(n && n.type === "dir"); }
+async function isFile(path) { const n = await getNode(path); return !!(n && n.type === "file"); }
+async function follow(path) {
+  const n = await getNode(path);
+  return { path: n ? n.path : normalize(path), node: n };
+}
+async function children(path) {
+  const n = await getNode(path);
+  if (!n || n.type !== "dir") return [];
+  const fs = osfs();
+  let items = n.virtual ? [] : await fs.list(n.id);
+  if (n.id === fs.DESKTOP_ID) {
+    const shorts = await desktopShortcutViews();
+    const names = new Set(items.map((x) => String(x.name).toLowerCase()));
+    items = items.concat(shorts.filter((s) => !names.has(String(s.name).toLowerCase())));
+  }
+  const paths = [];
+  for (const item of items) {
+    if (item.virtual) paths.push((path === "/" ? "/" : path.replace(/\/$/, "") + "/") + item.name);
+    else paths.push(await fs.pathOf(item.id));
+  }
+  paths.sort((a, b) => baseName(a).localeCompare(baseName(b), undefined, { sensitivity: "base" }));
+  return paths;
+}
+async function walk(path, rec = true) {
+  const abs = normalize(path);
+  const n = await getNode(abs);
+  if (!n) return [];
+  const acc = [abs];
+  if (n.type === "dir") {
+    for (const c of await children(abs)) {
+      if (rec) acc.push(...(await walk(c, true)));
+      else acc.push(c);
+    }
+  }
+  return acc;
+}
+async function mkdirp(path) {
+  const abs = normalize(path);
+  if (abs === "/") return await getNode("/");
+  const existing = await getNode(abs);
+  if (existing) {
+    if (existing.type !== "dir") throw new Error(`mkdir: cannot create directory '${path}': Not a directory`);
+    return existing;
+  }
+  await mkdirp(dirName(abs));
+  const parent = await getNode(dirName(abs));
+  if (!parent || parent.type !== "dir") throw new Error(`mkdir: cannot create directory '${path}': No such file or directory`);
+  if (parent.virtual) throw new Error("Permission denied");
+  const created = await osfs().createFolder(parent.id, baseName(abs));
+  return viewOf(created, abs);
+}
+async function writeFile(path, content, { append = false } = {}) {
+  const fs = osfs();
+  await fs.ready();
+  const abs = normalize(path);
+  let text = typeof content === "string" ? content : String(content);
+  if (text.length > MAX_FILE) throw new Error("File too large");
+  const existing = await getNode(abs);
+  if (existing) {
+    if (existing.type === "dir") throw new Error("Is a directory");
+    if (existing.type === "link" || existing.virtual) throw new Error("Permission denied");
+    if (append) text = (await fs.readText(existing.id)) + text;
+    if (text.length > MAX_FILE) throw new Error("File too large");
+    await fs.writeFile(existing.id, new Blob([text], { type: existing.mime || "text/plain" }));
+    return;
+  }
+  const parent = await getNode(dirName(abs));
+  if (!parent || parent.type !== "dir") throw new Error("No such file or directory");
+  if (parent.virtual) throw new Error("Permission denied");
+  await fs.createFile(parent.id, {
+    name: baseName(abs),
+    mime: "text/plain",
+    blob: new Blob([text], { type: "text/plain" }),
+  });
+}
+async function readFile(path) {
+  const n = await getNode(path);
+  if (!n) throw new Error("No such file or directory");
+  if (n.type === "dir") throw new Error("Is a directory");
+  if (n.type === "link" || n.virtual) throw new Error("Is a shortcut");
+  const fs = osfs();
+  if (n.size > MAX_FILE) throw new Error("File too large");
+  if (fs.isImageNode(n.os) || fs.isAudioNode(n.os) || fs.isVideoNode(n.os) || fs.isPdfNode(n.os)) {
+    throw new Error("Binary file");
+  }
+  return fs.readText(n.id);
+}
+async function removePath(path, { recursive = false, force = false } = {}) {
+  const abs = normalize(path);
+  if (abs === "/") throw new Error("rm: refusing to remove '/'");
+  const n = await getNode(abs);
+  if (!n) {
+    if (force) return;
+    throw new Error("No such file or directory");
+  }
+  const fs = osfs();
+  if (n.virtual || fs.isSystem(n.os)) {
+    if (force) return;
+    throw new Error("Permission denied");
+  }
+  if (n.type === "dir") {
+    const kids = await children(abs);
+    if (kids.length && !recursive) throw new Error("Is a directory");
+  }
+  await fs.remove(n.id, { permanent: !!force });
+}
+async function copyNode(src, dst, recursive = false) {
+  const fs = osfs();
+  const s = await getNode(src);
+  if (!s) throw new Error(`${src}: No such file or directory`);
+  if (s.virtual || s.type === "link") throw new Error(`${src}: cannot copy shortcut`);
+  let destPath = normalize(dst);
+  const d = await getNode(destPath);
+  if (d && d.type === "dir") destPath = destPath === "/" ? "/" + s.name : destPath + "/" + s.name;
+  if (s.type === "dir") {
+    if (!recursive) throw new Error(`${src}: -r not specified; omitting directory`);
+    await mkdirp(destPath);
+    for (const c of await children(s.path)) await copyNode(c, destPath, true);
+    return;
+  }
+  const blob = await fs.getBlob(s.id);
+  if (!blob) throw new Error("cannot read file");
+  const existing = await getNode(destPath);
+  if (existing && existing.type === "dir") throw new Error("Is a directory");
+  if (existing && existing.type === "file" && !existing.virtual) {
+    await fs.writeFile(existing.id, blob);
+    return;
+  }
+  const parent = await getNode(dirName(destPath));
+  if (!parent || parent.type !== "dir") throw new Error(`cannot create regular file '${destPath}': No such file or directory`);
+  await fs.createFile(parent.id, { name: baseName(destPath), mime: s.mime, blob });
+}
+async function movePath(src, dst) {
+  const fs = osfs();
+  const s = await getNode(src);
+  if (!s) throw new Error(`${src}: No such file or directory`);
+  if (s.virtual || fs.isSystem(s.os)) throw new Error("Permission denied");
+  let destPath = normalize(dst);
+  const d = await getNode(destPath);
+  if (d && d.type === "dir") {
+    await fs.move([s.id], d.id);
+    return;
+  }
+  if (d && d.type === "file" && !d.virtual) await fs.remove(d.id, { permanent: true });
+  const parent = await getNode(dirName(destPath));
+  if (!parent || parent.type !== "dir") throw new Error("No such file or directory");
+  if (s.os.parentId !== parent.id) await fs.move([s.id], parent.id);
+  const after = await fs.get(s.id);
+  const want = baseName(destPath);
+  if (after && after.name !== want) await fs.rename(after.id, want);
+}
+function globToRe(pat) {
+  let s = "^";
+  for (let i = 0; i < pat.length; i++) {
+    const c = pat[i];
+    if (c === "*") s += ".*";
+    else if (c === "?") s += ".";
+    else if ("\\^$+()[]{}|.".includes(c)) s += "\\" + c;
+    else s += c;
+  }
+  return new RegExp(s + "$");
+}
+async function expandGlob(pat) {
+  if (!/[*?]/.test(pat)) return [pat];
+  const abs = normalize(pat);
+  const re = globToRe(abs);
+  const fs = osfs();
+  const all = await fs.allNodes();
+  const hits = [];
+  for (const n of all) {
+    const p = n.id === fs.ROOT_ID ? "/" : await fs.pathOf(n.id);
+    if (re.test(p)) hits.push(p);
+  }
+  if (dirName(abs) === "/Desktop" || abs.startsWith("/Desktop/")) {
+    for (const s of await desktopShortcutViews()) {
+      const p = "/Desktop/" + s.name;
+      if (re.test(p) && !hits.includes(p)) hits.push(p);
+    }
+  }
+  hits.sort();
+  return hits.length ? hits : [pat];
+}
+
+function tokenize(input) {
+  const out = [];
+  let i = 0;
+  const n = input.length;
+  const isSpace = (c) => c === " " || c === "\t" || c === "\r";
+  while (i < n) {
+    const c = input[i];
+    if (isSpace(c)) { i++; continue; }
+    if (c === "\n") { out.push({ kind: "op", raw: ";" }); i++; continue; }
+    if (c === "#") {
+      while (i < n && input[i] !== "\n") i++;
+      continue;
+    }
+    if (c === ";") { out.push({ kind: "op", raw: ";" }); i++; continue; }
+    if (c === "|" && input[i + 1] === "|") { out.push({ kind: "op", raw: "||" }); i += 2; continue; }
+    if (c === "|") { out.push({ kind: "op", raw: "|" }); i++; continue; }
+    if (c === "&" && input[i + 1] === "&") { out.push({ kind: "op", raw: "&&" }); i += 2; continue; }
+    if (c === "2" && input[i + 1] === ">" && input[i + 2] === ">") { out.push({ kind: "redir", type: "2>>" }); i += 3; continue; }
+    if (c === "2" && input[i + 1] === ">") { out.push({ kind: "redir", type: "2>" }); i += 2; continue; }
+    if (c === ">" && input[i + 1] === ">") { out.push({ kind: "redir", type: ">>" }); i += 2; continue; }
+    if (c === ">") { out.push({ kind: "redir", type: ">" }); i++; continue; }
+    if (c === "<") { out.push({ kind: "redir", type: "<" }); i++; continue; }
+    let word = "";
+    let globok = true;
+    let sawSingle = false;
+    let sawOther = false;
+    while (i < n) {
+      const d = input[i];
+      if (d === "'") {
+        globok = false; sawSingle = true; i++;
+        while (i < n && input[i] !== "'") word += input[i++];
+        if (i < n) i++;
+        continue;
+      }
+      if (d === '"') {
+        globok = false; sawOther = true; i++;
+        while (i < n && input[i] !== '"') {
+          if (input[i] === "\\" && i + 1 < n) { word += input[i + 1]; i += 2; }
+          else { word += input[i++]; }
+        }
+        if (i < n) i++;
+        continue;
+      }
+      if (d === "\\" && i + 1 < n) {
+        if (input[i + 1] === "\n") { i += 2; continue; }
+        word += input[i + 1]; i += 2; globok = false; sawOther = true; continue;
+      }
+      if (isSpace(d) || d === "\n" || ";|&<>".includes(d) || (d === "2" && input[i + 1] === ">")) break;
+      word += d; i++; sawOther = true;
+    }
+    if (word !== "" || sawSingle || sawOther) out.push({ kind: "word", raw: word, globok, expand: !sawSingle || sawOther });
+  }
+  return out;
+}
+function evalArith(expr) {
+  const e = String(expr).replace(/[A-Za-z_][A-Za-z0-9_]*/g, (k) => String(Number(env[k]) || 0));
+  if (!/^[-+*/%()0-9.\s]+$/.test(e)) return 0;
+  try {
+    const v = Function(`"use strict"; return (${e})`)();
+    return Number.isFinite(v) ? Math.trunc(v) : 0;
+  } catch {
+    return 0;
+  }
+}
+function expandVars(s) {
+  return s.replace(/\$\(\(([\s\S]*?)\)\)/g, (_, expr) => String(evalArith(expr)))
+    .replace(/\$\{([A-Za-z_][A-Za-z0-9_]*)\}|\$([A-Za-z_][A-Za-z0-9_]*|[?$])/g, (_, a, b) => {
+      const k = a || b;
+      if (k === "?") return String(lastExit);
+      if (k === "$") return "1";
+      return env[k] ?? "";
+    }).replace(/(^|[\s=:])~(?=$|[/])/g, (_, p) => p + HOME);
+}
+function expandBraceWord(s) {
+  if (!s || !s.includes("{")) return [s];
+  const out = [];
+  const rec = (str, depth) => {
+    if (depth > 6 || out.length > 10000) { if (out.length <= 10000) out.push(str); return; }
+    const seq = str.match(/^(.*?)\{(-?\d+)\.\.(-?\d+)(?:\.\.(-?\d+))?\}(.*)$/);
+    if (seq) {
+      const pre = seq[1], a = seq[2], b = seq[3], st = seq[4], post = seq[5];
+      const start = Number(a), end = Number(b);
+      let step = st != null && st !== "" ? Number(st) : (start <= end ? 1 : -1);
+      if (!step) { rec(pre + a + post, depth + 1); return; }
+      let n = 0;
+      if (step > 0) {
+        for (let i = start; i <= end; i += step) { rec(pre + i + post, depth + 1); if (++n > 10000) break; }
+      } else {
+        for (let i = start; i >= end; i += step) { rec(pre + i + post, depth + 1); if (++n > 10000) break; }
+      }
+      return;
+    }
+    const letters = str.match(/^(.*?)\{([A-Za-z])\.\.([A-Za-z])\}(.*)$/);
+    if (letters) {
+      const pre = letters[1], post = letters[4];
+      const start = letters[2].charCodeAt(0), end = letters[3].charCodeAt(0);
+      const step = start <= end ? 1 : -1;
+      for (let i = start; step > 0 ? i <= end : i >= end; i += step) rec(pre + String.fromCharCode(i) + post, depth + 1);
+      return;
+    }
+    const list = str.match(/^(.*?)\{([^{}]*[^{},\s][^{}]*),[^{}]+\}(.*)$/);
+    if (list) {
+      const open = str.indexOf("{", list[1].length);
+      const close = str.indexOf("}", open);
+      if (open >= 0 && close > open) {
+        const pre = str.slice(0, open), inner = str.slice(open + 1, close), post = str.slice(close + 1);
+        if (inner.includes(",")) {
+          for (const part of inner.split(",")) rec(pre + part + post, depth + 1);
+          return;
+        }
+      }
+    }
+    out.push(str);
+  };
+  rec(s, 0);
+  return out.length ? out : [s];
+}
+function parseFlags(args) {
+  const flags = new Set();
+  const rest = [];
+  let end = false;
+  for (const a of args) {
+    if (end) { rest.push(a); continue; }
+    if (a === "--") { end = true; continue; }
+    if (a.startsWith("--")) { flags.add(a.slice(2)); continue; }
+    if (/^-\d+$/.test(a)) { rest.push(a); continue; }
+    if (a.startsWith("-") && a.length > 1 && a !== "-") { for (const ch of a.slice(1)) flags.add(ch); continue; }
+    rest.push(a);
+  }
+  return { flags, rest };
+}
+function ok(stdout = "") { return { stdout, stderr: "", code: 0 }; }
+function err(stderr, code = 1) { return { stdout: "", stderr, code }; }
+
+const HELP = {};
+const COMMANDS = {};
+function cmd(names, help, fn) {
+  const list = Array.isArray(names) ? names : [names];
+  HELP[list[0]] = help;
+  for (const n of list) COMMANDS[n] = fn;
+}
+
+cmd("help", "List builtins or help for a command", (args) => {
+  if (args[0] && HELP[args[0]]) return ok(HELP[args[0]] + "\n");
+  const names = Object.keys(HELP).sort();
+  return ok("Builtins: " + names.join("  ") + "\nTry: man <command>\n");
+});
+cmd("man", "Show help for a command", (args) => {
+  const n = args[0];
+  if (!n) return err("What manual page do you want?");
+  if (!HELP[n] && !COMMANDS[n]) return err(`No manual entry for ${n}`);
+  return ok(`NAME\n    ${n}\n\nDESCRIPTION\n    ${HELP[n] || "No description."}\n`);
+});
+cmd("clear", "Clear the terminal screen", () => { $("#out").innerHTML = ""; return ok(); });
+cmd("pwd", "Print working directory", () => ok(cwd + "\n"));
+cmd("cd", "Change directory", async (args) => {
+  const target = args[0] == null ? HOME : args[0] === "-" ? oldpwd : normalize(args[0]);
+  const n = await getNode(target);
+  if (!n) return err(`cd: ${args[0] || "~"}: No such file or directory`);
+  if (n.type !== "dir") return err(`cd: ${args[0]}: Not a directory`);
+  oldpwd = cwd;
+  cwd = n.path;
+  env.PWD = cwd;
+  env.OLDPWD = oldpwd;
+  return ok();
+});
+cmd("ls", "List directory contents (-l -a -1 -h -R)", async (args) => {
+  const { flags, rest } = parseFlags(args);
+  const targets = rest.length ? rest.map((p) => normalize(p)) : [cwd];
+  const lines = [];
+  const show = async (path, label) => {
+    const n = await getNode(path);
+    if (!n) { lines.push(`ls: cannot access '${path}': No such file or directory`); return; }
+    if (n.type !== "dir") {
+      lines.push(formatLsEntry(path, n, flags));
+      return;
+    }
+    let names = (await children(path)).map(baseName);
+    if (!flags.has("a")) names = names.filter((x) => !x.startsWith("."));
+    else names = [".", "..", ...names];
+    if (flags.has("l")) {
+      if (label) lines.push(path + ":");
+      lines.push(`total ${names.length}`);
+      for (const name of names) {
+        const p = name === "." ? path : name === ".." ? dirName(path) : (path === "/" ? "/" + name : path + "/" + name);
+        const nn = (await getNode(p)) || { type: "dir", mode: 0o755, mtime: now(), size: 0 };
+        lines.push(formatLsEntry(p, nn, flags, name));
+      }
+    } else {
+      if (label) lines.push(path + ":");
+      lines.push(names.join(flags.has("1") ? "\n" : "  "));
+    }
+    if (flags.has("R") && n.type === "dir") {
+      for (const c of await children(path)) if (await isDir(c)) {
+        lines.push("");
+        await show(c, true);
+      }
+    }
+  };
+  const multi = targets.length > 1;
+  for (let i = 0; i < targets.length; i++) {
+    if (i) lines.push("");
+    await show(targets[i], multi);
+  }
+  return ok(lines.join("\n") + (lines.length ? "\n" : ""));
+});
+function formatLsEntry(path, n, flags, name) {
+  const nm = name || baseName(path);
+  if (!flags.has("l")) return nm;
+  const size = String(n.size || 0);
+  const extra = n.type === "link" ? " -> " + (n.target || "") : "";
+  return `${modeStr(n)} 1 ${USER} ${USER} ${size.padStart(6)} ${fmtTime(n.mtime || now())} ${nm}${extra}`;
+}
+cmd("tree", "Show directory tree", async (args) => {
+  const root = normalize(args[0] || ".");
+  if (!(await exists(root))) return err("tree: No such file or directory");
+  const lines = [baseName(root) === "/" ? "/" : baseName(root)];
+  async function rec(path, prefix) {
+    const kids = await children(path);
+    for (let i = 0; i < kids.length; i++) {
+      const c = kids[i];
+      const last = i === kids.length - 1;
+      lines.push(prefix + (last ? "└── " : "├── ") + baseName(c));
+      if (await isDir(c)) await rec(c, prefix + (last ? "    " : "│   "));
+    }
+  }
+  if (await isDir(root)) await rec(root, "");
+  return ok(lines.join("\n") + "\n");
+});
+cmd("cat", "Concatenate files", async (args, stdin) => {
+  if (!args.length) return ok(stdin || "");
+  try {
+    let out = "";
+    for (const p of args) out += await readFile(normalize(p));
+    return ok(out);
+  } catch (e) { return err("cat: " + e.message); }
+});
+cmd("head", "Print first lines (-n)", async (args, stdin) => {
+  let n = 10;
+  const files = [];
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === "-n" && args[i + 1] != null) { n = +args[++i]; continue; }
+    if (/^-\d+$/.test(args[i])) { n = +args[i].slice(1); continue; }
+    if (args[i].startsWith("-")) continue;
+    files.push(args[i]);
+  }
+  try {
+    let text = stdin || "";
+    if (files.length) {
+      text = "";
+      for (const p of files) text += await readFile(normalize(p));
+    }
+    return ok(text.split("\n").slice(0, n).join("\n") + (text ? "\n" : ""));
+  } catch (e) { return err("head: " + e.message); }
+});
+cmd("tail", "Print last lines (-n)", async (args, stdin) => {
+  let n = 10;
+  const { rest } = parseFlags(args);
+  const idx = args.indexOf("-n");
+  if (idx >= 0) n = +args[idx + 1] || 10;
+  const files = rest.filter((x) => x !== String(n));
+  try {
+    let text = stdin || "";
+    if (files.length) {
+      text = "";
+      for (const p of files) text += await readFile(normalize(p));
+    }
+    const parts = text.split("\n");
+    if (parts[parts.length - 1] === "") parts.pop();
+    return ok(parts.slice(-n).join("\n") + (parts.length ? "\n" : ""));
+  } catch (e) { return err("tail: " + e.message); }
+});
+cmd("touch", "Create a file or update mtime", async (args) => {
+  if (!args.length) return err("touch: missing file operand");
+  try {
+    for (const a of args) {
+      const p = normalize(a);
+      const n = await getNode(p);
+      if (n && n.type === "file" && !n.virtual) {
+        const fs = osfs();
+        const blob = (await fs.getBlob(n.id)) || new Blob([""], { type: "text/plain" });
+        await fs.writeFile(n.id, blob);
+      } else if (!n) {
+        await writeFile(p, "");
+      }
+    }
+    return ok();
+  } catch (e) { return err("touch: " + e.message); }
+});
+cmd("mkdir", "Create directories (-p)", async (args) => {
+  const { flags, rest } = parseFlags(args);
+  if (!rest.length) return err("mkdir: missing operand");
+  try {
+    for (const a of rest) {
+      const p = normalize(a);
+      const n = await getNode(p);
+      if (n && !flags.has("p")) return err(`mkdir: cannot create directory '${a}': File exists`);
+      if (n && n.type !== "dir") return err(`mkdir: cannot create directory '${a}': File exists`);
+      if (flags.has("p")) await mkdirp(p);
+      else {
+        if (!(await isDir(dirName(p)))) return err(`mkdir: cannot create directory '${a}': No such file or directory`);
+        await mkdirp(p);
+      }
+    }
+    return ok();
+  } catch (e) { return err("mkdir: " + e.message); }
+});
+cmd("rmdir", "Remove empty directories", async (args) => {
+  if (!args.length) return err("rmdir: missing operand");
+  try {
+    for (const a of args) {
+      const p = normalize(a);
+      if (!(await isDir(p))) return err(`rmdir: ${a}: No such file or directory`);
+      if ((await children(p)).length) return err(`rmdir: ${a}: Directory not empty`);
+      await removePath(p, { force: true });
+    }
+    return ok();
+  } catch (e) { return err("rmdir: " + e.message); }
+});
+cmd("rm", "Remove files (-r -f)", async (args) => {
+  const { flags, rest } = parseFlags(args);
+  if (!rest.length) return err("rm: missing operand");
+  try {
+    for (const a of rest) await removePath(normalize(a), { recursive: flags.has("r") || flags.has("R"), force: flags.has("f") });
+    return ok();
+  } catch (e) { return err("rm: " + e.message); }
+});
+cmd("cp", "Copy files (-r)", async (args) => {
+  const { flags, rest } = parseFlags(args);
+  if (rest.length < 2) return err("cp: missing destination");
+  const dest = normalize(rest[rest.length - 1]);
+  const srcs = rest.slice(0, -1).map((p) => normalize(p));
+  try {
+    if (srcs.length > 1 && !(await isDir(dest))) return err("cp: target is not a directory");
+    for (const s of srcs) await copyNode(s, dest, flags.has("r") || flags.has("R"));
+    return ok();
+  } catch (e) { return err("cp: " + e.message); }
+});
+cmd("mv", "Move or rename", async (args) => {
+  if (args.length < 2) return err("mv: missing destination");
+  const dest = normalize(args[args.length - 1]);
+  const srcs = args.slice(0, -1).map((p) => normalize(p));
+  try {
+    if (srcs.length > 1 && !(await isDir(dest))) return err("mv: target is not a directory");
+    for (const s of srcs) await movePath(s, dest);
+    return ok();
+  } catch (e) { return err("mv: " + e.message); }
+});
+cmd("ln", "Create a symlink (-s)", () => err("ln: symbolic links are not supported on the desktop filesystem"));
+cmd(["open", "xdg-open"], "Open a file with the associated desktop app", async (args) => {
+  if (!args[0]) return err("open: missing file operand");
+  const abs = normalize(args[0]);
+  const n = await getNode(abs);
+  if (!n) return err(`open: ${args[0]}: No such file or directory`);
+  const host = hostWindow();
+  if (!host || host === window || !host.OSWindows) {
+    return err("open: not running inside Desktop OS");
+  }
+  if (n.type === "dir") {
+    host.OSWindows.open("file-explorer", { path: abs });
+    return ok();
+  }
+  if (n.virtual && n.os && n.os.appId) {
+    host.OSWindows.open(n.os.appId);
+    return ok();
+  }
+  if (!n.id || n.virtual) return err("open: cannot open that item");
+  if (host.OSFileExplorer && typeof host.OSFileExplorer.openDesktopNode === "function") {
+    await host.OSFileExplorer.openDesktopNode(n.os);
+    return ok();
+  }
+  if (host.OSFileApps && typeof host.OSFileApps.openFile === "function") {
+    const appId = host.OSFileApps.defaultAppIdFor(n.os);
+    if (appId) {
+      await host.OSFileApps.openFile(n.id, appId);
+      return ok();
+    }
+  }
+  return err("open: no application associated with that file");
+});
+cmd("stat", "Show file status", async (args) => {
+  if (!args[0]) return err("stat: missing operand");
+  const p = normalize(args[0]);
+  const n = await getNode(p);
+  if (!n) return err("stat: No such file or directory");
+  return ok(`  File: ${p}\n  Size: ${n.size || 0}\n  Type: ${n.type}\n  Mode: ${modeStr(n)}\nModify: ${new Date(n.mtime).toISOString()}\n`);
+});
+cmd("file", "Guess file type", async (args) => {
+  if (!args[0]) return err("file: missing operand");
+  const p = normalize(args[0]);
+  const n = await getNode(p);
+  if (!n) return err("file: No such file or directory");
+  if (n.type === "dir") return ok(p + ": directory\n");
+  if (n.type === "link") return ok(p + ": shortcut\n");
+  return ok(p + ": " + (osfs().typeLabel(n.os) || "file") + "\n");
+});
+cmd("du", "Disk usage (-s)", async (args) => {
+  const { flags, rest } = parseFlags(args);
+  const p = normalize(rest[0] || ".");
+  if (!(await exists(p))) return err("du: No such file or directory");
+  const sizeOf = async (path) => {
+    const n = await getNode(path);
+    if (!n) return 0;
+    if (n.type !== "dir") return n.size || 0;
+    let sum = 0;
+    for (const c of await children(path)) sum += await sizeOf(c);
+    return sum;
+  };
+  if (flags.has("s") || flags.has("h")) return ok(`${await sizeOf(p)}\t${p}\n`);
+  const lines = [];
+  for (const x of await walk(p)) lines.push(`${await sizeOf(x)}\t${x}`);
+  return ok(lines.join("\n") + "\n");
+});
+cmd("df", "Show virtual disk usage", async () => {
+  const all = await osfs().allNodes();
+  let used = 0;
+  for (const n of all) used += n.size || 0;
+  return ok(`Filesystem     1B-blocks      Used Available Use%\nvc-vfs          8388608 ${String(used).padStart(10)} ${String(8388608 - used).padStart(9)}  ${Math.round(used / 8388608 * 100)}%\n`);
+});
+cmd("chmod", "Change file mode", async (args) => {
+  if (args.length < 2) return err("chmod: missing operand");
+  const modeTok = args[0];
+  const paths = args.slice(1).map((p) => normalize(p));
+  if (!/^[0-7]{3,4}$/.test(modeTok)) return err("chmod: only octal modes are supported (e.g. 755)");
+  for (const p of paths) {
+    if (!(await getNode(p))) return err(`chmod: ${p}: No such file or directory`);
+  }
+  return ok();
+});
+cmd("find", "Find files (-name -type)", async (args) => {
+  let root = cwd, name = null, type = null;
+  const rest = args.slice();
+  if (rest[0] && !rest[0].startsWith("-")) root = normalize(rest.shift());
+  for (let i = 0; i < rest.length; i++) {
+    if (rest[i] === "-name") name = rest[++i];
+    else if (rest[i] === "-type") type = rest[++i];
+  }
+  if (!(await exists(root))) return err("find: No such file or directory");
+  const re = name ? globToRe(name) : null;
+  const hits = [];
+  for (const p of await walk(root)) {
+    const n = await getNode(p);
+    if (!n) continue;
+    if (type === "f" && n.type !== "file") continue;
+    if (type === "d" && n.type !== "dir") continue;
+    if (re && !re.test(baseName(p))) continue;
+    hits.push(p);
+  }
+  return ok(hits.join("\n") + (hits.length ? "\n" : ""));
+});
+cmd("echo", "Print arguments (-n)", (args) => {
+  const n = args[0] === "-n";
+  const text = (n ? args.slice(1) : args).join(" ");
+  return ok(text + (n ? "" : "\n"));
+});
+cmd("printf", "Format text", (args) => {
+  if (!args.length) return err("printf: missing operand");
+  let fmt = args[0].replace(/\\n/g, "\n").replace(/\\t/g, "\t");
+  const rest = args.slice(1);
+  let i = 0;
+  const out = fmt.replace(/%s|%d|%%/g, (m) => {
+    if (m === "%%") return "%";
+    const v = rest[i++] ?? "";
+    return m === "%d" ? String(Number(v) || 0) : v;
+  });
+  return ok(out);
+});
+cmd("grep", "Search text (-n -i -v -r)", async (args, stdin) => {
+  const { flags, rest } = parseFlags(args);
+  if (!rest.length) return err("grep: missing pattern");
+  const pattern = rest[0];
+  const files = rest.slice(1);
+  let re;
+  try { re = new RegExp(pattern, flags.has("i") ? "i" : ""); }
+  catch { return err("grep: invalid regular expression"); }
+  const collect = [];
+  const addText = (label, text) => {
+    const lines = text.split("\n");
+    if (lines[lines.length - 1] === "") lines.pop();
+    lines.forEach((line, i) => {
+      const hit = re.test(line);
+      re.lastIndex = 0;
+      if (flags.has("v") ? !hit : hit) {
+        const nr = flags.has("n") ? `${i + 1}:` : "";
+        collect.push((label ? label + ":" : "") + nr + line);
+      }
+    });
+  };
+  try {
+    if (!files.length) addText("", stdin || "");
+    else {
+      const paths = [];
+      for (const f of files) {
+        const p = normalize(f);
+        if (flags.has("r") && (await isDir(p))) {
+          for (const w of await walk(p)) if (await isFile(w)) paths.push(w);
+        } else paths.push(p);
+      }
+      const multi = paths.length > 1 || flags.has("r");
+      for (const p of paths) addText(multi ? p : "", await readFile(p));
+    }
+    return ok(collect.join("\n") + (collect.length ? "\n" : ""));
+  } catch (e) { return err("grep: " + e.message); }
+});
+cmd("sed", "Stream edit: sed s/old/new/g", async (args, stdin) => {
+  if (!args.length) return err("sed: missing expression");
+  let expr = args[0];
+  const files = args.slice(1);
+  if ((expr.startsWith("'") && expr.endsWith("'")) || (expr.startsWith('"') && expr.endsWith('"'))) expr = expr.slice(1, -1);
+  const m = expr.match(/^s(.)([\s\S]*?)\1([\s\S]*?)\1([gi]*)$/);
+  if (!m) return err("sed: only s/// expressions are supported");
+  let re;
+  try { re = new RegExp(m[2], m[4].includes("g") ? "g" : ""); }
+  catch { return err("sed: invalid expression"); }
+  try {
+    let text = stdin || "";
+    if (files.length) {
+      text = "";
+      for (const p of files) text += await readFile(normalize(p));
+    }
+    return ok(text.replace(re, m[3]));
+  } catch (e) { return err("sed: " + e.message); }
+});
+cmd("sort", "Sort lines (-r -n -u)", async (args, stdin) => {
+  const { flags, rest } = parseFlags(args);
+  try {
+    let text = stdin || "";
+    if (rest.length) {
+      text = "";
+      for (const p of rest) text += await readFile(normalize(p));
+    }
+    let lines = text.split("\n");
+    if (lines[lines.length - 1] === "") lines.pop();
+    lines.sort((a, b) => flags.has("n") ? (parseFloat(a) - parseFloat(b)) : a.localeCompare(b));
+    if (flags.has("r")) lines.reverse();
+    if (flags.has("u")) lines = [...new Set(lines)];
+    return ok(lines.join("\n") + (lines.length ? "\n" : ""));
+  } catch (e) { return err("sort: " + e.message); }
+});
+cmd("uniq", "Omit repeated lines (-c)", async (args, stdin) => {
+  const { flags, rest } = parseFlags(args);
+  try {
+    const text = rest.length ? await readFile(normalize(rest[0])) : (stdin || "");
+    const lines = text.split("\n");
+    if (lines[lines.length - 1] === "") lines.pop();
+    const out = [];
+    for (const line of lines) {
+      const last = out[out.length - 1];
+      if (!last || last.line !== line) out.push({ line, n: 1 });
+      else last.n++;
+    }
+    const body = out.map((x) => flags.has("c") ? `${String(x.n).padStart(7)} ${x.line}` : x.line);
+    return ok(body.join("\n") + (body.length ? "\n" : ""));
+  } catch (e) { return err("uniq: " + e.message); }
+});
+cmd("wc", "Count lines, words, bytes (-l -w -c)", async (args, stdin) => {
+  const { flags, rest } = parseFlags(args);
+  const count = (text) => {
+    const lines = text.length ? text.split("\n").length - (text.endsWith("\n") ? 1 : 0) : 0;
+    const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+    return { lines, words, bytes: new TextEncoder().encode(text).length };
+  };
+  try {
+    const showAll = !flags.has("l") && !flags.has("w") && !flags.has("c");
+    const fmt = (c, label) => {
+      const parts = [];
+      if (showAll || flags.has("l")) parts.push(String(c.lines).padStart(8));
+      if (showAll || flags.has("w")) parts.push(String(c.words).padStart(8));
+      if (showAll || flags.has("c")) parts.push(String(c.bytes).padStart(8));
+      return parts.join(" ") + (label ? " " + label : "") + "\n";
+    };
+    if (!rest.length) return ok(fmt(count(stdin || "")));
+    let out = "";
+    for (const f of rest) out += fmt(count(await readFile(normalize(f))), f);
+    return ok(out);
+  } catch (e) { return err("wc: " + e.message); }
+});
+cmd("cut", "Cut fields (-d -f)", async (args, stdin) => {
+  const dIdx = args.indexOf("-d");
+  const fIdx = args.indexOf("-f");
+  const delim = dIdx >= 0 ? args[dIdx + 1] : "\t";
+  const fields = (fIdx >= 0 ? args[fIdx + 1] : "1").split(",").map((x) => +x);
+  const files = args.filter((a, i) => a !== "-d" && a !== "-f" && a !== args[dIdx + 1] && a !== args[fIdx + 1] && !a.startsWith("-"));
+  try {
+    let text = stdin || "";
+    if (files.length) {
+      text = "";
+      for (const p of files) text += await readFile(normalize(p));
+    }
+    const out = text.split("\n").map((line) => {
+      if (line === "" && text.endsWith("\n")) return "";
+      const cols = line.split(delim);
+      return fields.map((n) => cols[n - 1] ?? "").join(delim);
+    });
+    if (out[out.length - 1] === "" && text.endsWith("\n")) return ok(out.join("\n"));
+    return ok(out.join("\n") + (out.length ? "\n" : ""));
+  } catch (e) { return err("cut: " + e.message); }
+});
+cmd("tr", "Translate characters", (args, stdin) => {
+  if (args.length < 2) return err("tr: missing operand");
+  const [a, b] = args;
+  const map = {};
+  const n = Math.min(a.length, b.length);
+  for (let i = 0; i < n; i++) map[a[i]] = b[i];
+  return ok([...(stdin || "")].map((ch) => map[ch] ?? ch).join(""));
+});
+cmd("tee", "Copy stdin to files and stdout (-a)", async (args, stdin) => {
+  const { flags, rest } = parseFlags(args);
+  try {
+    const text = stdin || "";
+    for (const f of rest) await writeFile(normalize(f), text, { append: flags.has("a") });
+    return ok(text);
+  } catch (e) { return err("tee: " + e.message); }
+});
+cmd("diff", "Compare two files", async (args) => {
+  if (args.length < 2) return err("diff: missing operand");
+  try {
+    const a = (await readFile(normalize(args[0]))).split("\n");
+    const b = (await readFile(normalize(args[1]))).split("\n");
+    if (a[a.length - 1] === "") a.pop();
+    if (b[b.length - 1] === "") b.pop();
+    const m = Math.min(800, a.length), n = Math.min(800, b.length);
+    const dp = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0));
+    for (let i = m - 1; i >= 0; i--) for (let j = n - 1; j >= 0; j--)
+      dp[i][j] = a[i] === b[j] ? dp[i + 1][j + 1] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1]);
+    const out = [];
+    let i = 0, j = 0;
+    while (i < m || j < n) {
+      if (i < m && j < n && a[i] === b[j]) { i++; j++; }
+      else if (j < n && (i === m || dp[i][j + 1] >= dp[i + 1]?.[j])) { out.push("> " + b[j]); j++; }
+      else { out.push("< " + a[i]); i++; }
+    }
+    return ok(out.length ? out.join("\n") + "\n" : "");
+  } catch (e) { return err("diff: " + e.message); }
+});
+cmd("basename", "Strip directory", (args) => args[0] ? ok(baseName(normalize(args[0])) + "\n") : err("basename: missing operand"));
+cmd("dirname", "Strip last component", (args) => args[0] ? ok(dirName(normalize(args[0])) + "\n") : err("dirname: missing operand"));
+cmd("realpath", "Print absolute path", async (args) => {
+  if (!args[0]) return err("realpath: missing operand");
+  const p = normalize(args[0]);
+  const n = await getNode(p);
+  if (!n) return err("realpath: No such file or directory");
+  return ok(n.path + "\n");
+});
+cmd("seq", "Print a sequence", (args) => {
+  const nums = args.map(Number);
+  if (!nums.length || nums.some(Number.isNaN)) return err("seq: invalid argument");
+  let start = 1, step = 1, end = nums[0];
+  if (nums.length === 2) { start = nums[0]; end = nums[1]; }
+  if (nums.length >= 3) { start = nums[0]; step = nums[1]; end = nums[2]; }
+  const out = [];
+  if (step === 0) return err("seq: zero increment");
+  if (step > 0) for (let i = start; i <= end; i += step) out.push(String(i));
+  else for (let i = start; i >= end; i += step) out.push(String(i));
+  return ok(out.join("\n") + (out.length ? "\n" : ""));
+});
+cmd("date", "Print the current date", () => ok(new Date().toString() + "\n"));
+cmd("cal", "Print a calendar", () => {
+  const d = new Date();
+  const y = d.getFullYear(), m = d.getMonth();
+  const first = new Date(y, m, 1).getDay();
+  const dim = new Date(y, m + 1, 0).getDate();
+  const title = d.toLocaleString("en-US", { month: "long", year: "numeric" });
+  let s = title.padStart(Math.floor((20 + title.length) / 2)).padEnd(20) + "\nSu Mo Tu We Th Fr Sa\n";
+  s += "   ".repeat(first);
+  for (let day = 1; day <= dim; day++) {
+    s += String(day).padStart(2) + ((first + day) % 7 === 0 ? "\n" : " ");
+  }
+  return ok(s.replace(/ +\n/g, "\n") + "\n");
+});
+cmd("whoami", "Print current user", () => ok(USER + "\n"));
+cmd("id", "Print user identity", () => ok(`uid=1000(${USER}) gid=1000(${USER}) groups=1000(${USER})\n`));
+cmd("hostname", "Print hostname", () => ok(HOST + "\n"));
+cmd("uname", "Print system information (-a)", (args) => {
+  const { flags } = parseFlags(args);
+  if (flags.has("a")) return ok(`Linux ${HOST} 6.6.0-vc #1 SMP ${new Date().toDateString()} x86_64 GNU/Linux\n`);
+  return ok("Linux\n");
+});
+cmd("env", "Print environment", () => ok(Object.keys(env).sort().map((k) => `${k}=${env[k]}`).join("\n") + "\n"));
+cmd("export", "Set an environment variable", (args) => {
+  if (!args.length) return COMMANDS.env([]);
+  for (const a of args) {
+    const i = a.indexOf("=");
+    if (i < 0) env[a] = env[a] ?? "";
+    else env[a.slice(0, i)] = a.slice(i + 1);
+  }
+  return ok();
+});
+cmd("unset", "Remove environment variable", (args) => { for (const a of args) delete env[a]; return ok(); });
+cmd("alias", "Define or list aliases", (args) => {
+  if (!args.length) return ok(Object.keys(aliases).sort().map((k) => `alias ${k}='${aliases[k]}'`).join("\n") + (Object.keys(aliases).length ? "\n" : ""));
+  for (const a of args) {
+    const i = a.indexOf("=");
+    if (i < 0) {
+      if (aliases[a]) return ok(`alias ${a}='${aliases[a]}'\n`);
+      return err(`alias: ${a}: not found`);
+    }
+    aliases[a.slice(0, i)] = a.slice(i + 1).replace(/^['"]|['"]$/g, "");
+  }
+  return ok();
+});
+cmd("unalias", "Remove aliases", (args) => { for (const a of args) delete aliases[a]; return ok(); });
+cmd("history", "Command history", (args) => {
+  if (args[0] === "-c") { history = []; return ok(); }
+  return ok(history.map((h, i) => `${String(i + 1).padStart(5)}  ${h}`).join("\n") + (history.length ? "\n" : ""));
+});
+cmd("which", "Show command name", async (args) => {
+  if (!args[0]) return err("which: missing operand");
+  if (aliases[args[0]] && !COMMANDS[args[0]]) return ok(`alias ${args[0]}\n`);
+  if (COMMANDS[args[0]]) return ok(`/usr/bin/${args[0]}\n`);
+  const hit = await lookupPathScript(args[0]);
+  if (hit) return ok(hit + "\n");
+  return err(`${args[0]} not found`, 1);
+});
+cmd("type", "Describe a command", async (args) => {
+  if (!args[0]) return err("type: missing operand");
+  if (aliases[args[0]]) return ok(`${args[0]} is aliased to \`${aliases[args[0]]}'\n`);
+  if (COMMANDS[args[0]]) return ok(`${args[0]} is a shell builtin\n`);
+  const hit = await lookupPathScript(args[0]);
+  if (hit) return ok(`${args[0]} is ${hit}\n`);
+  return err(`${args[0]}: not found`);
+});
+cmd("true", "Succeed", () => ok());
+cmd("false", "Fail", () => err("", 1));
+cmd(["test", "["], "Evaluate an expression", async (args) => {
+  if (args[args.length - 1] === "]") args = args.slice(0, -1);
+  const a = args[0], b = args[1], c = args[2];
+  const fileTest = async (flag, p) => {
+    const n = await getNode(normalize(p || ""));
+    if (flag === "-e") return !!n;
+    if (flag === "-f") return n?.type === "file";
+    if (flag === "-d") return n?.type === "dir";
+    if (flag === "-s") return n?.type === "file" && (n.size || 0) > 0;
+    if (flag === "-x") return n ? ((n.mode ?? 0) & 0o111) !== 0 : false;
+    return false;
+  };
+  let pass = false;
+  if (args.length === 1 && a && a !== "-z") pass = a !== "";
+  else if (a === "-z") pass = !(b || "");
+  else if (a === "-n") pass = !!(b || "");
+  else if (["-e", "-f", "-d", "-s", "-x"].includes(a)) pass = await fileTest(a, b);
+  else if (b === "=" || b === "==") pass = a === c;
+  else if (b === "!=") pass = a !== c;
+  else if (["-eq", "-ne", "-lt", "-le", "-gt", "-ge"].includes(b)) {
+    const x = Number(a), y = Number(c);
+    pass = { "-eq": x === y, "-ne": x !== y, "-lt": x < y, "-le": x <= y, "-gt": x > y, "-ge": x >= y }[b];
+  }
+  return pass ? ok() : err("", 1);
+});
+cmd("expr", "Evaluate a simple expression", (args) => {
+  if (args.length !== 3) return err("expr: usage: expr A OP B");
+  const x = Number(args[0]), y = Number(args[2]), op = args[1];
+  const ops = { "+": x + y, "-": x - y, "*": x * y, "/": y ? Math.trunc(x / y) : NaN, "%": y ? x % y : NaN };
+  if (!(op in ops) || Number.isNaN(ops[op])) return err("expr: non-numeric argument");
+  return ok(String(ops[op]) + "\n");
+});
+cmd("sleep", "Sleep seconds", async (args) => {
+  const n = Number(args[0]);
+  if (Number.isNaN(n) || n < 0) return err("sleep: invalid time");
+  const ms = Math.min(n, 60) * 1000;
+  const t0 = Date.now();
+  while (Date.now() - t0 < ms) {
+    if (abortRun) return err("^C", 130);
+    await new Promise((r) => setTimeout(r, Math.min(50, ms - (Date.now() - t0))));
+  }
+  return ok();
+});
+cmd("ps", "List processes", () => ok("  PID TTY          TIME CMD\n    1 pts/0    00:00:00 bash\n"));
+cmd("kill", "Terminate a process", (args) => {
+  if (args.includes("1")) return err("kill: (1) - Operation not permitted");
+  return err("kill: No such process");
+});
+cmd("curl", "Fetch a URL (CORS may block)", async (args) => {
+  const { flags, rest } = parseFlags(args);
+  const url = rest[0];
+  if (!url) return err("curl: no URL specified");
+  try {
+    const r = await fetch(url);
+    const text = await r.text();
+    if (flags.has("O") || flags.has("o")) {
+      const dest = flags.has("o") ? rest[1] : baseName(new URL(url, location.href).pathname) || "index.html";
+      await writeFile(normalize(dest || "download.txt"), text);
+      return ok();
+    }
+    return ok(text);
+  } catch (e) { return err("curl: " + e.message); }
+});
+cmd("wget", "Download a URL into a file", async (args) => {
+  const url = args.find((a) => !a.startsWith("-"));
+  if (!url) return err("wget: missing URL");
+  const o = args.indexOf("-O");
+  const dest = o >= 0 ? args[o + 1] : baseName(url.split("?")[0]) || "index.html";
+  return COMMANDS.curl(["-o", dest, url]);
+});
+cmd("neofetch", "Show system info", () => {
+  const art = [
+    "      .--.      ",
+    "     |o_o |     ",
+    "     |:_/ |     ",
+    "    //   \\ \\    ",
+    "   (|     | )   ",
+    "  /'\\_   _/`\\   ",
+    "  \\___)=(___/   "
+  ];
+  const info = [
+    `${USER}@${HOST}`,
+    "OS: VC Linux (browser)",
+    "Host: " + navigator.platform,
+    "Kernel: 6.6.0-vc",
+    "Shell: bash",
+    "Theme: " + (document.documentElement.dataset.theme || "dark"),
+    "Terminal: VC Terminal",
+    "Locale: " + lang
+  ];
+  const lines = art.map((a, i) => a + "  " + (info[i] || ""));
+  while (info.length > art.length) lines.push(" ".repeat(16) + "  " + info[art.length + (lines.length - art.length)]);
+  return ok(lines.join("\n") + "\n");
+});
+cmd("reset-fs", "Reset the shell session", async () => {
+  resetSession();
+  return ok("Session reset. Files in File Explorer were kept.\n");
+});
+cmd("source", "Run a script in this shell", async (args) => {
+  if (!args[0]) return err("source: filename argument required");
+  try { return await runScript(await readFile(normalize(args[0])), { live: stageLive }); }
+  catch (e) { return err("source: " + e.message); }
+});
+cmd(["sh", "bash"], "Run a shell script", async (args) => {
+  if (!args.length) return ok();
+  if (args[0] === "-c") {
+    if (args[1] == null) return err("sh: -c: option requires an argument");
+    return runScript(args[1], { live: stageLive });
+  }
+  try { return await runScript(await readFile(normalize(args[0])), { live: stageLive }); }
+  catch (e) { return err("sh: " + e.message); }
+});
+cmd("exit", "Finish the session", () => ok("logout\n(This page stays open.)\n"));
+cmd(["vim", "vi"], "Edit a file with a modal editor", (args) => openVim(args[0]));
+cmd("nano", "Edit a file", (args) => openNano(args[0]));
+cmd(["less", "more"], "Page through text", async (args, stdin) => {
+  try {
+    await openPager(args[0] ? await readFile(normalize(args[0])) : (stdin || ""));
+    return ok();
+  } catch (e) { return err("less: " + e.message); }
+});
+
+const INTERACTIVE = new Set(["vim", "vi", "nano", "less", "more"]);
+
+async function runStage(argv, stdin, { live = false } = {}) {
+  if (!argv.length) return ok(stdin || "");
+  const local = argv.slice();
+  while (local.length && /^[A-Za-z_][A-Za-z0-9_]*=/.test(local[0])) {
+    const a = local.shift();
+    const eq = a.indexOf("=");
+    env[a.slice(0, eq)] = a.slice(eq + 1);
+  }
+  if (!local.length) return ok();
+  let name = local[0];
+  let args = local.slice(1);
+  if (aliases[name] && !COMMANDS[name]) {
+    const expanded = tokenize(expandVars(aliases[name])).filter((x) => x.kind === "word").map((x) => x.raw);
+    name = expanded[0];
+    args = expanded.slice(1).concat(args);
+  }
+  const prevLive = stageLive;
+  stageLive = live;
+  try {
+    if (name.includes("/") || name.startsWith(".")) {
+      const p = normalize(name);
+      const n = await getNode(p);
+      if (n && n.type === "file") return runScript(await readFile(p), { live });
+      return err(`${name}: No such file or directory`, 127);
+    }
+    const fn = COMMANDS[name];
+    if (fn) {
+      const result = await fn(args, stdin || "");
+      return result || ok();
+    }
+    const script = await lookupPathScript(name);
+    if (script) return runScript(await readFile(script), { live });
+    return err(`${name}: command not found`, 127);
+  } finally {
+    stageLive = prevLive;
+  }
+}
+
+function splitStages(tokens) {
+  const jobs = [];
+  let cur = { stages: [[]], op: null };
+  const pushWord = (w) => cur.stages[cur.stages.length - 1].push(w);
+  for (let i = 0; i < tokens.length; i++) {
+    const tok = tokens[i];
+    if (tok.kind === "op" && tok.raw === "|") { cur.stages.push([]); continue; }
+    if (tok.kind === "op") {
+      jobs.push(cur);
+      cur = { stages: [[]], op: tok.raw };
+      continue;
+    }
+    if (tok.kind === "redir") {
+      const next = tokens[++i];
+      if (!next || next.kind !== "word") continue;
+      const stage = cur.stages[cur.stages.length - 1];
+      stage.redir = stage.redir || {};
+      const target = next.raw;
+      if (tok.type === ">") stage.redir.out = { path: target, append: false };
+      if (tok.type === ">>") stage.redir.out = { path: target, append: true };
+      if (tok.type === "2>" || tok.type === "2>>") stage.redir.err = { path: target, append: tok.type === "2>>" };
+      if (tok.type === "<") stage.redir.inn = target;
+      continue;
+    }
+    pushWord(tok);
+  }
+  jobs.push(cur);
+  return jobs;
+}
+
+async function expandWords(toks) {
+  const words = [];
+  for (const tok of toks) {
+    if (!tok || tok.kind !== "word") continue;
+    const expanded = tok.expand === false ? tok.raw : expandVars(tok.raw);
+    const braced = tok.globok ? expandBraceWord(expanded) : [expanded];
+    for (const b of braced) {
+      const parts = tok.globok ? await expandGlob(b) : [b];
+      words.push(...parts);
+    }
+  }
+  return words;
+}
+
+async function runPipeline(stages, { live = false } = {}) {
+  let stdin = "";
+  let last = ok();
+  for (let s = 0; s < stages.length; s++) {
+    if (abortRun) return err("", 130);
+    const stage = stages[s];
+    const words = await expandWords(stage);
+    const redir = stage.redir;
+    if (redir?.inn) {
+      try { stdin = await readFile(normalize(redir.inn)); }
+      catch (e) { return err(e.message); }
+    }
+    const stream = live && stages.length === 1 && !redir?.out;
+    if (words[0] && INTERACTIVE.has(words[0]) && s === stages.length - 1 && !redir?.out) {
+      last = await runInteractive(words, stdin);
+    } else {
+      last = await runStage(words, stdin, { live: stream });
+    }
+    if (redir?.out) {
+      try { await writeFile(normalize(redir.out.path), last.stdout || "", { append: redir.out.append }); last.stdout = ""; }
+      catch (e) { last = err(e.message); }
+    }
+    if (redir?.err && last.stderr) {
+      try { await writeFile(normalize(redir.err.path), last.stderr, { append: redir.err.append }); last.stderr = ""; }
+      catch (e) { last = err(e.message); }
+    }
+    stdin = last.stdout || "";
+  }
+  return last;
+}
+
+const COMPOUND = new Set(["for", "while", "until", "if"]);
+
+function skipSeps(toks, pos) {
+  while (pos.i < toks.length && toks[pos.i].kind === "op" && toks[pos.i].raw === ";") pos.i++;
+}
+function peekWord(toks, pos) {
+  if (pos.i >= toks.length) return null;
+  const t = toks[pos.i];
+  return t.kind === "word" ? t.raw : null;
+}
+function expectWord(toks, pos, want) {
+  skipSeps(toks, pos);
+  const w = peekWord(toks, pos);
+  if (want && w !== want) throw new Error(`syntax error near unexpected token \`${w || "newline"}\``);
+  if (!w) throw new Error("syntax error: unexpected end of file");
+  pos.i++;
+  return w;
+}
+function isCmdStart(tokens) {
+  if (!tokens.length) return true;
+  const last = tokens[tokens.length - 1];
+  return last.kind === "op" && (last.raw === "&&" || last.raw === "||" || last.raw === "|");
+}
+function parseStmts(toks, pos, stop) {
+  const stmts = [];
+  while (pos.i < toks.length) {
+    skipSeps(toks, pos);
+    if (pos.i >= toks.length) break;
+    const w = peekWord(toks, pos);
+    if (w && stop.has(w)) break;
+    stmts.push(parseStmt(toks, pos, stop));
+  }
+  return stmts;
+}
+function parseStmt(toks, pos, stop) {
+  const w = peekWord(toks, pos);
+  if (w === "for") return parseFor(toks, pos);
+  if (w === "while" || w === "until") return parseWhile(toks, pos);
+  if (w === "if") return parseIf(toks, pos);
+  const tokens = [];
+  while (pos.i < toks.length) {
+    const t = toks[pos.i];
+    if (t.kind === "op" && t.raw === ";") break;
+    if (t.kind === "word" && stop.has(t.raw) && isCmdStart(tokens)) break;
+    if (t.kind === "word" && COMPOUND.has(t.raw) && isCmdStart(tokens) && tokens.length) break;
+    tokens.push(t);
+    pos.i++;
+  }
+  if (!tokens.length) throw new Error("syntax error: unexpected end of file");
+  return { type: "simple", tokens };
+}
+function parseFor(toks, pos) {
+  pos.i++;
+  const name = expectWord(toks, pos);
+  if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(name)) throw new Error("syntax error");
+  const words = [];
+  if (peekWord(toks, pos) === "in") {
+    pos.i++;
+    while (pos.i < toks.length) {
+      const t = toks[pos.i];
+      if (t.kind === "op" && t.raw === ";") break;
+      if (t.kind === "word" && t.raw === "do") break;
+      if (t.kind !== "word") throw new Error(`syntax error near unexpected token \`${t.raw}\``);
+      words.push(t);
+      pos.i++;
+    }
+  }
+  expectWord(toks, pos, "do");
+  const body = parseStmts(toks, pos, new Set(["done"]));
+  expectWord(toks, pos, "done");
+  return { type: "for", name, words, body };
+}
+function parseWhile(toks, pos) {
+  const kind = expectWord(toks, pos);
+  const cond = parseStmts(toks, pos, new Set(["do"]));
+  expectWord(toks, pos, "do");
+  const body = parseStmts(toks, pos, new Set(["done"]));
+  expectWord(toks, pos, "done");
+  return { type: "while", until: kind === "until", cond, body };
+}
+function parseIf(toks, pos) {
+  expectWord(toks, pos, "if");
+  const cond = parseStmts(toks, pos, new Set(["then"]));
+  expectWord(toks, pos, "then");
+  const thenBody = parseStmts(toks, pos, new Set(["elif", "else", "fi"]));
+  const elifs = [];
+  while (peekWord(toks, pos) === "elif") {
+    pos.i++;
+    const c = parseStmts(toks, pos, new Set(["then"]));
+    expectWord(toks, pos, "then");
+    const b = parseStmts(toks, pos, new Set(["elif", "else", "fi"]));
+    elifs.push({ cond: c, body: b });
+  }
+  let elseBody = null;
+  if (peekWord(toks, pos) === "else") {
+    pos.i++;
+    elseBody = parseStmts(toks, pos, new Set(["fi"]));
+  }
+  expectWord(toks, pos, "fi");
+  return { type: "if", cond, then: thenBody, elifs, else: elseBody };
+}
+
+async function runJobs(tokens, { live = false } = {}) {
+  const jobs = splitStages(tokens);
+  let last = ok();
+  for (const job of jobs) {
+    if (abortRun) return err("", 130);
+    if (job.op === "&&" && last.code) continue;
+    if (job.op === "||" && !last.code) continue;
+    const stream = live && job.stages.length === 1 && !job.stages[0]?.redir?.out;
+    last = await runPipeline(job.stages, { live: stream });
+    if (live) printResult(last);
+  }
+  lastExit = last.code;
+  env["?"] = String(lastExit);
+  return live ? { stdout: last.stdout || "", stderr: last.stderr || "", code: last.code, printed: true } : last;
+}
+
+async function runStmt(stmt, live) {
+  if (abortRun) return err("", 130);
+  if (stmt.type === "for") {
+    const items = await expandWords(stmt.words);
+    let last = ok();
+    let stdout = "";
+    let stderr = "";
+    let n = 0;
+    for (const item of items) {
+      if (abortRun) return { stdout, stderr, code: 130, printed: !!live };
+      if (++n > 10000) return err("for: too many iterations");
+      env[stmt.name] = item;
+      last = await runStmts(stmt.body, live);
+      stdout += last.stdout || "";
+      stderr += last.stderr || "";
+    }
+    return { stdout, stderr, code: last.code, printed: !!live };
+  }
+  if (stmt.type === "while") {
+    let last = ok();
+    let stdout = "";
+    let stderr = "";
+    for (let n = 0; n < 10000; n++) {
+      if (abortRun) return { stdout, stderr, code: 130, printed: !!live };
+      const cond = await runStmts(stmt.cond, false);
+      if (stmt.until ? !cond.code : cond.code) break;
+      last = await runStmts(stmt.body, live);
+      stdout += last.stdout || "";
+      stderr += last.stderr || "";
+    }
+    return { stdout, stderr, code: last.code, printed: !!live };
+  }
+  if (stmt.type === "if") {
+    let last = await runStmts(stmt.cond, false);
+    if (!last.code) return runStmts(stmt.then, live);
+    for (const br of stmt.elifs) {
+      last = await runStmts(br.cond, false);
+      if (!last.code) return runStmts(br.body, live);
+    }
+    if (stmt.else) return runStmts(stmt.else, live);
+    return ok();
+  }
+  return runJobs(stmt.tokens, { live });
+}
+
+async function runStmts(stmts, live) {
+  let last = ok();
+  let stdout = "";
+  let stderr = "";
+  for (const st of stmts) {
+    if (abortRun) return { stdout, stderr, code: 130, printed: !!live };
+    last = await runStmt(st, live);
+    stdout += last.stdout || "";
+    stderr += last.stderr || "";
+  }
+  return { stdout, stderr, code: last.code, printed: !!(live || last.printed) };
+}
+
+async function runSource(src, { live = false } = {}) {
+  const toks = tokenize(src);
+  const pos = { i: 0 };
+  let stmts;
+  try {
+    stmts = parseStmts(toks, pos, new Set());
+    skipSeps(toks, pos);
+    if (pos.i < toks.length) {
+      const t = toks[pos.i];
+      return err(`syntax error near unexpected token \`${t.raw || t.type}\``);
+    }
+  } catch (e) {
+    return err(e.message || String(e));
+  }
+  const res = await runStmts(stmts, live);
+  if (abortRun) {
+    if (live) appendLine("^C", "err");
+    lastExit = 130;
+    env["?"] = "130";
+    return { stdout: res.stdout, stderr: live ? "" : "^C\n", code: 130, printed: !!live };
+  }
+  lastExit = res.code;
+  env["?"] = String(lastExit);
+  scheduleSave();
+  return res;
+}
+
+async function execLine(line, { record = true, live = true } = {}) {
+  const trimmed = line.trim();
+  if (!trimmed) return ok();
+  if (record) history.push(line);
+  abortRun = false;
+  return runSource(line, { live });
+}
+
+async function runScript(content, { live = false } = {}) {
+  return runSource(content, { live });
+}
+
+function scrollTermToEnd() {
+  const run = () => {
+    const term = $("#term");
+    const form = $("#prompt-form");
+    if (!term) return;
+    if (form && typeof form.scrollIntoView === "function") {
+      form.scrollIntoView({ block: "end", inline: "nearest" });
+    }
+    term.scrollTop = term.scrollHeight;
+  };
+  run();
+  requestAnimationFrame(run);
+}
+function appendLine(text, cls) {
+  if (!text) return;
+  const parts = text.split("\n");
+  if (parts[parts.length - 1] === "") parts.pop();
+  const out = $("#out");
+  for (const p of parts) {
+    const div = document.createElement("div");
+    div.className = "line" + (cls ? " " + cls : "");
+    div.textContent = p === "" ? " " : p;
+    out.appendChild(div);
+  }
+  scrollTermToEnd();
+}
+function printResult(res) {
+  if (!res || res.printed) return;
+  if (res.stdout) appendLine(res.stdout.replace(/\n$/, ""));
+  if (res.stderr) appendLine(res.stderr.replace(/\n$/, ""), "err");
+}
+function updatePs1() {
+  const short = cwd === HOME ? "~" : (cwd.startsWith(HOME + "/") ? "~" + cwd.slice(HOME.length) : cwd);
+  $("#ps1").textContent = `${USER}@${HOST}:${short}$`;
+}
+function autosize() {
+  const el = $("#cmd");
+  el.style.height = "auto";
+  el.style.height = Math.min(el.scrollHeight, 160) + "px";
+}
+
+async function runInteractive(argv, stdin) {
+  const name = argv[0];
+  const file = argv[1];
+  if (name === "vim" || name === "vi") return openVim(file);
+  if (name === "nano") return openNano(file);
+  if (name === "less" || name === "more") {
+    try { await openPager(file ? await readFile(normalize(file)) : (stdin || "")); }
+    catch (e) { return err(name + ": " + e.message); }
+    return ok();
+  }
+  return err("not interactive");
+}
+
+let vim = null;
+let vimWait = null;
+async function openVim(file) {
+  const path = file ? normalize(file) : null;
+  let text = "";
+  const n = path ? await getNode(path) : null;
+  if (path && n && n.type === "file") {
+    try { text = await readFile(path); } catch { text = ""; }
+  } else if (path && !n && !(await isDir(dirName(path)))) {
+    return err("vim: No such file or directory");
+  }
+  const lines = text.split("\n");
+  if (lines.length && lines[lines.length - 1] === "" && text.endsWith("\n")) lines.pop();
+  if (!lines.length) lines.push("");
+  vim = {
+    path, lines, row: 0, col: 0, mode: "n", dirty: false, yank: "",
+    undo: [], cmd: "", count: "", msg: t("vimHelp"), search: ""
+  };
+  $("#vim").classList.add("open");
+  renderVim();
+  $("#cmd").blur();
+  $("#vim").focus();
+  return new Promise((resolve) => { vimWait = resolve; });
+}
+function closeVim() {
+  $("#vim").classList.remove("open");
+  const done = vimWait;
+  vim = null; vimWait = null;
+  $("#cmd").focus();
+  if (done) done(ok());
+}
+async function vimSave(asPath) {
+  const p = asPath ? normalize(asPath) : vim.path;
+  if (!p) { vim.msg = "E32: No file name"; return false; }
+  try {
+    const body = vim.lines.join("\n") + (vim.lines[vim.lines.length - 1] === "" ? "" : "\n");
+    await writeFile(p, body.endsWith("\n") ? body : body + "\n");
+    vim.path = p; vim.dirty = false; vim.msg = `"${baseName(p)}" written`;
+    scheduleSave();
+    return true;
+  } catch (e) { vim.msg = e.message; return false; }
+}
+function vimPushUndo() {
+  vim.undo.push({ lines: vim.lines.map((l) => l), row: vim.row, col: vim.col });
+  if (vim.undo.length > 80) vim.undo.shift();
+}
+function renderVim() {
+  if (!vim) return;
+  const body = $("#vim-body");
+  const h = Math.max(8, Math.floor(body.clientHeight / 19) || 24);
+  const start = Math.max(0, Math.min(vim.row - Math.floor(h / 2), vim.lines.length - h));
+  const end = Math.min(vim.lines.length, start + h);
+  body.innerHTML = "";
+  for (let i = start; i < end; i++) {
+    const row = document.createElement("div");
+    row.className = "vline" + (i === vim.row ? " cur" : "");
+    const nr = document.createElement("div");
+    nr.className = "nr";
+    nr.textContent = String(i + 1);
+    const tx = document.createElement("div");
+    tx.className = "tx";
+    const line = vim.lines[i] ?? "";
+    if (i === vim.row && vim.mode !== "cmd") {
+      const col = Math.min(vim.col, Math.max(0, line.length));
+      tx.append(document.createTextNode(line.slice(0, col)));
+      const cur = document.createElement("span");
+      cur.className = "cursor";
+      cur.textContent = line[col] ?? " ";
+      tx.append(cur);
+      tx.append(document.createTextNode(line.slice(col + 1)));
+    } else tx.textContent = line || " ";
+    row.append(nr, tx);
+    body.append(row);
+  }
+  for (let i = end; i < start + h; i++) {
+    const row = document.createElement("div");
+    row.className = "vline";
+    row.innerHTML = `<div class="nr">~</div><div class="tx"></div>`;
+    body.append(row);
+  }
+  const st = $("#vim-status");
+  st.className = "status" + (vim.mode === "cmd" ? " cmd" : "");
+  const left = vim.mode === "cmd" ? (vim.cmd.startsWith("/") ? vim.cmd : ":" + vim.cmd)
+    : vim.mode === "i" ? "-- INSERT --"
+    : (vim.msg || (vim.path ? baseName(vim.path) : t("noName")));
+  const right = `${vim.dirty ? "[+] " : ""}${vim.row + 1},${vim.col + 1}`;
+  st.innerHTML = `<span></span><span></span>`;
+  st.children[0].textContent = left;
+  st.children[1].textContent = right;
+}
+function vimClamp() {
+  vim.row = Math.max(0, Math.min(vim.row, vim.lines.length - 1));
+  const line = vim.lines[vim.row] || "";
+  const max = vim.mode === "i" ? line.length : Math.max(0, line.length - 1);
+  vim.col = Math.max(0, Math.min(vim.col, max));
+}
+function vimInsert(text) {
+  vimPushUndo();
+  const line = vim.lines[vim.row] || "";
+  vim.lines[vim.row] = line.slice(0, vim.col) + text + line.slice(vim.col);
+  vim.col += text.length;
+  vim.dirty = true;
+}
+function vimHandle(e) {
+  if (!vim) return;
+  const key = e.key;
+  if (vim.mode === "i") {
+    if (key === "Escape") { vim.mode = "n"; vimClamp(); vim.msg = ""; e.preventDefault(); $("#vim").focus(); renderVim(); return; }
+    if (key === "Enter") {
+      vimPushUndo();
+      const line = vim.lines[vim.row];
+      const left = line.slice(0, vim.col), right = line.slice(vim.col);
+      vim.lines[vim.row] = left;
+      vim.lines.splice(vim.row + 1, 0, right);
+      vim.row++; vim.col = 0; vim.dirty = true;
+      e.preventDefault(); renderVim(); return;
+    }
+    if (key === "Backspace") {
+      if (vim.col > 0) {
+        vimPushUndo();
+        const line = vim.lines[vim.row];
+        vim.lines[vim.row] = line.slice(0, vim.col - 1) + line.slice(vim.col);
+        vim.col--; vim.dirty = true;
+      } else if (vim.row > 0) {
+        vimPushUndo();
+        const prev = vim.lines[vim.row - 1];
+        vim.col = prev.length;
+        vim.lines[vim.row - 1] = prev + vim.lines[vim.row];
+        vim.lines.splice(vim.row, 1);
+        vim.row--; vim.dirty = true;
+      }
+      e.preventDefault(); renderVim(); return;
+    }
+    if (key === "ArrowLeft") { vim.col--; vimClamp(); e.preventDefault(); renderVim(); return; }
+    if (key === "ArrowRight") { vim.col++; vimClamp(); e.preventDefault(); renderVim(); return; }
+    if (key === "ArrowUp") { vim.row--; vimClamp(); e.preventDefault(); renderVim(); return; }
+    if (key === "ArrowDown") { vim.row++; vimClamp(); e.preventDefault(); renderVim(); return; }
+    if (key.length === 1 && !e.ctrlKey && !e.metaKey && !e.isComposing) {
+      e.preventDefault();
+      vimInsert(key);
+      $("#vim-ime").value = "";
+      renderVim();
+    }
+    return;
+  }
+  if (vim.mode === "cmd") {
+    if (key === "Escape") { vim.mode = "n"; vim.cmd = ""; e.preventDefault(); renderVim(); return; }
+    if (key === "Enter") {
+      const c = vim.cmd.trim();
+      vim.mode = "n";
+      vim.cmd = "";
+      e.preventDefault();
+      (async () => {
+        if (!vim) return;
+        if (c === "q" || c === "quit") {
+          if (vim.dirty) { vim.msg = "E37: No write since last change (:q! to quit)"; }
+          else closeVim();
+        } else if (c === "q!" || c === "quit!") closeVim();
+        else if (c === "w" || c.startsWith("w ")) await vimSave(c.slice(2).trim() || null);
+        else if (c === "wq" || c === "x") { if ((await vimSave(null)) || !vim.dirty) closeVim(); }
+        else if (c.startsWith("e ")) {
+          const p = normalize(c.slice(2).trim());
+          try {
+            const n = await getNode(p);
+            const text = n && n.type === "file" ? await readFile(p) : "";
+            if (!vim) return;
+            vim.path = p; vim.lines = text.split("\n"); if (!vim.lines.length) vim.lines = [""];
+            if (vim.lines.length > 1 && vim.lines[vim.lines.length - 1] === "") vim.lines.pop();
+            vim.row = 0; vim.col = 0; vim.dirty = false;
+          } catch (err2) { if (vim) vim.msg = err2.message; }
+        } else if (c.startsWith("/")) {
+          vim.search = c.slice(1);
+          let found = false;
+          if (vim.search) {
+            for (let i = 0; i <= vim.lines.length; i++) {
+              const idx = (vim.row + i) % vim.lines.length;
+              const line = vim.lines[idx] || "";
+              const from = i === 0 ? vim.col + 1 : 0;
+              const col = line.indexOf(vim.search, from);
+              if (col >= 0) { vim.row = idx; vim.col = col; found = true; break; }
+            }
+          }
+          vim.msg = found ? "" : "Pattern not found";
+        } else vim.msg = `E492: Not an editor command: ${c}`;
+        if (vim) renderVim();
+      })();
+      return;
+    }
+    if (key === "Backspace") { vim.cmd = vim.cmd.slice(0, -1); e.preventDefault(); renderVim(); return; }
+    if (key.length === 1 && !e.ctrlKey && !e.metaKey) { vim.cmd += key; e.preventDefault(); renderVim(); }
+    return;
+  }
+  e.preventDefault();
+  let count = parseInt(vim.count || "1", 10);
+  if (key >= "1" && key <= "9" || (key === "0" && vim.count)) { vim.count += key; renderVim(); return; }
+  vim.count = "";
+  const move = (fn) => { for (let i = 0; i < count; i++) fn(); vimClamp(); };
+  if (key === "h" || key === "ArrowLeft") move(() => vim.col--);
+  else if (key === "l" || key === "ArrowRight") move(() => vim.col++);
+  else if (key === "j" || key === "ArrowDown") move(() => vim.row++);
+  else if (key === "k" || key === "ArrowUp") move(() => vim.row--);
+  else if (key === "0") vim.col = 0;
+  else if (key === "$") vim.col = Math.max(0, (vim.lines[vim.row] || "").length - 1);
+  else if (key === "g" && vim._g) { vim.row = 0; vim.col = 0; vim._g = false; }
+  else if (key === "g") { vim._g = true; renderVim(); return; }
+  else if (key === "G") { vim.row = vim.lines.length - 1; vim.col = 0; }
+  else if (key === "w") {
+    move(() => {
+      const line = vim.lines[vim.row] || "";
+      const m = line.slice(vim.col + 1).search(/\s\S/);
+      if (m >= 0) vim.col = vim.col + 1 + m + 1;
+      else if (vim.row < vim.lines.length - 1) { vim.row++; vim.col = 0; }
+    });
+  }
+  else if (key === "i") { vim.mode = "i"; vim.msg = ""; $("#vim-ime").focus(); }
+  else if (key === "a") { vim.mode = "i"; vim.col++; vim.msg = ""; $("#vim-ime").focus(); }
+  else if (key === "I") { vim.mode = "i"; vim.col = 0; $("#vim-ime").focus(); }
+  else if (key === "A") { vim.mode = "i"; vim.col = (vim.lines[vim.row] || "").length; $("#vim-ime").focus(); }
+  else if (key === "o") {
+    vimPushUndo(); vim.lines.splice(vim.row + 1, 0, ""); vim.row++; vim.col = 0; vim.mode = "i"; vim.dirty = true; $("#vim-ime").focus();
+  }
+  else if (key === "O") {
+    vimPushUndo(); vim.lines.splice(vim.row, 0, ""); vim.col = 0; vim.mode = "i"; vim.dirty = true; $("#vim-ime").focus();
+  }
+  else if (key === "x") {
+    vimPushUndo();
+    move(() => {
+      const line = vim.lines[vim.row] || "";
+      vim.lines[vim.row] = line.slice(0, vim.col) + line.slice(vim.col + 1);
+      vim.dirty = true;
+    });
+  }
+  else if (key === "d" && vim._d) {
+    vimPushUndo();
+    const n = Math.min(count, vim.lines.length - vim.row);
+    vim.yank = vim.lines.slice(vim.row, vim.row + n).join("\n");
+    vim.lines.splice(vim.row, n);
+    if (!vim.lines.length) vim.lines = [""];
+    vim.dirty = true; vim._d = false;
+  }
+  else if (key === "d") { vim._d = true; vim.count = String(count === 1 ? "" : count); renderVim(); return; }
+  else if (key === "y" && vim._y) {
+    const n = Math.min(count, vim.lines.length - vim.row);
+    vim.yank = vim.lines.slice(vim.row, vim.row + n).join("\n");
+    vim.msg = `${n} lines yanked`; vim._y = false;
+  }
+  else if (key === "y") { vim._y = true; renderVim(); return; }
+  else if (key === "p") {
+    vimPushUndo();
+    const block = vim.yank.split("\n");
+    vim.lines.splice(vim.row + 1, 0, ...block);
+    vim.row++; vim.dirty = true;
+  }
+  else if (key === "u") {
+    const snap = vim.undo.pop();
+    if (snap) { vim.lines = snap.lines; vim.row = snap.row; vim.col = snap.col; }
+  }
+  else if (key === "/") { vim.mode = "cmd"; vim.cmd = "/"; }
+  else if (key === "n" && vim.search) {
+    const q = vim.search;
+    for (let i = 1; i <= vim.lines.length; i++) {
+      const idx = (vim.row + i) % vim.lines.length;
+      if ((vim.lines[idx] || "").includes(q)) { vim.row = idx; vim.col = vim.lines[idx].indexOf(q); break; }
+    }
+  }
+  else if (key === ":") { vim.mode = "cmd"; vim.cmd = ""; }
+  vim._g = false;
+  if (key !== "d" && key !== "y") { vim._d = false; vim._y = false; }
+  vimClamp();
+  renderVim();
+}
+
+let nanoWait = null;
+let nanoPath = null;
+let nanoOrig = "";
+async function openNano(file) {
+  nanoPath = file ? normalize(file) : null;
+  let text = "";
+  if (nanoPath && (await exists(nanoPath))) text = await readFile(nanoPath);
+  nanoOrig = text;
+  $("#nano-text").value = text;
+  $("#nano-bar").innerHTML = `<span>${t("nanoBar")}</span><span>${nanoPath ? baseName(nanoPath) : t("noName")}</span>`;
+  $("#nano").classList.add("open");
+  $("#nano-text").focus();
+  return new Promise((resolve) => { nanoWait = resolve; });
+}
+function closeNano() {
+  $("#nano").classList.remove("open");
+  const done = nanoWait; nanoWait = null;
+  $("#cmd").focus();
+  if (done) done(ok());
+}
+async function nanoSave() {
+  if (!nanoPath) {
+    const name = prompt("File Name to Write:");
+    if (!name) return;
+    nanoPath = normalize(name);
+  }
+  try {
+    await writeFile(nanoPath, $("#nano-text").value);
+    scheduleSave();
+    toast(`"${baseName(nanoPath)}" written`);
+    $("#nano-bar").innerHTML = `<span>${t("nanoBar")}</span><span>${baseName(nanoPath)}</span>`;
+  } catch (e) { toast(e.message); }
+}
+
+let pagerWait = null;
+function openPager(text) {
+  $("#pager-body").textContent = text || "";
+  $("#pager-status").textContent = t("lessBar");
+  $("#pager").classList.add("open");
+  return new Promise((resolve) => { pagerWait = resolve; });
+}
+function closePager() {
+  $("#pager").classList.remove("open");
+  const done = pagerWait; pagerWait = null;
+  $("#cmd").focus();
+  if (done) done();
+}
+
+async function complete() {
+  const el = $("#cmd");
+  const val = el.value;
+  const start = val.lastIndexOf(" ") + 1;
+  const prefix = val.slice(start);
+  const here = await children(cwd);
+  const pathNames = start === 0 ? await pathCommandNames() : [];
+  const names = [...new Set([...Object.keys(COMMANDS), ...Object.keys(aliases), ...pathNames, ...here.map(baseName)])].sort();
+  let pool = names.filter((n) => n.startsWith(prefix));
+  if (prefix.includes("/") || prefix.startsWith("~") || prefix.startsWith(".")) {
+    const abs = normalize(prefix);
+    const dir = prefix.endsWith("/") ? abs : dirName(abs);
+    const base = prefix.endsWith("/") ? "" : baseName(abs);
+    const kids = await children(dir);
+    pool = [];
+    for (const kid of kids) {
+      const n = baseName(kid);
+      if (!n.startsWith(base)) continue;
+      const typedDir = prefix.endsWith("/") ? prefix : prefix.slice(0, prefix.length - base.length);
+      pool.push(typedDir + n + ((await isDir(kid)) ? "/" : ""));
+    }
+  }
+  if (!pool.length) return;
+  if (completeState && completeState.prefix === prefix) {
+    completeState.i = (completeState.i + 1) % pool.length;
+  } else completeState = { prefix, i: 0, pool };
+  el.value = val.slice(0, start) + pool[completeState.i];
+  autosize();
+}
+
+function applySide() {
+  const btn = $("#side-toggle");
+  const closed = document.documentElement.dataset.side === "closed";
+  const label = t(closed ? "sideShow" : "sideHide");
+  btn.setAttribute("aria-expanded", closed ? "false" : "true");
+  btn.setAttribute("aria-label", label);
+  btn.title = label;
+}
+
+function applyChrome() {
+  document.documentElement.lang = lang;
+  $$i18n();
+  applySide();
+  $("#cheat").innerHTML = CHEATS
+    .filter(([code]) => isOsHosted() || !String(code).startsWith("open "))
+    .map(([code, names]) => `<button data-cmd="${code}"><code>${code}</code><span>${li(names)}</span></button>`).join("");
+  env.LANG = lang === "ja" ? "ja_JP.UTF-8" : lang === "pt" ? "pt_BR.UTF-8" : "en_US.UTF-8";
+  updatePs1();
+}
+function $$i18n() {
+  document.querySelectorAll("[data-i18n]").forEach((el) => { el.textContent = t(el.dataset.i18n); });
+}
+
+async function boot() {
+  document.documentElement.dataset.theme = localStorage.getItem("term-theme") || localStorage.getItem("app_theme") || "dark";
+  applyHostGlass();
+  try {
+    await loadState();
+  } catch (e) {
+    applyChrome();
+    appendLine("Filesystem error: " + (e && e.message ? e.message : e), "err");
+    appendLine("");
+    updatePs1();
+    $("#cmd").focus();
+    return;
+  }
+  persist();
+  applyChrome();
+  appendLine(t("welcome"), "dim");
+  appendLine("");
+  updatePs1();
+  $("#cmd").focus();
+}
+
+$("#prompt-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  if (busy) return;
+  const line = $("#cmd").value;
+  $("#cmd").value = "";
+  autosize();
+  histIdx = -1;
+  completeState = null;
+  const row = document.createElement("div");
+  row.className = "line";
+  row.textContent = $("#ps1").textContent + " " + line;
+  $("#out").appendChild(row);
+  scrollTermToEnd();
+  busy = true;
+  try {
+    const res = await execLine(line);
+    printResult(res);
+  } catch (err2) {
+    appendLine(String(err2.message || err2), "err");
+  }
+  busy = false;
+  updatePs1();
+  autosize();
+  if (!hasTermSelection()) {
+    $("#cmd").focus();
+    scrollTermToEnd();
+  }
+});
+$("#cmd").addEventListener("input", () => { completeState = null; autosize(); });
+$("#cmd").addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !e.shiftKey) {
+    e.preventDefault();
+    if (!busy) $("#prompt-form").requestSubmit();
+    return;
+  }
+  if (e.key === "Tab") { e.preventDefault(); complete().catch(() => {}); }
+  if (e.key === "l" && e.ctrlKey) { e.preventDefault(); $("#out").innerHTML = ""; }
+  if (e.key === "u" && e.ctrlKey) { e.preventDefault(); $("#cmd").value = ""; }
+  if (e.key === "ArrowUp") {
+    e.preventDefault();
+    if (histIdx === -1) histDraft = $("#cmd").value;
+    if (!history.length) return;
+    histIdx = histIdx === -1 ? history.length - 1 : Math.max(0, histIdx - 1);
+    $("#cmd").value = history[histIdx];
+    autosize();
+  }
+  if (e.key === "ArrowDown") {
+    e.preventDefault();
+    if (histIdx === -1) return;
+    histIdx++;
+    if (histIdx >= history.length) { histIdx = -1; $("#cmd").value = histDraft; }
+    else $("#cmd").value = history[histIdx];
+    autosize();
+  }
+});
+$("#term").addEventListener("mousedown", (e) => {
+  termMouseDown = { x: e.clientX, y: e.clientY };
+});
+$("#term").addEventListener("click", (e) => {
+  if (vim || $("#nano").classList.contains("open") || $("#pager").classList.contains("open")) return;
+  if (e.target.closest("#cmd")) return;
+  if (hasTermSelection()) return;
+  if (termMouseDown && (Math.abs(e.clientX - termMouseDown.x) > 3 || Math.abs(e.clientY - termMouseDown.y) > 3)) return;
+  $("#cmd").focus();
+});
+$("#cheat").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-cmd]");
+  if (!b) return;
+  $("#cmd").value = b.dataset.cmd;
+  $("#cmd").focus();
+});
+$("#side-toggle").addEventListener("click", (e) => {
+  e.preventDefault();
+  const next = document.documentElement.dataset.side === "closed" ? "open" : "closed";
+  document.documentElement.dataset.side = next;
+  try { localStorage.setItem("term-side", next); } catch (_err) {}
+  applySide();
+  $("#cmd").focus();
+});
+function hasTermSelection() {
+  const sel = window.getSelection();
+  if (!sel || sel.isCollapsed || !sel.toString()) return false;
+  const cmd = $("#cmd");
+  if (cmd && sel.anchorNode && cmd.contains(sel.anchorNode) && (!sel.focusNode || cmd.contains(sel.focusNode))) {
+    return cmd.selectionStart !== cmd.selectionEnd;
+  }
+  const term = $("#term");
+  return !!(term && sel.anchorNode && term.contains(sel.anchorNode));
+}
+function cmdHasSelection() {
+  const cmd = $("#cmd");
+  return !!(cmd && cmd.selectionStart !== cmd.selectionEnd);
+}
+function handleCopyOrIntr(e) {
+  if (e.key.toLowerCase() !== "c") return;
+  if (e.metaKey && !e.ctrlKey) return;
+  if (!e.ctrlKey) return;
+  if (vim || $("#nano").classList.contains("open") || $("#pager").classList.contains("open")) return;
+  if (hasTermSelection() || cmdHasSelection()) return;
+  e.preventDefault();
+  if (busy) abortRun = true;
+  else $("#cmd").value = "";
+}
+
+function handleClearChord(e) {
+  if (vim || $("#nano").classList.contains("open") || $("#pager").classList.contains("open")) {
+    keyChord = null;
+    return false;
+  }
+  const key = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+  if (keyChord === "cmdk") {
+    keyChord = null;
+    clearTimeout(keyChordTimer);
+    if (key === "k" && !e.altKey && !e.shiftKey) {
+      e.preventDefault();
+      e.stopPropagation();
+      $("#out").innerHTML = "";
+      return true;
+    }
+    return false;
+  }
+  if (e.metaKey && key === "k" && !e.ctrlKey && !e.altKey && !e.shiftKey) {
+    e.preventDefault();
+    keyChord = "cmdk";
+    clearTimeout(keyChordTimer);
+    keyChordTimer = setTimeout(() => { keyChord = null; }, 1000);
+    return true;
+  }
+  return false;
+}
+
+document.addEventListener("keydown", (e) => {
+  if (handleClearChord(e)) e.stopPropagation();
+}, true);
+
+document.addEventListener("keydown", (e) => {
+  handleCopyOrIntr(e);
+  if (vim) { vimHandle(e); return; }
+  if ($("#pager").classList.contains("open")) {
+    if (e.key === "q" || e.key === "Escape") { e.preventDefault(); closePager(); }
+    if (e.key === "j" || e.key === "ArrowDown") $("#pager-body").scrollTop += 24;
+    if (e.key === "k" || e.key === "ArrowUp") $("#pager-body").scrollTop -= 24;
+    if (e.key === " ") { e.preventDefault(); $("#pager-body").scrollTop += 200; }
+    return;
+  }
+  if ($("#nano").classList.contains("open")) {
+    if (e.ctrlKey && e.key.toLowerCase() === "x") { e.preventDefault(); closeNano(); }
+    if (e.ctrlKey && e.key.toLowerCase() === "o") { e.preventDefault(); nanoSave(); }
+    if (e.ctrlKey && e.key.toLowerCase() === "k") {
+      e.preventDefault();
+      const ta = $("#nano-text");
+      const v = ta.value;
+      const start = v.lastIndexOf("\n", ta.selectionStart - 1) + 1;
+      const end = v.indexOf("\n", ta.selectionStart);
+      const cutEnd = end < 0 ? v.length : end + 1;
+      ta.value = v.slice(0, start) + v.slice(cutEnd);
+    }
+  }
+});
+$("#vim-ime").addEventListener("input", (e) => {
+  if (!vim || vim.mode !== "i") { e.target.value = ""; return; }
+  if (e.isComposing) return;
+  const v = e.target.value;
+  if (v) { vimInsert(v); e.target.value = ""; renderVim(); }
+});
+window.addEventListener("resize", () => { if (vim) renderVim(); });
+
+boot();
+</script>
+</body>
+</html>

@@ -67,12 +67,14 @@ window.OSWindows = (function () {
     return { x, y, w, h };
   }
 
-  function nextCascade() {
+  function nextCascade(app) {
     const area = workArea();
     const step = 28;
     const n = cascade % 8;
     cascade += 1;
-    return clampRect(48 + n * step, 36 + n * step, Math.min(DEFAULT_W, area.w - 48), Math.min(DEFAULT_H, area.h - 36));
+    const dw = Math.min(Number(app && app.windowW) || DEFAULT_W, area.w - 48);
+    const dh = Math.min(Number(app && app.windowH) || DEFAULT_H, area.h - 36);
+    return clampRect(48 + n * step, 36 + n * step, dw, dh);
   }
 
   function parseHash() {
@@ -228,6 +230,7 @@ window.OSWindows = (function () {
       id: win.id,
       appId: win.appId || appIdOf(win.id),
       path: win.path || null,
+      fileId: win.fileId || null,
       x: win.x,
       y: win.y,
       w: win.w,
@@ -316,6 +319,7 @@ window.OSWindows = (function () {
         "camera; microphone; fullscreen; clipboard-read; clipboard-write; autoplay"
       );
       body.appendChild(iframe);
+      bindFrameKeys(iframe);
     } else if (app.kind === "native") {
       const root = document.createElement("div");
       root.className = "native-root";
@@ -329,6 +333,7 @@ window.OSWindows = (function () {
       );
       applyUserFrame(iframe, app, el);
       body.appendChild(iframe);
+      bindFrameKeys(iframe);
     } else {
       const iframe = document.createElement("iframe");
       iframe.src = window.OSCatalog.resolveHref(app);
@@ -338,9 +343,41 @@ window.OSWindows = (function () {
         "camera; microphone; fullscreen; clipboard-read; clipboard-write; autoplay"
       );
       body.appendChild(iframe);
+      bindFrameKeys(iframe);
       if (window.OSEmbed) window.OSEmbed.attach(iframe);
     }
     return el;
+  }
+
+  function bindFrameKeys(iframe) {
+    if (!iframe || iframe.dataset.osKeys === "1") return;
+    iframe.dataset.osKeys = "1";
+    const attach = () => {
+      try {
+        const doc = iframe.contentDocument;
+        if (!doc || doc.documentElement.dataset.osKeys === "1") return;
+        doc.documentElement.dataset.osKeys = "1";
+        doc.addEventListener(
+          "keydown",
+          (e) => {
+            if (window.OSHotkeys && window.OSHotkeys.handleFromFrame(e)) {
+              e.preventDefault();
+              e.stopPropagation();
+            }
+          },
+          true
+        );
+        doc.addEventListener("keyup", (e) => {
+          if (e.key === "Alt" || e.key === "Control" || e.key === "Meta") {
+            if (window.OSHotkeys) window.OSHotkeys.closeSwitcher(true);
+          }
+        });
+        if (window.OSClipboard) window.OSClipboard.hookDocument(doc);
+        if (window.OS && typeof window.OS.applyIframeGlass === "function") window.OS.applyIframeGlass(iframe);
+      } catch (_err) {}
+    };
+    iframe.addEventListener("load", attach);
+    attach();
   }
 
   function bindWindow(win) {
@@ -381,8 +418,18 @@ window.OSWindows = (function () {
     const bar = win.el.querySelector(".titlebar");
     bar.addEventListener("mousedown", (e) => {
       if (e.button !== 0 || e.target.closest("button")) return;
-      if (win.maximized) return;
       e.preventDefault();
+      if (win.maximized || win.snapped) {
+        const area = workArea();
+        const prev = win.restoreRect || { w: win.w, h: win.h };
+        win.maximized = false;
+        win.snapped = null;
+        win.w = prev.w;
+        win.h = prev.h;
+        win.x = Math.min(Math.max(0, e.clientX - Math.round(win.w / 2)), Math.max(0, area.w - win.w));
+        win.y = Math.min(Math.max(0, e.clientY - 16), Math.max(0, area.h - win.h));
+        applyRect(win);
+      }
       const startX = e.clientX;
       const startY = e.clientY;
       const origX = win.x;
@@ -394,17 +441,84 @@ window.OSWindows = (function () {
         win.y = next.y;
         applyRect(win);
         scheduleHash();
+        const edge = snapEdgeAt(ev.clientX, ev.clientY);
+        if (window.OSHotkeys) window.OSHotkeys.snapZone(edge);
       };
-      const up = () => {
+      const up = (ev) => {
         document.removeEventListener("mousemove", move);
         document.removeEventListener("mouseup", up);
         document.body.classList.remove("os-dragging");
+        if (window.OSHotkeys) window.OSHotkeys.snapZone(null);
+        const edge = snapEdgeAt(ev.clientX, ev.clientY);
+        if (edge) snap(win.id, edge);
         persist();
         writeHashNow();
       };
       document.addEventListener("mousemove", move);
       document.addEventListener("mouseup", up);
     });
+  }
+
+  function snapEdgeAt(x, y) {
+    const area = workArea();
+    const edge = 16;
+    if (y <= edge) return "up";
+    if (x <= edge) return "left";
+    if (x >= area.w - edge) return "right";
+    return null;
+  }
+
+  function rememberRestore(win) {
+    if (!win || win.maximized || win.snapped) return;
+    win.restoreRect = { x: win.x, y: win.y, w: win.w, h: win.h };
+  }
+
+  function snap(id, edge) {
+    const win = windows.get(id);
+    if (!win) return;
+    const area = workArea();
+    win.minimized = false;
+    if (edge === "down") {
+      if (win.maximized || win.snapped) {
+        win.maximized = false;
+        win.snapped = null;
+        if (win.restoreRect) {
+          const rect = clampRect(win.restoreRect.x, win.restoreRect.y, win.restoreRect.w, win.restoreRect.h);
+          win.x = rect.x;
+          win.y = rect.y;
+          win.w = rect.w;
+          win.h = rect.h;
+        }
+        applyRect(win);
+        setFocused(id);
+        return;
+      }
+      minimize(id);
+      return;
+    }
+    rememberRestore(win);
+    win.maximized = false;
+    if (edge === "up") {
+      win.snapped = null;
+      win.maximized = true;
+      applyRect(win);
+      setFocused(id);
+      return;
+    }
+    win.snapped = edge;
+    if (edge === "left") {
+      win.x = 0;
+      win.y = 0;
+      win.w = Math.max(MIN_W, Math.floor(area.w / 2));
+      win.h = area.h;
+    } else if (edge === "right") {
+      win.w = Math.max(MIN_W, Math.floor(area.w / 2));
+      win.x = area.w - win.w;
+      win.y = 0;
+      win.h = area.h;
+    }
+    applyRect(win);
+    setFocused(id);
   }
 
   function startResize(win) {
@@ -464,6 +578,8 @@ window.OSWindows = (function () {
     if (app.id === "file-explorer" && window.OSFileExplorer) {
       window.OSFileExplorer.mount(root, { winId: win.id, path: win.path || "/" });
     }
+    if (app.id === "task-manager" && window.OSTaskManager) window.OSTaskManager.mount(root);
+    if (app.id === "snip" && window.OSSnip) window.OSSnip.mount(root);
   }
 
   function makeWin(app, winId, rect, maximized) {
@@ -479,6 +595,8 @@ window.OSWindows = (function () {
       h: rect.h,
       minimized: false,
       maximized: !!maximized,
+      snapped: null,
+      restoreRect: null,
       z: ++zCounter,
     };
     win.el.dataset.winId = winId;
@@ -518,7 +636,19 @@ window.OSWindows = (function () {
 
     const multi = isMulti(app);
     let winId = id;
-    if (opts.newInstance && multi) {
+    if (opts.fileId && multi) {
+      const same = Array.from(windows.values()).find(
+        (w) => (w.appId || appIdOf(w.id)) === app.id && w.fileId === opts.fileId
+      );
+      if (same) {
+        notifyFileOpen(same, opts.fileId);
+        same.minimized = false;
+        applyRect(same);
+        setFocused(same.id);
+        return same;
+      }
+      winId = newInstanceId(app.id);
+    } else if (opts.newInstance && multi) {
       winId = newInstanceId(app.id);
     } else if (multi && id === app.id && !windows.has(id)) {
       const existing = latestOf(app.id);
@@ -558,15 +688,15 @@ window.OSWindows = (function () {
     let rect;
     let maximized = false;
     if (opts.x != null) {
-      rect = clampRect(opts.x, opts.y, opts.w || DEFAULT_W, opts.h || DEFAULT_H);
+      rect = clampRect(opts.x, opts.y, opts.w || app.windowW || DEFAULT_W, opts.h || app.windowH || DEFAULT_H);
       maximized = Math.abs(rect.w - area.w) < 8 && Math.abs(rect.h - area.h) < 8 && rect.x <= 4 && rect.y <= 4;
     } else {
       const saved = savedPlacement(winId) || (!multi ? savedPlacement(app.id) : null);
       if (saved) {
-        rect = clampRect(saved.x, saved.y, saved.w || DEFAULT_W, saved.h || DEFAULT_H);
+        rect = clampRect(saved.x, saved.y, saved.w || app.windowW || DEFAULT_W, saved.h || app.windowH || DEFAULT_H);
         maximized = !!saved.maximized;
       } else {
-        rect = nextCascade();
+        rect = nextCascade(app);
       }
     }
     const win = makeWin(app, winId, rect, maximized);
@@ -580,6 +710,7 @@ window.OSWindows = (function () {
     if (opts.fileId) notifyFileOpen(win, opts.fileId);
     setFocused(winId);
     persist();
+    if (window.OSTaskManager) window.OSTaskManager.remountOpen();
     return win;
   }
 
@@ -604,7 +735,16 @@ window.OSWindows = (function () {
     const win = windows.get(id);
     if (!win) return;
     win.minimized = false;
+    if (!win.maximized) rememberRestore(win);
     win.maximized = !win.maximized;
+    if (!win.maximized && win.restoreRect && !win.snapped) {
+      const rect = clampRect(win.restoreRect.x, win.restoreRect.y, win.restoreRect.w, win.restoreRect.h);
+      win.x = rect.x;
+      win.y = rect.y;
+      win.w = rect.w;
+      win.h = rect.h;
+    }
+    win.snapped = null;
     applyRect(win);
     setFocused(id);
   }
@@ -620,6 +760,7 @@ window.OSWindows = (function () {
     revokeHtmlBlob(win.el);
     win.el.remove();
     windows.delete(id);
+    if (window.OSTaskManager) window.OSTaskManager.remountOpen();
     const next = Array.from(windows.values())
       .filter((w) => !w.minimized)
       .sort((a, b) => b.z - a.z)[0];
@@ -654,7 +795,14 @@ window.OSWindows = (function () {
       const app = window.OSCatalog.byId(appId);
       if (!app) return;
       if (app.kind !== "native" && window.OS && !window.OS.isInstalled(appId)) return;
-      const win = open(saved.id, { x: saved.x, y: saved.y, w: saved.w, h: saved.h, path: saved.path || null });
+      const win = open(saved.id, {
+        x: saved.x,
+        y: saved.y,
+        w: saved.w,
+        h: saved.h,
+        path: saved.path || null,
+        fileId: saved.fileId || null,
+      });
       if (!win) return;
       win.minimized = !!saved.minimized;
       win.maximized = !!saved.maximized;
@@ -732,6 +880,7 @@ window.OSWindows = (function () {
     close,
     minimize,
     toggleMaximize,
+    snap,
     toggleTask,
     restoreList,
     serialize,

@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <link rel="icon" href="../../../assets/icons/ico/os-stickies.ico" type="image/x-icon">
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Stickies</title>
+    <link rel="stylesheet" href="../apps.css" />
+    <style>
+      .board { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; padding: 16px; height: calc(100% - 49px); overflow: auto; align-content: start; }
+      .note { border-radius: 10px; min-height: 180px; display: flex; flex-direction: column; box-shadow: var(--shadow); }
+      .note header { display: flex; justify-content: space-between; padding: 6px 8px; }
+      .note textarea { flex: 1; border: 0; background: transparent; padding: 8px 12px 12px; resize: none; outline: none; }
+      .gold { background: #f5d76e; color: #2a2208; }
+      .mint { background: #9ee0c8; color: #083028; }
+      .sky { background: #9fd4f0; color: #082230; }
+      .rose { background: #f0b7c4; color: #301018; }
+    </style>
+  </head>
+  <body>
+    <div class="app-bar">
+      <button type="button" id="add" class="primary">New note</button>
+    </div>
+    <div class="board" id="board"></div>
+    <script src="../../js/app-frame.js"></script>
+    <script>
+      const frame = window.OSAppFrame;
+      frame.sync();
+      const Desk = frame.host() && frame.host().OSDesk;
+      const colors = ["gold", "mint", "sky", "rose"];
+      function paint() {
+        const board = document.getElementById("board");
+        if (!Desk) { board.innerHTML = "<p class='muted'>Open this app from Desktop OS.</p>"; return; }
+        const notes = Desk.stickies();
+        board.innerHTML = notes.map((n) => `
+          <article class="note ${n.color || "gold"}" data-id="${n.id}">
+            <header>
+              <select data-color>
+                ${colors.map((c) => `<option value="${c}"${n.color === c ? " selected" : ""}>${c}</option>`).join("")}
+              </select>
+              <button type="button" data-del>×</button>
+            </header>
+            <textarea>${n.text || ""}</textarea>
+          </article>`).join("") || "<p class='muted'>No notes yet.</p>";
+      }
+      document.getElementById("add").onclick = () => { if (Desk) { Desk.addSticky({ text: "", color: "gold" }); paint(); } };
+      document.getElementById("board").addEventListener("input", (e) => {
+        const note = e.target.closest("[data-id]");
+        if (!note || !Desk) return;
+        if (e.target.matches("textarea")) Desk.updateSticky(note.dataset.id, { text: e.target.value }, { emit: false, flush: false });
+      });
+      document.getElementById("board").addEventListener("change", (e) => {
+        const note = e.target.closest("[data-id]");
+        if (!note || !Desk || !e.target.matches("[data-color]")) return;
+        Desk.updateSticky(note.dataset.id, { color: e.target.value });
+        paint();
+      });
+      document.getElementById("board").addEventListener("click", (e) => {
+        const del = e.target.closest("[data-del]");
+        if (!del || !Desk) return;
+        Desk.removeSticky(del.closest("[data-id]").dataset.id);
+        paint();
+      });
+      frame.onMessage((msg) => {
+        if (msg.type !== "os-desk-change" && msg.type !== "os-host-sync") return;
+        const active = document.activeElement;
+        if (active && active.tagName === "TEXTAREA") return;
+        paint();
+      });
+      paint();
+    </script>
+  </body>
+</html>

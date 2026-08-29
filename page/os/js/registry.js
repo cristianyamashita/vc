@@ -28,6 +28,7 @@ window.OSRegistry = (function () {
     { name: "FlashcardsSRSDB", version: 1, stores: ["decks", "cards", "settings"] },
     { name: "DesktopOSDB", version: 6, stores: ["state", "wallpapers", "userApps", "fsNodes", "fsBlobs"] },
     { name: "OSSheetsDB", version: 1, stores: ["workbooks", "meta"] },
+    { name: "TerminalFSDB", version: 1, stores: ["nodes", "meta"] },
   ];
 
   let hostEl = null;

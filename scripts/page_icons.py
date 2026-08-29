@@ -116,6 +116,13 @@ ICONS: dict[str, list[Shape]] = {
         r(18, 12, 6, 1.2),
         r(18, 15, 4, 1.2),
     ],
+    # Desktop OS Task Manager (native)
+    "os-task_manager": [
+        r(6, 7, 20, 18, rad=2),
+        r(9, 10, 14, 2.2),
+        r(9, 15, 14, 2.2, fill=DARK),
+        r(9, 20, 9, 2.2),
+    ],
     # Desktop OS Sheets (native spreadsheet)
     "os-sheets": [
         r(6, 6, 20, 20, rad=2),
@@ -126,6 +133,78 @@ ICONS: dict[str, list[Shape]] = {
         l(11, 6, 11, 26, sw=1.2),
         l(16.5, 11, 16.5, 26, sw=1.2, stroke=DARK),
         l(22, 11, 22, 26, sw=1.2, stroke=DARK),
+    ],
+    "os-notepad": [
+        r(8, 5, 16, 22, rad=2),
+        l(11, 10, 21, 10, sw=1.4),
+        l(11, 14, 21, 14, sw=1.4),
+        l(11, 18, 18, 18, sw=1.4, stroke=DARK),
+    ],
+    "os-paint": [
+        c(11, 20, 6),
+        c(11, 20, 3, fill=DARK),
+        p([(16, 14), (24, 6), (26, 8), (18, 16)], fill=WHITE),
+        r(17, 15, 3, 8, rad=1, fill=DARK),
+    ],
+    "os-calendar": [
+        r(6, 8, 20, 18, rad=2),
+        r(6, 8, 20, 5, fill=DARK),
+        c(11, 10.5, 1.2),
+        c(21, 10.5, 1.2),
+        r(9, 16, 4, 3, rad=0.6),
+        r(14, 16, 4, 3, rad=0.6, fill=DARK),
+        r(19, 16, 4, 3, rad=0.6),
+        r(9, 21, 4, 3, rad=0.6, fill=DARK),
+        r(14, 21, 4, 3, rad=0.6),
+    ],
+    "os-browser": [
+        r(5, 7, 22, 18, rad=2),
+        r(5, 7, 22, 5, fill=DARK),
+        c(8, 9.5, 1.1),
+        c(11.2, 9.5, 1.1),
+        r(15, 8.4, 9, 2.2, rad=1),
+        c(16, 18, 5, fill=None, stroke=WHITE, sw=1.6),
+        l(16, 18, 19.5, 21.5, sw=1.6),
+    ],
+    "os-calculator": [
+        r(8, 5, 16, 22, rad=2),
+        r(10, 8, 12, 5, rad=1, fill=DARK),
+        r(10, 15, 3.2, 3.2, rad=0.5),
+        r(14.4, 15, 3.2, 3.2, rad=0.5),
+        r(18.8, 15, 3.2, 3.2, rad=0.5, fill=DARK),
+        r(10, 20, 3.2, 3.2, rad=0.5),
+        r(14.4, 20, 3.2, 3.2, rad=0.5, fill=DARK),
+        r(18.8, 20, 3.2, 3.2, rad=0.5),
+    ],
+    "os-stickies": [
+        r(8, 8, 16, 16, rad=1.5),
+        p([(18, 8), (24, 8), (24, 14)], fill=DARK),
+        l(11, 14, 19, 14, sw=1.3, stroke=DARK),
+        l(11, 18, 17, 18, sw=1.3, stroke=DARK),
+    ],
+    "os-snip": [
+        r(6, 8, 14, 12, rad=1.5, fill=None, stroke=WHITE, sw=1.6),
+        r(12, 14, 14, 12, rad=1.5),
+        l(7, 10, 11, 10, sw=1.6),
+        l(8, 9, 8, 13, sw=1.6),
+        l(21, 22, 25, 22, sw=1.6, stroke=DARK),
+        l(24, 19, 24, 23, sw=1.6, stroke=DARK),
+    ],
+    "os-characters": [
+        r(6, 8, 9, 16, rad=1.5),
+        r(17, 8, 9, 16, rad=1.5, fill=DARK),
+        l(8.5, 20, 12.5, 12, sw=1.6, stroke=DARK),
+        l(19.5, 12, 23.5, 20, sw=1.6),
+    ],
+    "os-preview": [
+        r(5, 8, 22, 16, rad=2),
+        p([(8, 20), (13, 14), (17, 18), (20, 15), (25, 21), (8, 21)], fill=DARK),
+        c(12, 12, 2),
+    ],
+    "os-about": [
+        c(16, 16, 10, fill=None, stroke=WHITE, sw=2),
+        c(16, 11, 1.6),
+        r(15, 14.5, 2, 8, rad=1),
     ],
     # Mobile
     "mobile-ar_object_scanner": [
@@ -185,6 +264,12 @@ ICONS: dict[str, list[Shape]] = {
         c(19, 15, 2, fill=DARK),
         p([(16, 5), (18, 11), (14, 11)]),
         l(16, 10, 16, 12, sw=2),
+    ],
+    "utils-terminal": [
+        r(5, 6, 22, 20, rad=2),
+        r(7, 8, 18, 14, rad=1, fill=DARK),
+        pl([(9, 13), (12, 15.5), (9, 18)], sw=1.8),
+        r(14, 17.4, 7, 1.6),
     ],
     "utils-whiteboard": [
         r(6, 8, 20, 14, rad=1, fill=None, stroke=WHITE, sw=2),

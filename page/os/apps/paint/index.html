@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <link rel="icon" href="../../../assets/icons/ico/os-paint.ico" type="image/x-icon">
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Paint</title>
+    <link rel="stylesheet" href="../apps.css" />
+    <style>
+      .app-body { display: grid; place-items: center; background: #3a3a3a; overflow: auto; }
+      html[data-theme="light"] .app-body { background: #cfcfcf; }
+      canvas {
+        background: #fff;
+        cursor: crosshair;
+        box-shadow: var(--shadow);
+        touch-action: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app-bar">
+      <button type="button" data-tool="pencil" class="primary">Pencil</button>
+      <button type="button" data-tool="eraser">Eraser</button>
+      <button type="button" data-tool="fill">Fill</button>
+      <button type="button" data-tool="line">Line</button>
+      <button type="button" data-tool="rect">Rect</button>
+      <button type="button" data-tool="ellipse">Oval</button>
+      <input id="color" type="color" value="#111111">
+      <input id="size" type="range" min="1" max="40" value="4">
+      <button type="button" id="undo">Undo</button>
+      <button type="button" id="clear">Clear</button>
+      <span class="grow"></span>
+      <button type="button" id="open">Open</button>
+      <button type="button" id="save" class="primary">Save</button>
+    </div>
+    <div class="app-body"><canvas id="c" width="960" height="540"></canvas></div>
+    <script src="../../js/file-client.js"></script>
+    <script src="../../js/app-frame.js"></script>
+    <script>
+      const canvas = document.getElementById("c");
+      const ctx = canvas.getContext("2d");
+      ctx.fillStyle = "#fff";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      let tool = "pencil";
+      let drawing = false;
+      let start = null;
+      let snapshot = null;
+      const undo = [];
+      function pushUndo() {
+        undo.push(ctx.getImageData(0, 0, canvas.width, canvas.height));
+        if (undo.length > 24) undo.shift();
+      }
+      function color() { return document.getElementById("color").value; }
+      function size() { return Number(document.getElementById("size").value) || 4; }
+      function pos(e) {
+        const r = canvas.getBoundingClientRect();
+        return { x: (e.clientX - r.left) * (canvas.width / r.width), y: (e.clientY - r.top) * (canvas.height / r.height) };
+      }
+      function hexToRgb(hex) {
+        const n = parseInt(hex.slice(1), 16);
+        return [n >> 16, (n >> 8) & 255, n & 255, 255];
+      }
+      function flood(x, y, fill) {
+        const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const data = img.data;
+        const w = canvas.width;
+        const i = (Math.floor(y) * w + Math.floor(x)) * 4;
+        const target = [data[i], data[i + 1], data[i + 2], data[i + 3]];
+        if (target[0] === fill[0] && target[1] === fill[1] && target[2] === fill[2] && target[3] === fill[3]) return;
+        const stack = [[Math.floor(x), Math.floor(y)]];
+        const seen = new Uint8Array(w * canvas.height);
+        while (stack.length) {
+          const [cx, cy] = stack.pop();
+          if (cx < 0 || cy < 0 || cx >= w || cy >= canvas.height) continue;
+          const idx = cy * w + cx;
+          if (seen[idx]) continue;
+          seen[idx] = 1;
+          const p = idx * 4;
+          if (data[p] !== target[0] || data[p + 1] !== target[1] || data[p + 2] !== target[2] || data[p + 3] !== target[3]) continue;
+          data[p] = fill[0]; data[p + 1] = fill[1]; data[p + 2] = fill[2]; data[p + 3] = fill[3];
+          stack.push([cx + 1, cy], [cx - 1, cy], [cx, cy + 1], [cx, cy - 1]);
+        }
+        ctx.putImageData(img, 0, 0);
+      }
+      document.querySelectorAll("[data-tool]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          tool = btn.dataset.tool;
+          document.querySelectorAll("[data-tool]").forEach((b) => b.classList.toggle("primary", b === btn));
+        });
+      });
+      canvas.addEventListener("pointerdown", (e) => {
+        canvas.setPointerCapture(e.pointerId);
+        const p = pos(e);
+        if (tool === "fill") { pushUndo(); flood(p.x, p.y, hexToRgb(color())); return; }
+        drawing = true;
+        start = p;
+        pushUndo();
+        snapshot = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        ctx.strokeStyle = tool === "eraser" ? "#fff" : color();
+        ctx.fillStyle = ctx.strokeStyle;
+        ctx.lineWidth = size();
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+        if (tool === "pencil" || tool === "eraser") {
+          ctx.beginPath();
+          ctx.moveTo(p.x, p.y);
+          ctx.lineTo(p.x, p.y);
+          ctx.stroke();
+        }
+      });
+      canvas.addEventListener("pointermove", (e) => {
+        if (!drawing) return;
+        const p = pos(e);
+        if (tool === "pencil" || tool === "eraser") {
+          ctx.lineTo(p.x, p.y);
+          ctx.stroke();
+          return;
+        }
+        ctx.putImageData(snapshot, 0, 0);
+        ctx.beginPath();
+        if (tool === "line") { ctx.moveTo(start.x, start.y); ctx.lineTo(p.x, p.y); ctx.stroke(); }
+        if (tool === "rect") ctx.strokeRect(start.x, start.y, p.x - start.x, p.y - start.y);
+        if (tool === "ellipse") {
+          ctx.ellipse((start.x + p.x) / 2, (start.y + p.y) / 2, Math.abs(p.x - start.x) / 2, Math.abs(p.y - start.y) / 2, 0, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+      });
+      canvas.addEventListener("pointerup", () => { drawing = false; });
+      document.getElementById("undo").onclick = () => { const img = undo.pop(); if (img) ctx.putImageData(img, 0, 0); };
+      document.getElementById("clear").onclick = () => { pushUndo(); ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, canvas.width, canvas.height); };
+      window.OSAppFrame.sync();
+      const osFiles = window.OSFileClient && window.OSFileClient.connect({
+        appId: "paint",
+        exts: ["png", "jpg", "jpeg", "webp", "bmp"],
+        defaultExt: "png",
+        defaultName: "drawing.png",
+        load: async (blob) => {
+          const img = new Image();
+          img.onload = () => {
+            ctx.fillStyle = "#fff";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          };
+          img.src = URL.createObjectURL(blob);
+        },
+        serialize: async () => new Promise((resolve) => {
+          canvas.toBlob((blob) => resolve({ blob, name: "drawing.png", mime: "image/png" }), "image/png");
+        }),
+      });
+      document.getElementById("open").onclick = () => osFiles && osFiles.openPicker();
+      document.getElementById("save").onclick = () => osFiles && osFiles.save();
+      window.OSAppFrame.onMessage();
+    </script>
+  </body>
+</html>

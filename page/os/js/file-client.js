@@ -86,6 +86,9 @@ window.OSFileClient = (function () {
           const blob = await fs.getBlob(current);
           if (!blob) continue;
           remember(current);
+          if (h.OS && typeof h.OS.rememberRecentFile === "function") {
+            h.OS.rememberRecentFile(current, spec.appId, node.name);
+          }
           if (spec.load) await spec.load(blob, node);
         }
         return true;
@@ -113,6 +116,9 @@ window.OSFileClient = (function () {
       if (existing) node = await fs.writeFile(existing.id, payload.blob, mime ? { mime: mime } : undefined);
       else node = await fs.createFile(parentId, { name: name, mime: mime, blob: payload.blob });
       remember(node.id);
+      if (h.OS && typeof h.OS.rememberRecentFile === "function") {
+        h.OS.rememberRecentFile(node.id, spec.appId, node.name);
+      }
       return node;
     }
 

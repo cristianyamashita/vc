@@ -11,6 +11,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="../assets/fontawesome/css/all.min.css" />
+  <script src="../os/js/file-client.js"></script>
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-NWZDZ906DJ"></script>
   <script>
     window.dataLayer = window.dataLayer || [];
@@ -2304,7 +2305,6 @@
         $('#exportJsonBtn').addEventListener('click', () => exportFile(`${slugify(state.doc.name)}.json`, JSON.stringify(documentPayload(), null, 2), 'application/json'));
         $('#exportSvgBtn').addEventListener('click', () => exportFile(`${slugify(state.doc.name)}.svg`, buildExportSvg(), 'image/svg+xml'));
         $('#exportPngBtn').addEventListener('click', exportPng);
-
         $('#undoBtn').addEventListener('click', undo);
         $('#redoBtn').addEventListener('click', redo);
         $('#fitBtn').addEventListener('click', () => { setViewToFit(); render(); });
@@ -2411,9 +2411,61 @@
         });
       }
 
+      function connectOsFiles() {
+        if (!window.OSFileClient) return;
+        let osFileName = null;
+        const osFiles = window.OSFileClient.connect({
+          appId: 'utils-vector_editor',
+          exts: ['svg', 'json'],
+          defaultExt: 'svg',
+          defaultName: 'drawing.svg',
+          load: async (blob, node) => {
+            osFileName = node.name;
+            const ext = window.OSFileClient.extOfName(node.name);
+            const text = await blob.text();
+            if (ext === 'json') {
+              resetState(JSON.parse(text));
+            } else {
+              state.doc.name = window.OSFileClient.stripExt(node.name) || state.doc.name;
+            }
+            setViewToFit();
+            render();
+          },
+          serialize: async () => {
+            const ext = window.OSFileClient.extOfName(osFileName) || 'svg';
+            const base = slugify(state.doc.name || 'drawing');
+            if (ext === 'json') {
+              return {
+                blob: new Blob([JSON.stringify(documentPayload(), null, 2)], { type: 'application/json' }),
+                name: base + '.json',
+                mime: 'application/json'
+              };
+            }
+            return {
+              blob: new Blob([buildExportSvg()], { type: 'image/svg+xml' }),
+              name: base + '.svg',
+              mime: 'image/svg+xml'
+            };
+          }
+        });
+        if (!osFiles.hosted) return;
+        $('#exportSvgBtn').addEventListener('click', (event) => {
+          event.preventDefault();
+          event.stopImmediatePropagation();
+          osFiles.save();
+        }, true);
+        $('#exportJsonBtn').addEventListener('click', (event) => {
+          event.preventDefault();
+          event.stopImmediatePropagation();
+          osFileName = (osFileName || 'drawing').replace(/\.[^.]+$/, '') + '.json';
+          osFiles.saveAs();
+        }, true);
+      }
+
       async function init() {
         resetState(null, { seedHistory: false });
         bindControls();
+        connectOsFiles();
         const restored = await restoreAutosave();
         $('#themeSelect').value = state.ui.theme;
         $('#langSelect').value = state.ui.lang;

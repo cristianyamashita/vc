@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <link rel="icon" href="../../../assets/icons/ico/os-characters.ico" type="image/x-icon">
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Character Map</title>
+    <link rel="stylesheet" href="../apps.css" />
+    <style>
+      .app-body { padding: 12px; overflow: auto; height: calc(100% - 49px); }
+      .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(44px, 1fr)); gap: 6px; }
+      .grid button { height: 44px; border: 1px solid var(--line); background: var(--panel); border-radius: 8px; font-size: 20px; }
+      .grid button:hover { border-color: var(--accent); }
+      .preview { font-size: 42px; padding: 8px 4px; }
+    </style>
+  </head>
+  <body>
+    <div class="app-bar">
+      <input id="q" class="grow" type="search" placeholder="Search or paste a character">
+      <span class="preview" id="preview"></span>
+    </div>
+    <div class="app-body"><div class="grid" id="grid"></div></div>
+    <script src="../../js/app-frame.js"></script>
+    <script>
+      window.OSAppFrame.sync();
+      const ranges = [[32, 126], [160, 255], [0x370, 0x3ff], [0x2000, 0x206f], [0x2100, 0x214f], [0x2190, 0x21ff], [0x2200, 0x22ff], [0x2500, 0x257f], [0x2580, 0x259f], [0x25a0, 0x25ff], [0x2600, 0x26ff]];
+      const all = [];
+      ranges.forEach(([a, b]) => { for (let i = a; i <= b; i++) all.push(i); });
+      const grid = document.getElementById("grid");
+      function paint(q) {
+        const query = (q || "").trim().toLowerCase();
+        const list = query
+          ? all.filter((cp) => String.fromCodePoint(cp).toLowerCase().includes(query) || cp.toString(16).includes(query))
+          : all;
+        grid.innerHTML = list.slice(0, 500).map((cp) => `<button type="button" data-cp="${cp}">${String.fromCodePoint(cp)}</button>`).join("");
+      }
+      grid.addEventListener("click", (e) => {
+        const b = e.target.closest("[data-cp]");
+        if (!b) return;
+        const ch = String.fromCodePoint(Number(b.dataset.cp));
+        document.getElementById("preview").textContent = ch;
+        navigator.clipboard.writeText(ch).catch(() => {});
+      });
+      document.getElementById("q").addEventListener("input", (e) => paint(e.target.value));
+      paint("");
+      window.OSAppFrame.onMessage();
+    </script>
+  </body>
+</html>

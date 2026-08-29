@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <link rel="icon" href="../../../assets/icons/ico/os-calculator.ico" type="image/x-icon">
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Calculator</title>
+    <link rel="stylesheet" href="../apps.css" />
+    <style>
+      body { display: grid; place-items: center; }
+      .calc { width: min(360px, 100%); padding: 16px; }
+      .display { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 18px 14px; text-align: right; font: 600 32px/1.1 "Segoe UI", sans-serif; min-height: 72px; word-break: break-all; margin-bottom: 12px; }
+      .keys { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+      .keys button { border: 1px solid var(--line); background: var(--panel); border-radius: 10px; min-height: 52px; font-size: 18px; }
+      .keys button.op { color: var(--accent); font-weight: 700; }
+      .keys button.eq { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+      .keys button.span { grid-column: span 2; }
+    </style>
+  </head>
+  <body>
+    <div class="calc">
+      <div class="display" id="out">0</div>
+      <div class="keys" id="keys"></div>
+    </div>
+    <script src="../../js/app-frame.js"></script>
+    <script>
+      window.OSAppFrame.sync();
+      const keys = ["C","±","%","/","7","8","9","*","4","5","6","-","1","2","3","+","0",".","="];
+      const host = document.getElementById("keys");
+      keys.forEach((k) => {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.textContent = k;
+        b.dataset.k = k;
+        if ("+-*/".includes(k)) b.className = "op";
+        if (k === "=") b.className = "eq";
+        if (k === "0") b.className = "span";
+        host.appendChild(b);
+      });
+      let cur = "0";
+      let acc = null;
+      let op = null;
+      let fresh = false;
+      const out = document.getElementById("out");
+      function show() { out.textContent = cur; }
+      function num(n) {
+        if (fresh || cur === "0") { cur = n === "." ? "0." : n; fresh = false; }
+        else if (!(n === "." && cur.includes("."))) cur += n;
+        show();
+      }
+      function apply() {
+        const a = Number(acc);
+        const b = Number(cur);
+        if (op === "+") acc = a + b;
+        else if (op === "-") acc = a - b;
+        else if (op === "*") acc = a * b;
+        else if (op === "/") acc = b === 0 ? NaN : a / b;
+        else acc = b;
+        cur = String(acc);
+        show();
+      }
+      function press(k) {
+        if (/^[0-9.]$/.test(k)) return num(k);
+        if (k === "C") { cur = "0"; acc = null; op = null; return show(); }
+        if (k === "±") { cur = String(-Number(cur)); return show(); }
+        if (k === "%") { cur = String(Number(cur) / 100); return show(); }
+        if ("+-*/".includes(k)) {
+          if (acc != null && op && !fresh) apply();
+          else acc = Number(cur);
+          op = k; fresh = true; return;
+        }
+        if (k === "=" || k === "Enter") { apply(); op = null; fresh = true; }
+      }
+      host.addEventListener("click", (e) => { const b = e.target.closest("[data-k]"); if (b) press(b.dataset.k); });
+      window.addEventListener("keydown", (e) => {
+        const map = { Enter: "=", Escape: "C" };
+        const k = map[e.key] || e.key;
+        if (/^[0-9.+\-*/=%C]$/.test(k) || k === "±") { e.preventDefault(); press(k); }
+      });
+      window.OSAppFrame.onMessage();
+    </script>
+  </body>
+</html>

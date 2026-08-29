@@ -3,6 +3,8 @@ window.OSStart = (function () {
   let context;
   let contextAppId = null;
   let searchQuery = "";
+  let fileHits = [];
+  let searchSeq = 0;
 
   function t(key) {
     return window.OSI18n.t(key);
@@ -14,6 +16,7 @@ window.OSStart = (function () {
     if (!menu) return;
     menu.hidden = true;
     searchQuery = "";
+    fileHits = [];
     document.getElementById("start-btn").classList.remove("open");
   }
 
@@ -38,6 +41,7 @@ window.OSStart = (function () {
 
   function startGroupKey(app) {
     if (!app) return "misc";
+    if (app.suite === "accessories") return "accessories";
     if (app.kind === "native") return "system";
     if (app.kind === "user") return "user";
     if (app.channel === "alpha") return "alpha";
@@ -58,6 +62,7 @@ window.OSStart = (function () {
       beta: "startGroupBeta",
       alpha: "startGroupAlpha",
       user: "startGroupMyApps",
+      accessories: "startGroupAccessories",
       system: "startGroupSystem",
     };
     return t(keys[key] || key);
@@ -85,7 +90,7 @@ window.OSStart = (function () {
         if (!grouped.has(key)) grouped.set(key, []);
         grouped.get(key).push(app);
       });
-    const groupKeys = ["utils", "game", "mobile", "misc", "beta", "alpha", "user", "system"].filter((key) =>
+    const groupKeys = ["utils", "game", "mobile", "misc", "beta", "alpha", "user", "accessories", "system"].filter((key) =>
       grouped.has(key)
     );
 
@@ -120,7 +125,7 @@ window.OSStart = (function () {
       .join("");
     if (!appsHtml && !q) appsHtml = `<p class="start-empty">${escapeHtml(t("emptyApps"))}</p>`;
 
-    const noResults = q && !favorites.length && !groupKeys.length;
+    const noResults = q && !favorites.length && !groupKeys.length && !fileHits.length;
     const username = window.OS.state.username || "User";
     let bodyHtml;
     if (noResults) {
@@ -129,11 +134,26 @@ window.OSStart = (function () {
       const favTitle = !q || favorites.length ? `<h3 class="start-section-title">${escapeHtml(t("favorites"))}</h3>` : "";
       const favBlock = !q || favorites.length ? `<div class="start-favorites">${favHtml}</div>` : "";
       const appsTitle = q ? "" : `<h3 class="start-section-title">${escapeHtml(t("apps"))}</h3>`;
-      bodyHtml = `${favTitle}${favBlock}${appsTitle}${appsHtml}`;
+      let filesHtml = "";
+      if (q && fileHits.length && window.OSFS) {
+        filesHtml =
+          `<h3 class="start-section-title">${escapeHtml(t("startFiles"))}</h3><div class="start-app-list">` +
+          fileHits
+            .map((hit) => {
+              const node = hit.node;
+              return `<button type="button" class="start-app start-file" data-file-id="${escapeHtml(node.id)}">
+                ${window.OSFS.iconFor(node)}
+                <span>${escapeHtml(node.name)}<small class="start-file-path">${escapeHtml(hit.path)}</small></span>
+              </button>`;
+            })
+            .join("") +
+          `</div>`;
+      }
+      bodyHtml = `${favTitle}${favBlock}${filesHtml}${appsTitle}${appsHtml}`;
     }
     menu.innerHTML = `
       <div class="start-search-wrap">
-        <input class="start-search" type="search" value="${escapeHtml(searchQuery)}" data-i18n-placeholder="searchApps" placeholder="${escapeHtml(t("searchApps"))}" autocomplete="off">
+        <input class="start-search" type="search" value="${escapeHtml(searchQuery)}" data-i18n-placeholder="searchAppsFiles" placeholder="${escapeHtml(t("searchAppsFiles"))}" autocomplete="off">
       </div>
       <div class="start-scroll">
         ${bodyHtml}
@@ -185,9 +205,11 @@ window.OSStart = (function () {
     contextHandler = null;
     const onDesktop = window.OS.state.desktopIcons.includes(appId);
     const onFav = window.OS.state.favorites.includes(appId);
+    const onTask = window.OS.isPinned ? window.OS.isPinned(appId) : false;
     context.innerHTML = `
       <button type="button" data-act="desktop">${escapeHtml(onDesktop ? t("removeDesktop") : t("addDesktop"))}</button>
       <button type="button" data-act="favorites">${escapeHtml(onFav ? t("removeFavorites") : t("addFavorites"))}</button>
+      <button type="button" data-act="pin">${escapeHtml(onTask ? t("unpinTaskbar") : t("pinTaskbar"))}</button>
     `;
     placeContext(x, y);
   }
@@ -277,6 +299,7 @@ window.OSStart = (function () {
       return;
     }
     searchQuery = "";
+    if (window.OSTray) window.OSTray.closeAll();
     render();
     menu.hidden = false;
     document.getElementById("start-btn").classList.add("open");
@@ -292,6 +315,17 @@ window.OSStart = (function () {
       toggle();
     });
     menu.addEventListener("click", (e) => {
+      const fileBtn = e.target.closest("[data-file-id]");
+      if (fileBtn) {
+        closeMenu();
+        closeContext();
+        if (window.OSFS && window.OSFileExplorer) {
+          window.OSFS.get(fileBtn.dataset.fileId).then((node) => {
+            if (node) window.OSFileExplorer.openDesktopNode(node);
+          });
+        }
+        return;
+      }
       const btn = e.target.closest("[data-app-id]");
       if (!btn) return;
       openApp(btn.dataset.appId);
@@ -301,6 +335,20 @@ window.OSStart = (function () {
       if (!input) return;
       searchQuery = input.value;
       const keep = input.selectionStart;
+      const seq = ++searchSeq;
+      const q = searchQuery.trim();
+      if (!q || !window.OSFS || !window.OSFS.search) {
+        fileHits = [];
+        render();
+        focusSearch(keep);
+        return;
+      }
+      window.OSFS.search(q, 12).then((hits) => {
+        if (seq !== searchSeq) return;
+        fileHits = hits || [];
+        render();
+        focusSearch(keep);
+      });
       render();
       focusSearch(keep);
     });
@@ -337,6 +385,7 @@ window.OSStart = (function () {
       if (!contextAppId) return;
       if (act === "desktop") window.OS.toggleDesktopIcon(contextAppId);
       if (act === "favorites") window.OS.toggleFavorite(contextAppId);
+      if (act === "pin" && window.OS.toggleTaskbarPin) window.OS.toggleTaskbarPin(contextAppId);
       closeContext();
       if (isOpen()) render();
     });
@@ -353,5 +402,5 @@ window.OSStart = (function () {
     });
   }
 
-  return { init, render, close: closeMenu, closeContext, isOpen, showContext, showItems };
+  return { init, render, close: closeMenu, closeContext, isOpen, showContext, showItems, toggle };
 })();

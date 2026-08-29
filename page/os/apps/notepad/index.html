@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <link rel="icon" href="../../../assets/icons/ico/os-notepad.ico" type="image/x-icon">
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Notepad</title>
+    <link rel="stylesheet" href="../apps.css" />
+    <style>
+      textarea {
+        width: 100%;
+        height: 100%;
+        border: 0;
+        resize: none;
+        padding: 14px 16px;
+        background: transparent;
+        outline: none;
+        font: 14px/1.5 "Cascadia Mono", "Consolas", "IBM Plex Mono", monospace;
+      }
+      textarea.wrap { white-space: pre-wrap; }
+      textarea.nowrap { white-space: pre; overflow: auto; }
+      .status { padding: 4px 12px; border-top: 1px solid var(--line); font-size: 12px; color: var(--muted); }
+      .app-body { height: calc(100% - 78px); }
+    </style>
+  </head>
+  <body>
+    <div class="app-bar">
+      <button type="button" id="btn-new" data-i18n="feNew">New</button>
+      <button type="button" id="btn-open">Open</button>
+      <button type="button" id="btn-save" class="primary">Save</button>
+      <button type="button" id="btn-saveas">Save as</button>
+      <label><input type="checkbox" id="wrap" checked> Wrap</label>
+      <label>Aa <input id="font" type="range" min="12" max="28" value="14"></label>
+    </div>
+    <div class="app-body"><textarea id="text" class="wrap" spellcheck="true"></textarea></div>
+    <div class="status" id="status">Notepad</div>
+    <script src="../../js/file-client.js"></script>
+    <script src="../../js/app-frame.js"></script>
+    <script>
+      const text = document.getElementById("text");
+      const status = document.getElementById("status");
+      let osFiles = null;
+      function count() {
+        const n = text.value.length;
+        const lines = text.value.split("\n").length;
+        status.textContent = lines + " · " + n;
+      }
+      document.getElementById("wrap").addEventListener("change", (e) => {
+        text.classList.toggle("wrap", e.target.checked);
+        text.classList.toggle("nowrap", !e.target.checked);
+      });
+      document.getElementById("font").addEventListener("input", (e) => {
+        text.style.fontSize = e.target.value + "px";
+      });
+      text.addEventListener("input", count);
+      window.OSAppFrame.sync();
+      osFiles = window.OSFileClient && window.OSFileClient.connect({
+        appId: "notepad",
+        exts: ["txt", "log", "ini", "text", "md"],
+        defaultExt: "txt",
+        defaultName: "untitled.txt",
+        load: async (blob, node) => {
+          text.value = await blob.text();
+          document.title = node.name || "Notepad";
+          count();
+        },
+        serialize: async () => ({
+          blob: new Blob([text.value], { type: "text/plain" }),
+          name: "untitled.txt",
+          mime: "text/plain",
+        }),
+      });
+      document.getElementById("btn-new").onclick = () => { text.value = ""; count(); };
+      document.getElementById("btn-open").onclick = () => osFiles && osFiles.openPicker();
+      document.getElementById("btn-save").onclick = () => osFiles && osFiles.save();
+      document.getElementById("btn-saveas").onclick = () => osFiles && osFiles.saveAs();
+      window.OSAppFrame.onMessage();
+      count();
+    </script>
+  </body>
+</html>

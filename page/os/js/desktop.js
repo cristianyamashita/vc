@@ -56,7 +56,7 @@ window.OS = (function () {
   }
 
   function notifyNativeFrames() {
-    document.querySelectorAll(".os-window iframe.native-frame").forEach((frame) => {
+    document.querySelectorAll(".os-window iframe").forEach((frame) => {
       try {
         if (frame.contentWindow) {
           frame.contentWindow.postMessage({ type: "os-host-sync" }, location.origin);
@@ -153,6 +153,19 @@ window.OS = (function () {
     return applyWallpaper();
   }
 
+  function setIconColor(value) {
+    const hex = window.OSIconColor.parse(value);
+    api.state.iconColor = hex;
+    window.OSState.scheduleSave(api.state);
+    const done = window.OSIconColor.apply();
+    renderDesktop();
+    renderTaskbar();
+    if (window.OSStart.isOpen()) window.OSStart.render();
+    window.OSWindows.refreshTitles();
+    if (window.OSFileExplorer && window.OSFileExplorer.refreshOpen) window.OSFileExplorer.refreshOpen();
+    return done;
+  }
+
   function setTheme(theme) {
     api.theme = theme === "light" ? "light" : "dark";
     document.documentElement.dataset.theme = api.theme;
@@ -160,6 +173,7 @@ window.OS = (function () {
     persistNow();
     applyWallpaper();
     notifyNativeFrames();
+    applyIframeGlass();
     refreshIframes();
   }
 
@@ -197,6 +211,175 @@ window.OS = (function () {
     if (window.OSFileExplorer && window.OSFileExplorer.refreshOpen) window.OSFileExplorer.refreshOpen();
   }
 
+  function pinnedIds() {
+    const raw = api.state && api.state.taskbarPins;
+    const list = Array.isArray(raw) && raw.length ? raw.slice() : ["file-explorer"];
+    return list.filter((id) => {
+      const app = window.OSCatalog.byId(id);
+      if (!app) return false;
+      if (app.kind === "native" || app.kind === "user") return true;
+      return isInstalled(id);
+    });
+  }
+
+  function isPinned(id) {
+    return pinnedIds().includes(id);
+  }
+
+  function toggleTaskbarPin(id) {
+    if (!id || !api.state) return;
+    const app = window.OSCatalog.byId(id);
+    if (!app) return;
+    if (!api.state.taskbarPins) api.state.taskbarPins = ["file-explorer"];
+    const list = api.state.taskbarPins;
+    const i = list.indexOf(id);
+    if (i >= 0) list.splice(i, 1);
+    else list.push(id);
+    persistNow();
+    renderTaskbar();
+    if (window.OSStart && window.OSStart.isOpen()) window.OSStart.render();
+  }
+
+  function rememberRecentFile(fileId, appId, name) {
+    if (!fileId || !api.state) return;
+    const list = Array.isArray(api.state.recentFiles) ? api.state.recentFiles : [];
+    api.state.recentFiles = [{ id: fileId, appId: appId || null, name: name || "", at: Date.now() }]
+      .concat(list.filter((item) => item && item.id !== fileId))
+      .slice(0, 24);
+    persistSession();
+  }
+
+  function recentFilesFor(appId) {
+    const list = Array.isArray(api.state && api.state.recentFiles) ? api.state.recentFiles : [];
+    return list.filter((item) => !appId || item.appId === appId).slice(0, 8);
+  }
+
+  function applyReducedMotion(on) {
+    const enabled = !!on;
+    if (api.state) api.state.reducedMotion = enabled;
+    document.documentElement.dataset.motion = enabled ? "reduce" : "full";
+    applyAppearance({}, false);
+    persistNow();
+  }
+
+  function clampGlass(n) {
+    const v = Number(n);
+    if (!Number.isFinite(v)) return 86;
+    return Math.min(100, Math.max(40, Math.round(v)));
+  }
+
+  function clampBlur(n) {
+    const v = Number(n);
+    if (!Number.isFinite(v)) return 20;
+    return Math.min(40, Math.max(0, Math.round(v)));
+  }
+
+  function clampNight(n) {
+    const v = Number(n);
+    if (!Number.isFinite(v)) return 0;
+    return Math.min(80, Math.max(0, Math.round(v)));
+  }
+
+  function clampIconSize(value) {
+    return value === "s" || value === "l" ? value : "m";
+  }
+
+  function applyIframeGlass(iframe) {
+    const frames = iframe ? [iframe] : Array.from(document.querySelectorAll(".os-window iframe"));
+    const glass = api.state ? clampGlass(api.state.glass) : 86;
+    const blur = api.state ? clampBlur(api.state.blur) : 20;
+    const solid = document.documentElement.dataset.glass === "solid";
+    const pct = glass + "%";
+    const blurPx = document.documentElement.dataset.motion === "reduce" || solid ? "0px" : blur + "px";
+    frames.forEach((frame) => {
+      try {
+        const doc = frame.contentDocument;
+        if (!doc || !doc.documentElement) return;
+        const html = doc.documentElement;
+        html.style.setProperty("--glass-pct", pct);
+        html.style.setProperty("--glass-blur", blurPx);
+        html.style.setProperty("--glass-alpha", String(glass / 100));
+        html.dataset.glass = solid ? "solid" : "acrylic";
+        html.style.background = "transparent";
+        const src = frame.getAttribute("src") || "";
+        const skip =
+          /terminal\.html/.test(src) ||
+          /\/os\/apps\//.test(src) ||
+          !!(doc.defaultView && doc.defaultView.OSAppFrame);
+        let tag = doc.getElementById("os-host-glass");
+        if (skip || solid) {
+          if (tag) tag.remove();
+          return;
+        }
+        if (!tag) {
+          tag = doc.createElement("style");
+          tag.id = "os-host-glass";
+          (doc.head || html).appendChild(tag);
+        }
+        tag.textContent =
+          "html{background:transparent!important}" +
+          "body{background:color-mix(in srgb, var(--bg, Canvas) var(--glass-pct, 86%), transparent)!important}";
+      } catch (_err) {}
+    });
+  }
+
+  function applyAppearance(patch, persist) {
+    if (!api.state) return;
+    const prevSize = clampIconSize(api.state.iconSize);
+    if (patch && typeof patch === "object") {
+      if (patch.glass != null) api.state.glass = clampGlass(patch.glass);
+      if (patch.blur != null) api.state.blur = clampBlur(patch.blur);
+      if (patch.nightLight != null) api.state.nightLight = clampNight(patch.nightLight);
+      if (patch.iconSize != null) api.state.iconSize = clampIconSize(patch.iconSize);
+    }
+    const glass = clampGlass(api.state.glass);
+    const blur = clampBlur(api.state.blur);
+    const night = clampNight(api.state.nightLight);
+    const iconSize = clampIconSize(api.state.iconSize);
+    api.state.glass = glass;
+    api.state.blur = blur;
+    api.state.nightLight = night;
+    api.state.iconSize = iconSize;
+    const root = document.documentElement;
+    const reduce = root.dataset.motion === "reduce";
+    root.style.setProperty("--glass-alpha", String(glass / 100));
+    root.style.setProperty("--glass-pct", glass + "%");
+    root.style.setProperty("--glass-blur", reduce || glass >= 98 ? "0px" : blur + "px");
+    root.style.setProperty("--night-light", String(night / 200));
+    root.dataset.glass = glass >= 98 ? "solid" : "acrylic";
+    root.dataset.iconSize = iconSize;
+    applyIframeGlass();
+    notifyNativeFrames();
+    if (iconSize !== prevSize) renderDesktop();
+    if (persist !== false) persistSession();
+  }
+
+  async function getStorageInfo() {
+    let used = 0;
+    let quota = 0;
+    try {
+      if (navigator.storage && navigator.storage.estimate) {
+        const est = await navigator.storage.estimate();
+        used = est.usage || 0;
+        quota = est.quota || 0;
+      }
+    } catch (_err) {}
+    let files = 0;
+    let bytes = 0;
+    if (window.OSFS && window.OSFS.allNodes) {
+      try {
+        const nodes = await window.OSFS.allNodes();
+        nodes.forEach((node) => {
+          if (node && node.kind === "file") {
+            files += 1;
+            bytes += Number(node.size) || 0;
+          }
+        });
+      } catch (_err) {}
+    }
+    return { used, quota, files, bytes };
+  }
+
   function toggleInstalled(id) {
     const app = window.OSCatalog.byId(id);
     if (!app || !app.uninstallable) return;
@@ -209,7 +392,10 @@ window.OS = (function () {
       list.splice(i, 1);
       api.state.favorites = api.state.favorites.filter((item) => item !== id);
       api.state.desktopIcons = api.state.desktopIcons.filter((item) => item !== id);
-      if (window.OSWindows.has(id)) window.OSWindows.close(id);
+      api.state.taskbarPins = (api.state.taskbarPins || []).filter((item) => item !== id);
+      window.OSWindows.list()
+        .filter((win) => window.OSWindows.appIdOf(win.id) === id)
+        .forEach((win) => window.OSWindows.close(win.id));
     } else {
       list.push(id);
     }
@@ -231,6 +417,7 @@ window.OS = (function () {
     if (!api.state.installed.includes("settings")) api.state.installed.unshift("settings");
     api.state.favorites = api.state.favorites.filter((id) => !removable.has(id));
     api.state.desktopIcons = api.state.desktopIcons.filter((id) => !removable.has(id));
+    api.state.taskbarPins = (api.state.taskbarPins || []).filter((id) => !removable.has(id) || id === "file-explorer");
     window.OSWindows.list()
       .filter((win) => removable.has(window.OSWindows.appIdOf(win.id)))
       .forEach((win) => window.OSWindows.close(win.id));
@@ -536,18 +723,31 @@ window.OS = (function () {
   }
 
   function renderTaskbar() {
+    const pinsEl = document.getElementById("taskbar-pins");
     const bar = document.getElementById("taskbar-apps");
     const focused = window.OSWindows.focusedId();
     const lang = api.lang;
-    const explorerOpen = window.OSWindows.list().some((win) => window.OSWindows.appIdOf(win.id) === "file-explorer");
-    const pin = document.getElementById("explorer-pin");
-    if (pin) {
-      pin.classList.toggle("active", explorerOpen && window.OSWindows.appIdOf(focused) === "file-explorer");
-      const label = window.OSI18n.t("fileExplorer");
-      pin.setAttribute("aria-label", label);
-      pin.setAttribute("title", label);
+    const wins = window.OSWindows.list();
+    const pins = pinnedIds();
+    const pinSet = new Set(pins);
+    if (pinsEl) {
+      pinsEl.innerHTML = pins
+        .map((id) => {
+          const app = window.OSCatalog.byId(id);
+          if (!app) return "";
+          const related = wins.filter((win) => window.OSWindows.appIdOf(win.id) === id);
+          const active = related.some((win) => win.id === focused && !win.minimized);
+          const open = related.length > 0;
+          const name = window.OSCatalog.displayName(app, lang);
+          return `<button type="button" class="taskbar-pin${active ? " active" : ""}${open ? " open" : ""}" data-pin-id="${escapeHtml(id)}" aria-label="${escapeHtml(name)}" title="${escapeHtml(name)}">
+            <img src="${escapeHtml(app.icon || "")}" alt="">
+          </button>`;
+        })
+        .join("");
     }
-    bar.innerHTML = window.OSWindows.list()
+    if (!bar) return;
+    bar.innerHTML = wins
+      .filter((win) => !pinSet.has(win.appId || window.OSWindows.appIdOf(win.id)))
       .sort((a, b) => a.z - b.z)
       .map((win) => {
         const app = window.OSCatalog.byId(win.appId || window.OSWindows.appIdOf(win.id));
@@ -571,14 +771,14 @@ window.OS = (function () {
     window.OSSettings.remountOpen();
     if (window.OSAppBuilder) window.OSAppBuilder.remountOpen();
     if (window.OSFileExplorer) window.OSFileExplorer.remountOpen();
+    if (window.OSTaskManager) window.OSTaskManager.remountOpen();
+    if (window.OSSnip) window.OSSnip.remountOpen();
+    if (window.OSWidgets) window.OSWidgets.refresh();
     notifyNativeFrames();
+    if (window.OS && window.OS.applyIframeGlass) window.OS.applyIframeGlass();
+    if (window.OSTray && window.OSTray.syncLabels) window.OSTray.syncLabels();
     document.getElementById("start-btn").setAttribute("aria-label", window.OSI18n.t("start"));
     document.getElementById("start-btn").setAttribute("title", window.OSI18n.t("start"));
-    const pin = document.getElementById("explorer-pin");
-    if (pin) {
-      pin.setAttribute("aria-label", window.OSI18n.t("fileExplorer"));
-      pin.setAttribute("title", window.OSI18n.t("fileExplorer"));
-    }
     syncFullscreenButton();
   }
 
@@ -759,12 +959,19 @@ window.OS = (function () {
         [
           { act: "newFolder", label: window.OSI18n.t("feNewFolder") },
           { act: "paste", label: window.OSI18n.t("fePaste"), disabled: !(clip && clip.ids.length) },
+          { sep: true },
+          {
+            act: "widgets",
+            label: window.OSI18n.t("widgets"),
+            children: window.OSWidgets ? window.OSWidgets.contextItems() : [],
+          },
         ],
         e.clientX,
         e.clientY,
         async (act) => {
           if (act === "newFolder") await window.OSFileExplorer.newFolder(window.OSFS.DESKTOP_ID);
           if (act === "paste") await window.OSFS.paste(window.OSFS.DESKTOP_ID);
+          if (window.OSWidgets) window.OSWidgets.handleContext(act);
         }
       );
     });
@@ -869,30 +1076,72 @@ window.OS = (function () {
       const btn = e.target.closest("[data-task-id]");
       if (btn) window.OSWindows.toggleTask(btn.dataset.taskId);
     });
-    const pin = document.getElementById("explorer-pin");
-    if (pin) {
-      pin.addEventListener("click", (e) => {
+    document.getElementById("taskbar-apps").addEventListener("contextmenu", (e) => {
+      const btn = e.target.closest("[data-task-id]");
+      if (!btn) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const win = window.OSWindows.get(btn.dataset.taskId);
+      if (!win) return;
+      const appId = win.appId || window.OSWindows.appIdOf(win.id);
+      window.OSStart.close();
+      window.OSStart.showItems(
+        [
+          { act: "pin", label: window.OSI18n.t("pinTaskbar") },
+          { act: "close", label: window.OSI18n.t("close") },
+        ],
+        e.clientX,
+        e.clientY,
+        (act) => {
+          if (act === "pin") toggleTaskbarPin(appId);
+          if (act === "close") window.OSWindows.close(win.id);
+        }
+      );
+    });
+    const pinsEl = document.getElementById("taskbar-pins");
+    if (pinsEl) {
+      pinsEl.addEventListener("click", (e) => {
+        const btn = e.target.closest("[data-pin-id]");
+        if (!btn) return;
         e.stopPropagation();
         window.OSStart.close();
         window.OSStart.closeContext();
-        window.OSWindows.open("file-explorer");
+        const appId = btn.dataset.pinId;
+        const related = window.OSWindows.list().filter((win) => window.OSWindows.appIdOf(win.id) === appId);
+        if (related.length) {
+          const top = related.slice().sort((a, b) => (b.z || 0) - (a.z || 0))[0];
+          window.OSWindows.toggleTask(top.id);
+        } else {
+          window.OSWindows.open(appId);
+        }
       });
-      pin.addEventListener("contextmenu", (e) => {
+      pinsEl.addEventListener("contextmenu", (e) => {
+        const btn = e.target.closest("[data-pin-id]");
+        if (!btn) return;
         e.preventDefault();
         e.stopPropagation();
+        const appId = btn.dataset.pinId;
+        const app = window.OSCatalog.byId(appId);
         window.OSStart.close();
-        window.OSStart.showItems(
-          [
-            { act: "open", label: window.OSI18n.t("fileExplorer") },
-            { act: "newWindow", label: window.OSI18n.t("feNewWindow") },
-          ],
-          e.clientX,
-          e.clientY,
-          (act) => {
-            if (act === "open") window.OSWindows.open("file-explorer");
-            if (act === "newWindow") window.OSWindows.open("file-explorer", { newInstance: true });
+        const items = [{ act: "open", label: window.OSCatalog.displayName(app, api.lang) }];
+        if (app && app.multiInstance) items.push({ act: "newWindow", label: window.OSI18n.t("feNewWindow") });
+        const recents = recentFilesFor(appId);
+        if (recents.length) {
+          items.push({ sep: true });
+          recents.forEach((item) => {
+            items.push({ act: "recent:" + item.id, label: item.name || item.id });
+          });
+        }
+        items.push({ sep: true }, { act: "unpin", label: window.OSI18n.t("unpinTaskbar") });
+        window.OSStart.showItems(items, e.clientX, e.clientY, (act) => {
+          if (act === "open") window.OSWindows.open(appId);
+          if (act === "newWindow") window.OSWindows.open(appId, { newInstance: true });
+          if (act === "unpin") toggleTaskbarPin(appId);
+          if (typeof act === "string" && act.startsWith("recent:")) {
+            const fileId = act.slice(7);
+            if (window.OSFileApps) window.OSFileApps.openFile(fileId, appId);
           }
-        );
+        });
       });
     }
     document.getElementById("tray-fullscreen").addEventListener("click", () => {
@@ -912,12 +1161,19 @@ window.OS = (function () {
 
     api.state = await window.OSState.load();
     if (!api.state.installed.includes("settings")) api.state.installed.unshift("settings");
+    document.documentElement.dataset.motion = api.state.reducedMotion ? "reduce" : "full";
+    applyAppearance({}, false);
+    if (window.OSIconColor) window.OSIconColor.watch();
     if (window.OSFS) await window.OSFS.ready();
     if (window.OSAppBuilder) await window.OSAppBuilder.hydrate();
     await applyWallpaper();
 
     window.OSWindows.init();
     window.OSStart.init();
+    if (window.OSHotkeys) window.OSHotkeys.init();
+    if (window.OSDesk) window.OSDesk.initFlyout();
+    if (window.OSWidgets) window.OSWidgets.init();
+    if (window.OSTray) window.OSTray.init();
     bindUi();
     refreshChrome();
     tickClock();
@@ -941,6 +1197,14 @@ window.OS = (function () {
   api.setUsername = setUsername;
   api.toggleFavorite = toggleFavorite;
   api.toggleDesktopIcon = toggleDesktopIcon;
+  api.toggleTaskbarPin = toggleTaskbarPin;
+  api.isPinned = isPinned;
+  api.rememberRecentFile = rememberRecentFile;
+  api.recentFilesFor = recentFilesFor;
+  api.applyReducedMotion = applyReducedMotion;
+  api.applyAppearance = applyAppearance;
+  api.applyIframeGlass = applyIframeGlass;
+  api.getStorageInfo = getStorageInfo;
   api.toggleInstalled = toggleInstalled;
   api.installAll = installAll;
   api.uninstallAll = uninstallAll;
@@ -948,6 +1212,7 @@ window.OS = (function () {
   api.registerUserApp = registerUserApp;
   api.unregisterUserApp = unregisterUserApp;
   api.setWallpaper = setWallpaper;
+  api.setIconColor = setIconColor;
   api.applyWallpaper = applyWallpaper;
   api.wallpaperImageSrc = wallpaperImageSrc;
   api.BUILTIN_WALLPAPERS = [

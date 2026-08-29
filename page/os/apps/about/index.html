@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <link rel="icon" href="../../../assets/icons/ico/os-about.ico" type="image/x-icon">
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>About This Desktop</title>
+    <link rel="stylesheet" href="../apps.css" />
+    <style>
+      body { display: grid; place-items: center; }
+      .card { width: min(420px, 92vw); text-align: center; padding: 28px 22px; }
+      .logo { width: 72px; height: 72px; border-radius: 18px; margin: 0 auto 12px; }
+      dl { text-align: left; display: grid; grid-template-columns: 120px 1fr; gap: 8px 12px; margin-top: 18px; }
+      dt { color: var(--muted); }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <img class="logo" src="../../../assets/icons/png/os.png" alt="">
+      <h1>Desktop OS</h1>
+      <p class="muted" id="tag">A mix of Windows, macOS, and Linux ideas, running locally in this browser.</p>
+      <dl id="meta"></dl>
+    </div>
+    <script src="../../js/app-frame.js"></script>
+    <script>
+      const frame = window.OSAppFrame;
+      const { host } = frame.sync();
+      async function paint() {
+        const os = host && host.OS;
+        const info = os && os.getStorageInfo ? await os.getStorageInfo() : {};
+        const used = host && host.OSFS && info.used != null ? host.OSFS.formatSize(info.used) : "—";
+        const rows = [
+          ["User", os && os.state ? os.state.username : "—"],
+          ["Theme", os ? os.theme : "—"],
+          ["Language", os ? os.lang : "—"],
+          ["Display", window.screen.width + "×" + window.screen.height],
+          ["Storage", used],
+          ["Engine", navigator.userAgent.split(" ").slice(-2).join(" ")],
+        ];
+        document.getElementById("meta").innerHTML = rows.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("");
+      }
+      paint();
+      frame.onMessage(() => paint());
+    </script>
+  </body>
+</html>

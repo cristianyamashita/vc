@@ -99,6 +99,299 @@ window.OSCatalog = (function () {
     }
   },
   {
+    "id": "task-manager",
+    "href": null,
+    "icon": "../assets/icons/svg/os-task_manager.svg",
+    "kind": "native",
+    "uninstallable": false,
+    "defaultInstalled": true,
+    "channel": "stable",
+    "tag": {
+      "en": "System",
+      "pt": "Sistema",
+      "ja": "システム"
+    },
+    "name": {
+      "en": "Task Manager",
+      "pt": "Gerenciador de Tarefas",
+      "ja": "タスク マネージャー"
+    },
+    "desc": {
+      "en": "See open windows, end tasks, and check how much storage this desktop is using.",
+      "pt": "Veja janelas abertas, encerre tarefas e confira o armazenamento deste desktop.",
+      "ja": "開いているウィンドウの終了と、このデスクトップの使用容量を確認します。"
+    }
+  },
+  {
+    "id": "notepad",
+    "href": "os/apps/notepad/index.html",
+    "icon": "../assets/icons/svg/os-notepad.svg",
+    "kind": "native",
+    "suite": "accessories",
+    "uninstallable": false,
+    "defaultInstalled": true,
+    "multiInstance": true,
+    "windowW": 720,
+    "windowH": 520,
+    "channel": "stable",
+    "tag": {
+      "en": "Accessories",
+      "pt": "Acessórios",
+      "ja": "アクセサリ"
+    },
+    "name": {
+      "en": "Notepad",
+      "pt": "Bloco de Notas",
+      "ja": "メモ帳"
+    },
+    "desc": {
+      "en": "Simple text editor for notes and logs, with Open/Save on the desktop filesystem.",
+      "pt": "Editor de texto simples para notas e logs, com Abrir/Salvar no sistema de arquivos do desktop.",
+      "ja": "デスクトップのファイルシステムに保存できるシンプルなテキストエディタ。"
+    }
+  },
+  {
+    "id": "paint",
+    "href": "os/apps/paint/index.html",
+    "icon": "../assets/icons/svg/os-paint.svg",
+    "kind": "native",
+    "suite": "accessories",
+    "uninstallable": false,
+    "defaultInstalled": true,
+    "multiInstance": true,
+    "channel": "stable",
+    "tag": {
+      "en": "Accessories",
+      "pt": "Acessórios",
+      "ja": "アクセサリ"
+    },
+    "name": {
+      "en": "Paint",
+      "pt": "Paint",
+      "ja": "ペイント"
+    },
+    "desc": {
+      "en": "Bitmap drawing with pencil, shapes, fill, and undo — a Paint-style canvas.",
+      "pt": "Desenho bitmap com lápis, formas, preenchimento e desfazer — no estilo Paint.",
+      "ja": "鉛筆、図形、塗りつぶし、元に戻すを備えたペイント風キャンバス。"
+    }
+  },
+  {
+    "id": "calendar",
+    "href": "os/apps/calendar/index.html",
+    "icon": "../assets/icons/svg/os-calendar.svg",
+    "kind": "native",
+    "suite": "accessories",
+    "uninstallable": false,
+    "defaultInstalled": true,
+    "channel": "stable",
+    "tag": {
+      "en": "Accessories",
+      "pt": "Acessórios",
+      "ja": "アクセサリ"
+    },
+    "name": {
+      "en": "Calendar",
+      "pt": "Calendário",
+      "ja": "カレンダー"
+    },
+    "desc": {
+      "en": "Month calendar with events and notes that also open from the taskbar clock.",
+      "pt": "Calendário mensal com eventos e notas, também aberto pelo relógio da barra de tarefas.",
+      "ja": "タスクバーの時計からも開ける、予定とメモ付きの月間カレンダー。"
+    }
+  },
+  {
+    "id": "browser",
+    "href": "os/apps/browser/index.html",
+    "icon": "../assets/icons/svg/os-browser.svg",
+    "kind": "native",
+    "suite": "accessories",
+    "uninstallable": false,
+    "defaultInstalled": true,
+    "multiInstance": true,
+    "windowW": 1100,
+    "windowH": 720,
+    "channel": "stable",
+    "tag": {
+      "en": "Accessories",
+      "pt": "Acessórios",
+      "ja": "アクセサリ"
+    },
+    "name": {
+      "en": "Browser",
+      "pt": "Navegador",
+      "ja": "ブラウザ"
+    },
+    "desc": {
+      "en": "Tabbed browser with live iframes, Compat view for sites that send X-Frame-Options, and a reader mode.",
+      "pt": "Navegador com abas, iframe ao vivo, vista Compat para sites com X-Frame-Options e modo leitura.",
+      "ja": "タブブラウザ。ライブ iframe、X-Frame-Options 向け Compat ビュー、リーダーモード。"
+    }
+  },
+  {
+    "id": "calculator",
+    "href": "os/apps/calculator/index.html",
+    "icon": "../assets/icons/svg/os-calculator.svg",
+    "kind": "native",
+    "suite": "accessories",
+    "uninstallable": false,
+    "defaultInstalled": true,
+    "multiInstance": true,
+    "windowW": 380,
+    "windowH": 560,
+    "channel": "stable",
+    "tag": {
+      "en": "Accessories",
+      "pt": "Acessórios",
+      "ja": "アクセサリ"
+    },
+    "name": {
+      "en": "Calculator",
+      "pt": "Calculadora",
+      "ja": "電卓"
+    },
+    "desc": {
+      "en": "Standard calculator with keyboard support.",
+      "pt": "Calculadora padrão com suporte a teclado.",
+      "ja": "キーボード操作に対応した標準電卓。"
+    }
+  },
+  {
+    "id": "stickies",
+    "href": "os/apps/stickies/index.html",
+    "icon": "../assets/icons/svg/os-stickies.svg",
+    "kind": "native",
+    "suite": "accessories",
+    "uninstallable": false,
+    "defaultInstalled": true,
+    "multiInstance": true,
+    "windowW": 720,
+    "windowH": 520,
+    "channel": "stable",
+    "tag": {
+      "en": "Accessories",
+      "pt": "Acessórios",
+      "ja": "アクセサリ"
+    },
+    "name": {
+      "en": "Stickies",
+      "pt": "Notas adesivas",
+      "ja": "スティッキーズ"
+    },
+    "desc": {
+      "en": "Colored sticky notes that also live as desktop widgets.",
+      "pt": "Notas adesivas coloridas que também aparecem como widgets no desktop.",
+      "ja": "デスクトップウィジェットにもなる色付きの付箋。"
+    }
+  },
+  {
+    "id": "snip",
+    "href": null,
+    "icon": "../assets/icons/svg/os-snip.svg",
+    "kind": "native",
+    "suite": "accessories",
+    "uninstallable": false,
+    "defaultInstalled": true,
+    "windowW": 420,
+    "windowH": 320,
+    "channel": "stable",
+    "tag": {
+      "en": "Accessories",
+      "pt": "Acessórios",
+      "ja": "アクセサリ"
+    },
+    "name": {
+      "en": "Snipping Tool",
+      "pt": "Ferramenta de Recorte",
+      "ja": "切り取りツール"
+    },
+    "desc": {
+      "en": "Capture a rectangle of this desktop and save it or open it in Paint.",
+      "pt": "Capture um retângulo deste desktop e salve ou abra no Paint.",
+      "ja": "このデスクトップの範囲を切り取り、保存またはペイントで開きます。"
+    }
+  },
+  {
+    "id": "characters",
+    "href": "os/apps/characters/index.html",
+    "icon": "../assets/icons/svg/os-characters.svg",
+    "kind": "native",
+    "suite": "accessories",
+    "uninstallable": false,
+    "defaultInstalled": true,
+    "windowW": 640,
+    "windowH": 520,
+    "channel": "stable",
+    "tag": {
+      "en": "Accessories",
+      "pt": "Acessórios",
+      "ja": "アクセサリ"
+    },
+    "name": {
+      "en": "Character Map",
+      "pt": "Mapa de Caracteres",
+      "ja": "文字コード表"
+    },
+    "desc": {
+      "en": "Browse symbols and copy characters to the clipboard.",
+      "pt": "Percorra símbolos e copie caracteres para a área de transferência.",
+      "ja": "記号を探してクリップボードにコピーします。"
+    }
+  },
+  {
+    "id": "preview",
+    "href": "os/apps/preview/index.html",
+    "icon": "../assets/icons/svg/os-preview.svg",
+    "kind": "native",
+    "suite": "accessories",
+    "uninstallable": false,
+    "defaultInstalled": true,
+    "channel": "stable",
+    "tag": {
+      "en": "Accessories",
+      "pt": "Acessórios",
+      "ja": "アクセサリ"
+    },
+    "name": {
+      "en": "Preview",
+      "pt": "Visualização",
+      "ja": "プレビュー"
+    },
+    "desc": {
+      "en": "Quick look for images and PDFs stored on this desktop.",
+      "pt": "Visualização rápida de imagens e PDFs deste desktop.",
+      "ja": "このデスクトップの画像と PDF をすばやく表示します。"
+    }
+  },
+  {
+    "id": "about",
+    "href": "os/apps/about/index.html",
+    "icon": "../assets/icons/svg/os-about.svg",
+    "kind": "native",
+    "suite": "accessories",
+    "uninstallable": false,
+    "defaultInstalled": true,
+    "windowW": 480,
+    "windowH": 520,
+    "channel": "stable",
+    "tag": {
+      "en": "Accessories",
+      "pt": "Acessórios",
+      "ja": "アクセサリ"
+    },
+    "name": {
+      "en": "About This Desktop",
+      "pt": "Sobre este desktop",
+      "ja": "このデスクトップについて"
+    },
+    "desc": {
+      "en": "System summary in the spirit of About This Mac and winver.",
+      "pt": "Resumo do sistema no espírito de Sobre este Mac e winver.",
+      "ja": "この Mac について / winver 風のシステム概要。"
+    }
+  },
+  {
     "id": "mobile-ar_object_scanner",
     "href": "mobile/ar_object_scanner.html",
     "icon": "../assets/icons/svg/mobile-ar_object_scanner.svg",
@@ -121,6 +414,31 @@ window.OSCatalog = (function () {
       "pt": "Scanner de webcam amigável para celular que roda YOLOv8n COCO 80 ONNX localmente no navegador e sobrepõe etiquetas de objetos em estilo AR.",
       "ja": "スマホ向けのウェブカメラスキャナー。YOLOv8n COCO 80 ONNX をブラウザ内でローカル実行し、AR 風の物体ラベルを重ねます。"
     }
+  },
+  {
+    "id": "utils-terminal",
+    "href": "utils/terminal.html",
+    "icon": "../assets/icons/svg/utils-terminal.svg",
+    "kind": "site",
+    "uninstallable": true,
+    "defaultInstalled": true,
+    "channel": "stable",
+    "tag": {
+      "en": "Shell",
+      "pt": "Shell",
+      "ja": "シェル"
+    },
+    "name": {
+      "en": "VC Terminal",
+      "pt": "VC Terminal",
+      "ja": "VC Terminal"
+    },
+    "desc": {
+      "en": "Linux-like browser shell with a persistent virtual filesystem, pipes, and common tools including ls, cat, grep, cp, mv, and vim.",
+      "pt": "Shell no estilo Linux no navegador, com sistema de arquivos virtual persistente, pipes e comandos comuns como ls, cat, grep, cp, mv e vim.",
+      "ja": "ブラウザ上の Linux 風シェル。仮想ファイルシステムを保存し、パイプと ls、cat、grep、cp、mv、vim などの基本コマンドを使えます。"
+    },
+    "multiInstance": true
   },
   {
     "id": "utils-flashcards_srs",
@@ -168,7 +486,8 @@ window.OSCatalog = (function () {
       "en": "Open, filter, sort, profile, chart, and convert JSON, CSV, or TSV datasets entirely in the browser.",
       "pt": "Abra, filtre, ordene, analise, crie gráficos e converta conjuntos JSON, CSV ou TSV no navegador.",
       "ja": "JSON・CSV・TSVをブラウザ内で開き、検索、並べ替え、分析、グラフ化、変換できます。"
-    }
+    },
+    "multiInstance": true
   },
   {
     "id": "utils-text_diff_studio",
@@ -888,7 +1207,8 @@ window.OSCatalog = (function () {
       "en": "Hierarchical Markdown editor with Project, Book, and Document organization. Includes Edit, View, and split Edit/View modes, live preview, search, IndexedDB autosave, themes, and multilingual UI (EN/PT/JA).",
       "pt": "Editor Markdown hierárquico com organização em Projeto, Livro e Documento. Inclui modos Editar, Ver e Editar/Ver dividido, prévia ao vivo, busca, autosave em IndexedDB, temas e UI multilíngue (EN/PT/JA).",
       "ja": "プロジェクト、ブック、ドキュメント構造のMarkdownエディタ。編集、表示、分割の編集/表示モード、ライブプレビュー、検索、IndexedDB自動保存、テーマ、多言語UI（EN/PT/JA）を搭載。"
-    }
+    },
+    "multiInstance": true
   },
   {
     "id": "utils-obsidian",
@@ -2904,7 +3224,8 @@ window.OSCatalog = (function () {
       "en": "Rich text editor with formatting, file operations, find/replace, and multilingual UI. Supports .txt, .docx, and .html import/export.",
       "pt": "Editor de texto rico com formatação, operações de arquivo, localizar/substituir e UI multilíngue. Suporta importação/exportação de .txt, .docx e .html.",
       "ja": "フォーマット、ファイル操作、検索/置換、多言語UIを備えたリッチテキストエディタ。.txt、.docx、.htmlのインポート/エクスポートをサポート。"
-    }
+    },
+    "multiInstance": true
   },
   {
     "id": "utils-code_runner",
@@ -3242,7 +3563,7 @@ window.OSCatalog = (function () {
 
   return {
     APPS,
-    DEFAULT_INSTALLED: ["utils-calculator", "utils-notebook"],
+    DEFAULT_INSTALLED: ["utils-terminal", "utils-calculator", "utils-notebook"],
     byId,
     siteApps,
     nativeApps,
