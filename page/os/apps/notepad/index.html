@@ -7,6 +7,7 @@
     <title>Notepad</title>
     <link rel="stylesheet" href="../apps.css" />
     <style>
+      body { display: flex; flex-direction: column; }
       textarea {
         width: 100%;
         height: 100%;
@@ -19,18 +20,41 @@
       }
       textarea.wrap { white-space: pre-wrap; }
       textarea.nowrap { white-space: pre; overflow: auto; }
-      .status { padding: 4px 12px; border-top: 1px solid var(--line); font-size: 12px; color: var(--muted); }
-      .app-body { height: calc(100% - 78px); }
+      .status { padding: 4px 12px; border-top: 1px solid var(--line); font-size: 12px; color: var(--muted); flex-shrink: 0; }
+      .app-body { flex: 1; min-height: 0; height: auto; }
+      .app-bar { flex-shrink: 0; }
     </style>
   </head>
   <body>
     <div class="app-bar">
-      <button type="button" id="btn-new" data-i18n="feNew">New</button>
-      <button type="button" id="btn-open">Open</button>
-      <button type="button" id="btn-save" class="primary">Save</button>
-      <button type="button" id="btn-saveas">Save as</button>
-      <label><input type="checkbox" id="wrap" checked> Wrap</label>
-      <label>Aa <input id="font" type="range" min="12" max="28" value="14"></label>
+      <button type="button" class="app-icon-btn" id="btn-new" data-i18n-title="npNew" title="New" aria-label="New">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 2.5h5.2L12.5 6v7.5H4z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M9 2.5V6h3.5" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
+      </button>
+      <button type="button" class="app-icon-btn" id="btn-open" data-i18n-title="pickerOpen" title="Open" aria-label="Open">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 5.4V13a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V6.4a1 1 0 0 0-1-1H8L6.4 4H3a1 1 0 0 0-1 1.4z" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>
+      </button>
+      <button type="button" class="app-icon-btn primary" id="btn-save" data-i18n-title="npSave" title="Save" aria-label="Save">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 2.5h8.2L13.5 5v8.5h-11V2.5z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M5 2.5V6h6V2.5M5 13.5v-4h6v4" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
+      </button>
+      <button type="button" class="app-icon-btn" id="btn-saveas" data-i18n-title="pickerSaveAs" title="Save as" aria-label="Save as">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.4 3h6.8L11.4 5.2v7.3H2.4z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M3.8 3v2.8h5.2V3M3.8 12.5v-3h5.2v3" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M12.2 9.2v5M9.7 11.7h5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      </button>
+      <span class="app-sep" aria-hidden="true"></span>
+      <button type="button" class="app-icon-btn" id="btn-wrap" data-i18n-title="npWrap" title="Word wrap" aria-label="Word wrap" aria-pressed="true">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 3.6h11M2.5 7h11M2.5 10.4h6" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round"/><path d="M13 10.4v1.8a1.4 1.4 0 0 1-1.4 1.4H8.2" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M9.6 12.3 8.2 13.6l1.4 1.3" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <div class="app-pop-wrap">
+        <button type="button" class="app-icon-btn" id="btn-font" data-i18n-title="npFontSize" title="Font size" aria-label="Font size" aria-expanded="false" aria-haspopup="true">
+          <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.2 12.5 5.1 3.5h1.8l2.9 9M3.4 9.4h4.8" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round"/><path d="M10.4 12.5 12 6.8h1.2l1.6 5.7M11 10.4h3.2" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <div class="app-pop" id="font-pop" hidden>
+          <label for="font" data-i18n="npFontSize">Font size</label>
+          <div class="app-pop-row">
+            <input id="font" type="range" min="12" max="28" value="14">
+            <span class="app-pop-val" id="font-val">14</span>
+          </div>
+        </div>
+      </div>
     </div>
     <div class="app-body"><textarea id="text" class="wrap" spellcheck="true"></textarea></div>
     <div class="status" id="status">Notepad</div>
@@ -39,18 +63,43 @@
     <script>
       const text = document.getElementById("text");
       const status = document.getElementById("status");
+      const wrapBtn = document.getElementById("btn-wrap");
+      const fontBtn = document.getElementById("btn-font");
+      const fontPop = document.getElementById("font-pop");
+      const font = document.getElementById("font");
+      const fontVal = document.getElementById("font-val");
       let osFiles = null;
+      let wrapOn = true;
       function count() {
         const n = text.value.length;
         const lines = text.value.split("\n").length;
         status.textContent = lines + " · " + n;
       }
-      document.getElementById("wrap").addEventListener("change", (e) => {
-        text.classList.toggle("wrap", e.target.checked);
-        text.classList.toggle("nowrap", !e.target.checked);
+      function setWrap(on) {
+        wrapOn = !!on;
+        text.classList.toggle("wrap", wrapOn);
+        text.classList.toggle("nowrap", !wrapOn);
+        wrapBtn.setAttribute("aria-pressed", wrapOn ? "true" : "false");
+      }
+      function setFontPop(open) {
+        fontPop.hidden = !open;
+        fontBtn.setAttribute("aria-expanded", open ? "true" : "false");
+        if (open) font.focus();
+      }
+      wrapBtn.addEventListener("click", () => setWrap(!wrapOn));
+      fontBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        setFontPop(fontPop.hidden);
       });
-      document.getElementById("font").addEventListener("input", (e) => {
-        text.style.fontSize = e.target.value + "px";
+      font.addEventListener("input", () => {
+        text.style.fontSize = font.value + "px";
+        fontVal.textContent = font.value;
+      });
+      document.addEventListener("pointerdown", (e) => {
+        if (!fontPop.hidden && !e.target.closest(".app-pop-wrap")) setFontPop(false);
+      });
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape" && !fontPop.hidden) setFontPop(false);
       });
       text.addEventListener("input", count);
       window.OSAppFrame.sync();

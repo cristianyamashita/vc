@@ -35,7 +35,19 @@ window.OSAppFrame = (function () {
       document.documentElement.dataset.glass = src.dataset.glass || "acrylic";
       document.documentElement.style.background = "transparent";
     }
+    applyI18n();
     return { theme, lang, host: h };
+  }
+
+  function applyI18n() {
+    document.querySelectorAll("[data-i18n]").forEach((el) => {
+      el.textContent = t(el.getAttribute("data-i18n"), el.textContent);
+    });
+    document.querySelectorAll("[data-i18n-title]").forEach((el) => {
+      const text = t(el.getAttribute("data-i18n-title"), el.getAttribute("title") || el.getAttribute("aria-label"));
+      el.setAttribute("title", text);
+      if (!el.matches("label")) el.setAttribute("aria-label", text);
+    });
   }
 
   function onMessage(fn) {
@@ -46,5 +58,5 @@ window.OSAppFrame = (function () {
     });
   }
 
-  return { hosted, host, t, sync, onMessage };
+  return { hosted, host, t, sync, applyI18n, onMessage };
 })();
