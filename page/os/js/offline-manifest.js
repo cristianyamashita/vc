@@ -697,7 +697,7 @@
     "https://cdn.jsdelivr.net/npm/d3@7",
     "https://cdn.jsdelivr.net/npm/fast-xml-parser@5.2.5/lib/fxp.min.js",
     "https://cdn.jsdelivr.net/npm/hotkeys-js@3.13.9/dist/hotkeys.min.js",
-    "https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js",
+    "https://cdn.jsdelivr.net/npm/html2canvas-pro@1.5.11/dist/html2canvas-pro.min.js",
     "https://cdn.jsdelivr.net/npm/idb-keyval@6/dist/idb-keyval.iife.min.js",
     "https://cdn.jsdelivr.net/npm/js-yaml@4.1.0/dist/js-yaml.min.js",
     "https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js",
@@ -808,6 +808,6 @@
     "models/tinyyolov2-7.onnx",
     "models/yolov8n-coco.onnx"
   ],
-  "version": "643ed393aa62"
+  "version": "d17a063aa100"
 };
 })(typeof self !== "undefined" ? self : window);
