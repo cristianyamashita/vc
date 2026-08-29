@@ -50,6 +50,33 @@ window.OSCatalog = (function () {
     }
   },
   {
+    "id": "app-studio",
+    "href": "os/apps/app-studio/index.html",
+    "icon": "../assets/icons/svg/os-app_studio.svg",
+    "kind": "native",
+    "uninstallable": false,
+    "defaultInstalled": true,
+    "multiInstance": true,
+    "windowW": 1100,
+    "windowH": 720,
+    "channel": "stable",
+    "tag": {
+      "en": "System",
+      "pt": "Sistema",
+      "ja": "システム"
+    },
+    "name": {
+      "en": "App Studio",
+      "pt": "App Studio",
+      "ja": "App Studio"
+    },
+    "desc": {
+      "en": "Create multi-file desktop apps with a Visual Studio-style editor.",
+      "pt": "Crie apps do desktop com vários arquivos, num editor no estilo Visual Studio.",
+      "ja": "Visual Studio 風のエディタで複数ファイルのデスクトップアプリを作成します。"
+    }
+  },
+  {
     "id": "sheets",
     "href": "os/app/sheets/index.html",
     "icon": "../assets/icons/svg/os-sheets.svg",

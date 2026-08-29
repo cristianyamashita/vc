@@ -1,6 +1,7 @@
 window.OSFileApps = (function () {
   const HANDLERS = [
     { appId: "notepad", exts: ["txt", "log", "ini", "text"], defaultFor: ["txt", "log", "ini", "text"] },
+    { appId: "app-studio", exts: ["html", "htm", "css", "js", "json"] },
     { appId: "utils-wordpad", exts: ["txt", "html", "htm"], defaultFor: ["html", "htm"] },
     { appId: "utils-markdown", exts: ["md", "markdown"], defaultFor: ["md", "markdown"] },
     { appId: "utils-obsidian", exts: ["md", "markdown"] },

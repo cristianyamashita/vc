@@ -33,7 +33,8 @@ window.OSTaskManager = (function () {
       : t("storageUnknown");
     const rows = wins
       .map((win) => {
-        const app = window.OSCatalog.byId(win.appId || window.OSWindows.appIdOf(win.id));
+        const app =
+          win.previewApp || window.OSCatalog.byId(win.appId || window.OSWindows.appIdOf(win.id));
         if (!app) return "";
         const name = win.titleName || window.OSCatalog.displayName(app, lang);
         return `<div class="tm-row" data-win-id="${escapeHtml(win.id)}">

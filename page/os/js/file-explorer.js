@@ -103,7 +103,14 @@ window.OSFileExplorer = (function () {
   }
 
   function defaultExpanded(sheetsDir) {
-    const ids = [window.OSFS.ROOT_ID, window.OSFS.DESKTOP_ID, window.OSFS.DOCUMENTS_ID, window.OSFS.SHEETS_DIR_ID, window.OSFS.TRASH_ID];
+    const ids = [
+      window.OSFS.ROOT_ID,
+      window.OSFS.DESKTOP_ID,
+      window.OSFS.DOCUMENTS_ID,
+      window.OSFS.SHEETS_DIR_ID,
+      window.OSFS.PROJECTS_ID,
+      window.OSFS.TRASH_ID,
+    ];
     if (sheetsDir) {
       ids.push(sheetsDir.id);
       if (sheetsDir.parentId) ids.push(sheetsDir.parentId);

@@ -81,6 +81,7 @@
     "assets/icons/ico/mobile-ar_object_scanner.ico",
     "assets/icons/ico/os-about.ico",
     "assets/icons/ico/os-app_builder.ico",
+    "assets/icons/ico/os-app_studio.ico",
     "assets/icons/ico/os-browser.ico",
     "assets/icons/ico/os-calculator.ico",
     "assets/icons/ico/os-calendar.ico",
@@ -229,6 +230,7 @@
     "assets/icons/png/mobile-ar_object_scanner.png",
     "assets/icons/png/os-about.png",
     "assets/icons/png/os-app_builder.png",
+    "assets/icons/png/os-app_studio.png",
     "assets/icons/png/os-browser.png",
     "assets/icons/png/os-calculator.png",
     "assets/icons/png/os-calendar.png",
@@ -377,6 +379,7 @@
     "assets/icons/svg/mobile-ar_object_scanner.svg",
     "assets/icons/svg/os-about.svg",
     "assets/icons/svg/os-app_builder.svg",
+    "assets/icons/svg/os-app_studio.svg",
     "assets/icons/svg/os-browser.svg",
     "assets/icons/svg/os-calculator.svg",
     "assets/icons/svg/os-calendar.svg",
@@ -473,6 +476,8 @@
     "os/app/sheets/sheets-icons.js",
     "os/app/sheets/sheets.css",
     "os/app/sheets/sheets.js",
+    "os/apps/app-studio/studio.css",
+    "os/apps/app-studio/studio.js",
     "os/apps/apps.css",
     "os/apps/browser/${escapeHtml(url)}",
     "os/apps/browser/${safe}",
@@ -603,6 +608,7 @@
     "mobile/ar_object_scanner.html",
     "os/app/sheets/index.html",
     "os/apps/about/index.html",
+    "os/apps/app-studio/index.html",
     "os/apps/browser/index.html",
     "os/apps/calculator/index.html",
     "os/apps/calendar/index.html",
@@ -705,6 +711,7 @@
     "https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js",
     "https://cdn.jsdelivr.net/npm/matter-js@0.20.0/build/matter.min.js",
     "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js",
+    "https://cdn.jsdelivr.net/npm/monaco-editor@",
     "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.18.0/dist/ort.min.js",
     "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.18.0/dist/ort.webgpu.min.js",
     "https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js",
@@ -805,6 +812,6 @@
     "models/tinyyolov2-7.onnx",
     "models/yolov8n-coco.onnx"
   ],
-  "version": "7d18c1b77db3"
+  "version": "49d6a9d88acd"
 };
 })(typeof self !== "undefined" ? self : window);

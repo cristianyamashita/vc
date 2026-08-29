@@ -40,7 +40,11 @@ window.OSWindows = (function () {
   }
 
   function appOf(id) {
-    return window.OSCatalog.byId(appIdOf(id));
+    const appId = appIdOf(id);
+    const fromCatalog = window.OSCatalog.byId(appId);
+    if (fromCatalog) return fromCatalog;
+    const win = windows.get(id) || windows.get(appId);
+    return (win && win.previewApp) || null;
   }
 
   function isMulti(app) {
@@ -107,7 +111,7 @@ window.OSWindows = (function () {
 
   function writeHashNow() {
     const focused = getFocused();
-    const next = focused && !focused.minimized ? hashString(focused) : "";
+    const next = focused && !focused.minimized && !focused.ephemeral ? hashString(focused) : "";
     const current = location.hash || "";
     if (current === next) return;
     writingHash = true;
@@ -226,7 +230,9 @@ window.OSWindows = (function () {
   }
 
   function serialize() {
-    return Array.from(windows.values()).map((win) => ({
+    return Array.from(windows.values())
+      .filter((win) => !win.ephemeral)
+      .map((win) => ({
       id: win.id,
       appId: win.appId || appIdOf(win.id),
       path: win.path || null,
@@ -831,9 +837,12 @@ window.OSWindows = (function () {
 
   function refreshTitles() {
     windows.forEach((win) => {
-      const app = appOf(win.appId || win.id);
+      const app = win.previewApp || appOf(win.appId || win.id);
       if (!app) return;
-      let name = window.OSCatalog.displayName(app, lang());
+      let name = window.OSCatalog.displayName
+        ? window.OSCatalog.displayName(app, lang())
+        : app.name || "";
+      if (typeof name === "object" && name) name = name[lang()] || name.en || "";
       if (win.titleName) name = win.titleName;
       const title = win.el.querySelector(".titlebar-title");
       if (title) title.textContent = name;
@@ -856,6 +865,56 @@ window.OSWindows = (function () {
     if (!iframe) return;
     iframe.title = name;
     applyUserFrame(iframe, app, win.el);
+  }
+
+  function openHtmlPreview(opts) {
+    opts = opts || {};
+    const PREVIEW_ID = "studio-preview";
+    const title = String(opts.title || "Preview");
+    const icon = opts.icon || "";
+    const html = opts.html || "<!doctype html><title></title>";
+    const fakeApp = {
+      id: PREVIEW_ID,
+      kind: "user",
+      mode: "html",
+      html,
+      icon,
+      href: null,
+      name: { en: title, pt: title, ja: title },
+      windowW: 720,
+      windowH: 520,
+    };
+    if (windows.has(PREVIEW_ID)) {
+      const win = windows.get(PREVIEW_ID);
+      win.previewApp = fakeApp;
+      win.titleName = title;
+      win.ephemeral = true;
+      const titleEl = win.el.querySelector(".titlebar-title");
+      if (titleEl) titleEl.textContent = title;
+      const iconEl = win.el.querySelector(".titlebar-icon");
+      if (iconEl && icon) iconEl.src = icon;
+      const iframe = win.el.querySelector("iframe");
+      if (iframe) {
+        iframe.title = title;
+        applyUserFrame(iframe, fakeApp, win.el);
+      }
+      win.minimized = false;
+      applyRect(win);
+      setFocused(PREVIEW_ID);
+      return win;
+    }
+    const rect = nextCascade(fakeApp);
+    const win = makeWin(fakeApp, PREVIEW_ID, rect, false);
+    win.previewApp = fakeApp;
+    win.titleName = title;
+    win.ephemeral = true;
+    windows.set(PREVIEW_ID, win);
+    layer.appendChild(win.el);
+    bindWindow(win);
+    applyRect(win);
+    setFocused(PREVIEW_ID);
+    if (window.OSTaskManager) window.OSTaskManager.remountOpen();
+    return win;
   }
 
   function init() {
@@ -890,6 +949,7 @@ window.OSWindows = (function () {
     writeHashNow,
     refreshTitles,
     refreshUserApp,
+    openHtmlPreview,
     closedThisSession,
     appIdOf,
     list: () => Array.from(windows.values()),

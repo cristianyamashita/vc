@@ -3,6 +3,7 @@ window.OSFS = (function () {
   const DESKTOP_ID = "desktop";
   const DOCUMENTS_ID = "documents";
   const SHEETS_DIR_ID = "documents-sheets";
+  const PROJECTS_ID = "projects";
   const TRASH_ID = "recycle-bin";
   const BIN_ID = "bin";
   const SHEETS_EXTS = ["vcsh", "xlsx", "xls", "csv"];
@@ -100,6 +101,7 @@ window.OSFS = (function () {
         node.id === DESKTOP_ID ||
         node.id === DOCUMENTS_ID ||
         node.id === SHEETS_DIR_ID ||
+        node.id === PROJECTS_ID ||
         node.id === TRASH_ID ||
         node.id === BIN_ID)
     );
@@ -205,6 +207,7 @@ window.OSFS = (function () {
     ensure(BIN_ID, ROOT_ID, "bin");
     const docs = ensure(DOCUMENTS_ID, ROOT_ID, "Documents");
     ensure(SHEETS_DIR_ID, docs.id, "Sheets");
+    ensure(PROJECTS_ID, ROOT_ID, "Projects");
     ensure(TRASH_ID, ROOT_ID, "Recycle Bin");
     await waitTx(write);
   }
@@ -982,6 +985,7 @@ window.OSFS = (function () {
     DESKTOP_ID,
     DOCUMENTS_ID,
     SHEETS_DIR_ID,
+    PROJECTS_ID,
     TRASH_ID,
     BIN_ID,
     SHEETS_EXTS,

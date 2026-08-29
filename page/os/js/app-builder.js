@@ -160,6 +160,7 @@ window.OSAppBuilder = (function () {
 
   function homeHtml() {
     const rows = records
+      .filter((record) => !record.projectPath)
       .map((record) => {
         const app = toCatalogApp(record);
         const modeLabel = record.mode === "url" ? t("builderModeUrl") : t("builderModeHtml");

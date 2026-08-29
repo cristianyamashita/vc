@@ -165,5 +165,82 @@ window.OSFilePicker = (function () {
     });
   }
 
-  return { open, saveAs, close, ensureExt };
+  async function pickFolder(opts) {
+    opts = opts || {};
+    if (!window.OSFS) return null;
+    close();
+    await window.OSFS.ready();
+    let selectedId = opts.parentId || null;
+    if (!selectedId && window.OSFS.PROJECTS_ID) selectedId = window.OSFS.PROJECTS_ID;
+    if (selectedId) {
+      const selected = await window.OSFS.get(selectedId);
+      if (!selected) {
+        const byPath = await window.OSFS.nodeAtPath("/Projects");
+        selectedId = byPath ? byPath.id : null;
+      }
+    }
+    if (!selectedId && window.OSFS.DOCUMENTS_ID) selectedId = window.OSFS.DOCUMENTS_ID;
+    const folders = await window.OSFS.listFolders();
+    const withPath = [];
+    for (let i = 0; i < folders.length; i++) {
+      const folder = folders[i];
+      if (folder.id === window.OSFS.TRASH_ID || (await window.OSFS.isInTrash(folder.id))) continue;
+      withPath.push({ folder, path: await window.OSFS.pathOf(folder.id) });
+    }
+    withPath.sort((a, b) => a.path.localeCompare(b.path, undefined, { sensitivity: "base" }));
+    if (!selectedId && withPath[0]) selectedId = withPath[0].folder.id;
+    const overlay = document.createElement("div");
+    overlay.className = "os-picker-overlay";
+    overlay.tabIndex = -1;
+    overlay.innerHTML = `<div class="os-picker-dialog" role="dialog" aria-modal="true">
+      <header><strong>${escapeHtml(opts.title || t("studioPickFolder"))}</strong><button type="button" data-act="cancel" aria-label="${escapeHtml(t("close"))}">×</button></header>
+      <div class="os-picker-body">
+        <div class="os-picker-field">${escapeHtml(t("pickerFolder"))}
+          <div class="os-picker-list os-picker-folders"></div>
+        </div>
+      </div>
+      <footer>
+        <button type="button" data-act="cancel">${escapeHtml(t("feCancel"))}</button>
+        <button type="button" class="primary" data-act="save">${escapeHtml(t("pickerOpen"))}</button>
+      </footer>
+    </div>`;
+    const listEl = overlay.querySelector(".os-picker-folders");
+    withPath.forEach((row) => {
+      const depth = String(row.path || "/").split("/").filter(Boolean).length;
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "os-picker-item" + (row.folder.id === selectedId ? " active" : "");
+      btn.dataset.id = row.folder.id;
+      btn.style.paddingLeft = 8 + depth * 12 + "px";
+      btn.innerHTML = `<strong>${escapeHtml(row.path || "/")}</strong>`;
+      btn.addEventListener("click", () => {
+        selectedId = row.folder.id;
+        listEl.querySelectorAll(".os-picker-item").forEach((el) => el.classList.toggle("active", el.dataset.id === selectedId));
+      });
+      btn.addEventListener("dblclick", () => {
+        selectedId = row.folder.id;
+        overlay.querySelector("[data-act=save]").click();
+      });
+      listEl.appendChild(btn);
+    });
+    document.body.appendChild(overlay);
+    bindOverlay(overlay);
+    overlay.focus();
+    return new Promise((resolve) => {
+      active = { el: overlay, reject: () => resolve(null) };
+      overlay.querySelector("[data-act=cancel]").addEventListener("click", () => {
+        close();
+        resolve(null);
+      });
+      overlay.querySelector("[data-act=save]").addEventListener("click", async () => {
+        const parentId = selectedId || window.OSFS.PROJECTS_ID || window.OSFS.DOCUMENTS_ID;
+        const folder = parentId ? await window.OSFS.get(parentId) : null;
+        const path = folder ? await window.OSFS.pathOf(folder.id) : "/";
+        close();
+        resolve(folder ? { folder, path, parentId: folder.id } : null);
+      });
+    });
+  }
+
+  return { open, saveAs, pickFolder, close, ensureExt };
 })();

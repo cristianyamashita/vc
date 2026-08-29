@@ -59,7 +59,7 @@ window.OSState = (function () {
   }
 
   const LEGACY_SEEDED_DEFAULTS = ["utils-calculator", "utils-notebook"];
-  const EXCLUSIVE_DESKTOP = ["notepad", "paint", "calendar", "browser"];
+  const EXCLUSIVE_DESKTOP = ["notepad", "paint", "calendar", "browser", "app-studio"];
 
   function defaultState() {
     const installed = ["settings", ...window.OSCatalog.DEFAULT_INSTALLED];
@@ -78,6 +78,7 @@ window.OSState = (function () {
       iconColor: "#008f7d",
       taskbarPins: ["file-explorer", "browser"],
       recentFiles: [],
+      studioRecent: [],
       reducedMotion: false,
       glass: 86,
       blur: 20,
@@ -117,6 +118,25 @@ window.OSState = (function () {
       });
     });
     return out.slice(0, 24);
+  }
+
+  function normalizeStudioRecent(raw) {
+    if (!Array.isArray(raw)) return [];
+    const seen = new Set();
+    const out = [];
+    raw.forEach((item) => {
+      if (!item || typeof item !== "object" || !item.path) return;
+      const path = String(item.path);
+      if (!path || seen.has(path)) return;
+      seen.add(path);
+      out.push({
+        path,
+        name: typeof item.name === "string" ? item.name : "",
+        folderId: typeof item.folderId === "string" ? item.folderId : "",
+        at: Number(item.at) || 0,
+      });
+    });
+    return out.slice(0, 16);
   }
 
   function seedExclusiveDesktop(raw, desktopIcons) {
@@ -327,6 +347,7 @@ window.OSState = (function () {
       iconColor: window.OSIconColor ? window.OSIconColor.parse(raw.iconColor) : "#008f7d",
       taskbarPins: normalizeTaskbarPins(raw.taskbarPins),
       recentFiles: normalizeRecentFiles(raw.recentFiles),
+      studioRecent: normalizeStudioRecent(raw.studioRecent),
       reducedMotion: !!raw.reducedMotion,
       glass: clampGlass(raw.glass),
       blur: clampBlur(raw.blur),

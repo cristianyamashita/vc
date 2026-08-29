@@ -452,10 +452,12 @@ window.OS = (function () {
     return true;
   }
 
-  function registerUserApp(id) {
+  function registerUserApp(id, opts) {
     if (!id || !api.state) return;
     if (!api.state.installed.includes(id)) api.state.installed.push(id);
-    if (!api.state.desktopIcons.includes(id)) api.state.desktopIcons.push(id);
+    if (!opts || opts.desktop !== false) {
+      if (!api.state.desktopIcons.includes(id)) api.state.desktopIcons.push(id);
+    }
     refreshInstalledChrome();
   }
 
@@ -756,7 +758,8 @@ window.OS = (function () {
       .filter((win) => !pinSet.has(win.appId || window.OSWindows.appIdOf(win.id)))
       .sort((a, b) => a.z - b.z)
       .map((win) => {
-        const app = window.OSCatalog.byId(win.appId || window.OSWindows.appIdOf(win.id));
+        const app =
+          win.previewApp || window.OSCatalog.byId(win.appId || window.OSWindows.appIdOf(win.id));
         if (!app) return "";
         const active = win.id === focused && !win.minimized ? " active" : "";
         const title = win.titleName || window.OSCatalog.displayName(app, lang);

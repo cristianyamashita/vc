@@ -107,6 +107,15 @@ ICONS: dict[str, list[Shape]] = {
         r(18, 16, 6, 6, rad=1, fill=DARK),
         r(24, 16, 6, 6, rad=1),
     ],
+    # Desktop OS App Studio (lazy iframe IDE)
+    "os-app_studio": [
+        r(5, 6, 22, 20, rad=2),
+        r(5, 6, 22, 4, fill=DARK),
+        r(7, 12, 5, 12, rad=1, fill=DARK),
+        r(14, 12, 11, 1.6),
+        r(14, 16, 8, 1.6),
+        r(14, 20, 10, 1.6, fill=DARK),
+    ],
     # Desktop OS File Explorer (native)
     "os-file_explorer": [
         r(5, 10, 14, 13, rad=1.5),
