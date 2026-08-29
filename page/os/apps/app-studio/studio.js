@@ -836,7 +836,7 @@
       '<div class="studio-icon-row">' + chips + "</div>" +
       '<div class="studio-icon-grid">' + tiles + "</div></div>" +
       '<div class="studio-modal-actions">' +
-      '<button type="button" class="studio-btn" data-act="close-modal">' + escapeHtml(t("builderCancel")) + "</button>" +
+      '<button type="button" class="studio-btn" data-act="close-modal">' + escapeHtml(t("feCancel")) + "</button>" +
       '<button type="button" class="studio-btn primary" data-act="save-settings">' + escapeHtml(t("studioSave")) + "</button>" +
       "</div></div></div>"
     );
@@ -878,7 +878,7 @@
       escapeHtml(t("studioBrowse")) +
       "</button></div></label>" +
       '<div class="studio-modal-actions">' +
-      '<button type="button" class="studio-btn" data-act="close-modal">' + escapeHtml(t("builderCancel")) + "</button>" +
+      '<button type="button" class="studio-btn" data-act="close-modal">' + escapeHtml(t("feCancel")) + "</button>" +
       '<button type="button" class="studio-btn primary" data-act="create">' + escapeHtml(t("studioCreate")) + "</button>" +
       "</div></div></div>"
     );

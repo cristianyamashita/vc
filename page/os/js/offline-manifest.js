@@ -80,7 +80,6 @@
     "assets/icons/ico/misc-webcam_music_controller.ico",
     "assets/icons/ico/mobile-ar_object_scanner.ico",
     "assets/icons/ico/os-about.ico",
-    "assets/icons/ico/os-app_builder.ico",
     "assets/icons/ico/os-app_studio.ico",
     "assets/icons/ico/os-browser.ico",
     "assets/icons/ico/os-calculator.ico",
@@ -229,7 +228,6 @@
     "assets/icons/png/misc-webcam_music_controller.png",
     "assets/icons/png/mobile-ar_object_scanner.png",
     "assets/icons/png/os-about.png",
-    "assets/icons/png/os-app_builder.png",
     "assets/icons/png/os-app_studio.png",
     "assets/icons/png/os-browser.png",
     "assets/icons/png/os-calculator.png",
@@ -378,7 +376,6 @@
     "assets/icons/svg/misc-webcam_music_controller.svg",
     "assets/icons/svg/mobile-ar_object_scanner.svg",
     "assets/icons/svg/os-about.svg",
-    "assets/icons/svg/os-app_builder.svg",
     "assets/icons/svg/os-app_studio.svg",
     "assets/icons/svg/os-browser.svg",
     "assets/icons/svg/os-calculator.svg",
@@ -497,7 +494,6 @@
     "os/js/${inst.previewUrl}",
     "os/js/${url}",
     "os/js/${wallpaperObjectUrl}",
-    "os/js/${window.OSBuilderIcons.dataUrl(id, color)}",
     "os/js/app-builder.js",
     "os/js/app-frame.js",
     "os/js/builder-icons.js",
@@ -812,6 +808,6 @@
     "models/tinyyolov2-7.onnx",
     "models/yolov8n-coco.onnx"
   ],
-  "version": "49d6a9d88acd"
+  "version": "643ed393aa62"
 };
 })(typeof self !== "undefined" ? self : window);

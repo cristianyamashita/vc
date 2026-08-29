@@ -26,30 +26,6 @@ window.OSCatalog = (function () {
     }
   },
   {
-    "id": "app-builder",
-    "href": null,
-    "icon": "../assets/icons/svg/os-app_builder.svg",
-    "kind": "native",
-    "uninstallable": false,
-    "defaultInstalled": true,
-    "channel": "stable",
-    "tag": {
-      "en": "System",
-      "pt": "Sistema",
-      "ja": "システム"
-    },
-    "name": {
-      "en": "App Builder",
-      "pt": "App Builder",
-      "ja": "App Builder"
-    },
-    "desc": {
-      "en": "Create desktop apps from a URL or a single HTML page.",
-      "pt": "Crie apps do desktop a partir de uma URL ou de uma página HTML.",
-      "ja": "URLまたは単一のHTMLページからデスクトップアプリを作成します。"
-    }
-  },
-  {
     "id": "app-studio",
     "href": "os/apps/app-studio/index.html",
     "icon": "../assets/icons/svg/os-app_studio.svg",

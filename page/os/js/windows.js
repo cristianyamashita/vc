@@ -580,7 +580,6 @@ window.OSWindows = (function () {
     const root = win.el.querySelector(".native-root");
     if (!app || !root) return;
     if (app.id === "settings" && window.OSSettings) window.OSSettings.mount(root);
-    if (app.id === "app-builder" && window.OSAppBuilder) window.OSAppBuilder.mount(root);
     if (app.id === "file-explorer" && window.OSFileExplorer) {
       window.OSFileExplorer.mount(root, { winId: win.id, path: win.path || "/" });
     }

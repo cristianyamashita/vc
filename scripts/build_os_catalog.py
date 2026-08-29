@@ -205,22 +205,6 @@ def main() -> None:
             },
         },
         {
-            "id": "app-builder",
-            "href": None,
-            "icon": "../assets/icons/svg/os-app_builder.svg",
-            "kind": "native",
-            "uninstallable": False,
-            "defaultInstalled": True,
-            "channel": "stable",
-            "tag": {"en": "System", "pt": "Sistema", "ja": "システム"},
-            "name": {"en": "App Builder", "pt": "App Builder", "ja": "App Builder"},
-            "desc": {
-                "en": "Create desktop apps from a URL or a single HTML page.",
-                "pt": "Crie apps do desktop a partir de uma URL ou de uma página HTML.",
-                "ja": "URLまたは単一のHTMLページからデスクトップアプリを作成します。",
-            },
-        },
-        {
             "id": "app-studio",
             "href": "os/apps/app-studio/index.html",
             "icon": "../assets/icons/svg/os-app_studio.svg",

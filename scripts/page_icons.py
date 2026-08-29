@@ -98,15 +98,6 @@ ICONS: dict[str, list[Shape]] = {
         r(12, 22.5, 2, 1, fill=DARK),
         r(15, 22.5, 2, 1, fill=DARK),
     ],
-    # Desktop OS App Builder (native, no HTML page)
-    "os-app_builder": [
-        r(5, 6, 14, 12, rad=2),
-        r(7, 8, 10, 7, rad=1, fill=DARK),
-        r(5, 18, 14, 3),
-        r(21, 8, 6, 6, rad=1),
-        r(18, 16, 6, 6, rad=1, fill=DARK),
-        r(24, 16, 6, 6, rad=1),
-    ],
     # Desktop OS App Studio (lazy iframe IDE)
     "os-app_studio": [
         r(5, 6, 22, 20, rad=2),

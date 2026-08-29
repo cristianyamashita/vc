@@ -67,7 +67,7 @@ window.OSState = (function () {
       username: "User",
       installed,
       favorites: [...window.OSCatalog.DEFAULT_INSTALLED],
-      desktopIcons: ["sheets", "app-builder", ...EXCLUSIVE_DESKTOP, ...window.OSCatalog.DEFAULT_INSTALLED],
+      desktopIcons: ["sheets", ...EXCLUSIVE_DESKTOP, ...window.OSCatalog.DEFAULT_INSTALLED],
       windows: [],
       placements: {},
       desktopLayout: {},
@@ -323,11 +323,19 @@ window.OSState = (function () {
   function normalize(raw) {
     const base = defaultState();
     if (!raw || typeof raw !== "object") return base;
-    const installed = Array.isArray(raw.installed) ? raw.installed.filter(Boolean) : base.installed.slice();
+    function dropRetiredApp(id) {
+      if (!id) return true;
+      return id !== "app-builder" && String(id).indexOf("app-builder::") !== 0;
+    }
+    const installed = Array.isArray(raw.installed)
+      ? raw.installed.filter(dropRetiredApp)
+      : base.installed.slice();
     if (!installed.includes("settings")) installed.unshift("settings");
-    const favorites = Array.isArray(raw.favorites) ? raw.favorites.filter(Boolean) : base.favorites.slice();
+    const favorites = Array.isArray(raw.favorites)
+      ? raw.favorites.filter(dropRetiredApp)
+      : base.favorites.slice();
     const desktopIcons = Array.isArray(raw.desktopIcons)
-      ? raw.desktopIcons.filter(Boolean)
+      ? raw.desktopIcons.filter(dropRetiredApp)
       : base.desktopIcons.slice();
     const appliedDefaultApps = seedNewDefaultApps(raw, installed, favorites, desktopIcons);
     const appliedExclusiveDesktop = seedExclusiveDesktop(raw, desktopIcons);
@@ -336,7 +344,9 @@ window.OSState = (function () {
       installed,
       favorites,
       desktopIcons,
-      windows: Array.isArray(raw.windows) ? raw.windows.filter((w) => w && w.id) : [],
+      windows: Array.isArray(raw.windows)
+        ? raw.windows.filter((w) => w && w.id && dropRetiredApp(w.id) && dropRetiredApp(w.appId))
+        : [],
       placements: normalizePlacements(raw.placements),
       desktopLayout: normalizeDesktopLayout(raw.desktopLayout),
       wallpaperId: typeof raw.wallpaperId === "string" && raw.wallpaperId ? raw.wallpaperId : "bloom",
@@ -345,7 +355,7 @@ window.OSState = (function () {
       appliedDefaultApps,
       appliedExclusiveDesktop,
       iconColor: window.OSIconColor ? window.OSIconColor.parse(raw.iconColor) : "#008f7d",
-      taskbarPins: normalizeTaskbarPins(raw.taskbarPins),
+      taskbarPins: normalizeTaskbarPins(raw.taskbarPins).filter(dropRetiredApp),
       recentFiles: normalizeRecentFiles(raw.recentFiles),
       studioRecent: normalizeStudioRecent(raw.studioRecent),
       reducedMotion: !!raw.reducedMotion,

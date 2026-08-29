@@ -778,7 +778,6 @@ window.OS = (function () {
     window.OSWindows.refreshTitles();
     if (window.OSStart.isOpen()) window.OSStart.render();
     window.OSSettings.remountOpen();
-    if (window.OSAppBuilder) window.OSAppBuilder.remountOpen();
     if (window.OSFileExplorer) window.OSFileExplorer.remountOpen();
     if (window.OSTaskManager) window.OSTaskManager.remountOpen();
     if (window.OSSnip) window.OSSnip.remountOpen();
