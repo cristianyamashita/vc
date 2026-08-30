@@ -73,6 +73,22 @@ function darken(hex, f = 0.55) {
   return (r << 16) | (g << 8) | b;
 }
 
+function flowerHangout(x, y, z, seed) {
+  const rng = mulberry((seed * 1103515245 + (Math.floor(x) * 73856093) + (Math.floor(z) * 19349663)) | 0);
+  const ang = rng() * Math.PI * 2;
+  const r = 2.4 + rng() * 4.2;
+  return { x, y, z, ox: Math.cos(ang) * r, oz: Math.sin(ang) * r };
+}
+
+function ensureHangout(home, seed) {
+  if (!home) return home;
+  if (home.ox != null && home.oz != null) return home;
+  const spot = flowerHangout(home.x, home.y, home.z, seed);
+  home.ox = spot.ox;
+  home.oz = spot.oz;
+  return home;
+}
+
 function pickWear(kind, seed) {
   const rng = mulberry(seed | 0);
   const pal = kind === 'woman' ? WOMAN_WEAR : kind === 'man' ? MAN_WEAR : null;
@@ -341,7 +357,7 @@ export class Life {
     for (const e of this.list) {
       if (e.kind !== 'woman') continue;
       if (e.state === 'follow') {
-        e.home = { x, y, z };
+        e.home = flowerHangout(x, y, z, e.id);
         e.state = 'home';
       }
     }
@@ -493,18 +509,28 @@ export class Life {
           tz = pz - e.z;
         }
       } else if (e.state === 'home' && e.home) {
-        const hx = e.home.x + 0.5 - e.x;
-        const hz = e.home.z + 0.5 - e.z;
-        const hd = Math.hypot(hx, hz);
-        if (hd > 7.5) {
+        ensureHangout(e.home, e.id);
+        const fx = e.home.x + 0.5;
+        const fz = e.home.z + 0.5;
+        const hx = fx + e.home.ox - e.x;
+        const hz = fz + e.home.oz - e.z;
+        const fromFlower = Math.hypot(e.x - fx, e.z - fz);
+        const toSpot = Math.hypot(hx, hz);
+        if (fromFlower > 7) {
+          tx = hx;
+          tz = hz;
+        } else if (fromFlower < 1.8) {
+          tx = e.x - fx;
+          tz = e.z - fz;
+        } else if (toSpot > 1.4) {
           tx = hx;
           tz = hz;
         } else if (e.wanderT <= 0) {
-          e.yaw += (Math.random() - 0.5) * 1.6;
-          e.wanderT = 1.5 + Math.random() * 3;
-        } else {
-          tx = Math.sin(e.yaw);
-          tz = Math.cos(e.yaw);
+          const ang = Math.atan2(e.x - fx, e.z - fz) + (Math.random() - 0.5) * 1.8;
+          const r = 2.2 + Math.random() * 4.4;
+          e.home.ox = Math.sin(ang) * r;
+          e.home.oz = Math.cos(ang) * r;
+          e.wanderT = 2 + Math.random() * 4;
         }
       } else if (e.state === 'flee') {
         tx = dx;

@@ -1,7 +1,7 @@
 import {
   AIR, GRASS, DIRT, STONE, COBBLE, SAND, WATER, LOG, LEAVES, PLANKS,
   COAL_ORE, IRON_ORE, TABLE, TORCH, BEDROCK, CACTUS,
-  FLOWER_RED, FLOWER_YELLOW, FLOWER_WHITE, FRUIT_HANG, FURNACE,
+  FLOWER_RED, FLOWER_YELLOW, FLOWER_WHITE, FRUIT_HANG, FURNACE, DOOR, DOOR_OPEN,
   isSolid, isOpaque, isDecor,
 } from './blocks.js';
 import { fbm2, fbm3, hash2, hash3 } from './noise.js';
@@ -59,6 +59,8 @@ const MAP_RGB = {
   [IRON_ORE]: [168, 150, 132],
   [TABLE]: [160, 110, 55],
   [FURNACE]: [78, 78, 82],
+  [DOOR]: [155, 118, 62],
+  [DOOR_OPEN]: [155, 118, 62],
   [CACTUS]: [46, 138, 52],
   [BEDROCK]: [50, 50, 55],
   [FLOWER_RED]: [190, 50, 60],
@@ -82,6 +84,7 @@ export class World {
     this.map = new Map();
     this.torchDir = {};
     this.furnaces = {};
+    this.doors = {};
   }
 
   chunkKey(cx, cz) {
@@ -135,6 +138,9 @@ export class World {
     if (record) this.edits[`${x},${y},${z}`] = id;
     if (prev === TORCH && id !== TORCH) delete this.torchDir[`${x},${y},${z}`];
     if (prev === FURNACE && id !== FURNACE) delete this.furnaces[`${x},${y},${z}`];
+    if ((prev === DOOR || prev === DOOR_OPEN) && id !== DOOR && id !== DOOR_OPEN) {
+      delete this.doors[`${x},${y},${z}`];
+    }
     if (prev === TORCH || id === TORCH || isOpaque(prev) !== isOpaque(id)) {
       const ccx = x >> 4;
       const ccz = z >> 4;

@@ -47,6 +47,11 @@ export const RUG_COW = 42;
 export const RUG_ZEBRA = 43;
 export const RUG_SHEEP = 44;
 export const FURNACE = 45;
+export const DOOR = 46;
+export const DOOR_UPPER = 47;
+export const DOOR_OPEN = 48;
+export const DOOR_UPPER_OPEN = 49;
+export const DOOR_DOUBLE = 50;
 
 export const BLOCKS = {
   [GRASS]: {
@@ -288,6 +293,50 @@ export const BLOCKS = {
     drops: [{ id: FURNACE, n: 1 }],
     tiles: { top: 'furnace_top', side: 'furnace_side', bottom: 'cobble' },
   },
+  [DOOR]: {
+    nameKey: 'blockDoor',
+    solid: true,
+    opaque: false,
+    door: true,
+    hardness: 3,
+    tool: 'axe',
+    minTier: 0,
+    drops: [{ id: DOOR, n: 1 }],
+    tiles: { all: 'door_lower' },
+  },
+  [DOOR_UPPER]: {
+    nameKey: 'blockDoor',
+    solid: true,
+    opaque: false,
+    door: true,
+    hardness: 3,
+    tool: 'axe',
+    minTier: 0,
+    drops: [],
+    tiles: { all: 'door_upper' },
+  },
+  [DOOR_OPEN]: {
+    nameKey: 'blockDoor',
+    solid: false,
+    opaque: false,
+    door: true,
+    hardness: 3,
+    tool: 'axe',
+    minTier: 0,
+    drops: [{ id: DOOR, n: 1 }],
+    tiles: { all: 'door_lower' },
+  },
+  [DOOR_UPPER_OPEN]: {
+    nameKey: 'blockDoor',
+    solid: false,
+    opaque: false,
+    door: true,
+    hardness: 3,
+    tool: 'axe',
+    minTier: 0,
+    drops: [],
+    tiles: { all: 'door_upper' },
+  },
 };
 
 export const ITEMS = {
@@ -313,6 +362,7 @@ export const ITEMS = {
   [WOOD_SWORD]: { nameKey: 'itemWoodSword', stack: 1, tool: 'sword', tier: 1, speed: 1, dura: 60, damage: 4, icon: 'sword_wood' },
   [STONE_SWORD]: { nameKey: 'itemStoneSword', stack: 1, tool: 'sword', tier: 2, speed: 1, dura: 132, damage: 5, icon: 'sword_stone' },
   [IRON_SWORD]: { nameKey: 'itemIronSword', stack: 1, tool: 'sword', tier: 3, speed: 1, dura: 251, damage: 7, icon: 'sword_iron' },
+  [DOOR_DOUBLE]: { nameKey: 'itemDoorDouble', stack: 64, place: 0, icon: 'door_double' },
 };
 
 export function def(id) {
@@ -324,7 +374,9 @@ export function isBlock(id) {
 }
 
 export function isPlaceable(id) {
-  return isBlock(id) && id !== WATER && id !== BEDROCK && id !== FRUIT_HANG;
+  if (id === DOOR_DOUBLE) return true;
+  return isBlock(id) && id !== WATER && id !== BEDROCK && id !== FRUIT_HANG
+    && id !== DOOR_UPPER && id !== DOOR_OPEN && id !== DOOR_UPPER_OPEN;
 }
 
 export function isSolid(id) {
@@ -356,7 +408,7 @@ export function isFruitHang(id) {
 }
 
 export function isDecor(id) {
-  return id === TORCH || isPlant(id) || isRug(id) || isFruitHang(id);
+  return id === TORCH || isPlant(id) || isRug(id) || isFruitHang(id) || !!BLOCKS[id]?.door;
 }
 
 export function foodInfo(stack) {

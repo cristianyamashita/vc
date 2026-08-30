@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { AIR, WATER, TORCH, isOpaque, isDecor, isPlant, isRug, isFruitHang, tileName } from './blocks.js';
 import { CHUNK, HEIGHT, VIEW_RADIUS, UNLOAD_RADIUS, TORCH_FLOOR, TORCH_PX, TORCH_NX, TORCH_PZ, TORCH_NZ } from './world.js';
 import { tileUV } from './textures.js';
+import { isDoorId, isDoorBottom, isDoorOpenId, doorKey, doorSlab } from './doors.js';
 
 const FACES = [
   { dir: [1, 0, 0], corners: [[1, 0, 0], [1, 1, 0], [1, 1, 1], [1, 0, 1]], shade: 0.6, key: 'px' },
@@ -154,6 +155,38 @@ function pushRug(buf, x, y, z, tile) {
   }
 }
 
+function pushDoor(buf, world, x, y, z, id) {
+  const bottomY = isDoorBottom(id) ? y : y - 1;
+  const meta = (world.doors || {})[doorKey(x, bottomY, z)] || { facing: 0, hinge: 0 };
+  const open = isDoorOpenId(id);
+  const s = doorSlab(meta.facing || 0, open, meta.hinge || 0);
+  const uv = tileUV(tileName(id, 'py'));
+  const x0 = s.x0;
+  const x1 = s.x1;
+  const z0 = s.z0;
+  const z1 = s.z1;
+  const y0 = 0;
+  const y1 = 1;
+  const faces = [
+    { corners: [[x0, y0, z1], [x0, y1, z1], [x1, y1, z1], [x1, y0, z1]], n: [0, 0, 1], shade: 0.9 },
+    { corners: [[x1, y0, z0], [x1, y1, z0], [x0, y1, z0], [x0, y0, z0]], n: [0, 0, -1], shade: 0.7 },
+    { corners: [[x0, y0, z0], [x0, y1, z0], [x0, y1, z1], [x0, y0, z1]], n: [-1, 0, 0], shade: 0.6 },
+    { corners: [[x1, y0, z1], [x1, y1, z1], [x1, y1, z0], [x1, y0, z0]], n: [1, 0, 0], shade: 0.8 },
+    { corners: [[x0, y1, z1], [x0, y1, z0], [x1, y1, z0], [x1, y1, z1]], n: [0, 1, 0], shade: 1 },
+    { corners: [[x0, y0, z0], [x0, y0, z1], [x1, y0, z1], [x1, y0, z0]], n: [0, -1, 0], shade: 0.45 },
+  ];
+  for (const f of faces) {
+    const base = buf.positions.length / 3;
+    for (const p of f.corners) {
+      buf.positions.push(x + p[0], y + p[1], z + p[2]);
+      buf.normals.push(f.n[0], f.n[1], f.n[2]);
+      buf.colors.push(f.shade, 0, 0);
+    }
+    buf.uvs.push(uv.u0, uv.v0, uv.u0, uv.v1, uv.u1, uv.v1, uv.u1, uv.v0);
+    buf.indices.push(base, base + 2, base + 1, base, base + 3, base + 2);
+  }
+}
+
 function makeBuf() {
   return { positions: [], normals: [], uvs: [], colors: [], indices: [] };
 }
@@ -260,6 +293,10 @@ export function meshChunk(world, cx, cz) {
         }
         if (isRug(id)) {
           pushRug(solid, x, y, z, tileName(id, 'py'));
+          continue;
+        }
+        if (isDoorId(id)) {
+          pushDoor(solid, world, x, y, z, id);
           continue;
         }
         const buf = id === WATER ? water : solid;

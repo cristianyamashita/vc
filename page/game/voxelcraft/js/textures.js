@@ -33,6 +33,8 @@ const TILE_INDEX = {
   rug_sheep: 24,
   furnace_top: 25,
   furnace_side: 26,
+  door_lower: 27,
+  door_upper: 28,
 };
 
 function clamp(n, a, b) {
@@ -246,6 +248,31 @@ function drawTile(name) {
     put(d, 7, 8, 255, 90, 20);
     put(d, 8, 7, 255, 160, 50);
     put(d, 9, 9, 220, 70, 16);
+  } else if (name === 'door_lower') {
+    fillNoise(d, [168, 122, 62], 12, rng);
+    for (let i = 0; i < TILE; i++) {
+      put(d, 0, i, 92, 62, 28);
+      put(d, 15, i, 92, 62, 28);
+      put(d, i, 0, 92, 62, 28);
+      put(d, i, 15, 92, 62, 28);
+    }
+    put(d, 12, 8, 40, 40, 44);
+    put(d, 13, 8, 70, 70, 76);
+    put(d, 12, 7, 70, 70, 76);
+  } else if (name === 'door_upper') {
+    fillNoise(d, [168, 122, 62], 12, rng);
+    for (let i = 0; i < TILE; i++) {
+      put(d, 0, i, 92, 62, 28);
+      put(d, 15, i, 92, 62, 28);
+      put(d, i, 0, 92, 62, 28);
+      put(d, i, 15, 92, 62, 28);
+    }
+    for (let y = 3; y < 8; y++) {
+      for (let x = 4; x < 12; x++) {
+        if (x === 4 || x === 11 || y === 3 || y === 7) put(d, x, y, 92, 62, 28);
+        else put(d, x, y, 140, 190, 210);
+      }
+    }
   } else {
     fillNoise(d, [200, 0, 200], 10, rng);
   }
@@ -366,6 +393,30 @@ function drawItemIcon(kind) {
     g.fillRect(6, 8, 20, 16);
     g.fillStyle = '#d0ccbe';
     g.fillRect(10, 12, 8, 6);
+  } else if (kind === 'door') {
+    g.fillStyle = '#a87838';
+    g.fillRect(10, 2, 12, 28);
+    g.fillStyle = '#6a4820';
+    g.fillRect(10, 2, 12, 2);
+    g.fillRect(10, 28, 12, 2);
+    g.fillRect(10, 2, 2, 28);
+    g.fillRect(20, 2, 2, 28);
+    g.fillStyle = '#8ec4d8';
+    g.fillRect(13, 6, 6, 6);
+    g.fillStyle = '#c8c8d0';
+    g.fillRect(18, 18, 3, 3);
+  } else if (kind === 'door_double') {
+    g.fillStyle = '#a87838';
+    g.fillRect(4, 2, 11, 28);
+    g.fillRect(17, 2, 11, 28);
+    g.fillStyle = '#6a4820';
+    g.fillRect(4, 2, 11, 2);
+    g.fillRect(17, 2, 11, 2);
+    g.fillRect(4, 28, 11, 2);
+    g.fillRect(17, 28, 11, 2);
+    g.fillStyle = '#8ec4d8';
+    g.fillRect(7, 6, 5, 5);
+    g.fillRect(20, 6, 5, 5);
   }
   return c.toDataURL();
 }
@@ -398,6 +449,7 @@ export function createAtlas() {
     'sword_wood', 'sword_stone', 'sword_iron',
     'meat_raw', 'meat_cooked', 'fruit', 'fruit_cooked',
     'hide_cow', 'hide_zebra', 'hide_sheep',
+    'door', 'door_double',
   ];
   for (const kind of itemKinds) icons[kind] = drawItemIcon(kind);
 

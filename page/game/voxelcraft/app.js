@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { initLang, setLang, t, applyI18n } from './js/i18n.js';
 import { initTheme, toggleTheme, getTheme } from './js/theme.js';
 import {
-  AIR, GRASS, SAND, LOG, LEAVES, TABLE, TORCH, BEDROCK, CACTUS, FURNACE, ITEMS, BLOCKS,
+  AIR, GRASS, SAND, LOG, LEAVES, TABLE, TORCH, BEDROCK, CACTUS, FURNACE, DOOR, DOOR_DOUBLE, ITEMS, BLOCKS,
   isPlaceable, isSolid, isFlower, isRug, mineSeconds, nameKey, stackMax,
   foodInfo, attackDamage,
 } from './js/blocks.js';
@@ -20,6 +20,7 @@ import {
   emptyFurnace, furnaceKey, tickFurnace, dropFurnaceStacks,
   serializeFurnaces, loadFurnaces, COOK_SEC,
 } from './js/furnace.js';
+import { isDoorId, placeDoor, toggleDoor, removeDoor, serializeDoors, loadDoors } from './js/doors.js';
 
 const canvas = document.getElementById('view');
 const menuEl = document.getElementById('menu');
@@ -592,6 +593,7 @@ async function loadFromSave(save) {
   world.applyEdits(save.edits || {});
   world.loadTorchDir(save.torchDir);
   world.furnaces = loadFurnaces(save.furnaces);
+  world.doors = loadDoors(save.doors);
   furnacePos = null;
   furnaceRow.hidden = true;
   world.loadMap(save.map);
@@ -633,6 +635,7 @@ function snapshot() {
     map: world.encodeMap(),
     torchDir: world.torchDir,
     furnaces: serializeFurnaces(world.furnaces),
+    doors: serializeDoors(world.doors),
     player: {
       x: player.pos.x, y: player.pos.y, z: player.pos.z,
       yaw: player.yaw, pitch: player.pitch, health: player.health,
@@ -791,6 +794,14 @@ function tick(dt) {
         openFurnace(hit.x, hit.y, hit.z);
       }
       eatAcc = 0;
+    } else if (isDoorId(hit?.id) && !sneak) {
+      if (placeCool <= 0) {
+        placeCool = 0.18;
+        if (toggleDoor(world, hit.x, hit.y, hit.z, player, life, KINDS)) {
+          remeshDirty(world, bundle);
+        }
+      }
+      eatAcc = 0;
     } else if (selFood && canEatFood(selFood)) {
       eatAcc += dt;
       const pct = eatAcc / selFood.eatTime;
@@ -856,6 +867,15 @@ function tick(dt) {
 function breakBlock(hit) {
   const id = world.get(hit.x, hit.y, hit.z);
   if (!id || id === BEDROCK || id === AIR) return;
+  if (isDoorId(id)) {
+    const drop = removeDoor(world, hit.x, hit.y, hit.z);
+    if (drop) inv.add(drop, 1);
+    if (ITEMS[inv.selectedStack()?.id]?.tool) inv.wearSelected();
+    remeshDirty(world, bundle);
+    refreshHud();
+    arms.punch();
+    return;
+  }
   const drops = BLOCKS[id]?.drops || [];
   for (const d of drops) inv.add(d.id, d.n);
   if (id === FURNACE) {
@@ -887,6 +907,14 @@ function placeBlock(hit) {
   if (player.overlapsBlock(px, py, pz) && isSolid(stack.id)) return;
   if (stack.id === TORCH && !isSolid(world.get(hit.x, hit.y, hit.z))) return;
   if ((isFlower(stack.id) || isRug(stack.id)) && !isSolid(world.get(px, py - 1, pz))) return;
+  if (stack.id === DOOR || stack.id === DOOR_DOUBLE) {
+    if (!placeDoor(world, px, py, pz, player.yaw, stack.id === DOOR_DOUBLE, player)) return;
+    if (fromOff) inv.takeOffhand(1);
+    else inv.takeSelected(1);
+    remeshDirty(world, bundle);
+    refreshHud();
+    return;
+  }
   world.set(px, py, pz, stack.id);
   if (stack.id === TORCH) world.setTorchFacing(px, py, pz, torchFacingFromHit(hit.nx, hit.ny, hit.nz));
   if (stack.id === FURNACE) world.furnaces[furnaceKey(px, py, pz)] = emptyFurnace();

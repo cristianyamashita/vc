@@ -4,7 +4,7 @@ import {
   STONE_PICK, STONE_AXE, STONE_SHOVEL, STONE_SWORD,
   IRON_PICK, IRON_AXE, IRON_SHOVEL, IRON_SWORD,
   STICK, TORCH, RAW_MEAT, COOKED_MEAT, FRUIT, COOKED_FRUIT,
-  HIDE_COW, HIDE_ZEBRA, HIDE_SHEEP,
+  HIDE_COW, HIDE_ZEBRA, HIDE_SHEEP, DOOR, DOOR_DOUBLE,
   FLOWER_RED, FLOWER_YELLOW, FLOWER_WHITE,
   isBlock, isFlower,
 } from './blocks.js';
@@ -195,6 +195,10 @@ function makeToolMesh(id) {
     g.position.set(0.03, -0.02, -0.05);
   } else if (id === HIDE_SHEEP) {
     g.add(box(0.16, 0.03, 0.12, 0xe8e4d8, 0, 0, -0.03));
+    g.position.set(0.03, -0.02, -0.05);
+  } else if (id === DOOR || id === DOOR_DOUBLE) {
+    g.add(box(0.12, 0.28, 0.04, 0xa87838, 0, 0.02, -0.03));
+    if (id === DOOR_DOUBLE) g.add(box(0.12, 0.28, 0.04, 0xa87838, 0.1, 0.02, -0.03));
     g.position.set(0.03, -0.02, -0.05);
   } else if (isBlock(id)) {
     g.add(box(0.16, 0.16, 0.16, 0x8fbf6a, 0, 0, -0.04));
