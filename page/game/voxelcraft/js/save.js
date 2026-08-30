@@ -1,6 +1,7 @@
 const DB_NAME = 'VoxelCraftDB';
 const DB_VERSION = 1;
-const WORLD_KEY = 'current';
+const LEGACY_KEY = 'current';
+const INDEX_KEY = 'worldIndex';
 const SETTINGS_KEY = 'ui';
 
 function openDB() {
@@ -50,19 +51,69 @@ export function getDB() {
   return dbPromise;
 }
 
-export async function loadWorldSave() {
-  const db = await getDB();
-  return txGet(db, 'worlds', WORLD_KEY);
+function worldStoreKey(id) {
+  return `w:${id}`;
 }
 
-export async function saveWorldSave(data) {
-  const db = await getDB();
-  return txPut(db, 'worlds', WORLD_KEY, data);
+export function newWorldId() {
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-export async function clearWorldSave() {
+export async function loadWorldIndex() {
   const db = await getDB();
-  return txDel(db, 'worlds', WORLD_KEY);
+  const idx = await txGet(db, 'settings', INDEX_KEY);
+  if (idx && Array.isArray(idx.list)) {
+    return { current: idx.current || null, list: idx.list };
+  }
+  return { current: null, list: [] };
+}
+
+export async function saveWorldIndex(index) {
+  const db = await getDB();
+  await txPut(db, 'settings', INDEX_KEY, {
+    current: index.current || null,
+    list: index.list || [],
+  });
+}
+
+export async function migrateLegacyWorld(defaultName = 'World 1') {
+  const index = await loadWorldIndex();
+  if (index.list.length) return index;
+  const db = await getDB();
+  const legacy = await txGet(db, 'worlds', LEGACY_KEY);
+  if (!legacy?.seed) return index;
+  const id = newWorldId();
+  await txPut(db, 'worlds', worldStoreKey(id), legacy);
+  await txDel(db, 'worlds', LEGACY_KEY);
+  const next = {
+    current: id,
+    list: [{
+      id,
+      name: defaultName,
+      created: Date.now(),
+      updated: Date.now(),
+    }],
+  };
+  await saveWorldIndex(next);
+  return next;
+}
+
+export async function loadWorldSave(id) {
+  if (!id) return null;
+  const db = await getDB();
+  return txGet(db, 'worlds', worldStoreKey(id));
+}
+
+export async function saveWorldSave(id, data) {
+  if (!id) return;
+  const db = await getDB();
+  await txPut(db, 'worlds', worldStoreKey(id), data);
+}
+
+export async function deleteWorldSave(id) {
+  if (!id) return;
+  const db = await getDB();
+  await txDel(db, 'worlds', worldStoreKey(id));
 }
 
 export async function loadSettings() {

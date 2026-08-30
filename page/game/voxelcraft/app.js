@@ -14,7 +14,10 @@ import { Arms } from './js/arms.js';
 import { Inventory, HOTBAR, clickSlot } from './js/inventory.js';
 import { matchRecipe, consumeCraft } from './js/crafting.js';
 import { RECIPE_GUIDE, MAT } from './js/recipes.js';
-import { loadWorldSave, saveWorldSave, clearWorldSave, saveSettings } from './js/save.js';
+import {
+  loadWorldSave, saveWorldSave, deleteWorldSave, saveSettings,
+  loadWorldIndex, saveWorldIndex, migrateLegacyWorld, newWorldId,
+} from './js/save.js';
 import { Life, KINDS } from './js/entities.js';
 import {
   emptyFurnace, furnaceKey, tickFurnace, dropFurnaceStacks,
@@ -29,6 +32,8 @@ const loadingEl = document.getElementById('loading');
 const invEl = document.getElementById('inv-overlay');
 const playBtn = document.getElementById('play-btn');
 const newWorldBtn = document.getElementById('new-world-btn');
+const saveWorldBtn = document.getElementById('save-world-btn');
+const worldListEl = document.getElementById('world-list');
 const respawnBtn = document.getElementById('respawn-btn');
 const themeBtn = document.getElementById('theme-btn');
 const invTitle = document.getElementById('inv-title');
@@ -86,6 +91,8 @@ let sleeping = false;
 let saveCool = 0;
 let worldTime = 0;
 let saving = false;
+let currentWorldId = null;
+let worldBusy = false;
 let last = performance.now();
 
 initLang();
@@ -156,6 +163,7 @@ document.querySelectorAll('[data-lang]').forEach((btn) => {
     syncRecipesBtn();
     if (player) playBtn.textContent = menuPaused ? t('resume') : t('clickToPlay');
     syncTimeUi();
+    refreshWorldList();
     if (mapOpen()) drawWorldMap();
   });
 });
@@ -185,9 +193,26 @@ document.querySelectorAll('[data-tod]').forEach((btn) => {
 });
 
 playBtn.addEventListener('click', () => requestPlay());
-newWorldBtn.addEventListener('click', () => {
-  if (!confirm(t('newWorldConfirm'))) return;
-  startNewWorld();
+newWorldBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  startNewWorld({ promptName: true });
+});
+saveWorldBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  if (!player || !world || worldBusy) return;
+  persist().then(() => refreshWorldList());
+});
+worldListEl.addEventListener('click', (e) => {
+  e.stopPropagation();
+  const btn = e.target.closest('button[data-act]');
+  if (!btn) return;
+  const row = btn.closest('.world-row');
+  const id = row?.dataset.id;
+  if (!id) return;
+  const act = btn.getAttribute('data-act');
+  if (act === 'load') switchWorld(id);
+  else if (act === 'rename') renameWorld(id);
+  else if (act === 'delete') deleteWorld(id);
 });
 document.getElementById('open-map-btn').addEventListener('click', (e) => {
   e.stopPropagation();
@@ -380,6 +405,7 @@ function showMenu(paused) {
   menuEl.hidden = false;
   playBtn.textContent = paused ? t('resume') : t('clickToPlay');
   syncTimeUi();
+  refreshWorldList();
 }
 
 function hideMenu() {
@@ -529,19 +555,12 @@ function updateItemTip(e) {
   itemTip.style.top = `${e.clientY + 16}px`;
 }
 
-async function boot() {
-  loadingEl.hidden = false;
-  const save = await loadWorldSave();
-  if (save?.seed) await loadFromSave(save);
-  else await startNewWorld(false);
-  loadingEl.hidden = true;
-  showMenu(false);
+function setLoadingText(key) {
+  const p = loadingEl.querySelector('p');
+  if (p) p.textContent = t(key);
 }
 
-async function startNewWorld(reset = true) {
-  loadingEl.hidden = false;
-  hideMenu();
-  if (reset) await clearWorldSave();
+function teardownWorld() {
   if (bundle) {
     scene.remove(bundle.group);
     disposeMeshes(bundle);
@@ -551,6 +570,10 @@ async function startNewWorld(reset = true) {
     life.dispose();
     life = null;
   }
+}
+
+function generateFreshWorld() {
+  teardownWorld();
   const seed = (Math.random() * 0xffffffff) >>> 0;
   world = new World(seed);
   bundle = createWorldMeshes(atlas.texture);
@@ -572,11 +595,183 @@ async function startNewWorld(reset = true) {
   life = new Life(scene);
   life.populate(world, player, false);
   syncChunkMeshes(world, bundle, spawn.x, spawn.z);
-  await persist();
-  refreshHud();
+}
+
+async function refreshWorldList() {
+  if (!worldListEl) return;
+  const index = await loadWorldIndex();
+  worldListEl.replaceChildren();
+  const locale = document.documentElement.lang || 'en';
+  const sorted = index.list.slice().sort((a, b) => (b.updated || 0) - (a.updated || 0));
+  for (const w of sorted) {
+    const li = document.createElement('li');
+    li.className = 'world-row' + (w.id === currentWorldId ? ' current' : '');
+    li.dataset.id = w.id;
+
+    const meta = document.createElement('div');
+    meta.className = 'world-meta';
+    const title = document.createElement('strong');
+    title.textContent = w.name || t('worldNamePrefix');
+    if (w.id === currentWorldId) {
+      const badge = document.createElement('span');
+      badge.className = 'world-badge';
+      badge.textContent = t('currentWorld');
+      title.appendChild(badge);
+    }
+    meta.appendChild(title);
+    const date = document.createElement('span');
+    date.className = 'world-date';
+    date.textContent = w.updated ? new Date(w.updated).toLocaleString(locale, {
+      dateStyle: 'short',
+      timeStyle: 'short',
+    }) : '';
+    meta.appendChild(date);
+    li.appendChild(meta);
+
+    const actions = document.createElement('div');
+    actions.className = 'world-row-actions';
+    const loadBtn = document.createElement('button');
+    loadBtn.type = 'button';
+    loadBtn.setAttribute('data-act', 'load');
+    loadBtn.textContent = t('loadWorld');
+    const renameBtn = document.createElement('button');
+    renameBtn.type = 'button';
+    renameBtn.setAttribute('data-act', 'rename');
+    renameBtn.textContent = t('renameWorld');
+    const delBtn = document.createElement('button');
+    delBtn.type = 'button';
+    delBtn.setAttribute('data-act', 'delete');
+    delBtn.textContent = t('deleteWorld');
+    actions.append(loadBtn, renameBtn, delBtn);
+    li.appendChild(actions);
+    worldListEl.appendChild(li);
+  }
+}
+
+async function boot() {
+  loadingEl.hidden = false;
+  setLoadingText('loading');
+  const index = await migrateLegacyWorld(`${t('worldNamePrefix')} 1`);
+  currentWorldId = index.current;
+  if (currentWorldId) {
+    const save = await loadWorldSave(currentWorldId);
+    if (save?.seed) await loadFromSave(save);
+    else {
+      generateFreshWorld();
+      await persist();
+    }
+  } else {
+    await startNewWorld({ promptName: false });
+  }
   loadingEl.hidden = true;
-  resize();
   showMenu(false);
+}
+
+async function startNewWorld({ promptName = true } = {}) {
+  if (worldBusy) return;
+  const index = await loadWorldIndex();
+  const suggested = `${t('worldNamePrefix')} ${index.list.length + 1}`;
+  let name = suggested;
+  if (promptName) {
+    const entered = window.prompt(t('worldNamePrompt'), suggested);
+    if (entered == null) return;
+    name = entered.trim() || suggested;
+  }
+  worldBusy = true;
+  try {
+    if (player && world && currentWorldId) await persist();
+    loadingEl.hidden = false;
+    hideMenu();
+    setLoadingText('loading');
+    generateFreshWorld();
+    const id = newWorldId();
+    currentWorldId = id;
+    const next = await loadWorldIndex();
+    next.list.push({ id, name, created: Date.now(), updated: Date.now() });
+    next.current = id;
+    await saveWorldIndex(next);
+    await persist();
+    refreshHud();
+    loadingEl.hidden = true;
+    resize();
+    showMenu(false);
+  } finally {
+    worldBusy = false;
+  }
+}
+
+async function switchWorld(id) {
+  if (worldBusy || !id) return;
+  if (id === currentWorldId && player) {
+    requestPlay();
+    return;
+  }
+  worldBusy = true;
+  try {
+    if (player && world && currentWorldId) await persist();
+    loadingEl.hidden = false;
+    hideMenu();
+    setLoadingText('loadingWorld');
+    const save = await loadWorldSave(id);
+    currentWorldId = id;
+    const index = await loadWorldIndex();
+    index.current = id;
+    await saveWorldIndex(index);
+    if (save?.seed) await loadFromSave(save);
+    else {
+      generateFreshWorld();
+      await persist();
+    }
+    refreshHud();
+    loadingEl.hidden = true;
+    resize();
+    showMenu(true);
+  } finally {
+    worldBusy = false;
+  }
+}
+
+async function renameWorld(id) {
+  const index = await loadWorldIndex();
+  const entry = index.list.find((w) => w.id === id);
+  if (!entry) return;
+  const entered = window.prompt(t('worldNamePrompt'), entry.name);
+  if (entered == null) return;
+  entry.name = entered.trim() || entry.name;
+  await saveWorldIndex(index);
+  await refreshWorldList();
+}
+
+async function deleteWorld(id) {
+  if (worldBusy) return;
+  if (!window.confirm(t('deleteWorldConfirm'))) return;
+  worldBusy = true;
+  try {
+    const index = await loadWorldIndex();
+    const remaining = index.list.filter((w) => w.id !== id);
+    await deleteWorldSave(id);
+    if (!remaining.length) {
+      currentWorldId = null;
+      await saveWorldIndex({ current: null, list: [] });
+      worldBusy = false;
+      await startNewWorld({ promptName: false });
+      return;
+    }
+    index.list = remaining;
+    if (id === currentWorldId) {
+      const next = remaining.slice().sort((a, b) => (b.updated || 0) - (a.updated || 0))[0];
+      currentWorldId = null;
+      index.current = next.id;
+      await saveWorldIndex(index);
+      worldBusy = false;
+      await switchWorld(next.id);
+      return;
+    }
+    await saveWorldIndex(index);
+    await refreshWorldList();
+  } finally {
+    worldBusy = false;
+  }
 }
 
 async function loadFromSave(save) {
@@ -648,10 +843,26 @@ function snapshot() {
 }
 
 async function persist() {
+  if (!player || !world || !currentWorldId) return;
   saving = true;
   savePill.textContent = t('saving');
   try {
-    await saveWorldSave(snapshot());
+    await saveWorldSave(currentWorldId, snapshot());
+    const index = await loadWorldIndex();
+    let entry = index.list.find((w) => w.id === currentWorldId);
+    if (!entry) {
+      entry = {
+        id: currentWorldId,
+        name: `${t('worldNamePrefix')} ${index.list.length + 1}`,
+        created: Date.now(),
+        updated: Date.now(),
+      };
+      index.list.push(entry);
+    } else {
+      entry.updated = Date.now();
+    }
+    index.current = currentWorldId;
+    await saveWorldIndex(index);
     savePill.textContent = t('saved');
   } catch {
     savePill.textContent = t('saved');
@@ -685,7 +896,7 @@ function tick(dt) {
   worldTime += dt;
   placeCool = Math.max(0, placeCool - dt);
   saveCool += dt;
-  if (saveCool > 8 && !saving) {
+  if (saveCool > 8 && !saving && !worldBusy) {
     saveCool = 0;
     persist();
   }
