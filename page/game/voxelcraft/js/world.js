@@ -368,6 +368,7 @@ export class World {
     for (let y = HEIGHT - 1; y >= 0; y--) {
       const id = this.get(x, y, z);
       if (!id || id === AIR || id === TORCH) continue;
+      if (id === LEAVES || id === LOG || id === CACTUS) continue;
       return { id, h: y };
     }
     return { id: AIR, h: 0 };

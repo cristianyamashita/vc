@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { initLang, setLang, t, applyI18n } from './js/i18n.js';
 import { initTheme, toggleTheme, getTheme } from './js/theme.js';
 import {
-  AIR, TABLE, TORCH, BEDROCK, ITEMS, BLOCKS,
+  AIR, GRASS, SAND, LOG, LEAVES, TABLE, TORCH, BEDROCK, CACTUS, ITEMS, BLOCKS,
   isPlaceable, isSolid, canHarvest, mineSeconds, nameKey, stackMax,
 } from './js/blocks.js';
 import { World, GEN_PER_TICK, biomeNameKey, CHUNK, mapRgb } from './js/world.js';
@@ -39,11 +39,15 @@ const savePill = document.getElementById('save-pill');
 const cursorEl = document.getElementById('cursor-item');
 const timeSlider = document.getElementById('time-slider');
 const timeClock = document.getElementById('time-clock');
+const mapOverlay = document.getElementById('map-overlay');
 const mapCanvas = document.getElementById('world-map');
 const mapMeta = document.getElementById('map-meta');
 
 const DAY_CYCLE = 480;
 const TIME_PRESETS = { dawn: 40, noon: 120, dusk: 200, night: 360 };
+const MAP_ZOOM_MIN = 1;
+const MAP_ZOOM_MAX = 24;
+const mapView = { zoom: 4, cx: 0, cz: 0, dragging: false, lastX: 0, lastY: 0, fromPause: false };
 
 const keys = Object.create(null);
 const mouse = { left: false, right: false };
@@ -88,14 +92,14 @@ camera.layers.enable(0);
 camera.layers.enable(1);
 scene.add(camera);
 
-hemi = new THREE.HemisphereLight(0xb8d4ff, 0x3d4a32, 0.55);
+hemi = new THREE.HemisphereLight(0xd4e8ff, 0x6a7a58, 1.05);
 hemi.layers.enable(1);
 scene.add(hemi);
-sun = new THREE.DirectionalLight(0xfff4d6, 1.05);
+sun = new THREE.DirectionalLight(0xfff6e4, 1.45);
 sun.position.set(40, 80, 20);
 sun.layers.enable(1);
 scene.add(sun);
-const ambient = new THREE.AmbientLight(0xffffff, 0.18);
+const ambient = new THREE.AmbientLight(0xffffff, 0.55);
 ambient.layers.enable(1);
 scene.add(ambient);
 const armLight = new THREE.PointLight(0xffffff, 0.9, 5);
@@ -128,9 +132,9 @@ document.querySelectorAll('[data-lang]').forEach((btn) => {
     refreshInv();
     renderRecipeBook();
     syncRecipesBtn();
-    if (player) playBtn.textContent = t('resume');
+    if (player) playBtn.textContent = menuPaused ? t('resume') : t('clickToPlay');
     syncTimeUi();
-    drawWorldMap();
+    if (mapOpen()) drawWorldMap();
   });
 });
 
@@ -139,7 +143,7 @@ themeBtn.addEventListener('click', (e) => {
   toggleTheme();
   syncThemeBtn();
   persistUi();
-  if (!menuEl.hidden) drawWorldMap();
+  if (mapOpen()) drawWorldMap();
 });
 
 timeSlider.addEventListener('pointerdown', (e) => e.stopPropagation());
@@ -163,6 +167,46 @@ newWorldBtn.addEventListener('click', () => {
   if (!confirm(t('newWorldConfirm'))) return;
   startNewWorld();
 });
+document.getElementById('open-map-btn').addEventListener('click', (e) => {
+  e.stopPropagation();
+  openMap(true);
+});
+document.getElementById('map-close').addEventListener('click', (e) => {
+  e.stopPropagation();
+  closeMap();
+});
+document.getElementById('map-zoom-in').addEventListener('click', (e) => {
+  e.stopPropagation();
+  zoomMapCenter(1.25);
+});
+document.getElementById('map-zoom-out').addEventListener('click', (e) => {
+  e.stopPropagation();
+  zoomMapCenter(0.8);
+});
+mapCanvas.addEventListener('pointerdown', (e) => {
+  if (e.button !== 0) return;
+  e.preventDefault();
+  mapView.dragging = true;
+  mapView.lastX = e.clientX;
+  mapView.lastY = e.clientY;
+  mapCanvas.classList.add('dragging');
+  mapCanvas.setPointerCapture(e.pointerId);
+});
+mapCanvas.addEventListener('pointermove', (e) => {
+  if (!mapView.dragging) return;
+  mapView.cx -= (e.clientX - mapView.lastX) / mapView.zoom;
+  mapView.cz -= (e.clientY - mapView.lastY) / mapView.zoom;
+  mapView.lastX = e.clientX;
+  mapView.lastY = e.clientY;
+  drawWorldMap();
+});
+function endMapDrag() {
+  mapView.dragging = false;
+  mapCanvas.classList.remove('dragging');
+}
+mapCanvas.addEventListener('pointerup', endMapDrag);
+mapCanvas.addEventListener('pointercancel', endMapDrag);
+mapCanvas.addEventListener('contextmenu', (e) => e.preventDefault());
 respawnBtn.addEventListener('click', () => {
   player.respawn();
   deathEl.hidden = true;
@@ -176,7 +220,7 @@ canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 canvas.addEventListener('mousedown', (e) => {
   if (e.button === 0) mouse.left = true;
   if (e.button === 2) mouse.right = true;
-  if (!document.pointerLockElement && !invOpen() && deathEl.hidden) requestPlay();
+  if (!document.pointerLockElement && !invOpen() && deathEl.hidden && !mapOpen()) requestPlay();
 });
 window.addEventListener('mouseup', (e) => {
   if (e.button === 0) mouse.left = false;
@@ -189,9 +233,12 @@ window.addEventListener('mousemove', (e) => {
     cursorEl.style.top = `${e.clientY + 8}px`;
   }
 });
+let ignoreEscUntil = 0;
+
 document.addEventListener('pointerlockchange', () => {
-  if (!document.pointerLockElement && !invOpen() && player?.health > 0 && menuEl.hidden) {
+  if (!document.pointerLockElement && !invOpen() && player?.health > 0 && menuEl.hidden && !mapOpen()) {
     showMenu(true);
+    ignoreEscUntil = performance.now() + 250;
   }
 });
 document.addEventListener('pointerlockerror', () => {});
@@ -200,25 +247,35 @@ window.addEventListener('keydown', (e) => {
   keys[e.code] = true;
   if (e.code === 'ControlLeft' && isPlaying()) e.preventDefault();
   if (e.code === 'Escape') {
-    if (invOpen()) closeInv();
-    else if (menuEl.hidden && player?.health > 0) {
+    if (e.repeat || performance.now() < ignoreEscUntil) return;
+    if (mapOpen()) {
+      closeMap({ toPause: true });
+      return;
+    }
+    if (invOpen()) {
+      closeInv();
+      return;
+    }
+    if (!player || player.health <= 0 || !loadingEl.hidden || !deathEl.hidden) return;
+    if (menuEl.hidden) {
       document.exitPointerLock?.();
       showMenu(true);
+    } else if (menuPaused) {
+      e.preventDefault();
+      requestPlay();
     }
     return;
   }
   if (e.code === 'KeyM') {
     e.preventDefault();
-    if (invOpen()) closeInv();
-    if (player?.health > 0 && menuEl.hidden) {
-      document.exitPointerLock?.();
-      showMenu(true);
-    }
+    if (!loadingEl.hidden || invOpen() || !deathEl.hidden) return;
+    toggleMap();
     return;
   }
   if (e.repeat) return;
   if (e.code === 'KeyE') {
     e.preventDefault();
+    if (mapOpen()) return;
     if (invOpen()) closeInv();
     else if (player && menuEl.hidden && player.health > 0) openInv(false);
   }
@@ -242,6 +299,11 @@ window.addEventListener('keydown', (e) => {
 });
 window.addEventListener('keyup', (e) => { keys[e.code] = false; });
 window.addEventListener('wheel', (e) => {
+  if (mapOpen()) {
+    e.preventDefault();
+    zoomMapAt(e.clientX, e.clientY, e.deltaY > 0 ? 0.85 : 1.18);
+    return;
+  }
   if (!player || invOpen() || !menuEl.hidden) return;
   e.preventDefault();
   const dir = e.deltaY > 0 ? 1 : -1;
@@ -276,7 +338,7 @@ function resize() {
   renderer.setSize(w, h, false);
   camera.aspect = w / h;
   camera.updateProjectionMatrix();
-  if (!menuEl.hidden) drawWorldMap();
+  if (mapOpen()) drawWorldMap();
 }
 
 function syncThemeBtn() {
@@ -287,11 +349,14 @@ function persistUi() {
   saveSettings({ lang: document.documentElement.lang, theme: getTheme() }).catch(() => {});
 }
 
+let menuPaused = false;
+
 function showMenu(paused) {
+  closeMapSilent();
+  menuPaused = !!paused;
   menuEl.hidden = false;
   playBtn.textContent = paused ? t('resume') : t('clickToPlay');
   syncTimeUi();
-  drawWorldMap();
 }
 
 function hideMenu() {
@@ -302,12 +367,17 @@ function invOpen() {
   return !invEl.hidden;
 }
 
+function mapOpen() {
+  return !mapOverlay.hidden;
+}
+
 function isPlaying() {
-  return !!player && player.health > 0 && !invOpen() && menuEl.hidden && deathEl.hidden;
+  return !!player && player.health > 0 && !invOpen() && menuEl.hidden && deathEl.hidden && !mapOpen();
 }
 
 function requestPlay() {
   if (!player || player.health <= 0) return;
+  closeMapSilent();
   hideMenu();
   resize();
   canvas.requestPointerLock?.();
@@ -398,7 +468,7 @@ async function loadFromSave(save) {
   if (save.inventory) inv.load(save.inventory);
   world.ensureAround(player.pos.x, player.pos.z);
   syncChunkMeshes(world, bundle, player.pos.x, player.pos.z);
-  if (!world.map.size) world.rebuildMapFromChunks();
+  world.rebuildMapFromChunks();
   worldTime = save.worldTime ?? 120;
   refreshHud();
   syncTimeUi();
@@ -571,14 +641,24 @@ function updateHighlight(hit) {
   highlight.position.set(hit.x + 0.5, hit.y + 0.5, hit.z + 0.5);
 }
 
+function hourFromWorldTime(wt) {
+  const hours = (((wt % DAY_CYCLE) + DAY_CYCLE) % DAY_CYCLE) / DAY_CYCLE * 24 + 6;
+  return hours % 24;
+}
+
 function dayFactor() {
-  const a = ((worldTime % DAY_CYCLE) / DAY_CYCLE) * Math.PI * 2;
-  return { a, day: Math.max(0, Math.sin(a)) };
+  const t = ((worldTime % DAY_CYCLE) + DAY_CYCLE) % DAY_CYCLE;
+  const a = (t / DAY_CYCLE) * Math.PI * 2;
+  const hour = hourFromWorldTime(t);
+  let day = 0;
+  if (hour >= 7 && hour < 17) day = 1;
+  else if (hour >= 6 && hour < 7) day = hour - 6;
+  else if (hour >= 17 && hour < 19) day = 1 - (hour - 17) / 2;
+  return { a, day, hour };
 }
 
 function clockFromWorldTime(wt) {
-  const hours = (((wt % DAY_CYCLE) + DAY_CYCLE) % DAY_CYCLE) / DAY_CYCLE * 24 + 6;
-  const wrapped = hours % 24;
+  const wrapped = hourFromWorldTime(wt);
   const h = Math.floor(wrapped);
   const m = Math.floor((wrapped - h) * 60);
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
@@ -600,74 +680,155 @@ function syncTimeUi() {
   });
 }
 
-function drawWorldMap() {
-  const ctx = mapCanvas.getContext('2d');
-  const view = 256;
-  if (mapCanvas.width !== view) {
-    mapCanvas.width = view;
-    mapCanvas.height = view;
+function closeMapSilent() {
+  mapOverlay.hidden = true;
+  mapView.dragging = false;
+  mapCanvas.classList.remove('dragging');
+}
+
+function openMap(fromPause) {
+  if (!world || !player || player.health <= 0 || !deathEl.hidden || !loadingEl.hidden) return;
+  mapView.fromPause = !!fromPause;
+  mapView.zoom = 4;
+  mapView.cx = player.pos.x;
+  mapView.cz = player.pos.z;
+  mapOverlay.hidden = false;
+  if (fromPause) hideMenu();
+  document.exitPointerLock?.();
+  requestAnimationFrame(() => {
+    drawWorldMap();
+    requestAnimationFrame(() => drawWorldMap());
+  });
+}
+
+function closeMap({ toPause = false } = {}) {
+  if (!mapOpen()) return;
+  const fromMenu = mapView.fromPause;
+  closeMapSilent();
+  if (fromMenu) showMenu(menuPaused);
+  else if (toPause) showMenu(true);
+  else requestPlay();
+}
+
+function toggleMap() {
+  if (mapOpen()) {
+    closeMap();
+    return;
   }
+  if (!player || player.health <= 0) return;
+  openMap(!menuEl.hidden);
+}
+
+function zoomMapCenter(factor) {
+  const rect = mapCanvas.getBoundingClientRect();
+  zoomMapAt(rect.left + rect.width / 2, rect.top + rect.height / 2, factor);
+}
+
+function zoomMapAt(clientX, clientY, factor) {
+  const rect = mapCanvas.getBoundingClientRect();
+  let mx = clientX - rect.left;
+  let my = clientY - rect.top;
+  if (mx < 0 || my < 0 || mx > rect.width || my > rect.height) {
+    mx = rect.width / 2;
+    my = rect.height / 2;
+  }
+  const wx = mapView.cx + (mx - rect.width / 2) / mapView.zoom;
+  const wz = mapView.cz + (my - rect.height / 2) / mapView.zoom;
+  mapView.zoom = Math.min(MAP_ZOOM_MAX, Math.max(MAP_ZOOM_MIN, mapView.zoom * factor));
+  mapView.cx = wx - (mx - rect.width / 2) / mapView.zoom;
+  mapView.cz = wz - (my - rect.height / 2) / mapView.zoom;
+  drawWorldMap();
+}
+
+function groundMapRgb(id, h) {
+  if (!id) return null;
+  if (id === LEAVES || id === LOG) return mapRgb(GRASS, Math.max(1, h - 5));
+  if (id === CACTUS) return mapRgb(SAND, h);
+  return mapRgb(id, h);
+}
+
+function drawWorldMap() {
+  if (!mapOpen()) return;
+  const rect = mapCanvas.getBoundingClientRect();
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  const w = Math.max(1, Math.floor(rect.width * dpr));
+  const h = Math.max(1, Math.floor(rect.height * dpr));
+  if (mapCanvas.width !== w || mapCanvas.height !== h) {
+    mapCanvas.width = w;
+    mapCanvas.height = h;
+  }
+  const ctx = mapCanvas.getContext('2d');
   ctx.imageSmoothingEnabled = false;
-  ctx.fillStyle = getTheme() === 'light' ? '#c5d4d0' : '#081012';
-  ctx.fillRect(0, 0, view, view);
+  const bg = getTheme() === 'light' ? [197, 212, 208] : [8, 16, 18];
+  const img = ctx.createImageData(w, h);
+  const data = img.data;
+  for (let i = 0; i < data.length; i += 4) {
+    data[i] = bg[0];
+    data[i + 1] = bg[1];
+    data[i + 2] = bg[2];
+    data[i + 3] = 255;
+  }
+
   if (!world || !world.map.size) {
+    ctx.putImageData(img, 0, 0);
     mapMeta.textContent = `0 ${t('mapChunks')}`;
     return;
   }
 
-  let minCx = Infinity;
-  let maxCx = -Infinity;
-  let minCz = Infinity;
-  let maxCz = -Infinity;
-  for (const key of world.map.keys()) {
-    const [cx, cz] = key.split(',').map(Number);
-    if (cx < minCx) minCx = cx;
-    if (cx > maxCx) maxCx = cx;
-    if (cz < minCz) minCz = cz;
-    if (cz > maxCz) maxCz = cz;
-  }
-  const blocksW = (maxCx - minCx + 1) * CHUNK;
-  const blocksH = (maxCz - minCz + 1) * CHUNK;
-  const scale = Math.max(1, Math.floor(view / Math.max(blocksW, blocksH)));
-  const usedW = blocksW * scale;
-  const usedH = blocksH * scale;
-  const ox = Math.floor((view - usedW) / 2);
-  const oz = Math.floor((view - usedH) / 2);
-  const originX = minCx * CHUNK;
-  const originZ = minCz * CHUNK;
+  const zoom = mapView.zoom * dpr;
+  const originX = mapView.cx - w / 2 / zoom;
+  const originZ = mapView.cz - h / 2 / zoom;
+  const minCx = Math.floor(originX) >> 4;
+  const maxCx = Math.floor(originX + w / zoom) >> 4;
+  const minCz = Math.floor(originZ) >> 4;
+  const maxCz = Math.floor(originZ + h / zoom) >> 4;
 
-  const img = ctx.createImageData(usedW, usedH);
-  const data = img.data;
-  for (const [key, buf] of world.map) {
-    const [cx, cz] = key.split(',').map(Number);
-    const bx = (cx - minCx) * CHUNK;
-    const bz = (cz - minCz) * CHUNK;
-    for (let lz = 0; lz < CHUNK; lz++) {
-      for (let lx = 0; lx < CHUNK; lx++) {
-        const i = (lz * CHUNK + lx) * 2;
-        const [r, g, b] = mapRgb(buf[i], buf[i + 1]);
-        for (let sy = 0; sy < scale; sy++) {
-          for (let sx = 0; sx < scale; sx++) {
-            const px = (bx + lx) * scale + sx;
-            const py = (bz + lz) * scale + sy;
-            const p = (py * usedW + px) * 4;
-            data[p] = r;
-            data[p + 1] = g;
-            data[p + 2] = b;
-            data[p + 3] = 255;
+  for (let cz = minCz; cz <= maxCz; cz++) {
+    for (let cx = minCx; cx <= maxCx; cx++) {
+      const buf = world.map.get(world.chunkKey(cx, cz));
+      if (!buf) continue;
+      const x0 = cx * CHUNK;
+      const z0 = cz * CHUNK;
+      for (let lz = 0; lz < CHUNK; lz++) {
+        for (let lx = 0; lx < CHUNK; lx++) {
+          const i = (lz * CHUNK + lx) * 2;
+          const rgb = groundMapRgb(buf[i], buf[i + 1]);
+          if (!rgb) continue;
+          const wx = x0 + lx;
+          const wz = z0 + lz;
+          const sx = Math.floor((wx - originX) * zoom);
+          const sy = Math.floor((wz - originZ) * zoom);
+          const ex = Math.max(sx + 1, Math.floor((wx + 1 - originX) * zoom));
+          const ey = Math.max(sy + 1, Math.floor((wz + 1 - originZ) * zoom));
+          const x1 = Math.max(0, sx);
+          const y1 = Math.max(0, sy);
+          const x2 = Math.min(w, ex);
+          const y2 = Math.min(h, ey);
+          const [r, g, b] = rgb;
+          for (let py = y1; py < y2; py++) {
+            let p = (py * w + x1) * 4;
+            for (let px = x1; px < x2; px++) {
+              data[p] = r;
+              data[p + 1] = g;
+              data[p + 2] = b;
+              data[p + 3] = 255;
+              p += 4;
+            }
           }
         }
       }
     }
   }
-  ctx.putImageData(img, ox, oz);
+  ctx.putImageData(img, 0, 0);
 
   if (player) {
-    const mx = ox + (player.pos.x - originX) * scale;
-    const mz = oz + (player.pos.z - originZ) * scale;
+    const mx = (player.pos.x - originX) * zoom;
+    const mz = (player.pos.z - originZ) * zoom;
+    const mark = Math.max(1.2, dpr);
     ctx.save();
     ctx.translate(mx, mz);
     ctx.rotate(-player.yaw);
+    ctx.scale(mark, mark);
     ctx.fillStyle = '#f4f7f6';
     ctx.strokeStyle = '#006056';
     ctx.lineWidth = 1.4;
@@ -687,10 +848,11 @@ function drawWorldMap() {
 function render(dt = 0.016) {
   if (!player) return;
   const { a, day } = dayFactor();
-  sun.position.set(Math.cos(a) * 90, Math.sin(a) * 90 + 8, 30);
-  sun.intensity = 0.15 + day * 0.95;
-  hemi.intensity = 0.2 + day * 0.4;
-  const sky = new THREE.Color().lerpColors(new THREE.Color(0x070b18), new THREE.Color(0x87b7e0), 0.15 + day * 0.85);
+  sun.position.set(Math.cos(a) * 90, Math.max(12, Math.sin(a) * 90 + 8), 30);
+  sun.intensity = 0.2 + day * 1.35;
+  hemi.intensity = 0.22 + day * 0.88;
+  ambient.intensity = 0.16 + day * 0.48;
+  const sky = new THREE.Color().lerpColors(new THREE.Color(0x070b18), new THREE.Color(0x9ecdf0), 0.12 + day * 0.88);
   scene.background.copy(sky);
   scene.fog.color.copy(sky);
 
