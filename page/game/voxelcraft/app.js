@@ -24,6 +24,7 @@ import {
   serializeFurnaces, loadFurnaces, COOK_SEC,
 } from './js/furnace.js';
 import { isDoorId, placeDoor, toggleDoor, removeDoor, serializeDoors, loadDoors } from './js/doors.js';
+import { tickLeafDecay, serializeLeafDecay, loadLeafDecay } from './js/leaves.js';
 
 const canvas = document.getElementById('view');
 const menuEl = document.getElementById('menu');
@@ -500,6 +501,11 @@ function tickFurnaces(dt) {
   paintFurnaceBars(f);
 }
 
+function tickDecay(dt) {
+  if (!world || !bundle) return;
+  if (tickLeafDecay(world, dt)) remeshDirty(world, bundle);
+}
+
 function paintFurnaceBars(f) {
   const cook = document.querySelector('#furnace-cook i');
   const burn = document.querySelector('#furnace-burn i');
@@ -789,6 +795,7 @@ async function loadFromSave(save) {
   world.loadTorchDir(save.torchDir);
   world.furnaces = loadFurnaces(save.furnaces);
   world.doors = loadDoors(save.doors);
+  world.leafDecay = loadLeafDecay(save.leafDecay);
   furnacePos = null;
   furnaceRow.hidden = true;
   world.loadMap(save.map);
@@ -831,6 +838,7 @@ function snapshot() {
     torchDir: world.torchDir,
     furnaces: serializeFurnaces(world.furnaces),
     doors: serializeDoors(world.doors),
+    leafDecay: serializeLeafDecay(world.leafDecay),
     player: {
       x: player.pos.x, y: player.pos.y, z: player.pos.z,
       yaw: player.yaw, pitch: player.pitch, health: player.health,
@@ -877,6 +885,7 @@ function loop(now) {
     if (isPlaying()) tick(dt);
     else if (player && world) {
       tickFurnaces(dt);
+      tickDecay(dt);
       if (furnacePos) {
         const d = Math.hypot(player.pos.x - furnacePos.x - 0.5, player.pos.y - furnacePos.y, player.pos.z - furnacePos.z - 0.5);
         if (d > 6) closeInv();
@@ -921,6 +930,7 @@ function tick(dt) {
   const night = hour >= 19 || hour < 6;
   const duskNight = hour >= 16 || hour < 6;
   tickFurnaces(dt);
+  tickDecay(dt);
   if (life) {
     const lifeCtx = {
       night,

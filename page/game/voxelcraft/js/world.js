@@ -5,6 +5,7 @@ import {
   isSolid, isOpaque, isDecor,
 } from './blocks.js';
 import { fbm2, fbm3, hash2, hash3 } from './noise.js';
+import { afterBlockChange } from './leaves.js';
 
 export const CHUNK = 16;
 export const HEIGHT = 64;
@@ -85,6 +86,7 @@ export class World {
     this.torchDir = {};
     this.furnaces = {};
     this.doors = {};
+    this.leafDecay = {};
   }
 
   chunkKey(cx, cz) {
@@ -151,6 +153,7 @@ export class World {
       }
     }
     this.recordMapColumn(x, z);
+    afterBlockChange(this, x, y, z, prev, id);
     return true;
   }
 
