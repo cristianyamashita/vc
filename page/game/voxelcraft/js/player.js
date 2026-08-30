@@ -78,13 +78,16 @@ export class Player {
     this.vel.x += (wish.x * speed - this.vel.x) * Math.min(1, accel * dt);
     this.vel.z += (wish.z * speed - this.vel.z) * Math.min(1, accel * dt);
 
+    const autoJump = this.sprint && this.onGround && this.shouldAutoJump(world, wish.x, wish.z);
+    const wantJump = !!input.jump || autoJump;
+
     if (this.inWater) {
-      this.vel.y += (input.jump ? 8 : -4) * dt;
+      this.vel.y += (wantJump ? 8 : -4) * dt;
       this.vel.y *= Math.pow(0.7, dt * 10);
       this.fallY = this.pos.y;
     } else {
       this.vel.y -= 28 * dt;
-      if (input.jump && this.onGround) {
+      if (wantJump && this.onGround) {
         this.vel.y = 8.4;
         this.onGround = false;
       }
@@ -107,7 +110,7 @@ export class Player {
     }
     this.moveAxis(world, 0, 0, this.vel.z * dt);
 
-    const drain = (this.sprint ? 0.16 : 0.07) * dt;
+    const drain = (this.sprint ? 0.16 : 0.07) * dt / 3;
     this.hunger = Math.max(0, this.hunger - drain);
     if (this.hunger <= 0) {
       this.starveAcc += dt;
@@ -128,6 +131,23 @@ export class Player {
     } else {
       this.regenAcc = 0;
     }
+  }
+
+  shouldAutoJump(world, wishX, wishZ) {
+    if (!wishX && !wishZ) return false;
+    return this.columnIsStep(world, wishX, wishZ, 0.75)
+      || this.columnIsStep(world, wishX, wishZ, 1.05);
+  }
+
+  columnIsStep(world, wishX, wishZ, dist) {
+    const bx = Math.floor(this.pos.x + wishX * dist);
+    const bz = Math.floor(this.pos.z + wishZ * dist);
+    const by = Math.floor(this.pos.y + 0.01);
+    if (bx === Math.floor(this.pos.x) && bz === Math.floor(this.pos.z)) return false;
+    if (!isSolid(world.get(bx, by, bz))) return false;
+    if (isSolid(world.get(bx, by + 1, bz))) return false;
+    if (isSolid(world.get(bx, by + 2, bz))) return false;
+    return true;
   }
 
   eat(amount, heal = 0) {
