@@ -15,6 +15,7 @@ export class Inventory {
   constructor() {
     this.slots = Array(INV_SIZE).fill(null);
     this.selected = 0;
+    this.offhand = null;
     this.cursor = null;
     this.craft2 = Array(4).fill(null);
     this.craft3 = Array(9).fill(null);
@@ -71,6 +72,22 @@ export class Inventory {
     return this.takeSelected(1);
   }
 
+  swapOffhand() {
+    const held = this.slots[this.selected];
+    this.slots[this.selected] = this.offhand;
+    this.offhand = held;
+  }
+
+  takeOffhand(n = 1) {
+    const s = this.offhand;
+    if (!s) return null;
+    const take = Math.min(n, s.n);
+    s.n -= take;
+    const out = { id: s.id, n: take, dura: s.dura };
+    if (s.n <= 0) this.offhand = null;
+    return out;
+  }
+
   canFit(stack) {
     if (!stack) return true;
     const copy = this.slots.map(cloneStack);
@@ -83,6 +100,7 @@ export class Inventory {
     return {
       slots: this.slots.map(cloneStack),
       selected: this.selected,
+      offhand: cloneStack(this.offhand),
     };
   }
 
@@ -91,6 +109,7 @@ export class Inventory {
     this.slots = Array(INV_SIZE).fill(null);
     for (let i = 0; i < INV_SIZE; i++) this.slots[i] = cloneStack(data.slots[i]);
     this.selected = Math.max(0, Math.min(8, data.selected || 0));
+    this.offhand = cloneStack(data.offhand);
   }
 
   returnCraft(grid) {

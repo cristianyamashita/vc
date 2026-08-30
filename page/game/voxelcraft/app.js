@@ -33,6 +33,7 @@ const breakBar = document.getElementById('break-bar');
 const blockLabel = document.getElementById('block-label');
 const heartsEl = document.getElementById('hearts');
 const hotbarEl = document.getElementById('hotbar');
+const offhandSlotEl = document.getElementById('offhand-slot');
 const coordsEl = document.getElementById('coords');
 const savePill = document.getElementById('save-pill');
 const cursorEl = document.getElementById('cursor-item');
@@ -197,6 +198,7 @@ document.addEventListener('pointerlockerror', () => {});
 
 window.addEventListener('keydown', (e) => {
   keys[e.code] = true;
+  if (e.code === 'ControlLeft' && isPlaying()) e.preventDefault();
   if (e.code === 'Escape') {
     if (invOpen()) closeInv();
     else if (menuEl.hidden && player?.health > 0) {
@@ -224,6 +226,12 @@ window.addEventListener('keydown', (e) => {
     inv.dropOne();
     refreshHud();
   }
+  if (e.code === 'KeyF' && player && player.health > 0 && (isPlaying() || invOpen())) {
+    e.preventDefault();
+    inv.swapOffhand();
+    refreshHud();
+    if (invOpen()) refreshInv();
+  }
   if (e.code.startsWith('Digit')) {
     const n = Number(e.code.slice(5));
     if (n >= 1 && n <= 9) {
@@ -233,11 +241,24 @@ window.addEventListener('keydown', (e) => {
   }
 });
 window.addEventListener('keyup', (e) => { keys[e.code] = false; });
+window.addEventListener('wheel', (e) => {
+  if (!player || invOpen() || !menuEl.hidden) return;
+  e.preventDefault();
+  const dir = e.deltaY > 0 ? 1 : -1;
+  inv.selected = (inv.selected + dir + HOTBAR) % HOTBAR;
+  refreshHud();
+}, { passive: false });
 
 hotbarEl.addEventListener('click', (e) => {
   const slot = e.target.closest('.slot');
   if (!slot) return;
   inv.selected = Number(slot.dataset.index);
+  refreshHud();
+});
+offhandSlotEl.addEventListener('click', (e) => {
+  e.stopPropagation();
+  if (!inv) return;
+  inv.swapOffhand();
   refreshHud();
 });
 
@@ -419,7 +440,7 @@ function loop(now) {
       const biome = t(biomeNameKey(world.biomeAt(player.pos.x, player.pos.z)));
       coordsEl.textContent = `${player.pos.x.toFixed(1)} ${player.pos.y.toFixed(1)} ${player.pos.z.toFixed(1)} · ${biome}`;
     }
-    render();
+    render(dt);
   } catch (err) {
     coordsEl.textContent = String(err && err.message ? err.message : err);
     console.error(err);
@@ -443,6 +464,7 @@ function tick(dt) {
     right: keys.KeyD || keys.ArrowRight,
     jump: keys.Space,
     sneak: keys.ShiftLeft || keys.ShiftRight,
+    sprint: keys.ControlLeft,
   };
   world.ensureAround(player.pos.x, player.pos.z, undefined, GEN_PER_TICK);
   player.update(dt, world, input);
@@ -468,6 +490,7 @@ function tick(dt) {
   const walking = input.forward || input.back || input.left || input.right;
   const mining = mouse.left && hit && BLOCKS[hit.id] && hit.id !== BEDROCK;
   arms.setHeld(inv.selectedStack()?.id || 0);
+  arms.setOffhand(inv.offhand?.id || 0);
   arms.update(dt, walking && player.onGround, mining);
 
   if (mining) {
@@ -517,7 +540,12 @@ function breakBlock(hit) {
 }
 
 function placeBlock(hit) {
-  const stack = inv.selectedStack();
+  let fromOff = false;
+  let stack = inv.selectedStack();
+  if (!stack || !isPlaceable(stack.id)) {
+    stack = inv.offhand;
+    fromOff = true;
+  }
   if (!stack || !isPlaceable(stack.id)) return;
   const px = hit.x + hit.nx;
   const py = hit.y + hit.ny;
@@ -528,7 +556,8 @@ function placeBlock(hit) {
   if (player.overlapsBlock(px, py, pz) && isSolid(stack.id)) return;
   if (stack.id === TORCH && !isSolid(world.get(hit.x, hit.y, hit.z))) return;
   world.set(px, py, pz, stack.id);
-  inv.takeSelected(1);
+  if (fromOff) inv.takeOffhand(1);
+  else inv.takeSelected(1);
   remeshDirty(world, bundle);
   refreshHud();
 }
@@ -655,7 +684,7 @@ function drawWorldMap() {
   mapMeta.textContent = `${world.map.size} ${t('mapChunks')}`;
 }
 
-function render() {
+function render(dt = 0.016) {
   if (!player) return;
   const { a, day } = dayFactor();
   sun.position.set(Math.cos(a) * 90, Math.sin(a) * 90 + 8, 30);
@@ -664,6 +693,10 @@ function render() {
   const sky = new THREE.Color().lerpColors(new THREE.Color(0x070b18), new THREE.Color(0x87b7e0), 0.15 + day * 0.85);
   scene.background.copy(sky);
   scene.fog.color.copy(sky);
+
+  const wantFov = player.sprint ? 82 : 75;
+  camera.fov += (wantFov - camera.fov) * Math.min(1, dt * 10);
+  camera.updateProjectionMatrix();
 
   player.applyLook(camera);
   const bg = scene.background;
@@ -733,6 +766,7 @@ function refreshHud() {
   hotbarEl.querySelectorAll('.slot').forEach((el, i) => {
     paintSlot(el, inv?.slots[i], inv && inv.selected === i);
   });
+  paintSlot(offhandSlotEl, inv?.offhand, false);
   refreshHearts();
 }
 
@@ -772,6 +806,14 @@ function handleSlotClick(el, right) {
   const list = el.dataset.list;
   if (!list) return;
   const index = Number(el.dataset.index);
+  if (list === 'off') {
+    const arr = [inv.offhand];
+    inv.cursor = clickSlot(arr, 0, inv.cursor, right);
+    inv.offhand = arr[0];
+    refreshInv();
+    refreshHud();
+    return;
+  }
   if (list === 'out2' || list === 'out3') {
     takeCraft(list === 'out3' ? 3 : 2, right);
     refreshInv();
@@ -802,6 +844,7 @@ function refreshInv() {
   };
   paintList(document.getElementById('inv-grid'), inv.slots, 9);
   paintList(document.getElementById('inv-hotbar'), inv.slots, 0);
+  paintSlot(document.getElementById('inv-offhand'), inv.offhand, false);
   paintList(document.getElementById('craft2-grid'), inv.craft2);
   paintList(document.getElementById('craft3-grid'), inv.craft3);
   const r2 = matchRecipe(inv.craft2, 2);

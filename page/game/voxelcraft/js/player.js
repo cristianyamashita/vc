@@ -17,6 +17,7 @@ export class Player {
     this.onGround = false;
     this.inWater = false;
     this.sneak = false;
+    this.sprint = false;
     this.health = 20;
     this.maxHealth = 20;
     this.fallY = null;
@@ -52,10 +53,10 @@ export class Player {
 
   update(dt, world, input) {
     this.hurtAcc = Math.max(0, this.hurtAcc - dt);
-    this.sneak = input.sneak && this.onGround && !this.inWater;
     const feet = world.get(Math.floor(this.pos.x), Math.floor(this.pos.y + 0.4), Math.floor(this.pos.z));
     const body = world.get(Math.floor(this.pos.x), Math.floor(this.pos.y + 1.1), Math.floor(this.pos.z));
     this.inWater = isLiquid(feet) || isLiquid(body);
+    this.sneak = input.sneak && this.onGround && !this.inWater;
 
     const wish = new THREE.Vector3();
     const s = Math.sin(this.yaw);
@@ -66,7 +67,9 @@ export class Player {
     if (input.right) wish.add(new THREE.Vector3(c, 0, -s));
     if (wish.lengthSq() > 0) wish.normalize();
 
-    let speed = this.sneak ? 2.2 : 4.4;
+    this.sprint = !!input.sprint && wish.lengthSq() > 0 && !this.sneak && !this.inWater;
+
+    let speed = this.sneak ? 2.2 : this.sprint ? 6.4 : 4.4;
     if (this.inWater) speed = 2.1;
     const accel = this.onGround ? 40 : 12;
     this.vel.x += (wish.x * speed - this.vel.x) * Math.min(1, accel * dt);

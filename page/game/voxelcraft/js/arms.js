@@ -18,10 +18,13 @@ export class Arms {
     this.right = this.makeArm(0.28, -0.28, -0.38, 1);
     this.left = this.makeArm(-0.34, -0.36, -0.48, -1);
     this.tool = new THREE.Group();
+    this.offTool = new THREE.Group();
     this.right.hand.add(this.tool);
+    this.left.hand.add(this.offTool);
     this.swing = 0;
     this.bob = 0;
     this.heldId = -1;
+    this.offId = -1;
   }
 
   makeArm(x, y, z, side) {
@@ -51,23 +54,35 @@ export class Arms {
   }
 
   setHeld(id) {
-    if (id === this.heldId) return;
-    this.heldId = id;
-    while (this.tool.children.length) {
-      const ch = this.tool.children[0];
-      this.tool.remove(ch);
+    this.heldId = this.mountHeld(this.tool, this.heldId, id, 1);
+  }
+
+  setOffhand(id) {
+    this.offId = this.mountHeld(this.offTool, this.offId, id, -1);
+  }
+
+  mountHeld(group, prev, id, side) {
+    if (id === prev) return prev;
+    while (group.children.length) {
+      const ch = group.children[0];
+      group.remove(ch);
       ch.traverse((o) => {
         o.geometry?.dispose();
         o.material?.dispose();
       });
     }
-    if (!id) return;
+    if (!id) return 0;
     const mesh = makeToolMesh(id);
     if (mesh) {
       mesh.layers.set(1);
       mesh.traverse((o) => o.layers.set(1));
-      this.tool.add(mesh);
+      if (side < 0) {
+        mesh.rotation.z *= -1;
+        mesh.position.x *= -1;
+      }
+      group.add(mesh);
     }
+    return id;
   }
 
   update(dt, walking, mining) {
@@ -77,7 +92,7 @@ export class Arms {
     const swingX = Math.sin((1 - this.swing) * Math.PI) * 1.1;
     this.right.group.rotation.x = 0.25 + swingX;
     this.right.group.rotation.y = -0.15 - this.swing * 0.4;
-    this.left.group.rotation.x = 0.45 + Math.sin(this.bob) * 0.04;
+    this.left.group.rotation.x = 0.45 + Math.sin(this.bob) * 0.04 - (this.offId ? 0.12 : 0);
     this.root.position.y = Math.sin(this.bob) * (walking ? 0.025 : 0.008);
     this.root.position.x = Math.cos(this.bob * 0.5) * (walking ? 0.01 : 0);
   }
