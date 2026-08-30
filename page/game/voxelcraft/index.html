@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <link rel="icon" href="../../assets/icons/ico/game-voxelcraft.ico" type="image/x-icon">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#008f7d">
+    <title>VoxelCraft</title>
+    <link rel="stylesheet" href="styles.css">
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.module.js"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+
+    <div id="hud">
+      <div id="crosshair" aria-hidden="true"></div>
+      <div id="break-bar" hidden><i></i></div>
+      <div id="block-label"></div>
+      <div id="hearts" aria-label="Health" data-i18n-aria="health"></div>
+      <div id="hotbar"></div>
+      <div id="coords"></div>
+      <div id="save-pill" data-i18n="saved">Saved</div>
+    </div>
+
+    <div id="cursor-item" hidden></div>
+
+    <div id="inv-overlay" hidden>
+      <div class="panel" id="inv-panel">
+        <header class="panel-head">
+          <h2 id="inv-title" data-i18n="inventory">Inventory</h2>
+          <div class="panel-actions">
+            <button type="button" class="text-btn" id="recipes-btn" data-i18n="recipes">Recipes</button>
+            <button type="button" class="text-btn" id="inv-close" data-i18n="close">Close</button>
+          </div>
+        </header>
+        <div class="craft-row" id="craft-2x2-row">
+          <div class="slot-grid grid-2" id="craft2-grid"></div>
+          <span class="craft-arrow">→</span>
+          <div class="slot result" id="craft2-out"></div>
+        </div>
+        <div class="craft-row" id="craft-3x3-row" hidden>
+          <div class="slot-grid grid-3" id="craft3-grid"></div>
+          <span class="craft-arrow">→</span>
+          <div class="slot result" id="craft3-out"></div>
+        </div>
+        <div class="slot-grid grid-9" id="inv-grid"></div>
+        <div class="slot-grid grid-9 hotbar-row" id="inv-hotbar"></div>
+      </div>
+      <div class="panel" id="recipe-book" hidden>
+        <header class="panel-head">
+          <h2 data-i18n="recipeBook">Recipe book</h2>
+          <button type="button" class="text-btn" id="recipes-hide" data-i18n="close">Close</button>
+        </header>
+        <p class="recipe-intro" data-i18n="recipeIntro">Place items in the craft grid to match the pattern. Tools need a placed crafting table (right-click it).</p>
+        <div id="recipe-list"></div>
+      </div>
+    </div>
+
+    <div id="menu" class="overlay">
+      <div class="menu-card">
+        <p class="eyebrow" data-i18n="tagline">A first-person voxel sandbox</p>
+        <h1 data-i18n="title">VoxelCraft</h1>
+        <p class="controls-help" data-i18n="controls">WASD move · Space jump · Shift sneak · E inventory · Q drop · 1–9 hotbar · LMB break · RMB place</p>
+        <div class="menu-actions">
+          <button type="button" class="primary" id="play-btn" data-i18n="clickToPlay">Click to play</button>
+          <button type="button" id="new-world-btn" data-i18n="newWorld">New world</button>
+        </div>
+        <div class="time-control">
+          <div class="time-head">
+            <label for="time-slider" data-i18n="timeOfDay">Time of day</label>
+            <span id="time-clock">12:00</span>
+          </div>
+          <input type="range" id="time-slider" min="0" max="479" step="1" value="120" aria-labelledby="time-clock">
+          <div class="time-presets">
+            <button type="button" data-tod="dawn" data-i18n="timeDawn">Dawn</button>
+            <button type="button" data-tod="noon" data-i18n="timeNoon">Noon</button>
+            <button type="button" data-tod="dusk" data-i18n="timeDusk">Dusk</button>
+            <button type="button" data-tod="night" data-i18n="timeNight">Night</button>
+          </div>
+        </div>
+        <div class="map-control">
+          <div class="time-head">
+            <span data-i18n="worldMap">Known world</span>
+            <span id="map-meta"></span>
+          </div>
+          <canvas id="world-map" width="256" height="256" data-i18n-aria="worldMap"></canvas>
+          <div class="map-legend">
+            <span><i class="swatch forest"></i><span data-i18n="biomeForest">Forest</span></span>
+            <span><i class="swatch desert"></i><span data-i18n="biomeDesert">Desert</span></span>
+            <span><i class="swatch mountain"></i><span data-i18n="biomeMountain">Mountains</span></span>
+            <span><i class="swatch water"></i><span data-i18n="blockWater">Water</span></span>
+          </div>
+        </div>
+        <div class="menu-toggles">
+          <button type="button" id="theme-btn" aria-label="Theme" data-i18n-aria="theme">☾</button>
+          <div class="lang-switch" aria-label="Language" data-i18n-aria="language">
+            <button type="button" data-lang="en">EN</button>
+            <button type="button" data-lang="pt">PT</button>
+            <button type="button" data-lang="ja">JP</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="death" class="overlay" hidden>
+      <div class="menu-card">
+        <h1 data-i18n="died">You died</h1>
+        <button type="button" class="primary" id="respawn-btn" data-i18n="respawn">Respawn</button>
+      </div>
+    </div>
+
+    <div id="loading" class="overlay">
+      <div class="menu-card">
+        <h1 data-i18n="title">VoxelCraft</h1>
+        <p data-i18n="loading">Generating world…</p>
+      </div>
+    </div>
+
+    <script type="module" src="app.js"></script>
+  </body>
+</html>

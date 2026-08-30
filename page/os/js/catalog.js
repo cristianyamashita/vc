@@ -1574,6 +1574,30 @@ window.OSCatalog = (function () {
     }
   },
   {
+    "id": "game-voxelcraft",
+    "href": "game/voxelcraft/index.html",
+    "icon": "../assets/icons/svg/game-voxelcraft.svg",
+    "kind": "site",
+    "uninstallable": true,
+    "defaultInstalled": false,
+    "channel": "stable",
+    "tag": {
+      "en": "Voxel Sandbox",
+      "pt": "Sandbox voxel",
+      "ja": "ボクセル"
+    },
+    "name": {
+      "en": "VoxelCraft",
+      "pt": "VoxelCraft",
+      "ja": "VoxelCraft"
+    },
+    "desc": {
+      "en": "First-person 3D sandbox: punch trees, craft tools, mine stone and ore, place blocks, and explore a voxel world with visible arms.",
+      "pt": "Sandbox 3D em primeira pessoa: quebre árvores, crie ferramentas, mine pedra e minério, coloque blocos e explore um mundo voxel com os braços visíveis.",
+      "ja": "一人称の3Dサンドボックス。木を切り、道具を作り、石と鉱石を掘り、ブロックを置いて、腕の見えるボクセル世界を探検します。"
+    }
+  },
+  {
     "id": "game-forex_sim",
     "href": "game/forex_sim.html",
     "icon": "../assets/icons/svg/game-forex_sim.svg",
