@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { initLang, setLang, t, applyI18n } from './js/i18n.js';
 import { initTheme, toggleTheme, getTheme } from './js/theme.js';
 import {
-  AIR, GRASS, SAND, LOG, LEAVES, TABLE, TORCH, BEDROCK, CACTUS, FURNACE, DOOR, DOOR_DOUBLE, ITEMS, BLOCKS,
+  AIR, GRASS, SAND, LOG, LEAVES, TABLE, TORCH, BEDROCK, CACTUS, FURNACE, DOOR, DOOR_DOUBLE, STAIRS, LADDER, ITEMS, BLOCKS,
   isPlaceable, isSolid, isFlower, isRug, mineSeconds, nameKey, stackMax,
   foodInfo, attackDamage,
 } from './js/blocks.js';
@@ -24,6 +24,7 @@ import {
   serializeFurnaces, loadFurnaces, COOK_SEC,
 } from './js/furnace.js';
 import { isDoorId, placeDoor, toggleDoor, removeDoor, serializeDoors, loadDoors } from './js/doors.js';
+import { placeStairs, placeLadder, serializeBlockDir } from './js/stairs.js';
 import { tickLeafDecay, serializeLeafDecay, loadLeafDecay } from './js/leaves.js';
 
 const canvas = document.getElementById('view');
@@ -47,6 +48,7 @@ const blockLabel = document.getElementById('block-label');
 const heartsEl = document.getElementById('hearts');
 const foodsEl = document.getElementById('foods');
 const sleepVeil = document.getElementById('sleep-veil');
+const hurtVeil = document.getElementById('hurt-veil');
 const hotbarEl = document.getElementById('hotbar');
 const offhandSlotEl = document.getElementById('offhand-slot');
 const coordsEl = document.getElementById('coords');
@@ -796,6 +798,7 @@ async function loadFromSave(save) {
   world.furnaces = loadFurnaces(save.furnaces);
   world.doors = loadDoors(save.doors);
   world.leafDecay = loadLeafDecay(save.leafDecay);
+  world.loadBlockDir(save.blockDir);
   furnacePos = null;
   furnaceRow.hidden = true;
   world.loadMap(save.map);
@@ -839,6 +842,7 @@ function snapshot() {
     furnaces: serializeFurnaces(world.furnaces),
     doors: serializeDoors(world.doors),
     leafDecay: serializeLeafDecay(world.leafDecay),
+    blockDir: serializeBlockDir(world.blockDir),
     player: {
       x: player.pos.x, y: player.pos.y, z: player.pos.z,
       yaw: player.yaw, pitch: player.pitch, health: player.health,
@@ -940,6 +944,10 @@ function tick(dt) {
       hitPlayer: false,
     };
     life.update(dt, world, player, lifeCtx);
+    if (lifeCtx.hitPlayer) {
+      player.pitch = Math.max(player.pitch - 0.06, -Math.PI / 2 + 0.04);
+      player.yaw += (Math.random() - 0.5) * 0.1;
+    }
   }
 
   if (player.health <= 0) {
@@ -1130,6 +1138,23 @@ function placeBlock(hit) {
   if ((isFlower(stack.id) || isRug(stack.id)) && !isSolid(world.get(px, py - 1, pz))) return;
   if (stack.id === DOOR || stack.id === DOOR_DOUBLE) {
     if (!placeDoor(world, px, py, pz, player.yaw, stack.id === DOOR_DOUBLE, player)) return;
+    if (fromOff) inv.takeOffhand(1);
+    else inv.takeSelected(1);
+    remeshDirty(world, bundle);
+    refreshHud();
+    return;
+  }
+  if (stack.id === STAIRS) {
+    if (player.overlapsBlock(px, py, pz)) return;
+    if (!placeStairs(world, px, py, pz, player.yaw)) return;
+    if (fromOff) inv.takeOffhand(1);
+    else inv.takeSelected(1);
+    remeshDirty(world, bundle);
+    refreshHud();
+    return;
+  }
+  if (stack.id === LADDER) {
+    if (!placeLadder(world, px, py, pz, hit.nx, hit.ny, hit.nz)) return;
     if (fromOff) inv.takeOffhand(1);
     else inv.takeSelected(1);
     remeshDirty(world, bundle);
@@ -1391,6 +1416,18 @@ function syncTorchLights() {
   setWorldLight(bundle, dayFactor().day, camera.position, holding);
 }
 
+function syncHurtVeil() {
+  if (!hurtVeil) return;
+  const flash = player && player.health > 0 ? Math.min(1, player.hurtAcc / 1.15) : 0;
+  if (flash <= 0.02) {
+    hurtVeil.hidden = true;
+    hurtVeil.style.opacity = '0';
+    return;
+  }
+  hurtVeil.hidden = false;
+  hurtVeil.style.opacity = String(flash);
+}
+
 function render(dt = 0.016) {
   if (!player) return;
   const { a, day } = dayFactor();
@@ -1399,8 +1436,13 @@ function render(dt = 0.016) {
   hemi.intensity = 0.22 + day * 0.88;
   ambient.intensity = 0.16 + day * 0.48;
   const sky = new THREE.Color().lerpColors(new THREE.Color(0x070b18), new THREE.Color(0x9ecdf0), 0.12 + day * 0.88);
+  if (player.hurtAcc > 0 && player.health > 0) {
+    const k = Math.min(1, player.hurtAcc / 1.15) * 0.42;
+    sky.lerp(new THREE.Color(0xb01010), k);
+  }
   scene.background.copy(sky);
   scene.fog.color.copy(sky);
+  syncHurtVeil();
 
   const wantFov = player.sprint ? 82 : 75;
   camera.fov += (wantFov - camera.fov) * Math.min(1, dt * 10);

@@ -2,6 +2,7 @@ import {
   AIR, GRASS, DIRT, STONE, COBBLE, SAND, WATER, LOG, LEAVES, PLANKS,
   COAL_ORE, IRON_ORE, TABLE, TORCH, BEDROCK, CACTUS,
   FLOWER_RED, FLOWER_YELLOW, FLOWER_WHITE, FRUIT_HANG, FURNACE, DOOR, DOOR_OPEN,
+  STAIRS, LADDER,
   isSolid, isOpaque, isDecor,
 } from './blocks.js';
 import { fbm2, fbm3, hash2, hash3 } from './noise.js';
@@ -56,6 +57,7 @@ const MAP_RGB = {
   [LOG]: [110, 75, 40],
   [LEAVES]: [45, 130, 40],
   [PLANKS]: [175, 140, 80],
+  [STAIRS]: [175, 140, 80],
   [COAL_ORE]: [72, 72, 76],
   [IRON_ORE]: [168, 150, 132],
   [TABLE]: [160, 110, 55],
@@ -87,6 +89,7 @@ export class World {
     this.furnaces = {};
     this.doors = {};
     this.leafDecay = {};
+    this.blockDir = {};
   }
 
   chunkKey(cx, cz) {
@@ -143,6 +146,9 @@ export class World {
     if ((prev === DOOR || prev === DOOR_OPEN) && id !== DOOR && id !== DOOR_OPEN) {
       delete this.doors[`${x},${y},${z}`];
     }
+    if ((prev === STAIRS || prev === LADDER) && id !== prev) {
+      delete this.blockDir[`${x},${y},${z}`];
+    }
     if (prev === TORCH || id === TORCH || isOpaque(prev) !== isOpaque(id)) {
       const ccx = x >> 4;
       const ccz = z >> 4;
@@ -179,6 +185,19 @@ export class World {
     if (this.isSolidAt(x, y, z + 1)) return TORCH_PZ;
     if (this.isSolidAt(x, y, z - 1)) return TORCH_NZ;
     return TORCH_FLOOR;
+  }
+
+  setBlockDir(x, y, z, facing) {
+    this.blockDir[`${Math.floor(x)},${Math.floor(y)},${Math.floor(z)}`] = facing;
+  }
+
+  blockFacing(x, y, z) {
+    const stored = this.blockDir[`${Math.floor(x)},${Math.floor(y)},${Math.floor(z)}`];
+    return stored == null ? 0 : stored;
+  }
+
+  loadBlockDir(data) {
+    this.blockDir = data && typeof data === 'object' ? { ...data } : {};
   }
 
   nearbyTorches(px, py, pz, maxDist = 28) {

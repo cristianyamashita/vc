@@ -52,6 +52,8 @@ export const DOOR_UPPER = 47;
 export const DOOR_OPEN = 48;
 export const DOOR_UPPER_OPEN = 49;
 export const DOOR_DOUBLE = 50;
+export const STAIRS = 51;
+export const LADDER = 52;
 
 export const BLOCKS = {
   [GRASS]: {
@@ -337,6 +339,30 @@ export const BLOCKS = {
     drops: [],
     tiles: { all: 'door_upper' },
   },
+  [STAIRS]: {
+    nameKey: 'blockStairs',
+    solid: true,
+    opaque: false,
+    stair: true,
+    hardness: 2,
+    tool: 'axe',
+    minTier: 0,
+    drops: [{ id: STAIRS, n: 1 }],
+    tiles: { all: 'planks' },
+    icon: 'stairs',
+  },
+  [LADDER]: {
+    nameKey: 'blockLadder',
+    solid: false,
+    opaque: false,
+    ladder: true,
+    hardness: 0.4,
+    tool: 'axe',
+    minTier: 0,
+    drops: [{ id: LADDER, n: 1 }],
+    tiles: { all: 'ladder' },
+    icon: 'ladder',
+  },
 };
 
 export const ITEMS = {
@@ -408,7 +434,7 @@ export function isFruitHang(id) {
 }
 
 export function isDecor(id) {
-  return id === TORCH || isPlant(id) || isRug(id) || isFruitHang(id) || !!BLOCKS[id]?.door;
+  return id === TORCH || id === LADDER || isPlant(id) || isRug(id) || isFruitHang(id) || !!BLOCKS[id]?.door;
 }
 
 export function foodInfo(stack) {

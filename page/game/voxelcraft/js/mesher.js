@@ -1,8 +1,9 @@
 import * as THREE from 'three';
-import { AIR, WATER, TORCH, isOpaque, isDecor, isPlant, isRug, isFruitHang, tileName } from './blocks.js';
+import { AIR, WATER, TORCH, STAIRS, LADDER, isOpaque, isDecor, isPlant, isRug, isFruitHang, tileName } from './blocks.js';
 import { CHUNK, HEIGHT, VIEW_RADIUS, UNLOAD_RADIUS, TORCH_FLOOR, TORCH_PX, TORCH_NX, TORCH_PZ, TORCH_NZ } from './world.js';
 import { tileUV } from './textures.js';
 import { isDoorId, isDoorBottom, isDoorOpenId, doorKey, doorSlab } from './doors.js';
+import { stairBoxes, FACE_PZ, FACE_PX, FACE_NZ, FACE_NX } from './stairs.js';
 
 const FACES = [
   { dir: [1, 0, 0], corners: [[1, 0, 0], [1, 1, 0], [1, 1, 1], [1, 0, 1]], shade: 0.6, key: 'px' },
@@ -155,6 +156,72 @@ function pushRug(buf, x, y, z, tile) {
   }
 }
 
+function pushBox(buf, x, y, z, box, uv, torch) {
+  const { x0, y0, z0, x1, y1, z1 } = box;
+  const faces = [
+    { corners: [[x0, y0, z1], [x0, y1, z1], [x1, y1, z1], [x1, y0, z1]], n: [0, 0, 1], shade: 0.8 },
+    { corners: [[x1, y0, z0], [x1, y1, z0], [x0, y1, z0], [x0, y0, z0]], n: [0, 0, -1], shade: 0.8 },
+    { corners: [[x0, y0, z0], [x0, y1, z0], [x0, y1, z1], [x0, y0, z1]], n: [-1, 0, 0], shade: 0.6 },
+    { corners: [[x1, y0, z1], [x1, y1, z1], [x1, y1, z0], [x1, y0, z0]], n: [1, 0, 0], shade: 0.6 },
+    { corners: [[x0, y1, z1], [x0, y1, z0], [x1, y1, z0], [x1, y1, z1]], n: [0, 1, 0], shade: 1 },
+    { corners: [[x0, y0, z0], [x0, y0, z1], [x1, y0, z1], [x1, y0, z0]], n: [0, -1, 0], shade: 0.45 },
+  ];
+  for (const f of faces) {
+    const base = buf.positions.length / 3;
+    for (const p of f.corners) {
+      buf.positions.push(x + p[0], y + p[1], z + p[2]);
+      buf.normals.push(f.n[0], f.n[1], f.n[2]);
+      buf.colors.push(f.shade, torch, 0);
+    }
+    buf.uvs.push(uv.u0, uv.v0, uv.u0, uv.v1, uv.u1, uv.v1, uv.u1, uv.v0);
+    buf.indices.push(base, base + 2, base + 1, base, base + 3, base + 2);
+  }
+}
+
+function pushStairs(buf, world, x, y, z, torch) {
+  const uv = tileUV('planks');
+  for (const box of stairBoxes(world.blockFacing(x, y, z))) {
+    pushBox(buf, x, y, z, box, uv, torch);
+  }
+}
+
+function pushLadder(buf, x, y, z, facing) {
+  const uv = tileUV('ladder');
+  const t = 0.08;
+  let faces;
+  if (facing === FACE_NZ) {
+    faces = [
+      { corners: [[0, 0, t], [0, 1, t], [1, 1, t], [1, 0, t]], n: [0, 0, 1] },
+      { corners: [[1, 0, t], [1, 1, t], [0, 1, t], [0, 0, t]], n: [0, 0, -1] },
+    ];
+  } else if (facing === FACE_PZ) {
+    faces = [
+      { corners: [[1, 0, 1 - t], [1, 1, 1 - t], [0, 1, 1 - t], [0, 0, 1 - t]], n: [0, 0, -1] },
+      { corners: [[0, 0, 1 - t], [0, 1, 1 - t], [1, 1, 1 - t], [1, 0, 1 - t]], n: [0, 0, 1] },
+    ];
+  } else if (facing === FACE_NX) {
+    faces = [
+      { corners: [[t, 0, 1], [t, 1, 1], [t, 1, 0], [t, 0, 0]], n: [1, 0, 0] },
+      { corners: [[t, 0, 0], [t, 1, 0], [t, 1, 1], [t, 0, 1]], n: [-1, 0, 0] },
+    ];
+  } else {
+    faces = [
+      { corners: [[1 - t, 0, 0], [1 - t, 1, 0], [1 - t, 1, 1], [1 - t, 0, 1]], n: [-1, 0, 0] },
+      { corners: [[1 - t, 0, 1], [1 - t, 1, 1], [1 - t, 1, 0], [1 - t, 0, 0]], n: [1, 0, 0] },
+    ];
+  }
+  for (const f of faces) {
+    const base = buf.positions.length / 3;
+    for (const p of f.corners) {
+      buf.positions.push(x + p[0], y + p[1], z + p[2]);
+      buf.normals.push(f.n[0], f.n[1], f.n[2]);
+      buf.colors.push(1, 0, 0);
+    }
+    buf.uvs.push(uv.u0, uv.v0, uv.u0, uv.v1, uv.u1, uv.v1, uv.u1, uv.v0);
+    buf.indices.push(base, base + 2, base + 1, base, base + 3, base + 2);
+  }
+}
+
 function pushDoor(buf, world, x, y, z, id) {
   const bottomY = isDoorBottom(id) ? y : y - 1;
   const meta = (world.doors || {})[doorKey(x, bottomY, z)] || { facing: 0, hinge: 0 };
@@ -297,6 +364,14 @@ export function meshChunk(world, cx, cz) {
         }
         if (isDoorId(id)) {
           pushDoor(solid, world, x, y, z, id);
+          continue;
+        }
+        if (id === STAIRS) {
+          pushStairs(solid, world, x, y, z, blockTorch(field, x, y, z));
+          continue;
+        }
+        if (id === LADDER) {
+          pushLadder(solid, x, y, z, world.blockFacing(x, y, z));
           continue;
         }
         const buf = id === WATER ? water : solid;

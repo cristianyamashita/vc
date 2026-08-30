@@ -1,6 +1,7 @@
 import * as THREE from 'three';
-import { AIR, WATER, isSolid, isLiquid } from './blocks.js';
+import { AIR, WATER, STAIRS, LADDER, isSolid, isLiquid } from './blocks.js';
 import { HEIGHT } from './world.js';
+import { solidBoxes, aabbHitsBox } from './stairs.js';
 
 const WIDTH = 0.6;
 const HEIGHT_STAND = 1.8;
@@ -18,6 +19,7 @@ export class Player {
     this.inWater = false;
     this.sneak = false;
     this.sprint = false;
+    this.onLadder = false;
     this.health = 20;
     this.maxHealth = 20;
     this.hunger = 20;
@@ -59,7 +61,8 @@ export class Player {
     const feet = world.get(Math.floor(this.pos.x), Math.floor(this.pos.y + 0.4), Math.floor(this.pos.z));
     const body = world.get(Math.floor(this.pos.x), Math.floor(this.pos.y + 1.1), Math.floor(this.pos.z));
     this.inWater = isLiquid(feet) || isLiquid(body);
-    this.sneak = input.sneak && this.onGround && !this.inWater;
+    this.onLadder = this.touchingLadder(world);
+    this.sneak = input.sneak && this.onGround && !this.inWater && !this.onLadder;
 
     const wish = new THREE.Vector3();
     const s = Math.sin(this.yaw);
@@ -70,18 +73,24 @@ export class Player {
     if (input.right) wish.add(new THREE.Vector3(c, 0, -s));
     if (wish.lengthSq() > 0) wish.normalize();
 
-    this.sprint = !!input.sprint && wish.lengthSq() > 0 && !this.sneak && !this.inWater && this.hunger >= 6;
+    this.sprint = !!input.sprint && wish.lengthSq() > 0 && !this.sneak && !this.inWater && !this.onLadder && this.hunger >= 6;
 
     let speed = this.sneak ? 2.2 : this.sprint ? 6.4 : 4.4;
     if (this.inWater) speed = 2.1;
-    const accel = this.onGround ? 40 : 12;
+    if (this.onLadder) speed = 2.6;
+    const accel = this.onGround || this.onLadder ? 40 : 12;
     this.vel.x += (wish.x * speed - this.vel.x) * Math.min(1, accel * dt);
     this.vel.z += (wish.z * speed - this.vel.z) * Math.min(1, accel * dt);
 
-    const autoJump = this.sprint && this.onGround && this.shouldAutoJump(world, wish.x, wish.z);
+    const autoJump = this.sprint && this.onGround && !this.onLadder && this.shouldAutoJump(world, wish.x, wish.z);
     const wantJump = !!input.jump || autoJump;
 
-    if (this.inWater) {
+    if (this.onLadder && !this.inWater) {
+      this.fallY = this.pos.y;
+      if (input.sneak && !input.jump) this.vel.y = 0;
+      else if (input.jump || (wish.lengthSq() > 0 && !input.sneak)) this.vel.y = 4.4;
+      else this.vel.y = -2.2;
+    } else if (this.inWater) {
       this.vel.y += (wantJump ? 8 : -4) * dt;
       this.vel.y *= Math.pow(0.7, dt * 10);
       this.fallY = this.pos.y;
@@ -144,7 +153,9 @@ export class Player {
     const bz = Math.floor(this.pos.z + wishZ * dist);
     const by = Math.floor(this.pos.y + 0.01);
     if (bx === Math.floor(this.pos.x) && bz === Math.floor(this.pos.z)) return false;
-    if (!isSolid(world.get(bx, by, bz))) return false;
+    const id = world.get(bx, by, bz);
+    if (id === STAIRS || id === LADDER) return false;
+    if (!isSolid(id)) return false;
     if (isSolid(world.get(bx, by + 1, bz))) return false;
     if (isSolid(world.get(bx, by + 2, bz))) return false;
     return true;
@@ -162,7 +173,7 @@ export class Player {
   hurt(amount) {
     if (amount <= 0) return;
     this.health = Math.max(0, this.health - amount);
-    this.hurtAcc = 0.8;
+    this.hurtAcc = 1.15;
   }
 
   respawn() {
@@ -173,6 +184,25 @@ export class Player {
     this.starveAcc = 0;
     this.fallY = this.pos.y;
     this.pitch = 0.28;
+  }
+
+  touchingLadder(world) {
+    const h = this.bodyHeight();
+    const w = WIDTH * 0.5;
+    const x0 = Math.floor(this.pos.x - w);
+    const x1 = Math.floor(this.pos.x + w - 1e-6);
+    const y0 = Math.floor(this.pos.y);
+    const y1 = Math.floor(this.pos.y + h - 1e-6);
+    const z0 = Math.floor(this.pos.z - w);
+    const z1 = Math.floor(this.pos.z + w - 1e-6);
+    for (let y = y0; y <= y1; y++) {
+      for (let z = z0; z <= z1; z++) {
+        for (let x = x0; x <= x1; x++) {
+          if (world.get(x, y, z) === LADDER) return true;
+        }
+      }
+    }
+    return false;
   }
 
   overlaps(world, ox = 0, oy = 0, oz = 0) {
@@ -193,7 +223,9 @@ export class Player {
     for (let y = y0; y <= y1; y++) {
       for (let z = z0; z <= z1; z++) {
         for (let x = x0; x <= x1; x++) {
-          if (isSolid(world.get(x, y, z))) return true;
+          for (const box of solidBoxes(world, x, y, z)) {
+            if (aabbHitsBox(minX, minY, minZ, maxX, maxY, maxZ, x, y, z, box)) return true;
+          }
         }
       }
     }

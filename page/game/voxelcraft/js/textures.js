@@ -35,6 +35,7 @@ const TILE_INDEX = {
   furnace_side: 26,
   door_lower: 27,
   door_upper: 28,
+  ladder: 29,
 };
 
 function clamp(n, a, b) {
@@ -273,6 +274,18 @@ function drawTile(name) {
         else put(d, x, y, 140, 190, 210);
       }
     }
+  } else if (name === 'ladder') {
+    const rail = [118, 78, 38];
+    const rung = [168, 118, 58];
+    for (let y = 0; y < TILE; y++) {
+      put(d, 2, y, rail[0], rail[1], rail[2]);
+      put(d, 3, y, rail[0] + 16, rail[1] + 10, rail[2]);
+      put(d, 12, y, rail[0] + 16, rail[1] + 10, rail[2]);
+      put(d, 13, y, rail[0], rail[1], rail[2]);
+    }
+    for (const ry of [2, 6, 10, 14]) {
+      for (let x = 2; x <= 13; x++) put(d, x, ry, rung[0], rung[1], rung[2]);
+    }
   } else {
     fillNoise(d, [200, 0, 200], 10, rng);
   }
@@ -417,6 +430,21 @@ function drawItemIcon(kind) {
     g.fillStyle = '#8ec4d8';
     g.fillRect(7, 6, 5, 5);
     g.fillRect(20, 6, 5, 5);
+  } else if (kind === 'stairs') {
+    g.fillStyle = '#c48a48';
+    g.fillRect(4, 20, 24, 8);
+    g.fillRect(16, 12, 12, 8);
+    g.fillStyle = '#8a5a28';
+    g.fillRect(4, 20, 24, 2);
+    g.fillRect(16, 12, 12, 2);
+  } else if (kind === 'ladder') {
+    g.fillStyle = '#8a5a28';
+    g.fillRect(8, 2, 3, 28);
+    g.fillRect(21, 2, 3, 28);
+    g.fillStyle = '#c48a48';
+    g.fillRect(8, 6, 16, 3);
+    g.fillRect(8, 14, 16, 3);
+    g.fillRect(8, 22, 16, 3);
   }
   return c.toDataURL();
 }
@@ -449,7 +477,7 @@ export function createAtlas() {
     'sword_wood', 'sword_stone', 'sword_iron',
     'meat_raw', 'meat_cooked', 'fruit', 'fruit_cooked',
     'hide_cow', 'hide_zebra', 'hide_sheep',
-    'door', 'door_double',
+    'door', 'door_double', 'stairs', 'ladder',
   ];
   for (const kind of itemKinds) icons[kind] = drawItemIcon(kind);
 
@@ -474,6 +502,7 @@ export function itemIcon(id, atlas) {
   if (item?.icon && atlas.icons[item.icon]) return atlas.icons[item.icon];
   if (isBlock(id)) {
     const b = BLOCKS[id];
+    if (b.icon && atlas.icons[b.icon]) return atlas.icons[b.icon];
     const tile = b.tiles.top || b.tiles.all || b.tiles.side;
     return atlas.icons[tile] || '';
   }

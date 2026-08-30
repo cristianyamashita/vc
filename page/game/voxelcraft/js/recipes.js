@@ -5,7 +5,7 @@ import {
   IRON_PICK, IRON_AXE, IRON_SHOVEL, IRON_SWORD,
   HIDE_COW, HIDE_ZEBRA, HIDE_SHEEP,
   RUG_COW, RUG_ZEBRA, RUG_SHEEP,
-  DOOR, DOOR_DOUBLE,
+  DOOR, DOOR_DOUBLE, STAIRS, LADDER,
 } from './blocks.js';
 
 function cell(id) {
@@ -119,6 +119,24 @@ RECIPES.push({
 
 RECIPES.push({ shapeless: [DOOR, DOOR], out: { id: DOOR_DOUBLE, n: 1 } });
 
+RECIPES.push({
+  pattern: [
+    [PLANKS, 0, 0],
+    [PLANKS, PLANKS, 0],
+    [PLANKS, PLANKS, PLANKS],
+  ],
+  out: { id: STAIRS, n: 4 },
+});
+
+RECIPES.push({
+  pattern: [
+    [STICK, 0, STICK],
+    [STICK, STICK, STICK],
+    [STICK, 0, STICK],
+  ],
+  out: { id: LADDER, n: 3 },
+});
+
 /** Sentinel for the variable material cell in the recipe book. */
 export const MAT = -1;
 
@@ -195,6 +213,29 @@ export const RECIPE_GUIDE = [
     titleKey: 'recipeDoor',
   },
   { shapeless: [DOOR, DOOR], out: { id: DOOR_DOUBLE, n: 1 }, size: 2, titleKey: 'recipeDoorDouble' },
+  {
+    pattern: [
+      [PLANKS, 0, 0],
+      [PLANKS, PLANKS, 0],
+      [PLANKS, PLANKS, PLANKS],
+    ],
+    out: { id: STAIRS, n: 4 },
+    size: 3,
+    table: true,
+    mirror: true,
+    titleKey: 'recipeStairs',
+  },
+  {
+    pattern: [
+      [STICK, 0, STICK],
+      [STICK, STICK, STICK],
+      [STICK, 0, STICK],
+    ],
+    out: { id: LADDER, n: 3 },
+    size: 3,
+    table: true,
+    titleKey: 'recipeLadder',
+  },
   { shapeless: [HIDE_COW], out: { id: RUG_COW, n: 1 }, size: 2 },
   { shapeless: [HIDE_ZEBRA], out: { id: RUG_ZEBRA, n: 1 }, size: 2 },
   { shapeless: [HIDE_SHEEP, HIDE_SHEEP], out: { id: RUG_SHEEP, n: 1 }, size: 2 },
