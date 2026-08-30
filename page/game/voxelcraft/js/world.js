@@ -1,6 +1,6 @@
 import {
   AIR, GRASS, DIRT, STONE, COBBLE, SAND, WATER, LOG, LEAVES, PLANKS,
-  COAL_ORE, IRON_ORE, TABLE, TORCH, BEDROCK, CACTUS, isSolid,
+  COAL_ORE, IRON_ORE, TABLE, TORCH, BEDROCK, CACTUS, isSolid, isOpaque,
 } from './blocks.js';
 import { fbm2, fbm3, hash2, hash3 } from './noise.js';
 
@@ -14,6 +14,28 @@ export const WATER_LEVEL = 28;
 export const BIOME_FOREST = 0;
 export const BIOME_DESERT = 1;
 export const BIOME_MOUNTAIN = 2;
+
+export const TORCH_FLOOR = 0;
+export const TORCH_PX = 1;
+export const TORCH_NX = 2;
+export const TORCH_PZ = 3;
+export const TORCH_NZ = 4;
+
+export function torchFacingFromHit(nx, ny, nz) {
+  if (nx === 1) return TORCH_NX;
+  if (nx === -1) return TORCH_PX;
+  if (nz === 1) return TORCH_NZ;
+  if (nz === -1) return TORCH_PZ;
+  return TORCH_FLOOR;
+}
+
+export function torchFlamePos(x, y, z, facing) {
+  if (facing === TORCH_PX) return [x + 0.68, y + 0.78, z + 0.5];
+  if (facing === TORCH_NX) return [x + 0.32, y + 0.78, z + 0.5];
+  if (facing === TORCH_PZ) return [x + 0.5, y + 0.78, z + 0.68];
+  if (facing === TORCH_NZ) return [x + 0.5, y + 0.78, z + 0.32];
+  return [x + 0.5, y + 0.78, z + 0.5];
+}
 
 export function biomeNameKey(id) {
   if (id === BIOME_DESERT) return 'biomeDesert';
@@ -52,6 +74,7 @@ export class World {
     this.edits = {};
     this.pending = new Map();
     this.map = new Map();
+    this.torchDir = {};
   }
 
   chunkKey(cx, cz) {
@@ -99,9 +122,20 @@ export class World {
     const chunk = this.chunks.get(this.chunkKey(cx, cz));
     const i = this.idx(x & 15, y, z & 15);
     if (chunk[i] === id) return false;
+    const prev = chunk[i];
     chunk[i] = id;
     this.markDirty(x, z);
     if (record) this.edits[`${x},${y},${z}`] = id;
+    if (prev === TORCH && id !== TORCH) delete this.torchDir[`${x},${y},${z}`];
+    if (prev === TORCH || id === TORCH || isOpaque(prev) !== isOpaque(id)) {
+      const ccx = x >> 4;
+      const ccz = z >> 4;
+      for (let dz = -1; dz <= 1; dz++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          this.dirty.add(this.chunkKey(ccx + dx, ccz + dz));
+        }
+      }
+    }
     this.recordMapColumn(x, z);
     return true;
   }
@@ -109,6 +143,41 @@ export class World {
   setLocal(chunk, x, y, z, id) {
     if (y < 0 || y >= HEIGHT) return;
     chunk[this.idx(x & 15, y, z & 15)] = id;
+  }
+
+  setTorchFacing(x, y, z, facing) {
+    this.torchDir[`${Math.floor(x)},${Math.floor(y)},${Math.floor(z)}`] = facing;
+  }
+
+  loadTorchDir(data) {
+    this.torchDir = data && typeof data === 'object' ? { ...data } : {};
+  }
+
+  torchFacing(x, y, z) {
+    const stored = this.torchDir[`${x},${y},${z}`];
+    if (stored != null) return stored;
+    if (this.isSolidAt(x, y - 1, z)) return TORCH_FLOOR;
+    if (this.isSolidAt(x + 1, y, z)) return TORCH_PX;
+    if (this.isSolidAt(x - 1, y, z)) return TORCH_NX;
+    if (this.isSolidAt(x, y, z + 1)) return TORCH_PZ;
+    if (this.isSolidAt(x, y, z - 1)) return TORCH_NZ;
+    return TORCH_FLOOR;
+  }
+
+  nearbyTorches(px, py, pz, maxDist = 28) {
+    const d2 = maxDist * maxDist;
+    const out = [];
+    for (const [key, id] of Object.entries(this.edits)) {
+      if (id !== TORCH) continue;
+      const [x, y, z] = key.split(',').map(Number);
+      const dx = x + 0.5 - px;
+      const dy = y + 0.5 - py;
+      const dz = z + 0.5 - pz;
+      const dist = dx * dx + dy * dy + dz * dz;
+      if (dist <= d2) out.push({ x, y, z, dist, facing: this.torchFacing(x, y, z) });
+    }
+    out.sort((a, b) => a.dist - b.dist);
+    return out;
   }
 
   isSolidAt(x, y, z) {

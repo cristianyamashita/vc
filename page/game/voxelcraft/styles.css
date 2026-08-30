@@ -127,9 +127,10 @@ body { font-family: "Segoe UI", "Hiragino Sans", sans-serif; color: var(--ink); 
 #hotbar {
   display: flex;
   gap: 3px;
-  padding: 4px;
+  padding: 12px 8px 6px;
   background: #0006;
-  border-radius: 6px;
+  border-radius: 8px;
+  align-items: flex-end;
 }
 
 #coords {
@@ -163,7 +164,44 @@ body { font-family: "Segoe UI", "Hiragino Sans", sans-serif; color: var(--ink); 
   image-rendering: pixelated;
 }
 
-.slot.selected { border-color: var(--slot-sel); box-shadow: 0 0 0 1px var(--slot-sel); }
+.slot.selected {
+  border-color: #fff;
+  border-width: 3px;
+  box-shadow:
+    0 0 0 3px var(--accent),
+    0 0 0 6px #fff,
+    0 0 16px #008f7dcc;
+  transform: translateY(-4px);
+  z-index: 2;
+}
+.slot.selected::after {
+  content: "";
+  position: absolute;
+  top: -10px;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border: 6px solid transparent;
+  border-bottom-color: var(--accent);
+  transform: translateX(-50%);
+  filter: drop-shadow(0 1px 0 #fff);
+  pointer-events: none;
+}
+#hotbar .slot.selected {
+  width: 52px;
+  height: 52px;
+  background-size: 34px 34px;
+}
+[data-theme="light"] .slot.selected {
+  border-color: var(--accent-dark);
+  box-shadow:
+    0 0 0 3px #fff,
+    0 0 0 6px var(--accent),
+    0 4px 14px #00605699;
+}
+[data-theme="light"] .slot.selected::after {
+  border-bottom-color: var(--accent-dark);
+}
 .slot .count {
   position: absolute;
   right: 3px;
@@ -346,10 +384,11 @@ button.primary:hover, .text-btn:hover, button:hover { filter: brightness(1.08); 
   inset: 0;
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: flex-start;
+  align-content: flex-start;
   justify-content: center;
   gap: 12px;
-  padding: 16px;
+  padding: 24px 16px 20px;
   overflow: auto;
   background: #0007;
   z-index: 15;
@@ -391,8 +430,8 @@ button.primary:hover, .text-btn:hover, button:hover { filter: brightness(1.08); 
 .slot.result { width: 48px; height: 48px; }
 
 #recipe-book {
-  width: min(380px, calc(100% - 24px));
-  max-height: min(82vh, 680px);
+  width: min(400px, calc(100% - 24px));
+  max-height: min(86vh, 760px);
   overflow: auto;
 }
 
@@ -506,6 +545,7 @@ button.primary:hover, .text-btn:hover, button:hover { filter: brightness(1.08); 
 
 @media (max-width: 520px) {
   .slot, .slot.result { width: 34px; height: 34px; }
+  #hotbar .slot.selected { width: 40px; height: 40px; background-size: 28px 28px; }
   .grid-2 { grid-template-columns: repeat(2, 34px); }
   .grid-3 { grid-template-columns: repeat(3, 34px); }
   .grid-9 { grid-template-columns: repeat(9, 34px); }

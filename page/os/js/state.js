@@ -62,19 +62,19 @@ window.OSState = (function () {
   const EXCLUSIVE_DESKTOP = ["notepad", "paint", "calendar", "browser", "app-studio"];
 
   function defaultState() {
-    const installed = ["settings", ...window.OSCatalog.DEFAULT_INSTALLED];
     return {
       username: "User",
-      installed,
-      favorites: [...window.OSCatalog.DEFAULT_INSTALLED],
-      desktopIcons: ["sheets", ...EXCLUSIVE_DESKTOP, ...window.OSCatalog.DEFAULT_INSTALLED],
+      onboarded: false,
+      installed: ["settings"],
+      favorites: [],
+      desktopIcons: ["sheets", ...EXCLUSIVE_DESKTOP],
       windows: [],
       placements: {},
       desktopLayout: {},
       wallpaperId: "bloom",
       focusedId: null,
       fileApps: {},
-      appliedDefaultApps: [...window.OSCatalog.DEFAULT_INSTALLED],
+      appliedDefaultApps: [],
       iconColor: "#008f7d",
       taskbarPins: ["file-explorer", "browser"],
       recentFiles: [],
@@ -151,7 +151,12 @@ window.OSState = (function () {
     return applied;
   }
 
-  function seedNewDefaultApps(raw, installed, favorites, desktopIcons) {
+  function seedNewDefaultApps(raw, installed, favorites, desktopIcons, onboarded) {
+    if (!onboarded) {
+      return Array.isArray(raw && raw.appliedDefaultApps)
+        ? raw.appliedDefaultApps.filter(Boolean).slice()
+        : [];
+    }
     const defaults = Array.isArray(window.OSCatalog.DEFAULT_INSTALLED)
       ? window.OSCatalog.DEFAULT_INSTALLED
       : [];
@@ -337,10 +342,12 @@ window.OSState = (function () {
     const desktopIcons = Array.isArray(raw.desktopIcons)
       ? raw.desktopIcons.filter(dropRetiredApp)
       : base.desktopIcons.slice();
-    const appliedDefaultApps = seedNewDefaultApps(raw, installed, favorites, desktopIcons);
+    const onboarded = raw.onboarded !== false;
+    const appliedDefaultApps = seedNewDefaultApps(raw, installed, favorites, desktopIcons, onboarded);
     const appliedExclusiveDesktop = seedExclusiveDesktop(raw, desktopIcons);
     return {
       username: typeof raw.username === "string" && raw.username.trim() ? raw.username.trim() : base.username,
+      onboarded,
       installed,
       favorites,
       desktopIcons,

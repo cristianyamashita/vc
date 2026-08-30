@@ -134,6 +134,9 @@ window.OSHotkeys = (function () {
 
   function handle(e, fromFrame) {
     if (!e) return false;
+    if (document.documentElement.dataset.setup) {
+      return false;
+    }
     const key = e.key;
     const lower = String(key || "").toLowerCase();
     const meta = e.metaKey;

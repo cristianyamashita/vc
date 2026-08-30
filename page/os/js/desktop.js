@@ -27,26 +27,28 @@ window.OS = (function () {
 
   function persistSession() {
     if (!api.state) return;
-    const live = window.OSWindows.serialize();
-    const liveIds = new Set(live.map((w) => w.id));
-    const previous = window.OSState.getLastSaved().windows || [];
-    const kept = previous.filter(
-      (w) => !liveIds.has(w.id) && !window.OSWindows.closedThisSession.has(w.id)
-    );
-    api.state.windows = kept.concat(live);
-    api.state.focusedId = window.OSWindows.focusedId();
-    if (!api.state.placements || typeof api.state.placements !== "object") {
-      api.state.placements = {};
+    if (window.OSWindows && window.OSWindows.serialize) {
+      const live = window.OSWindows.serialize();
+      const liveIds = new Set(live.map((w) => w.id));
+      const previous = window.OSState.getLastSaved().windows || [];
+      const kept = previous.filter(
+        (w) => !liveIds.has(w.id) && !window.OSWindows.closedThisSession.has(w.id)
+      );
+      api.state.windows = kept.concat(live);
+      api.state.focusedId = window.OSWindows.focusedId();
+      if (!api.state.placements || typeof api.state.placements !== "object") {
+        api.state.placements = {};
+      }
+      live.forEach((win) => {
+        api.state.placements[win.id] = {
+          x: win.x,
+          y: win.y,
+          w: win.w,
+          h: win.h,
+          maximized: !!win.maximized,
+        };
+      });
     }
-    live.forEach((win) => {
-      api.state.placements[win.id] = {
-        x: win.x,
-        y: win.y,
-        w: win.w,
-        h: win.h,
-        maximized: !!win.maximized,
-      };
-    });
     window.OSState.scheduleSave(api.state);
   }
 
@@ -384,6 +386,27 @@ window.OS = (function () {
       } catch (_err) {}
     }
     return { used, quota, files, bytes };
+  }
+
+  function applyInstallPack(pack) {
+    if (!api.state) return;
+    const ids = window.OSCatalog.installPackIds ? window.OSCatalog.installPackIds(pack) : [];
+    const recommended = (window.OSCatalog.DEFAULT_INSTALLED || []).filter((id) => ids.includes(id));
+    api.state.installed = ["settings", ...ids];
+    api.state.favorites = recommended.slice();
+    const keep = (api.state.desktopIcons || []).filter((id) => {
+      const app = window.OSCatalog.byId(id);
+      if (!app) return false;
+      if (app.kind === "native" || app.kind === "user") return true;
+      return ids.includes(id);
+    });
+    recommended.forEach((id) => {
+      if (!keep.includes(id)) keep.push(id);
+    });
+    api.state.desktopIcons = keep;
+    api.state.appliedDefaultApps = (window.OSCatalog.DEFAULT_INSTALLED || []).slice();
+    api.state.onboarded = true;
+    persistNow();
   }
 
   function toggleInstalled(id) {
@@ -1187,6 +1210,10 @@ window.OS = (function () {
     tickClock();
     setInterval(tickClock, 1000);
 
+    if (!api.state.onboarded && window.OSSetup) {
+      await window.OSSetup.run();
+    }
+
     const hash = window.OSWindows.parseHash();
     const hashApp = hash && window.OSCatalog.byId(window.OSWindows.appIdOf(hash.id));
     if (hash && hashApp && isInstalled(hashApp.id)) {
@@ -1217,6 +1244,7 @@ window.OS = (function () {
   api.applyIframeGlass = applyIframeGlass;
   api.getStorageInfo = getStorageInfo;
   api.toggleInstalled = toggleInstalled;
+  api.applyInstallPack = applyInstallPack;
   api.installAll = installAll;
   api.uninstallAll = uninstallAll;
   api.installPrerelease = installPrerelease;

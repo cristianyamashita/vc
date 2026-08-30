@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { AIR, WATER, TORCH, isOpaque, tileName } from './blocks.js';
-import { CHUNK, HEIGHT, VIEW_RADIUS, UNLOAD_RADIUS } from './world.js';
+import { CHUNK, HEIGHT, VIEW_RADIUS, UNLOAD_RADIUS, TORCH_FLOOR, TORCH_PX, TORCH_NX, TORCH_PZ, TORCH_NZ } from './world.js';
 import { tileUV } from './textures.js';
 
 const FACES = [
@@ -20,36 +20,65 @@ function shouldDrawFace(world, x, y, z, nx, ny, nz, id) {
   return false;
 }
 
-function pushFace(buf, x, y, z, face, uv, shade) {
+function pushFace(buf, x, y, z, face, uv, shade, torch) {
   const base = buf.positions.length / 3;
   for (const [cx, cy, cz] of face.corners) {
     buf.positions.push(x + cx, y + cy, z + cz);
     buf.normals.push(face.dir[0], face.dir[1], face.dir[2]);
-    buf.colors.push(shade, shade, shade);
+    buf.colors.push(shade, torch, 0);
   }
   buf.uvs.push(uv.u0, uv.v0, uv.u0, uv.v1, uv.u1, uv.v1, uv.u1, uv.v0);
-    buf.indices.push(base, base + 2, base + 1, base, base + 3, base + 2);
+  buf.indices.push(base, base + 2, base + 1, base, base + 3, base + 2);
 }
 
-function pushTorch(buf, x, y, z) {
+function mapTorchPoint(x, y, z, lx, ly, lz, facing) {
+  const ang = 0.58;
+  const c = Math.cos(ang);
+  const s = Math.sin(ang);
+  let px = lx;
+  let py = ly;
+  let pz = lz;
+  if (facing === TORCH_PX) {
+    const nx = px * c - py * s;
+    const ny = px * s + py * c;
+    return [x + 0.86 + nx, y + 0.22 + ny, z + 0.5 + pz];
+  }
+  if (facing === TORCH_NX) {
+    const nx = px * c + py * s;
+    const ny = -px * s + py * c;
+    return [x + 0.14 + nx, y + 0.22 + ny, z + 0.5 + pz];
+  }
+  if (facing === TORCH_PZ) {
+    const ny = py * c + pz * s;
+    const nz = -py * s + pz * c;
+    return [x + 0.5 + px, y + 0.22 + ny, z + 0.86 + nz];
+  }
+  if (facing === TORCH_NZ) {
+    const ny = py * c - pz * s;
+    const nz = py * s + pz * c;
+    return [x + 0.5 + px, y + 0.22 + ny, z + 0.14 + nz];
+  }
+  return [x + 0.5 + px, y + py, z + 0.5 + pz];
+}
+
+function pushTorch(buf, x, y, z, facing = TORCH_FLOOR) {
   const uv = tileUV('torch');
-  const s = 0.12;
-  const h = 0.7;
-  const ox = x + 0.5;
-  const oz = z + 0.5;
+  const w = 0.1;
+  const h = 0.72;
   const faces = [
-    { corners: [[ox - s, y, oz - s], [ox - s, y + h, oz - s], [ox + s, y + h, oz - s], [ox + s, y, oz - s]], n: [0, 0, -1] },
-    { corners: [[ox + s, y, oz + s], [ox + s, y + h, oz + s], [ox - s, y + h, oz + s], [ox - s, y, oz + s]], n: [0, 0, 1] },
-    { corners: [[ox - s, y, oz + s], [ox - s, y + h, oz + s], [ox - s, y + h, oz - s], [ox - s, y, oz - s]], n: [-1, 0, 0] },
-    { corners: [[ox + s, y, oz - s], [ox + s, y + h, oz - s], [ox + s, y + h, oz + s], [ox + s, y, oz + s]], n: [1, 0, 0] },
-    { corners: [[ox - s, y + h, oz - s], [ox - s, y + h, oz + s], [ox + s, y + h, oz + s], [ox + s, y + h, oz - s]], n: [0, 1, 0] },
+    { corners: [[-w, 0, -w], [-w, h, -w], [w, h, -w], [w, 0, -w]], n: [0, 0, -1] },
+    { corners: [[w, 0, w], [w, h, w], [-w, h, w], [-w, 0, w]], n: [0, 0, 1] },
+    { corners: [[-w, 0, w], [-w, h, w], [-w, h, -w], [-w, 0, -w]], n: [-1, 0, 0] },
+    { corners: [[w, 0, -w], [w, h, -w], [w, h, w], [w, 0, w]], n: [1, 0, 0] },
+    { corners: [[-w, h, -w], [-w, h, w], [w, h, w], [w, h, -w]], n: [0, 1, 0] },
   ];
   for (const f of faces) {
     const base = buf.positions.length / 3;
     for (const p of f.corners) {
-      buf.positions.push(p[0], p[1], p[2]);
+      const [wx, wy, wz] = mapTorchPoint(x, y, z, p[0], p[1], p[2], facing);
+      buf.positions.push(wx, wy, wz);
       buf.normals.push(f.n[0], f.n[1], f.n[2]);
-      buf.colors.push(1.4, 1.2, 0.8);
+      buf.colors.push(1, 1, 0);
     }
     buf.uvs.push(uv.u0, uv.v0, uv.u0, uv.v1, uv.u1, uv.v1, uv.u1, uv.v0);
     buf.indices.push(base, base + 2, base + 1, base, base + 3, base + 2);
@@ -71,9 +100,74 @@ function geomFrom(buf) {
   return g;
 }
 
+const LIGHT_RANGE = 14;
+const LIGHT_PAD = 14;
+const LIGHT_DIRS = [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]];
+
+function buildTorchLight(world, cx, cz) {
+  const x0 = cx * CHUNK - LIGHT_PAD;
+  const z0 = cz * CHUNK - LIGHT_PAD;
+  const w = CHUNK + LIGHT_PAD * 2;
+  const d = CHUNK + LIGHT_PAD * 2;
+  const light = new Uint8Array(w * HEIGHT * d);
+  const idx = (x, y, z) => ((z - z0) * HEIGHT + y) * w + (x - x0);
+  const inside = (x, y, z) => (
+    y >= 0 && y < HEIGHT && x >= x0 && z >= z0 && x < x0 + w && z < z0 + d
+  );
+  const q = [];
+  for (const [key, id] of Object.entries(world.edits)) {
+    if (id !== TORCH) continue;
+    const [x, y, z] = key.split(',').map(Number);
+    if (!inside(x, y, z)) continue;
+    light[idx(x, y, z)] = LIGHT_RANGE;
+    q.push(x, y, z);
+  }
+  let head = 0;
+  while (head < q.length) {
+    const x = q[head++];
+    const y = q[head++];
+    const z = q[head++];
+    const lv = light[idx(x, y, z)];
+    if (lv <= 1) continue;
+    const next = lv - 1;
+    for (const [dx, dy, dz] of LIGHT_DIRS) {
+      const nx = x + dx;
+      const ny = y + dy;
+      const nz = z + dz;
+      if (!inside(nx, ny, nz)) continue;
+      const nid = world.get(nx, ny, nz);
+      if (nid && isOpaque(nid)) continue;
+      const ni = idx(nx, ny, nz);
+      if (next > light[ni]) {
+        light[ni] = next;
+        q.push(nx, ny, nz);
+      }
+    }
+  }
+  return { light, x0, z0, w };
+}
+
+function sampleTorch(field, x, y, z) {
+  if (y < 0 || y >= HEIGHT) return 0;
+  const lx = x - field.x0;
+  const lz = z - field.z0;
+  if (lx < 0 || lz < 0 || lx >= field.w || lz >= field.w) return 0;
+  return field.light[(lz * HEIGHT + y) * field.w + lx] / LIGHT_RANGE;
+}
+
+function blockTorch(field, x, y, z) {
+  let m = sampleTorch(field, x, y, z);
+  for (const [dx, dy, dz] of LIGHT_DIRS) {
+    const v = sampleTorch(field, x + dx, y + dy, z + dz);
+    if (v > m) m = v;
+  }
+  return m;
+}
+
 export function meshChunk(world, cx, cz) {
   const solid = makeBuf();
   const water = makeBuf();
+  const field = buildTorchLight(world, cx, cz);
   const x0 = cx * CHUNK;
   const z0 = cz * CHUNK;
   for (let lz = 0; lz < CHUNK; lz++) {
@@ -84,15 +178,16 @@ export function meshChunk(world, cx, cz) {
         const id = world.get(x, y, z);
         if (!id) continue;
         if (id === TORCH) {
-          pushTorch(solid, x, y, z);
+          pushTorch(solid, x, y, z, world.torchFacing(x, y, z));
           continue;
         }
         const buf = id === WATER ? water : solid;
+        const torch = blockTorch(field, x, y, z);
         for (const face of FACES) {
           const [dx, dy, dz] = face.dir;
           if (!shouldDrawFace(world, x, y, z, dx, dy, dz, id)) continue;
           const uv = tileUV(tileName(id, face.key));
-          pushFace(buf, x, y, z, face, uv, face.shade);
+          pushFace(buf, x, y, z, face, uv, face.shade, torch);
         }
       }
     }
@@ -100,22 +195,84 @@ export function meshChunk(world, cx, cz) {
   return { solid: geomFrom(solid), water: geomFrom(water) };
 }
 
+function makeWorldMaterial(atlasTexture, opacity = 1) {
+  return new THREE.ShaderMaterial({
+    uniforms: THREE.UniformsUtils.merge([
+      THREE.UniformsLib.fog,
+      {
+        map: { value: atlasTexture },
+        day: { value: 1 },
+        opacity: { value: opacity },
+        holdPos: { value: new THREE.Vector3() },
+        holdTorch: { value: 0 },
+      },
+    ]),
+    vertexShader: `
+      #include <common>
+      #include <fog_pars_vertex>
+      varying vec2 vUv;
+      varying vec2 vLight;
+      varying vec3 vWorld;
+      void main() {
+        vUv = uv;
+        vLight = color.rg;
+        vec4 world = modelMatrix * vec4(position, 1.0);
+        vWorld = world.xyz;
+        vec4 mvPosition = viewMatrix * world;
+        gl_Position = projectionMatrix * mvPosition;
+        #include <fog_vertex>
+      }
+    `,
+    fragmentShader: `
+      #include <common>
+      #include <fog_pars_fragment>
+      uniform sampler2D map;
+      uniform float day;
+      uniform float opacity;
+      uniform vec3 holdPos;
+      uniform float holdTorch;
+      varying vec2 vUv;
+      varying vec2 vLight;
+      varying vec3 vWorld;
+      void main() {
+        vec4 tex = texture2D(map, vUv);
+        float shade = vLight.x;
+        float torch = vLight.y;
+        float sky = mix(0.14, 1.06, clamp(day, 0.0, 1.0));
+        float hd = length(vWorld - holdPos);
+        float held = holdTorch * clamp(1.0 - hd / 10.0, 0.0, 1.0);
+        held *= held;
+        float blockLight = max(torch, held);
+        vec3 lit = vec3(shade * sky);
+        lit += blockLight * vec3(1.35, 1.05, 0.62);
+        lit = min(lit, vec3(1.55));
+        gl_FragColor = vec4(tex.rgb * lit, tex.a * opacity);
+        #include <colorspace_fragment>
+        #include <fog_fragment>
+      }
+    `,
+    vertexColors: true,
+    fog: true,
+    transparent: opacity < 1,
+    depthWrite: opacity >= 1,
+    side: THREE.DoubleSide,
+  });
+}
+
 export function createWorldMeshes(atlasTexture) {
   const group = new THREE.Group();
-  const solidMat = new THREE.MeshLambertMaterial({
-    map: atlasTexture,
-    vertexColors: true,
-    side: THREE.DoubleSide,
-  });
-  const waterMat = new THREE.MeshLambertMaterial({
-    map: atlasTexture,
-    vertexColors: true,
-    transparent: true,
-    opacity: 0.65,
-    depthWrite: false,
-    side: THREE.DoubleSide,
-  });
+  const solidMat = makeWorldMaterial(atlasTexture, 1);
+  const waterMat = makeWorldMaterial(atlasTexture, 0.65);
   return { group, meshes: new Map(), solidMat, waterMat };
+}
+
+export function setWorldLight(bundle, day, holdPos, holdTorch) {
+  if (!bundle) return;
+  for (const mat of [bundle.solidMat, bundle.waterMat]) {
+    mat.uniforms.day.value = day;
+    mat.uniforms.holdTorch.value = holdTorch ? 1 : 0;
+    mat.uniforms.holdPos.value.copy(holdPos);
+  }
 }
 
 function addChunk(world, group, meshes, cx, cz, solidMat, waterMat) {

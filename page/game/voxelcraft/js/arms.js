@@ -17,9 +17,13 @@ export class Arms {
 
     this.right = this.makeArm(0.28, -0.28, -0.38, 1);
     this.left = this.makeArm(-0.34, -0.36, -0.48, -1);
+    this.toolHold = new THREE.Group();
+    this.toolHold.position.set(0.24, -0.06, -0.4);
+    this.toolHold.layers.set(1);
+    this.root.add(this.toolHold);
     this.tool = new THREE.Group();
     this.offTool = new THREE.Group();
-    this.right.hand.add(this.tool);
+    this.toolHold.add(this.tool);
     this.left.hand.add(this.offTool);
     this.swing = 0;
     this.bob = 0;
@@ -90,8 +94,17 @@ export class Arms {
     if (this.swing > 0) this.swing = Math.max(0, this.swing - dt * 3.2);
     this.bob += dt * (walking ? 10 : 2);
     const swingX = Math.sin((1 - this.swing) * Math.PI) * 1.1;
-    this.right.group.rotation.x = 0.25 + swingX;
-    this.right.group.rotation.y = -0.15 - this.swing * 0.4;
+    const holdingTool = [
+      WOOD_PICK, WOOD_AXE, WOOD_SHOVEL,
+      STONE_PICK, STONE_AXE, STONE_SHOVEL,
+      IRON_PICK, IRON_AXE, IRON_SHOVEL,
+    ].includes(this.heldId);
+    const restX = holdingTool ? 0.48 : 0.22;
+    this.right.group.rotation.x = restX + swingX * 0.85;
+    this.right.group.rotation.y = -0.12 - this.swing * 0.35;
+    this.toolHold.rotation.x = -0.05 - this.swing * 0.9;
+    this.toolHold.rotation.y = -0.12;
+    this.toolHold.rotation.z = 0.08;
     this.left.group.rotation.x = 0.45 + Math.sin(this.bob) * 0.04 - (this.offId ? 0.12 : 0);
     this.root.position.y = Math.sin(this.bob) * (walking ? 0.025 : 0.008);
     this.root.position.x = Math.cos(this.bob * 0.5) * (walking ? 0.01 : 0);
@@ -122,11 +135,12 @@ function makeToolMesh(id) {
     g.rotation.x = 0.4;
     g.position.set(0.04, 0.02, -0.08);
   } else if ([WOOD_AXE, STONE_AXE, IRON_AXE].includes(id)) {
-    g.add(box(0.035, 0.4, 0.035, wood, 0, 0.04, 0));
-    g.add(box(0.14, 0.1, 0.04, head, 0.06, 0.2, 0));
-    g.rotation.z = 0.45;
-    g.rotation.x = 0.35;
-    g.position.set(0.04, 0.02, -0.08);
+    g.add(box(0.028, 0.58, 0.028, wood, 0, 0.22, 0));
+    g.add(box(0.08, 0.12, 0.08, head, 0, 0.48, 0));
+    g.add(box(0.24, 0.16, 0.05, head, 0.12, 0.5, 0.02));
+    g.rotation.set(0.05, 0.45, 0.08);
+    g.position.set(0.04, 0.02, 0);
+    g.scale.setScalar(1.2);
   } else if ([WOOD_SHOVEL, STONE_SHOVEL, IRON_SHOVEL].includes(id)) {
     g.add(box(0.03, 0.4, 0.03, wood, 0, 0.04, 0));
     g.add(box(0.08, 0.1, 0.03, head, 0, 0.24, 0));

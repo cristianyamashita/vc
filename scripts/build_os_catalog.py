@@ -12,6 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 INDEX = ROOT / "page" / "index.html"
 OUT = ROOT / "page" / "os" / "js" / "catalog.js"
 
+# First-run "Recommended" extras. Edit this list when reviewing the starter pack.
 DEFAULT_INSTALLED = ("utils-terminal", "utils-calculator", "utils-notebook")
 SKIP_HREFS = {"os/index.html", "os.html"}
 MULTI_INSTANCE = {
@@ -575,9 +576,18 @@ window.OSCatalog = (function () {{
     return "../" + href;
   }}
 
+  const DEFAULT_INSTALLED = {json.dumps(list(DEFAULT_INSTALLED))};
+
+  function installPackIds(pack) {{
+    if (pack === "all") return stableSiteApps().map((app) => app.id);
+    if (pack === "recommended") return DEFAULT_INSTALLED.slice();
+    return [];
+  }}
+
   return {{
     APPS,
-    DEFAULT_INSTALLED: {json.dumps(list(DEFAULT_INSTALLED))},
+    DEFAULT_INSTALLED,
+    installPackIds,
     byId,
     siteApps,
     nativeApps,

@@ -3588,9 +3588,19 @@ window.OSCatalog = (function () {
     return "../" + href;
   }
 
+  // First-run "Recommended" extras. Edit this list when reviewing the starter pack.
+  const DEFAULT_INSTALLED = ["utils-terminal", "utils-calculator", "utils-notebook"];
+
+  function installPackIds(pack) {
+    if (pack === "all") return stableSiteApps().map((app) => app.id);
+    if (pack === "recommended") return DEFAULT_INSTALLED.slice();
+    return [];
+  }
+
   return {
     APPS,
-    DEFAULT_INSTALLED: ["utils-terminal", "utils-calculator", "utils-notebook"],
+    DEFAULT_INSTALLED,
+    installPackIds,
     byId,
     siteApps,
     nativeApps,

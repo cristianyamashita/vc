@@ -3,11 +3,11 @@ import { initLang, setLang, t, applyI18n } from './js/i18n.js';
 import { initTheme, toggleTheme, getTheme } from './js/theme.js';
 import {
   AIR, GRASS, SAND, LOG, LEAVES, TABLE, TORCH, BEDROCK, CACTUS, ITEMS, BLOCKS,
-  isPlaceable, isSolid, canHarvest, mineSeconds, nameKey, stackMax,
+  isPlaceable, isSolid, mineSeconds, nameKey, stackMax,
 } from './js/blocks.js';
-import { World, GEN_PER_TICK, biomeNameKey, CHUNK, mapRgb } from './js/world.js';
+import { World, GEN_PER_TICK, biomeNameKey, CHUNK, mapRgb, torchFacingFromHit } from './js/world.js';
 import { createAtlas, itemIcon } from './js/textures.js';
-import { createWorldMeshes, remeshDirty, disposeMeshes, syncChunkMeshes } from './js/mesher.js';
+import { createWorldMeshes, remeshDirty, disposeMeshes, syncChunkMeshes, setWorldLight } from './js/mesher.js';
 import { Player, raycast } from './js/player.js';
 import { Arms } from './js/arms.js';
 import { Inventory, HOTBAR, clickSlot } from './js/inventory.js';
@@ -106,6 +106,10 @@ const armLight = new THREE.PointLight(0xffffff, 0.9, 5);
 armLight.position.set(0.1, 0.1, 0.2);
 armLight.layers.set(1);
 camera.add(armLight);
+const heldTorchLight = new THREE.PointLight(0xffc060, 0, 8, 1.4);
+heldTorchLight.position.set(0.18, -0.08, -0.28);
+heldTorchLight.layers.set(1);
+camera.add(heldTorchLight);
 
 highlight = new THREE.LineSegments(
   new THREE.EdgesGeometry(new THREE.BoxGeometry(1.01, 1.01, 1.01)),
@@ -391,8 +395,10 @@ function openInv(table) {
   craft3Row.hidden = !table;
   invTitle.textContent = table ? t('craftingTable') : t('inventory');
   refreshInv();
-  renderRecipeBook();
-  syncRecipesBtn();
+  setRecipesOpen(true);
+  requestAnimationFrame(() => {
+    recipeBook.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  });
 }
 
 function closeInv() {
@@ -447,6 +453,7 @@ async function startNewWorld(reset = true) {
 async function loadFromSave(save) {
   world = new World(save.seed);
   world.applyEdits(save.edits || {});
+  world.loadTorchDir(save.torchDir);
   world.loadMap(save.map);
   bundle = createWorldMeshes(atlas.texture);
   scene.add(bundle.group);
@@ -480,6 +487,7 @@ function snapshot() {
     edits: world.edits,
     worldTime,
     map: world.encodeMap(),
+    torchDir: world.torchDir,
     player: {
       x: player.pos.x, y: player.pos.y, z: player.pos.z,
       yaw: player.yaw, pitch: player.pitch, health: player.health,
@@ -598,10 +606,8 @@ function tick(dt) {
 function breakBlock(hit) {
   const id = world.get(hit.x, hit.y, hit.z);
   if (!id || id === BEDROCK || id === AIR) return;
-  if (canHarvest(id, inv.selectedStack())) {
-    const drops = BLOCKS[id]?.drops || [];
-    for (const d of drops) inv.add(d.id, d.n);
-  }
+  const drops = BLOCKS[id]?.drops || [];
+  for (const d of drops) inv.add(d.id, d.n);
   if (ITEMS[inv.selectedStack()?.id]?.tool) inv.wearSelected();
   world.set(hit.x, hit.y, hit.z, AIR);
   remeshDirty(world, bundle);
@@ -626,6 +632,7 @@ function placeBlock(hit) {
   if (player.overlapsBlock(px, py, pz) && isSolid(stack.id)) return;
   if (stack.id === TORCH && !isSolid(world.get(hit.x, hit.y, hit.z))) return;
   world.set(px, py, pz, stack.id);
+  if (stack.id === TORCH) world.setTorchFacing(px, py, pz, torchFacingFromHit(hit.nx, hit.ny, hit.nz));
   if (fromOff) inv.takeOffhand(1);
   else inv.takeSelected(1);
   remeshDirty(world, bundle);
@@ -845,6 +852,13 @@ function drawWorldMap() {
   mapMeta.textContent = `${world.map.size} ${t('mapChunks')}`;
 }
 
+function syncTorchLights() {
+  const holding = inv?.selectedStack()?.id === TORCH || inv?.offhand?.id === TORCH;
+  heldTorchLight.intensity = holding ? 1.4 : 0;
+  if (!bundle || !player) return;
+  setWorldLight(bundle, dayFactor().day, camera.position, holding);
+}
+
 function render(dt = 0.016) {
   if (!player) return;
   const { a, day } = dayFactor();
@@ -861,6 +875,7 @@ function render(dt = 0.016) {
   camera.updateProjectionMatrix();
 
   player.applyLook(camera);
+  syncTorchLights();
   const bg = scene.background;
   renderer.clear();
   camera.layers.set(0);
@@ -1001,11 +1016,13 @@ function takeCraft(size, right) {
 }
 
 function refreshInv() {
-  const paintList = (node, arr, offset = 0) => {
-    node.querySelectorAll('.slot').forEach((el, i) => paintSlot(el, arr[offset + i], false));
+  const paintList = (node, arr, offset = 0, selectedOffset = -1) => {
+    node.querySelectorAll('.slot').forEach((el, i) => {
+      paintSlot(el, arr[offset + i], selectedOffset === offset + i);
+    });
   };
   paintList(document.getElementById('inv-grid'), inv.slots, 9);
-  paintList(document.getElementById('inv-hotbar'), inv.slots, 0);
+  paintList(document.getElementById('inv-hotbar'), inv.slots, 0, inv.selected);
   paintSlot(document.getElementById('inv-offhand'), inv.offhand, false);
   paintList(document.getElementById('craft2-grid'), inv.craft2);
   paintList(document.getElementById('craft3-grid'), inv.craft3);
@@ -1059,7 +1076,10 @@ function padPattern(pattern, size) {
 function renderRecipeBook() {
   const list = document.getElementById('recipe-list');
   list.innerHTML = '';
-  for (const rec of RECIPE_GUIDE) {
+  const recs = tableMode
+    ? [...RECIPE_GUIDE.filter((r) => r.table), ...RECIPE_GUIDE.filter((r) => !r.table)]
+    : RECIPE_GUIDE;
+  for (const rec of recs) {
     const card = document.createElement('article');
     card.className = 'recipe-card';
     const title = document.createElement('h3');
@@ -1144,6 +1164,13 @@ function renderRecipeBook() {
     list.appendChild(card);
   }
 }
+
+window.__VC = {
+  get world() { return world; },
+  get player() { return player; },
+  get bundle() { return bundle; },
+  remesh() { remeshDirty(world, bundle); },
+};
 
 try {
   await boot();

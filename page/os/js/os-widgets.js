@@ -44,7 +44,7 @@ window.OSWidgets = (function () {
       { id: window.OSDesk.nid("wd_"), type: "clock", x: right, y: 24, w: 248, h: 148 },
       { id: window.OSDesk.nid("wd_"), type: "calendar", x: right, y: 188, w: 248, h: 268 },
       { id: window.OSDesk.nid("wd_"), type: "stickies", x: right - 268, y: 24, w: 248, h: 176, stickyId: sticky ? sticky.id : null },
-      { id: window.OSDesk.nid("wd_"), type: "stats", x: right, y: 472, w: 248, h: 118 },
+      { id: window.OSDesk.nid("wd_"), type: "stats", x: right, y: 472, w: 248, h: 132 },
     ];
     persist();
   }
@@ -163,7 +163,7 @@ window.OSWidgets = (function () {
   function statsHtml(info) {
     const used = info && window.OSFS ? window.OSFS.formatSize(info.used) : "—";
     const files = info ? String(info.files) : "—";
-    return `<div class="os-widget-stats"><div><span>${escapeHtml(t("storage"))}</span><strong>${escapeHtml(used)}</strong></div><div><span>${escapeHtml(t("storageFiles"))}</span><strong>${escapeHtml(files)}</strong></div></div>`;
+    return `<div class="os-stats-list"><div><span>${escapeHtml(t("storage"))}</span><strong>${escapeHtml(used)}</strong></div><div><span>${escapeHtml(t("storageFiles"))}</span><strong>${escapeHtml(files)}</strong></div></div>`;
   }
 
   function widgetBody(widget, info) {
