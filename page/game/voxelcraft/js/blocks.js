@@ -14,10 +14,21 @@ export const TABLE = 12;
 export const TORCH = 13;
 export const BEDROCK = 14;
 export const CACTUS = 15;
+export const FLOWER_RED = 16;
+export const FLOWER_YELLOW = 17;
+export const FLOWER_WHITE = 18;
+export const FRUIT_HANG = 19;
 
 export const STICK = 20;
 export const COAL = 21;
 export const IRON = 22;
+export const RAW_MEAT = 23;
+export const COOKED_MEAT = 24;
+export const FRUIT = 25;
+export const HIDE_COW = 26;
+export const HIDE_ZEBRA = 27;
+export const HIDE_SHEEP = 28;
+export const COOKED_FRUIT = 29;
 
 export const WOOD_PICK = 30;
 export const WOOD_AXE = 31;
@@ -28,6 +39,14 @@ export const STONE_SHOVEL = 35;
 export const IRON_PICK = 36;
 export const IRON_AXE = 37;
 export const IRON_SHOVEL = 38;
+export const WOOD_SWORD = 39;
+export const STONE_SWORD = 40;
+export const IRON_SWORD = 41;
+
+export const RUG_COW = 42;
+export const RUG_ZEBRA = 43;
+export const RUG_SHEEP = 44;
+export const FURNACE = 45;
 
 export const BLOCKS = {
   [GRASS]: {
@@ -182,12 +201,106 @@ export const BLOCKS = {
     drops: [{ id: CACTUS, n: 1 }],
     tiles: { all: 'cactus' },
   },
+  [FLOWER_RED]: {
+    nameKey: 'blockFlowerRed',
+    solid: false,
+    opaque: false,
+    plant: true,
+    hardness: 0.05,
+    tool: null,
+    minTier: 0,
+    drops: [{ id: FLOWER_RED, n: 1 }],
+    tiles: { all: 'flower_red' },
+  },
+  [FLOWER_YELLOW]: {
+    nameKey: 'blockFlowerYellow',
+    solid: false,
+    opaque: false,
+    plant: true,
+    hardness: 0.05,
+    tool: null,
+    minTier: 0,
+    drops: [{ id: FLOWER_YELLOW, n: 1 }],
+    tiles: { all: 'flower_yellow' },
+  },
+  [FLOWER_WHITE]: {
+    nameKey: 'blockFlowerWhite',
+    solid: false,
+    opaque: false,
+    plant: true,
+    hardness: 0.05,
+    tool: null,
+    minTier: 0,
+    drops: [{ id: FLOWER_WHITE, n: 1 }],
+    tiles: { all: 'flower_white' },
+  },
+  [FRUIT_HANG]: {
+    nameKey: 'itemFruit',
+    solid: false,
+    opaque: false,
+    fruit: true,
+    hardness: 0.08,
+    tool: null,
+    minTier: 0,
+    drops: [{ id: FRUIT, n: 1 }],
+    tiles: { all: 'fruit' },
+  },
+  [RUG_COW]: {
+    nameKey: 'blockRugCow',
+    solid: false,
+    opaque: false,
+    rug: true,
+    hardness: 0.2,
+    tool: null,
+    minTier: 0,
+    drops: [{ id: RUG_COW, n: 1 }],
+    tiles: { all: 'rug_cow' },
+  },
+  [RUG_ZEBRA]: {
+    nameKey: 'blockRugZebra',
+    solid: false,
+    opaque: false,
+    rug: true,
+    hardness: 0.2,
+    tool: null,
+    minTier: 0,
+    drops: [{ id: RUG_ZEBRA, n: 1 }],
+    tiles: { all: 'rug_zebra' },
+  },
+  [RUG_SHEEP]: {
+    nameKey: 'blockRugSheep',
+    solid: false,
+    opaque: false,
+    rug: true,
+    hardness: 0.2,
+    tool: null,
+    minTier: 0,
+    drops: [{ id: RUG_SHEEP, n: 1 }],
+    tiles: { all: 'rug_sheep' },
+  },
+  [FURNACE]: {
+    nameKey: 'blockFurnace',
+    solid: true,
+    opaque: true,
+    hardness: 3.5,
+    tool: 'pickaxe',
+    minTier: 1,
+    drops: [{ id: FURNACE, n: 1 }],
+    tiles: { top: 'furnace_top', side: 'furnace_side', bottom: 'cobble' },
+  },
 };
 
 export const ITEMS = {
   [STICK]: { nameKey: 'itemStick', stack: 64, place: 0, icon: 'stick' },
   [COAL]: { nameKey: 'itemCoal', stack: 64, place: 0, icon: 'coal' },
   [IRON]: { nameKey: 'itemIron', stack: 64, place: 0, icon: 'iron' },
+  [RAW_MEAT]: { nameKey: 'itemRawMeat', stack: 64, place: 0, icon: 'meat_raw', food: { hunger: 5, eatTime: 0.5 } },
+  [COOKED_MEAT]: { nameKey: 'itemCookedMeat', stack: 64, place: 0, icon: 'meat_cooked', food: { hunger: 14, eatTime: 0.45, heal: 4 } },
+  [FRUIT]: { nameKey: 'itemFruit', stack: 64, place: 0, icon: 'fruit', food: { hunger: 3, eatTime: 0.4 } },
+  [COOKED_FRUIT]: { nameKey: 'itemCookedFruit', stack: 64, place: 0, icon: 'fruit_cooked', food: { hunger: 8, eatTime: 0.4, heal: 2 } },
+  [HIDE_COW]: { nameKey: 'itemHideCow', stack: 64, place: 0, icon: 'hide_cow' },
+  [HIDE_ZEBRA]: { nameKey: 'itemHideZebra', stack: 64, place: 0, icon: 'hide_zebra' },
+  [HIDE_SHEEP]: { nameKey: 'itemHideSheep', stack: 64, place: 0, icon: 'hide_sheep' },
   [WOOD_PICK]: { nameKey: 'itemWoodPick', stack: 1, tool: 'pickaxe', tier: 1, speed: 2, dura: 60, icon: 'pick_wood' },
   [WOOD_AXE]: { nameKey: 'itemWoodAxe', stack: 1, tool: 'axe', tier: 1, speed: 2, dura: 60, icon: 'axe_wood' },
   [WOOD_SHOVEL]: { nameKey: 'itemWoodShovel', stack: 1, tool: 'shovel', tier: 1, speed: 2, dura: 60, icon: 'shovel_wood' },
@@ -197,6 +310,9 @@ export const ITEMS = {
   [IRON_PICK]: { nameKey: 'itemIronPick', stack: 1, tool: 'pickaxe', tier: 3, speed: 6, dura: 251, icon: 'pick_iron' },
   [IRON_AXE]: { nameKey: 'itemIronAxe', stack: 1, tool: 'axe', tier: 3, speed: 6, dura: 251, icon: 'axe_iron' },
   [IRON_SHOVEL]: { nameKey: 'itemIronShovel', stack: 1, tool: 'shovel', tier: 3, speed: 6, dura: 251, icon: 'shovel_iron' },
+  [WOOD_SWORD]: { nameKey: 'itemWoodSword', stack: 1, tool: 'sword', tier: 1, speed: 1, dura: 60, damage: 4, icon: 'sword_wood' },
+  [STONE_SWORD]: { nameKey: 'itemStoneSword', stack: 1, tool: 'sword', tier: 2, speed: 1, dura: 132, damage: 5, icon: 'sword_stone' },
+  [IRON_SWORD]: { nameKey: 'itemIronSword', stack: 1, tool: 'sword', tier: 3, speed: 1, dura: 251, damage: 7, icon: 'sword_iron' },
 };
 
 export function def(id) {
@@ -208,7 +324,7 @@ export function isBlock(id) {
 }
 
 export function isPlaceable(id) {
-  return isBlock(id) && id !== WATER && id !== BEDROCK;
+  return isBlock(id) && id !== WATER && id !== BEDROCK && id !== FRUIT_HANG;
 }
 
 export function isSolid(id) {
@@ -221,6 +337,39 @@ export function isOpaque(id) {
 
 export function isLiquid(id) {
   return !!BLOCKS[id]?.liquid;
+}
+
+export function isPlant(id) {
+  return !!BLOCKS[id]?.plant;
+}
+
+export function isFlower(id) {
+  return id === FLOWER_RED || id === FLOWER_YELLOW || id === FLOWER_WHITE;
+}
+
+export function isRug(id) {
+  return !!BLOCKS[id]?.rug;
+}
+
+export function isFruitHang(id) {
+  return !!BLOCKS[id]?.fruit;
+}
+
+export function isDecor(id) {
+  return id === TORCH || isPlant(id) || isRug(id) || isFruitHang(id);
+}
+
+export function foodInfo(stack) {
+  if (!stack) return null;
+  return ITEMS[stack.id]?.food || null;
+}
+
+export function attackDamage(stack) {
+  if (!stack) return 2;
+  const item = ITEMS[stack.id];
+  if (item?.tool === 'sword') return item.damage || 4;
+  if (item?.tool) return 3;
+  return 2;
 }
 
 export function nameKey(id) {

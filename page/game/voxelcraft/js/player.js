@@ -20,6 +20,9 @@ export class Player {
     this.sprint = false;
     this.health = 20;
     this.maxHealth = 20;
+    this.hunger = 20;
+    this.maxHunger = 20;
+    this.starveAcc = 0;
     this.fallY = null;
     this.spawn = this.pos.clone();
     this.regenAcc = 0;
@@ -67,7 +70,7 @@ export class Player {
     if (input.right) wish.add(new THREE.Vector3(c, 0, -s));
     if (wish.lengthSq() > 0) wish.normalize();
 
-    this.sprint = !!input.sprint && wish.lengthSq() > 0 && !this.sneak && !this.inWater;
+    this.sprint = !!input.sprint && wish.lengthSq() > 0 && !this.sneak && !this.inWater && this.hunger >= 6;
 
     let speed = this.sneak ? 2.2 : this.sprint ? 6.4 : 4.4;
     if (this.inWater) speed = 2.1;
@@ -104,7 +107,19 @@ export class Player {
     }
     this.moveAxis(world, 0, 0, this.vel.z * dt);
 
-    if (this.health < this.maxHealth && this.hurtAcc <= 0) {
+    const drain = (this.sprint ? 0.16 : 0.07) * dt;
+    this.hunger = Math.max(0, this.hunger - drain);
+    if (this.hunger <= 0) {
+      this.starveAcc += dt;
+      if (this.starveAcc >= 4) {
+        this.hurt(1);
+        this.starveAcc = 0;
+      }
+    } else {
+      this.starveAcc = 0;
+    }
+
+    if (this.health < this.maxHealth && this.hurtAcc <= 0 && this.hunger >= 16) {
       this.regenAcc += dt;
       if (this.regenAcc > 4) {
         this.health = Math.min(this.maxHealth, this.health + 1);
@@ -113,6 +128,15 @@ export class Player {
     } else {
       this.regenAcc = 0;
     }
+  }
+
+  eat(amount, heal = 0) {
+    const fillHunger = amount > 0 && this.hunger < this.maxHunger;
+    const fillHealth = heal > 0 && this.health < this.maxHealth;
+    if (!fillHunger && !fillHealth) return false;
+    if (fillHunger) this.hunger = Math.min(this.maxHunger, this.hunger + amount);
+    if (heal > 0) this.health = Math.min(this.maxHealth, this.health + heal);
+    return true;
   }
 
   hurt(amount) {
@@ -125,6 +149,8 @@ export class Player {
     this.pos.copy(this.spawn);
     this.vel.set(0, 0, 0);
     this.health = this.maxHealth;
+    this.hunger = this.maxHunger;
+    this.starveAcc = 0;
     this.fallY = this.pos.y;
     this.pitch = 0.28;
   }

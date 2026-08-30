@@ -1,11 +1,5 @@
 import * as THREE from 'three';
-import {
-  STICK, COAL, IRON,
-  WOOD_PICK, WOOD_AXE, WOOD_SHOVEL,
-  STONE_PICK, STONE_AXE, STONE_SHOVEL,
-  IRON_PICK, IRON_AXE, IRON_SHOVEL,
-  isBlock, BLOCKS,
-} from './blocks.js';
+import { ITEMS, isBlock, BLOCKS } from './blocks.js';
 
 export const TILE = 16;
 export const ATLAS = 256;
@@ -30,6 +24,15 @@ const TILE_INDEX = {
   torch: 15,
   bedrock: 16,
   cactus: 17,
+  flower_red: 18,
+  flower_yellow: 19,
+  flower_white: 20,
+  fruit: 21,
+  rug_cow: 22,
+  rug_zebra: 23,
+  rug_sheep: 24,
+  furnace_top: 25,
+  furnace_side: 26,
 };
 
 function clamp(n, a, b) {
@@ -176,6 +179,73 @@ function drawTile(name) {
         put(d, x, y, 36, 110, 42);
       }
     }
+  } else if (name.startsWith('flower_')) {
+    for (let i = 0; i < d.length; i += 4) d[i + 3] = 0;
+    const petal = name === 'flower_red' ? [210, 45, 55] : name === 'flower_yellow' ? [230, 190, 40] : [240, 240, 245];
+    const dark = name === 'flower_red' ? [150, 20, 30] : name === 'flower_yellow' ? [180, 140, 20] : [200, 200, 210];
+    for (let y = 6; y < 16; y++) {
+      put(d, 7, y, 40, 120, 48);
+      put(d, 8, y, 32, 100, 40);
+    }
+    for (let i = 0; i < 8; i++) {
+      const ang = (i / 8) * Math.PI * 2;
+      const cx = Math.round(8 + Math.cos(ang) * 3.2);
+      const cy = Math.round(5 + Math.sin(ang) * 2.6);
+      for (let oy = -1; oy <= 1; oy++) {
+        for (let ox = -1; ox <= 1; ox++) {
+          const col = ox === 0 && oy === 0 ? dark : petal;
+          put(d, cx + ox, cy + oy, col[0], col[1], col[2]);
+        }
+      }
+    }
+    put(d, 7, 5, 255, 220, 70);
+    put(d, 8, 5, 255, 210, 50);
+  } else if (name === 'fruit') {
+    fillNoise(d, [40, 110, 38], 12, rng);
+    for (let y = 3; y < 14; y++) {
+      for (let x = 4; x < 12; x++) {
+        const dx = x - 8;
+        const dy = y - 8;
+        if (dx * dx + dy * dy * 0.8 < 16) {
+          put(d, x, y, 190 + (rng() - 0.5) * 20, 40, 36);
+        }
+      }
+    }
+    put(d, 8, 3, 50, 110, 40);
+    put(d, 8, 2, 50, 110, 40);
+    put(d, 7, 2, 40, 90, 32);
+  } else if (name === 'rug_cow') {
+    fillNoise(d, [120, 78, 48], 18, rng);
+    blot(d, [90, 55, 32], rng, 6, 2);
+    blot(d, [160, 120, 90], rng, 4, 1);
+  } else if (name === 'rug_zebra') {
+    fillNoise(d, [236, 232, 220], 10, rng);
+    for (let y = 0; y < TILE; y++) {
+      for (let x = 0; x < TILE; x++) {
+        if (((x + Math.floor(y / 2)) % 4) < 2) put(d, x, y, 28, 26, 24);
+      }
+    }
+  } else if (name === 'rug_sheep') {
+    fillNoise(d, [228, 224, 214], 14, rng);
+    blot(d, [210, 206, 196], rng, 8, 2);
+  } else if (name === 'furnace_top') {
+    fillNoise(d, [88, 88, 92], 16, rng);
+    blot(d, [50, 50, 54], rng, 6, 2);
+    for (let i = 3; i < 13; i++) {
+      put(d, i, 3, 40, 40, 44);
+      put(d, i, 12, 40, 40, 44);
+      put(d, 3, i, 40, 40, 44);
+      put(d, 12, i, 40, 40, 44);
+    }
+  } else if (name === 'furnace_side') {
+    fillNoise(d, [80, 80, 84], 14, rng);
+    for (let y = 5; y < 13; y++) {
+      for (let x = 4; x < 12; x++) put(d, x, y, 18, 16, 16);
+    }
+    put(d, 6, 7, 255, 140, 40);
+    put(d, 7, 8, 255, 90, 20);
+    put(d, 8, 7, 255, 160, 50);
+    put(d, 9, 9, 220, 70, 16);
   } else {
     fillNoise(d, [200, 0, 200], 10, rng);
   }
@@ -241,6 +311,61 @@ function drawItemIcon(kind) {
     handle('#8a5a2a');
     g.fillStyle = head;
     g.fillRect(12, 4, 8, 10);
+  } else if (kind.startsWith('sword_')) {
+    const head = kind.endsWith('wood') ? wood() : kind.endsWith('stone') ? stone() : iron();
+    g.fillStyle = '#8a5a2a';
+    g.fillRect(14, 20, 4, 10);
+    g.fillStyle = '#c4a060';
+    g.fillRect(12, 18, 8, 4);
+    g.fillStyle = head;
+    g.fillRect(13, 4, 6, 16);
+    g.fillRect(14, 2, 4, 4);
+  } else if (kind === 'meat_raw') {
+    g.fillStyle = '#c45a5a';
+    g.fillRect(8, 10, 16, 12);
+    g.fillStyle = '#e8a0a0';
+    g.fillRect(10, 12, 6, 4);
+  } else if (kind === 'meat_cooked') {
+    g.fillStyle = '#7a3e22';
+    g.fillRect(8, 10, 16, 12);
+    g.fillStyle = '#c47838';
+    g.fillRect(10, 12, 6, 4);
+  } else if (kind === 'fruit') {
+    g.fillStyle = '#c83228';
+    g.beginPath();
+    g.arc(16, 18, 9, 0, Math.PI * 2);
+    g.fill();
+    g.fillStyle = '#3a8a32';
+    g.fillRect(15, 6, 3, 6);
+    g.fillRect(18, 7, 5, 3);
+  } else if (kind === 'fruit_cooked') {
+    g.fillStyle = '#c47828';
+    g.beginPath();
+    g.arc(16, 18, 9, 0, Math.PI * 2);
+    g.fill();
+    g.fillStyle = '#8a4a14';
+    g.beginPath();
+    g.arc(16, 18, 5, 0, Math.PI * 2);
+    g.fill();
+    g.fillStyle = '#3a8a32';
+    g.fillRect(15, 6, 3, 6);
+  } else if (kind === 'hide_cow') {
+    g.fillStyle = '#7a4e2e';
+    g.fillRect(6, 8, 20, 16);
+    g.fillStyle = '#c4b090';
+    g.fillRect(10, 12, 6, 6);
+  } else if (kind === 'hide_zebra') {
+    g.fillStyle = '#f0ece4';
+    g.fillRect(6, 8, 20, 16);
+    g.fillStyle = '#1a1816';
+    g.fillRect(8, 8, 4, 16);
+    g.fillRect(16, 8, 4, 16);
+    g.fillRect(24, 8, 2, 16);
+  } else if (kind === 'hide_sheep') {
+    g.fillStyle = '#e8e4d8';
+    g.fillRect(6, 8, 20, 16);
+    g.fillStyle = '#d0ccbe';
+    g.fillRect(10, 12, 8, 6);
   }
   return c.toDataURL();
 }
@@ -251,8 +376,7 @@ export function createAtlas() {
   canvas.height = ATLAS;
   const ctx = canvas.getContext('2d');
   ctx.imageSmoothingEnabled = false;
-  ctx.fillStyle = '#000';
-  ctx.fillRect(0, 0, ATLAS, ATLAS);
+  ctx.clearRect(0, 0, ATLAS, ATLAS);
   for (const [name, index] of Object.entries(TILE_INDEX)) stamp(ctx, name, index);
 
   const texture = new THREE.CanvasTexture(canvas);
@@ -271,6 +395,9 @@ export function createAtlas() {
     'pick_wood', 'axe_wood', 'shovel_wood',
     'pick_stone', 'axe_stone', 'shovel_stone',
     'pick_iron', 'axe_iron', 'shovel_iron',
+    'sword_wood', 'sword_stone', 'sword_iron',
+    'meat_raw', 'meat_cooked', 'fruit', 'fruit_cooked',
+    'hide_cow', 'hide_zebra', 'hide_sheep',
   ];
   for (const kind of itemKinds) icons[kind] = drawItemIcon(kind);
 
@@ -291,15 +418,8 @@ export function tileUV(name) {
 
 export function itemIcon(id, atlas) {
   if (!id) return '';
-  if (id === STICK) return atlas.icons.stick;
-  if (id === COAL) return atlas.icons.coal;
-  if (id === IRON) return atlas.icons.iron;
-  const tools = {
-    [WOOD_PICK]: 'pick_wood', [WOOD_AXE]: 'axe_wood', [WOOD_SHOVEL]: 'shovel_wood',
-    [STONE_PICK]: 'pick_stone', [STONE_AXE]: 'axe_stone', [STONE_SHOVEL]: 'shovel_stone',
-    [IRON_PICK]: 'pick_iron', [IRON_AXE]: 'axe_iron', [IRON_SHOVEL]: 'shovel_iron',
-  };
-  if (tools[id]) return atlas.icons[tools[id]];
+  const item = ITEMS[id];
+  if (item?.icon && atlas.icons[item.icon]) return atlas.icons[item.icon];
   if (isBlock(id)) {
     const b = BLOCKS[id];
     const tile = b.tiles.top || b.tiles.all || b.tiles.side;

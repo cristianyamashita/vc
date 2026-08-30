@@ -1,9 +1,12 @@
 import * as THREE from 'three';
 import {
-  WOOD_PICK, WOOD_AXE, WOOD_SHOVEL,
-  STONE_PICK, STONE_AXE, STONE_SHOVEL,
-  IRON_PICK, IRON_AXE, IRON_SHOVEL,
-  STICK, TORCH, isBlock,
+  WOOD_PICK, WOOD_AXE, WOOD_SHOVEL, WOOD_SWORD,
+  STONE_PICK, STONE_AXE, STONE_SHOVEL, STONE_SWORD,
+  IRON_PICK, IRON_AXE, IRON_SHOVEL, IRON_SWORD,
+  STICK, TORCH, RAW_MEAT, COOKED_MEAT, FRUIT, COOKED_FRUIT,
+  HIDE_COW, HIDE_ZEBRA, HIDE_SHEEP,
+  FLOWER_RED, FLOWER_YELLOW, FLOWER_WHITE,
+  isBlock, isFlower,
 } from './blocks.js';
 
 const SKIN = 0xc8a07a;
@@ -95,9 +98,9 @@ export class Arms {
     this.bob += dt * (walking ? 10 : 2);
     const swingX = Math.sin((1 - this.swing) * Math.PI) * 1.1;
     const holdingTool = [
-      WOOD_PICK, WOOD_AXE, WOOD_SHOVEL,
-      STONE_PICK, STONE_AXE, STONE_SHOVEL,
-      IRON_PICK, IRON_AXE, IRON_SHOVEL,
+      WOOD_PICK, WOOD_AXE, WOOD_SHOVEL, WOOD_SWORD,
+      STONE_PICK, STONE_AXE, STONE_SHOVEL, STONE_SWORD,
+      IRON_PICK, IRON_AXE, IRON_SHOVEL, IRON_SWORD,
     ].includes(this.heldId);
     const restX = holdingTool ? 0.48 : 0.22;
     this.right.group.rotation.x = restX + swingX * 0.85;
@@ -147,6 +150,15 @@ function makeToolMesh(id) {
     g.rotation.z = 0.4;
     g.rotation.x = 0.3;
     g.position.set(0.03, 0.02, -0.06);
+  } else if ([WOOD_SWORD, STONE_SWORD, IRON_SWORD].includes(id)) {
+    if ([STONE_SWORD].includes(id)) head = 0x8e8e96;
+    if ([IRON_SWORD].includes(id)) head = 0xc8ccd4;
+    g.add(box(0.03, 0.22, 0.03, wood, 0, -0.04, 0));
+    g.add(box(0.08, 0.04, 0.03, 0xc4a060, 0, 0.08, 0));
+    g.add(box(0.05, 0.32, 0.02, head, 0, 0.26, 0));
+    g.rotation.z = 0.45;
+    g.rotation.x = 0.25;
+    g.position.set(0.03, 0.02, -0.06);
   } else if (id === STICK) {
     g.add(box(0.03, 0.28, 0.03, wood, 0, 0, 0));
     g.position.set(0.02, -0.02, -0.05);
@@ -154,6 +166,36 @@ function makeToolMesh(id) {
     g.add(box(0.03, 0.22, 0.03, wood, 0, 0, 0));
     g.add(box(0.04, 0.04, 0.04, 0xffaa33, 0, 0.12, 0));
     g.position.set(0.02, 0, -0.05);
+  } else if (isFlower(id)) {
+    const petal = id === FLOWER_RED ? 0xd22d37 : id === FLOWER_YELLOW ? 0xe6be28 : 0xf0f0f4;
+    g.add(box(0.02, 0.18, 0.02, 0x2e8a38, 0, 0.02, 0));
+    g.add(box(0.08, 0.06, 0.08, petal, 0, 0.14, 0));
+    g.position.set(0.02, -0.02, -0.05);
+  } else if (id === RAW_MEAT) {
+    g.add(box(0.12, 0.07, 0.08, 0xc45a5a, 0, 0, -0.03));
+    g.position.set(0.03, -0.02, -0.05);
+  } else if (id === COOKED_MEAT) {
+    g.add(box(0.12, 0.07, 0.08, 0x7a3e22, 0, 0, -0.03));
+    g.position.set(0.03, -0.02, -0.05);
+  } else if (id === FRUIT) {
+    g.add(box(0.08, 0.08, 0.08, 0xc83228, 0, 0.02, -0.03));
+    g.add(box(0.03, 0.05, 0.03, 0x3a8a32, 0, 0.08, -0.03));
+    g.position.set(0.03, -0.02, -0.05);
+  } else if (id === COOKED_FRUIT) {
+    g.add(box(0.08, 0.08, 0.08, 0xc47828, 0, 0.02, -0.03));
+    g.add(box(0.05, 0.05, 0.05, 0x8a4a14, 0, 0.02, -0.03));
+    g.add(box(0.03, 0.05, 0.03, 0x3a8a32, 0, 0.08, -0.03));
+    g.position.set(0.03, -0.02, -0.05);
+  } else if (id === HIDE_COW) {
+    g.add(box(0.16, 0.02, 0.12, 0x7a4e2e, 0, 0, -0.03));
+    g.position.set(0.03, -0.02, -0.05);
+  } else if (id === HIDE_ZEBRA) {
+    g.add(box(0.16, 0.02, 0.12, 0xf0ece4, 0, 0, -0.03));
+    g.add(box(0.04, 0.025, 0.12, 0x1a1816, -0.04, 0, -0.03));
+    g.position.set(0.03, -0.02, -0.05);
+  } else if (id === HIDE_SHEEP) {
+    g.add(box(0.16, 0.03, 0.12, 0xe8e4d8, 0, 0, -0.03));
+    g.position.set(0.03, -0.02, -0.05);
   } else if (isBlock(id)) {
     g.add(box(0.16, 0.16, 0.16, 0x8fbf6a, 0, 0, -0.04));
     g.position.set(0.03, -0.02, -0.06);

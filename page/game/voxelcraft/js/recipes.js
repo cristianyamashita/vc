@@ -1,8 +1,10 @@
 import {
-  LOG, PLANKS, STICK, TABLE, TORCH, COAL, COBBLE, IRON,
-  WOOD_PICK, WOOD_AXE, WOOD_SHOVEL,
-  STONE_PICK, STONE_AXE, STONE_SHOVEL,
-  IRON_PICK, IRON_AXE, IRON_SHOVEL,
+  LOG, PLANKS, STICK, TABLE, TORCH, COAL, COBBLE, IRON, FURNACE,
+  WOOD_PICK, WOOD_AXE, WOOD_SHOVEL, WOOD_SWORD,
+  STONE_PICK, STONE_AXE, STONE_SHOVEL, STONE_SWORD,
+  IRON_PICK, IRON_AXE, IRON_SHOVEL, IRON_SWORD,
+  HIDE_COW, HIDE_ZEBRA, HIDE_SHEEP,
+  RUG_COW, RUG_ZEBRA, RUG_SHEEP,
 } from './blocks.js';
 
 function cell(id) {
@@ -76,21 +78,34 @@ function matchesShapeless(grid, ids) {
 const RECIPES = [
   { shapeless: [LOG], out: { id: PLANKS, n: 4 } },
   { shapeless: [COAL, STICK], out: { id: TORCH, n: 4 } },
+  { shapeless: [HIDE_COW], out: { id: RUG_COW, n: 1 } },
+  { shapeless: [HIDE_ZEBRA], out: { id: RUG_ZEBRA, n: 1 } },
+  { shapeless: [HIDE_SHEEP, HIDE_SHEEP], out: { id: RUG_SHEEP, n: 1 } },
   { pattern: [[PLANKS, PLANKS], [PLANKS, PLANKS]], out: { id: TABLE, n: 1 } },
   { pattern: [[PLANKS], [PLANKS]], out: { id: STICK, n: 4 } },
 ];
 
-function toolSet(mat, pick, axe, shovel) {
+function toolSet(mat, pick, axe, shovel, sword) {
   RECIPES.push(
     { pattern: [[mat, mat, mat], [0, STICK, 0], [0, STICK, 0]], out: { id: pick, n: 1 } },
     { pattern: [[mat, mat], [mat, STICK], [0, STICK]], out: { id: axe, n: 1 } },
     { pattern: [[mat], [STICK], [STICK]], out: { id: shovel, n: 1 } },
+    { pattern: [[mat], [mat], [STICK]], out: { id: sword, n: 1 } },
   );
 }
 
-toolSet(PLANKS, WOOD_PICK, WOOD_AXE, WOOD_SHOVEL);
-toolSet(COBBLE, STONE_PICK, STONE_AXE, STONE_SHOVEL);
-toolSet(IRON, IRON_PICK, IRON_AXE, IRON_SHOVEL);
+toolSet(PLANKS, WOOD_PICK, WOOD_AXE, WOOD_SHOVEL, WOOD_SWORD);
+toolSet(COBBLE, STONE_PICK, STONE_AXE, STONE_SHOVEL, STONE_SWORD);
+toolSet(IRON, IRON_PICK, IRON_AXE, IRON_SHOVEL, IRON_SWORD);
+
+RECIPES.push({
+  pattern: [
+    [COBBLE, COBBLE, COBBLE],
+    [COBBLE, 0, COBBLE],
+    [COBBLE, COBBLE, COBBLE],
+  ],
+  out: { id: FURNACE, n: 1 },
+});
 
 /** Sentinel for the variable material cell in the recipe book. */
 export const MAT = -1;
@@ -134,6 +149,31 @@ export const RECIPE_GUIDE = [
       { mat: IRON, out: IRON_SHOVEL },
     ],
   },
+  {
+    pattern: [[MAT], [MAT], [STICK]],
+    size: 3,
+    table: true,
+    titleKey: 'recipeSword',
+    results: [
+      { mat: PLANKS, out: WOOD_SWORD },
+      { mat: COBBLE, out: STONE_SWORD },
+      { mat: IRON, out: IRON_SWORD },
+    ],
+  },
+  {
+    pattern: [
+      [COBBLE, COBBLE, COBBLE],
+      [COBBLE, 0, COBBLE],
+      [COBBLE, COBBLE, COBBLE],
+    ],
+    out: { id: FURNACE, n: 1 },
+    size: 3,
+    table: true,
+    titleKey: 'recipeFurnace',
+  },
+  { shapeless: [HIDE_COW], out: { id: RUG_COW, n: 1 }, size: 2 },
+  { shapeless: [HIDE_ZEBRA], out: { id: RUG_ZEBRA, n: 1 }, size: 2 },
+  { shapeless: [HIDE_SHEEP, HIDE_SHEEP], out: { id: RUG_SHEEP, n: 1 }, size: 2 },
 ];
 
 export function matchRecipe(slots, size) {

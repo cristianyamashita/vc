@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { AIR, WATER, TORCH, isOpaque, tileName } from './blocks.js';
+import { AIR, WATER, TORCH, isOpaque, isDecor, isPlant, isRug, isFruitHang, tileName } from './blocks.js';
 import { CHUNK, HEIGHT, VIEW_RADIUS, UNLOAD_RADIUS, TORCH_FLOOR, TORCH_PX, TORCH_NX, TORCH_PZ, TORCH_NZ } from './world.js';
 import { tileUV } from './textures.js';
 
@@ -15,7 +15,7 @@ const FACES = [
 function shouldDrawFace(world, x, y, z, nx, ny, nz, id) {
   const oid = world.get(x + nx, y + ny, z + nz);
   if (id === WATER) return oid === AIR || (oid && oid !== WATER && !isOpaque(oid));
-  if (oid === AIR || oid === WATER || oid === TORCH) return true;
+  if (oid === AIR || oid === WATER || isDecor(oid)) return true;
   if (!isOpaque(oid)) return id !== oid;
   return false;
 }
@@ -82,6 +82,75 @@ function pushTorch(buf, x, y, z, facing = TORCH_FLOOR) {
     }
     buf.uvs.push(uv.u0, uv.v0, uv.u0, uv.v1, uv.u1, uv.v1, uv.u1, uv.v0);
     buf.indices.push(base, base + 2, base + 1, base, base + 3, base + 2);
+  }
+}
+
+function pushPlant(buf, x, y, z, tile) {
+  const uv = tileUV(tile);
+  const h = 0.85;
+  const y0 = 0;
+  const crosses = [
+    { corners: [[0.15, y0, 0.15], [0.15, h, 0.15], [0.85, h, 0.85], [0.85, y0, 0.85]], n: [0.7, 0, -0.7] },
+    { corners: [[0.85, y0, 0.15], [0.85, h, 0.15], [0.15, h, 0.85], [0.15, y0, 0.85]], n: [0.7, 0, 0.7] },
+  ];
+  for (const f of crosses) {
+    const base = buf.positions.length / 3;
+    for (const p of f.corners) {
+      buf.positions.push(x + p[0], y + p[1], z + p[2]);
+      buf.normals.push(f.n[0], 0.2, f.n[2]);
+      buf.colors.push(1, 0, 0);
+    }
+    buf.uvs.push(uv.u0, uv.v0, uv.u0, uv.v1, uv.u1, uv.v1, uv.u1, uv.v0);
+    buf.indices.push(base, base + 2, base + 1, base, base + 3, base + 2);
+  }
+}
+
+function pushFruit(buf, x, y, z) {
+  const uv = tileUV('fruit');
+  const s = 0.18;
+  const cx = 0.5;
+  const cy = 0.42;
+  const cz = 0.5;
+  const faces = [
+    { corners: [[-s, -s, s], [-s, s, s], [s, s, s], [s, -s, s]], n: [0, 0, 1] },
+    { corners: [[s, -s, -s], [s, s, -s], [-s, s, -s], [-s, -s, -s]], n: [0, 0, -1] },
+    { corners: [[-s, -s, -s], [-s, s, -s], [-s, s, s], [-s, -s, s]], n: [-1, 0, 0] },
+    { corners: [[s, -s, s], [s, s, s], [s, s, -s], [s, -s, -s]], n: [1, 0, 0] },
+    { corners: [[-s, s, s], [-s, s, -s], [s, s, -s], [s, s, s]], n: [0, 1, 0] },
+    { corners: [[-s, -s, -s], [-s, -s, s], [s, -s, s], [s, -s, -s]], n: [0, -1, 0] },
+  ];
+  for (const f of faces) {
+    const base = buf.positions.length / 3;
+    for (const p of f.corners) {
+      buf.positions.push(x + cx + p[0], y + cy + p[1], z + cz + p[2]);
+      buf.normals.push(f.n[0], f.n[1], f.n[2]);
+      buf.colors.push(1, 0, 0);
+    }
+    buf.uvs.push(uv.u0, uv.v0, uv.u0, uv.v1, uv.u1, uv.v1, uv.u1, uv.v0);
+    buf.indices.push(base, base + 2, base + 1, base, base + 3, base + 2);
+  }
+}
+
+function pushRug(buf, x, y, z, tile) {
+  const uv = tileUV(tile);
+  const h = 0.06;
+  const faces = [
+    { corners: [[0.02, h, 0.02], [0.98, h, 0.02], [0.98, h, 0.98], [0.02, h, 0.98]], n: [0, 1, 0], shade: 1 },
+    { corners: [[0.02, 0, 0.98], [0.98, 0, 0.98], [0.98, 0, 0.02], [0.02, 0, 0.02]], n: [0, -1, 0], shade: 0.5 },
+    { corners: [[0.02, 0, 0.02], [0.98, 0, 0.02], [0.98, h, 0.02], [0.02, h, 0.02]], n: [0, 0, -1], shade: 0.7 },
+    { corners: [[0.98, 0, 0.98], [0.02, 0, 0.98], [0.02, h, 0.98], [0.98, h, 0.98]], n: [0, 0, 1], shade: 0.7 },
+    { corners: [[0.02, 0, 0.98], [0.02, 0, 0.02], [0.02, h, 0.02], [0.02, h, 0.98]], n: [-1, 0, 0], shade: 0.6 },
+    { corners: [[0.98, 0, 0.02], [0.98, 0, 0.98], [0.98, h, 0.98], [0.98, h, 0.02]], n: [1, 0, 0], shade: 0.6 },
+  ];
+  for (const f of faces) {
+    const base = buf.positions.length / 3;
+    for (const p of f.corners) {
+      buf.positions.push(x + p[0], y + p[1], z + p[2]);
+      buf.normals.push(f.n[0], f.n[1], f.n[2]);
+      buf.colors.push(f.shade, 0, 0);
+    }
+    buf.uvs.push(uv.u0, uv.v0, uv.u1, uv.v0, uv.u1, uv.v1, uv.u0, uv.v1);
+    buf.indices.push(base, base + 1, base + 2, base, base + 2, base + 3);
   }
 }
 
@@ -181,6 +250,18 @@ export function meshChunk(world, cx, cz) {
           pushTorch(solid, x, y, z, world.torchFacing(x, y, z));
           continue;
         }
+        if (isPlant(id)) {
+          pushPlant(solid, x, y, z, tileName(id, 'py'));
+          continue;
+        }
+        if (isFruitHang(id)) {
+          pushFruit(solid, x, y, z);
+          continue;
+        }
+        if (isRug(id)) {
+          pushRug(solid, x, y, z, tileName(id, 'py'));
+          continue;
+        }
         const buf = id === WATER ? water : solid;
         const torch = blockTorch(field, x, y, z);
         for (const face of FACES) {
@@ -236,6 +317,7 @@ function makeWorldMaterial(atlasTexture, opacity = 1) {
       varying vec3 vWorld;
       void main() {
         vec4 tex = texture2D(map, vUv);
+        if (tex.a < 0.12) discard;
         float shade = vLight.x;
         float torch = vLight.y;
         float sky = mix(0.14, 1.06, clamp(day, 0.0, 1.0));

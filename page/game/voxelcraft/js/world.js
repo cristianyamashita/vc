@@ -1,6 +1,8 @@
 import {
   AIR, GRASS, DIRT, STONE, COBBLE, SAND, WATER, LOG, LEAVES, PLANKS,
-  COAL_ORE, IRON_ORE, TABLE, TORCH, BEDROCK, CACTUS, isSolid, isOpaque,
+  COAL_ORE, IRON_ORE, TABLE, TORCH, BEDROCK, CACTUS,
+  FLOWER_RED, FLOWER_YELLOW, FLOWER_WHITE, FRUIT_HANG, FURNACE,
+  isSolid, isOpaque, isDecor,
 } from './blocks.js';
 import { fbm2, fbm3, hash2, hash3 } from './noise.js';
 
@@ -56,8 +58,12 @@ const MAP_RGB = {
   [COAL_ORE]: [72, 72, 76],
   [IRON_ORE]: [168, 150, 132],
   [TABLE]: [160, 110, 55],
+  [FURNACE]: [78, 78, 82],
   [CACTUS]: [46, 138, 52],
   [BEDROCK]: [50, 50, 55],
+  [FLOWER_RED]: [190, 50, 60],
+  [FLOWER_YELLOW]: [210, 180, 50],
+  [FLOWER_WHITE]: [220, 220, 230],
 };
 
 export function mapRgb(id, h = 28) {
@@ -75,6 +81,7 @@ export class World {
     this.pending = new Map();
     this.map = new Map();
     this.torchDir = {};
+    this.furnaces = {};
   }
 
   chunkKey(cx, cz) {
@@ -127,6 +134,7 @@ export class World {
     this.markDirty(x, z);
     if (record) this.edits[`${x},${y},${z}`] = id;
     if (prev === TORCH && id !== TORCH) delete this.torchDir[`${x},${y},${z}`];
+    if (prev === FURNACE && id !== FURNACE) delete this.furnaces[`${x},${y},${z}`];
     if (prev === TORCH || id === TORCH || isOpaque(prev) !== isOpaque(id)) {
       const ccx = x >> 4;
       const ccz = z >> 4;
@@ -187,7 +195,7 @@ export class World {
   heightAt(x, z) {
     for (let y = HEIGHT - 1; y >= 0; y--) {
       const id = this.get(x, y, z);
-      if (id && id !== WATER) return y;
+      if (isSolid(id)) return y;
     }
     return 0;
   }
@@ -321,7 +329,8 @@ export class World {
     const queued = this.pending.get(key);
     if (queued) {
       for (const p of queued) {
-        if (p.y >= 0 && p.y < HEIGHT && chunk[this.idx(p.x & 15, p.y, p.z & 15)] === AIR) {
+        const cur = chunk[this.idx(p.x & 15, p.y, p.z & 15)];
+        if (p.y >= 0 && p.y < HEIGHT && (cur === AIR || (p.id === FRUIT_HANG && cur === LEAVES))) {
           this.setLocal(chunk, p.x & 15, p.y, p.z & 15, p.id);
         }
       }
@@ -386,12 +395,18 @@ export class World {
     }
     if (surface !== GRASS) return;
     const chance = biome === BIOME_FOREST ? 0.032 : biome === BIOME_MOUNTAIN ? 0.01 : 0;
-    if (!chance || hash2(x, z, this.seed + 120) > chance) return;
-    if (biome === BIOME_MOUNTAIN && h > 40) return;
-    this.placeTree(x, h + 1, z);
+    if (chance && hash2(x, z, this.seed + 120) <= chance) {
+      if (!(biome === BIOME_MOUNTAIN && h > 40)) this.placeTree(x, h + 1, z);
+      return;
+    }
+    const flowerChance = biome === BIOME_FOREST ? 0.009 : biome === BIOME_MOUNTAIN ? 0.004 : 0;
+    if (flowerChance && hash2(x, z, this.seed + 128) <= flowerChance) {
+      if (biome === BIOME_MOUNTAIN && h > 40) return;
+      this.placeFlower(x, h + 1, z);
+    }
   }
 
-  stamp(x, y, z, id) {
+  stamp(x, y, z, id, opts = {}) {
     if (y < 0 || y >= HEIGHT) return;
     const cx = x >> 4;
     const cz = z >> 4;
@@ -399,7 +414,8 @@ export class World {
     const chunk = this.chunks.get(key);
     if (chunk) {
       const i = this.idx(x & 15, y, z & 15);
-      if (chunk[i] === AIR || id === LOG) {
+      const cur = chunk[i];
+      if (cur === AIR || id === LOG || (opts.replaceLeaves && cur === LEAVES)) {
         chunk[i] = id;
         this.dirty.add(key);
       }
@@ -426,6 +442,21 @@ export class World {
         }
       }
     }
+    if (hash2(x, z, this.seed + 201) < 0.25) {
+      const n = 2 + Math.floor(hash2(x, z, this.seed + 202) * 3);
+      for (let i = 0; i < n; i++) {
+        const dx = Math.floor(hash2(x + i * 3, z, this.seed + 203) * 5) - 2;
+        const dz = Math.floor(hash2(x, z + i * 7, this.seed + 204) * 5) - 2;
+        const dy = Math.floor(hash2(x + i, z + i, this.seed + 205) * 3) - 1;
+        this.stamp(x + dx, top + dy, z + dz, FRUIT_HANG, { replaceLeaves: true });
+      }
+    }
+  }
+
+  placeFlower(x, y, z) {
+    const roll = hash2(x, z, this.seed + 230);
+    const id = roll < 0.34 ? FLOWER_RED : roll < 0.67 ? FLOWER_YELLOW : FLOWER_WHITE;
+    this.stamp(x, y, z, id);
   }
 
   placeCactus(x, y, z) {
@@ -436,7 +467,7 @@ export class World {
   surfaceForMap(x, z) {
     for (let y = HEIGHT - 1; y >= 0; y--) {
       const id = this.get(x, y, z);
-      if (!id || id === AIR || id === TORCH) continue;
+      if (!id || id === AIR || isDecor(id)) continue;
       if (id === LEAVES || id === LOG || id === CACTUS) continue;
       return { id, h: y };
     }
