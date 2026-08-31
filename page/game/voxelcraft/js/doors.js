@@ -1,6 +1,6 @@
 import {
   AIR, DOOR, DOOR_UPPER, DOOR_OPEN, DOOR_UPPER_OPEN, DOOR_DOUBLE,
-  isSolid,
+  isSolid, isReplaceable,
 } from './blocks.js';
 
 export function isDoorId(id) {
@@ -56,8 +56,7 @@ export function doorSlab(facing, open, hinge, t = 0.14) {
 }
 
 function airAt(world, x, y, z) {
-  const id = world.get(x, y, z);
-  return !id || id === AIR;
+  return isReplaceable(world.get(x, y, z));
 }
 
 function floorOk(world, x, y, z) {

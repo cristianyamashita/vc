@@ -36,6 +36,9 @@ const TILE_INDEX = {
   door_lower: 27,
   door_upper: 28,
   ladder: 29,
+  glass: 30,
+  spring_top: 31,
+  spring_side: 32,
 };
 
 function clamp(n, a, b) {
@@ -286,6 +289,54 @@ function drawTile(name) {
     for (const ry of [2, 6, 10, 14]) {
       for (let x = 2; x <= 13; x++) put(d, x, ry, rung[0], rung[1], rung[2]);
     }
+  } else if (name === 'glass') {
+    for (let y = 0; y < TILE; y++) {
+      for (let x = 0; x < TILE; x++) {
+        const edge = x === 0 || y === 0 || x === 15 || y === 15 || x === 8 || y === 8;
+        if (edge) put(d, x, y, 214, 236, 244, 255);
+        else put(d, x, y, 150, 210, 228, 255);
+      }
+    }
+    put(d, 3, 3, 255, 255, 255);
+    put(d, 4, 3, 255, 255, 255);
+    put(d, 3, 4, 240, 250, 255);
+  } else if (name === 'spring_top') {
+    fillNoise(d, [108, 108, 114], 16, rng);
+    blot(d, [88, 88, 94], rng, 5, 2);
+    for (let i = 0; i < TILE; i++) {
+      put(d, i, 0, 72, 72, 78);
+      put(d, i, 15, 72, 72, 78);
+      put(d, 0, i, 72, 72, 78);
+      put(d, 15, i, 72, 72, 78);
+    }
+    for (let y = 3; y < 13; y++) {
+      for (let x = 3; x < 13; x++) {
+        const dx = x - 7.5;
+        const dy = y - 7.5;
+        if (dx * dx + dy * dy < 22) {
+          const wave = Math.sin(x * 0.9 + y * 0.4) * 12;
+          put(d, x, y, clamp(46 + wave, 0, 255), clamp(118 + wave, 0, 255), clamp(198 + wave, 0, 255));
+        }
+      }
+    }
+    put(d, 6, 6, 120, 190, 240);
+    put(d, 7, 5, 160, 210, 250);
+  } else if (name === 'spring_side') {
+    fillNoise(d, [110, 110, 116], 16, rng);
+    blot(d, [90, 90, 96], rng, 5, 2);
+    for (let x = 0; x < TILE; x++) {
+      put(d, x, 3, 168, 170, 180);
+      put(d, x, 4, 140, 142, 152);
+      put(d, x, 11, 168, 170, 180);
+      put(d, x, 12, 140, 142, 152);
+    }
+    for (let y = 6; y < 10; y++) {
+      for (let x = 5; x < 11; x++) {
+        put(d, x, y, 40, 96, 168);
+      }
+    }
+    put(d, 7, 7, 90, 160, 220);
+    put(d, 8, 8, 70, 140, 210);
   } else {
     fillNoise(d, [200, 0, 200], 10, rng);
   }
@@ -437,6 +488,20 @@ function drawItemIcon(kind) {
     g.fillStyle = '#8a5a28';
     g.fillRect(4, 20, 24, 2);
     g.fillRect(16, 12, 12, 2);
+  } else if (kind === 'stairs_sand') {
+    g.fillStyle = '#d2c078';
+    g.fillRect(4, 20, 24, 8);
+    g.fillRect(16, 12, 12, 8);
+    g.fillStyle = '#a89048';
+    g.fillRect(4, 20, 24, 2);
+    g.fillRect(16, 12, 12, 2);
+  } else if (kind === 'stairs_stone') {
+    g.fillStyle = '#9a9aa2';
+    g.fillRect(4, 20, 24, 8);
+    g.fillRect(16, 12, 12, 8);
+    g.fillStyle = '#6e6e76';
+    g.fillRect(4, 20, 24, 2);
+    g.fillRect(16, 12, 12, 2);
   } else if (kind === 'ladder') {
     g.fillStyle = '#8a5a28';
     g.fillRect(8, 2, 3, 28);
@@ -445,6 +510,23 @@ function drawItemIcon(kind) {
     g.fillRect(8, 6, 16, 3);
     g.fillRect(8, 14, 16, 3);
     g.fillRect(8, 22, 16, 3);
+  } else if (kind === 'wall_wood') {
+    g.fillStyle = '#c48a48';
+    g.fillRect(10, 2, 6, 28);
+    g.fillStyle = '#8a5a28';
+    g.fillRect(10, 2, 6, 2);
+    g.fillRect(10, 28, 6, 2);
+    g.fillRect(10, 2, 2, 28);
+    g.fillRect(14, 2, 2, 28);
+  } else if (kind === 'wall_glass') {
+    g.fillStyle = 'rgba(170, 220, 235, 0.85)';
+    g.fillRect(10, 2, 6, 28);
+    g.fillStyle = '#d8eef4';
+    g.fillRect(10, 2, 6, 2);
+    g.fillRect(10, 28, 6, 2);
+    g.fillRect(10, 2, 2, 28);
+    g.fillRect(14, 2, 2, 28);
+    g.fillRect(10, 16, 6, 2);
   }
   return c.toDataURL();
 }
@@ -477,7 +559,8 @@ export function createAtlas() {
     'sword_wood', 'sword_stone', 'sword_iron',
     'meat_raw', 'meat_cooked', 'fruit', 'fruit_cooked',
     'hide_cow', 'hide_zebra', 'hide_sheep',
-    'door', 'door_double', 'stairs', 'ladder',
+    'door', 'door_double', 'stairs', 'stairs_sand', 'stairs_stone', 'ladder',
+    'wall_wood', 'wall_glass',
   ];
   for (const kind of itemKinds) icons[kind] = drawItemIcon(kind);
 

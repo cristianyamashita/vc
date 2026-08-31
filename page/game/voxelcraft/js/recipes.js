@@ -1,11 +1,12 @@
 import {
-  LOG, PLANKS, STICK, TABLE, TORCH, COAL, COBBLE, IRON, FURNACE,
+  LOG, PLANKS, STICK, TABLE, TORCH, COAL, COBBLE, STONE, SAND, IRON, FURNACE, GLASS,
   WOOD_PICK, WOOD_AXE, WOOD_SHOVEL, WOOD_SWORD,
   STONE_PICK, STONE_AXE, STONE_SHOVEL, STONE_SWORD,
   IRON_PICK, IRON_AXE, IRON_SHOVEL, IRON_SWORD,
   HIDE_COW, HIDE_ZEBRA, HIDE_SHEEP,
   RUG_COW, RUG_ZEBRA, RUG_SHEEP,
-  DOOR, DOOR_DOUBLE, STAIRS, LADDER,
+  DOOR, DOOR_DOUBLE, STAIRS, STAIRS_SAND, STAIRS_STONE, LADDER, WALL_WOOD, WALL_GLASS,
+  WATER_SPRING,
 } from './blocks.js';
 
 function cell(id) {
@@ -79,6 +80,7 @@ function matchesShapeless(grid, ids) {
 const RECIPES = [
   { shapeless: [LOG], out: { id: PLANKS, n: 4 } },
   { shapeless: [COAL, STICK], out: { id: TORCH, n: 4 } },
+  { shapeless: [SAND, COAL], out: { id: GLASS, n: 1 } },
   { shapeless: [HIDE_COW], out: { id: RUG_COW, n: 1 } },
   { shapeless: [HIDE_ZEBRA], out: { id: RUG_ZEBRA, n: 1 } },
   { shapeless: [HIDE_SHEEP, HIDE_SHEEP], out: { id: RUG_SHEEP, n: 1 } },
@@ -119,14 +121,21 @@ RECIPES.push({
 
 RECIPES.push({ shapeless: [DOOR, DOOR], out: { id: DOOR_DOUBLE, n: 1 } });
 
-RECIPES.push({
-  pattern: [
-    [PLANKS, 0, 0],
-    [PLANKS, PLANKS, 0],
-    [PLANKS, PLANKS, PLANKS],
-  ],
-  out: { id: STAIRS, n: 4 },
-});
+function stairSet(mat, out) {
+  RECIPES.push({
+    pattern: [
+      [mat, 0, 0],
+      [mat, mat, 0],
+      [mat, mat, mat],
+    ],
+    out: { id: out, n: 4 },
+  });
+}
+
+stairSet(PLANKS, STAIRS);
+stairSet(SAND, STAIRS_SAND);
+stairSet(COBBLE, STAIRS_STONE);
+stairSet(STONE, STAIRS_STONE);
 
 RECIPES.push({
   pattern: [
@@ -137,6 +146,18 @@ RECIPES.push({
   out: { id: LADDER, n: 3 },
 });
 
+RECIPES.push({ pattern: [[PLANKS, PLANKS]], out: { id: WALL_WOOD, n: 4 } });
+RECIPES.push({ pattern: [[GLASS, GLASS]], out: { id: WALL_GLASS, n: 4 } });
+
+RECIPES.push({
+  pattern: [
+    [COBBLE, IRON, COBBLE],
+    [IRON, SAND, IRON],
+    [COBBLE, IRON, COBBLE],
+  ],
+  out: { id: WATER_SPRING, n: 1 },
+});
+
 /** Sentinel for the variable material cell in the recipe book. */
 export const MAT = -1;
 
@@ -145,6 +166,7 @@ export const RECIPE_GUIDE = [
   { pattern: [[PLANKS], [PLANKS]], out: { id: STICK, n: 4 }, size: 2 },
   { pattern: [[PLANKS, PLANKS], [PLANKS, PLANKS]], out: { id: TABLE, n: 1 }, size: 2 },
   { shapeless: [COAL, STICK], out: { id: TORCH, n: 4 }, size: 2 },
+  { shapeless: [SAND, COAL], out: { id: GLASS, n: 1 }, size: 2, titleKey: 'recipeGlass' },
   {
     pattern: [[MAT, MAT, MAT], [0, STICK, 0], [0, STICK, 0]],
     size: 3,
@@ -215,15 +237,20 @@ export const RECIPE_GUIDE = [
   { shapeless: [DOOR, DOOR], out: { id: DOOR_DOUBLE, n: 1 }, size: 2, titleKey: 'recipeDoorDouble' },
   {
     pattern: [
-      [PLANKS, 0, 0],
-      [PLANKS, PLANKS, 0],
-      [PLANKS, PLANKS, PLANKS],
+      [MAT, 0, 0],
+      [MAT, MAT, 0],
+      [MAT, MAT, MAT],
     ],
-    out: { id: STAIRS, n: 4 },
     size: 3,
     table: true,
     mirror: true,
     titleKey: 'recipeStairs',
+    matKey: 'recipeMaterialStairs',
+    results: [
+      { mat: PLANKS, out: STAIRS, n: 4 },
+      { mat: SAND, out: STAIRS_SAND, n: 4 },
+      { mat: COBBLE, out: STAIRS_STONE, n: 4 },
+    ],
   },
   {
     pattern: [
@@ -235,6 +262,27 @@ export const RECIPE_GUIDE = [
     size: 3,
     table: true,
     titleKey: 'recipeLadder',
+  },
+  {
+    pattern: [[MAT, MAT]],
+    size: 2,
+    titleKey: 'recipeWall',
+    matKey: 'recipeMaterialWalls',
+    results: [
+      { mat: PLANKS, out: WALL_WOOD, n: 4 },
+      { mat: GLASS, out: WALL_GLASS, n: 4 },
+    ],
+  },
+  {
+    pattern: [
+      [COBBLE, IRON, COBBLE],
+      [IRON, SAND, IRON],
+      [COBBLE, IRON, COBBLE],
+    ],
+    out: { id: WATER_SPRING, n: 1 },
+    size: 3,
+    table: true,
+    titleKey: 'recipeWaterSpring',
   },
   { shapeless: [HIDE_COW], out: { id: RUG_COW, n: 1 }, size: 2 },
   { shapeless: [HIDE_ZEBRA], out: { id: RUG_ZEBRA, n: 1 }, size: 2 },

@@ -1,9 +1,9 @@
 import * as THREE from 'three';
-import { AIR, WATER, TORCH, STAIRS, LADDER, isOpaque, isDecor, isPlant, isRug, isFruitHang, tileName } from './blocks.js';
+import { AIR, WATER, TORCH, LADDER, isOpaque, isDecor, isPlant, isRug, isFruitHang, isStair, isWall, isGlass, tileName } from './blocks.js';
 import { CHUNK, HEIGHT, VIEW_RADIUS, UNLOAD_RADIUS, TORCH_FLOOR, TORCH_PX, TORCH_NX, TORCH_PZ, TORCH_NZ } from './world.js';
 import { tileUV } from './textures.js';
 import { isDoorId, isDoorBottom, isDoorOpenId, doorKey, doorSlab } from './doors.js';
-import { stairBoxes, FACE_PZ, FACE_PX, FACE_NZ, FACE_NX } from './stairs.js';
+import { stairBoxes, wallBox, FACE_PZ, FACE_PX, FACE_NZ, FACE_NX } from './stairs.js';
 
 const FACES = [
   { dir: [1, 0, 0], corners: [[1, 0, 0], [1, 1, 0], [1, 1, 1], [1, 0, 1]], shade: 0.6, key: 'px' },
@@ -178,10 +178,39 @@ function pushBox(buf, x, y, z, box, uv, torch) {
   }
 }
 
-function pushStairs(buf, world, x, y, z, torch) {
-  const uv = tileUV('planks');
+function pushStairs(buf, world, x, y, z, id, torch) {
+  const uv = tileUV(tileName(id, 'py'));
   for (const box of stairBoxes(world.blockFacing(x, y, z))) {
     pushBox(buf, x, y, z, box, uv, torch);
+  }
+}
+
+function faceCovered(world, x, y, z, nx, ny, nz) {
+  const oid = world.get(x + nx, y + ny, z + nz);
+  return !!(oid && isOpaque(oid));
+}
+
+function pushWall(buf, world, x, y, z, id, torch) {
+  const uv = tileUV(tileName(id, 'py'));
+  const { x0, y0, z0, x1, y1, z1 } = wallBox(world.blockFacing(x, y, z));
+  const faces = [
+    { corners: [[x0, y0, z1], [x0, y1, z1], [x1, y1, z1], [x1, y0, z1]], n: [0, 0, 1], shade: 0.9, skip: z1 >= 1 && faceCovered(world, x, y, z, 0, 0, 1) },
+    { corners: [[x1, y0, z0], [x1, y1, z0], [x0, y1, z0], [x0, y0, z0]], n: [0, 0, -1], shade: 0.7, skip: z0 <= 0 && faceCovered(world, x, y, z, 0, 0, -1) },
+    { corners: [[x0, y0, z0], [x0, y1, z0], [x0, y1, z1], [x0, y0, z1]], n: [-1, 0, 0], shade: 0.6, skip: x0 <= 0 && faceCovered(world, x, y, z, -1, 0, 0) },
+    { corners: [[x1, y0, z1], [x1, y1, z1], [x1, y1, z0], [x1, y0, z0]], n: [1, 0, 0], shade: 0.8, skip: x1 >= 1 && faceCovered(world, x, y, z, 1, 0, 0) },
+    { corners: [[x0, y1, z1], [x0, y1, z0], [x1, y1, z0], [x1, y1, z1]], n: [0, 1, 0], shade: 1, skip: y1 >= 1 && faceCovered(world, x, y, z, 0, 1, 0) },
+    { corners: [[x0, y0, z0], [x0, y0, z1], [x1, y0, z1], [x1, y0, z0]], n: [0, -1, 0], shade: 0.45, skip: y0 <= 0 && faceCovered(world, x, y, z, 0, -1, 0) },
+  ];
+  for (const f of faces) {
+    if (f.skip) continue;
+    const base = buf.positions.length / 3;
+    for (const p of f.corners) {
+      buf.positions.push(x + p[0], y + p[1], z + p[2]);
+      buf.normals.push(f.n[0], f.n[1], f.n[2]);
+      buf.colors.push(f.shade, torch, 0);
+    }
+    buf.uvs.push(uv.u0, uv.v0, uv.u0, uv.v1, uv.u1, uv.v1, uv.u1, uv.v0);
+    buf.indices.push(base, base + 2, base + 1, base, base + 3, base + 2);
   }
 }
 
@@ -336,6 +365,7 @@ function blockTorch(field, x, y, z) {
 export function meshChunk(world, cx, cz) {
   const solid = makeBuf();
   const water = makeBuf();
+  const glass = makeBuf();
   const field = buildTorchLight(world, cx, cz);
   const x0 = cx * CHUNK;
   const z0 = cz * CHUNK;
@@ -366,15 +396,20 @@ export function meshChunk(world, cx, cz) {
           pushDoor(solid, world, x, y, z, id);
           continue;
         }
-        if (id === STAIRS) {
-          pushStairs(solid, world, x, y, z, blockTorch(field, x, y, z));
+        if (isStair(id)) {
+          pushStairs(solid, world, x, y, z, id, blockTorch(field, x, y, z));
           continue;
         }
         if (id === LADDER) {
           pushLadder(solid, x, y, z, world.blockFacing(x, y, z));
           continue;
         }
-        const buf = id === WATER ? water : solid;
+        if (isWall(id)) {
+          const buf = isGlass(id) ? glass : solid;
+          pushWall(buf, world, x, y, z, id, blockTorch(field, x, y, z));
+          continue;
+        }
+        const buf = id === WATER ? water : isGlass(id) ? glass : solid;
         const torch = blockTorch(field, x, y, z);
         for (const face of FACES) {
           const [dx, dy, dz] = face.dir;
@@ -385,7 +420,7 @@ export function meshChunk(world, cx, cz) {
       }
     }
   }
-  return { solid: geomFrom(solid), water: geomFrom(water) };
+  return { solid: geomFrom(solid), water: geomFrom(water), glass: geomFrom(glass) };
 }
 
 function makeWorldMaterial(atlasTexture, opacity = 1) {
@@ -457,19 +492,20 @@ export function createWorldMeshes(atlasTexture) {
   const group = new THREE.Group();
   const solidMat = makeWorldMaterial(atlasTexture, 1);
   const waterMat = makeWorldMaterial(atlasTexture, 0.65);
-  return { group, meshes: new Map(), solidMat, waterMat };
+  const glassMat = makeWorldMaterial(atlasTexture, 0.38);
+  return { group, meshes: new Map(), solidMat, waterMat, glassMat };
 }
 
 export function setWorldLight(bundle, day, holdPos, holdTorch) {
   if (!bundle) return;
-  for (const mat of [bundle.solidMat, bundle.waterMat]) {
+  for (const mat of [bundle.solidMat, bundle.waterMat, bundle.glassMat]) {
     mat.uniforms.day.value = day;
     mat.uniforms.holdTorch.value = holdTorch ? 1 : 0;
     mat.uniforms.holdPos.value.copy(holdPos);
   }
 }
 
-function addChunk(world, group, meshes, cx, cz, solidMat, waterMat) {
+function addChunk(world, group, meshes, cx, cz, solidMat, waterMat, glassMat) {
   const key = `${cx},${cz}`;
   const old = meshes.get(key);
   if (old) {
@@ -478,7 +514,7 @@ function addChunk(world, group, meshes, cx, cz, solidMat, waterMat) {
       m.geometry.dispose();
     }
   }
-  const { solid, water } = meshChunk(world, cx, cz);
+  const { solid, water, glass } = meshChunk(world, cx, cz);
   const list = [];
   if (solid) {
     const mesh = new THREE.Mesh(solid, solidMat);
@@ -488,6 +524,12 @@ function addChunk(world, group, meshes, cx, cz, solidMat, waterMat) {
   }
   if (water) {
     const mesh = new THREE.Mesh(water, waterMat);
+    mesh.layers.set(0);
+    group.add(mesh);
+    list.push(mesh);
+  }
+  if (glass) {
+    const mesh = new THREE.Mesh(glass, glassMat);
     mesh.layers.set(0);
     group.add(mesh);
     list.push(mesh);
@@ -510,7 +552,7 @@ export function remeshDirty(world, bundle) {
   for (const key of world.dirty) {
     const [cx, cz] = key.split(',').map(Number);
     if (!world.chunks.has(key)) continue;
-    addChunk(world, bundle.group, bundle.meshes, cx, cz, bundle.solidMat, bundle.waterMat);
+    addChunk(world, bundle.group, bundle.meshes, cx, cz, bundle.solidMat, bundle.waterMat, bundle.glassMat);
   }
   world.dirty.clear();
 }
@@ -545,5 +587,6 @@ export function disposeMeshes(bundle) {
   }
   bundle.solidMat.dispose();
   bundle.waterMat.dispose();
+  bundle.glassMat.dispose();
 }
 

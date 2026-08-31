@@ -1,8 +1,9 @@
-import { RAW_MEAT, COOKED_MEAT, FRUIT, COOKED_FRUIT, COAL, stackMax } from './blocks.js';
+import { RAW_MEAT, COOKED_MEAT, FRUIT, COOKED_FRUIT, COAL, SAND, GLASS, stackMax } from './blocks.js';
 
 export const SMELT_MAP = {
   [RAW_MEAT]: COOKED_MEAT,
   [FRUIT]: COOKED_FRUIT,
+  [SAND]: GLASS,
 };
 
 export const FUEL_SEC = {

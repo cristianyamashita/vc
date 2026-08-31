@@ -54,6 +54,12 @@ export const DOOR_UPPER_OPEN = 49;
 export const DOOR_DOUBLE = 50;
 export const STAIRS = 51;
 export const LADDER = 52;
+export const GLASS = 53;
+export const STAIRS_SAND = 54;
+export const STAIRS_STONE = 55;
+export const WALL_WOOD = 56;
+export const WALL_GLASS = 57;
+export const WATER_SPRING = 58;
 
 export const BLOCKS = {
   [GRASS]: {
@@ -363,6 +369,76 @@ export const BLOCKS = {
     tiles: { all: 'ladder' },
     icon: 'ladder',
   },
+  [GLASS]: {
+    nameKey: 'blockGlass',
+    solid: true,
+    opaque: false,
+    glass: true,
+    hardness: 0.3,
+    tool: null,
+    minTier: 0,
+    drops: [{ id: GLASS, n: 1 }],
+    tiles: { all: 'glass' },
+  },
+  [STAIRS_SAND]: {
+    nameKey: 'blockStairsSand',
+    solid: true,
+    opaque: false,
+    stair: true,
+    hardness: 0.5,
+    tool: 'shovel',
+    minTier: 0,
+    drops: [{ id: STAIRS_SAND, n: 1 }],
+    tiles: { all: 'sand' },
+    icon: 'stairs_sand',
+  },
+  [STAIRS_STONE]: {
+    nameKey: 'blockStairsStone',
+    solid: true,
+    opaque: false,
+    stair: true,
+    hardness: 2,
+    tool: 'pickaxe',
+    minTier: 1,
+    drops: [{ id: STAIRS_STONE, n: 1 }],
+    tiles: { all: 'cobble' },
+    icon: 'stairs_stone',
+  },
+  [WALL_WOOD]: {
+    nameKey: 'blockWallWood',
+    solid: true,
+    opaque: false,
+    wall: true,
+    hardness: 2,
+    tool: 'axe',
+    minTier: 0,
+    drops: [{ id: WALL_WOOD, n: 1 }],
+    tiles: { all: 'planks' },
+    icon: 'wall_wood',
+  },
+  [WALL_GLASS]: {
+    nameKey: 'blockWallGlass',
+    solid: true,
+    opaque: false,
+    wall: true,
+    glass: true,
+    hardness: 0.3,
+    tool: null,
+    minTier: 0,
+    drops: [{ id: WALL_GLASS, n: 1 }],
+    tiles: { all: 'glass' },
+    icon: 'wall_glass',
+  },
+  [WATER_SPRING]: {
+    nameKey: 'blockWaterSpring',
+    solid: true,
+    opaque: true,
+    hardness: 3.5,
+    tool: 'pickaxe',
+    minTier: 1,
+    drops: [{ id: WATER_SPRING, n: 1 }],
+    tiles: { top: 'spring_top', side: 'spring_side', bottom: 'cobble' },
+  },
 };
 
 export const ITEMS = {
@@ -417,6 +493,10 @@ export function isLiquid(id) {
   return !!BLOCKS[id]?.liquid;
 }
 
+export function isReplaceable(id) {
+  return !id || id === AIR || isLiquid(id);
+}
+
 export function isPlant(id) {
   return !!BLOCKS[id]?.plant;
 }
@@ -433,8 +513,21 @@ export function isFruitHang(id) {
   return !!BLOCKS[id]?.fruit;
 }
 
+export function isStair(id) {
+  return !!BLOCKS[id]?.stair;
+}
+
+export function isWall(id) {
+  return !!BLOCKS[id]?.wall;
+}
+
+export function isGlass(id) {
+  return !!BLOCKS[id]?.glass;
+}
+
 export function isDecor(id) {
-  return id === TORCH || id === LADDER || isPlant(id) || isRug(id) || isFruitHang(id) || !!BLOCKS[id]?.door;
+  return id === TORCH || id === LADDER || isPlant(id) || isRug(id) || isFruitHang(id)
+    || !!BLOCKS[id]?.door || isWall(id);
 }
 
 export function foodInfo(stack) {

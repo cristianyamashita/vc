@@ -1,9 +1,12 @@
-import { AIR, STAIRS, LADDER, isSolid } from './blocks.js';
+import { AIR, LADDER, isSolid, isStair, isWall, isReplaceable } from './blocks.js';
 
 export const FACE_PZ = 0;
 export const FACE_PX = 1;
 export const FACE_NZ = 2;
 export const FACE_NX = 3;
+export const FACE_PY = 4;
+export const FACE_NY = 5;
+export const WALL_T = 0.14;
 
 const FULL = { x0: 0, y0: 0, z0: 0, x1: 1, y1: 1, z1: 1 };
 
@@ -43,9 +46,19 @@ export function stairBoxes(facing) {
   return boxes;
 }
 
+export function wallBox(facing, t = WALL_T) {
+  if (facing === FACE_PZ) return { x0: 0, y0: 0, z0: 0, x1: 1, y1: 1, z1: t };
+  if (facing === FACE_NZ) return { x0: 0, y0: 0, z0: 1 - t, x1: 1, y1: 1, z1: 1 };
+  if (facing === FACE_PX) return { x0: 0, y0: 0, z0: 0, x1: t, y1: 1, z1: 1 };
+  if (facing === FACE_NX) return { x0: 1 - t, y0: 0, z0: 0, x1: 1, y1: 1, z1: 1 };
+  if (facing === FACE_PY) return { x0: 0, y0: 1 - t, z0: 0, x1: 1, y1: 1, z1: 1 };
+  return { x0: 0, y0: 0, z0: 0, x1: 1, y1: t, z1: 1 };
+}
+
 export function solidBoxes(world, x, y, z) {
   const id = world.get(x, y, z);
-  if (id === STAIRS) return stairBoxes(world.blockFacing(x, y, z));
+  if (isStair(id)) return stairBoxes(world.blockFacing(x, y, z));
+  if (isWall(id)) return [wallBox(world.blockFacing(x, y, z))];
   if (id === LADDER) return [];
   if (isSolid(id)) return [FULL];
   return [];
@@ -57,11 +70,12 @@ export function aabbHitsBox(minX, minY, minZ, maxX, maxY, maxZ, bx, by, bz, box)
     && minZ < bz + box.z1 && maxZ > bz + box.z0;
 }
 
-export function placeStairs(world, x, y, z, yaw) {
+export function placeStairs(world, x, y, z, yaw, id) {
+  if (!id || !isStair(id)) return false;
   if (!world.inBounds(x, y, z)) return false;
   const dest = world.get(x, y, z);
-  if (dest && dest !== AIR) return false;
-  world.set(x, y, z, STAIRS);
+  if (!isReplaceable(dest)) return false;
+  world.set(x, y, z, id);
   world.setBlockDir(x, y, z, facingFromYaw(yaw));
   return true;
 }
@@ -69,7 +83,7 @@ export function placeStairs(world, x, y, z, yaw) {
 export function placeLadder(world, x, y, z, nx, ny, nz) {
   if (!world.inBounds(x, y, z)) return false;
   const dest = world.get(x, y, z);
-  if (dest && dest !== AIR) return false;
+  if (!isReplaceable(dest)) return false;
   const facing = ladderFacingFromHit(nx, ny, nz);
   if (facing == null) return false;
   const [dx, dz] = wallDelta(facing);

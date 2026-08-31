@@ -2,8 +2,8 @@ import * as THREE from 'three';
 import { initLang, setLang, t, applyI18n } from './js/i18n.js';
 import { initTheme, toggleTheme, getTheme } from './js/theme.js';
 import {
-  AIR, GRASS, SAND, LOG, LEAVES, TABLE, TORCH, BEDROCK, CACTUS, FURNACE, DOOR, DOOR_DOUBLE, STAIRS, LADDER, ITEMS, BLOCKS,
-  isPlaceable, isSolid, isFlower, isRug, mineSeconds, nameKey, stackMax,
+  AIR, GRASS, SAND, LOG, LEAVES, TABLE, TORCH, BEDROCK, CACTUS, FURNACE, DOOR, DOOR_DOUBLE, LADDER, ITEMS, BLOCKS,
+  isPlaceable, isSolid, isFlower, isRug, isStair, isWall, isLiquid, isReplaceable, mineSeconds, nameKey, stackMax,
   foodInfo, attackDamage,
 } from './js/blocks.js';
 import { World, GEN_PER_TICK, biomeNameKey, CHUNK, mapRgb, torchFacingFromHit } from './js/world.js';
@@ -19,13 +19,17 @@ import {
   loadWorldIndex, saveWorldIndex, migrateLegacyWorld, newWorldId,
 } from './js/save.js';
 import { Life, KINDS } from './js/entities.js';
+import { ItemDrops } from './js/drops.js';
 import {
   emptyFurnace, furnaceKey, tickFurnace, dropFurnaceStacks,
   serializeFurnaces, loadFurnaces, COOK_SEC,
 } from './js/furnace.js';
 import { isDoorId, placeDoor, toggleDoor, removeDoor, serializeDoors, loadDoors } from './js/doors.js';
 import { placeStairs, placeLadder, serializeBlockDir } from './js/stairs.js';
+import { placeWall } from './js/walls.js';
 import { tickLeafDecay, serializeLeafDecay, loadLeafDecay } from './js/leaves.js';
+import { tickWater, serializeWaterMeta, loadWaterMeta, serializeWaterWait, loadWaterWait } from './js/water.js';
+import { tickSprings, serializeSprings, loadSprings } from './js/spring.js';
 
 const canvas = document.getElementById('view');
 const menuEl = document.getElementById('menu');
@@ -58,6 +62,7 @@ const itemTip = document.getElementById('item-tip');
 const furnaceRow = document.getElementById('furnace-row');
 const timeSlider = document.getElementById('time-slider');
 const timeClock = document.getElementById('time-clock');
+const freezeTimeEl = document.getElementById('freeze-time');
 const mapOverlay = document.getElementById('map-overlay');
 const mapCanvas = document.getElementById('world-map');
 const mapMeta = document.getElementById('map-meta');
@@ -67,6 +72,8 @@ const TIME_PRESETS = { dawn: 40, noon: 120, dusk: 200, night: 360 };
 const MAP_ZOOM_MIN = 1;
 const MAP_ZOOM_MAX = 24;
 const mapView = { zoom: 4, cx: 0, cz: 0, dragging: false, lastX: 0, lastY: 0, fromPause: false };
+const mapTeleportBtn = document.getElementById('map-teleport');
+let mapMark = null;
 
 const keys = Object.create(null);
 const mouse = { left: false, right: false };
@@ -77,6 +84,7 @@ let inv;
 let arms;
 let atlas;
 let life;
+let drops;
 let renderer;
 let scene;
 let camera;
@@ -93,6 +101,7 @@ let sleepAcc = 0;
 let sleeping = false;
 let saveCool = 0;
 let worldTime = 0;
+let freezeTime = false;
 let saving = false;
 let currentWorldId = null;
 let worldBusy = false;
@@ -186,6 +195,11 @@ timeSlider.addEventListener('input', () => {
 timeSlider.addEventListener('change', () => {
   setWorldTime(Number(timeSlider.value), true);
 });
+freezeTimeEl.addEventListener('pointerdown', (e) => e.stopPropagation());
+freezeTimeEl.addEventListener('change', () => {
+  freezeTime = !!freezeTimeEl.checked;
+  if (player) persist();
+});
 document.querySelectorAll('[data-tod]').forEach((btn) => {
   btn.addEventListener('click', (e) => {
     e.stopPropagation();
@@ -233,7 +247,19 @@ document.getElementById('map-zoom-out').addEventListener('click', (e) => {
   e.stopPropagation();
   zoomMapCenter(0.8);
 });
+mapTeleportBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  teleportToMapMark();
+});
 mapCanvas.addEventListener('pointerdown', (e) => {
+  if (e.button === 2) {
+    e.preventDefault();
+    const pos = mapClientToWorld(e.clientX, e.clientY);
+    mapMark = { x: pos.x, z: pos.z };
+    syncMapMarkUi();
+    drawWorldMap();
+    return;
+  }
   if (e.button !== 0) return;
   e.preventDefault();
   mapView.dragging = true;
@@ -256,7 +282,13 @@ function endMapDrag() {
 }
 mapCanvas.addEventListener('pointerup', endMapDrag);
 mapCanvas.addEventListener('pointercancel', endMapDrag);
-mapCanvas.addEventListener('contextmenu', (e) => e.preventDefault());
+mapCanvas.addEventListener('contextmenu', (e) => {
+  e.preventDefault();
+  const pos = mapClientToWorld(e.clientX, e.clientY);
+  mapMark = { x: pos.x, z: pos.z };
+  syncMapMarkUi();
+  drawWorldMap();
+});
 respawnBtn.addEventListener('click', () => {
   player.respawn();
   deathEl.hidden = true;
@@ -331,7 +363,9 @@ window.addEventListener('keydown', (e) => {
     else if (player && menuEl.hidden && player.health > 0) openInv(false);
   }
   if (e.code === 'KeyQ' && isPlaying()) {
-    inv.dropOne();
+    e.preventDefault();
+    const thrown = inv.dropOne();
+    if (thrown && drops) drops.throwFrom(player, player.yaw, player.pitch, thrown);
     refreshHud();
   }
   if (e.code === 'KeyF' && player && player.health > 0 && (isPlaying() || invOpen())) {
@@ -505,7 +539,11 @@ function tickFurnaces(dt) {
 
 function tickDecay(dt) {
   if (!world || !bundle) return;
-  if (tickLeafDecay(world, dt)) remeshDirty(world, bundle);
+  let dirty = false;
+  if (tickLeafDecay(world, dt)) dirty = true;
+  if (tickWater(world, dt)) dirty = true;
+  if (tickSprings(world, dt)) dirty = true;
+  if (dirty) remeshDirty(world, bundle);
 }
 
 function paintFurnaceBars(f) {
@@ -578,6 +616,10 @@ function teardownWorld() {
     life.dispose();
     life = null;
   }
+  if (drops) {
+    drops.dispose();
+    drops = null;
+  }
 }
 
 function generateFreshWorld() {
@@ -594,14 +636,19 @@ function generateFreshWorld() {
   player.fallY = player.pos.y;
   inv = new Inventory();
   worldTime = 120;
+  freezeTime = false;
+  if (freezeTimeEl) freezeTimeEl.checked = false;
   mine = null;
   furnacePos = null;
   furnaceRow.hidden = true;
   sleepAcc = 0;
   sleeping = false;
   eatAcc = 0;
+  mapMark = null;
+  syncMapMarkUi();
   life = new Life(scene);
   life.populate(world, player, false);
+  drops = new ItemDrops(scene, atlas);
   syncChunkMeshes(world, bundle, spawn.x, spawn.z);
 }
 
@@ -792,6 +839,10 @@ async function loadFromSave(save) {
     life.dispose();
     life = null;
   }
+  if (drops) {
+    drops.dispose();
+    drops = null;
+  }
   world = new World(save.seed);
   world.applyEdits(save.edits || {});
   world.loadTorchDir(save.torchDir);
@@ -799,6 +850,9 @@ async function loadFromSave(save) {
   world.doors = loadDoors(save.doors);
   world.leafDecay = loadLeafDecay(save.leafDecay);
   world.loadBlockDir(save.blockDir);
+  world.waterMeta = loadWaterMeta(save.waterMeta);
+  world.waterWait = loadWaterWait(save.waterWait);
+  loadSprings(world, save.springs, save.edits);
   furnacePos = null;
   furnaceRow.hidden = true;
   world.loadMap(save.map);
@@ -825,9 +879,16 @@ async function loadFromSave(save) {
   syncChunkMeshes(world, bundle, player.pos.x, player.pos.z);
   world.rebuildMapFromChunks();
   worldTime = save.worldTime ?? 120;
+  freezeTime = !!save.freezeTime;
   life = new Life(scene);
   if (save.entities?.length) life.load(save.entities, world);
   else life.populate(world, player, false);
+  drops = new ItemDrops(scene, atlas);
+  if (save.drops?.length) drops.load(save.drops);
+  mapMark = save.mapMark && Number.isFinite(save.mapMark.x) && Number.isFinite(save.mapMark.z)
+    ? { x: save.mapMark.x, z: save.mapMark.z }
+    : null;
+  syncMapMarkUi();
   refreshHud();
   syncTimeUi();
 }
@@ -837,12 +898,16 @@ function snapshot() {
     seed: world.seed,
     edits: world.edits,
     worldTime,
+    freezeTime,
     map: world.encodeMap(),
     torchDir: world.torchDir,
     furnaces: serializeFurnaces(world.furnaces),
     doors: serializeDoors(world.doors),
     leafDecay: serializeLeafDecay(world.leafDecay),
     blockDir: serializeBlockDir(world.blockDir),
+    waterMeta: serializeWaterMeta(world.waterMeta),
+    waterWait: serializeWaterWait(world.waterWait),
+    springs: serializeSprings(world.springs),
     player: {
       x: player.pos.x, y: player.pos.y, z: player.pos.z,
       yaw: player.yaw, pitch: player.pitch, health: player.health,
@@ -851,6 +916,8 @@ function snapshot() {
     },
     inventory: inv.serialize(),
     entities: life ? life.serialize() : [],
+    drops: drops ? drops.serialize() : [],
+    mapMark: mapMark ? { x: mapMark.x, z: mapMark.z } : null,
   };
 }
 
@@ -906,7 +973,7 @@ function loop(now) {
 }
 
 function tick(dt) {
-  worldTime += dt;
+  if (!freezeTime) worldTime += dt;
   placeCool = Math.max(0, placeCool - dt);
   saveCool += dt;
   if (saveCool > 8 && !saving && !worldBusy) {
@@ -949,6 +1016,11 @@ function tick(dt) {
       player.yaw += (Math.random() - 0.5) * 0.1;
     }
   }
+  if (drops) {
+    const before = drops.list.length;
+    drops.update(dt, world, player, inv);
+    if (drops.list.length !== before) refreshHud();
+  }
 
   if (player.health <= 0) {
     document.exitPointerLock();
@@ -962,6 +1034,7 @@ function tick(dt) {
   const dir = new THREE.Vector3();
   camera.getWorldDirection(dir);
   const hit = raycast(world, origin, dir);
+  const placeHit = raycast(world, origin, dir, 5.5, true);
   const entHit = life ? life.raycast(origin, dir) : null;
   const preferEnt = entHit && (!hit || entHit.dist <= hit.dist);
   updateHighlight(hit, preferEnt ? entHit : null);
@@ -1043,9 +1116,9 @@ function tick(dt) {
         refreshHud();
         arms.punch();
       }
-    } else if (placeCool <= 0 && hit) {
+    } else if (placeCool <= 0 && placeHit) {
       placeCool = 0.18;
-      placeBlock(hit);
+      placeBlock(placeHit);
       eatAcc = 0;
     } else if (offFood && canEatFood(offFood)) {
       eatAcc += dt;
@@ -1127,13 +1200,22 @@ function placeBlock(hit) {
     fromOff = true;
   }
   if (!stack || !isPlaceable(stack.id)) return;
-  const px = hit.x + hit.nx;
-  const py = hit.y + hit.ny;
-  const pz = hit.z + hit.nz;
+  if (isWall(stack.id)) {
+    if (!placeWall(world, hit, player.yaw, player.pitch, stack.id, player)) return;
+    if (fromOff) inv.takeOffhand(1);
+    else inv.takeSelected(1);
+    remeshDirty(world, bundle);
+    refreshHud();
+    return;
+  }
+  const replaceHit = isLiquid(hit.id);
+  const px = replaceHit ? hit.x : hit.x + hit.nx;
+  const py = replaceHit ? hit.y : hit.y + hit.ny;
+  const pz = replaceHit ? hit.z : hit.z + hit.nz;
   if (!world.inBounds(px, py, pz)) return;
   const dest = world.get(px, py, pz);
-  if (dest && dest !== AIR) return;
-  if (player.overlapsBlock(px, py, pz) && isSolid(stack.id)) return;
+  if (!isReplaceable(dest)) return;
+  if (player.overlapsBlock(px, py, pz) && isSolid(stack.id) && !isStair(stack.id)) return;
   if (stack.id === TORCH && !isSolid(world.get(hit.x, hit.y, hit.z))) return;
   if ((isFlower(stack.id) || isRug(stack.id)) && !isSolid(world.get(px, py - 1, pz))) return;
   if (stack.id === DOOR || stack.id === DOOR_DOUBLE) {
@@ -1144,9 +1226,9 @@ function placeBlock(hit) {
     refreshHud();
     return;
   }
-  if (stack.id === STAIRS) {
+  if (isStair(stack.id)) {
     if (player.overlapsBlock(px, py, pz)) return;
-    if (!placeStairs(world, px, py, pz, player.yaw)) return;
+    if (!placeStairs(world, px, py, pz, player.yaw, stack.id)) return;
     if (fromOff) inv.takeOffhand(1);
     else inv.takeSelected(1);
     remeshDirty(world, bundle);
@@ -1238,6 +1320,7 @@ function syncTimeUi() {
   const tval = ((worldTime % DAY_CYCLE) + DAY_CYCLE) % DAY_CYCLE;
   timeSlider.value = String(Math.round(tval));
   timeClock.textContent = clockFromWorldTime(tval);
+  if (freezeTimeEl) freezeTimeEl.checked = !!freezeTime;
   document.querySelectorAll('[data-tod]').forEach((btn) => {
     const key = btn.getAttribute('data-tod');
     btn.classList.toggle('active', Math.abs(tval - TIME_PRESETS[key]) < 16);
@@ -1257,6 +1340,7 @@ function openMap(fromPause) {
   mapView.cx = player.pos.x;
   mapView.cz = player.pos.z;
   mapOverlay.hidden = false;
+  syncMapMarkUi();
   if (fromPause) hideMenu();
   document.exitPointerLock?.();
   requestAnimationFrame(() => {
@@ -1302,6 +1386,39 @@ function zoomMapAt(clientX, clientY, factor) {
   mapView.cx = wx - (mx - rect.width / 2) / mapView.zoom;
   mapView.cz = wz - (my - rect.height / 2) / mapView.zoom;
   drawWorldMap();
+}
+
+function mapClientToWorld(clientX, clientY) {
+  const rect = mapCanvas.getBoundingClientRect();
+  const mx = clientX - rect.left;
+  const my = clientY - rect.top;
+  return {
+    x: mapView.cx + (mx - rect.width / 2) / mapView.zoom,
+    z: mapView.cz + (my - rect.height / 2) / mapView.zoom,
+  };
+}
+
+function syncMapMarkUi() {
+  if (!mapTeleportBtn) return;
+  mapTeleportBtn.disabled = !mapMark;
+}
+
+function teleportToMapMark() {
+  if (!mapMark || !player || !world || player.health <= 0) return;
+  const x = Math.floor(mapMark.x) + 0.5;
+  const z = Math.floor(mapMark.z) + 0.5;
+  world.ensureAround(x, z, 4);
+  const { h } = world.surfaceForMap(Math.floor(x), Math.floor(z));
+  const y = Math.max(1, (h || 0) + 1);
+  player.pos.set(x, y, z);
+  player.vel.set(0, 0, 0);
+  player.fallY = y;
+  player.onGround = true;
+  world.ensureAround(x, z);
+  if (bundle) syncChunkMeshes(world, bundle, x, z);
+  closeMapSilent();
+  mapView.fromPause = false;
+  requestPlay();
 }
 
 function groundMapRgb(id, h) {
@@ -1404,6 +1521,29 @@ function drawWorldMap() {
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
+    ctx.restore();
+  }
+  if (mapMark) {
+    const mx = (mapMark.x - originX) * zoom;
+    const mz = (mapMark.z - originZ) * zoom;
+    const s = Math.max(1.1, dpr);
+    ctx.save();
+    ctx.translate(mx, mz);
+    ctx.scale(s, s);
+    ctx.fillStyle = '#e23d48';
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 1.3;
+    ctx.beginPath();
+    ctx.moveTo(0, 9);
+    ctx.bezierCurveTo(8, 1, 6, -9, 0, -9);
+    ctx.bezierCurveTo(-6, -9, -8, 1, 0, 9);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(0, -3.2, 2.3, 0, Math.PI * 2);
+    ctx.fill();
     ctx.restore();
   }
   mapMeta.textContent = `${world.map.size} ${t('mapChunks')}`;
@@ -1705,7 +1845,9 @@ function renderRecipeBook() {
     const meta = document.createElement('div');
     meta.className = 'recipe-meta';
     const badge = document.createElement('span');
-    badge.textContent = rec.table ? t('recipeNeedsTable') : t('recipeInventoryGrid');
+    badge.textContent = rec.furnace
+      ? t('furnace')
+      : rec.table ? t('recipeNeedsTable') : t('recipeInventoryGrid');
     meta.appendChild(badge);
     if (rec.shapeless) {
       const s = document.createElement('span');
@@ -1724,7 +1866,11 @@ function renderRecipeBook() {
 
     const grid = document.createElement('div');
     grid.className = `guide-grid size-${rec.size}`;
-    if (rec.shapeless) {
+    if (rec.furnace) {
+      grid.appendChild(guideCell(rec.input));
+      if (rec.fuel) grid.appendChild(guideCell(rec.fuel));
+      while (grid.childElementCount < rec.size * rec.size) grid.appendChild(guideCell(0));
+    } else if (rec.shapeless) {
       const cells = rec.shapeless.slice();
       while (cells.length < rec.size * rec.size) cells.push(0);
       for (const id of cells) grid.appendChild(guideCell(id));
@@ -1761,7 +1907,8 @@ function renderRecipeBook() {
         item.appendChild(plus);
         item.appendChild(guideCell(variant.out));
         const label = document.createElement('span');
-        label.textContent = t(nameKey(variant.out));
+        const count = variant.n ? ` ×${variant.n}` : '';
+        label.textContent = `${t(nameKey(variant.out))}${count}`;
         item.appendChild(label);
         results.appendChild(item);
       }
@@ -1773,7 +1920,7 @@ function renderRecipeBook() {
       const note = document.createElement('p');
       note.className = 'recipe-intro';
       note.style.margin = '8px 0 0';
-      note.textContent = t('recipeMaterial');
+      note.textContent = t(rec.matKey || 'recipeMaterial');
       card.appendChild(note);
     }
 
@@ -1784,6 +1931,7 @@ function renderRecipeBook() {
 window.__VC = {
   get world() { return world; },
   get player() { return player; },
+  get inv() { return inv; },
   get bundle() { return bundle; },
   remesh() { remeshDirty(world, bundle); },
 };

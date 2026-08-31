@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { AIR, WATER, STAIRS, LADDER, isSolid, isLiquid } from './blocks.js';
+import { AIR, LADDER, isSolid, isLiquid, isStair, isWall } from './blocks.js';
 import { HEIGHT } from './world.js';
 import { solidBoxes, aabbHitsBox } from './stairs.js';
 
@@ -82,7 +82,8 @@ export class Player {
     this.vel.x += (wish.x * speed - this.vel.x) * Math.min(1, accel * dt);
     this.vel.z += (wish.z * speed - this.vel.z) * Math.min(1, accel * dt);
 
-    const autoJump = this.sprint && this.onGround && !this.onLadder && this.shouldAutoJump(world, wish.x, wish.z);
+    const autoJump = !this.onLadder && this.shouldAutoJump(world, wish.x, wish.z)
+      && ((this.sprint && this.onGround) || (this.inWater && input.jump));
     const wantJump = !!input.jump || autoJump;
 
     if (this.onLadder && !this.inWater) {
@@ -91,9 +92,17 @@ export class Player {
       else if (input.jump || (wish.lengthSq() > 0 && !input.sneak)) this.vel.y = 4.4;
       else this.vel.y = -2.2;
     } else if (this.inWater) {
-      this.vel.y += (wantJump ? 8 : -4) * dt;
-      this.vel.y *= Math.pow(0.7, dt * 10);
       this.fallY = this.pos.y;
+      const head = world.get(Math.floor(this.pos.x), Math.floor(this.pos.y + 1.5), Math.floor(this.pos.z));
+      const atSurface = !isLiquid(head);
+      if (wantJump) {
+        this.vel.y += (atSurface ? 24 : 16) * dt;
+        if (atSurface) this.vel.y = Math.max(this.vel.y, 8.6);
+      } else {
+        this.vel.y -= 5.2 * dt;
+      }
+      this.vel.y *= Math.pow(0.86, dt * 8);
+      this.vel.y = Math.max(-6.5, Math.min(9.6, this.vel.y));
     } else {
       this.vel.y -= 28 * dt;
       if (wantJump && this.onGround) {
@@ -154,7 +163,7 @@ export class Player {
     const by = Math.floor(this.pos.y + 0.01);
     if (bx === Math.floor(this.pos.x) && bz === Math.floor(this.pos.z)) return false;
     const id = world.get(bx, by, bz);
-    if (id === STAIRS || id === LADDER) return false;
+    if (isStair(id) || id === LADDER || isWall(id)) return false;
     if (!isSolid(id)) return false;
     if (isSolid(world.get(bx, by + 1, bz))) return false;
     if (isSolid(world.get(bx, by + 2, bz))) return false;
@@ -232,17 +241,63 @@ export class Player {
     return false;
   }
 
+  overlapTop(world) {
+    const h = this.bodyHeight();
+    const w = WIDTH * 0.5;
+    const minX = this.pos.x - w;
+    const maxX = this.pos.x + w;
+    const minY = this.pos.y;
+    const maxY = this.pos.y + h;
+    const minZ = this.pos.z - w;
+    const maxZ = this.pos.z + w;
+    const x0 = Math.floor(minX);
+    const x1 = Math.floor(maxX - 1e-6);
+    const y0 = Math.floor(minY);
+    const y1 = Math.floor(maxY - 1e-6);
+    const z0 = Math.floor(minZ);
+    const z1 = Math.floor(maxZ - 1e-6);
+    let top = null;
+    for (let y = y0; y <= y1; y++) {
+      for (let z = z0; z <= z1; z++) {
+        for (let x = x0; x <= x1; x++) {
+          for (const box of solidBoxes(world, x, y, z)) {
+            if (!aabbHitsBox(minX, minY, minZ, maxX, maxY, maxZ, x, y, z, box)) continue;
+            const y1b = y + box.y1;
+            if (top == null || y1b > top) top = y1b;
+          }
+        }
+      }
+    }
+    return top;
+  }
+
+  tryStep(world) {
+    if (this.onGround && !this.overlaps(world, 0, 0.51, 0)) {
+      this.pos.y += 0.51;
+      if (!this.overlaps(world)) return true;
+      this.pos.y -= 0.51;
+    }
+    if (!this.inWater) return false;
+    const top = this.overlapTop(world);
+    if (top == null) return false;
+    const climb = top - this.pos.y;
+    if (climb <= 0.02 || climb > 1.85) return false;
+    const oldY = this.pos.y;
+    this.pos.y = top + 0.02;
+    if (this.overlaps(world)) {
+      this.pos.y = oldY;
+      return false;
+    }
+    this.onGround = true;
+    this.vel.y = Math.max(this.vel.y, 0);
+    return true;
+  }
+
   moveAxis(world, dx, dy, dz) {
     if (dx) {
       this.pos.x += dx;
       if (this.overlaps(world)) {
-        let stepped = false;
-        if (this.onGround && dy === 0 && !this.overlaps(world, 0, 0.51, 0)) {
-          this.pos.y += 0.51;
-          if (!this.overlaps(world)) stepped = true;
-          else this.pos.y -= 0.51;
-        }
-        if (!stepped) {
+        if (!this.tryStep(world)) {
           this.pos.x -= dx;
           this.vel.x = 0;
         }
@@ -251,13 +306,7 @@ export class Player {
     if (dz) {
       this.pos.z += dz;
       if (this.overlaps(world)) {
-        let stepped = false;
-        if (this.onGround && dy === 0 && !this.overlaps(world, 0, 0.51, 0)) {
-          this.pos.y += 0.51;
-          if (!this.overlaps(world)) stepped = true;
-          else this.pos.y -= 0.51;
-        }
-        if (!stepped) {
+        if (!this.tryStep(world)) {
           this.pos.z -= dz;
           this.vel.z = 0;
         }
@@ -287,7 +336,7 @@ export class Player {
   }
 }
 
-export function raycast(world, origin, dir, maxDist = 5.5) {
+export function raycast(world, origin, dir, maxDist = 5.5, hitLiquid = false) {
   const x = Math.floor(origin.x);
   const y = Math.floor(origin.y);
   const z = Math.floor(origin.z);
@@ -310,7 +359,7 @@ export function raycast(world, origin, dir, maxDist = 5.5) {
   let dist = 0;
   for (let i = 0; i < 64; i++) {
     const id = world.get(ix, iy, iz);
-    if (id && id !== AIR && id !== WATER) {
+    if (id && id !== AIR && (hitLiquid || !isLiquid(id))) {
       return { x: ix, y: iy, z: iz, nx, ny, nz, dist, id };
     }
     if (tMaxX < tMaxY && tMaxX < tMaxZ) {

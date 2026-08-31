@@ -2,11 +2,13 @@ import {
   AIR, GRASS, DIRT, STONE, COBBLE, SAND, WATER, LOG, LEAVES, PLANKS,
   COAL_ORE, IRON_ORE, TABLE, TORCH, BEDROCK, CACTUS,
   FLOWER_RED, FLOWER_YELLOW, FLOWER_WHITE, FRUIT_HANG, FURNACE, DOOR, DOOR_OPEN,
-  STAIRS, LADDER,
-  isSolid, isOpaque, isDecor,
+  STAIRS, STAIRS_SAND, STAIRS_STONE, LADDER, GLASS, WALL_WOOD, WALL_GLASS,
+  WATER_SPRING, isSolid, isOpaque, isDecor, isStair, isWall,
 } from './blocks.js';
 import { fbm2, fbm3, hash2, hash3 } from './noise.js';
 import { afterBlockChange } from './leaves.js';
+import { onWaterBlockChange } from './water.js';
+import { onSpringBlockChange } from './spring.js';
 
 export const CHUNK = 16;
 export const HEIGHT = 64;
@@ -58,6 +60,12 @@ const MAP_RGB = {
   [LEAVES]: [45, 130, 40],
   [PLANKS]: [175, 140, 80],
   [STAIRS]: [175, 140, 80],
+  [STAIRS_SAND]: [214, 196, 122],
+  [STAIRS_STONE]: [110, 110, 115],
+  [GLASS]: [170, 210, 220],
+  [WALL_WOOD]: [175, 140, 80],
+  [WALL_GLASS]: [170, 210, 220],
+  [WATER_SPRING]: [70, 118, 168],
   [COAL_ORE]: [72, 72, 76],
   [IRON_ORE]: [168, 150, 132],
   [TABLE]: [160, 110, 55],
@@ -90,6 +98,9 @@ export class World {
     this.doors = {};
     this.leafDecay = {};
     this.blockDir = {};
+    this.waterMeta = {};
+    this.waterWait = {};
+    this.springs = {};
   }
 
   chunkKey(cx, cz) {
@@ -146,7 +157,7 @@ export class World {
     if ((prev === DOOR || prev === DOOR_OPEN) && id !== DOOR && id !== DOOR_OPEN) {
       delete this.doors[`${x},${y},${z}`];
     }
-    if ((prev === STAIRS || prev === LADDER) && id !== prev) {
+    if ((isStair(prev) || prev === LADDER || isWall(prev)) && id !== prev) {
       delete this.blockDir[`${x},${y},${z}`];
     }
     if (prev === TORCH || id === TORCH || isOpaque(prev) !== isOpaque(id)) {
@@ -160,6 +171,8 @@ export class World {
     }
     this.recordMapColumn(x, z);
     afterBlockChange(this, x, y, z, prev, id);
+    onWaterBlockChange(this, x, y, z, prev, id);
+    onSpringBlockChange(this, x, y, z, prev, id);
     return true;
   }
 

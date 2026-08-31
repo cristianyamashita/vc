@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { AIR, FLOWER_RED, FLOWER_YELLOW, FLOWER_WHITE, RAW_MEAT, HIDE_COW, HIDE_ZEBRA, HIDE_SHEEP, isSolid, isLiquid } from './blocks.js';
 import { HEIGHT, UNLOAD_RADIUS, BIOME_DESERT, BIOME_MOUNTAIN } from './world.js';
+import { solidBoxes, aabbHitsBox } from './stairs.js';
 
 const MAX_NEAR = 52;
 const UNLOAD = UNLOAD_RADIUS * 16;
@@ -73,6 +74,49 @@ function darken(hex, f = 0.55) {
   return (r << 16) | (g << 8) | b;
 }
 
+function mixHex(a, b, t) {
+  const ar = (a >> 16) & 255;
+  const ag = (a >> 8) & 255;
+  const ab = a & 255;
+  const br = (b >> 16) & 255;
+  const bg = (b >> 8) & 255;
+  const bb = b & 255;
+  const r = Math.round(ar + (br - ar) * t);
+  const g = Math.round(ag + (bg - ag) * t);
+  const bl = Math.round(ab + (bb - ab) * t);
+  return (r << 16) | (g << 8) | bl;
+}
+
+const HAIR_TONES = [
+  [0x1c1210, 0x2a1810, 0x3d2414, 0x4a2a12],
+  [0xc8b060, 0xdbc478, 0xe8d490, 0xb89a48],
+  [0xa83818, 0xc44a22, 0xd06030, 0x8a2810],
+];
+
+function pickHair(rng) {
+  const hairs = HAIR_TONES[Math.floor(rng() * HAIR_TONES.length) % HAIR_TONES.length];
+  return hairs[Math.floor(rng() * hairs.length) % hairs.length];
+}
+
+function pickWomanLook(seed) {
+  const rng = mulberry(seed | 0);
+  return {
+    hair: pickHair(rng),
+    lip: mixHex(0xe890a0, 0x8a1828, rng()),
+    eyeS: 0.76 + rng() * 0.48,
+    noseS: 0.7 + rng() * 0.55,
+  };
+}
+
+function pickManLook(seed) {
+  const rng = mulberry(seed | 0);
+  return {
+    hair: pickHair(rng),
+    eyeS: 0.76 + rng() * 0.48,
+    noseS: 0.7 + rng() * 0.55,
+  };
+}
+
 function flowerHangout(x, y, z, seed) {
   const rng = mulberry((seed * 1103515245 + (Math.floor(x) * 73856093) + (Math.floor(z) * 19349663)) | 0);
   const ang = rng() * Math.PI * 2;
@@ -96,7 +140,7 @@ function pickWear(kind, seed) {
   return pal[Math.floor(rng() * pal.length) % pal.length];
 }
 
-function makeModel(kind, wear = 0) {
+function makeModel(kind, wear = 0, seed = 1) {
   const g = new THREE.Group();
   if (kind === 'cow') {
     g.add(box(0.85, 0.55, 0.5, 0x6b4423, 0, 0.62, 0));
@@ -175,24 +219,80 @@ function makeModel(kind, wear = 0) {
   } else if (kind === 'man') {
     const cloth = wear || MAN_WEAR[0];
     const pants = 0x1a1e24;
-    g.add(box(0.38, 0.5, 0.22, cloth, 0, 1.05, 0));
-    g.add(box(0.36, 0.48, 0.2, pants, 0, 0.56, 0));
-    g.add(box(0.26, 0.26, 0.24, 0xc8a07a, 0, 1.42, 0));
-    g.add(box(0.28, 0.1, 0.26, 0x3a2818, 0, 1.56, 0));
-    g.add(box(0.1, 0.42, 0.1, cloth, 0.24, 1.0, 0));
-    g.add(box(0.1, 0.42, 0.1, cloth, -0.24, 1.0, 0));
-    g.add(box(0.12, 0.5, 0.12, pants, 0.1, 0.26, 0));
-    g.add(box(0.12, 0.5, 0.12, pants, -0.1, 0.26, 0));
+    const skin = 0xc8a07a;
+    const look = pickManLook(seed);
+    const hair = look.hair;
+    const eyeS = look.eyeS;
+    const noseS = look.noseS;
+    const ew = 0.03 * eyeS;
+    const eh = 0.045 * eyeS;
+    const ed = 0.05 * eyeS;
+    const pw = 0.022 * eyeS;
+    const ph = 0.032 * eyeS;
+    const pd = 0.032 * eyeS;
+    const eyeX = 0.12 + ew * 0.55;
+    const pupilX = eyeX + 0.01 * eyeS;
+    const nw = 0.05 * noseS;
+    const nh = 0.04 * noseS;
+    const nd = 0.04 * noseS;
+    const noseX = 0.12 + nw * 0.8;
+    g.add(box(0.12, 0.5, 0.12, pants, 0, 0.26, 0.1));
+    g.add(box(0.12, 0.5, 0.12, pants, 0, 0.26, -0.1));
+    g.add(box(0.2, 0.48, 0.36, pants, 0, 0.56, 0));
+    g.add(box(0.22, 0.5, 0.38, cloth, 0, 1.05, 0));
+    g.add(box(0.1, 0.42, 0.1, cloth, 0, 1.0, 0.24));
+    g.add(box(0.1, 0.42, 0.1, cloth, 0, 1.0, -0.24));
+    g.add(box(0.1, 0.08, 0.1, skin, 0, 1.28, 0));
+    g.add(box(0.24, 0.26, 0.26, skin, 0, 1.42, 0));
+    g.add(box(0.26, 0.09, 0.28, hair, 0, 1.56, 0));
+    g.add(box(0.05, 0.1, 0.26, hair, -0.125, 1.51, 0));
+    g.add(box(ew, eh, ed, 0xf7f2ea, eyeX, 1.46, 0.06));
+    g.add(box(ew, eh, ed, 0xf7f2ea, eyeX, 1.46, -0.06));
+    g.add(box(pw, ph, pd, 0x1a1410, pupilX, 1.46, 0.06));
+    g.add(box(pw, ph, pd, 0x1a1410, pupilX, 1.46, -0.06));
+    g.add(box(nw, nh, nd, 0xb89068, noseX, 1.4, 0));
+    g.add(box(0.024, 0.02, 0.07, 0x8a5a50, 0.14, 1.335, 0));
   } else {
     const cloth = wear || WOMAN_WEAR[0];
     const skirt = darken(cloth, 0.72);
-    g.add(box(0.36, 0.62, 0.22, cloth, 0, 0.98, 0));
-    g.add(box(0.24, 0.24, 0.22, 0xd4b08a, 0, 1.38, 0));
-    g.add(box(0.32, 0.42, 0.28, 0x5a2a12, 0, 1.28, -0.02));
-    g.add(box(0.09, 0.4, 0.09, 0xd4b08a, 0.22, 0.95, 0));
-    g.add(box(0.09, 0.4, 0.09, 0xd4b08a, -0.22, 0.95, 0));
-    g.add(box(0.1, 0.48, 0.1, skirt, 0.08, 0.28, 0));
-    g.add(box(0.1, 0.48, 0.1, skirt, -0.08, 0.28, 0));
+    const skin = 0xd4b08a;
+    const look = pickWomanLook(seed);
+    const hair = look.hair;
+    const lip = look.lip;
+    const eyeS = look.eyeS;
+    const noseS = look.noseS;
+    const ew = 0.03 * eyeS;
+    const eh = 0.045 * eyeS;
+    const ed = 0.05 * eyeS;
+    const pw = 0.022 * eyeS;
+    const ph = 0.032 * eyeS;
+    const pd = 0.032 * eyeS;
+    const eyeX = 0.11 + ew * 0.55;
+    const pupilX = eyeX + 0.01 * eyeS;
+    const nw = 0.05 * noseS;
+    const nh = 0.04 * noseS;
+    const nd = 0.04 * noseS;
+    const noseX = 0.11 + nw * 0.8;
+    g.add(box(0.1, 0.48, 0.1, skirt, 0, 0.28, 0.08));
+    g.add(box(0.1, 0.48, 0.1, skirt, 0, 0.28, -0.08));
+    g.add(box(0.22, 0.76, 0.36, cloth, 0, 0.88, 0));
+    g.add(box(0.06, 0.12, 0.1, cloth, 0.14, 1.16, 0.06));
+    g.add(box(0.06, 0.12, 0.1, cloth, 0.14, 1.16, -0.06));
+    g.add(box(0.09, 0.4, 0.09, skin, 0, 0.95, 0.22));
+    g.add(box(0.09, 0.4, 0.09, skin, 0, 0.95, -0.22));
+    g.add(box(0.1, 0.08, 0.1, skin, 0, 1.28, 0));
+    g.add(box(0.22, 0.24, 0.24, skin, 0, 1.42, 0));
+    g.add(box(0.26, 0.14, 0.28, hair, 0, 1.58, 0));
+    g.add(box(0.1, 0.28, 0.24, hair, -0.15, 1.42, 0));
+    g.add(box(0.2, 0.22, 0.08, hair, 0.02, 1.46, 0.145));
+    g.add(box(0.2, 0.22, 0.08, hair, 0.02, 1.46, -0.145));
+    g.add(box(0.06, 0.08, 0.2, hair, 0.12, 1.53, 0));
+    g.add(box(ew, eh, ed, 0xf7f2ea, eyeX, 1.45, 0.055));
+    g.add(box(ew, eh, ed, 0xf7f2ea, eyeX, 1.45, -0.055));
+    g.add(box(pw, ph, pd, 0x1a1410, pupilX, 1.45, 0.055));
+    g.add(box(pw, ph, pd, 0x1a1410, pupilX, 1.45, -0.055));
+    g.add(box(nw, nh, nd, 0xc49872, noseX, 1.39, 0));
+    g.add(box(0.025, 0.022, 0.08, lip, 0.135, 1.335, 0));
   }
   return g;
 }
@@ -201,9 +301,54 @@ function groundY(world, x, z) {
   const ix = Math.floor(x);
   const iz = Math.floor(z);
   for (let y = HEIGHT - 1; y >= 1; y--) {
-    if (isSolid(world.get(ix, y, iz))) return y + 1;
+    const boxes = solidBoxes(world, ix, y, iz);
+    if (!boxes.length) continue;
+    let top = 0;
+    for (const b of boxes) if (b.y1 > top) top = b.y1;
+    return y + top;
   }
   return 2;
+}
+
+function waterDepth(world, x, z) {
+  const gy = groundY(world, x, z);
+  const ix = Math.floor(x);
+  const iz = Math.floor(z);
+  let d = 0;
+  for (let y = Math.floor(gy); y < HEIGHT && d < 12; y++) {
+    if (!isLiquid(world.get(ix, y, iz))) break;
+    d += 1;
+  }
+  return d;
+}
+
+function isDeepWater(world, x, z) {
+  return waterDepth(world, x, z) >= 2;
+}
+
+function awayFromWater(world, x, z) {
+  const here = waterDepth(world, x, z);
+  let bx = 0;
+  let bz = 0;
+  let best = here;
+  let found = false;
+  for (let r = 1; r <= 4; r++) {
+    for (let dz = -r; dz <= r; dz++) {
+      for (let dx = -r; dx <= r; dx++) {
+        if (Math.max(Math.abs(dx), Math.abs(dz)) !== r) continue;
+        const d = waterDepth(world, x + dx, z + dz);
+        if (d < best) {
+          best = d;
+          bx = dx;
+          bz = dz;
+          found = true;
+        }
+      }
+    }
+    if (found) break;
+  }
+  if (!found) return null;
+  return { x: bx, z: bz };
 }
 
 function overlapsSolid(world, x, y, z, w, h) {
@@ -217,7 +362,9 @@ function overlapsSolid(world, x, y, z, w, h) {
   for (let iy = y0; iy <= y1; iy++) {
     for (let iz = z0; iz <= z1; iz++) {
       for (let ix = x0; ix <= x1; ix++) {
-        if (isSolid(world.get(ix, iy, iz))) return true;
+        for (const box of solidBoxes(world, ix, iy, iz)) {
+          if (aabbHitsBox(x - hw, y, z - hw, x + hw, y + h, z + hw, ix, iy, iz, box)) return true;
+        }
       }
     }
   }
@@ -296,7 +443,7 @@ export class Life {
       wear,
       mesh: null,
     };
-    e.mesh = makeModel(kind, wear);
+    e.mesh = makeModel(kind, wear, id);
     this.group.add(e.mesh);
     this.syncMesh(e);
     this.list.push(e);
@@ -430,8 +577,9 @@ export class Life {
     const feet = world.get(Math.floor(x), y, Math.floor(z));
     const head = world.get(Math.floor(x), y + 1, Math.floor(z));
     if (isLiquid(below) || below === AIR) return;
-    if (feet !== AIR && feet !== WATER) return;
+    if (feet !== AIR || isLiquid(head)) return;
     if (isSolid(head)) return;
+    if (isDeepWater(world, x, z)) return;
     for (const e of this.list) {
       if ((e.x - x) ** 2 + (e.z - z) ** 2 < 36) return;
     }
@@ -500,7 +648,12 @@ export class Life {
 
       let tx = 0;
       let tz = 0;
-      if (e.state === 'chase') {
+      const wet = isDeepWater(world, e.x, e.z);
+      const escape = wet ? awayFromWater(world, e.x, e.z) : null;
+      if (escape) {
+        tx = escape.x;
+        tz = escape.z;
+      } else if (e.state === 'chase') {
         tx = px - e.x;
         tz = pz - e.z;
       } else if (e.state === 'follow') {
@@ -542,6 +695,11 @@ export class Life {
         }
         tx = Math.sin(e.yaw);
         tz = Math.cos(e.yaw);
+        if (isDeepWater(world, e.x + tx * 1.4, e.z + tz * 1.4)) {
+          e.yaw += Math.random() > 0.5 ? 1.35 : -1.35;
+          tx = Math.sin(e.yaw);
+          tz = Math.cos(e.yaw);
+        }
       }
 
       const len = Math.hypot(tx, tz);
@@ -575,15 +733,23 @@ export class Life {
 
   move(e, world, def, dx, dy, dz) {
     if (dx) {
+      const oldD = waterDepth(world, e.x, e.z);
       e.x += dx;
-      if (overlapsSolid(world, e.x, e.y, e.z, def.w, def.h) && !this.tryStep(e, world, def)) {
+      const newD = waterDepth(world, e.x, e.z);
+      const blocked = overlapsSolid(world, e.x, e.y, e.z, def.w, def.h)
+        || (newD >= 2 && newD >= oldD);
+      if (blocked && !this.tryStep(e, world, def, oldD)) {
         e.x -= dx;
         e.vx = 0;
       }
     }
     if (dz) {
+      const oldD = waterDepth(world, e.x, e.z);
       e.z += dz;
-      if (overlapsSolid(world, e.x, e.y, e.z, def.w, def.h) && !this.tryStep(e, world, def)) {
+      const newD = waterDepth(world, e.x, e.z);
+      const blocked = overlapsSolid(world, e.x, e.y, e.z, def.w, def.h)
+        || (newD >= 2 && newD >= oldD);
+      if (blocked && !this.tryStep(e, world, def, oldD)) {
         e.z -= dz;
         e.vz = 0;
       }
@@ -600,15 +766,16 @@ export class Life {
     }
   }
 
-  tryStep(e, world, def) {
+  tryStep(e, world, def, oldDepth = 0) {
     const max = def.step || 1;
     const tries = max >= 2 ? [0.55, 1.08, 1.55, 2.12] : [0.55, 1.08];
     for (const up of tries) {
       if (up > max + 0.15) continue;
-      if (!overlapsSolid(world, e.x, e.y + up, e.z, def.w, def.h)) {
-        e.y += up;
-        return true;
-      }
+      if (overlapsSolid(world, e.x, e.y + up, e.z, def.w, def.h)) continue;
+      const d = waterDepth(world, e.x, e.z);
+      if (d >= 2 && d >= oldDepth) continue;
+      e.y += up;
+      return true;
     }
     return false;
   }
