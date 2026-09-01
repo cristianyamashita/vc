@@ -6,6 +6,7 @@ import {
   STICK, TORCH, RAW_MEAT, COOKED_MEAT, FRUIT, COOKED_FRUIT,
   HIDE_COW, HIDE_ZEBRA, HIDE_SHEEP, DOOR, DOOR_DOUBLE,
   FLOWER_RED, FLOWER_YELLOW, FLOWER_WHITE,
+  LASSO, REVOLVER, BOW,
   isBlock, isFlower,
 } from './blocks.js';
 
@@ -101,6 +102,7 @@ export class Arms {
       WOOD_PICK, WOOD_AXE, WOOD_SHOVEL, WOOD_SWORD,
       STONE_PICK, STONE_AXE, STONE_SHOVEL, STONE_SWORD,
       IRON_PICK, IRON_AXE, IRON_SHOVEL, IRON_SWORD,
+      LASSO, REVOLVER, BOW,
     ].includes(this.heldId);
     const restX = holdingTool ? 0.48 : 0.22;
     this.right.group.rotation.x = restX + swingX * 0.85;
@@ -159,6 +161,29 @@ function makeToolMesh(id) {
     g.rotation.z = 0.45;
     g.rotation.x = 0.25;
     g.position.set(0.03, 0.02, -0.06);
+  } else if (id === LASSO) {
+    g.add(box(0.16, 0.03, 0.16, 0xc4a060, 0, 0.12, 0));
+    g.add(box(0.12, 0.03, 0.12, 0x8a5a28, 0, 0.12, 0));
+    g.add(box(0.03, 0.22, 0.03, 0xc4a060, 0.08, 0, 0));
+    g.rotation.z = 0.35;
+    g.rotation.x = 0.2;
+    g.position.set(0.03, 0.02, -0.05);
+  } else if (id === REVOLVER) {
+    g.add(box(0.04, 0.12, 0.05, 0x6a4a28, 0, -0.04, 0.02));
+    g.add(box(0.05, 0.06, 0.16, 0x3a3a42, 0, 0.04, -0.04));
+    g.add(box(0.03, 0.03, 0.14, 0x8a8a96, 0, 0.055, -0.06));
+    g.add(box(0.07, 0.07, 0.04, 0x2a2a30, 0, 0.01, 0.04));
+    g.rotation.x = 0.15;
+    g.rotation.y = 0.15;
+    g.position.set(0.02, 0.02, -0.08);
+  } else if (id === BOW) {
+    g.add(box(0.03, 0.36, 0.03, 0x8a5a28, 0, 0.04, 0));
+    g.add(box(0.02, 0.02, 0.14, 0xe8e0d0, 0, 0.2, -0.06));
+    g.add(box(0.02, 0.02, 0.14, 0xe8e0d0, 0, -0.12, -0.06));
+    g.add(box(0.015, 0.32, 0.015, 0xe8e0d0, 0, 0.04, -0.12));
+    g.rotation.z = 0.15;
+    g.rotation.x = 0.1;
+    g.position.set(0.02, 0.02, -0.06);
   } else if (id === STICK) {
     g.add(box(0.03, 0.28, 0.03, wood, 0, 0, 0));
     g.position.set(0.02, -0.02, -0.05);

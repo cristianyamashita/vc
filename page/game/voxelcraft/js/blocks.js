@@ -60,6 +60,11 @@ export const STAIRS_STONE = 55;
 export const WALL_WOOD = 56;
 export const WALL_GLASS = 57;
 export const WATER_SPRING = 58;
+export const RED_EARTH = 59;
+export const SURPRISE_BOX = 60;
+export const LASSO = 61;
+export const REVOLVER = 62;
+export const BOW = 63;
 
 export const BLOCKS = {
   [GRASS]: {
@@ -439,6 +444,27 @@ export const BLOCKS = {
     drops: [{ id: WATER_SPRING, n: 1 }],
     tiles: { top: 'spring_top', side: 'spring_side', bottom: 'cobble' },
   },
+  [RED_EARTH]: {
+    nameKey: 'blockRedEarth',
+    solid: true,
+    opaque: true,
+    hardness: 0.5,
+    tool: 'shovel',
+    minTier: 0,
+    drops: [{ id: RED_EARTH, n: 1 }],
+    tiles: { all: 'red_earth' },
+  },
+  [SURPRISE_BOX]: {
+    nameKey: 'blockSurpriseBox',
+    solid: true,
+    opaque: true,
+    hardness: 3,
+    tool: 'axe',
+    minTier: 1,
+    requireTool: true,
+    drops: [],
+    tiles: { top: 'crate_top', side: 'crate_side', bottom: 'crate_top' },
+  },
 };
 
 export const ITEMS = {
@@ -465,6 +491,9 @@ export const ITEMS = {
   [STONE_SWORD]: { nameKey: 'itemStoneSword', stack: 1, tool: 'sword', tier: 2, speed: 1, dura: 132, damage: 5, icon: 'sword_stone' },
   [IRON_SWORD]: { nameKey: 'itemIronSword', stack: 1, tool: 'sword', tier: 3, speed: 1, dura: 251, damage: 7, icon: 'sword_iron' },
   [DOOR_DOUBLE]: { nameKey: 'itemDoorDouble', stack: 64, place: 0, icon: 'door_double' },
+  [LASSO]: { nameKey: 'itemLasso', stack: 1, tool: 'lasso', lasso: true, range: 10, icon: 'lasso' },
+  [REVOLVER]: { nameKey: 'itemRevolver', stack: 1, tool: 'gun', ranged: true, range: 48, cool: 0.42, ammoStart: 100, icon: 'revolver' },
+  [BOW]: { nameKey: 'itemBow', stack: 1, tool: 'bow', ranged: true, range: 40, cool: 0.7, ammoStart: 200, icon: 'bow' },
 };
 
 export function def(id) {
@@ -478,7 +507,8 @@ export function isBlock(id) {
 export function isPlaceable(id) {
   if (id === DOOR_DOUBLE) return true;
   return isBlock(id) && id !== WATER && id !== BEDROCK && id !== FRUIT_HANG
-    && id !== DOOR_UPPER && id !== DOOR_OPEN && id !== DOOR_UPPER_OPEN;
+    && id !== DOOR_UPPER && id !== DOOR_OPEN && id !== DOOR_UPPER_OPEN
+    && id !== SURPRISE_BOX;
 }
 
 export function isSolid(id) {
@@ -543,6 +573,45 @@ export function attackDamage(stack) {
   return 2;
 }
 
+export function isLasso(id) {
+  return !!ITEMS[id]?.lasso;
+}
+
+export function isRanged(id) {
+  return !!ITEMS[id]?.ranged;
+}
+
+export function ammoOf(stack) {
+  if (!stack) return 0;
+  const item = ITEMS[stack.id];
+  if (!item?.ranged) return 0;
+  return stack.ammo ?? item.ammoStart ?? 0;
+}
+
+export function consumeAmmo(stack) {
+  if (!stack || !ITEMS[stack.id]?.ranged) return false;
+  const left = ammoOf(stack);
+  if (left <= 0) return false;
+  stack.ammo = left - 1;
+  return true;
+}
+
+export function crateLoot() {
+  const pool = [
+    { id: LASSO, n: 1 },
+    { id: REVOLVER, n: 1, ammo: ITEMS[REVOLVER].ammoStart },
+    { id: BOW, n: 1, ammo: ITEMS[BOW].ammoStart },
+  ];
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
+export function hasLasso(inv) {
+  if (!inv) return false;
+  if (inv.selectedStack()?.id === LASSO) return true;
+  if (inv.offhand?.id === LASSO) return true;
+  return inv.slots.some((s) => s?.id === LASSO);
+}
+
 export function nameKey(id) {
   return def(id)?.nameKey || 'blockAir';
 }
@@ -565,6 +634,7 @@ export function mineSeconds(blockId, stack) {
   if (!b || !isFinite(b.hardness)) return Infinity;
   if (b.hardness <= 0) return 0;
   const held = heldTool(stack);
+  if (b.requireTool && held.tool !== b.tool) return Infinity;
   let speed = 1;
   if (held.tool && held.tool === b.tool) speed = held.speed;
   const ok = !b.tool || b.minTier === 0 || (held.tool === b.tool && held.tier >= b.minTier);

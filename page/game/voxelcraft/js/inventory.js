@@ -8,7 +8,11 @@ export function emptyStack() {
 }
 
 export function cloneStack(s) {
-  return s ? { id: s.id, n: s.n, dura: s.dura } : null;
+  if (!s) return null;
+  const out = { id: s.id, n: s.n };
+  if (s.dura != null) out.dura = s.dura;
+  if (s.ammo != null) out.ammo = s.ammo;
+  return out;
 }
 
 export class Inventory {
@@ -29,7 +33,15 @@ export class Inventory {
     return this.slots[this.selected];
   }
 
-  add(id, n = 1, dura) {
+  findId(id) {
+    if (this.offhand?.id === id) return this.offhand;
+    for (const s of this.slots) {
+      if (s?.id === id) return s;
+    }
+    return null;
+  }
+
+  add(id, n = 1, dura, ammo) {
     const max = stackMax(id);
     let left = n;
     for (let i = 0; i < INV_SIZE && left > 0; i++) {
@@ -45,6 +57,7 @@ export class Inventory {
       if (!this.slots[i]) {
         const take = Math.min(max, left);
         this.slots[i] = { id, n: take, dura };
+        if (ammo != null) this.slots[i].ammo = ammo;
         left -= take;
       }
     }
@@ -56,7 +69,8 @@ export class Inventory {
     if (!s) return null;
     const take = Math.min(n, s.n);
     s.n -= take;
-    const out = { id: s.id, n: take, dura: s.dura };
+    const out = cloneStack(s);
+    out.n = take;
     if (s.n <= 0) this.slots[this.selected] = null;
     return out;
   }
@@ -83,7 +97,8 @@ export class Inventory {
     if (!s) return null;
     const take = Math.min(n, s.n);
     s.n -= take;
-    const out = { id: s.id, n: take, dura: s.dura };
+    const out = cloneStack(s);
+    out.n = take;
     if (s.n <= 0) this.offhand = null;
     return out;
   }
@@ -93,7 +108,7 @@ export class Inventory {
     const copy = this.slots.map(cloneStack);
     const inv = new Inventory();
     inv.slots = copy;
-    return inv.add(stack.id, stack.n, stack.dura);
+    return inv.add(stack.id, stack.n, stack.dura, stack.ammo);
   }
 
   serialize() {
@@ -127,7 +142,8 @@ export function clickSlot(list, index, cursor, right) {
   if (right) {
     if (cursor) {
       if (!slot) {
-        list[index] = { id: cursor.id, n: 1, dura: cursor.dura };
+        list[index] = cloneStack(cursor);
+        list[index].n = 1;
         cursor.n -= 1;
         return cursor.n <= 0 ? null : cursor;
       }
@@ -140,7 +156,8 @@ export function clickSlot(list, index, cursor, right) {
     }
     if (slot) {
       const half = Math.max(1, Math.ceil(slot.n / 2));
-      const take = { id: slot.id, n: half, dura: slot.dura };
+      const take = cloneStack(slot);
+      take.n = half;
       slot.n -= half;
       if (slot.n <= 0) list[index] = null;
       return take;

@@ -73,7 +73,7 @@ export class ItemDrops {
     this.nextId = 1;
   }
 
-  spawn(id, n, x, y, z, vx, vy, vz, dura) {
+  spawn(id, n, x, y, z, vx, vy, vz, dura, ammo) {
     if (!id || n <= 0) return null;
     if (this.list.length >= MAX_DROPS) this.remove(this.list[0]);
     const mesh = makeMesh(id, this.atlas);
@@ -84,6 +84,7 @@ export class ItemDrops {
       item: id,
       n,
       dura,
+      ammo,
       x, y, z,
       vx: vx || 0,
       vy: vy || 0,
@@ -113,6 +114,7 @@ export class ItemDrops {
       dy * THROW_SPEED + 1.6,
       dz * THROW_SPEED + (player.vel?.z || 0),
       stack.dura,
+      stack.ammo,
     );
   }
 
@@ -179,8 +181,8 @@ export class ItemDrops {
       const dy = player.pos.y + 0.7 - d.y;
       const dz = player.pos.z - d.z;
       if (dx * dx + dy * dy + dz * dz > PICK_DIST * PICK_DIST) continue;
-      if (!inv.canFit({ id: d.item, n: d.n, dura: d.dura })) continue;
-      inv.add(d.item, d.n, d.dura);
+      if (!inv.canFit({ id: d.item, n: d.n, dura: d.dura, ammo: d.ammo })) continue;
+      inv.add(d.item, d.n, d.dura, d.ammo);
       this.remove(d);
     }
   }
@@ -190,6 +192,7 @@ export class ItemDrops {
       item: d.item,
       n: d.n,
       dura: d.dura,
+      ammo: d.ammo,
       x: d.x, y: d.y, z: d.z,
       vx: d.vx, vy: d.vy, vz: d.vz,
       age: d.age,
@@ -201,7 +204,7 @@ export class ItemDrops {
     if (!Array.isArray(data)) return;
     for (const raw of data) {
       if (!raw?.item || !raw.n) continue;
-      const drop = this.spawn(raw.item, raw.n, raw.x, raw.y, raw.z, raw.vx, raw.vy, raw.vz, raw.dura);
+      const drop = this.spawn(raw.item, raw.n, raw.x, raw.y, raw.z, raw.vx, raw.vy, raw.vz, raw.dura, raw.ammo);
       if (drop) drop.age = raw.age || PICK_DELAY;
     }
   }

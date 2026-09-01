@@ -74,6 +74,12 @@ body { font-family: "Segoe UI", "Hiragino Sans", sans-serif; color: var(--ink); 
   border-radius: 50%;
 }
 
+#crosshair.aim {
+  border-color: #f2c14e;
+  box-shadow: 0 0 0 1px #0008, 0 0 10px #f2c14e88;
+}
+#crosshair.aim::after { background: #f2c14e; }
+
 #break-bar {
   position: absolute;
   left: 50%;
@@ -280,6 +286,32 @@ body { font-family: "Segoe UI", "Hiragino Sans", sans-serif; color: var(--ink); 
 }
 
 .slot .dura i { display: block; height: 100%; background: #6fdc6a; }
+
+.crate-loot-card { width: min(360px, calc(100% - 32px)); }
+.crate-loot-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  margin: 8px 0 20px;
+}
+.crate-loot-icon {
+  width: 72px;
+  height: 72px;
+  background-size: 52px 52px;
+  pointer-events: none;
+  cursor: default;
+}
+#crate-loot-name {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 650;
+}
+.crate-loot-ammo {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
 
 .overlay {
   position: fixed;
@@ -530,6 +562,7 @@ button.primary:hover, .text-btn:hover, button:hover { filter: brightness(1.08); 
 }
 .swatch.forest { background: #3d9a3a; }
 .swatch.desert { background: #d2c07a; }
+.swatch.canyon { background: #c45a32; }
 .swatch.mountain { background: #7a7a80; }
 .swatch.water { background: #3a76c4; }
 
@@ -557,7 +590,7 @@ button.primary:hover, .text-btn:hover, button:hover { filter: brightness(1.08); 
 #inv-overlay[hidden] { display: none !important; }
 
 .panel {
-  width: min(430px, calc(100% - 24px));
+  width: min(540px, calc(100% - 24px));
   background: var(--panel-solid);
   border: 1px solid #008f7d55;
   border-radius: 12px;
@@ -581,12 +614,50 @@ button.primary:hover, .text-btn:hover, button:hover { filter: brightness(1.08); 
 .hotbar-row-wrap {
   display: flex;
   align-items: center;
+  flex-wrap: nowrap;
   gap: 10px;
   margin-top: 10px;
   padding-top: 10px;
   border-top: 1px solid var(--slot-border);
 }
+#inv-hotbar {
+  flex: 0 0 calc(9 * 42px + 8 * 3px);
+  width: calc(9 * 42px + 8 * 3px);
+  min-width: 0;
+}
+#inv-offhand, #inv-trash { flex-shrink: 0; }
+#inv-trash { margin-left: auto; }
 #inv-offhand { border-color: var(--accent); }
+#inv-trash {
+  flex-shrink: 0;
+  border-style: dashed;
+  border-color: #a85858;
+  background-color: #241010;
+}
+#inv-trash::before {
+  content: "";
+  position: absolute;
+  inset: 9px;
+  background: #c07070;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='black' d='M6 1h4l1 2h4v2H1V3h4l1-2zm-2 5h8l-.7 8H4.7L4 6zm2 1.5h1.2v5H6V7.5zm3.3 0H10.5v5H9.3v-5z'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='black' d='M6 1h4l1 2h4v2H1V3h4l1-2zm-2 5h8l-.7 8H4.7L4 6zm2 1.5h1.2v5H6V7.5zm3.3 0H10.5v5H9.3v-5z'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+#inv-trash.ready {
+  border-color: #e07070;
+  box-shadow: 0 0 0 2px #e0707055;
+}
+#inv-trash.ready::before { background: #e88888; }
+#inv-trash:hover { background-color: #3a1616; }
+[data-theme="light"] #inv-trash {
+  background-color: #f3e4e4;
+  border-color: #b05050;
+}
+[data-theme="light"] #inv-trash::before { background: #a03838; }
+[data-theme="light"] #inv-trash.ready {
+  border-color: #c04040;
+  box-shadow: 0 0 0 2px #c0404044;
+}
+[data-theme="light"] #inv-trash:hover { background-color: #ead4d4; }
 .slot.result { width: 48px; height: 48px; }
 
 .furnace-row {
@@ -760,5 +831,9 @@ button.primary:hover, .text-btn:hover, button:hover { filter: brightness(1.08); 
   .grid-2 { grid-template-columns: repeat(2, 34px); }
   .grid-3 { grid-template-columns: repeat(3, 34px); }
   .grid-9 { grid-template-columns: repeat(9, 34px); }
+  #inv-hotbar {
+    flex-basis: calc(9 * 34px + 8 * 3px);
+    width: calc(9 * 34px + 8 * 3px);
+  }
   .panel { width: calc(100% - 12px); }
 }

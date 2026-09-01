@@ -1,10 +1,12 @@
 import * as THREE from 'three';
-import { AIR, FLOWER_RED, FLOWER_YELLOW, FLOWER_WHITE, RAW_MEAT, HIDE_COW, HIDE_ZEBRA, HIDE_SHEEP, isSolid, isLiquid } from './blocks.js';
-import { HEIGHT, UNLOAD_RADIUS, BIOME_DESERT, BIOME_MOUNTAIN } from './world.js';
+import { AIR, FLOWER_RED, FLOWER_YELLOW, FLOWER_WHITE, RAW_MEAT, HIDE_COW, HIDE_ZEBRA, HIDE_SHEEP, isSolid, isLiquid, isRug } from './blocks.js';
+import { HEIGHT, UNLOAD_RADIUS, BIOME_DESERT, BIOME_MOUNTAIN, BIOME_CANYON } from './world.js';
 import { solidBoxes, aabbHitsBox } from './stairs.js';
 
 const MAX_NEAR = 52;
 const UNLOAD = UNLOAD_RADIUS * 16;
+const RUG_SEEK_R = 16;
+const RUG_SEEK_RETRY = 2.4;
 
 const WOMAN_WEAR = [0xc62828, 0xe85a9a, 0xf5f2ea, 0xe8c220, 0xe07020];
 const MAN_WEAR = [0x2a5caa, 0x1e5a32, 0x6b3e22];
@@ -371,9 +373,54 @@ function overlapsSolid(world, x, y, z, w, h) {
   return false;
 }
 
+function rugAt(world, x, y, z) {
+  return isRug(world.get(x, y, z));
+}
+
+function playerOnRug(player, x, y, z) {
+  if (!player?.pos) return false;
+  return Math.floor(player.pos.x) === x
+    && Math.floor(player.pos.y + 0.05) === y
+    && Math.floor(player.pos.z) === z;
+}
+
+function rugClaimedBy(list, x, y, z, except) {
+  for (const o of list) {
+    if (o === except || o.dying || !o.bed) continue;
+    if (o.bed.x === x && o.bed.y === y && o.bed.z === z) return true;
+  }
+  return false;
+}
+
+function findFreeRug(world, e, list, player, radius = RUG_SEEK_R) {
+  const x0 = Math.floor(e.x);
+  const y0 = Math.floor(e.y + 0.05);
+  const z0 = Math.floor(e.z);
+  let best = null;
+  let bestD = radius * radius + 1;
+  for (let dy = -2; dy <= 3; dy++) {
+    const y = y0 + dy;
+    if (y < 1 || y >= HEIGHT - 1) continue;
+    for (let dz = -radius; dz <= radius; dz++) {
+      for (let dx = -radius; dx <= radius; dx++) {
+        const d2 = dx * dx + dz * dz;
+        if (d2 >= bestD) continue;
+        const x = x0 + dx;
+        const z = z0 + dz;
+        if (!rugAt(world, x, y, z)) continue;
+        if (playerOnRug(player, x, y, z)) continue;
+        if (rugClaimedBy(list, x, y, z, e)) continue;
+        bestD = d2;
+        best = { x, y, z };
+      }
+    }
+  }
+  return best;
+}
+
 function pickKind(biome, rng, night) {
   const r = rng();
-  if (biome === BIOME_DESERT) {
+  if (biome === BIOME_DESERT || biome === BIOME_CANYON) {
     if (r < 0.45) return 'zebra';
     if (r < 0.7) return night ? 'lion' : 'zebra';
     if (r < 0.88) return 'lion';
@@ -395,6 +442,11 @@ function pickKind(biome, rng, night) {
   return night ? 'tiger' : 'chicken';
 }
 
+function dyingBlink(e) {
+  if (!e?.dying || e.deathDelay > 0) return false;
+  return Math.floor((e.flashT || 0) * 10) % 2 === 0;
+}
+
 export class Life {
   constructor(scene) {
     this.list = [];
@@ -403,12 +455,27 @@ export class Life {
     this.nextId = 1;
     this.spawnAcc = 0;
     this.scene = scene;
+    this.lassoedId = 0;
+    const ropeMat = new THREE.MeshLambertMaterial({ color: 0xc4a060 });
+    this.rope = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 1, 5), ropeMat);
+    this.rope.visible = false;
+    this.rope.castShadow = false;
+    this.group.add(this.rope);
+    this._ropeUp = new THREE.Vector3(0, 1, 0);
+    this._ropeDir = new THREE.Vector3();
   }
 
   dispose() {
     for (const e of this.list) this.dropMesh(e);
+    if (this.rope) {
+      this.group.remove(this.rope);
+      this.rope.geometry?.dispose();
+      this.rope.material?.dispose();
+      this.rope = null;
+    }
     this.scene.remove(this.group);
     this.list = [];
+    this.lassoedId = 0;
   }
 
   dropMesh(e) {
@@ -437,10 +504,13 @@ export class Life {
       state: extra.state || 'wander',
       home: extra.home || null,
       wanderT: 1 + Math.random() * 3,
+      bedSeekT: 0.2 + Math.random() * 0.8,
       attackCd: 0,
       hurtT: 0,
       onGround: false,
       wear,
+      lassoed: !!extra.lassoed,
+      bed: extra.bed || null,
       mesh: null,
     };
     e.mesh = makeModel(kind, wear, id);
@@ -452,18 +522,31 @@ export class Life {
 
   syncMesh(e) {
     if (!e.mesh) return;
-    e.mesh.position.set(e.x, e.y, e.z);
-    e.mesh.rotation.y = e.yaw - Math.PI / 2;
-    const flash = e.hurtT > 0;
+    const sleeping = e.state === 'sleep';
+    if (sleeping) {
+      e.mesh.rotation.order = 'YXZ';
+      e.mesh.rotation.set(-Math.PI / 2, e.yaw - Math.PI / 2, 0);
+      e.mesh.position.set(e.x, e.y + 0.16, e.z);
+    } else {
+      e.mesh.rotation.order = 'XYZ';
+      e.mesh.rotation.set(0, e.yaw - Math.PI / 2, 0);
+      e.mesh.position.set(e.x, e.y, e.z);
+    }
+    const flash = e.hurtT > 0 || dyingBlink(e);
+    const caught = !!e.lassoed && !e.dying;
     e.mesh.traverse((o) => {
       if (o.material && o.material.emissive) {
-        o.material.emissive.setHex(flash ? 0x551010 : 0);
+        o.material.emissive.setHex(flash ? 0xff1a1a : caught ? 0x4a3810 : 0);
+        if (o.material.color) {
+          if (o.material.userData.baseHex == null) o.material.userData.baseHex = o.material.color.getHex();
+          o.material.color.setHex(flash && e.dying ? 0xff3a3a : o.material.userData.baseHex);
+        }
       }
     });
   }
 
   serialize() {
-    return this.list.map((e) => ({
+    return this.list.filter((e) => !e.dying).map((e) => ({
       id: e.id,
       kind: e.kind,
       x: e.x, y: e.y, z: e.z,
@@ -472,6 +555,8 @@ export class Life {
       state: e.state,
       home: e.home,
       wear: e.wear || 0,
+      lassoed: !!e.lassoed,
+      bed: e.bed || null,
     }));
   }
 
@@ -479,16 +564,18 @@ export class Life {
     for (const e of this.list) this.dropMesh(e);
     this.list = [];
     this.nextId = 1;
+    this.lassoedId = 0;
     if (!Array.isArray(data)) return;
     for (const raw of data) {
       if (!KINDS[raw.kind]) continue;
       const spawned = this.spawn(raw.kind, raw.x, raw.y, raw.z, {
-        id: raw.id, yaw: raw.yaw, hp: raw.hp, state: raw.state, home: raw.home, wear: raw.wear,
+        id: raw.id, yaw: raw.yaw, hp: raw.hp, state: raw.state, home: raw.home, wear: raw.wear, lassoed: raw.lassoed, bed: raw.bed,
       });
       if (spawned) {
         if (world && overlapsSolid(world, spawned.x, spawned.y, spawned.z, KINDS[spawned.kind].w, KINDS[spawned.kind].h)) {
           spawned.y = groundY(world, spawned.x, spawned.z);
         }
+        if (spawned.lassoed) this.lassoedId = spawned.id;
       }
     }
   }
@@ -520,14 +607,90 @@ export class Life {
     }
   }
 
+  getLassoed() {
+    if (!this.lassoedId) return null;
+    return this.list.find((e) => e.id === this.lassoedId) || null;
+  }
+
+  setLassoed(e) {
+    if (!e || e.dying) return;
+    const prev = this.getLassoed();
+    if (prev && prev !== e) prev.lassoed = false;
+    if (!e) {
+      this.lassoedId = 0;
+      return;
+    }
+    e.lassoed = true;
+    e.state = 'lassoed';
+    e.bed = null;
+    this.lassoedId = e.id;
+  }
+
+  clearLasso() {
+    const e = this.getLassoed();
+    if (e) {
+      e.lassoed = false;
+      e.state = 'wander';
+    }
+    this.lassoedId = 0;
+  }
+
+  snapLassoedTo(x, y, z, yaw = 0) {
+    const e = this.getLassoed();
+    if (!e) return;
+    const ang = yaw + Math.PI;
+    e.x = x + Math.sin(ang) * 1.8;
+    e.z = z + Math.cos(ang) * 1.8;
+    e.y = y;
+    e.vx = 0;
+    e.vy = 0;
+    e.vz = 0;
+    this.syncMesh(e);
+  }
+
+  syncRope(player) {
+    const e = this.getLassoed();
+    if (!e || !player || !this.rope) {
+      if (this.rope) this.rope.visible = false;
+      return;
+    }
+    const def = KINDS[e.kind];
+    const ax = player.pos.x;
+    const ay = player.pos.y + 1.05;
+    const az = player.pos.z;
+    const bx = e.x;
+    const by = e.y + def.h * 0.55;
+    const bz = e.z;
+    const dx = bx - ax;
+    const dy = by - ay;
+    const dz = bz - az;
+    const len = Math.hypot(dx, dy, dz) || 0.01;
+    this.rope.visible = true;
+    this.rope.position.set((ax + bx) / 2, (ay + by) / 2, (az + bz) / 2);
+    this._ropeDir.set(dx / len, dy / len, dz / len);
+    this.rope.quaternion.setFromUnitVectors(this._ropeUp, this._ropeDir);
+    this.rope.scale.set(1, len, 1);
+  }
+
   raycast(origin, dir, maxDist = 5.5) {
     let best = null;
     let bestT = maxDist;
     for (const e of this.list) {
+      if (e.dying) continue;
       const def = KINDS[e.kind];
-      const hw = def.w * 0.5;
-      const min = { x: e.x - hw, y: e.y, z: e.z - hw };
-      const max = { x: e.x + hw, y: e.y + def.h, z: e.z + hw };
+      let min;
+      let max;
+      if (e.state === 'sleep' && def.person) {
+        const along = def.h * 0.48;
+        const hx = Math.abs(Math.sin(e.yaw)) * along + def.w * 0.55;
+        const hz = Math.abs(Math.cos(e.yaw)) * along + def.w * 0.55;
+        min = { x: e.x - hx, y: e.y, z: e.z - hz };
+        max = { x: e.x + hx, y: e.y + 0.42, z: e.z + hz };
+      } else {
+        const hw = def.w * 0.5;
+        min = { x: e.x - hw, y: e.y, z: e.z - hw };
+        max = { x: e.x + hw, y: e.y + def.h, z: e.z + hw };
+      }
       const t = rayAabb(origin, dir, min, max, bestT);
       if (t != null && t < bestT) {
         bestT = t;
@@ -537,8 +700,8 @@ export class Life {
     return best;
   }
 
-  hurt(e, amount, from) {
-    if (!e || amount <= 0) return [];
+  hurt(e, amount, from, opts = {}) {
+    if (!e || amount <= 0 || e.dying) return [];
     e.hp -= amount;
     e.hurtT = 0.25;
     const def = KINDS[e.kind];
@@ -548,18 +711,42 @@ export class Life {
       const len = Math.hypot(dx, dz) || 1;
       e.vx += (dx / len) * 4;
       e.vz += (dz / len) * 4;
-      if (!def.hostile) e.state = 'flee';
+      if (!def.hostile && !opts.delayDeath) {
+        e.state = 'flee';
+        e.bed = null;
+      }
     }
     if (e.hp > 0) return [];
     const loot = [];
     if (def.meat) loot.push({ id: RAW_MEAT, n: def.meat });
     if (def.hide) loot.push({ id: def.hide, n: 1 });
     if (def.person && Math.random() < 0.12) loot.push({ id: FLOWER_RED, n: 1 });
+    if (opts.delayDeath) {
+      e.hp = 0;
+      e.dying = true;
+      e.deathDelay = opts.deathDelay || 0;
+      e.deathFlash = 0.55;
+      e.flashT = 0;
+      e.pendingLoot = loot;
+      e.state = 'dying';
+      e.lassoed = false;
+      if (e.id === this.lassoedId) this.lassoedId = 0;
+      return [];
+    }
     this.remove(e);
     return loot;
   }
 
+  finishDeath(e, ctx) {
+    if (!e) return;
+    const loot = e.pendingLoot || [];
+    const pos = { x: e.x, y: e.y, z: e.z };
+    this.remove(e);
+    if (ctx?.deaths) ctx.deaths.push({ loot, x: pos.x, y: pos.y, z: pos.z });
+  }
+
   remove(e) {
+    if (e.id === this.lassoedId) this.lassoedId = 0;
     this.dropMesh(e);
     const i = this.list.indexOf(e);
     if (i >= 0) this.list.splice(i, 1);
@@ -600,6 +787,55 @@ export class Life {
     }
   }
 
+  bedStillGood(world, e, player) {
+    const b = e.bed;
+    if (!b) return false;
+    if (!rugAt(world, b.x, b.y, b.z)) return false;
+    if (e.state !== 'sleep' && playerOnRug(player, b.x, b.y, b.z)) return false;
+    return true;
+  }
+
+  tickPersonSleep(e, world, player, dt) {
+    e.bedSeekT = (e.bedSeekT || 0) - dt;
+    if (e.state === 'sleep' || e.state === 'bed') {
+      if (!this.bedStillGood(world, e, player)) {
+        e.state = e.kind === 'woman' && e.home ? 'home' : 'wander';
+        e.bed = null;
+        e.bedSeekT = 0.4;
+        return;
+      }
+      if (e.state === 'bed' && e.wanderT <= 0) {
+        e.bed = null;
+        e.state = 'wander';
+        e.bedSeekT = 0.35;
+      }
+      return;
+    }
+    if (e.state === 'flee') return;
+    if (e.bedSeekT > 0) return;
+    const found = findFreeRug(world, e, this.list, player);
+    e.bedSeekT = RUG_SEEK_RETRY;
+    if (!found) return;
+    e.bed = found;
+    e.state = 'bed';
+    e.wanderT = 14;
+  }
+
+  lieOnRug(e, world) {
+    const b = e.bed;
+    if (!b) return;
+    e.x = b.x + 0.5;
+    e.z = b.z + 0.5;
+    e.vx = 0;
+    e.vz = 0;
+    const hx = Math.floor(e.x + Math.sin(e.yaw) * 1.15);
+    const hz = Math.floor(e.z + Math.cos(e.yaw) * 1.15);
+    if (isSolid(world.get(hx, b.y, hz)) || isSolid(world.get(hx, b.y + 1, hz))) {
+      e.yaw += Math.PI;
+    }
+    e.state = 'sleep';
+  }
+
   update(dt, world, player, ctx) {
     this.spawnAcc += dt;
     if (this.spawnAcc > 1.6) {
@@ -618,7 +854,7 @@ export class Life {
       const dx = e.x - px;
       const dz = e.z - pz;
       const dist = Math.hypot(dx, dz);
-      if (dist > UNLOAD && !(e.kind === 'woman' && e.home)) {
+      if (dist > UNLOAD && !(e.kind === 'woman' && e.home) && !e.bed && !e.lassoed && !e.dying) {
         this.remove(e);
         continue;
       }
@@ -627,12 +863,70 @@ export class Life {
       e.attackCd = Math.max(0, e.attackCd - dt);
       e.wanderT -= dt;
 
+      if (e.dying) {
+        if (e.deathDelay > 0) {
+          e.deathDelay = Math.max(0, e.deathDelay - dt);
+        } else {
+          e.flashT += dt;
+          e.deathFlash -= dt;
+          if (e.deathFlash <= 0) {
+            this.finishDeath(e, ctx);
+            continue;
+          }
+        }
+        this.syncMesh(e);
+        continue;
+      }
+
+      if (e.lassoed) {
+        const follow = 2.15;
+        if (dist > 10) {
+          const nx = dx / (dist || 1);
+          const nz = dz / (dist || 1);
+          e.x = px + nx * follow;
+          e.z = pz + nz * follow;
+          e.y = py;
+          e.vx = 0;
+          e.vz = 0;
+        } else if (dist > follow) {
+          const pull = Math.min(dist - follow, 16 * dt);
+          e.vx = 0;
+          e.vz = 0;
+          this.move(e, world, def, -(dx / dist) * pull, 0, 0);
+          this.move(e, world, def, 0, 0, -(dz / dist) * pull);
+        } else {
+          e.vx *= Math.max(0, 1 - 10 * dt);
+          e.vz *= Math.max(0, 1 - 10 * dt);
+        }
+        const wantY = py;
+        if (Math.abs(e.y - wantY) > 0.15) {
+          this.move(e, world, def, 0, (wantY - e.y) * Math.min(1, 10 * dt), 0);
+        }
+        e.vy -= 28 * dt;
+        this.move(e, world, def, 0, e.vy * dt, 0);
+        if (e.onGround && e.vy < 0) e.vy = 0;
+        e.y = Math.max(1, Math.min(HEIGHT - 2, e.y));
+        e.yaw = Math.atan2(px - e.x, pz - e.z);
+        this.syncMesh(e);
+        continue;
+      }
+
       const duskNight = !!ctx.duskNight;
+      const nightRest = def.person && (duskNight || !!ctx.night);
       const mayHunt = def.hostile && !ctx.sleeping && (!def.nocturnal || duskNight);
       const huntRange = mayHunt ? (duskNight ? def.range + 8 : def.range) : 0;
 
+      if (nightRest) {
+        this.tickPersonSleep(e, world, player, dt);
+      } else if (e.state === 'sleep' || e.state === 'bed') {
+        e.state = e.kind === 'woman' && e.home ? 'home' : 'wander';
+        e.bed = null;
+      }
+
       if (!mayHunt && e.state === 'chase') e.state = 'wander';
-      if (mayHunt && dist < huntRange && dist > 0.4) {
+      if (e.state === 'sleep' || e.state === 'bed') {
+        /* keep going to the rug */
+      } else if (mayHunt && dist < huntRange && dist > 0.4) {
         e.state = 'chase';
       } else if (e.kind === 'woman' && flower && dist < 4.2) {
         e.state = 'follow';
@@ -650,9 +944,24 @@ export class Life {
       let tz = 0;
       const wet = isDeepWater(world, e.x, e.z);
       const escape = wet ? awayFromWater(world, e.x, e.z) : null;
-      if (escape) {
+      if (escape && e.state !== 'sleep') {
         tx = escape.x;
         tz = escape.z;
+      } else if (e.state === 'sleep') {
+        tx = 0;
+        tz = 0;
+        if (e.bed) {
+          e.x += ((e.bed.x + 0.5) - e.x) * Math.min(1, 10 * dt);
+          e.z += ((e.bed.z + 0.5) - e.z) * Math.min(1, 10 * dt);
+        }
+      } else if (e.state === 'bed' && e.bed) {
+        tx = e.bed.x + 0.5 - e.x;
+        tz = e.bed.z + 0.5 - e.z;
+        if (Math.hypot(tx, tz) < 0.55 && Math.abs(e.y - e.bed.y) < 1.8) {
+          this.lieOnRug(e, world);
+          tx = 0;
+          tz = 0;
+        }
       } else if (e.state === 'chase') {
         tx = px - e.x;
         tz = pz - e.z;
@@ -703,14 +1012,19 @@ export class Life {
       }
 
       const len = Math.hypot(tx, tz);
-      const speed = def.speed * (e.state === 'flee' || e.state === 'chase' ? 1 : 0.55);
-      if (len > 0.05) {
+      const hurry = e.state === 'flee' || e.state === 'chase' || e.state === 'bed';
+      const speed = def.speed * (hurry ? 1 : 0.55);
+      if (len > 0.05 && e.state !== 'sleep') {
         e.yaw = Math.atan2(tx, tz);
         e.vx += ((tx / len) * speed - e.vx) * Math.min(1, 8 * dt);
         e.vz += ((tz / len) * speed - e.vz) * Math.min(1, 8 * dt);
       } else {
         e.vx *= Math.max(0, 1 - 8 * dt);
         e.vz *= Math.max(0, 1 - 8 * dt);
+      }
+      if (e.state === 'sleep') {
+        e.vx = 0;
+        e.vz = 0;
       }
 
       e.vy -= 28 * dt;
@@ -729,6 +1043,7 @@ export class Life {
 
       this.syncMesh(e);
     }
+    this.syncRope(player);
   }
 
   move(e, world, def, dx, dy, dz) {

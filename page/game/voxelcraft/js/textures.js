@@ -39,6 +39,9 @@ const TILE_INDEX = {
   glass: 30,
   spring_top: 31,
   spring_side: 32,
+  red_earth: 33,
+  crate_top: 34,
+  crate_side: 35,
 };
 
 function clamp(n, a, b) {
@@ -337,6 +340,49 @@ function drawTile(name) {
     }
     put(d, 7, 7, 90, 160, 220);
     put(d, 8, 8, 70, 140, 210);
+  } else if (name === 'red_earth') {
+    fillNoise(d, [186, 96, 48], 22, rng);
+    blot(d, [150, 64, 32], rng, 7, 2);
+    blot(d, [214, 132, 64], rng, 5, 1);
+  } else if (name === 'crate_top' || name === 'crate_side') {
+    fillNoise(d, [168, 118, 58], 14, rng);
+    for (let y = 0; y < TILE; y += 4) {
+      for (let x = 0; x < TILE; x++) put(d, x, y, 118, 78, 36);
+    }
+    for (let i = 0; i < TILE; i++) {
+      put(d, 0, i, 72, 48, 22);
+      put(d, 15, i, 72, 48, 22);
+      put(d, i, 0, 72, 48, 22);
+      put(d, i, 15, 72, 48, 22);
+    }
+    const band = [78, 78, 84];
+    const bandLit = [120, 120, 128];
+    if (name === 'crate_side') {
+      for (let x = 0; x < TILE; x++) {
+        put(d, x, 3, band[0], band[1], band[2]);
+        put(d, x, 4, bandLit[0], bandLit[1], bandLit[2]);
+        put(d, x, 11, bandLit[0], bandLit[1], bandLit[2]);
+        put(d, x, 12, band[0], band[1], band[2]);
+      }
+      for (let y = 6; y <= 9; y++) {
+        for (let x = 6; x <= 9; x++) put(d, x, y, 48, 42, 36);
+      }
+      put(d, 7, 7, 210, 170, 70);
+      put(d, 8, 7, 230, 190, 80);
+      put(d, 7, 8, 180, 140, 50);
+      put(d, 8, 8, 210, 170, 70);
+    } else {
+      for (let i = 2; i < 14; i++) {
+        put(d, i, i, 90, 60, 28);
+        put(d, 15 - i, i, 90, 60, 28);
+      }
+      for (let x = 1; x < 15; x++) {
+        put(d, x, 2, band[0], band[1], band[2]);
+        put(d, x, 13, band[0], band[1], band[2]);
+        put(d, 2, x, band[0], band[1], band[2]);
+        put(d, 13, x, band[0], band[1], band[2]);
+      }
+    }
   } else {
     fillNoise(d, [200, 0, 200], 10, rng);
   }
@@ -527,6 +573,50 @@ function drawItemIcon(kind) {
     g.fillRect(10, 2, 2, 28);
     g.fillRect(14, 2, 2, 28);
     g.fillRect(10, 16, 6, 2);
+  } else if (kind === 'lasso') {
+    g.strokeStyle = '#c4a060';
+    g.lineWidth = 3;
+    g.beginPath();
+    g.arc(16, 14, 9, 0, Math.PI * 2);
+    g.stroke();
+    g.strokeStyle = '#8a5a28';
+    g.beginPath();
+    g.arc(16, 14, 6, 0.2, Math.PI * 1.7);
+    g.stroke();
+    g.fillStyle = '#c4a060';
+    g.fillRect(20, 18, 3, 12);
+    g.fillStyle = '#8a5a28';
+    g.fillRect(19, 16, 5, 4);
+  } else if (kind === 'revolver') {
+    g.fillStyle = '#6a4a28';
+    g.fillRect(8, 18, 6, 10);
+    g.fillStyle = '#3a3a42';
+    g.fillRect(10, 12, 18, 6);
+    g.fillRect(22, 10, 6, 4);
+    g.fillStyle = '#8a8a96';
+    g.fillRect(12, 14, 14, 3);
+    g.fillStyle = '#2a2a30';
+    g.beginPath();
+    g.arc(14, 18, 5, 0, Math.PI * 2);
+    g.fill();
+    g.fillStyle = '#c4a060';
+    g.fillRect(8, 16, 5, 4);
+  } else if (kind === 'bow') {
+    g.strokeStyle = '#8a5a28';
+    g.lineWidth = 3;
+    g.beginPath();
+    g.arc(12, 16, 12, -1.1, 1.1);
+    g.stroke();
+    g.strokeStyle = '#e8e0d0';
+    g.lineWidth = 1.5;
+    g.beginPath();
+    g.moveTo(16, 5);
+    g.lineTo(16, 27);
+    g.stroke();
+    g.fillStyle = '#c4a060';
+    g.fillRect(15, 14, 12, 2);
+    g.fillStyle = '#8a8a70';
+    g.fillRect(25, 13, 4, 4);
   }
   return c.toDataURL();
 }
@@ -561,6 +651,7 @@ export function createAtlas() {
     'hide_cow', 'hide_zebra', 'hide_sheep',
     'door', 'door_double', 'stairs', 'stairs_sand', 'stairs_stone', 'ladder',
     'wall_wood', 'wall_glass',
+    'lasso', 'revolver', 'bow',
   ];
   for (const kind of itemKinds) icons[kind] = drawItemIcon(kind);
 

@@ -3,8 +3,9 @@ import { initLang, setLang, t, applyI18n } from './js/i18n.js';
 import { initTheme, toggleTheme, getTheme } from './js/theme.js';
 import {
   AIR, GRASS, SAND, LOG, LEAVES, TABLE, TORCH, BEDROCK, CACTUS, FURNACE, DOOR, DOOR_DOUBLE, LADDER, ITEMS, BLOCKS,
+  SURPRISE_BOX, BOW,
   isPlaceable, isSolid, isFlower, isRug, isStair, isWall, isLiquid, isReplaceable, mineSeconds, nameKey, stackMax,
-  foodInfo, attackDamage,
+  foodInfo, attackDamage, canHarvest, ammoOf, consumeAmmo, crateLoot, hasLasso,
 } from './js/blocks.js';
 import { World, GEN_PER_TICK, biomeNameKey, CHUNK, mapRgb, torchFacingFromHit } from './js/world.js';
 import { createAtlas, itemIcon } from './js/textures.js';
@@ -66,6 +67,12 @@ const freezeTimeEl = document.getElementById('freeze-time');
 const mapOverlay = document.getElementById('map-overlay');
 const mapCanvas = document.getElementById('world-map');
 const mapMeta = document.getElementById('map-meta');
+const crateLootEl = document.getElementById('crate-loot');
+const crateLootIcon = document.getElementById('crate-loot-icon');
+const crateLootName = document.getElementById('crate-loot-name');
+const crateLootAmmo = document.getElementById('crate-loot-ammo');
+const crateLootOk = document.getElementById('crate-loot-ok');
+let lastCrateLoot = null;
 
 const DAY_CYCLE = 480;
 const TIME_PRESETS = { dawn: 40, noon: 120, dusk: 200, night: 360 };
@@ -106,6 +113,9 @@ let saving = false;
 let currentWorldId = null;
 let worldBusy = false;
 let last = performance.now();
+const tracers = [];
+const flyArrows = [];
+const crosshairEl = document.getElementById('crosshair');
 
 initLang();
 initTheme();
@@ -176,6 +186,7 @@ document.querySelectorAll('[data-lang]').forEach((btn) => {
     if (player) playBtn.textContent = menuPaused ? t('resume') : t('clickToPlay');
     syncTimeUi();
     refreshWorldList();
+    fillCrateLootModal();
     if (mapOpen()) drawWorldMap();
   });
 });
@@ -229,6 +240,7 @@ worldListEl.addEventListener('click', (e) => {
   const act = btn.getAttribute('data-act');
   if (act === 'load') switchWorld(id);
   else if (act === 'rename') renameWorld(id);
+  else if (act === 'duplicate') duplicateWorld(id);
   else if (act === 'delete') deleteWorld(id);
 });
 document.getElementById('open-map-btn').addEventListener('click', (e) => {
@@ -295,6 +307,10 @@ respawnBtn.addEventListener('click', () => {
   requestPlay();
 });
 document.getElementById('inv-close').addEventListener('click', () => closeInv());
+crateLootOk?.addEventListener('click', (e) => {
+  e.stopPropagation();
+  closeCrateLoot();
+});
 recipesBtn.addEventListener('click', () => setRecipesOpen(recipeBook.hidden));
 document.getElementById('recipes-hide').addEventListener('click', () => setRecipesOpen(false));
 
@@ -302,7 +318,7 @@ canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 canvas.addEventListener('mousedown', (e) => {
   if (e.button === 0) mouse.left = true;
   if (e.button === 2) mouse.right = true;
-  if (!document.pointerLockElement && !invOpen() && deathEl.hidden && !mapOpen()) requestPlay();
+  if (!document.pointerLockElement && !invOpen() && deathEl.hidden && !mapOpen() && !crateLootOpen()) requestPlay();
 });
 window.addEventListener('mouseup', (e) => {
   if (e.button === 0) mouse.left = false;
@@ -319,7 +335,7 @@ window.addEventListener('mousemove', (e) => {
 let ignoreEscUntil = 0;
 
 document.addEventListener('pointerlockchange', () => {
-  if (!document.pointerLockElement && !invOpen() && player?.health > 0 && menuEl.hidden && !mapOpen()) {
+  if (!document.pointerLockElement && !invOpen() && player?.health > 0 && menuEl.hidden && !mapOpen() && !crateLootOpen()) {
     showMenu(true);
     ignoreEscUntil = performance.now() + 250;
   }
@@ -331,6 +347,10 @@ window.addEventListener('keydown', (e) => {
   if (e.code === 'ControlLeft' && isPlaying()) e.preventDefault();
   if (e.code === 'Escape') {
     if (e.repeat || performance.now() < ignoreEscUntil) return;
+    if (crateLootOpen()) {
+      closeCrateLoot();
+      return;
+    }
     if (mapOpen()) {
       closeMap({ toPause: true });
       return;
@@ -349,16 +369,21 @@ window.addEventListener('keydown', (e) => {
     }
     return;
   }
+  if (crateLootOpen() && (e.code === 'Enter' || e.code === 'Space')) {
+    e.preventDefault();
+    closeCrateLoot();
+    return;
+  }
   if (e.code === 'KeyM') {
     e.preventDefault();
-    if (!loadingEl.hidden || invOpen() || !deathEl.hidden) return;
+    if (!loadingEl.hidden || invOpen() || crateLootOpen() || !deathEl.hidden) return;
     toggleMap();
     return;
   }
   if (e.repeat) return;
   if (e.code === 'KeyE') {
     e.preventDefault();
-    if (mapOpen()) return;
+    if (mapOpen() || crateLootOpen()) return;
     if (invOpen()) closeInv();
     else if (player && menuEl.hidden && player.health > 0) openInv(false);
   }
@@ -449,6 +474,55 @@ function hideMenu() {
   menuEl.hidden = true;
 }
 
+function crateLootOpen() {
+  return crateLootEl && !crateLootEl.hidden;
+}
+
+function fillCrateLootModal() {
+  if (!lastCrateLoot || !crateLootEl) return;
+  const name = t(nameKey(lastCrateLoot.id));
+  crateLootName.textContent = name;
+  crateLootIcon.style.backgroundImage = atlas ? `url(${itemIcon(lastCrateLoot.id, atlas)})` : 'none';
+  const ranged = !!ITEMS[lastCrateLoot.id]?.ranged;
+  if (lastCrateLoot.alreadyHad && ranged && lastCrateLoot.ammoAdded > 0) {
+    crateLootAmmo.hidden = false;
+    crateLootAmmo.textContent = t('crateAmmoAdded')
+      .replace('{n}', String(lastCrateLoot.ammoAdded))
+      .replace('{total}', String(lastCrateLoot.ammoTotal));
+  } else if (lastCrateLoot.alreadyHad) {
+    crateLootAmmo.hidden = false;
+    crateLootAmmo.textContent = t('crateAlreadyHave');
+  } else if (ranged) {
+    const ammo = lastCrateLoot.ammo ?? lastCrateLoot.ammoAdded ?? ammoOf(lastCrateLoot);
+    crateLootAmmo.hidden = false;
+    crateLootAmmo.textContent = t('crateAmmo').replace('{n}', String(ammo));
+  } else {
+    crateLootAmmo.hidden = true;
+    crateLootAmmo.textContent = '';
+  }
+}
+
+function openCrateLoot(loot) {
+  if (!loot || !crateLootEl) return;
+  lastCrateLoot = loot;
+  mouse.left = false;
+  mouse.right = false;
+  document.exitPointerLock();
+  fillCrateLootModal();
+  crateLootEl.hidden = false;
+}
+
+function closeCrateLoot() {
+  if (!crateLootOpen()) return;
+  crateLootEl.hidden = true;
+  lastCrateLoot = null;
+  mouse.left = false;
+  mouse.right = false;
+  keys.Space = false;
+  keys.Enter = false;
+  if (player?.health > 0 && menuEl.hidden) canvas.requestPointerLock();
+}
+
 function invOpen() {
   return !invEl.hidden;
 }
@@ -458,7 +532,7 @@ function mapOpen() {
 }
 
 function isPlaying() {
-  return !!player && player.health > 0 && !invOpen() && menuEl.hidden && deathEl.hidden && !mapOpen();
+  return !!player && player.health > 0 && !invOpen() && menuEl.hidden && deathEl.hidden && !mapOpen() && !crateLootOpen();
 }
 
 function requestPlay() {
@@ -590,7 +664,7 @@ function updateItemTip(e) {
     return;
   }
   const id = Number(slot.dataset.itemId);
-  const name = id ? t(nameKey(id)) : (slot.title || '');
+  const name = id ? t(nameKey(id)) : (slot.getAttribute('aria-label') || slot.title || '');
   if (!name) {
     hideItemTip();
     return;
@@ -693,11 +767,15 @@ async function refreshWorldList() {
     renameBtn.type = 'button';
     renameBtn.setAttribute('data-act', 'rename');
     renameBtn.textContent = t('renameWorld');
+    const dupBtn = document.createElement('button');
+    dupBtn.type = 'button';
+    dupBtn.setAttribute('data-act', 'duplicate');
+    dupBtn.textContent = t('duplicateWorld');
     const delBtn = document.createElement('button');
     delBtn.type = 'button';
     delBtn.setAttribute('data-act', 'delete');
     delBtn.textContent = t('deleteWorld');
-    actions.append(loadBtn, renameBtn, delBtn);
+    actions.append(loadBtn, renameBtn, dupBtn, delBtn);
     li.appendChild(actions);
     worldListEl.appendChild(li);
   }
@@ -795,6 +873,49 @@ async function renameWorld(id) {
   entry.name = entered.trim() || entry.name;
   await saveWorldIndex(index);
   await refreshWorldList();
+}
+
+function uniqueCopyName(name, list) {
+  const base = name || t('worldNamePrefix');
+  const suffix = t('worldCopySuffix');
+  const taken = new Set(list.map((w) => w.name));
+  let candidate = `${base}${suffix}`;
+  let n = 2;
+  while (taken.has(candidate)) {
+    candidate = `${base}${suffix} ${n}`;
+    n += 1;
+  }
+  return candidate;
+}
+
+async function duplicateWorld(id) {
+  if (worldBusy || !id) return;
+  const index = await loadWorldIndex();
+  const entry = index.list.find((w) => w.id === id);
+  if (!entry) return;
+  const suggested = uniqueCopyName(entry.name, index.list);
+  const entered = window.prompt(t('worldNamePrompt'), suggested);
+  if (entered == null) return;
+  const name = entered.trim() || suggested;
+  worldBusy = true;
+  try {
+    if (id === currentWorldId && player && world) await persist();
+    const save = await loadWorldSave(id);
+    if (!save?.seed) return;
+    const copyId = newWorldId();
+    await saveWorldSave(copyId, structuredClone(save));
+    const next = await loadWorldIndex();
+    next.list.push({
+      id: copyId,
+      name,
+      created: Date.now(),
+      updated: Date.now(),
+    });
+    await saveWorldIndex(next);
+    await refreshWorldList();
+  } finally {
+    worldBusy = false;
+  }
 }
 
 async function deleteWorld(id) {
@@ -1009,8 +1130,14 @@ function tick(dt) {
       sleeping: sleeping || sleepAcc > 0,
       holdingFlower: life.holdingFlower(inv),
       hitPlayer: false,
+      deaths: [],
     };
     life.update(dt, world, player, lifeCtx);
+    if (life.getLassoed() && !hasLasso(inv)) life.clearLasso();
+    if (lifeCtx.deaths.length) {
+      for (const d of lifeCtx.deaths) giveEntityLoot(d.loot, d);
+      refreshHud();
+    }
     if (lifeCtx.hitPlayer) {
       player.pitch = Math.max(player.pitch - 0.06, -Math.PI / 2 + 0.04);
       player.yaw += (Math.random() - 0.5) * 0.1;
@@ -1023,6 +1150,7 @@ function tick(dt) {
   }
 
   if (player.health <= 0) {
+    if (life) life.clearLasso();
     document.exitPointerLock();
     deathEl.hidden = false;
     persist();
@@ -1033,26 +1161,68 @@ function tick(dt) {
   player.applyLook(camera);
   const dir = new THREE.Vector3();
   camera.getWorldDirection(dir);
+  const held = inv.selectedStack();
+  const heldDef = held ? ITEMS[held.id] : null;
+  const usingLasso = !!heldDef?.lasso;
+  const usingRanged = !!heldDef?.ranged;
+  const aimRange = usingRanged ? (heldDef.range || 48) : usingLasso ? (heldDef.range || 10) : 5.5;
   const hit = raycast(world, origin, dir);
   const placeHit = raycast(world, origin, dir, 5.5, true);
-  const entHit = life ? life.raycast(origin, dir) : null;
-  const preferEnt = entHit && (!hit || entHit.dist <= hit.dist);
+  const longHit = (usingRanged || usingLasso) ? raycast(world, origin, dir, aimRange) : hit;
+  const entHit = life ? life.raycast(origin, dir, aimRange) : null;
+  const preferEnt = entHit && (!longHit || entHit.dist <= longHit.dist);
   updateHighlight(hit, preferEnt ? entHit : null);
+  if (crosshairEl) crosshairEl.classList.toggle('aim', !!(preferEnt && (usingLasso || usingRanged)));
+  tickTracers(dt);
+  tickArrows(dt);
 
   const walking = input.forward || input.back || input.left || input.right;
   attackCool = Math.max(0, attackCool - dt);
-  const mining = mouse.left && !preferEnt && hit && BLOCKS[hit.id] && hit.id !== BEDROCK;
-  arms.setHeld(inv.selectedStack()?.id || 0);
+  const mining = mouse.left && !preferEnt && !usingRanged && !usingLasso && hit && BLOCKS[hit.id] && hit.id !== BEDROCK;
+  arms.setHeld(held?.id || 0);
   arms.setOffhand(inv.offhand?.id || 0);
-  arms.update(dt, walking && player.onGround, mining || (mouse.left && preferEnt));
+  arms.update(dt, walking && player.onGround, mining || (mouse.left && (preferEnt || usingRanged || usingLasso)));
 
-  if (mouse.left && preferEnt) {
+  if (mouse.left && usingLasso) {
+    mine = null;
+    breakBar.hidden = true;
+    if (attackCool <= 0 && preferEnt) {
+      life.setLassoed(entHit.e);
+      arms.punch();
+      attackCool = 0.35;
+      refreshHud();
+    }
+  } else if (mouse.left && usingRanged) {
     mine = null;
     breakBar.hidden = true;
     if (attackCool <= 0) {
-      const loot = life.hurt(entHit.e, attackDamage(inv.selectedStack()), player.pos);
-      for (const d of loot) inv.add(d.id, d.n);
-      if (ITEMS[inv.selectedStack()?.id]?.tool) inv.wearSelected();
+      if (ammoOf(held) > 0) {
+        consumeAmmo(held);
+        const reach = preferEnt ? entHit.dist : (longHit?.dist ?? heldDef.range);
+        const end = origin.clone().addScaledVector(dir, Math.max(0.4, reach));
+        const from = origin.clone().addScaledVector(dir, 0.45);
+        if (held.id === BOW) {
+          const target = preferEnt && !entHit.e.dying ? entHit.e : null;
+          spawnWhiteArrow(from, end, target, () => {
+            if (!target || target.dying || !life?.list.includes(target)) return;
+            life.hurt(target, 999, player.pos, { delayDeath: true, deathDelay: 0.12 });
+          });
+        } else {
+          spawnTracer(from, end, 0xffe08a);
+          if (preferEnt) life.hurt(entHit.e, 999, player.pos, { delayDeath: true });
+        }
+        arms.punch();
+      }
+      attackCool = heldDef.cool || 0.45;
+      refreshHud();
+    }
+  } else if (mouse.left && preferEnt) {
+    mine = null;
+    breakBar.hidden = true;
+    if (attackCool <= 0) {
+      const loot = life.hurt(entHit.e, attackDamage(held), player.pos);
+      giveEntityLoot(loot, entHit.e);
+      if (ITEMS[held?.id]?.tool) inv.wearSelected();
       arms.punch();
       attackCool = 0.4;
       refreshHud();
@@ -1084,7 +1254,23 @@ function tick(dt) {
   const selFood = foodInfo(inv.selectedStack());
   const offFood = foodInfo(inv.offhand);
   if (mouse.right) {
-    if (hit?.id === TABLE && !sneak) {
+    if (isDoorId(hit?.id) && !sneak) {
+      if (placeCool <= 0) {
+        placeCool = 0.18;
+        if (toggleDoor(world, hit.x, hit.y, hit.z, player, life, KINDS)) {
+          remeshDirty(world, bundle);
+        }
+      }
+      eatAcc = 0;
+    } else if (usingLasso) {
+      if (placeCool <= 0 && life?.getLassoed()) {
+        placeCool = 0.18;
+        life.clearLasso();
+      }
+      eatAcc = 0;
+    } else if (usingRanged) {
+      eatAcc = 0;
+    } else if (hit?.id === TABLE && !sneak) {
       if (placeCool <= 0) {
         placeCool = 0.18;
         openInv(true);
@@ -1094,14 +1280,6 @@ function tick(dt) {
       if (placeCool <= 0) {
         placeCool = 0.18;
         openFurnace(hit.x, hit.y, hit.z);
-      }
-      eatAcc = 0;
-    } else if (isDoorId(hit?.id) && !sneak) {
-      if (placeCool <= 0) {
-        placeCool = 0.18;
-        if (toggleDoor(world, hit.x, hit.y, hit.z, player, life, KINDS)) {
-          remeshDirty(world, bundle);
-        }
       }
       eatAcc = 0;
     } else if (selFood && canEatFood(selFood)) {
@@ -1156,7 +1334,12 @@ function tick(dt) {
 
   if (preferEnt) {
     const def = KINDS[entHit.e.kind];
-    blockLabel.textContent = `${t(def.nameKey)}  ${Math.max(0, Math.ceil(entHit.e.hp))}/${def.hp}`;
+    const caught = entHit.e.lassoed ? ` · ${t('lassoed')}` : '';
+    blockLabel.textContent = `${t(def.nameKey)}  ${Math.max(0, Math.ceil(entHit.e.hp))}/${def.hp}${caught}`;
+  } else if (hit?.id === SURPRISE_BOX && !canHarvest(SURPRISE_BOX, held)) {
+    blockLabel.textContent = `${t('blockSurpriseBox')} · ${t('crateNeedsAxe')}`;
+  } else if (usingRanged && held) {
+    blockLabel.textContent = hit ? `${t(nameKey(hit.id))} · ${t(nameKey(held.id))} ${ammoOf(held)}` : `${t(nameKey(held.id))} ${ammoOf(held)}`;
   } else {
     blockLabel.textContent = hit ? t(nameKey(hit.id)) : '';
   }
@@ -1164,6 +1347,130 @@ function tick(dt) {
   coordsEl.textContent = `${player.pos.x.toFixed(1)} ${player.pos.y.toFixed(1)} ${player.pos.z.toFixed(1)} · ${biome}`;
   refreshHearts();
   refreshFoods();
+}
+
+function giveOrDrop(id, n, x, y, z, extra = {}) {
+  if (!id || n <= 0) return;
+  if (inv.add(id, n, extra.dura, extra.ammo)) return;
+  drops?.spawn(
+    id, n,
+    x, y, z,
+    (Math.random() - 0.5) * 1.8, 3.1, (Math.random() - 0.5) * 1.8,
+    extra.dura, extra.ammo,
+  );
+}
+
+function applyCrateLoot(loot, x, y, z) {
+  const existing = inv.findId(loot.id);
+  if (existing) {
+    if (ITEMS[loot.id]?.ranged) {
+      const add = loot.ammo ?? ITEMS[loot.id].ammoStart ?? 0;
+      existing.ammo = ammoOf(existing) + add;
+      return { ...loot, alreadyHad: true, ammoAdded: add, ammoTotal: existing.ammo };
+    }
+    return { ...loot, alreadyHad: true, ammoAdded: 0, ammoTotal: 0 };
+  }
+  giveOrDrop(loot.id, loot.n, x, y, z, { ammo: loot.ammo });
+  return { ...loot, alreadyHad: false, ammoAdded: loot.ammo || 0, ammoTotal: loot.ammo || 0 };
+}
+
+function giveEntityLoot(loot, e) {
+  const x = (e?.x ?? player.pos.x) + (Math.random() - 0.5) * 0.3;
+  const y = (e?.y ?? player.pos.y) + 0.4;
+  const z = (e?.z ?? player.pos.z) + (Math.random() - 0.5) * 0.3;
+  for (const d of loot) giveOrDrop(d.id, d.n, x, y, z);
+}
+
+function spawnWhiteArrow(from, to, track, onHit) {
+  const mesh = makeWhiteArrowMesh();
+  scene.add(mesh);
+  const dist = from.distanceTo(to);
+  flyArrows.push({
+    mesh,
+    from: from.clone(),
+    to: to.clone(),
+    track: track || null,
+    t: 0,
+    dur: Math.max(0.08, Math.min(0.34, dist / 85)),
+    hold: 0.16,
+    holdT: 0,
+    onHit,
+    hit: false,
+  });
+}
+
+function makeWhiteArrowMesh() {
+  const g = new THREE.Group();
+  const mat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+  const shaft = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.035, 0.58), mat);
+  const head = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.09, 0.14), mat);
+  head.position.z = -0.36;
+  const fletchA = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.018, 0.1), mat);
+  const fletchB = new THREE.Mesh(new THREE.BoxGeometry(0.018, 0.14, 0.1), mat);
+  fletchA.position.z = 0.26;
+  fletchB.position.z = 0.26;
+  g.add(shaft, head, fletchA, fletchB);
+  return g;
+}
+
+function tickArrows(dt) {
+  for (let i = flyArrows.length - 1; i >= 0; i--) {
+    const a = flyArrows[i];
+    if (a.track && !a.track.mesh) a.track = null;
+    if (a.track) {
+      const def = KINDS[a.track.kind];
+      a.to.set(a.track.x, a.track.y + def.h * 0.55, a.track.z);
+    }
+    if (!a.hit) {
+      a.t += dt;
+      const k = Math.min(1, a.t / a.dur);
+      a.mesh.position.lerpVectors(a.from, a.to, k);
+      const dx = a.to.x - a.from.x;
+      const dy = a.to.y - a.from.y;
+      const dz = a.to.z - a.from.z;
+      if (dx * dx + dy * dy + dz * dz > 1e-6) {
+        a.mesh.lookAt(a.mesh.position.x + dx, a.mesh.position.y + dy, a.mesh.position.z + dz);
+      }
+      if (k >= 1) {
+        a.hit = true;
+        a.holdT = a.hold;
+        a.onHit?.();
+      }
+    } else {
+      a.mesh.position.copy(a.to);
+      a.holdT -= dt;
+      if (a.holdT <= 0) {
+        scene.remove(a.mesh);
+        a.mesh.traverse((o) => {
+          o.geometry?.dispose();
+          o.material?.dispose();
+        });
+        flyArrows.splice(i, 1);
+      }
+    }
+  }
+}
+
+function spawnTracer(from, to, color) {
+  const geo = new THREE.BufferGeometry().setFromPoints([from, to]);
+  const line = new THREE.Line(geo, new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.9 }));
+  scene.add(line);
+  tracers.push({ line, geo, t: 0.1 });
+}
+
+function tickTracers(dt) {
+  for (let i = tracers.length - 1; i >= 0; i--) {
+    const tr = tracers[i];
+    tr.t -= dt;
+    if (tr.t <= 0) {
+      scene.remove(tr.line);
+      tr.geo.dispose();
+      tr.line.material.dispose();
+      tracers.splice(i, 1);
+    } else if (tr.line.material) {
+      tr.line.material.opacity = Math.max(0, tr.t / 0.1);
+    }
+  }
 }
 
 function breakBlock(hit) {
@@ -1178,8 +1485,25 @@ function breakBlock(hit) {
     arms.punch();
     return;
   }
-  const drops = BLOCKS[id]?.drops || [];
-  for (const d of drops) inv.add(d.id, d.n);
+  if (id === SURPRISE_BOX) {
+    if (!canHarvest(id, inv.selectedStack())) return;
+    const ox = hit.x + 0.5;
+    const oy = hit.y + 0.4;
+    const oz = hit.z + 0.5;
+    const loot = crateLoot();
+    if (loot) {
+      const result = applyCrateLoot(loot, ox, oy, oz);
+      openCrateLoot(result);
+    }
+    if (ITEMS[inv.selectedStack()?.id]?.tool) inv.wearSelected();
+    world.set(hit.x, hit.y, hit.z, AIR);
+    remeshDirty(world, bundle);
+    refreshHud();
+    arms.punch();
+    return;
+  }
+  const blockDrops = BLOCKS[id]?.drops || [];
+  for (const d of blockDrops) inv.add(d.id, d.n);
   if (id === FURNACE) {
     const key = furnaceKey(hit.x, hit.y, hit.z);
     for (const s of dropFurnaceStacks(world.furnaces[key])) inv.add(s.id, s.n, s.dura);
@@ -1414,6 +1738,7 @@ function teleportToMapMark() {
   player.vel.set(0, 0, 0);
   player.fallY = y;
   player.onGround = true;
+  if (life) life.snapLassoedTo(x, y, z, player.yaw);
   world.ensureAround(x, z);
   if (bundle) syncChunkMeshes(world, bundle, x, z);
   closeMapSilent();
@@ -1651,6 +1976,7 @@ function buildHotbarHud() {
 }
 
 function paintSlot(el, stack, selected) {
+  if (!el || el.id === 'inv-trash') return;
   el.classList.toggle('selected', !!selected);
   el.style.backgroundImage = stack ? `url(${itemIcon(stack.id, atlas)})` : 'none';
   el.innerHTML = '';
@@ -1667,6 +1993,11 @@ function paintSlot(el, stack, selected) {
     const c = document.createElement('span');
     c.className = 'count';
     c.textContent = String(stack.n);
+    el.appendChild(c);
+  } else if (stack && ITEMS[stack.id]?.ranged) {
+    const c = document.createElement('span');
+    c.className = 'count';
+    c.textContent = String(ammoOf(stack));
     el.appendChild(c);
   }
   const maxD = ITEMS[stack?.id]?.dura;
@@ -1733,6 +2064,18 @@ function handleSlotClick(el, right) {
     refreshHud();
     return;
   }
+  if (list === 'trash') {
+    if (!inv.cursor) return;
+    if (right) {
+      inv.cursor.n -= 1;
+      if (inv.cursor.n <= 0) inv.cursor = null;
+    } else {
+      inv.cursor = null;
+    }
+    refreshInv();
+    refreshHud();
+    return;
+  }
   if (list === 'out2' || list === 'out3') {
     takeCraft(list === 'out3' ? 3 : 2, right);
     refreshInv();
@@ -1772,6 +2115,8 @@ function refreshInv() {
   paintList(document.getElementById('inv-grid'), inv.slots, 9);
   paintList(document.getElementById('inv-hotbar'), inv.slots, 0, inv.selected);
   paintSlot(document.getElementById('inv-offhand'), inv.offhand, false);
+  const trash = document.getElementById('inv-trash');
+  if (trash) trash.classList.toggle('ready', !!inv.cursor);
   paintList(document.getElementById('craft2-grid'), inv.craft2);
   paintList(document.getElementById('craft3-grid'), inv.craft3);
   const r2 = matchRecipe(inv.craft2, 2);

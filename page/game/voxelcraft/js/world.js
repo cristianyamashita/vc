@@ -3,7 +3,7 @@ import {
   COAL_ORE, IRON_ORE, TABLE, TORCH, BEDROCK, CACTUS,
   FLOWER_RED, FLOWER_YELLOW, FLOWER_WHITE, FRUIT_HANG, FURNACE, DOOR, DOOR_OPEN,
   STAIRS, STAIRS_SAND, STAIRS_STONE, LADDER, GLASS, WALL_WOOD, WALL_GLASS,
-  WATER_SPRING, isSolid, isOpaque, isDecor, isStair, isWall,
+  WATER_SPRING, RED_EARTH, SURPRISE_BOX, isSolid, isOpaque, isDecor, isStair, isWall, isPlant,
 } from './blocks.js';
 import { fbm2, fbm3, hash2, hash3 } from './noise.js';
 import { afterBlockChange } from './leaves.js';
@@ -16,10 +16,13 @@ export const VIEW_RADIUS = 6;
 export const UNLOAD_RADIUS = 8;
 export const GEN_PER_TICK = 4;
 export const WATER_LEVEL = 28;
+export const CRATE_CELL = 225;
+export const CRATE_JITTER = 37;
 
 export const BIOME_FOREST = 0;
 export const BIOME_DESERT = 1;
 export const BIOME_MOUNTAIN = 2;
+export const BIOME_CANYON = 3;
 
 export const TORCH_FLOOR = 0;
 export const TORCH_PX = 1;
@@ -46,6 +49,7 @@ export function torchFlamePos(x, y, z, facing) {
 export function biomeNameKey(id) {
   if (id === BIOME_DESERT) return 'biomeDesert';
   if (id === BIOME_MOUNTAIN) return 'biomeMountain';
+  if (id === BIOME_CANYON) return 'biomeRedDesert';
   return 'biomeForest';
 }
 
@@ -66,6 +70,8 @@ const MAP_RGB = {
   [WALL_WOOD]: [175, 140, 80],
   [WALL_GLASS]: [170, 210, 220],
   [WATER_SPRING]: [70, 118, 168],
+  [RED_EARTH]: [186, 92, 48],
+  [SURPRISE_BOX]: [255, 196, 48],
   [COAL_ORE]: [72, 72, 76],
   [IRON_ORE]: [168, 150, 132],
   [TABLE]: [160, 110, 55],
@@ -244,28 +250,69 @@ export class World {
   climate(x, z) {
     const t = fbm2(x / 160, z / 160, this.seed + 3, 4);
     const m = fbm2(x / 140, z / 140, this.seed + 11, 4);
-    const mountainW = clamp01((0.42 - t) / 0.18);
-    const desertW = clamp01((t - 0.52) / 0.16) * clamp01((0.52 - m) / 0.18);
-    const forestW = Math.max(0, 1 - mountainW - desertW);
-    return { t, m, mountainW, desertW, forestW };
+    const c = fbm2(x / 560, z / 560, this.seed + 19, 2);
+    const tWide = fbm2(x / 480, z / 480, this.seed + 3, 2);
+    const canyonMask = clamp01((c - 0.57) / 0.15) * clamp01((tWide - 0.34) / 0.24);
+    const mountainW = clamp01((0.42 - t) / 0.18) * (1 - canyonMask);
+    const canyonW = canyonMask;
+    const desertW = clamp01((t - 0.52) / 0.16) * clamp01((0.52 - m) / 0.18) * (1 - canyonW);
+    const forestW = Math.max(0, 1 - mountainW - desertW - canyonW);
+    return { t, m, c, mountainW, desertW, canyonW, forestW };
   }
 
   biomeAt(x, z) {
-    const { mountainW, desertW } = this.climate(x, z);
+    const { mountainW, desertW, canyonW } = this.climate(x, z);
+    if (canyonW > 0.4 && canyonW >= desertW) return BIOME_CANYON;
     if (mountainW > 0.48 && mountainW >= desertW) return BIOME_MOUNTAIN;
     if (desertW > 0.42) return BIOME_DESERT;
     return BIOME_FOREST;
+  }
+
+  canyonShape(x, z) {
+    const seed = this.seed;
+    const ang = hash2(seed, 17, 91) * Math.PI;
+    const ca = Math.cos(ang);
+    const sa = Math.sin(ang);
+    const along = x * ca + z * sa;
+    const across = -x * sa + z * ca;
+    const meander = (fbm2(along / 220, 0.2, seed + 37, 3) - 0.5) * 12;
+    const spacing = 110;
+    const d = Math.abs(wrapPeriod(across + meander, spacing) - spacing * 0.5);
+    const floorHalf = 4 + fbm2(along / 280, 0.35, seed + 43, 2) * 5;
+    const wallW = 6;
+    let gully = 0;
+    if (d <= floorHalf) gully = 1;
+    else if (d < floorHalf + wallW) gully = 1 - (d - floorHalf) / wallW;
+    const bowlN = fbm2(x / 90, z / 90, seed + 47, 3);
+    return { gully, d, floorHalf, wallW, bowlN };
+  }
+
+  canyonHeight(x, z, n) {
+    const { gully } = this.canyonShape(x, z);
+    const plateau = 40 + n * 3;
+    return plateau - gully * 24;
+  }
+
+  canyonLake(x, z) {
+    const { gully, d, floorHalf, bowlN } = this.canyonShape(x, z);
+    return gully >= 1 && d <= floorHalf && bowlN < 0.16;
   }
 
   heightNoise(x, z) {
     const seed = this.seed;
     const n = fbm2(x / 48, z / 48, seed, 5);
     const ridge = fbm2(x / 90, z / 90, seed + 7, 3);
-    const { mountainW, desertW, forestW } = this.climate(x, z);
+    const { mountainW, desertW, forestW, canyonW } = this.climate(x, z);
     const hForest = 22 + n * 14 + ridge * 6;
     const hDesert = 20 + n * 7 + ridge * 3;
     const hMount = 28 + n * 20 + ridge * 14;
-    return Math.max(6, Math.min(58, Math.floor(forestW * hForest + desertW * hDesert + mountainW * hMount)));
+    const hCanyon = this.canyonHeight(x, z, n);
+    if (this.biomeAt(x, z) === BIOME_CANYON) {
+      return Math.max(6, Math.min(58, Math.floor(hCanyon)));
+    }
+    return Math.max(6, Math.min(58, Math.floor(
+      forestW * hForest + desertW * hDesert + mountainW * hMount + canyonW * hCanyon
+    )));
   }
 
   generate() {
@@ -326,15 +373,23 @@ export class World {
         const z = z0 + lz;
         const h = this.heightNoise(x, z);
         const biome = this.biomeAt(x, z);
-        const wet = h < WATER_LEVEL;
+        const wet = biome !== BIOME_CANYON && h < WATER_LEVEL;
+        const canyonPool = biome === BIOME_CANYON && this.canyonLake(x, z);
         for (let y = 0; y < HEIGHT; y++) {
           let id = AIR;
           if (y === 0) id = BEDROCK;
           else if (y > h) {
-            if (wet && y <= WATER_LEVEL) id = WATER;
+            if (canyonPool && y <= h + 2) id = WATER;
+            else if (wet && y <= WATER_LEVEL) id = WATER;
           } else if (biome === BIOME_DESERT) {
             if (y === h || y >= h - 4) id = SAND;
             else id = STONE;
+          } else if (biome === BIOME_CANYON) {
+            if (y === h || y >= h - 1) id = RED_EARTH;
+            else if (y >= h - 16) {
+              const stripe = Math.floor(y / 2) % 4;
+              id = stripe === 1 ? DIRT : RED_EARTH;
+            } else id = STONE;
           } else if (biome === BIOME_MOUNTAIN) {
             if (y === h) id = wet ? SAND : (h >= 38 ? STONE : GRASS);
             else if (y >= h - 2) id = wet ? SAND : DIRT;
@@ -384,6 +439,7 @@ export class World {
       }
     }
     this.restampNeighborDecor(cx, cz);
+    this.tryPlaceCrates(cx, cz);
 
     for (const [ek, id] of Object.entries(this.edits)) {
       const [x, y, z] = ek.split(',').map(Number);
@@ -401,6 +457,99 @@ export class World {
     for (const [nx, nz] of [[cx - 1, cz], [cx + 1, cz], [cx, cz - 1], [cx, cz + 1]]) {
       if (this.map.has(this.chunkKey(nx, nz))) this.recordMapChunk(nx, nz);
     }
+  }
+
+  crateWorldPos(cellX, cellZ) {
+    const mid = CRATE_CELL / 2;
+    const jx = (hash2(cellX, cellZ, this.seed + 410) * 2 - 1) * CRATE_JITTER;
+    const jz = (hash2(cellX, cellZ, this.seed + 411) * 2 - 1) * CRATE_JITTER;
+    return {
+      x: Math.floor(cellX * CRATE_CELL + mid + jx),
+      z: Math.floor(cellZ * CRATE_CELL + mid + jz),
+    };
+  }
+
+  crateLandPos(cellX, cellZ) {
+    const p = this.crateWorldPos(cellX, cellZ);
+    const dry = (x, z) => this.heightNoise(x, z) >= WATER_LEVEL;
+    if (dry(p.x, p.z)) return p;
+    const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]];
+    for (let s = 1; s <= 160; s++) {
+      for (const [dx, dz] of dirs) {
+        const x = p.x + dx * s;
+        const z = p.z + dz * s;
+        if (dry(x, z)) return { x, z };
+      }
+    }
+    return null;
+  }
+
+  tryPlaceCrates(cx, cz) {
+    const x0 = cx * CHUNK;
+    const z0 = cz * CHUNK;
+    const x1 = x0 + CHUNK - 1;
+    const z1 = z0 + CHUNK - 1;
+    const c0x = Math.floor(x0 / CRATE_CELL);
+    const c1x = Math.floor(x1 / CRATE_CELL);
+    const c0z = Math.floor(z0 / CRATE_CELL);
+    const c1z = Math.floor(z1 / CRATE_CELL);
+    for (let ccx = c0x; ccx <= c1x; ccx++) {
+      for (let ccz = c0z; ccz <= c1z; ccz++) {
+        const p = this.crateLandPos(ccx, ccz);
+        if (!p) continue;
+        if ((p.x >> 4) === cx && (p.z >> 4) === cz) this.placeSurpriseBox(p.x, p.z);
+      }
+    }
+  }
+
+  crateStandY(x, z) {
+    for (let y = HEIGHT - 2; y >= 1; y--) {
+      const id = this.get(x, y, z);
+      if (!id || id === AIR || isPlant(id) || id === FRUIT_HANG || id === LEAVES) continue;
+      if (id === WATER) return -1;
+      if (id === LOG || id === CACTUS) return -1;
+      if (id === SURPRISE_BOX) return y;
+      if (!isSolid(id)) continue;
+      return y;
+    }
+    return -1;
+  }
+
+  placeSurpriseBox(x, z) {
+    const cx = x >> 4;
+    const cz = z >> 4;
+    const chunk = this.chunks.get(this.chunkKey(cx, cz));
+    if (!chunk) return false;
+    const x0 = cx * CHUNK;
+    const z0 = cz * CHUNK;
+    let best = null;
+    let bestD = Infinity;
+    for (let lz = 0; lz < CHUNK; lz++) {
+      for (let lx = 0; lx < CHUNK; lx++) {
+        const wx = x0 + lx;
+        const wz = z0 + lz;
+        const y = this.crateStandY(wx, wz);
+        if (y < 0 || y + 1 >= HEIGHT) continue;
+        const above = this.get(wx, y + 1, wz);
+        if (above === LOG || above === LEAVES || above === CACTUS || above === WATER) continue;
+        if (above && above !== AIR && !isPlant(above) && above !== FRUIT_HANG && above !== SURPRISE_BOX) continue;
+        const d = (wx - x) * (wx - x) + (wz - z) * (wz - z);
+        if (d < bestD) {
+          bestD = d;
+          best = { wx, wz, y };
+        }
+      }
+    }
+    if (!best) {
+      const h = this.heightNoise(x, z);
+      if (h < WATER_LEVEL || h + 1 >= HEIGHT) return false;
+      const ground = this.get(x, h, z);
+      if (!isSolid(ground) || ground === LOG || ground === LEAVES) return false;
+      best = { wx: x, wz: z, y: h };
+    }
+    this.setLocal(chunk, best.wx & 15, best.y + 1, best.wz & 15, SURPRISE_BOX);
+    this.dirty.add(this.chunkKey(cx, cz));
+    return true;
   }
 
   restampNeighborDecor(cx, cz) {
@@ -428,12 +577,14 @@ export class World {
     if (h < WATER_LEVEL) return;
     const biome = this.biomeAt(x, z);
     const surface = this.get(x, h, z);
+    if (this.get(x, h + 1, z) === SURPRISE_BOX) return;
     if (biome === BIOME_DESERT) {
       if (surface !== SAND) return;
       if (hash2(x, z, this.seed + 140) > 0.022) return;
       this.placeCactus(x, h + 1, z);
       return;
     }
+    if (biome === BIOME_CANYON) return;
     if (surface !== GRASS) return;
     const chance = biome === BIOME_FOREST ? 0.032 : biome === BIOME_MOUNTAIN ? 0.01 : 0;
     if (chance && hash2(x, z, this.seed + 120) <= chance) {
@@ -456,6 +607,7 @@ export class World {
     if (chunk) {
       const i = this.idx(x & 15, y, z & 15);
       const cur = chunk[i];
+      if (cur === SURPRISE_BOX) return;
       if (cur === AIR || id === LOG || (opts.replaceLeaves && cur === LEAVES)) {
         chunk[i] = id;
         this.dirty.add(key);
@@ -605,7 +757,7 @@ export class World {
           this.ensureChunk(x >> 4, z >> 4);
           const y = this.heightAt(x, z);
           const ground = this.get(x, y, z);
-          if (ground === GRASS || ground === DIRT || ground === SAND || ground === STONE) {
+          if (ground === GRASS || ground === DIRT || ground === SAND || ground === STONE || ground === RED_EARTH) {
             if (this.get(x, y + 1, z) === AIR && this.get(x, y + 2, z) === AIR) {
               return { x: x + 0.5, y: y + 1, z: z + 0.5 };
             }
@@ -619,4 +771,8 @@ export class World {
 
 function clamp01(n) {
   return Math.max(0, Math.min(1, n));
+}
+
+function wrapPeriod(n, period) {
+  return ((n % period) + period) % period;
 }

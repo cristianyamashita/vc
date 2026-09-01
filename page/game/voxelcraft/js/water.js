@@ -87,6 +87,13 @@ function desiredCell(world, x, y, z) {
     if (spread > best) best = spread;
   }
   if (best <= 0) return null;
+  if (y > 0) {
+    const below = world.get(x, y - 1, z);
+    const belowWater = below === WATER ? readCell(world, x, y - 1, z) : null;
+    if (canFill(below) || belowWater?.f) {
+      return { l: best, f: true, source: false };
+    }
+  }
   return { l: best, f: false, source: false };
 }
 

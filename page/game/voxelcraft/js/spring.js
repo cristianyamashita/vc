@@ -1,7 +1,7 @@
-import { AIR, WATER, WATER_SPRING, isPlant, isFruitHang } from './blocks.js';
+import { AIR, WATER, WATER_SPRING, isPlant, isFruitHang, isSolid } from './blocks.js';
 
-const RANGE = 50;
-const Y_UP = 2;
+const RANGE = 5;
+const Y_UP = 1;
 const FILL_SEC = 0.07;
 const MAX_PER_TICK = 28;
 const MAX_WAIT = 8000;
@@ -22,6 +22,20 @@ function keyOf(x, y, z) {
 
 function canFill(id) {
   return id === AIR || isPlant(id) || isFruitHang(id);
+}
+
+function isFallingWater(world, x, y, z) {
+  if (world.get(x, y, z) !== WATER) return false;
+  const packed = world.waterMeta?.[keyOf(x, y, z)];
+  return packed != null && packed >= 16;
+}
+
+function hasFloor(world, x, y, z) {
+  if (y <= 0) return false;
+  const below = world.get(x, y - 1, z);
+  if (below === WATER_SPRING || isSolid(below)) return true;
+  if (below === WATER && !isFallingWater(world, x, y - 1, z)) return true;
+  return false;
 }
 
 function chunkLoaded(world, x, z) {
@@ -85,6 +99,7 @@ function stepCell(world, s, x, y, z) {
   }
   const k = keyOf(x, y, z);
   const id = world.get(x, y, z);
+  if (!hasFloor(world, x, y, z)) return false;
   if (id === WATER) {
     if (world.waterMeta?.[k] != null) delete world.waterMeta[k];
     if (!s.seen) s.seen = {};
