@@ -2,6 +2,9 @@ import * as THREE from 'three';
 import { AIR, FLOWER_RED, FLOWER_YELLOW, FLOWER_WHITE, RAW_MEAT, HIDE_COW, HIDE_ZEBRA, HIDE_SHEEP, isSolid, isLiquid, isRug } from './blocks.js';
 import { HEIGHT, UNLOAD_RADIUS, BIOME_DESERT, BIOME_MOUNTAIN, BIOME_CANYON } from './world.js';
 import { solidBoxes, aabbHitsBox } from './stairs.js';
+import { cachedVoxGeometry, shadeHex } from './voxmodel.js';
+import { isOriginal } from './quality.js';
+import { legacyMobParts } from './legacymodels.js';
 
 const MAX_NEAR = 52;
 const UNLOAD = UNLOAD_RADIUS * 16;
@@ -60,22 +63,6 @@ function mulberry(a) {
   };
 }
 
-function box(w, h, d, color, x, y, z) {
-  const m = new THREE.Mesh(
-    new THREE.BoxGeometry(w, h, d),
-    new THREE.MeshLambertMaterial({ color }),
-  );
-  m.position.set(x, y, z);
-  return m;
-}
-
-function darken(hex, f = 0.55) {
-  const r = Math.min(255, Math.floor(((hex >> 16) & 255) * f));
-  const g = Math.min(255, Math.floor(((hex >> 8) & 255) * f));
-  const b = Math.min(255, Math.floor((hex & 255) * f));
-  return (r << 16) | (g << 8) | b;
-}
-
 function mixHex(a, b, t) {
   const ar = (a >> 16) & 255;
   const ag = (a >> 8) & 255;
@@ -107,6 +94,7 @@ function pickWomanLook(seed) {
     lip: mixHex(0xe890a0, 0x8a1828, rng()),
     eyeS: 0.76 + rng() * 0.48,
     noseS: 0.7 + rng() * 0.55,
+    longHair: rng() < 0.5,
   };
 }
 
@@ -116,6 +104,7 @@ function pickManLook(seed) {
     hair: pickHair(rng),
     eyeS: 0.76 + rng() * 0.48,
     noseS: 0.7 + rng() * 0.55,
+    beard: rng() < 0.4,
   };
 }
 
@@ -142,161 +131,344 @@ function pickWear(kind, seed) {
   return pal[Math.floor(rng() * pal.length) % pal.length];
 }
 
-function makeModel(kind, wear = 0, seed = 1) {
-  const g = new THREE.Group();
+const ENTITY_MAT = new THREE.MeshLambertMaterial({ vertexColors: true });
+
+// Persons vary by hair/face/clothes. The variation is quantised so the merged
+// geometry cache stays bounded instead of growing one geometry per spawned id.
+const LOOK_VARIANTS = 16;
+
+function eyeSet(p, x, y, z, sc, white = 0xf7f2ea, iris = 0x1a1410) {
+  const ew = 0.03 * sc;
+  const eh = 0.045 * sc;
+  const ed = 0.05 * sc;
+  p(ew, eh, ed, white, x, y, z, { flat: true, grain: 0 });
+  p(ew, eh, ed, white, x, y, -z, { flat: true, grain: 0 });
+  p(ew * 0.72, eh * 0.72, ed * 0.62, iris, x + ew * 0.5, y, z, { flat: true, grain: 0 });
+  p(ew * 0.72, eh * 0.72, ed * 0.62, iris, x + ew * 0.5, y, -z, { flat: true, grain: 0 });
+}
+
+// Beady animal eye: dark bead with a tiny catch-light, which is what makes a
+// cube of fur read as a face at gameplay distance.
+function beadEyes(p, x, y, z, r, dark = 0x140f0c) {
+  p(r, r * 1.3, r * 1.2, dark, x, y, z, { flat: true, grain: 0 });
+  p(r, r * 1.3, r * 1.2, dark, x, y, -z, { flat: true, grain: 0 });
+  p(r * 0.5, r * 0.5, r * 0.5, 0xf4f0e8, x + r * 0.5, y + r * 0.35, z + r * 0.3, { flat: true, grain: 0, detail: true });
+  p(r * 0.5, r * 0.5, r * 0.5, 0xf4f0e8, x + r * 0.5, y + r * 0.35, -z - r * 0.3, { flat: true, grain: 0, detail: true });
+}
+
+function quadLeg(p, x, z, top, legW, legH, fur, hoof, hoofH = 0.12) {
+  p(legW, legH, legW, fur, x, top - legH * 0.5, z, { grain: 0.07 });
+  p(legW * 1.1, hoofH, legW * 1.1, hoof, x, hoofH * 0.5, z, { grain: 0.04 });
+}
+
+function buildParts(kind, wear, look) {
+  const out = [];
+  const p = (w, h, d, color, x, y, z, extra) => {
+    const b = { w, h, d, color, x, y, z };
+    if (extra) Object.assign(b, extra);
+    out.push(b);
+    return b;
+  };
+
   if (kind === 'cow') {
-    g.add(box(0.85, 0.55, 0.5, 0x6b4423, 0, 0.62, 0));
-    g.add(box(0.22, 0.18, 0.16, 0xd8c4a8, 0.42, 0.72, 0));
-    g.add(box(0.32, 0.28, 0.28, 0x5a381c, 0.48, 0.92, 0));
-    g.add(box(0.08, 0.12, 0.06, 0x3a2414, 0.58, 1.08, 0.1));
-    g.add(box(0.08, 0.12, 0.06, 0x3a2414, 0.58, 1.08, -0.1));
-    g.add(box(0.12, 0.42, 0.12, 0x4a3018, 0.28, 0.22, 0.16));
-    g.add(box(0.12, 0.42, 0.12, 0x4a3018, 0.28, 0.22, -0.16));
-    g.add(box(0.12, 0.42, 0.12, 0x4a3018, -0.28, 0.22, 0.16));
-    g.add(box(0.12, 0.42, 0.12, 0x4a3018, -0.28, 0.22, -0.16));
-    g.add(box(0.18, 0.16, 0.08, 0xe8d8c8, 0.1, 0.7, 0.22));
+    const hide = 0x6f4726;
+    const hideD = shadeHex(hide, 0.72);
+    const spot = 0xece4d4;
+    const hoof = 0x241a12;
+    p(0.86, 0.5, 0.5, hide, 0, 0.66, 0, { n: 3, grain: 0.09 });
+    p(0.8, 0.14, 0.44, shadeHex(hide, 1.14), 0, 0.43, 0, { n: 2 });
+    p(0.26, 0.22, 0.02, spot, 0.1, 0.74, 0.256, { flat: true });
+    p(0.22, 0.2, 0.02, spot, -0.04, 0.72, -0.256, { flat: true });
+    p(0.18, 0.15, 0.02, spot, -0.22, 0.62, 0.256, { flat: true, detail: true });
+    p(0.14, 0.12, 0.02, spot, 0.26, 0.58, -0.256, { flat: true, detail: true });
+    p(0.3, 0.02, 0.3, spot, 0.04, 0.906, 0.04, { flat: true, detail: true });
+    p(0.24, 0.28, 0.32, hide, 0.44, 0.8, 0, { rz: -0.18, grain: 0.07 });
+    p(0.3, 0.28, 0.3, hideD, 0.54, 0.95, 0, { n: 2, grain: 0.08 });
+    p(0.18, 0.15, 0.23, 0xd9b0a2, 0.68, 0.89, 0, { grain: 0.05 });
+    p(0.03, 0.035, 0.035, 0x6a4a44, 0.755, 0.905, 0.055, { flat: true, detail: true });
+    p(0.03, 0.035, 0.035, 0x6a4a44, 0.755, 0.905, -0.055, { flat: true, detail: true });
+    beadEyes(p, 0.702, 1.02, 0.115, 0.045);
+    p(0.05, 0.1, 0.05, 0xe6dac4, 0.5, 1.11, 0.1, { rz: 0.3 });
+    p(0.05, 0.1, 0.05, 0xe6dac4, 0.5, 1.11, -0.1, { rz: 0.3 });
+    p(0.07, 0.05, 0.14, hideD, 0.44, 1.02, 0.19, { rz: 0.25 });
+    p(0.07, 0.05, 0.14, hideD, 0.44, 1.02, -0.19, { rz: 0.25 });
+    quadLeg(p, 0.28, 0.17, 0.44, 0.14, 0.32, hide, hoof);
+    quadLeg(p, 0.28, -0.17, 0.44, 0.14, 0.32, hide, hoof);
+    quadLeg(p, -0.28, 0.17, 0.44, 0.14, 0.32, hide, hoof);
+    quadLeg(p, -0.28, -0.17, 0.44, 0.14, 0.32, hide, hoof);
+    p(0.18, 0.12, 0.16, 0xe0b3a6, 0.02, 0.38, 0, { detail: true });
+    p(0.06, 0.3, 0.06, hideD, -0.44, 0.6, 0, { rz: 0.1 });
+    p(0.08, 0.1, 0.08, 0x2e2018, -0.47, 0.42, 0, { detail: true });
   } else if (kind === 'zebra') {
-    g.add(box(0.82, 0.52, 0.42, 0xf2eee6, 0, 0.64, 0));
-    g.add(box(0.12, 0.48, 0.44, 0x1a1814, 0.18, 0.64, 0));
-    g.add(box(0.12, 0.48, 0.44, 0x1a1814, -0.18, 0.64, 0));
-    g.add(box(0.28, 0.3, 0.26, 0xf2eee6, 0.48, 0.95, 0));
-    g.add(box(0.08, 0.28, 0.08, 0x1a1814, 0.52, 1.18, 0));
-    g.add(box(0.1, 0.4, 0.1, 0x1a1814, 0.26, 0.22, 0.14));
-    g.add(box(0.1, 0.4, 0.1, 0xf2eee6, 0.26, 0.22, -0.14));
-    g.add(box(0.1, 0.4, 0.1, 0xf2eee6, -0.26, 0.22, 0.14));
-    g.add(box(0.1, 0.4, 0.1, 0x1a1814, -0.26, 0.22, -0.14));
+    const white = 0xf2eee4;
+    const black = 0x1d1a16;
+    p(0.84, 0.48, 0.44, white, 0, 0.68, 0, { n: 3, grain: 0.06 });
+    for (const [sx, sw] of [[0.3, 0.07], [0.15, 0.05], [0.0, 0.07], [-0.16, 0.05], [-0.32, 0.07]]) {
+      p(sw, 0.49, 0.452, black, sx, 0.68, 0, { grain: 0.05 });
+    }
+    p(0.78, 0.12, 0.4, shadeHex(white, 0.95), 0, 0.46, 0);
+    p(0.24, 0.36, 0.28, white, 0.42, 0.92, 0, { rz: -0.32, grain: 0.05 });
+    p(0.07, 0.37, 0.29, black, 0.47, 0.94, 0, { rz: -0.32 });
+    p(0.06, 0.37, 0.29, black, 0.35, 0.9, 0, { rz: -0.32 });
+    p(0.3, 0.1, 0.09, black, 0.4, 1.09, 0, { rz: -0.32 });
+    p(0.3, 0.22, 0.24, white, 0.6, 1.06, 0, { n: 2, grain: 0.05 });
+    p(0.16, 0.16, 0.2, black, 0.73, 1.0, 0);
+    p(0.026, 0.03, 0.03, 0x4a4038, 0.815, 1.015, 0.05, { flat: true, detail: true });
+    p(0.026, 0.03, 0.03, 0x4a4038, 0.815, 1.015, -0.05, { flat: true, detail: true });
+    beadEyes(p, 0.767, 1.11, 0.1, 0.04);
+    p(0.06, 0.11, 0.06, white, 0.53, 1.2, 0.08, { rz: 0.18 });
+    p(0.06, 0.11, 0.06, white, 0.53, 1.2, -0.08, { rz: 0.18 });
+    p(0.05, 0.04, 0.05, black, 0.535, 1.26, 0.08, { detail: true });
+    p(0.05, 0.04, 0.05, black, 0.535, 1.26, -0.08, { detail: true });
+    for (const [x, z] of [[0.27, 0.15], [0.27, -0.15], [-0.27, 0.15], [-0.27, -0.15]]) {
+      p(0.11, 0.3, 0.11, white, x, 0.29, z, { grain: 0.05 });
+      p(0.115, 0.06, 0.115, black, x, 0.36, z, { detail: true });
+      p(0.115, 0.05, 0.115, black, x, 0.24, z, { detail: true });
+      p(0.12, 0.12, 0.12, black, x, 0.06, z);
+    }
+    p(0.05, 0.3, 0.05, white, -0.44, 0.62, 0, { rz: 0.12 });
+    p(0.07, 0.14, 0.07, black, -0.47, 0.42, 0);
   } else if (kind === 'chicken') {
-    g.add(box(0.32, 0.28, 0.24, 0xf4f0e4, 0, 0.28, 0));
-    g.add(box(0.2, 0.18, 0.18, 0xf4f0e4, 0.18, 0.4, 0));
-    g.add(box(0.1, 0.06, 0.08, 0xf0a020, 0.3, 0.38, 0));
-    g.add(box(0.08, 0.1, 0.06, 0xd43030, 0.18, 0.52, 0));
-    g.add(box(0.2, 0.06, 0.28, 0xe8e0d0, 0, 0.34, 0));
-    g.add(box(0.05, 0.16, 0.05, 0xf0a020, 0.06, 0.08, 0.06));
-    g.add(box(0.05, 0.16, 0.05, 0xf0a020, 0.06, 0.08, -0.06));
+    const body = 0xf6f2e6;
+    const bodyD = 0xe2d9c4;
+    p(0.3, 0.26, 0.24, body, -0.02, 0.28, 0, { n: 2, grain: 0.07 });
+    p(0.2, 0.2, 0.2, body, 0.12, 0.33, 0, { grain: 0.06 });
+    p(0.16, 0.15, 0.035, bodyD, -0.02, 0.3, 0.135, { grain: 0.04, detail: true });
+    p(0.16, 0.15, 0.035, bodyD, -0.02, 0.3, -0.135, { grain: 0.04, detail: true });
+    p(0.13, 0.14, 0.15, bodyD, -0.2, 0.38, 0, { rz: -0.55 });
+    p(0.1, 0.11, 0.1, body, 0.16, 0.44, 0);
+    p(0.16, 0.14, 0.15, body, 0.2, 0.51, 0, { grain: 0.04 });
+    p(0.09, 0.05, 0.06, 0xf3a41c, 0.31, 0.5, 0);
+    p(0.05, 0.06, 0.05, 0xd0342c, 0.28, 0.44, 0);
+    p(0.03, 0.05, 0.03, 0xd0342c, 0.15, 0.6, 0, { detail: true });
+    p(0.03, 0.06, 0.03, 0xd0342c, 0.2, 0.61, 0);
+    p(0.03, 0.05, 0.03, 0xd0342c, 0.25, 0.6, 0, { detail: true });
+    beadEyes(p, 0.292, 0.53, 0.062, 0.028);
+    p(0.035, 0.13, 0.035, 0xf3a41c, 0.03, 0.075, 0.06);
+    p(0.035, 0.13, 0.035, 0xf3a41c, 0.03, 0.075, -0.06);
+    p(0.1, 0.03, 0.08, 0xdb9018, 0.06, 0.015, 0.06, { detail: true });
+    p(0.1, 0.03, 0.08, 0xdb9018, 0.06, 0.015, -0.06, { detail: true });
   } else if (kind === 'sheep') {
-    g.add(box(0.7, 0.5, 0.5, 0xf0ece2, 0, 0.58, 0));
-    g.add(box(0.26, 0.24, 0.24, 0xc4b090, 0.4, 0.62, 0));
-    g.add(box(0.1, 0.32, 0.1, 0xc4b090, 0.22, 0.18, 0.14));
-    g.add(box(0.1, 0.32, 0.1, 0xc4b090, 0.22, 0.18, -0.14));
-    g.add(box(0.1, 0.32, 0.1, 0xc4b090, -0.22, 0.18, 0.14));
-    g.add(box(0.1, 0.32, 0.1, 0xc4b090, -0.22, 0.18, -0.14));
+    const wool = 0xf1ede2;
+    const woolD = 0xdcd6c4;
+    const skin = 0x9d8367;
+    p(0.64, 0.44, 0.44, wool, -0.02, 0.62, 0, { n: 3, grain: 0.1 });
+    p(0.24, 0.22, 0.24, wool, 0.18, 0.78, 0.08, { grain: 0.1 });
+    p(0.24, 0.22, 0.24, woolD, -0.14, 0.79, -0.1, { grain: 0.1 });
+    p(0.22, 0.2, 0.22, wool, 0.02, 0.7, 0.22, { grain: 0.1, detail: true });
+    p(0.22, 0.2, 0.22, woolD, -0.06, 0.66, -0.23, { grain: 0.1, detail: true });
+    p(0.2, 0.2, 0.2, wool, -0.3, 0.68, 0.06, { grain: 0.1 });
+    p(0.2, 0.2, 0.2, woolD, 0.26, 0.62, -0.14, { grain: 0.1, detail: true });
+    p(0.22, 0.22, 0.22, skin, 0.42, 0.72, 0, { n: 2, grain: 0.06 });
+    p(0.19, 0.11, 0.21, wool, 0.38, 0.85, 0, { grain: 0.1 });
+    p(0.13, 0.11, 0.15, 0xb59a7c, 0.53, 0.66, 0);
+    p(0.024, 0.026, 0.03, 0x50423a, 0.6, 0.675, 0.04, { flat: true, detail: true });
+    p(0.024, 0.026, 0.03, 0x50423a, 0.6, 0.675, -0.04, { flat: true, detail: true });
+    beadEyes(p, 0.546, 0.76, 0.09, 0.033);
+    p(0.06, 0.045, 0.13, skin, 0.36, 0.75, 0.15, { rz: 0.2 });
+    p(0.06, 0.045, 0.13, skin, 0.36, 0.75, -0.15, { rz: 0.2 });
+    quadLeg(p, 0.2, 0.14, 0.42, 0.095, 0.32, skin, 0x3a3028, 0.1);
+    quadLeg(p, 0.2, -0.14, 0.42, 0.095, 0.32, skin, 0x3a3028, 0.1);
+    quadLeg(p, -0.2, 0.14, 0.42, 0.095, 0.32, skin, 0x3a3028, 0.1);
+    quadLeg(p, -0.2, -0.14, 0.42, 0.095, 0.32, skin, 0x3a3028, 0.1);
+    p(0.11, 0.11, 0.11, wool, -0.36, 0.6, 0, { grain: 0.1 });
   } else if (kind === 'lion') {
-    const fur = 0xe09030;
-    const mane = 0xc43028;
-    g.add(box(0.8, 0.48, 0.42, fur, 0, 0.58, 0));
-    g.add(box(0.58, 0.5, 0.58, mane, 0.34, 0.9, 0));
-    g.add(box(0.28, 0.24, 0.26, fur, 0.54, 0.88, 0));
-    g.add(box(0.08, 0.1, 0.08, mane, 0.42, 1.16, 0.16));
-    g.add(box(0.08, 0.1, 0.08, mane, 0.42, 1.16, -0.16));
-    g.add(box(0.1, 0.22, 0.08, mane, -0.44, 0.62, 0));
-    g.add(box(0.12, 0.36, 0.1, fur, 0.24, 0.2, 0.14));
-    g.add(box(0.12, 0.36, 0.1, fur, 0.24, 0.2, -0.14));
-    g.add(box(0.12, 0.36, 0.1, fur, -0.24, 0.2, 0.14));
-    g.add(box(0.12, 0.36, 0.1, fur, -0.24, 0.2, -0.14));
+    const fur = 0xdb9640;
+    const furD = shadeHex(fur, 0.86);
+    const belly = 0xf0d9a8;
+    const mane = 0x8e4b1e;
+    const maneD = 0x6f3a17;
+    p(0.76, 0.42, 0.42, fur, -0.02, 0.62, 0, { n: 3, grain: 0.09 });
+    p(0.68, 0.12, 0.36, belly, -0.02, 0.43, 0, { n: 2 });
+    p(0.28, 0.36, 0.44, fur, -0.3, 0.62, 0, { n: 2, grain: 0.08 });
+    p(0.16, 0.14, 0.5, mane, 0.3, 1.0, 0, { grain: 0.12 });
+    p(0.16, 0.12, 0.46, maneD, 0.3, 0.6, 0, { grain: 0.12 });
+    p(0.16, 0.4, 0.14, mane, 0.3, 0.81, 0.22, { grain: 0.12 });
+    p(0.16, 0.4, 0.14, mane, 0.3, 0.81, -0.22, { grain: 0.12 });
+    p(0.14, 0.48, 0.48, maneD, 0.2, 0.81, 0, { n: 2, grain: 0.12 });
+    p(0.12, 0.14, 0.14, mane, 0.34, 1.02, 0.2, { detail: true });
+    p(0.12, 0.14, 0.14, mane, 0.34, 1.02, -0.2, { detail: true });
+    p(0.12, 0.14, 0.14, maneD, 0.34, 0.62, 0.18, { detail: true });
+    p(0.26, 0.24, 0.26, fur, 0.5, 0.86, 0, { n: 2, grain: 0.07 });
+    p(0.16, 0.13, 0.2, belly, 0.62, 0.8, 0);
+    p(0.06, 0.045, 0.075, 0x4a2f26, 0.71, 0.835, 0, { flat: true });
+    p(0.02, 0.02, 0.06, 0x4a2f26, 0.715, 0.8, 0, { flat: true, detail: true });
+    beadEyes(p, 0.645, 0.93, 0.09, 0.037, 0x2a1a0e);
+    p(0.06, 0.08, 0.09, fur, 0.42, 1.01, 0.11);
+    p(0.06, 0.08, 0.09, fur, 0.42, 1.01, -0.11);
+    p(0.03, 0.05, 0.055, 0x54341c, 0.45, 1.02, 0.115, { flat: true, detail: true });
+    p(0.03, 0.05, 0.055, 0x54341c, 0.45, 1.02, -0.115, { flat: true, detail: true });
+    quadLeg(p, 0.24, 0.14, 0.42, 0.12, 0.32, fur, belly, 0.1);
+    quadLeg(p, 0.24, -0.14, 0.42, 0.12, 0.32, fur, belly, 0.1);
+    quadLeg(p, -0.26, 0.14, 0.44, 0.13, 0.34, furD, belly, 0.1);
+    quadLeg(p, -0.26, -0.14, 0.44, 0.13, 0.34, furD, belly, 0.1);
+    p(0.05, 0.3, 0.05, fur, -0.46, 0.64, 0, { rz: 0.4 });
+    p(0.09, 0.11, 0.09, mane, -0.53, 0.47, 0);
   } else if (kind === 'tiger') {
-    const fur = 0xf07820;
-    const stripe = 0x141210;
-    g.add(box(0.84, 0.46, 0.4, fur, 0, 0.56, 0));
-    g.add(box(0.08, 0.46, 0.42, stripe, 0.22, 0.56, 0));
-    g.add(box(0.08, 0.46, 0.42, stripe, 0.02, 0.56, 0));
-    g.add(box(0.08, 0.46, 0.42, stripe, -0.18, 0.56, 0));
-    g.add(box(0.08, 0.46, 0.42, stripe, -0.36, 0.56, 0));
-    g.add(box(0.3, 0.26, 0.26, fur, 0.5, 0.82, 0));
-    g.add(box(0.08, 0.22, 0.28, stripe, 0.5, 0.82, 0));
-    g.add(box(0.1, 0.12, 0.06, 0xf4f0e4, 0.62, 0.78, 0.1));
-    g.add(box(0.1, 0.12, 0.06, 0xf4f0e4, 0.62, 0.78, -0.1));
-    g.add(box(0.1, 0.34, 0.1, stripe, 0.26, 0.18, 0.12));
-    g.add(box(0.1, 0.34, 0.1, fur, 0.26, 0.18, -0.12));
-    g.add(box(0.1, 0.34, 0.1, fur, -0.26, 0.18, 0.12));
-    g.add(box(0.1, 0.34, 0.1, stripe, -0.26, 0.18, -0.12));
+    const fur = 0xea7f22;
+    const furD = shadeHex(fur, 0.85);
+    const white = 0xf6efe2;
+    const black = 0x171310;
+    p(0.78, 0.4, 0.4, fur, -0.02, 0.6, 0, { n: 3, grain: 0.09 });
+    p(0.7, 0.11, 0.34, white, -0.02, 0.43, 0, { n: 2 });
+    p(0.26, 0.34, 0.42, fur, -0.3, 0.6, 0, { n: 2, grain: 0.08 });
+    for (const [sx, sw, sh] of [[0.26, 0.05, 0.41], [0.12, 0.04, 0.38], [-0.03, 0.05, 0.41], [-0.18, 0.04, 0.38], [-0.33, 0.05, 0.36]]) {
+      p(sw, sh, 0.412, black, sx, 0.62, 0, { grain: 0.04 });
+    }
+    p(0.28, 0.26, 0.28, fur, 0.48, 0.83, 0, { n: 2, grain: 0.07 });
+    p(0.04, 0.16, 0.285, black, 0.5, 0.93, 0, { flat: true });
+    p(0.04, 0.12, 0.285, black, 0.42, 0.9, 0, { flat: true, detail: true });
+    p(0.1, 0.14, 0.06, white, 0.52, 0.79, 0.135, { flat: true, detail: true });
+    p(0.1, 0.14, 0.06, white, 0.52, 0.79, -0.135, { flat: true, detail: true });
+    p(0.15, 0.11, 0.19, white, 0.6, 0.76, 0);
+    p(0.055, 0.04, 0.07, 0xb9645c, 0.69, 0.79, 0, { flat: true });
+    beadEyes(p, 0.635, 0.89, 0.092, 0.036, 0x1c1408);
+    p(0.055, 0.08, 0.09, fur, 0.4, 0.98, 0.11);
+    p(0.055, 0.08, 0.09, fur, 0.4, 0.98, -0.11);
+    p(0.03, 0.05, 0.055, black, 0.43, 0.99, 0.115, { flat: true, detail: true });
+    p(0.03, 0.05, 0.055, black, 0.43, 0.99, -0.115, { flat: true, detail: true });
+    for (const [x, z, lh] of [[0.24, 0.13, 0.32], [0.24, -0.13, 0.32], [-0.26, 0.13, 0.34], [-0.26, -0.13, 0.34]]) {
+      p(0.115, lh, 0.115, fur, x, 0.42 - lh * 0.5 + 0.02, z, { grain: 0.07 });
+      p(0.12, 0.04, 0.12, black, x, 0.34, z, { detail: true });
+      p(0.13, 0.1, 0.13, white, x, 0.05, z);
+    }
+    p(0.05, 0.3, 0.05, fur, -0.46, 0.62, 0, { rz: 0.35 });
+    p(0.055, 0.05, 0.055, black, -0.5, 0.55, 0, { detail: true });
+    p(0.055, 0.05, 0.055, black, -0.55, 0.46, 0, { detail: true });
+    p(0.06, 0.07, 0.06, black, -0.58, 0.4, 0);
   } else if (kind === 'bull') {
-    g.add(box(0.95, 0.62, 0.52, 0x2a1c12, 0, 0.7, 0));
-    g.add(box(0.36, 0.32, 0.32, 0x1a120c, 0.52, 1.02, 0));
-    g.add(box(0.08, 0.22, 0.08, 0xe8dcc8, 0.58, 1.22, 0.16));
-    g.add(box(0.08, 0.22, 0.08, 0xe8dcc8, 0.58, 1.22, -0.16));
-    g.add(box(0.14, 0.48, 0.14, 0x1a120c, 0.3, 0.24, 0.16));
-    g.add(box(0.14, 0.48, 0.14, 0x1a120c, 0.3, 0.24, -0.16));
-    g.add(box(0.14, 0.48, 0.14, 0x1a120c, -0.3, 0.24, 0.16));
-    g.add(box(0.14, 0.48, 0.14, 0x1a120c, -0.3, 0.24, -0.16));
+    const hide = 0x33241a;
+    const hideD = 0x1e150e;
+    const hoof = 0x14100c;
+    p(0.9, 0.56, 0.54, hide, -0.02, 0.76, 0, { n: 3, grain: 0.08 });
+    p(0.82, 0.14, 0.46, shadeHex(hide, 1.2), -0.02, 0.5, 0, { n: 2 });
+    p(0.34, 0.16, 0.44, hideD, 0.18, 1.06, 0, { n: 2, grain: 0.1 });
+    p(0.28, 0.5, 0.52, hide, 0.34, 0.8, 0, { n: 2, grain: 0.08 });
+    p(0.24, 0.3, 0.36, hide, 0.5, 0.96, 0, { rz: -0.15, grain: 0.07 });
+    p(0.32, 0.3, 0.32, hideD, 0.62, 1.04, 0, { n: 2, grain: 0.08 });
+    p(0.18, 0.16, 0.26, 0x5e4638, 0.76, 0.98, 0);
+    p(0.03, 0.04, 0.04, 0x241a14, 0.85, 0.995, 0.06, { flat: true, detail: true });
+    p(0.03, 0.04, 0.04, 0x241a14, 0.85, 0.995, -0.06, { flat: true, detail: true });
+    p(0.028, 0.06, 0.06, 0xd6bd54, 0.85, 0.915, 0, { flat: true, detail: true });
+    beadEyes(p, 0.797, 1.11, 0.115, 0.042);
+    p(0.06, 0.06, 0.15, 0xd8ccb6, 0.6, 1.18, 0.15, { rx: 0.22 });
+    p(0.06, 0.06, 0.15, 0xd8ccb6, 0.6, 1.18, -0.15, { rx: -0.22 });
+    p(0.055, 0.12, 0.055, 0xece2d0, 0.6, 1.25, 0.2, { rx: 0.45 });
+    p(0.055, 0.12, 0.055, 0xece2d0, 0.6, 1.25, -0.2, { rx: -0.45 });
+    p(0.045, 0.06, 0.045, 0xf6efe0, 0.6, 1.33, 0.24, { rx: 0.6, detail: true });
+    p(0.045, 0.06, 0.045, 0xf6efe0, 0.6, 1.33, -0.24, { rx: -0.6, detail: true });
+    p(0.07, 0.05, 0.13, hideD, 0.52, 1.1, 0.2, { rz: 0.2 });
+    p(0.07, 0.05, 0.13, hideD, 0.52, 1.1, -0.2, { rz: 0.2 });
+    quadLeg(p, 0.3, 0.18, 0.5, 0.16, 0.36, hide, hoof, 0.14);
+    quadLeg(p, 0.3, -0.18, 0.5, 0.16, 0.36, hide, hoof, 0.14);
+    quadLeg(p, -0.3, 0.18, 0.5, 0.16, 0.36, hide, hoof, 0.14);
+    quadLeg(p, -0.3, -0.18, 0.5, 0.16, 0.36, hide, hoof, 0.14);
+    p(0.06, 0.34, 0.06, hideD, -0.46, 0.68, 0, { rz: 0.1 });
+    p(0.09, 0.12, 0.09, 0x120d09, -0.5, 0.46, 0);
   } else if (kind === 'man') {
     const cloth = wear || MAN_WEAR[0];
-    const pants = 0x1a1e24;
+    const clothD = shadeHex(cloth, 0.78);
+    const pants = 0x2b323c;
+    const shoe = 0x2a2018;
     const skin = 0xc8a07a;
-    const look = pickManLook(seed);
+    const skinD = shadeHex(skin, 0.9);
     const hair = look.hair;
-    const eyeS = look.eyeS;
-    const noseS = look.noseS;
-    const ew = 0.03 * eyeS;
-    const eh = 0.045 * eyeS;
-    const ed = 0.05 * eyeS;
-    const pw = 0.022 * eyeS;
-    const ph = 0.032 * eyeS;
-    const pd = 0.032 * eyeS;
-    const eyeX = 0.12 + ew * 0.55;
-    const pupilX = eyeX + 0.01 * eyeS;
-    const nw = 0.05 * noseS;
-    const nh = 0.04 * noseS;
-    const nd = 0.04 * noseS;
-    const noseX = 0.12 + nw * 0.8;
-    g.add(box(0.12, 0.5, 0.12, pants, 0, 0.26, 0.1));
-    g.add(box(0.12, 0.5, 0.12, pants, 0, 0.26, -0.1));
-    g.add(box(0.2, 0.48, 0.36, pants, 0, 0.56, 0));
-    g.add(box(0.22, 0.5, 0.38, cloth, 0, 1.05, 0));
-    g.add(box(0.1, 0.42, 0.1, cloth, 0, 1.0, 0.24));
-    g.add(box(0.1, 0.42, 0.1, cloth, 0, 1.0, -0.24));
-    g.add(box(0.1, 0.08, 0.1, skin, 0, 1.28, 0));
-    g.add(box(0.24, 0.26, 0.26, skin, 0, 1.42, 0));
-    g.add(box(0.26, 0.09, 0.28, hair, 0, 1.56, 0));
-    g.add(box(0.05, 0.1, 0.26, hair, -0.125, 1.51, 0));
-    g.add(box(ew, eh, ed, 0xf7f2ea, eyeX, 1.46, 0.06));
-    g.add(box(ew, eh, ed, 0xf7f2ea, eyeX, 1.46, -0.06));
-    g.add(box(pw, ph, pd, 0x1a1410, pupilX, 1.46, 0.06));
-    g.add(box(pw, ph, pd, 0x1a1410, pupilX, 1.46, -0.06));
-    g.add(box(nw, nh, nd, 0xb89068, noseX, 1.4, 0));
-    g.add(box(0.024, 0.02, 0.07, 0x8a5a50, 0.14, 1.335, 0));
+    const hairD = shadeHex(hair, 0.72);
+    p(0.16, 0.09, 0.24, shoe, 0.02, 0.045, 0.1);
+    p(0.16, 0.09, 0.24, shoe, 0.02, 0.045, -0.1);
+    p(0.13, 0.26, 0.14, pants, 0, 0.22, 0.1, { grain: 0.045 });
+    p(0.13, 0.26, 0.14, pants, 0, 0.22, -0.1, { grain: 0.045 });
+    p(0.15, 0.24, 0.16, pants, 0, 0.45, 0.1, { grain: 0.045 });
+    p(0.15, 0.24, 0.16, pants, 0, 0.45, -0.1, { grain: 0.045 });
+    p(0.24, 0.14, 0.35, pants, 0, 0.63, 0, { n: 2, grain: 0.045 });
+    p(0.26, 0.06, 0.37, 0x4a3520, 0, 0.72, 0);
+    p(0.05, 0.05, 0.05, 0xc9a63c, 0.13, 0.72, 0, { flat: true, detail: true });
+    p(0.26, 0.44, 0.36, cloth, 0, 0.97, 0, { n: 3, grain: 0.055 });
+    p(0.27, 0.09, 0.37, clothD, 0, 1.155, 0);
+    p(0.1, 0.11, 0.16, skin, 0.045, 1.2, 0, { flat: true, detail: true });
+    p(0.12, 0.22, 0.12, cloth, 0, 1.08, 0.23, { grain: 0.05 });
+    p(0.12, 0.22, 0.12, cloth, 0, 1.08, -0.23, { grain: 0.05 });
+    p(0.1, 0.22, 0.105, skin, 0, 0.86, 0.23, { grain: 0.04 });
+    p(0.1, 0.22, 0.105, skin, 0, 0.86, -0.23, { grain: 0.04 });
+    p(0.11, 0.1, 0.11, skinD, 0, 0.71, 0.23);
+    p(0.11, 0.1, 0.11, skinD, 0, 0.71, -0.23);
+    p(0.12, 0.1, 0.13, skinD, 0, 1.26, 0);
+    p(0.24, 0.26, 0.25, skin, 0, 1.43, 0, { n: 3, grain: 0.04 });
+    p(0.035, 0.08, 0.05, skinD, -0.01, 1.42, 0.14, { detail: true });
+    p(0.035, 0.08, 0.05, skinD, -0.01, 1.42, -0.14, { detail: true });
+    p(0.26, 0.08, 0.27, hair, 0, 1.58, 0, { n: 2, grain: 0.09 });
+    p(0.07, 0.18, 0.26, hair, -0.115, 1.49, 0, { grain: 0.09 });
+    p(0.24, 0.12, 0.05, hairD, 0, 1.5, 0.125, { grain: 0.08 });
+    p(0.24, 0.12, 0.05, hairD, 0, 1.5, -0.125, { grain: 0.08 });
+    p(0.06, 0.06, 0.25, hair, 0.105, 1.54, 0, { grain: 0.08, detail: true });
+    p(0.028, 0.022, 0.075, hairD, 0.122, 1.495, 0.06, { flat: true, detail: true });
+    p(0.028, 0.022, 0.075, hairD, 0.122, 1.495, -0.06, { flat: true, detail: true });
+    eyeSet(p, 0.12, 1.45, 0.062, look.eyeS);
+    p(0.055 * look.noseS, 0.05 * look.noseS, 0.05 * look.noseS, skinD, 0.135, 1.4, 0);
+    p(0.024, 0.02, 0.075, 0x8a5a50, 0.13, 1.335, 0, { flat: true, detail: true });
+    if (look.beard) {
+      p(0.05, 0.12, 0.2, hairD, 0.105, 1.33, 0, { grain: 0.09 });
+      p(0.16, 0.06, 0.25, hairD, 0.03, 1.3, 0, { grain: 0.09, detail: true });
+    }
   } else {
     const cloth = wear || WOMAN_WEAR[0];
-    const skirt = darken(cloth, 0.72);
+    const clothD = shadeHex(cloth, 0.78);
+    const skirt = shadeHex(cloth, 0.88);
+    const shoe = 0x3a241c;
     const skin = 0xd4b08a;
-    const look = pickWomanLook(seed);
+    const skinD = shadeHex(skin, 0.9);
     const hair = look.hair;
-    const lip = look.lip;
-    const eyeS = look.eyeS;
-    const noseS = look.noseS;
-    const ew = 0.03 * eyeS;
-    const eh = 0.045 * eyeS;
-    const ed = 0.05 * eyeS;
-    const pw = 0.022 * eyeS;
-    const ph = 0.032 * eyeS;
-    const pd = 0.032 * eyeS;
-    const eyeX = 0.11 + ew * 0.55;
-    const pupilX = eyeX + 0.01 * eyeS;
-    const nw = 0.05 * noseS;
-    const nh = 0.04 * noseS;
-    const nd = 0.04 * noseS;
-    const noseX = 0.11 + nw * 0.8;
-    g.add(box(0.1, 0.48, 0.1, skirt, 0, 0.28, 0.08));
-    g.add(box(0.1, 0.48, 0.1, skirt, 0, 0.28, -0.08));
-    g.add(box(0.22, 0.76, 0.36, cloth, 0, 0.88, 0));
-    g.add(box(0.06, 0.12, 0.1, cloth, 0.14, 1.16, 0.06));
-    g.add(box(0.06, 0.12, 0.1, cloth, 0.14, 1.16, -0.06));
-    g.add(box(0.09, 0.4, 0.09, skin, 0, 0.95, 0.22));
-    g.add(box(0.09, 0.4, 0.09, skin, 0, 0.95, -0.22));
-    g.add(box(0.1, 0.08, 0.1, skin, 0, 1.28, 0));
-    g.add(box(0.22, 0.24, 0.24, skin, 0, 1.42, 0));
-    g.add(box(0.26, 0.14, 0.28, hair, 0, 1.58, 0));
-    g.add(box(0.1, 0.28, 0.24, hair, -0.15, 1.42, 0));
-    g.add(box(0.2, 0.22, 0.08, hair, 0.02, 1.46, 0.145));
-    g.add(box(0.2, 0.22, 0.08, hair, 0.02, 1.46, -0.145));
-    g.add(box(0.06, 0.08, 0.2, hair, 0.12, 1.53, 0));
-    g.add(box(ew, eh, ed, 0xf7f2ea, eyeX, 1.45, 0.055));
-    g.add(box(ew, eh, ed, 0xf7f2ea, eyeX, 1.45, -0.055));
-    g.add(box(pw, ph, pd, 0x1a1410, pupilX, 1.45, 0.055));
-    g.add(box(pw, ph, pd, 0x1a1410, pupilX, 1.45, -0.055));
-    g.add(box(nw, nh, nd, 0xc49872, noseX, 1.39, 0));
-    g.add(box(0.025, 0.022, 0.08, lip, 0.135, 1.335, 0));
+    const hairD = shadeHex(hair, 0.74);
+    p(0.14, 0.08, 0.2, shoe, 0.02, 0.04, 0.08);
+    p(0.14, 0.08, 0.2, shoe, 0.02, 0.04, -0.08);
+    p(0.1, 0.3, 0.11, skin, 0, 0.22, 0.08, { grain: 0.04 });
+    p(0.1, 0.3, 0.11, skin, 0, 0.22, -0.08, { grain: 0.04 });
+    p(0.3, 0.05, 0.4, clothD, 0, 0.405, 0, { grain: 0.04 });
+    p(0.29, 0.12, 0.39, skirt, 0, 0.49, 0, { n: 2, grain: 0.05 });
+    p(0.25, 0.14, 0.34, skirt, 0, 0.62, 0, { n: 2, grain: 0.05 });
+    p(0.235, 0.045, 0.325, clothD, 0, 0.705, 0);
+    p(0.22, 0.48, 0.32, cloth, 0, 0.96, 0, { n: 3, grain: 0.055 });
+    p(0.07, 0.09, 0.11, cloth, 0.11, 1.05, 0.07, { detail: true });
+    p(0.07, 0.09, 0.11, cloth, 0.11, 1.05, -0.07, { detail: true });
+    p(0.23, 0.07, 0.33, clothD, 0, 1.14, 0);
+    p(0.09, 0.1, 0.14, skin, 0.04, 1.185, 0, { flat: true, detail: true });
+    p(0.1, 0.16, 0.1, cloth, 0, 1.12, 0.2, { grain: 0.05 });
+    p(0.1, 0.16, 0.1, cloth, 0, 1.12, -0.2, { grain: 0.05 });
+    p(0.09, 0.26, 0.095, skin, 0, 0.91, 0.2, { grain: 0.04 });
+    p(0.09, 0.26, 0.095, skin, 0, 0.91, -0.2, { grain: 0.04 });
+    p(0.1, 0.09, 0.1, skinD, 0, 0.74, 0.2);
+    p(0.1, 0.09, 0.1, skinD, 0, 0.74, -0.2);
+    p(0.1, 0.09, 0.11, skinD, 0, 1.26, 0);
+    p(0.22, 0.25, 0.24, skin, 0, 1.42, 0, { n: 3, grain: 0.04 });
+    p(0.25, 0.1, 0.26, hair, 0, 1.57, 0, { n: 2, grain: 0.09 });
+    p(0.1, 0.34, 0.25, hair, -0.11, 1.38, 0, { n: 2, grain: 0.09 });
+    p(0.2, 0.24, 0.05, hair, 0.01, 1.43, 0.125, { grain: 0.09 });
+    p(0.2, 0.24, 0.05, hair, 0.01, 1.43, -0.125, { grain: 0.09 });
+    if (look.longHair) {
+      p(0.09, 0.2, 0.24, hair, -0.105, 1.14, 0, { grain: 0.09 });
+      p(0.07, 0.16, 0.07, hairD, -0.09, 1.0, 0.09, { grain: 0.08, detail: true });
+      p(0.07, 0.16, 0.07, hairD, -0.09, 1.0, -0.09, { grain: 0.08, detail: true });
+    }
+    p(0.06, 0.06, 0.22, hair, 0.1, 1.52, 0, { grain: 0.08, detail: true });
+    p(0.026, 0.02, 0.07, hairD, 0.112, 1.485, 0.055, { flat: true, detail: true });
+    p(0.026, 0.02, 0.07, hairD, 0.112, 1.485, -0.055, { flat: true, detail: true });
+    eyeSet(p, 0.11, 1.445, 0.057, look.eyeS);
+    p(0.05 * look.noseS, 0.045 * look.noseS, 0.045 * look.noseS, skinD, 0.125, 1.39, 0);
+    p(0.024, 0.024, 0.08, look.lip, 0.122, 1.335, 0, { flat: true, detail: true });
   }
-  return g;
+  return out;
+}
+
+function makeModel(kind, wear = 0, seed = 1) {
+  const person = !!KINDS[kind]?.person;
+  const variant = person ? (seed & (LOOK_VARIANTS - 1)) : 0;
+  const geo = cachedVoxGeometry(`${kind}|${wear}|${variant}`, () => {
+    const look = kind === 'woman' ? pickWomanLook(variant + 1)
+      : kind === 'man' ? pickManLook(variant + 1)
+        : null;
+    return isOriginal() ? legacyMobParts(kind, wear, look) : buildParts(kind, wear, look);
+  });
+  return new THREE.Mesh(geo, ENTITY_MAT.clone());
 }
 
 function groundY(world, x, z) {
@@ -481,10 +653,9 @@ export class Life {
   dropMesh(e) {
     if (!e.mesh) return;
     this.group.remove(e.mesh);
-    e.mesh.traverse((o) => {
-      o.geometry?.dispose();
-      o.material?.dispose();
-    });
+    // Geometry is shared through the vox cache; only the per-entity material
+    // (kept unique so hurt flashes don't bleed across mobs) is ours to free.
+    e.mesh.traverse((o) => o.material?.dispose());
     e.mesh = null;
   }
 
@@ -518,6 +689,16 @@ export class Life {
     this.syncMesh(e);
     this.list.push(e);
     return e;
+  }
+
+  /** Swap every mob to freshly built models, e.g. after a quality change. */
+  rebuildModels() {
+    for (const e of this.list) {
+      this.dropMesh(e);
+      e.mesh = makeModel(e.kind, e.wear, e.id);
+      this.group.add(e.mesh);
+      this.syncMesh(e);
+    }
   }
 
   syncMesh(e) {

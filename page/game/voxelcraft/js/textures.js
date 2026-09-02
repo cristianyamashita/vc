@@ -42,6 +42,8 @@ const TILE_INDEX = {
   red_earth: 33,
   crate_top: 34,
   crate_side: 35,
+  torch_wood: 36,
+  torch_flame: 37,
 };
 
 function clamp(n, a, b) {
@@ -174,6 +176,30 @@ function drawTile(name) {
     put(d, 8, 2, 255, 220, 70);
     put(d, 7, 1, 255, 255, 180);
     put(d, 8, 1, 255, 240, 120);
+  } else if (name === 'torch_wood') {
+    fillNoise(d, [124, 84, 46], 14, rng);
+    for (let y = 0; y < TILE; y++) {
+      put(d, 0, y, 78, 51, 26);
+      put(d, 1, y, 92, 61, 31);
+      put(d, 2, y, 108, 72, 38);
+      put(d, 6, y, 146, 100, 55);
+      put(d, 7, y, 152, 105, 58);
+      put(d, TILE - 3, y, 100, 66, 34);
+      put(d, TILE - 2, y, 86, 56, 29);
+      put(d, TILE - 1, y, 72, 47, 24);
+    }
+  } else if (name === 'torch_flame') {
+    for (let y = 0; y < TILE; y++) {
+      for (let x = 0; x < TILE; x++) {
+        const drop = y / (TILE - 1);
+        const edge = Math.abs(x - 7.5) / 7.5;
+        const heat = clamp(1 - drop * 0.85 - edge * 0.4 + (rng() - 0.5) * 0.16, 0, 1);
+        put(d, x, y,
+          clamp(210 + heat * 45, 0, 255),
+          clamp(70 + heat * 175, 0, 255),
+          clamp(heat * heat * 210 - 24, 0, 255));
+      }
+    }
   } else if (name === 'bedrock') {
     fillNoise(d, [50, 50, 55], 20, rng);
     blot(d, [20, 20, 22], rng, 6, 2);
@@ -397,6 +423,8 @@ function stamp(atlasCtx, name, index) {
   atlasCtx.drawImage(drawTile(name), col * TILE, row * TILE);
 }
 
+// The pre-rework drawn icons. Kept for the "Original" graphics setting; the
+// other settings render icons from the item models instead.
 function drawItemIcon(kind) {
   const c = document.createElement('canvas');
   c.width = 32;
@@ -641,6 +669,8 @@ export function createAtlas() {
     icons[name] = drawTile(name).toDataURL();
     icons[`tile:${index}`] = icons[name];
   }
+  // Original graphics use these drawn icons. The other settings overwrite
+  // them with renders of the real item models, later, in itemicons.js.
   const itemKinds = [
     'stick', 'coal', 'iron',
     'pick_wood', 'axe_wood', 'shovel_wood',
@@ -672,6 +702,9 @@ export function tileUV(name) {
 
 export function itemIcon(id, atlas) {
   if (!id) return '';
+  // Icons rendered from the item's own 3D model win over any flat tile.
+  const shot = atlas.icons[`item:${id}`];
+  if (shot) return shot;
   const item = ITEMS[id];
   if (item?.icon && atlas.icons[item.icon]) return atlas.icons[item.icon];
   if (isBlock(id)) {

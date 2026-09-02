@@ -1,5 +1,7 @@
 import * as THREE from 'three';
+import { itemMesh } from './itemmodels.js';
 import { itemIcon } from './textures.js';
+import { isOriginal } from './quality.js';
 import { HEIGHT } from './world.js';
 import { solidBoxes, aabbHitsBox } from './stairs.js';
 
@@ -11,32 +13,66 @@ const PICK_DIST = 1.35;
 const MAX_DROPS = 80;
 const THROW_SPEED = 7.2;
 
-const texCache = new Map();
+// A dropped item is the item's real model, scaled to a pickup-sized trinket,
+// rather than a flat picture of it.
+const DROP_SPAN = SIZE * 1.7;
+const scaleCache = new Map();
+const _box = new THREE.Box3();
+const _size = new THREE.Vector3();
 
-function dropTexture(id, atlas) {
-  if (texCache.has(id)) return texCache.get(id);
-  const url = itemIcon(id, atlas);
-  const img = new Image();
-  const tex = new THREE.Texture(img);
-  tex.magFilter = THREE.NearestFilter;
-  tex.minFilter = THREE.NearestFilter;
-  tex.colorSpace = THREE.SRGBColorSpace;
-  img.onload = () => { tex.needsUpdate = true; };
-  img.src = url || '';
-  if (img.complete) tex.needsUpdate = true;
-  texCache.set(id, tex);
-  return tex;
+function dropScale(mesh, id) {
+  let s = scaleCache.get(id);
+  if (s == null) {
+    _box.setFromObject(mesh);
+    _box.getSize(_size);
+    const span = Math.max(_size.x, _size.y, _size.z);
+    s = span > 0 ? DROP_SPAN / span : 1;
+    scaleCache.set(id, s);
+  }
+  return s;
+}
+
+// Original graphics drop items as a small cube wearing the item's icon.
+const texCache = new Map();
+let legacyGeo = null;
+const legacyMats = new Map();
+
+function legacyMesh(id, atlas) {
+  if (!legacyGeo) legacyGeo = new THREE.BoxGeometry(SIZE, SIZE, SIZE);
+  let mat = legacyMats.get(id);
+  if (!mat) {
+    let tex = texCache.get(id);
+    if (!tex) {
+      const img = new Image();
+      tex = new THREE.Texture(img);
+      tex.magFilter = THREE.NearestFilter;
+      tex.minFilter = THREE.NearestFilter;
+      tex.colorSpace = THREE.SRGBColorSpace;
+      img.onload = () => { tex.needsUpdate = true; };
+      img.src = itemIcon(id, atlas) || '';
+      if (img.complete) tex.needsUpdate = true;
+      texCache.set(id, tex);
+    }
+    mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true });
+    legacyMats.set(id, mat);
+  }
+  const mesh = new THREE.Mesh(legacyGeo, mat);
+  mesh.castShadow = false;
+  return mesh;
 }
 
 function makeMesh(id, atlas) {
-  const geo = new THREE.BoxGeometry(SIZE, SIZE, SIZE);
-  const mat = new THREE.MeshBasicMaterial({
-    map: dropTexture(id, atlas),
-    transparent: true,
-  });
-  const mesh = new THREE.Mesh(geo, mat);
+  if (isOriginal()) return legacyMesh(id, atlas);
+  const mesh = itemMesh(id);
   mesh.castShadow = false;
-  return mesh;
+  const inner = new THREE.Group();
+  inner.add(mesh);
+  const s = dropScale(mesh, id);
+  mesh.scale.setScalar(s);
+  _box.setFromObject(mesh);
+  _box.getCenter(_size);
+  mesh.position.sub(_size);
+  return inner;
 }
 
 function collides(world, x, y, z) {
@@ -122,10 +158,22 @@ export class ItemDrops {
     const i = this.list.indexOf(drop);
     if (i >= 0) this.list.splice(i, 1);
     if (drop.mesh) {
+      // Geometry and material are shared across every drop of the same item.
       this.group.remove(drop.mesh);
-      drop.mesh.geometry.dispose();
-      drop.mesh.material.dispose();
       drop.mesh = null;
+    }
+  }
+
+  /** Swap every drop to a freshly built mesh, after a graphics change. */
+  rebuildMeshes() {
+    texCache.clear();
+    legacyMats.clear();
+    scaleCache.clear();
+    for (const d of this.list) {
+      if (d.mesh) this.group.remove(d.mesh);
+      d.mesh = makeMesh(d.item, this.atlas);
+      d.mesh.position.set(d.x, d.y, d.z);
+      this.group.add(d.mesh);
     }
   }
 
@@ -172,7 +220,8 @@ export class ItemDrops {
       }
 
       if (d.mesh) {
-        d.mesh.position.set(d.x, d.y + 0.04 + Math.sin(d.age * 3.2) * 0.05, d.z);
+        const lift = isOriginal() ? 0.04 : 0.12;
+        d.mesh.position.set(d.x, d.y + lift + Math.sin(d.age * 3.2) * 0.05, d.z);
         d.mesh.rotation.y = d.age * 2.1;
       }
 

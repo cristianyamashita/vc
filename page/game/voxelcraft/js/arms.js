@@ -3,22 +3,33 @@ import {
   WOOD_PICK, WOOD_AXE, WOOD_SHOVEL, WOOD_SWORD,
   STONE_PICK, STONE_AXE, STONE_SHOVEL, STONE_SWORD,
   IRON_PICK, IRON_AXE, IRON_SHOVEL, IRON_SWORD,
-  STICK, TORCH, RAW_MEAT, COOKED_MEAT, FRUIT, COOKED_FRUIT,
-  HIDE_COW, HIDE_ZEBRA, HIDE_SHEEP, DOOR, DOOR_DOUBLE,
-  FLOWER_RED, FLOWER_YELLOW, FLOWER_WHITE,
-  LASSO, REVOLVER, BOW,
-  isBlock, isFlower,
+  STICK, TORCH, LASSO, REVOLVER, BOW,
+  isFlower,
 } from './blocks.js';
+import { buildVoxGeometry, shadeHex } from './voxmodel.js';
+import { itemMesh, isBlockMesh, initItemModels, legacyHold } from './itemmodels.js';
+import { isOriginal } from './quality.js';
 
 const SKIN = 0xc8a07a;
 const SLEEVE = 0x3aa38f;
 
+// Held gear is baked to one merged, cached geometry per item, so switching
+// hotbar slots never rebuilds meshes or uploads new buffers mid-game.
+const HELD_MAT = new THREE.MeshLambertMaterial({ vertexColors: true });
+
 export class Arms {
-  constructor(camera) {
+  constructor(camera, atlas) {
     this.root = new THREE.Group();
     this.root.layers.set(1);
     camera.add(this.root);
+    initItemModels(atlas);
+    this.swing = 0;
+    this.bob = 0;
+    this.build();
+  }
 
+  build() {
+    this.ownGeo = [];
     this.right = this.makeArm(0.28, -0.28, -0.38, 1);
     this.left = this.makeArm(-0.34, -0.36, -0.48, -1);
     this.toolHold = new THREE.Group();
@@ -29,28 +40,52 @@ export class Arms {
     this.offTool = new THREE.Group();
     this.toolHold.add(this.tool);
     this.left.hand.add(this.offTool);
-    this.swing = 0;
-    this.bob = 0;
     this.heldId = -1;
     this.offId = -1;
+  }
+
+  /**
+   * Rebuild the arms and whatever they are holding, keeping the current
+   * items. Used when the graphics quality changes under us.
+   */
+  rebuild() {
+    const held = this.heldId > 0 ? this.heldId : 0;
+    const off = this.offId > 0 ? this.offId : 0;
+    this.root.remove(this.right.group, this.left.group, this.toolHold);
+    for (const geo of this.ownGeo) geo.dispose();
+    this.build();
+    this.setHeld(held);
+    this.setOffhand(off);
   }
 
   makeArm(x, y, z, side) {
     const arm = new THREE.Group();
     arm.position.set(x, y, z);
     arm.layers.set(1);
-    const matSkin = new THREE.MeshLambertMaterial({ color: SKIN });
-    const matCloth = new THREE.MeshLambertMaterial({ color: SLEEVE });
-    const upper = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.32, 0.12), matCloth);
-    upper.position.set(0, -0.1, 0);
-    const lower = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.28, 0.11), matSkin);
-    lower.position.set(0, -0.36, 0.02);
+    const old = isOriginal();
+    const sleeve = new THREE.Mesh(buildVoxGeometry(old ? [
+      { w: 0.12, h: 0.32, d: 0.12, color: SLEEVE, x: 0, y: -0.1, z: 0, flat: true, grain: 0 },
+    ] : [
+      { w: 0.13, h: 0.2, d: 0.13, color: SLEEVE, x: 0, y: -0.04, z: 0, n: 2, grain: 0.05 },
+      { w: 0.135, h: 0.04, d: 0.135, color: shadeHex(SLEEVE, 0.82), x: 0, y: -0.15, z: 0, detail: true },
+    ]), HELD_MAT);
+    const forearm = new THREE.Mesh(buildVoxGeometry(old ? [
+      { w: 0.11, h: 0.28, d: 0.11, color: SKIN, x: 0, y: -0.36, z: 0.02, flat: true, grain: 0 },
+    ] : [
+      { w: 0.105, h: 0.26, d: 0.105, color: SKIN, x: 0, y: -0.33, z: 0.015, grain: 0.04 },
+    ]), HELD_MAT);
     const hand = new THREE.Group();
     hand.position.set(0, -0.52, 0.04);
-    const fist = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.1), matSkin);
+    const fist = new THREE.Mesh(buildVoxGeometry(old ? [
+      { w: 0.1, h: 0.1, d: 0.1, color: SKIN, x: 0, y: 0, z: 0, flat: true, grain: 0 },
+    ] : [
+      { w: 0.105, h: 0.1, d: 0.11, color: SKIN, x: 0, y: 0, z: 0, grain: 0.05 },
+      { w: 0.045, h: 0.055, d: 0.05, color: shadeHex(SKIN, 0.94), x: side * 0.05, y: 0.02, z: 0.03, detail: true },
+    ]), HELD_MAT);
     hand.add(fist);
-    for (const m of [upper, lower, fist, arm, hand]) m.layers.set(1);
-    arm.add(upper, lower, hand);
+    for (const m of [sleeve, forearm, fist, arm, hand]) m.layers.set(1);
+    this.ownGeo.push(sleeve.geometry, forearm.geometry, fist.geometry);
+    arm.add(sleeve, forearm, hand);
     arm.rotation.x = 0.35;
     arm.rotation.z = side * 0.12;
     this.root.add(arm);
@@ -71,14 +106,9 @@ export class Arms {
 
   mountHeld(group, prev, id, side) {
     if (id === prev) return prev;
-    while (group.children.length) {
-      const ch = group.children[0];
-      group.remove(ch);
-      ch.traverse((o) => {
-        o.geometry?.dispose();
-        o.material?.dispose();
-      });
-    }
+    // Meshes are thrown away, but their geometry and material are cached and
+    // shared, so nothing is disposed here.
+    while (group.children.length) group.remove(group.children[0]);
     if (!id) return 0;
     const mesh = makeToolMesh(id);
     if (mesh) {
@@ -116,121 +146,54 @@ export class Arms {
   }
 }
 
-function box(w, h, d, color, x, y, z) {
-  const m = new THREE.Mesh(
-    new THREE.BoxGeometry(w, h, d),
-    new THREE.MeshLambertMaterial({ color }),
-  );
-  m.position.set(x, y, z);
-  m.layers.set(1);
-  return m;
-}
-
+// A held block shows its real atlas faces instead of a stand-in colour cube.
 function makeToolMesh(id) {
-  const g = new THREE.Group();
-  const wood = 0x8b5a2b;
-  let head = 0xc4a060;
-  if ([STONE_PICK, STONE_AXE, STONE_SHOVEL].includes(id)) head = 0x8e8e96;
-  if ([IRON_PICK, IRON_AXE, IRON_SHOVEL].includes(id)) head = 0xc8ccd4;
-
-  if ([WOOD_PICK, STONE_PICK, IRON_PICK].includes(id)) {
-    g.add(box(0.035, 0.42, 0.035, wood, 0, 0.05, 0));
-    g.add(box(0.22, 0.06, 0.05, head, 0, 0.24, 0));
-    g.rotation.z = 0.5;
-    g.rotation.x = 0.4;
-    g.position.set(0.04, 0.02, -0.08);
-  } else if ([WOOD_AXE, STONE_AXE, IRON_AXE].includes(id)) {
-    g.add(box(0.028, 0.58, 0.028, wood, 0, 0.22, 0));
-    g.add(box(0.08, 0.12, 0.08, head, 0, 0.48, 0));
-    g.add(box(0.24, 0.16, 0.05, head, 0.12, 0.5, 0.02));
-    g.rotation.set(0.05, 0.45, 0.08);
-    g.position.set(0.04, 0.02, 0);
-    g.scale.setScalar(1.2);
-  } else if ([WOOD_SHOVEL, STONE_SHOVEL, IRON_SHOVEL].includes(id)) {
-    g.add(box(0.03, 0.4, 0.03, wood, 0, 0.04, 0));
-    g.add(box(0.08, 0.1, 0.03, head, 0, 0.24, 0));
-    g.rotation.z = 0.4;
-    g.rotation.x = 0.3;
-    g.position.set(0.03, 0.02, -0.06);
-  } else if ([WOOD_SWORD, STONE_SWORD, IRON_SWORD].includes(id)) {
-    if ([STONE_SWORD].includes(id)) head = 0x8e8e96;
-    if ([IRON_SWORD].includes(id)) head = 0xc8ccd4;
-    g.add(box(0.03, 0.22, 0.03, wood, 0, -0.04, 0));
-    g.add(box(0.08, 0.04, 0.03, 0xc4a060, 0, 0.08, 0));
-    g.add(box(0.05, 0.32, 0.02, head, 0, 0.26, 0));
-    g.rotation.z = 0.45;
-    g.rotation.x = 0.25;
-    g.position.set(0.03, 0.02, -0.06);
-  } else if (id === LASSO) {
-    g.add(box(0.16, 0.03, 0.16, 0xc4a060, 0, 0.12, 0));
-    g.add(box(0.12, 0.03, 0.12, 0x8a5a28, 0, 0.12, 0));
-    g.add(box(0.03, 0.22, 0.03, 0xc4a060, 0.08, 0, 0));
-    g.rotation.z = 0.35;
-    g.rotation.x = 0.2;
-    g.position.set(0.03, 0.02, -0.05);
-  } else if (id === REVOLVER) {
-    g.add(box(0.04, 0.12, 0.05, 0x6a4a28, 0, -0.04, 0.02));
-    g.add(box(0.05, 0.06, 0.16, 0x3a3a42, 0, 0.04, -0.04));
-    g.add(box(0.03, 0.03, 0.14, 0x8a8a96, 0, 0.055, -0.06));
-    g.add(box(0.07, 0.07, 0.04, 0x2a2a30, 0, 0.01, 0.04));
-    g.rotation.x = 0.15;
-    g.rotation.y = 0.15;
-    g.position.set(0.02, 0.02, -0.08);
-  } else if (id === BOW) {
-    g.add(box(0.03, 0.36, 0.03, 0x8a5a28, 0, 0.04, 0));
-    g.add(box(0.02, 0.02, 0.14, 0xe8e0d0, 0, 0.2, -0.06));
-    g.add(box(0.02, 0.02, 0.14, 0xe8e0d0, 0, -0.12, -0.06));
-    g.add(box(0.015, 0.32, 0.015, 0xe8e0d0, 0, 0.04, -0.12));
-    g.rotation.z = 0.15;
-    g.rotation.x = 0.1;
-    g.position.set(0.02, 0.02, -0.06);
-  } else if (id === STICK) {
-    g.add(box(0.03, 0.28, 0.03, wood, 0, 0, 0));
-    g.position.set(0.02, -0.02, -0.05);
-  } else if (id === TORCH) {
-    g.add(box(0.03, 0.22, 0.03, wood, 0, 0, 0));
-    g.add(box(0.04, 0.04, 0.04, 0xffaa33, 0, 0.12, 0));
-    g.position.set(0.02, 0, -0.05);
-  } else if (isFlower(id)) {
-    const petal = id === FLOWER_RED ? 0xd22d37 : id === FLOWER_YELLOW ? 0xe6be28 : 0xf0f0f4;
-    g.add(box(0.02, 0.18, 0.02, 0x2e8a38, 0, 0.02, 0));
-    g.add(box(0.08, 0.06, 0.08, petal, 0, 0.14, 0));
-    g.position.set(0.02, -0.02, -0.05);
-  } else if (id === RAW_MEAT) {
-    g.add(box(0.12, 0.07, 0.08, 0xc45a5a, 0, 0, -0.03));
-    g.position.set(0.03, -0.02, -0.05);
-  } else if (id === COOKED_MEAT) {
-    g.add(box(0.12, 0.07, 0.08, 0x7a3e22, 0, 0, -0.03));
-    g.position.set(0.03, -0.02, -0.05);
-  } else if (id === FRUIT) {
-    g.add(box(0.08, 0.08, 0.08, 0xc83228, 0, 0.02, -0.03));
-    g.add(box(0.03, 0.05, 0.03, 0x3a8a32, 0, 0.08, -0.03));
-    g.position.set(0.03, -0.02, -0.05);
-  } else if (id === COOKED_FRUIT) {
-    g.add(box(0.08, 0.08, 0.08, 0xc47828, 0, 0.02, -0.03));
-    g.add(box(0.05, 0.05, 0.05, 0x8a4a14, 0, 0.02, -0.03));
-    g.add(box(0.03, 0.05, 0.03, 0x3a8a32, 0, 0.08, -0.03));
-    g.position.set(0.03, -0.02, -0.05);
-  } else if (id === HIDE_COW) {
-    g.add(box(0.16, 0.02, 0.12, 0x7a4e2e, 0, 0, -0.03));
-    g.position.set(0.03, -0.02, -0.05);
-  } else if (id === HIDE_ZEBRA) {
-    g.add(box(0.16, 0.02, 0.12, 0xf0ece4, 0, 0, -0.03));
-    g.add(box(0.04, 0.025, 0.12, 0x1a1816, -0.04, 0, -0.03));
-    g.position.set(0.03, -0.02, -0.05);
-  } else if (id === HIDE_SHEEP) {
-    g.add(box(0.16, 0.03, 0.12, 0xe8e4d8, 0, 0, -0.03));
-    g.position.set(0.03, -0.02, -0.05);
-  } else if (id === DOOR || id === DOOR_DOUBLE) {
-    g.add(box(0.12, 0.28, 0.04, 0xa87838, 0, 0.02, -0.03));
-    if (id === DOOR_DOUBLE) g.add(box(0.12, 0.28, 0.04, 0xa87838, 0.1, 0.02, -0.03));
-    g.position.set(0.03, -0.02, -0.05);
-  } else if (isBlock(id)) {
-    g.add(box(0.16, 0.16, 0.16, 0x8fbf6a, 0, 0, -0.04));
-    g.position.set(0.03, -0.02, -0.06);
-  } else {
-    g.add(box(0.1, 0.1, 0.04, 0xdddddd, 0, 0, -0.03));
+  const mesh = itemMesh(id);
+  if (isBlockMesh(id)) {
+    mesh.position.set(0.03, -0.02, -0.06);
+    mesh.rotation.set(0.2, 0.7, 0);
+    return mesh;
   }
-  g.layers.set(1);
-  return g;
+  const old = legacyHold(id);
+  if (old) {
+    mesh.rotation.set(old.rot[0], old.rot[1], old.rot[2]);
+    mesh.position.set(old.pos[0], old.pos[1], old.pos[2]);
+    mesh.scale.setScalar(old.scale);
+    return mesh;
+  }
+  applyHold(mesh, id);
+  return mesh;
 }
+
+function applyHold(mesh, id) {
+  // Tools are aimed the way they are actually used: pick and axe head swung
+  // forward at the block ahead, shovel blade turned down at the ground.
+  if ([WOOD_PICK, STONE_PICK, IRON_PICK].includes(id)) {
+    mesh.rotation.set(0.3, -1.2, 0.5);
+    mesh.position.set(0.06, -0.02, -0.06);
+  } else if ([WOOD_AXE, STONE_AXE, IRON_AXE].includes(id)) {
+    mesh.rotation.set(0.28, 0.85, 0.5);
+    mesh.position.set(0.1, -0.05, -0.12);
+    mesh.scale.setScalar(0.75);
+  } else if ([WOOD_SHOVEL, STONE_SHOVEL, IRON_SHOVEL].includes(id)) {
+    mesh.rotation.set(-2.0, 0, 0.35);
+    mesh.position.set(0.12, -0.04, 0.0);
+  } else if ([WOOD_SWORD, STONE_SWORD, IRON_SWORD].includes(id)) {
+    mesh.rotation.set(0.25, 0, 0.45);
+    mesh.position.set(0.03, 0.02, -0.06);
+  } else if (id === LASSO) {
+    mesh.rotation.set(0.2, 0, 0.35);
+    mesh.position.set(0.03, 0.02, -0.05);
+  } else if (id === REVOLVER) {
+    mesh.rotation.set(0.15, 0.15, 0);
+    mesh.position.set(0.02, 0.02, -0.08);
+  } else if (id === BOW) {
+    mesh.rotation.set(0.1, 0, 0.15);
+    mesh.position.set(0.02, 0.02, -0.06);
+  } else if (id === STICK || id === TORCH || isFlower(id)) {
+    mesh.position.set(0.02, -0.02, -0.05);
+  } else {
+    mesh.position.set(0.03, -0.02, -0.05);
+  }
+}
+

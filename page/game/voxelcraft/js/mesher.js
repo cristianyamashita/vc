@@ -4,6 +4,7 @@ import { CHUNK, HEIGHT, VIEW_RADIUS, UNLOAD_RADIUS, TORCH_FLOOR, TORCH_PX, TORCH
 import { tileUV } from './textures.js';
 import { isDoorId, isDoorBottom, isDoorOpenId, doorKey, doorSlab } from './doors.js';
 import { stairBoxes, wallBox, FACE_PZ, FACE_PX, FACE_NZ, FACE_NX } from './stairs.js';
+import { isOriginal } from './quality.js';
 
 const FACES = [
   { dir: [1, 0, 0], corners: [[1, 0, 0], [1, 1, 0], [1, 1, 1], [1, 0, 1]], shade: 0.6, key: 'px' },
@@ -63,16 +64,13 @@ function mapTorchPoint(x, y, z, lx, ly, lz, facing) {
   return [x + 0.5 + px, y + py, z + 0.5 + pz];
 }
 
-function pushTorch(buf, x, y, z, facing = TORCH_FLOOR) {
-  const uv = tileUV('torch');
-  const w = 0.1;
-  const h = 0.72;
+function pushTorchPart(buf, x, y, z, facing, uv, w, y0, y1) {
   const faces = [
-    { corners: [[-w, 0, -w], [-w, h, -w], [w, h, -w], [w, 0, -w]], n: [0, 0, -1] },
-    { corners: [[w, 0, w], [w, h, w], [-w, h, w], [-w, 0, w]], n: [0, 0, 1] },
-    { corners: [[-w, 0, w], [-w, h, w], [-w, h, -w], [-w, 0, -w]], n: [-1, 0, 0] },
-    { corners: [[w, 0, -w], [w, h, -w], [w, h, w], [w, 0, w]], n: [1, 0, 0] },
-    { corners: [[-w, h, -w], [-w, h, w], [w, h, w], [w, h, -w]], n: [0, 1, 0] },
+    { corners: [[-w, y0, -w], [-w, y1, -w], [w, y1, -w], [w, y0, -w]], n: [0, 0, -1] },
+    { corners: [[w, y0, w], [w, y1, w], [-w, y1, w], [-w, y0, w]], n: [0, 0, 1] },
+    { corners: [[-w, y0, w], [-w, y1, w], [-w, y1, -w], [-w, y0, -w]], n: [-1, 0, 0] },
+    { corners: [[w, y0, -w], [w, y1, -w], [w, y1, w], [w, y0, w]], n: [1, 0, 0] },
+    { corners: [[-w, y1, -w], [-w, y1, w], [w, y1, w], [w, y1, -w]], n: [0, 1, 0] },
   ];
   for (const f of faces) {
     const base = buf.positions.length / 3;
@@ -85,6 +83,21 @@ function pushTorch(buf, x, y, z, facing = TORCH_FLOOR) {
     buf.uvs.push(uv.u0, uv.v0, uv.u0, uv.v1, uv.u1, uv.v1, uv.u1, uv.v0);
     buf.indices.push(base, base + 2, base + 1, base, base + 3, base + 2);
   }
+}
+
+// A solid wooden post with a flame head, matching what the torch looks like in
+// hand. It used to be one box wearing the see-through icon texture, which left
+// the stick looking hollow once placed.
+function pushTorch(buf, x, y, z, facing = TORCH_FLOOR) {
+  if (isOriginal()) {
+    // One box wearing the see-through icon tile, as the game used to draw it.
+    pushTorchPart(buf, x, y, z, facing, tileUV('torch'), 0.1, 0, 0.72);
+    return;
+  }
+  const flame = tileUV('torch_flame');
+  pushTorchPart(buf, x, y, z, facing, tileUV('torch_wood'), 0.07, 0, 0.52);
+  pushTorchPart(buf, x, y, z, facing, flame, 0.095, 0.48, 0.65);
+  pushTorchPart(buf, x, y, z, facing, flame, 0.05, 0.63, 0.73);
 }
 
 function pushPlant(buf, x, y, z, tile) {

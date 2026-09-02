@@ -21,6 +21,10 @@ import {
 } from './js/save.js';
 import { Life, KINDS } from './js/entities.js';
 import { ItemDrops } from './js/drops.js';
+import { initQuality, getQuality, setQuality } from './js/quality.js';
+import { initItemModels } from './js/itemmodels.js';
+import { renderItemIcons } from './js/itemicons.js';
+import { clearVoxCache } from './js/voxmodel.js';
 import {
   emptyFurnace, furnaceKey, tickFurnace, dropFurnaceStacks,
   serializeFurnaces, loadFurnaces, COOK_SEC,
@@ -119,10 +123,13 @@ const crosshairEl = document.getElementById('crosshair');
 
 initLang();
 initTheme();
+initQuality();
 syncThemeBtn();
 
 const atlasData = createAtlas();
 atlas = atlasData;
+initItemModels(atlas);
+renderItemIcons(atlas);
 
 renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
@@ -164,11 +171,12 @@ highlight = new THREE.LineSegments(
 highlight.visible = false;
 scene.add(highlight);
 
-arms = new Arms(camera);
+arms = new Arms(camera, atlas);
 buildHearts();
 buildFoods();
 buildHotbarHud();
 buildInvDom();
+syncGfxUi();
 
 window.addEventListener('resize', resize);
 resize();
@@ -217,6 +225,12 @@ document.querySelectorAll('[data-tod]').forEach((btn) => {
     const key = btn.getAttribute('data-tod');
     if (TIME_PRESETS[key] == null) return;
     setWorldTime(TIME_PRESETS[key], true);
+  });
+});
+document.querySelectorAll('[data-gfx]').forEach((btn) => {
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    applyQuality(btn.getAttribute('data-gfx'));
   });
 });
 
@@ -456,7 +470,38 @@ function syncThemeBtn() {
 }
 
 function persistUi() {
-  saveSettings({ lang: document.documentElement.lang, theme: getTheme() }).catch(() => {});
+  saveSettings({ lang: document.documentElement.lang, theme: getTheme(), quality: getQuality() })
+    .catch(() => {});
+}
+
+function syncGfxUi() {
+  const level = getQuality();
+  document.querySelectorAll('[data-gfx]').forEach((btn) => {
+    btn.classList.toggle('active', btn.getAttribute('data-gfx') === level);
+  });
+}
+
+// Models are baked per quality level, so switching means dropping the cached
+// geometry and re-mounting everything currently on screen.
+function applyQuality(next) {
+  if (next === getQuality()) return;
+  setQuality(next);
+  clearVoxCache();
+  renderItemIcons(atlas);
+  life?.rebuildModels();
+  arms?.rebuild();
+  drops?.rebuildMeshes();
+  if (world && bundle) {
+    // Torches are built differently per setting, so the chunks must remesh.
+    for (const key of bundle.meshes.keys()) world.dirty.add(key);
+    remeshDirty(world, bundle);
+  }
+  refreshHud();
+  refreshInv();
+  renderRecipeBook();
+  fillCrateLootModal();
+  syncGfxUi();
+  persistUi();
 }
 
 let menuPaused = false;
@@ -467,6 +512,7 @@ function showMenu(paused) {
   menuEl.hidden = false;
   playBtn.textContent = paused ? t('resume') : t('clickToPlay');
   syncTimeUi();
+  syncGfxUi();
   refreshWorldList();
 }
 
@@ -2289,3 +2335,10 @@ try {
   coordsEl.textContent = String(err && err.message ? err.message : err);
   showMenu(false);
 }
+
+
+
+
+
+
+
