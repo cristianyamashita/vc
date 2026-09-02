@@ -498,7 +498,7 @@ window.OSCatalog = (function () {
     "icon": "../assets/icons/svg/utils-text_diff_studio.svg",
     "kind": "site",
     "uninstallable": true,
-    "defaultInstalled": false,
+    "defaultInstalled": true,
     "channel": "stable",
     "tag": {
       "en": "Developer",
@@ -522,7 +522,7 @@ window.OSCatalog = (function () {
     "icon": "../assets/icons/svg/utils-regex_playground.svg",
     "kind": "site",
     "uninstallable": true,
-    "defaultInstalled": false,
+    "defaultInstalled": true,
     "channel": "stable",
     "tag": {
       "en": "Developer",
@@ -546,7 +546,7 @@ window.OSCatalog = (function () {
     "icon": "../assets/icons/svg/utils-pdf_toolbox.svg",
     "kind": "site",
     "uninstallable": true,
-    "defaultInstalled": false,
+    "defaultInstalled": true,
     "channel": "stable",
     "tag": {
       "en": "PDF",
@@ -570,7 +570,7 @@ window.OSCatalog = (function () {
     "icon": "../assets/icons/svg/utils-css_visual_lab.svg",
     "kind": "site",
     "uninstallable": true,
-    "defaultInstalled": false,
+    "defaultInstalled": true,
     "channel": "stable",
     "tag": {
       "en": "Design",
@@ -618,7 +618,7 @@ window.OSCatalog = (function () {
     "icon": "../assets/icons/svg/utils-whiteboard.svg",
     "kind": "site",
     "uninstallable": true,
-    "defaultInstalled": false,
+    "defaultInstalled": true,
     "channel": "stable",
     "tag": {
       "en": "Canvas",
@@ -642,7 +642,7 @@ window.OSCatalog = (function () {
     "icon": "../assets/icons/svg/utils-ps2.svg",
     "kind": "site",
     "uninstallable": true,
-    "defaultInstalled": false,
+    "defaultInstalled": true,
     "channel": "stable",
     "tag": {
       "en": "Editor",
@@ -666,7 +666,7 @@ window.OSCatalog = (function () {
     "icon": "../assets/icons/svg/utils-vector_editor.svg",
     "kind": "site",
     "uninstallable": true,
-    "defaultInstalled": false,
+    "defaultInstalled": true,
     "channel": "stable",
     "tag": {
       "en": "Vector",
@@ -738,7 +738,7 @@ window.OSCatalog = (function () {
     "icon": "../assets/icons/svg/utils-dev_utils.svg",
     "kind": "site",
     "uninstallable": true,
-    "defaultInstalled": false,
+    "defaultInstalled": true,
     "channel": "stable",
     "tag": {
       "en": "Converters",
@@ -786,7 +786,7 @@ window.OSCatalog = (function () {
     "icon": "../assets/icons/svg/utils-color_picker.svg",
     "kind": "site",
     "uninstallable": true,
-    "defaultInstalled": false,
+    "defaultInstalled": true,
     "channel": "stable",
     "tag": {
       "en": "Color",
@@ -810,7 +810,7 @@ window.OSCatalog = (function () {
     "icon": "../assets/icons/svg/utils-local_image_gallery.svg",
     "kind": "site",
     "uninstallable": true,
-    "defaultInstalled": false,
+    "defaultInstalled": true,
     "channel": "stable",
     "tag": {
       "en": "Photos",
@@ -834,7 +834,7 @@ window.OSCatalog = (function () {
     "icon": "../assets/icons/svg/utils-image_to_webp.svg",
     "kind": "site",
     "uninstallable": true,
-    "defaultInstalled": false,
+    "defaultInstalled": true,
     "channel": "stable",
     "tag": {
       "en": "Images",
@@ -858,7 +858,7 @@ window.OSCatalog = (function () {
     "icon": "../assets/icons/svg/utils-images_to_pdf.svg",
     "kind": "site",
     "uninstallable": true,
-    "defaultInstalled": false,
+    "defaultInstalled": true,
     "channel": "stable",
     "tag": {
       "en": "Images",
@@ -906,7 +906,7 @@ window.OSCatalog = (function () {
     "icon": "../assets/icons/svg/utils-morse_code.svg",
     "kind": "site",
     "uninstallable": true,
-    "defaultInstalled": false,
+    "defaultInstalled": true,
     "channel": "stable",
     "tag": {
       "en": "Utility",
@@ -954,7 +954,7 @@ window.OSCatalog = (function () {
     "icon": "../assets/icons/svg/utils-gallery.svg",
     "kind": "site",
     "uninstallable": true,
-    "defaultInstalled": false,
+    "defaultInstalled": true,
     "channel": "stable",
     "tag": {
       "en": "Photos",
@@ -1026,7 +1026,7 @@ window.OSCatalog = (function () {
     "icon": "../assets/icons/svg/utils-kanban.svg",
     "kind": "site",
     "uninstallable": true,
-    "defaultInstalled": false,
+    "defaultInstalled": true,
     "channel": "stable",
     "tag": {
       "en": "Productivity",
@@ -1098,7 +1098,7 @@ window.OSCatalog = (function () {
     "icon": "../assets/icons/svg/utils-timer.svg",
     "kind": "site",
     "uninstallable": true,
-    "defaultInstalled": false,
+    "defaultInstalled": true,
     "channel": "stable",
     "tag": {
       "en": "Utility",
@@ -1122,7 +1122,7 @@ window.OSCatalog = (function () {
     "icon": "../assets/icons/svg/utils-todo.svg",
     "kind": "site",
     "uninstallable": true,
-    "defaultInstalled": false,
+    "defaultInstalled": true,
     "channel": "stable",
     "tag": {
       "en": "Productivity",
@@ -1194,7 +1194,7 @@ window.OSCatalog = (function () {
     "icon": "../assets/icons/svg/utils-markdown.svg",
     "kind": "site",
     "uninstallable": true,
-    "defaultInstalled": false,
+    "defaultInstalled": true,
     "channel": "stable",
     "tag": {
       "en": "Editor",
@@ -1219,7 +1219,7 @@ window.OSCatalog = (function () {
     "icon": "../assets/icons/svg/utils-obsidian.svg",
     "kind": "site",
     "uninstallable": true,
-    "defaultInstalled": false,
+    "defaultInstalled": true,
     "channel": "stable",
     "tag": {
       "en": "Editor",
@@ -1267,7 +1267,7 @@ window.OSCatalog = (function () {
     "icon": "../assets/icons/svg/utils-audio_player.svg",
     "kind": "site",
     "uninstallable": true,
-    "defaultInstalled": false,
+    "defaultInstalled": true,
     "channel": "stable",
     "tag": {
       "en": "Media",
@@ -1291,7 +1291,7 @@ window.OSCatalog = (function () {
     "icon": "../assets/icons/svg/utils-copy_tool.svg",
     "kind": "site",
     "uninstallable": true,
-    "defaultInstalled": false,
+    "defaultInstalled": true,
     "channel": "stable",
     "tag": {
       "en": "Productivity",
@@ -1315,7 +1315,7 @@ window.OSCatalog = (function () {
     "icon": "../assets/icons/svg/utils-fullscreen_message.svg",
     "kind": "site",
     "uninstallable": true,
-    "defaultInstalled": false,
+    "defaultInstalled": true,
     "channel": "stable",
     "tag": {
       "en": "Display",
@@ -1339,7 +1339,7 @@ window.OSCatalog = (function () {
     "icon": "../assets/icons/svg/utils-password_generator.svg",
     "kind": "site",
     "uninstallable": true,
-    "defaultInstalled": false,
+    "defaultInstalled": true,
     "channel": "stable",
     "tag": {
       "en": "Security",
@@ -1411,7 +1411,7 @@ window.OSCatalog = (function () {
     "icon": "../assets/icons/svg/utils-bitwise_converter.svg",
     "kind": "site",
     "uninstallable": true,
-    "defaultInstalled": false,
+    "defaultInstalled": true,
     "channel": "stable",
     "tag": {
       "en": "Utility",
@@ -1435,7 +1435,7 @@ window.OSCatalog = (function () {
     "icon": "../assets/icons/svg/utils-prompt_concat.svg",
     "kind": "site",
     "uninstallable": true,
-    "defaultInstalled": false,
+    "defaultInstalled": true,
     "channel": "stable",
     "tag": {
       "en": "Productivity",
@@ -1459,7 +1459,7 @@ window.OSCatalog = (function () {
     "icon": "../assets/icons/svg/utils-wheel_picker.svg",
     "kind": "site",
     "uninstallable": true,
-    "defaultInstalled": false,
+    "defaultInstalled": true,
     "channel": "stable",
     "tag": {
       "en": "Utility",
@@ -1555,7 +1555,7 @@ window.OSCatalog = (function () {
     "icon": "../assets/icons/svg/utils-backup.svg",
     "kind": "site",
     "uninstallable": true,
-    "defaultInstalled": false,
+    "defaultInstalled": true,
     "channel": "stable",
     "tag": {
       "en": "Storage",
@@ -1579,7 +1579,7 @@ window.OSCatalog = (function () {
     "icon": "../assets/icons/svg/game-voxelcraft.svg",
     "kind": "site",
     "uninstallable": true,
-    "defaultInstalled": false,
+    "defaultInstalled": true,
     "channel": "stable",
     "tag": {
       "en": "Voxel Sandbox",
@@ -1603,7 +1603,7 @@ window.OSCatalog = (function () {
     "icon": "../assets/icons/svg/game-forex_sim.svg",
     "kind": "site",
     "uninstallable": true,
-    "defaultInstalled": false,
+    "defaultInstalled": true,
     "channel": "stable",
     "tag": {
       "en": "Trading Sim",
@@ -1699,7 +1699,7 @@ window.OSCatalog = (function () {
     "icon": "../assets/icons/svg/game-service-tycoon.svg",
     "kind": "site",
     "uninstallable": true,
-    "defaultInstalled": false,
+    "defaultInstalled": true,
     "channel": "stable",
     "tag": {
       "en": "Management Sim",
@@ -1723,7 +1723,7 @@ window.OSCatalog = (function () {
     "icon": "../assets/icons/svg/game-river-raid.svg",
     "kind": "site",
     "uninstallable": true,
-    "defaultInstalled": false,
+    "defaultInstalled": true,
     "channel": "stable",
     "tag": {
       "en": "Arcade",
@@ -1747,7 +1747,7 @@ window.OSCatalog = (function () {
     "icon": "../assets/icons/svg/game-tetris1.svg",
     "kind": "site",
     "uninstallable": true,
-    "defaultInstalled": false,
+    "defaultInstalled": true,
     "channel": "stable",
     "tag": {
       "en": "Classic",
@@ -1771,7 +1771,7 @@ window.OSCatalog = (function () {
     "icon": "../assets/icons/svg/game-vision_tetris.svg",
     "kind": "site",
     "uninstallable": true,
-    "defaultInstalled": false,
+    "defaultInstalled": true,
     "channel": "stable",
     "tag": {
       "en": "Camera Game",
@@ -1795,7 +1795,7 @@ window.OSCatalog = (function () {
     "icon": "../assets/icons/svg/game-vision_balloon_ball.svg",
     "kind": "site",
     "uninstallable": true,
-    "defaultInstalled": false,
+    "defaultInstalled": true,
     "channel": "stable",
     "tag": {
       "en": "Camera Physics",
@@ -1819,7 +1819,7 @@ window.OSCatalog = (function () {
     "icon": "../assets/icons/svg/game-vision_hand_pong.svg",
     "kind": "site",
     "uninstallable": true,
-    "defaultInstalled": false,
+    "defaultInstalled": true,
     "channel": "stable",
     "tag": {
       "en": "Camera Arcade",
@@ -1843,7 +1843,7 @@ window.OSCatalog = (function () {
     "icon": "../assets/icons/svg/game-tower-defense.svg",
     "kind": "site",
     "uninstallable": true,
-    "defaultInstalled": false,
+    "defaultInstalled": true,
     "channel": "stable",
     "tag": {
       "en": "Tower Defense",
@@ -1867,7 +1867,7 @@ window.OSCatalog = (function () {
     "icon": "../assets/icons/svg/game-tower-defense-3d.svg",
     "kind": "site",
     "uninstallable": true,
-    "defaultInstalled": false,
+    "defaultInstalled": true,
     "channel": "stable",
     "tag": {
       "en": "Tower Defense",
@@ -1891,7 +1891,7 @@ window.OSCatalog = (function () {
     "icon": "../assets/icons/svg/game-game1.svg",
     "kind": "site",
     "uninstallable": true,
-    "defaultInstalled": false,
+    "defaultInstalled": true,
     "channel": "stable",
     "tag": {
       "en": "Arena",
@@ -1915,7 +1915,7 @@ window.OSCatalog = (function () {
     "icon": "../assets/icons/svg/game-cube-bash-arena.svg",
     "kind": "site",
     "uninstallable": true,
-    "defaultInstalled": false,
+    "defaultInstalled": true,
     "channel": "stable",
     "tag": {
       "en": "WebGL Arena",
@@ -1939,7 +1939,7 @@ window.OSCatalog = (function () {
     "icon": "../assets/icons/svg/game-vehicle-bash-arena.svg",
     "kind": "site",
     "uninstallable": true,
-    "defaultInstalled": false,
+    "defaultInstalled": true,
     "channel": "stable",
     "tag": {
       "en": "WebGL Vehicle",
@@ -1987,7 +1987,7 @@ window.OSCatalog = (function () {
     "icon": "../assets/icons/svg/game-2048-shooter.svg",
     "kind": "site",
     "uninstallable": true,
-    "defaultInstalled": false,
+    "defaultInstalled": true,
     "channel": "stable",
     "tag": {
       "en": "Number Shooter",
@@ -2059,7 +2059,7 @@ window.OSCatalog = (function () {
     "icon": "../assets/icons/svg/game-ten-second-stop.svg",
     "kind": "site",
     "uninstallable": true,
-    "defaultInstalled": false,
+    "defaultInstalled": true,
     "channel": "stable",
     "tag": {
       "en": "Timing",
@@ -2083,7 +2083,7 @@ window.OSCatalog = (function () {
     "icon": "../assets/icons/svg/game-cube.svg",
     "kind": "site",
     "uninstallable": true,
-    "defaultInstalled": false,
+    "defaultInstalled": true,
     "channel": "stable",
     "tag": {
       "en": "WebGL",
@@ -2107,7 +2107,7 @@ window.OSCatalog = (function () {
     "icon": "../assets/icons/svg/game-checkers.svg",
     "kind": "site",
     "uninstallable": true,
-    "defaultInstalled": false,
+    "defaultInstalled": true,
     "channel": "stable",
     "tag": {
       "en": "Board",
@@ -2131,7 +2131,7 @@ window.OSCatalog = (function () {
     "icon": "../assets/icons/svg/game-chess.svg",
     "kind": "site",
     "uninstallable": true,
-    "defaultInstalled": false,
+    "defaultInstalled": true,
     "channel": "stable",
     "tag": {
       "en": "Board",
@@ -2179,7 +2179,7 @@ window.OSCatalog = (function () {
     "icon": "../assets/icons/svg/game-game5.svg",
     "kind": "site",
     "uninstallable": true,
-    "defaultInstalled": false,
+    "defaultInstalled": true,
     "channel": "stable",
     "tag": {
       "en": "Arcade",
@@ -2203,7 +2203,7 @@ window.OSCatalog = (function () {
     "icon": "../assets/icons/svg/game-snake.svg",
     "kind": "site",
     "uninstallable": true,
-    "defaultInstalled": false,
+    "defaultInstalled": true,
     "channel": "stable",
     "tag": {
       "en": "Classic+",
@@ -2347,7 +2347,7 @@ window.OSCatalog = (function () {
     "icon": "../assets/icons/svg/game-flip.svg",
     "kind": "site",
     "uninstallable": true,
-    "defaultInstalled": false,
+    "defaultInstalled": true,
     "channel": "stable",
     "tag": {
       "en": "Memory",
@@ -2371,7 +2371,7 @@ window.OSCatalog = (function () {
     "icon": "../assets/icons/svg/game-morris.svg",
     "kind": "site",
     "uninstallable": true,
-    "defaultInstalled": false,
+    "defaultInstalled": true,
     "channel": "stable",
     "tag": {
       "en": "Strategy",
@@ -2395,7 +2395,7 @@ window.OSCatalog = (function () {
     "icon": "../assets/icons/svg/game-pac-man.svg",
     "kind": "site",
     "uninstallable": true,
-    "defaultInstalled": false,
+    "defaultInstalled": true,
     "channel": "stable",
     "tag": {
       "en": "Arcade",
@@ -2419,7 +2419,7 @@ window.OSCatalog = (function () {
     "icon": "../assets/icons/svg/game-space-invaders.svg",
     "kind": "site",
     "uninstallable": true,
-    "defaultInstalled": false,
+    "defaultInstalled": true,
     "channel": "stable",
     "tag": {
       "en": "Arcade",
@@ -2491,7 +2491,7 @@ window.OSCatalog = (function () {
     "icon": "../assets/icons/svg/game-crossword.svg",
     "kind": "site",
     "uninstallable": true,
-    "defaultInstalled": false,
+    "defaultInstalled": true,
     "channel": "stable",
     "tag": {
       "en": "Word",
@@ -2515,7 +2515,7 @@ window.OSCatalog = (function () {
     "icon": "../assets/icons/svg/game-word-search.svg",
     "kind": "site",
     "uninstallable": true,
-    "defaultInstalled": false,
+    "defaultInstalled": true,
     "channel": "stable",
     "tag": {
       "en": "Word",
@@ -2539,7 +2539,7 @@ window.OSCatalog = (function () {
     "icon": "../assets/icons/svg/game-tic-tac-toe.svg",
     "kind": "site",
     "uninstallable": true,
-    "defaultInstalled": false,
+    "defaultInstalled": true,
     "channel": "stable",
     "tag": {
       "en": "Board",
@@ -2563,7 +2563,7 @@ window.OSCatalog = (function () {
     "icon": "../assets/icons/svg/game-missile-command.svg",
     "kind": "site",
     "uninstallable": true,
-    "defaultInstalled": false,
+    "defaultInstalled": true,
     "channel": "stable",
     "tag": {
       "en": "Arcade",
@@ -2635,7 +2635,7 @@ window.OSCatalog = (function () {
     "icon": "../assets/icons/svg/misc-fluid_lab.svg",
     "kind": "site",
     "uninstallable": true,
-    "defaultInstalled": false,
+    "defaultInstalled": true,
     "channel": "stable",
     "tag": {
       "en": "Simulation",
@@ -2659,7 +2659,7 @@ window.OSCatalog = (function () {
     "icon": "../assets/icons/svg/misc-webcam_music_controller.svg",
     "kind": "site",
     "uninstallable": true,
-    "defaultInstalled": false,
+    "defaultInstalled": true,
     "channel": "stable",
     "tag": {
       "en": "Webcam Audio",
@@ -2683,7 +2683,7 @@ window.OSCatalog = (function () {
     "icon": "../assets/icons/svg/misc-spin2.svg",
     "kind": "site",
     "uninstallable": true,
-    "defaultInstalled": false,
+    "defaultInstalled": true,
     "channel": "stable",
     "tag": {
       "en": "Sandbox",
@@ -2707,7 +2707,7 @@ window.OSCatalog = (function () {
     "icon": "../assets/icons/svg/misc-spin3.svg",
     "kind": "site",
     "uninstallable": true,
-    "defaultInstalled": false,
+    "defaultInstalled": true,
     "channel": "stable",
     "tag": {
       "en": "Sandbox",
@@ -2731,7 +2731,7 @@ window.OSCatalog = (function () {
     "icon": "../assets/icons/svg/misc-robot_face.svg",
     "kind": "site",
     "uninstallable": true,
-    "defaultInstalled": false,
+    "defaultInstalled": true,
     "channel": "stable",
     "tag": {
       "en": "Screen Saver",
@@ -2755,7 +2755,7 @@ window.OSCatalog = (function () {
     "icon": "../assets/icons/svg/misc-nebula.svg",
     "kind": "site",
     "uninstallable": true,
-    "defaultInstalled": false,
+    "defaultInstalled": true,
     "channel": "stable",
     "tag": {
       "en": "Physics",
@@ -2779,7 +2779,7 @@ window.OSCatalog = (function () {
     "icon": "../assets/icons/svg/misc-nebula2.svg",
     "kind": "site",
     "uninstallable": true,
-    "defaultInstalled": false,
+    "defaultInstalled": true,
     "channel": "stable",
     "tag": {
       "en": "Physics",
@@ -2803,7 +2803,7 @@ window.OSCatalog = (function () {
     "icon": "../assets/icons/svg/misc-vision_motion_lab.svg",
     "kind": "site",
     "uninstallable": true,
-    "defaultInstalled": false,
+    "defaultInstalled": true,
     "channel": "stable",
     "tag": {
       "en": "Vision",
@@ -2851,7 +2851,7 @@ window.OSCatalog = (function () {
     "icon": "../assets/icons/svg/misc-plasma_ball_lab.svg",
     "kind": "site",
     "uninstallable": true,
-    "defaultInstalled": false,
+    "defaultInstalled": true,
     "channel": "stable",
     "tag": {
       "en": "Vision",
@@ -2875,7 +2875,7 @@ window.OSCatalog = (function () {
     "icon": "../assets/icons/svg/misc-logic_circuit.svg",
     "kind": "site",
     "uninstallable": true,
-    "defaultInstalled": false,
+    "defaultInstalled": true,
     "channel": "stable",
     "tag": {
       "en": "Simulation",
@@ -3115,7 +3115,7 @@ window.OSCatalog = (function () {
     "icon": "../assets/icons/svg/game-roulette.svg",
     "kind": "site",
     "uninstallable": true,
-    "defaultInstalled": false,
+    "defaultInstalled": true,
     "channel": "beta",
     "tag": {
       "en": "Casino",
@@ -3588,8 +3588,7 @@ window.OSCatalog = (function () {
     return "../" + href;
   }
 
-  // First-run "Recommended" extras. Edit this list when reviewing the starter pack.
-  const DEFAULT_INSTALLED = ["utils-terminal", "utils-calculator", "utils-notebook"];
+  const DEFAULT_INSTALLED = ["utils-bitwise_converter", "utils-copy_tool", "utils-dev_utils", "utils-password_generator", "utils-todo", "utils-whiteboard", "utils-prompt_concat", "game-tower-defense", "misc-vision_motion_lab", "game-tower-defense-3d", "game-vehicle-bash-arena", "game-cube-bash-arena", "game-service-tycoon", "utils-terminal", "utils-text_diff_studio", "utils-regex_playground", "utils-pdf_toolbox", "utils-css_visual_lab", "utils-ps2", "utils-vector_editor", "utils-color_picker", "utils-local_image_gallery", "utils-image_to_webp", "utils-images_to_pdf", "utils-morse_code", "utils-gallery", "utils-kanban", "utils-calculator", "utils-timer", "utils-notebook", "utils-markdown", "utils-obsidian", "utils-audio_player", "utils-fullscreen_message", "utils-wheel_picker", "utils-backup", "game-voxelcraft", "game-forex_sim", "game-river-raid", "game-tetris1", "game-vision_tetris", "game-vision_balloon_ball", "game-vision_hand_pong", "game-game1", "game-2048-shooter", "game-ten-second-stop", "game-cube", "game-checkers", "game-chess", "game-game5", "game-snake", "game-flip", "game-morris", "game-pac-man", "game-space-invaders", "game-crossword", "game-word-search", "game-tic-tac-toe", "game-missile-command", "misc-fluid_lab", "misc-webcam_music_controller", "misc-spin2", "misc-spin3", "misc-robot_face", "misc-nebula", "misc-nebula2", "misc-plasma_ball_lab", "misc-logic_circuit", "game-roulette"];
 
   function installPackIds(pack) {
     if (pack === "all") return stableSiteApps().map((app) => app.id);
