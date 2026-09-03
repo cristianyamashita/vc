@@ -2236,6 +2236,10 @@ window.OSSheetsEngine = (function () {
         const sign = value < 0 ? "-" : "";
         return sign + "$" + Math.abs(value).toFixed(dec).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
       }
+      if (fmt === "yen") {
+        const sign = value < 0 ? "-" : "";
+        return sign + "¥" + Math.round(Math.abs(value)).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+      }
       if (fmt === "number") return value.toFixed(dec);
       if (fmt === "date") {
         const p = serialToParts(value);

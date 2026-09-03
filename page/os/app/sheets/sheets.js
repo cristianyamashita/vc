@@ -641,6 +641,7 @@ window.OSSheets = (function () {
       '<div class="sheets-group">' +
       btn("percent", "sheetsPercent") +
       btn("currency", "sheetsCurrency") +
+      btn("yen", "sheetsYen") +
       btn("decMore", "sheetsDecMore") +
       btn("decLess", "sheetsDecLess") +
       '<select class="sheets-format" title="' +
@@ -654,6 +655,9 @@ window.OSSheets = (function () {
       "</option>" +
       '<option value="currency">' +
       escapeHtml(t("sheetsFmtCurrency")) +
+      "</option>" +
+      '<option value="yen">' +
+      escapeHtml(t("sheetsFmtYen")) +
       "</option>" +
       '<option value="percent">' +
       escapeHtml(t("sheetsFmtPercent")) +
@@ -1121,7 +1125,9 @@ window.OSSheets = (function () {
   }
   function onChange(e) {
     if (e.target.classList.contains("sheets-format")) {
-      api.applyStyleRange(sheetId(), sel.r1, sel.c1, sel.r2, sel.c2, { format: e.target.value });
+      const patch = { format: e.target.value };
+      if (e.target.value === "yen") patch.decimals = 0;
+      api.applyStyleRange(sheetId(), sel.r1, sel.c1, sel.r2, sel.c2, patch);
     }
   }
 
@@ -1656,6 +1662,7 @@ window.OSSheets = (function () {
     if (name === "fontColor") return showPalette("color");
     if (name === "percent") return api.applyStyleRange(sid, sel.r1, sel.c1, sel.r2, sel.c2, { format: "percent" });
     if (name === "currency") return api.applyStyleRange(sid, sel.r1, sel.c1, sel.r2, sel.c2, { format: "currency" });
+    if (name === "yen") return api.applyStyleRange(sid, sel.r1, sel.c1, sel.r2, sel.c2, { format: "yen", decimals: 0 });
     if (name === "decMore") {
       const d = (styleOf(sel.r, sel.c).decimals != null ? styleOf(sel.r, sel.c).decimals : 2) + 1;
       return api.applyStyleRange(sid, sel.r1, sel.c1, sel.r2, sel.c2, { decimals: Math.min(8, d), format: styleOf(sel.r, sel.c).format || "number" });

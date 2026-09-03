@@ -33,6 +33,7 @@ window.OSSheetsIcons = (function () {
     fontColor: svg('<path d="M5 11.5 8 3.5l3 8M6.2 8.5h3.6" ' + stroke + '/><path d="M3 13.5h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>'),
     percent: svg('<circle cx="5" cy="5" r="1.4" ' + stroke + '/><circle cx="11" cy="11" r="1.4" ' + stroke + '/><path d="M11.5 4 4.5 12" ' + stroke + '/>'),
     currency: svg('<path d="M8 2.5v11M10.5 4.5C10 3.7 9.1 3.3 8 3.3c-1.8 0-3 1-3 2.3s1.4 2.2 3 2.4c1.7.2 3.2.9 3.2 2.5s-1.4 2.5-3.4 2.5c-1.3 0-2.3-.5-2.9-1.3" ' + stroke + '/>'),
+    yen: svg('<path d="m4 3 4 5 4-5M8 8v5M5.5 10h5M5.5 12h5" ' + stroke + '/>'),
     decMore: svg('<path d="M3 11.5h2.2M6.8 11.5h2.2M10.6 11.5h2.2M8 3.5v6M5.5 7.2 8 9.5l2.5-2.3" ' + stroke + '/>'),
     decLess: svg('<path d="M3 11.5h2.2M6.8 11.5h2.2M8 9.5V3.5M5.5 5.8 8 3.5l2.5 2.3" ' + stroke + '/>'),
     fx: svg('<path d="M4 3.5h5.5M6.2 3.5 4.8 12.5M5 8h4" ' + stroke + '/><path d="M11 6.5v5M9.5 8l3 3M12.5 8l-3 3" ' + stroke + '/>'),
