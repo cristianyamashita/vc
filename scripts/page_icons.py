@@ -176,6 +176,13 @@ ICONS: dict[str, list[Shape]] = {
         r(14.4, 20, 3.2, 3.2, rad=0.5, fill=DARK),
         r(18.8, 20, 3.2, 3.2, rad=0.5),
     ],
+    "os-camera": [
+        r(6, 9, 20, 15, rad=2.5),
+        r(10, 6, 12, 5, rad=1.5, fill=DARK),
+        c(16, 17, 5, fill=DARK),
+        c(16, 17, 3.2),
+        c(23, 12, 1.2),
+    ],
     "os-stickies": [
         r(8, 8, 16, 16, rad=1.5),
         p([(18, 8), (24, 8), (24, 14)], fill=DARK),

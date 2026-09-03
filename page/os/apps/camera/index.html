@@ -1,0 +1,358 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <link rel="icon" href="../../../assets/icons/ico/os-camera.ico" type="image/x-icon">
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Camera</title>
+    <link rel="stylesheet" href="../apps.css" />
+    <style>
+      body { display: flex; flex-direction: column; overflow: hidden; }
+      .cam-view {
+        flex: 1; position: relative; background: #000; display: flex;
+        align-items: center; justify-content: center; overflow: hidden;
+      }
+      video, .cam-view canvas {
+        position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
+      }
+      .cam-view canvas { pointer-events: none; }
+      .cam-placeholder {
+        color: #888; font-size: 14px; text-align: center; z-index: 1;
+      }
+      .cam-bar {
+        display: flex; align-items: center; justify-content: center;
+        gap: 10px; padding: 10px 12px;
+        background: color-mix(in srgb, var(--panel) var(--glass-pct, 86%), transparent);
+        border-top: 1px solid var(--line);
+        flex-wrap: wrap;
+      }
+      .cam-bar button, .cam-bar select {
+        border: 1px solid var(--line); background: transparent;
+        border-radius: 7px; padding: 6px 12px; font-size: 13px;
+      }
+      .cam-bar button.active {
+        background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 650;
+      }
+      .shutter {
+        width: 48px; height: 48px; border-radius: 50%;
+        border: 3px solid var(--accent) !important; background: transparent !important;
+        display: grid; place-items: center; padding: 0;
+        position: relative;
+      }
+      .shutter::after {
+        content: ''; width: 36px; height: 36px; border-radius: 50%;
+        background: var(--accent); display: block; transition: border-radius .2s, background .2s;
+      }
+      .shutter.recording::after {
+        border-radius: 6px; width: 22px; height: 22px; background: #e53935;
+      }
+      .flash {
+        position: absolute; inset: 0; background: #fff; z-index: 10;
+        opacity: 0; pointer-events: none; transition: opacity .05s;
+      }
+      .flash.on { opacity: .85; }
+      .cam-timer {
+        font-variant-numeric: tabular-nums; color: #e53935; font-weight: 700;
+        font-size: 13px; min-width: 50px; text-align: center;
+      }
+      .cam-preview-overlay {
+        position: absolute; inset: 0; z-index: 20; background: #000;
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+      }
+      .cam-preview-overlay img, .cam-preview-overlay video {
+        max-width: 100%; max-height: calc(100% - 50px); object-fit: contain;
+        position: static;
+      }
+      .cam-preview-actions {
+        display: flex; gap: 10px; padding: 10px;
+      }
+      .cam-preview-actions button {
+        border: 1px solid var(--line); background: transparent;
+        border-radius: 7px; padding: 6px 14px; font-size: 13px;
+      }
+      .cam-preview-actions button.primary {
+        background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 650;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="cam-view">
+      <div class="flash" id="flash"></div>
+      <video id="vid" autoplay playsinline muted></video>
+      <canvas id="filterCanvas"></canvas>
+      <div class="cam-placeholder" id="placeholder">📷</div>
+      <div class="cam-preview-overlay" id="previewOverlay" style="display:none"></div>
+    </div>
+
+    <div class="cam-bar">
+      <select id="modeSelect">
+        <option value="view">👁 View</option>
+        <option value="photo">📷 Photo</option>
+        <option value="video">🎬 Video</option>
+      </select>
+      <select id="filterSelect">
+        <option value="none">No filter</option>
+        <option value="grayscale">Grayscale</option>
+        <option value="sepia">Sepia</option>
+        <option value="invert">Invert</option>
+        <option value="brightness">Bright</option>
+        <option value="contrast">High Contrast</option>
+        <option value="saturate">Saturate</option>
+        <option value="blur">Blur</option>
+        <option value="vintage">Vintage</option>
+      </select>
+      <button class="shutter" id="shutter" style="display:none" title="Capture"></button>
+      <span class="cam-timer" id="timer" style="display:none">00:00</span>
+      <select id="camSelect" title="Camera"></select>
+    </div>
+
+    <script src="../../js/app-frame.js"></script>
+    <script>
+    window.OSAppFrame.sync();
+    (function(){
+      const vid = document.getElementById('vid');
+      const filterCanvas = document.getElementById('filterCanvas');
+      const ctx = filterCanvas.getContext('2d');
+      const placeholder = document.getElementById('placeholder');
+      const flash = document.getElementById('flash');
+      const modeSelect = document.getElementById('modeSelect');
+      const filterSelect = document.getElementById('filterSelect');
+      const shutter = document.getElementById('shutter');
+      const timerEl = document.getElementById('timer');
+      const camSelect = document.getElementById('camSelect');
+      const previewOverlay = document.getElementById('previewOverlay');
+
+      let stream = null;
+      let mediaRecorder = null;
+      let recordedChunks = [];
+      let recording = false;
+      let recStart = 0;
+      let recTimer = 0;
+      let animFrame = 0;
+      let currentFilter = 'none';
+
+      /* ---- Filter rendering ---- */
+      const FILTERS = {
+        none: '',
+        grayscale: 'grayscale(1)',
+        sepia: 'sepia(1)',
+        invert: 'invert(1)',
+        brightness: 'brightness(1.5)',
+        contrast: 'contrast(1.8)',
+        saturate: 'saturate(2.5)',
+        blur: 'blur(3px)',
+        vintage: 'sepia(0.4) contrast(1.15) brightness(0.9) saturate(1.3)',
+      };
+
+      function drawFilterLoop() {
+        if (!stream) return;
+        if (vid.videoWidth && vid.videoHeight) {
+          if (filterCanvas.width !== vid.videoWidth || filterCanvas.height !== vid.videoHeight) {
+            filterCanvas.width = vid.videoWidth;
+            filterCanvas.height = vid.videoHeight;
+          }
+          ctx.filter = FILTERS[currentFilter] || '';
+          ctx.drawImage(vid, 0, 0);
+        }
+        animFrame = requestAnimationFrame(drawFilterLoop);
+      }
+
+      filterSelect.onchange = () => {
+        currentFilter = filterSelect.value;
+        if (currentFilter === 'none') {
+          vid.style.display = '';
+          filterCanvas.style.display = 'none';
+          cancelAnimationFrame(animFrame);
+        } else {
+          vid.style.display = 'none';
+          filterCanvas.style.display = '';
+          drawFilterLoop();
+        }
+      };
+
+      /* ---- Camera enumeration ---- */
+      async function listCameras() {
+        const devs = await navigator.mediaDevices.enumerateDevices();
+        const cams = devs.filter(d => d.kind === 'videoinput');
+        camSelect.innerHTML = '';
+        cams.forEach((c, i) => {
+          const o = document.createElement('option');
+          o.value = c.deviceId;
+          o.textContent = c.label || ('Camera ' + (i + 1));
+          camSelect.appendChild(o);
+        });
+      }
+
+      /* ---- Start / stop camera ---- */
+      async function startCamera(deviceId) {
+        stopCamera();
+        const constraints = { video: deviceId ? { deviceId: { exact: deviceId } } : true, audio: true };
+        try {
+          stream = await navigator.mediaDevices.getUserMedia(constraints);
+          vid.srcObject = stream;
+          placeholder.style.display = 'none';
+          await listCameras();
+          if (currentFilter !== 'none') {
+            vid.style.display = 'none';
+            filterCanvas.style.display = '';
+            drawFilterLoop();
+          }
+        } catch (e) {
+          placeholder.textContent = '⚠ ' + (e.name === 'NotAllowedError' ? 'Camera access denied' : e.message);
+        }
+      }
+
+      function stopCamera() {
+        cancelAnimationFrame(animFrame);
+        if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
+        vid.srcObject = null;
+      }
+
+      camSelect.onchange = () => startCamera(camSelect.value);
+
+      /* ---- Mode switching ---- */
+      modeSelect.onchange = () => {
+        const mode = modeSelect.value;
+        shutter.style.display = mode === 'view' ? 'none' : '';
+        timerEl.style.display = 'none';
+        if (recording) stopRecording();
+        shutter.classList.remove('recording');
+      };
+
+      /* ---- Shutter ---- */
+      shutter.onclick = () => {
+        const mode = modeSelect.value;
+        if (mode === 'photo') takePhoto();
+        else if (mode === 'video') {
+          if (recording) stopRecording();
+          else startRecording();
+        }
+      };
+
+      /* ---- Photo ---- */
+      function takePhoto() {
+        if (!stream) return;
+        const c = document.createElement('canvas');
+        const sw = vid.videoWidth, sh = vid.videoHeight;
+        c.width = sw; c.height = sh;
+        const cx = c.getContext('2d');
+        cx.filter = FILTERS[currentFilter] || '';
+        cx.drawImage(vid, 0, 0, sw, sh);
+        flash.classList.add('on');
+        setTimeout(() => flash.classList.remove('on'), 120);
+        c.toBlob(blob => showPreview(blob, 'photo'), 'image/png');
+      }
+
+      /* ---- Video recording ---- */
+      function startRecording() {
+        if (!stream) return;
+        recordedChunks = [];
+        const mimeTypes = ['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm','video/mp4'];
+        let mime = mimeTypes.find(m => MediaRecorder.isTypeSupported(m)) || '';
+        const combinedStream = new MediaStream();
+        if (currentFilter !== 'none') {
+          const canvasStream = filterCanvas.captureStream(30);
+          canvasStream.getVideoTracks().forEach(t => combinedStream.addTrack(t));
+        } else {
+          stream.getVideoTracks().forEach(t => combinedStream.addTrack(t));
+        }
+        stream.getAudioTracks().forEach(t => combinedStream.addTrack(t));
+        mediaRecorder = new MediaRecorder(combinedStream, mime ? { mimeType: mime } : {});
+        mediaRecorder.ondataavailable = e => { if (e.data.size) recordedChunks.push(e.data); };
+        mediaRecorder.onstop = () => {
+          const blob = new Blob(recordedChunks, { type: mediaRecorder.mimeType });
+          showPreview(blob, 'video');
+        };
+        mediaRecorder.start(200);
+        recording = true;
+        recStart = Date.now();
+        timerEl.style.display = '';
+        shutter.classList.add('recording');
+        updateTimer();
+      }
+
+      function stopRecording() {
+        if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
+        recording = false;
+        clearTimeout(recTimer);
+        shutter.classList.remove('recording');
+        timerEl.style.display = 'none';
+      }
+
+      function updateTimer() {
+        if (!recording) return;
+        const s = Math.floor((Date.now() - recStart) / 1000);
+        const m = String(Math.floor(s / 60)).padStart(2, '0');
+        const sec = String(s % 60).padStart(2, '0');
+        timerEl.textContent = m + ':' + sec;
+        recTimer = setTimeout(updateTimer, 500);
+      }
+
+      /* ---- File system helpers ---- */
+      function getFS() {
+        try { if (window.parent && window.parent !== window && window.parent.OSFS) return window.parent.OSFS; } catch(_){}
+        return null;
+      }
+
+      async function saveToFS(blob, type) {
+        const fs = getFS();
+        if (!fs) return false;
+        await fs.ready();
+        const folderName = type === 'photo' ? 'Photos' : 'Videos';
+        const kids = await fs.list('root');
+        let folder = kids.find(n => n.kind === 'folder' && n.name === folderName);
+        if (!folder) folder = await fs.createFolder('root', folderName);
+        const ext = type === 'photo' ? '.png' : '.webm';
+        const mime = type === 'photo' ? 'image/png' : 'video/webm';
+        const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+        const name = (type === 'photo' ? 'photo-' : 'video-') + stamp + ext;
+        await fs.createFile(folder.id, { name, mime, blob });
+        return true;
+      }
+
+      /* ---- Preview ---- */
+      function showPreview(blob, type) {
+        const url = URL.createObjectURL(blob);
+        let el;
+        if (type === 'photo') {
+          el = document.createElement('img');
+          el.src = url;
+        } else {
+          el = document.createElement('video');
+          el.src = url; el.controls = true; el.autoplay = true;
+        }
+        const actions = document.createElement('div');
+        actions.className = 'cam-preview-actions';
+        const btnSave = document.createElement('button');
+        btnSave.className = 'primary';
+        btnSave.textContent = '💾 Save';
+        btnSave.onclick = async () => {
+          btnSave.disabled = true;
+          btnSave.textContent = '⏳ Saving…';
+          const saved = await saveToFS(blob, type);
+          if (!saved) {
+            const a = document.createElement('a');
+            a.href = url; a.download = 'camera-' + Date.now() + (type === 'photo' ? '.png' : '.webm');
+            a.click();
+          }
+          URL.revokeObjectURL(url);
+          previewOverlay.style.display = 'none';
+          previewOverlay.innerHTML = '';
+        };
+        const btnDiscard = document.createElement('button');
+        btnDiscard.textContent = '✕ Discard';
+        btnDiscard.onclick = () => { URL.revokeObjectURL(url); previewOverlay.style.display = 'none'; previewOverlay.innerHTML = ''; };
+        actions.append(btnDiscard, btnSave);
+        previewOverlay.innerHTML = '';
+        previewOverlay.append(el, actions);
+        previewOverlay.style.display = '';
+      }
+
+      /* ---- Init ---- */
+      startCamera();
+      window.addEventListener('beforeunload', stopCamera);
+    })();
+    window.OSAppFrame.onMessage();
+    </script>
+  </body>
+</html>
