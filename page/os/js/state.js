@@ -75,6 +75,7 @@ window.OSState = (function () {
       focusedId: null,
       fileApps: {},
       appliedDefaultApps: [],
+      clearedRecommendedPins: true,
       iconColor: "#008f7d",
       taskbarPins: ["file-explorer", "browser"],
       recentFiles: [],
@@ -151,7 +152,7 @@ window.OSState = (function () {
     return applied;
   }
 
-  function seedNewDefaultApps(raw, installed, favorites, desktopIcons, onboarded) {
+  function seedNewDefaultApps(raw, installed, onboarded) {
     if (!onboarded) {
       return Array.isArray(raw && raw.appliedDefaultApps)
         ? raw.appliedDefaultApps.filter(Boolean).slice()
@@ -167,10 +168,29 @@ window.OSState = (function () {
       if (applied.includes(id)) return;
       applied.push(id);
       if (!installed.includes(id)) installed.push(id);
-      if (!favorites.includes(id)) favorites.push(id);
-      if (!desktopIcons.includes(id)) desktopIcons.push(id);
     });
     return applied;
+  }
+
+  function recommendedIdSet() {
+    const list =
+      window.OSCatalog && Array.isArray(window.OSCatalog.DEFAULT_INSTALLED)
+        ? window.OSCatalog.DEFAULT_INSTALLED
+        : [];
+    return new Set(list);
+  }
+
+  function stripRecommendedPins(raw, favorites, desktopIcons) {
+    if (raw && raw.clearedRecommendedPins) return true;
+    const rec = recommendedIdSet();
+    if (!rec.size) return true;
+    for (let i = favorites.length - 1; i >= 0; i--) {
+      if (rec.has(favorites[i])) favorites.splice(i, 1);
+    }
+    for (let i = desktopIcons.length - 1; i >= 0; i--) {
+      if (rec.has(desktopIcons[i])) desktopIcons.splice(i, 1);
+    }
+    return true;
   }
 
   function ensureKeyedStore(db, upgradeTx, name) {
@@ -343,8 +363,9 @@ window.OSState = (function () {
       ? raw.desktopIcons.filter(dropRetiredApp)
       : base.desktopIcons.slice();
     const onboarded = raw.onboarded !== false;
-    const appliedDefaultApps = seedNewDefaultApps(raw, installed, favorites, desktopIcons, onboarded);
+    const appliedDefaultApps = seedNewDefaultApps(raw, installed, onboarded);
     const appliedExclusiveDesktop = seedExclusiveDesktop(raw, desktopIcons);
+    const clearedRecommendedPins = stripRecommendedPins(raw, favorites, desktopIcons);
     return {
       username: typeof raw.username === "string" && raw.username.trim() ? raw.username.trim() : base.username,
       onboarded,
@@ -361,6 +382,7 @@ window.OSState = (function () {
       fileApps: normalizeFileApps(raw.fileApps),
       appliedDefaultApps,
       appliedExclusiveDesktop,
+      clearedRecommendedPins,
       iconColor: window.OSIconColor ? window.OSIconColor.parse(raw.iconColor) : "#008f7d",
       taskbarPins: normalizeTaskbarPins(raw.taskbarPins).filter(dropRetiredApp),
       recentFiles: normalizeRecentFiles(raw.recentFiles),
@@ -403,7 +425,8 @@ window.OSState = (function () {
       lastSaved = normalize(stored);
       const prevApplied = stored && Array.isArray(stored.appliedDefaultApps) ? stored.appliedDefaultApps : null;
       const nextApplied = lastSaved.appliedDefaultApps || [];
-      if (!prevApplied || prevApplied.join("\0") !== nextApplied.join("\0")) {
+      const pinsDirty = !(stored && stored.clearedRecommendedPins);
+      if (!prevApplied || prevApplied.join("\0") !== nextApplied.join("\0") || pinsDirty) {
         write(lastSaved).catch((err) => console.warn("DesktopOSDB default-app seed failed", err));
       }
       return structuredClone(lastSaved);

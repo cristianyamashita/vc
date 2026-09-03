@@ -1,8 +1,9 @@
 import {
-  LOG, PLANKS, STICK, TABLE, TORCH, COAL, COBBLE, STONE, SAND, IRON, FURNACE, GLASS,
+  LOG, PLANKS, STICK, TABLE, TORCH, COAL, COBBLE, STONE, SAND, IRON, GOLD, FURNACE, GLASS,
   WOOD_PICK, WOOD_AXE, WOOD_SHOVEL, WOOD_SWORD,
   STONE_PICK, STONE_AXE, STONE_SHOVEL, STONE_SWORD,
   IRON_PICK, IRON_AXE, IRON_SHOVEL, IRON_SWORD,
+  GOLD_PICK, GOLD_AXE, GOLD_SHOVEL, GOLD_SWORD,
   HIDE_COW, HIDE_ZEBRA, HIDE_SHEEP,
   RUG_COW, RUG_ZEBRA, RUG_SHEEP,
   DOOR, DOOR_DOUBLE, STAIRS, STAIRS_SAND, STAIRS_STONE, LADDER, WALL_WOOD, WALL_GLASS,
@@ -100,6 +101,7 @@ function toolSet(mat, pick, axe, shovel, sword) {
 toolSet(PLANKS, WOOD_PICK, WOOD_AXE, WOOD_SHOVEL, WOOD_SWORD);
 toolSet(COBBLE, STONE_PICK, STONE_AXE, STONE_SHOVEL, STONE_SWORD);
 toolSet(IRON, IRON_PICK, IRON_AXE, IRON_SHOVEL, IRON_SWORD);
+toolSet(GOLD, GOLD_PICK, GOLD_AXE, GOLD_SHOVEL, GOLD_SWORD);
 
 RECIPES.push({
   pattern: [
@@ -176,6 +178,7 @@ export const RECIPE_GUIDE = [
       { mat: PLANKS, out: WOOD_PICK },
       { mat: COBBLE, out: STONE_PICK },
       { mat: IRON, out: IRON_PICK },
+      { mat: GOLD, out: GOLD_PICK },
     ],
   },
   {
@@ -188,6 +191,7 @@ export const RECIPE_GUIDE = [
       { mat: PLANKS, out: WOOD_AXE },
       { mat: COBBLE, out: STONE_AXE },
       { mat: IRON, out: IRON_AXE },
+      { mat: GOLD, out: GOLD_AXE },
     ],
   },
   {
@@ -199,6 +203,7 @@ export const RECIPE_GUIDE = [
       { mat: PLANKS, out: WOOD_SHOVEL },
       { mat: COBBLE, out: STONE_SHOVEL },
       { mat: IRON, out: IRON_SHOVEL },
+      { mat: GOLD, out: GOLD_SHOVEL },
     ],
   },
   {
@@ -210,6 +215,7 @@ export const RECIPE_GUIDE = [
       { mat: PLANKS, out: WOOD_SWORD },
       { mat: COBBLE, out: STONE_SWORD },
       { mat: IRON, out: IRON_SWORD },
+      { mat: GOLD, out: GOLD_SWORD },
     ],
   },
   {

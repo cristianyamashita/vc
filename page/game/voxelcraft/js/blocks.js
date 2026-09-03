@@ -65,6 +65,14 @@ export const SURPRISE_BOX = 60;
 export const LASSO = 61;
 export const REVOLVER = 62;
 export const BOW = 63;
+export const GOLD_ORE = 64;
+export const GOLD = 65;
+export const GOLD_PICK = 66;
+export const GOLD_AXE = 67;
+export const GOLD_SHOVEL = 68;
+export const GOLD_SWORD = 69;
+export const CASTLE_WALL = 70;
+export const COMPASS = 71;
 
 export const BLOCKS = {
   [GRASS]: {
@@ -177,6 +185,16 @@ export const BLOCKS = {
     minTier: 2,
     drops: [{ id: IRON, n: 1 }],
     tiles: { all: 'iron_ore' },
+  },
+  [GOLD_ORE]: {
+    nameKey: 'blockGoldOre',
+    solid: true,
+    opaque: true,
+    hardness: 3,
+    tool: 'pickaxe',
+    minTier: 2,
+    drops: [{ id: GOLD, n: 1 }],
+    tiles: { all: 'gold_ore' },
   },
   [TABLE]: {
     nameKey: 'blockTable',
@@ -465,12 +483,23 @@ export const BLOCKS = {
     drops: [],
     tiles: { top: 'crate_top', side: 'crate_side', bottom: 'crate_top' },
   },
+  [CASTLE_WALL]: {
+    nameKey: 'blockCastleWall',
+    solid: true,
+    opaque: true,
+    hardness: Infinity,
+    tool: 'pickaxe',
+    minTier: 99,
+    drops: [],
+    tiles: { all: 'castle_wall' },
+  },
 };
 
 export const ITEMS = {
   [STICK]: { nameKey: 'itemStick', stack: 64, place: 0, icon: 'stick' },
   [COAL]: { nameKey: 'itemCoal', stack: 64, place: 0, icon: 'coal' },
   [IRON]: { nameKey: 'itemIron', stack: 64, place: 0, icon: 'iron' },
+  [GOLD]: { nameKey: 'itemGold', stack: 64, place: 0, icon: 'gold' },
   [RAW_MEAT]: { nameKey: 'itemRawMeat', stack: 64, place: 0, icon: 'meat_raw', food: { hunger: 5, eatTime: 0.5 } },
   [COOKED_MEAT]: { nameKey: 'itemCookedMeat', stack: 64, place: 0, icon: 'meat_cooked', food: { hunger: 14, eatTime: 0.45, heal: 4 } },
   [FRUIT]: { nameKey: 'itemFruit', stack: 64, place: 0, icon: 'fruit', food: { hunger: 3, eatTime: 0.4 } },
@@ -487,13 +516,18 @@ export const ITEMS = {
   [IRON_PICK]: { nameKey: 'itemIronPick', stack: 1, tool: 'pickaxe', tier: 3, speed: 6, dura: 251, icon: 'pick_iron' },
   [IRON_AXE]: { nameKey: 'itemIronAxe', stack: 1, tool: 'axe', tier: 3, speed: 6, dura: 251, icon: 'axe_iron' },
   [IRON_SHOVEL]: { nameKey: 'itemIronShovel', stack: 1, tool: 'shovel', tier: 3, speed: 6, dura: 251, icon: 'shovel_iron' },
+  [GOLD_PICK]: { nameKey: 'itemGoldPick', stack: 1, tool: 'pickaxe', tier: 4, speed: 8, dura: 180, icon: 'pick_gold' },
+  [GOLD_AXE]: { nameKey: 'itemGoldAxe', stack: 1, tool: 'axe', tier: 4, speed: 8, dura: 180, icon: 'axe_gold' },
+  [GOLD_SHOVEL]: { nameKey: 'itemGoldShovel', stack: 1, tool: 'shovel', tier: 4, speed: 8, dura: 180, icon: 'shovel_gold' },
   [WOOD_SWORD]: { nameKey: 'itemWoodSword', stack: 1, tool: 'sword', tier: 1, speed: 1, dura: 60, damage: 4, icon: 'sword_wood' },
   [STONE_SWORD]: { nameKey: 'itemStoneSword', stack: 1, tool: 'sword', tier: 2, speed: 1, dura: 132, damage: 5, icon: 'sword_stone' },
   [IRON_SWORD]: { nameKey: 'itemIronSword', stack: 1, tool: 'sword', tier: 3, speed: 1, dura: 251, damage: 7, icon: 'sword_iron' },
+  [GOLD_SWORD]: { nameKey: 'itemGoldSword', stack: 1, tool: 'sword', tier: 4, speed: 1, dura: 180, damage: 8, icon: 'sword_gold' },
   [DOOR_DOUBLE]: { nameKey: 'itemDoorDouble', stack: 64, place: 0, icon: 'door_double' },
   [LASSO]: { nameKey: 'itemLasso', stack: 1, tool: 'lasso', lasso: true, range: 10, icon: 'lasso' },
   [REVOLVER]: { nameKey: 'itemRevolver', stack: 1, tool: 'gun', ranged: true, range: 48, cool: 0.42, ammoStart: 100, icon: 'revolver' },
   [BOW]: { nameKey: 'itemBow', stack: 1, tool: 'bow', ranged: true, range: 40, cool: 0.7, ammoStart: 200, icon: 'bow' },
+  [COMPASS]: { nameKey: 'itemCompass', stack: 1, tool: null, compass: true, icon: 'compass' },
 };
 
 export function def(id) {
@@ -506,9 +540,13 @@ export function isBlock(id) {
 
 export function isPlaceable(id) {
   if (id === DOOR_DOUBLE) return true;
-  return isBlock(id) && id !== WATER && id !== BEDROCK && id !== FRUIT_HANG
+  return isBlock(id) && id !== WATER && id !== BEDROCK && id !== CASTLE_WALL && id !== FRUIT_HANG
     && id !== DOOR_UPPER && id !== DOOR_OPEN && id !== DOOR_UPPER_OPEN
     && id !== SURPRISE_BOX;
+}
+
+export function isUnbreakable(id) {
+  return id === BEDROCK || id === CASTLE_WALL || (BLOCKS[id] && !isFinite(BLOCKS[id].hardness));
 }
 
 export function isSolid(id) {

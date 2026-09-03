@@ -3,9 +3,9 @@ import { initLang, setLang, t, applyI18n } from './js/i18n.js';
 import { initTheme, toggleTheme, getTheme } from './js/theme.js';
 import {
   AIR, GRASS, SAND, LOG, LEAVES, TABLE, TORCH, BEDROCK, CACTUS, FURNACE, DOOR, DOOR_DOUBLE, LADDER, ITEMS, BLOCKS,
-  SURPRISE_BOX, BOW,
+  SURPRISE_BOX, BOW, GOLD, COMPASS,
   isPlaceable, isSolid, isFlower, isRug, isStair, isWall, isLiquid, isReplaceable, mineSeconds, nameKey, stackMax,
-  foodInfo, attackDamage, canHarvest, ammoOf, consumeAmmo, crateLoot, hasLasso,
+  foodInfo, attackDamage, canHarvest, ammoOf, consumeAmmo, crateLoot, hasLasso, isUnbreakable,
 } from './js/blocks.js';
 import { World, GEN_PER_TICK, biomeNameKey, CHUNK, mapRgb, torchFacingFromHit } from './js/world.js';
 import { createAtlas, itemIcon } from './js/textures.js';
@@ -15,6 +15,7 @@ import { Arms } from './js/arms.js';
 import { Inventory, HOTBAR, clickSlot } from './js/inventory.js';
 import { matchRecipe, consumeCraft } from './js/crafting.js';
 import { RECIPE_GUIDE, MAT } from './js/recipes.js';
+import { SHOP_SECTIONS, buyShopItem, ownedRanged, ammoRestock } from './js/shop.js';
 import {
   loadWorldSave, saveWorldSave, deleteWorldSave, saveSettings,
   loadWorldIndex, saveWorldIndex, migrateLegacyWorld, newWorldId,
@@ -35,6 +36,7 @@ import { placeWall } from './js/walls.js';
 import { tickLeafDecay, serializeLeafDecay, loadLeafDecay } from './js/leaves.js';
 import { tickWater, serializeWaterMeta, loadWaterMeta, serializeWaterWait, loadWaterWait } from './js/water.js';
 import { tickSprings, serializeSprings, loadSprings } from './js/spring.js';
+import { inCastleArea, isCastleChest, castleRespawn, getCastle, castleNeedleDeg } from './js/castle.js';
 
 const canvas = document.getElementById('view');
 const menuEl = document.getElementById('menu');
@@ -52,6 +54,8 @@ const craft2Row = document.getElementById('craft-2x2-row');
 const craft3Row = document.getElementById('craft-3x3-row');
 const recipeBook = document.getElementById('recipe-book');
 const recipesBtn = document.getElementById('recipes-btn');
+const shopBook = document.getElementById('shop-book');
+const shopBtn = document.getElementById('shop-btn');
 const breakBar = document.getElementById('break-bar');
 const blockLabel = document.getElementById('block-label');
 const heartsEl = document.getElementById('hearts');
@@ -71,12 +75,15 @@ const freezeTimeEl = document.getElementById('freeze-time');
 const mapOverlay = document.getElementById('map-overlay');
 const mapCanvas = document.getElementById('world-map');
 const mapMeta = document.getElementById('map-meta');
+const compassEl = document.getElementById('compass');
+const compassNeedleEl = document.getElementById('compass-needle');
 const crateLootEl = document.getElementById('crate-loot');
 const crateLootIcon = document.getElementById('crate-loot-icon');
 const crateLootName = document.getElementById('crate-loot-name');
 const crateLootAmmo = document.getElementById('crate-loot-ammo');
 const crateLootOk = document.getElementById('crate-loot-ok');
 let lastCrateLoot = null;
+let castleDeath = false;
 
 const DAY_CYCLE = 480;
 const TIME_PRESETS = { dawn: 40, noon: 120, dusk: 200, night: 360 };
@@ -191,6 +198,8 @@ document.querySelectorAll('[data-lang]').forEach((btn) => {
     refreshInv();
     renderRecipeBook();
     syncRecipesBtn();
+    renderShop();
+    syncShopBtn();
     if (player) playBtn.textContent = menuPaused ? t('resume') : t('clickToPlay');
     syncTimeUi();
     refreshWorldList();
@@ -316,7 +325,20 @@ mapCanvas.addEventListener('contextmenu', (e) => {
   drawWorldMap();
 });
 respawnBtn.addEventListener('click', () => {
-  player.respawn();
+  if (castleDeath && world) {
+    const outside = castleRespawn(world);
+    castleDeath = false;
+    player.health = player.maxHealth;
+    player.hunger = player.maxHunger;
+    player.starveAcc = 0;
+    player.vel.set(0, 0, 0);
+    player.fallY = null;
+    if (outside) player.pos.set(outside.x, outside.y, outside.z);
+    else player.respawn();
+    player.fallY = player.pos.y;
+  } else {
+    player.respawn();
+  }
   deathEl.hidden = true;
   requestPlay();
 });
@@ -327,6 +349,13 @@ crateLootOk?.addEventListener('click', (e) => {
 });
 recipesBtn.addEventListener('click', () => setRecipesOpen(recipeBook.hidden));
 document.getElementById('recipes-hide').addEventListener('click', () => setRecipesOpen(false));
+shopBtn.addEventListener('click', () => setShopOpen(shopBook.hidden));
+document.getElementById('shop-hide').addEventListener('click', () => setShopOpen(false));
+document.getElementById('shop-list').addEventListener('click', (e) => {
+  const row = e.target.closest('.shop-row');
+  if (!row || row.disabled) return;
+  buyFromShopRow(row);
+});
 
 canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 canvas.addEventListener('mousedown', (e) => {
@@ -347,14 +376,25 @@ window.addEventListener('mousemove', (e) => {
   updateItemTip(e);
 });
 let ignoreEscUntil = 0;
+let awaitingLock = false;
 
 document.addEventListener('pointerlockchange', () => {
-  if (!document.pointerLockElement && !invOpen() && player?.health > 0 && menuEl.hidden && !mapOpen() && !crateLootOpen()) {
+  if (document.pointerLockElement) {
+    awaitingLock = false;
+    return;
+  }
+  if (awaitingLock) {
+    awaitingLock = false;
+    return;
+  }
+  if (!invOpen() && player?.health > 0 && menuEl.hidden && !mapOpen() && !crateLootOpen() && deathEl.hidden) {
     showMenu(true);
     ignoreEscUntil = performance.now() + 250;
   }
 });
-document.addEventListener('pointerlockerror', () => {});
+document.addEventListener('pointerlockerror', () => {
+  awaitingLock = false;
+});
 
 window.addEventListener('keydown', (e) => {
   keys[e.code] = true;
@@ -404,7 +444,10 @@ window.addEventListener('keydown', (e) => {
   if (e.code === 'KeyQ' && isPlaying()) {
     e.preventDefault();
     const thrown = inv.dropOne();
-    if (thrown && drops) drops.throwFrom(player, player.yaw, player.pitch, thrown);
+    if (thrown && drops) {
+      const drop = drops.throwFrom(player, player.yaw, player.pitch, thrown);
+      if (life && foodInfo(thrown)) life.assignFoodHome(drop);
+    }
     refreshHud();
   }
   if (e.code === 'KeyF' && player && player.health > 0 && (isPlaying() || invOpen())) {
@@ -500,6 +543,7 @@ function applyQuality(next) {
   refreshInv();
   renderRecipeBook();
   fillCrateLootModal();
+  renderShop();
   syncGfxUi();
   persistUi();
 }
@@ -542,6 +586,9 @@ function fillCrateLootModal() {
     const ammo = lastCrateLoot.ammo ?? lastCrateLoot.ammoAdded ?? ammoOf(lastCrateLoot);
     crateLootAmmo.hidden = false;
     crateLootAmmo.textContent = t('crateAmmo').replace('{n}', String(ammo));
+  } else if (lastCrateLoot.goldHoard) {
+    crateLootAmmo.hidden = false;
+    crateLootAmmo.textContent = t('crateGold').replace('{n}', String(lastCrateLoot.n || 100));
   } else {
     crateLootAmmo.hidden = true;
     crateLootAmmo.textContent = '';
@@ -582,11 +629,23 @@ function isPlaying() {
 }
 
 function requestPlay() {
-  if (!player || player.health <= 0) return;
+  if (!player) return;
+  if (player.health <= 0) {
+    hideMenu();
+    deathEl.hidden = false;
+    return;
+  }
+  awaitingLock = true;
+  try {
+    const ret = canvas.requestPointerLock?.();
+    if (ret && typeof ret.catch === 'function') ret.catch(() => { awaitingLock = false; });
+  } catch {
+    awaitingLock = false;
+  }
   closeMapSilent();
   hideMenu();
+  deathEl.hidden = true;
   resize();
-  canvas.requestPointerLock?.();
 }
 
 function openInv(table) {
@@ -600,6 +659,7 @@ function openInv(table) {
   invTitle.textContent = table ? t('craftingTable') : t('inventory');
   refreshInv();
   setRecipesOpen(true);
+  setShopOpen(false);
   requestAnimationFrame(() => {
     recipeBook.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   });
@@ -618,6 +678,7 @@ function openFurnace(x, y, z) {
   invTitle.textContent = t('furnace');
   refreshInv();
   setRecipesOpen(false);
+  setShopOpen(false);
 }
 
 function closeInv() {
@@ -630,6 +691,7 @@ function closeInv() {
   tableMode = false;
   invEl.hidden = true;
   cursorEl.hidden = true;
+  setShopOpen(false);
   refreshHud();
   if (player.health > 0) canvas.requestPointerLock();
 }
@@ -843,7 +905,12 @@ async function boot() {
     await startNewWorld({ promptName: false });
   }
   loadingEl.hidden = true;
-  showMenu(false);
+  if (player && player.health <= 0) {
+    deathEl.hidden = false;
+    menuEl.hidden = true;
+  } else {
+    showMenu(false);
+  }
 }
 
 async function startNewWorld({ promptName = true } = {}) {
@@ -1020,6 +1087,7 @@ async function loadFromSave(save) {
   world.waterMeta = loadWaterMeta(save.waterMeta);
   world.waterWait = loadWaterWait(save.waterWait);
   loadSprings(world, save.springs, save.edits);
+  world.castleGuardsSpawned = !!(save.castleGuards || save.entities?.some((e) => e.castle));
   furnacePos = null;
   furnaceRow.hidden = true;
   world.loadMap(save.map);
@@ -1085,6 +1153,7 @@ function snapshot() {
     entities: life ? life.serialize() : [],
     drops: drops ? drops.serialize() : [],
     mapMark: mapMark ? { x: mapMark.x, z: mapMark.z } : null,
+    castleGuards: !!world.castleGuardsSpawned,
   };
 }
 
@@ -1175,8 +1244,18 @@ function tick(dt) {
       duskNight,
       sleeping: sleeping || sleepAcc > 0,
       holdingFlower: life.holdingFlower(inv),
+      holdingFood: life.holdingFood(inv),
+      drops,
       hitPlayer: false,
       deaths: [],
+      guardShot(from, to) {
+        spawnTracer(
+          new THREE.Vector3(from.x, from.y, from.z),
+          new THREE.Vector3(to.x, to.y, to.z),
+          0xff6a3a,
+        );
+        player.hurt(7);
+      },
     };
     life.update(dt, world, player, lifeCtx);
     if (life.getLassoed() && !hasLasso(inv)) life.clearLasso();
@@ -1197,6 +1276,7 @@ function tick(dt) {
 
   if (player.health <= 0) {
     if (life) life.clearLasso();
+    castleDeath = inCastleArea(world, player.pos.x, player.pos.z);
     document.exitPointerLock();
     deathEl.hidden = false;
     persist();
@@ -1224,7 +1304,7 @@ function tick(dt) {
 
   const walking = input.forward || input.back || input.left || input.right;
   attackCool = Math.max(0, attackCool - dt);
-  const mining = mouse.left && !preferEnt && !usingRanged && !usingLasso && hit && BLOCKS[hit.id] && hit.id !== BEDROCK;
+  const mining = mouse.left && !preferEnt && !usingRanged && !usingLasso && hit && BLOCKS[hit.id] && !isUnbreakable(hit.id);
   arms.setHeld(held?.id || 0);
   arms.setOffhand(inv.offhand?.id || 0);
   arms.update(dt, walking && player.onGround, mining || (mouse.left && (preferEnt || usingRanged || usingLasso)));
@@ -1521,7 +1601,7 @@ function tickTracers(dt) {
 
 function breakBlock(hit) {
   const id = world.get(hit.x, hit.y, hit.z);
-  if (!id || id === BEDROCK || id === AIR) return;
+  if (!id || isUnbreakable(id) || id === AIR) return;
   if (isDoorId(id)) {
     const drop = removeDoor(world, hit.x, hit.y, hit.z);
     if (drop) inv.add(drop, 1);
@@ -1536,10 +1616,16 @@ function breakBlock(hit) {
     const ox = hit.x + 0.5;
     const oy = hit.y + 0.4;
     const oz = hit.z + 0.5;
-    const loot = crateLoot();
-    if (loot) {
-      const result = applyCrateLoot(loot, ox, oy, oz);
-      openCrateLoot(result);
+    if (isCastleChest(world, hit.x, hit.y, hit.z)) {
+      giveOrDrop(GOLD, 64, ox, oy, oz);
+      giveOrDrop(GOLD, 36, ox, oy, oz);
+      openCrateLoot({ id: GOLD, n: 100, goldHoard: true });
+    } else {
+      const loot = crateLoot();
+      if (loot) {
+        const result = applyCrateLoot(loot, ox, oy, oz);
+        openCrateLoot(result);
+      }
     }
     if (ITEMS[inv.selectedStack()?.id]?.tool) inv.wearSelected();
     world.set(hit.x, hit.y, hit.z, AIR);
@@ -1939,7 +2025,18 @@ function syncHurtVeil() {
   hurtVeil.style.opacity = String(flash);
 }
 
+function updateCompass() {
+  if (!compassEl || !compassNeedleEl) return;
+  const holding = !!(inv && (inv.selectedStack()?.id === COMPASS || inv.offhand?.id === COMPASS));
+  const show = holding && isPlaying() && world && player;
+  compassEl.hidden = !show;
+  if (!show) return;
+  const deg = castleNeedleDeg(world, player.pos.x, player.pos.z, player.yaw);
+  compassNeedleEl.style.transform = `rotate(${deg}deg)`;
+}
+
 function render(dt = 0.016) {
+  updateCompass();
   if (!player) return;
   const { a, day } = dayFactor();
   sun.position.set(Math.cos(a) * 90, Math.max(12, Math.sin(a) * 90 + 8), 30);
@@ -2182,16 +2279,142 @@ function refreshInv() {
   } else {
     cursorEl.hidden = true;
   }
+  if (!shopBook.hidden) renderShop();
 }
 
 function setRecipesOpen(open) {
   recipeBook.hidden = !open;
+  if (open) shopBook.hidden = true;
   syncRecipesBtn();
+  syncShopBtn();
   if (open) renderRecipeBook();
 }
 
 function syncRecipesBtn() {
   recipesBtn.textContent = recipeBook.hidden ? t('recipes') : t('hideRecipes');
+}
+
+function setShopOpen(open) {
+  shopBook.hidden = !open;
+  if (open) recipeBook.hidden = true;
+  syncShopBtn();
+  syncRecipesBtn();
+  if (open) {
+    renderShop();
+    requestAnimationFrame(() => {
+      shopBook.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    });
+  }
+}
+
+function syncShopBtn() {
+  shopBtn.textContent = shopBook.hidden ? t('shop') : t('hideShop');
+}
+
+function setShopStatus(key, vars) {
+  const el = document.getElementById('shop-status');
+  if (!el) return;
+  if (!key) {
+    el.hidden = true;
+    el.textContent = '';
+    el.classList.remove('ok');
+    return;
+  }
+  let text = t(key);
+  if (vars) {
+    for (const [k, v] of Object.entries(vars)) text = text.replaceAll(`{${k}}`, String(v));
+  }
+  el.hidden = false;
+  el.classList.toggle('ok', key === 'shopAmmoAdded');
+  el.textContent = text;
+}
+
+function renderShop() {
+  const list = document.getElementById('shop-list');
+  const goldEl = document.getElementById('shop-gold');
+  if (!list || !goldEl || !atlas) return;
+  const gold = inv.count(GOLD);
+  goldEl.replaceChildren();
+  goldEl.appendChild(guideCell(GOLD));
+  const goldLabel = document.createElement('span');
+  goldLabel.textContent = t('shopGold').replace('{n}', String(gold));
+  goldEl.appendChild(goldLabel);
+
+  list.replaceChildren();
+  SHOP_SECTIONS.forEach((section, sIdx) => {
+    const wrap = document.createElement('section');
+    wrap.className = 'shop-section';
+    const title = document.createElement('h3');
+    title.textContent = t(section.titleKey);
+    wrap.appendChild(title);
+    section.items.forEach((item, iIdx) => {
+      const row = document.createElement('button');
+      row.type = 'button';
+      row.className = 'shop-row';
+      row.dataset.section = String(sIdx);
+      row.dataset.index = String(iIdx);
+      const canBuy = gold >= item.cost;
+      const owned = ownedRanged(inv, item.id);
+      const restock = owned ? ammoRestock(item.id) : 0;
+      row.classList.toggle('can-buy', canBuy);
+      row.disabled = !canBuy;
+      const itemName = t(nameKey(item.id));
+      const qty = item.n > 1 ? ` ×${item.n}` : '';
+      row.title = canBuy ? t(owned ? 'shopBuyAmmo' : 'shopBuy') : t('shopNeedGold');
+      row.setAttribute(
+        'aria-label',
+        owned
+          ? `${itemName} +${restock}, ${item.cost} ${t('itemGold')}`
+          : `${itemName}${qty}, ${item.cost} ${t('itemGold')}`,
+      );
+      row.appendChild(guideCell(item.id));
+      const name = document.createElement('span');
+      name.className = 'shop-row-name';
+      name.append(itemName);
+      if (owned) {
+        const ammoEl = document.createElement('span');
+        ammoEl.className = 'shop-row-count';
+        ammoEl.textContent = ` +${restock}`;
+        name.appendChild(ammoEl);
+      } else if (qty) {
+        const qtyEl = document.createElement('span');
+        qtyEl.className = 'shop-row-count';
+        qtyEl.textContent = qty;
+        name.appendChild(qtyEl);
+      }
+      row.appendChild(name);
+      const cost = document.createElement('span');
+      cost.className = 'shop-row-cost';
+      cost.appendChild(guideCell(GOLD));
+      cost.append(`×${item.cost}`);
+      row.appendChild(cost);
+      const buy = document.createElement('span');
+      buy.className = 'shop-buy-label';
+      buy.textContent = t(owned ? 'shopBuyAmmo' : 'shopBuy');
+      row.appendChild(buy);
+      wrap.appendChild(row);
+    });
+    list.appendChild(wrap);
+  });
+}
+
+function buyFromShopRow(row) {
+  const section = SHOP_SECTIONS[Number(row.dataset.section)];
+  const item = section?.items[Number(row.dataset.index)];
+  if (!item) return;
+  const result = buyShopItem(inv, item);
+  if (result.ok) {
+    if (result.ammo) {
+      setShopStatus('shopAmmoAdded', { n: result.ammoAdded, total: result.ammoTotal });
+    } else {
+      setShopStatus('');
+    }
+    refreshInv();
+    refreshHud();
+    return;
+  }
+  setShopStatus(result.reason === 'full' ? 'shopFull' : 'shopNeedGold');
+  renderShop();
 }
 
 function guideCell(id) {
@@ -2323,7 +2546,9 @@ window.__VC = {
   get world() { return world; },
   get player() { return player; },
   get inv() { return inv; },
+  get life() { return life; },
   get bundle() { return bundle; },
+  get castle() { return world ? getCastle(world) : null; },
   remesh() { remeshDirty(world, bundle); },
 };
 

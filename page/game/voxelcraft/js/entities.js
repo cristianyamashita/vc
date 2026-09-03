@@ -1,15 +1,17 @@
 import * as THREE from 'three';
-import { AIR, FLOWER_RED, FLOWER_YELLOW, FLOWER_WHITE, RAW_MEAT, HIDE_COW, HIDE_ZEBRA, HIDE_SHEEP, isSolid, isLiquid, isRug } from './blocks.js';
+import { AIR, FLOWER_RED, FLOWER_YELLOW, FLOWER_WHITE, RAW_MEAT, HIDE_COW, HIDE_ZEBRA, HIDE_SHEEP, isSolid, isLiquid, isRug, foodInfo } from './blocks.js';
 import { HEIGHT, UNLOAD_RADIUS, BIOME_DESERT, BIOME_MOUNTAIN, BIOME_CANYON } from './world.js';
 import { solidBoxes, aabbHitsBox } from './stairs.js';
 import { cachedVoxGeometry, shadeHex } from './voxmodel.js';
 import { isOriginal } from './quality.js';
 import { legacyMobParts } from './legacymodels.js';
+import { getCastle, sightBlocked, inCastleFootprint } from './castle.js';
 
 const MAX_NEAR = 52;
 const UNLOAD = UNLOAD_RADIUS * 16;
 const RUG_SEEK_R = 16;
 const RUG_SEEK_RETRY = 2.4;
+const CASTLE_LEASH = 20;
 
 const WOMAN_WEAR = [0xc62828, 0xe85a9a, 0xf5f2ea, 0xe8c220, 0xe07020];
 const MAN_WEAR = [0x2a5caa, 0x1e5a32, 0x6b3e22];
@@ -50,6 +52,10 @@ export const KINDS = {
   woman: {
     nameKey: 'mobWoman', hp: 12, speed: 2.15, w: 0.48, h: 1.7,
     hostile: false, person: true, meat: 0, hide: 0, step: 1,
+  },
+  guard: {
+    nameKey: 'mobGuard', hp: 14, speed: 2.1, w: 0.5, h: 1.78,
+    hostile: true, person: false, meat: 0, hide: 0, damage: 7, range: 22, step: 1, ranged: true,
   },
 };
 
@@ -115,6 +121,32 @@ function flowerHangout(x, y, z, seed) {
   return { x, y, z, ox: Math.cos(ang) * r, oz: Math.sin(ang) * r };
 }
 
+function foodHangout(x, y, z, seed, dropId) {
+  const spot = flowerHangout(Math.floor(x), Math.floor(y), Math.floor(z), seed);
+  spot.lure = 'food';
+  spot.dropId = dropId;
+  return spot;
+}
+
+function isFoodHome(home) {
+  return !!(home && (home.lure === 'food' || home.dropId != null));
+}
+
+function nearestFoodDrop(drops, x, z) {
+  if (!drops?.list) return null;
+  let best = null;
+  let bestD = 6;
+  for (const d of drops.list) {
+    if (!foodInfo({ id: d.item })) continue;
+    const dist = Math.hypot(d.x - (x + 0.5), d.z - (z + 0.5));
+    if (dist < bestD) {
+      best = d;
+      bestD = dist;
+    }
+  }
+  return best;
+}
+
 function ensureHangout(home, seed) {
   if (!home) return home;
   if (home.ox != null && home.oz != null) return home;
@@ -126,7 +158,7 @@ function ensureHangout(home, seed) {
 
 function pickWear(kind, seed) {
   const rng = mulberry(seed | 0);
-  const pal = kind === 'woman' ? WOMAN_WEAR : kind === 'man' ? MAN_WEAR : null;
+  const pal = kind === 'woman' ? WOMAN_WEAR : kind === 'man' ? MAN_WEAR : kind === 'guard' ? [0x2a3038, 0x3a2420] : null;
   if (!pal) return 0;
   return pal[Math.floor(rng() * pal.length) % pal.length];
 }
@@ -365,8 +397,8 @@ function buildParts(kind, wear, look) {
     quadLeg(p, -0.3, -0.18, 0.5, 0.16, 0.36, hide, hoof, 0.14);
     p(0.06, 0.34, 0.06, hideD, -0.46, 0.68, 0, { rz: 0.1 });
     p(0.09, 0.12, 0.09, 0x120d09, -0.5, 0.46, 0);
-  } else if (kind === 'man') {
-    const cloth = wear || MAN_WEAR[0];
+  } else if (kind === 'man' || kind === 'guard') {
+    const cloth = kind === 'guard' ? (wear || 0x2a3038) : (wear || MAN_WEAR[0]);
     const clothD = shadeHex(cloth, 0.78);
     const pants = 0x2b323c;
     const shoe = 0x2a2018;
@@ -409,6 +441,11 @@ function buildParts(kind, wear, look) {
     if (look.beard) {
       p(0.05, 0.12, 0.2, hairD, 0.105, 1.33, 0, { grain: 0.09 });
       p(0.16, 0.06, 0.25, hairD, 0.03, 1.3, 0, { grain: 0.09, detail: true });
+    }
+    if (kind === 'guard') {
+      p(0.22, 0.045, 0.05, 0x2a2a32, 0.18, 1.02, -0.3, { flat: true, grain: 0 });
+      p(0.08, 0.07, 0.055, 0x3a2a1c, 0.05, 0.98, -0.27, { flat: true, grain: 0 });
+      p(0.04, 0.04, 0.04, 0xc9a63c, 0.08, 1.04, -0.27, { flat: true, detail: true });
     }
   } else {
     const cloth = wear || WOMAN_WEAR[0];
@@ -460,15 +497,26 @@ function buildParts(kind, wear, look) {
 }
 
 function makeModel(kind, wear = 0, seed = 1) {
-  const person = !!KINDS[kind]?.person;
+  const person = !!KINDS[kind]?.person || kind === 'guard';
   const variant = person ? (seed & (LOOK_VARIANTS - 1)) : 0;
   const geo = cachedVoxGeometry(`${kind}|${wear}|${variant}`, () => {
     const look = kind === 'woman' ? pickWomanLook(variant + 1)
-      : kind === 'man' ? pickManLook(variant + 1)
+      : (kind === 'man' || kind === 'guard') ? pickManLook(variant + 1)
         : null;
     return isOriginal() ? legacyMobParts(kind, wear, look) : buildParts(kind, wear, look);
   });
   return new THREE.Mesh(geo, ENTITY_MAT.clone());
+}
+
+function chunkLoaded(world, x, z) {
+  return world.chunks.has(world.chunkKey(Math.floor(x) >> 4, Math.floor(z) >> 4));
+}
+
+function canSeePlayer(world, e, player, maxDist) {
+  const def = KINDS[e.kind];
+  const from = { x: e.x, y: e.y + Math.min(1.45, def.h * 0.75), z: e.z };
+  const to = { x: player.pos.x, y: player.pos.y + 1.42, z: player.pos.z };
+  return !sightBlocked(world, from, to, maxDist);
 }
 
 function groundY(world, x, z) {
@@ -543,6 +591,10 @@ function overlapsSolid(world, x, y, z, w, h) {
     }
   }
   return false;
+}
+
+function sameFootprint(ax, az, bx, bz) {
+  return Math.floor(ax) === Math.floor(bx) && Math.floor(az) === Math.floor(bz);
 }
 
 function rugAt(world, x, y, z) {
@@ -682,6 +734,7 @@ export class Life {
       wear,
       lassoed: !!extra.lassoed,
       bed: extra.bed || null,
+      castle: !!extra.castle,
       mesh: null,
     };
     e.mesh = makeModel(kind, wear, id);
@@ -738,6 +791,7 @@ export class Life {
       wear: e.wear || 0,
       lassoed: !!e.lassoed,
       bed: e.bed || null,
+      castle: !!e.castle,
     }));
   }
 
@@ -750,7 +804,7 @@ export class Life {
     for (const raw of data) {
       if (!KINDS[raw.kind]) continue;
       const spawned = this.spawn(raw.kind, raw.x, raw.y, raw.z, {
-        id: raw.id, yaw: raw.yaw, hp: raw.hp, state: raw.state, home: raw.home, wear: raw.wear, lassoed: raw.lassoed, bed: raw.bed,
+        id: raw.id, yaw: raw.yaw, hp: raw.hp, state: raw.state, home: raw.home, wear: raw.wear, lassoed: raw.lassoed, bed: raw.bed, castle: raw.castle,
       });
       if (spawned) {
         if (world && overlapsSolid(world, spawned.x, spawned.y, spawned.z, KINDS[spawned.kind].w, KINDS[spawned.kind].h)) {
@@ -768,6 +822,10 @@ export class Life {
       || b === FLOWER_RED || b === FLOWER_YELLOW || b === FLOWER_WHITE;
   }
 
+  holdingFood(inv) {
+    return !!(foodInfo(inv?.selectedStack()) || foodInfo(inv?.offhand));
+  }
+
   assignFlowerHome(x, y, z) {
     for (const e of this.list) {
       if (e.kind !== 'woman') continue;
@@ -778,9 +836,38 @@ export class Life {
     }
   }
 
+  assignFoodHome(drop) {
+    if (!drop) return;
+    for (const e of this.list) {
+      if (e.kind !== 'man') continue;
+      if (e.state === 'follow') {
+        e.home = foodHangout(drop.x, drop.y, drop.z, e.id, drop.id);
+        e.state = 'home';
+      }
+    }
+  }
+
+  syncFoodHomes(drops) {
+    for (const e of this.list) {
+      if (e.kind !== 'man' || !isFoodHome(e.home)) continue;
+      let drop = drops?.list.find((d) => d.id === e.home.dropId);
+      if (!drop) drop = nearestFoodDrop(drops, e.home.x, e.home.z);
+      if (!drop) {
+        e.home = null;
+        if (e.state === 'home' || e.state === 'follow') e.state = 'wander';
+        continue;
+      }
+      e.home.dropId = drop.id;
+      e.home.lure = 'food';
+      e.home.x = Math.floor(drop.x);
+      e.home.y = Math.floor(drop.y);
+      e.home.z = Math.floor(drop.z);
+    }
+  }
+
   clearFlowerHome(x, y, z) {
     for (const e of this.list) {
-      if (!e.home) continue;
+      if (!e.home || isFoodHome(e.home)) continue;
       if (e.home.x === x && e.home.y === y && e.home.z === z) {
         e.home = null;
         if (e.state === 'home') e.state = 'wander';
@@ -936,7 +1023,7 @@ export class Life {
   trySpawn(world, player, night) {
     if (this.list.length >= MAX_NEAR) return;
     const ang = Math.random() * Math.PI * 2;
-    const dist = 18 + Math.random() * 28;
+    const dist = 16 + Math.random() * 16;
     const x = player.pos.x + Math.cos(ang) * dist;
     const z = player.pos.z + Math.sin(ang) * dist;
     if (!world.chunks.has(world.chunkKey(Math.floor(x) >> 4, Math.floor(z) >> 4))) return;
@@ -948,6 +1035,7 @@ export class Life {
     if (feet !== AIR || isLiquid(head)) return;
     if (isSolid(head)) return;
     if (isDeepWater(world, x, z)) return;
+    if (inCastleFootprint(world, x, z)) return;
     for (const e of this.list) {
       if ((e.x - x) ** 2 + (e.z - z) ** 2 < 36) return;
     }
@@ -956,9 +1044,14 @@ export class Life {
     const kind = pickKind(biome, rng, night);
     const def = KINDS[kind];
     if (overlapsSolid(world, x, y, z, def.w, def.h)) return;
+    if (this.npcOnCell(x, y, z)) return;
     this.spawn(kind, x, y, z);
     if (kind === 'woman' && Math.random() < 0.55 && this.list.length < MAX_NEAR) {
-      this.spawn('man', x + 1.4, y, z + 0.4);
+      const mx = x + 1.4;
+      const mz = z + 0.4;
+      if (!this.npcOnCell(mx, y, mz) && !overlapsSolid(world, mx, y, mz, KINDS.man.w, KINDS.man.h)) {
+        this.spawn('man', mx, y, mz);
+      }
     }
   }
 
@@ -966,6 +1059,33 @@ export class Life {
     for (let i = 0; i < 18 && this.list.length < 28; i++) {
       this.trySpawn(world, player, night);
     }
+  }
+
+  ensureCastleGuards(world, player) {
+    if (!world || world.castleGuardsSpawned) return;
+    if (this.list.some((e) => e.castle)) {
+      world.castleGuardsSpawned = true;
+      return;
+    }
+    const c = getCastle(world);
+    if (!c) {
+      world.castleGuardsSpawned = true;
+      return;
+    }
+    const cx = c.ox + c.size * 0.5;
+    const cz = c.oz + c.size * 0.5;
+    if (Math.hypot(player.pos.x - cx, player.pos.z - cz) > UNLOAD * 0.9) return;
+    world.ensureAround(cx, cz, 3);
+    for (const p of c.posts) {
+      const y = p.y || groundY(world, p.x, p.z);
+      this.spawn(p.kind, p.x, y, p.z, {
+        yaw: p.yaw,
+        castle: true,
+        state: 'home',
+        home: { x: Math.floor(p.x), y, z: Math.floor(p.z), ox: 0, oz: 0 },
+      });
+    }
+    world.castleGuardsSpawned = true;
   }
 
   bedStillGood(world, e, player) {
@@ -980,7 +1100,7 @@ export class Life {
     e.bedSeekT = (e.bedSeekT || 0) - dt;
     if (e.state === 'sleep' || e.state === 'bed') {
       if (!this.bedStillGood(world, e, player)) {
-        e.state = e.kind === 'woman' && e.home ? 'home' : 'wander';
+        e.state = e.home ? 'home' : 'wander';
         e.bed = null;
         e.bedSeekT = 0.4;
         return;
@@ -1018,6 +1138,7 @@ export class Life {
   }
 
   update(dt, world, player, ctx) {
+    this.ensureCastleGuards(world, player);
     this.spawnAcc += dt;
     if (this.spawnAcc > 1.6) {
       this.spawnAcc = 0;
@@ -1025,6 +1146,8 @@ export class Life {
     }
 
     const flower = ctx.holdingFlower;
+    const food = ctx.holdingFood;
+    this.syncFoodHomes(ctx.drops);
     const px = player.pos.x;
     const py = player.pos.y;
     const pz = player.pos.z;
@@ -1035,10 +1158,15 @@ export class Life {
       const dx = e.x - px;
       const dz = e.z - pz;
       const dist = Math.hypot(dx, dz);
-      if (dist > UNLOAD && !(e.kind === 'woman' && e.home) && !e.bed && !e.lassoed && !e.dying) {
+      if (dist > UNLOAD && !e.lassoed) {
+        const wasCastle = !!e.castle;
         this.remove(e);
+        if (wasCastle && !this.list.some((o) => o.castle)) world.castleGuardsSpawned = false;
         continue;
       }
+      const inChunk = chunkLoaded(world, e.x, e.z);
+      if (e.mesh) e.mesh.visible = inChunk;
+      if (!inChunk) continue;
 
       e.hurtT = Math.max(0, e.hurtT - dt);
       e.attackCd = Math.max(0, e.attackCd - dt);
@@ -1094,29 +1222,38 @@ export class Life {
 
       const duskNight = !!ctx.duskNight;
       const nightRest = def.person && (duskNight || !!ctx.night);
-      const mayHunt = def.hostile && !ctx.sleeping && (!def.nocturnal || duskNight);
-      const huntRange = mayHunt ? (duskNight ? def.range + 8 : def.range) : 0;
+      const mayHunt = def.hostile && !ctx.sleeping && (e.castle || !def.nocturnal || duskNight);
+      const huntRange = mayHunt ? ((duskNight && !e.castle) ? def.range + 8 : def.range) : 0;
+      const homeDist = e.home ? Math.hypot(e.x - e.home.x - 0.5, e.z - e.home.z - 0.5) : 0;
+      const onLeash = !e.castle || homeDist <= CASTLE_LEASH;
+      if (overlapsSolid(world, e.x, e.y + 0.08, e.z, def.w * 0.7, 0.35)) {
+        e.y = groundY(world, e.x, e.z);
+      }
 
       if (nightRest) {
         this.tickPersonSleep(e, world, player, dt);
       } else if (e.state === 'sleep' || e.state === 'bed') {
-        e.state = e.kind === 'woman' && e.home ? 'home' : 'wander';
+        e.state = e.home ? 'home' : 'wander';
         e.bed = null;
       }
 
-      if (!mayHunt && e.state === 'chase') e.state = 'wander';
+      const lure = e.kind === 'woman' ? flower : e.kind === 'man' ? food : false;
+      if (!mayHunt && e.state === 'chase') e.state = e.home ? 'home' : 'wander';
       if (e.state === 'sleep' || e.state === 'bed') {
         /* keep going to the rug */
-      } else if (mayHunt && dist < huntRange && dist > 0.4) {
+      } else if (mayHunt && onLeash && dist < huntRange && dist > 0.4
+        && (e.state === 'chase' || canSeePlayer(world, e, player, huntRange))) {
         e.state = 'chase';
-      } else if (e.kind === 'woman' && flower && dist < 4.2) {
-        e.state = 'follow';
-      } else if (e.kind === 'woman' && e.home && e.state !== 'flee') {
+      } else if (e.castle && e.home && !onLeash) {
         e.state = 'home';
-      } else if (e.state === 'follow' && (!flower || dist > 18)) {
+      } else if (lure && dist < 4.2) {
+        e.state = 'follow';
+      } else if ((e.kind === 'woman' || e.kind === 'man' || e.castle) && e.home && e.state !== 'flee') {
+        e.state = 'home';
+      } else if (e.state === 'follow' && (!lure || dist > 18)) {
         e.state = e.home ? 'home' : 'wander';
       } else if (e.state === 'chase' && dist > huntRange + 6) {
-        e.state = 'wander';
+        e.state = e.home ? 'home' : 'wander';
       } else if (e.state === 'flee' && dist > 16) {
         e.state = 'wander';
       }
@@ -1152,6 +1289,14 @@ export class Life {
           tz = pz - e.z;
         }
       } else if (e.state === 'home' && e.home) {
+        if (e.castle) {
+          const hx = e.home.x + 0.5 - e.x;
+          const hz = e.home.z + 0.5 - e.z;
+          if (Math.hypot(hx, hz) > 1.1) {
+            tx = hx;
+            tz = hz;
+          }
+        } else {
         ensureHangout(e.home, e.id);
         const fx = e.home.x + 0.5;
         const fz = e.home.z + 0.5;
@@ -1175,6 +1320,7 @@ export class Life {
           e.home.oz = Math.cos(ang) * r;
           e.wanderT = 2 + Math.random() * 4;
         }
+        }
       } else if (e.state === 'flee') {
         tx = dx;
         tz = dz;
@@ -1190,6 +1336,12 @@ export class Life {
           tx = Math.sin(e.yaw);
           tz = Math.cos(e.yaw);
         }
+      }
+
+      if (e.state !== 'sleep') {
+        const steer = this.steerAway(e);
+        tx += steer.x;
+        tz += steer.z;
       }
 
       const len = Math.hypot(tx, tz);
@@ -1216,7 +1368,15 @@ export class Life {
       if (e.onGround && e.vy < 0) e.vy = 0;
       e.y = Math.max(1, Math.min(HEIGHT - 2, e.y));
 
-      if (def.hostile && e.state === 'chase' && !ctx.sleeping && dist < 1.35 && Math.abs(e.y - py) < 1.6 && e.attackCd <= 0) {
+      const buried = overlapsSolid(world, e.x, e.y + 0.2, e.z, def.w * 0.55, def.h * 0.4);
+      const see = !buried && canSeePlayer(world, e, player, def.range || 8);
+      if (def.ranged && e.state === 'chase' && !ctx.sleeping && dist < def.range && Math.abs(e.y - py) < 4 && e.attackCd <= 0 && see) {
+        const from = { x: e.x, y: e.y + 1.35, z: e.z };
+        const to = { x: px, y: py + 1.42, z: pz };
+        e.attackCd = 1.4;
+        if (ctx.guardShot) ctx.guardShot(from, to);
+        ctx.hitPlayer = true;
+      } else if (!def.ranged && def.hostile && e.state === 'chase' && !ctx.sleeping && dist < 1.35 && Math.abs(e.y - py) < 1.6 && e.attackCd <= 0 && see) {
         player.hurt(def.damage);
         e.attackCd = 1.05;
         ctx.hitPlayer = true;
@@ -1224,17 +1384,104 @@ export class Life {
 
       this.syncMesh(e);
     }
+    this.separateNpcs(world);
     this.syncRope(player);
   }
 
-  move(e, world, def, dx, dy, dz) {
+  npcOnCell(x, y, z, except = null) {
+    const cx = Math.floor(x);
+    const cz = Math.floor(z);
+    for (const o of this.list) {
+      if (o === except || o.dying) continue;
+      if (Math.abs(o.y - y) > 1.35) continue;
+      if (Math.floor(o.x) === cx && Math.floor(o.z) === cz) return true;
+    }
+    return false;
+  }
+
+  blockedByNpc(e, x, y, z) {
+    return this.npcOnCell(x, y, z, e);
+  }
+
+  steerAway(e) {
+    let ax = 0;
+    let az = 0;
+    const reach = KINDS[e.kind].w * 0.5 + 1.15;
+    for (const o of this.list) {
+      if (o === e || o.dying) continue;
+      if (Math.abs(o.y - e.y) > 1.25) continue;
+      const dx = e.x - o.x;
+      const dz = e.z - o.z;
+      const d = Math.hypot(dx, dz);
+      const need = reach + KINDS[o.kind].w * 0.5;
+      if (d < 0.01 || d >= need) continue;
+      const w = (need - d) / need;
+      ax += (dx / d) * w;
+      az += (dz / d) * w;
+    }
+    return { x: ax, z: az };
+  }
+
+  separateNpcs(world) {
+    const n = this.list.length;
+    for (let pass = 0; pass < 2; pass++) {
+      for (let i = 0; i < n; i++) {
+        const a = this.list[i];
+        if (a.dying) continue;
+        const da = KINDS[a.kind];
+        for (let j = i + 1; j < n; j++) {
+          const b = this.list[j];
+          if (b.dying) continue;
+          if (Math.abs(a.y - b.y) > 1.35) continue;
+          const dx = a.x - b.x;
+          const dz = a.z - b.z;
+          const dist = Math.hypot(dx, dz);
+          const db = KINDS[b.kind];
+          const min = (da.w + db.w) * 0.52;
+          const same = sameFootprint(a.x, a.z, b.x, b.z);
+          if (!same && dist >= min) continue;
+          let nx;
+          let nz;
+          if (dist < 1e-4) {
+            const ang = ((a.id * 12.9898 + b.id * 78.233) % 6.283185307179586);
+            nx = Math.sin(ang);
+            nz = Math.cos(ang);
+          } else {
+            nx = dx / dist;
+            nz = dz / dist;
+          }
+          let push = Math.max(0, min - dist) * 0.55;
+          if (same) push = Math.max(push, 0.32);
+          const aLocked = a.state === 'sleep' || a.lassoed;
+          const bLocked = b.state === 'sleep' || b.lassoed;
+          if (aLocked && bLocked) continue;
+          if (!aLocked) {
+            const amt = bLocked ? push * 2 : push;
+            this.move(a, world, da, nx * amt, 0, 0, true);
+            this.move(a, world, da, 0, 0, nz * amt, true);
+            this.syncMesh(a);
+          }
+          if (!bLocked) {
+            const amt = aLocked ? push * 2 : push;
+            this.move(b, world, db, -nx * amt, 0, 0, true);
+            this.move(b, world, db, 0, 0, -nz * amt, true);
+            this.syncMesh(b);
+          }
+        }
+      }
+    }
+  }
+
+  move(e, world, def, dx, dy, dz, skipNpc = false) {
     if (dx) {
       const oldD = waterDepth(world, e.x, e.z);
       e.x += dx;
       const newD = waterDepth(world, e.x, e.z);
-      const blocked = overlapsSolid(world, e.x, e.y, e.z, def.w, def.h)
+      const hitNpc = !skipNpc && this.blockedByNpc(e, e.x, e.y, e.z);
+      const blocked = hitNpc
+        || overlapsSolid(world, e.x, e.y, e.z, def.w, def.h)
         || (newD >= 2 && newD >= oldD);
-      if (blocked && !this.tryStep(e, world, def, oldD)) {
+      if (blocked && (hitNpc || !this.tryStep(e, world, def, oldD))) {
         e.x -= dx;
         e.vx = 0;
       }
@@ -1243,9 +1490,11 @@ export class Life {
       const oldD = waterDepth(world, e.x, e.z);
       e.z += dz;
       const newD = waterDepth(world, e.x, e.z);
-      const blocked = overlapsSolid(world, e.x, e.y, e.z, def.w, def.h)
+      const hitNpc = !skipNpc && this.blockedByNpc(e, e.x, e.y, e.z);
+      const blocked = hitNpc
+        || overlapsSolid(world, e.x, e.y, e.z, def.w, def.h)
         || (newD >= 2 && newD >= oldD);
-      if (blocked && !this.tryStep(e, world, def, oldD)) {
+      if (blocked && (hitNpc || !this.tryStep(e, world, def, oldD))) {
         e.z -= dz;
         e.vz = 0;
       }

@@ -41,6 +41,34 @@ export class Inventory {
     return null;
   }
 
+  count(id) {
+    let n = 0;
+    if (this.offhand?.id === id) n += this.offhand.n;
+    for (const s of this.slots) {
+      if (s?.id === id) n += s.n;
+    }
+    return n;
+  }
+
+  takeId(id, n = 1) {
+    let left = n;
+    for (let i = 0; i < INV_SIZE && left > 0; i++) {
+      const s = this.slots[i];
+      if (s?.id !== id) continue;
+      const take = Math.min(s.n, left);
+      s.n -= take;
+      left -= take;
+      if (s.n <= 0) this.slots[i] = null;
+    }
+    if (left > 0 && this.offhand?.id === id) {
+      const take = Math.min(this.offhand.n, left);
+      this.offhand.n -= take;
+      left -= take;
+      if (this.offhand.n <= 0) this.offhand = null;
+    }
+    return left === 0;
+  }
+
   add(id, n = 1, dura, ammo) {
     const max = stackMax(id);
     let left = n;

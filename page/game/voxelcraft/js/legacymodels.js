@@ -2,10 +2,11 @@ import {
   WOOD_PICK, WOOD_AXE, WOOD_SHOVEL, WOOD_SWORD,
   STONE_PICK, STONE_AXE, STONE_SHOVEL, STONE_SWORD,
   IRON_PICK, IRON_AXE, IRON_SHOVEL, IRON_SWORD,
+  GOLD_PICK, GOLD_AXE, GOLD_SHOVEL, GOLD_SWORD,
   STICK, TORCH, RAW_MEAT, COOKED_MEAT, FRUIT, COOKED_FRUIT,
   HIDE_COW, HIDE_ZEBRA, HIDE_SHEEP, DOOR, DOOR_DOUBLE,
   FLOWER_RED, FLOWER_YELLOW,
-  LASSO, REVOLVER, BOW,
+  LASSO, REVOLVER, BOW, COMPASS,
   isBlock, isFlower,
 } from './blocks.js';
 import { shadeHex } from './voxmodel.js';
@@ -103,8 +104,8 @@ export function legacyMobParts(kind, wear, look) {
     p(0.14, 0.48, 0.14, 0x1a120c, 0.3, 0.24, -0.16);
     p(0.14, 0.48, 0.14, 0x1a120c, -0.3, 0.24, 0.16);
     p(0.14, 0.48, 0.14, 0x1a120c, -0.3, 0.24, -0.16);
-  } else if (kind === 'man') {
-    const cloth = wear || MAN_WEAR_0;
+  } else if (kind === 'man' || kind === 'guard') {
+    const cloth = kind === 'guard' ? (wear || 0x2a3038) : (wear || MAN_WEAR_0);
     const pants = 0x1a1e24;
     const skin = 0xc8a07a;
     const hair = look.hair;
@@ -138,6 +139,10 @@ export function legacyMobParts(kind, wear, look) {
     p(pw, ph, pd, 0x1a1410, pupilX, 1.46, -0.06);
     p(nw, nh, nd, 0xb89068, noseX, 1.4, 0);
     p(0.024, 0.02, 0.07, 0x8a5a50, 0.14, 1.335, 0);
+    if (kind === 'guard') {
+      p(0.22, 0.045, 0.05, 0x2a2a32, 0.18, 1.02, -0.3);
+      p(0.08, 0.07, 0.055, 0x3a2a1c, 0.05, 0.98, -0.27);
+    }
   } else {
     const cloth = wear || WOMAN_WEAR_0;
     const skirt = shadeHex(cloth, 0.72);
@@ -189,29 +194,31 @@ export function legacyHeldParts(id) {
   let head = 0xc4a060;
   if ([STONE_PICK, STONE_AXE, STONE_SHOVEL].includes(id)) head = 0x8e8e96;
   if ([IRON_PICK, IRON_AXE, IRON_SHOVEL].includes(id)) head = 0xc8ccd4;
+  if ([GOLD_PICK, GOLD_AXE, GOLD_SHOVEL].includes(id)) head = 0xe8c44a;
 
-  if ([WOOD_PICK, STONE_PICK, IRON_PICK].includes(id)) {
+  if ([WOOD_PICK, STONE_PICK, IRON_PICK, GOLD_PICK].includes(id)) {
     p(0.035, 0.42, 0.035, wood, 0, 0.05, 0);
     p(0.22, 0.06, 0.05, head, 0, 0.24, 0);
     hold.rot[2] = 0.5;
     hold.rot[0] = 0.4;
     hold.pos = [0.04, 0.02, -0.08];
-  } else if ([WOOD_AXE, STONE_AXE, IRON_AXE].includes(id)) {
+  } else if ([WOOD_AXE, STONE_AXE, IRON_AXE, GOLD_AXE].includes(id)) {
     p(0.028, 0.58, 0.028, wood, 0, 0.22, 0);
     p(0.08, 0.12, 0.08, head, 0, 0.48, 0);
     p(0.24, 0.16, 0.05, head, 0.12, 0.5, 0.02);
     hold.rot = [0.05, 0.45, 0.08];
     hold.pos = [0.04, 0.02, 0];
     hold.scale = 1.2;
-  } else if ([WOOD_SHOVEL, STONE_SHOVEL, IRON_SHOVEL].includes(id)) {
+  } else if ([WOOD_SHOVEL, STONE_SHOVEL, IRON_SHOVEL, GOLD_SHOVEL].includes(id)) {
     p(0.03, 0.4, 0.03, wood, 0, 0.04, 0);
     p(0.08, 0.1, 0.03, head, 0, 0.24, 0);
     hold.rot[2] = 0.4;
     hold.rot[0] = 0.3;
     hold.pos = [0.03, 0.02, -0.06];
-  } else if ([WOOD_SWORD, STONE_SWORD, IRON_SWORD].includes(id)) {
+  } else if ([WOOD_SWORD, STONE_SWORD, IRON_SWORD, GOLD_SWORD].includes(id)) {
     if ([STONE_SWORD].includes(id)) head = 0x8e8e96;
     if ([IRON_SWORD].includes(id)) head = 0xc8ccd4;
+    if ([GOLD_SWORD].includes(id)) head = 0xe8c44a;
     p(0.03, 0.22, 0.03, wood, 0, -0.04, 0);
     p(0.08, 0.04, 0.03, 0xc4a060, 0, 0.08, 0);
     p(0.05, 0.32, 0.02, head, 0, 0.26, 0);
@@ -241,6 +248,12 @@ export function legacyHeldParts(id) {
     hold.rot[2] = 0.15;
     hold.rot[0] = 0.1;
     hold.pos = [0.02, 0.02, -0.06];
+  } else if (id === COMPASS) {
+    p(0.18, 0.18, 0.03, 0xc4a060, 0, 0.04, 0);
+    p(0.14, 0.14, 0.02, 0xefe6d2, 0, 0.04, -0.01);
+    p(0.03, 0.1, 0.02, 0xc42828, 0, 0.07, -0.02);
+    hold.rot = [-1.05, 0, 0.08];
+    hold.pos = [0.04, -0.01, -0.07];
   } else if (id === STICK) {
     p(0.03, 0.28, 0.03, wood, 0, 0, 0);
     hold.pos = [0.02, -0.02, -0.05];

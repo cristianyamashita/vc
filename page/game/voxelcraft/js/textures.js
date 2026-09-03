@@ -19,6 +19,8 @@ const TILE_INDEX = {
   planks: 10,
   coal_ore: 11,
   iron_ore: 12,
+  gold_ore: 38,
+  castle_wall: 39,
   table_top: 13,
   table_side: 14,
   torch: 15,
@@ -150,6 +152,23 @@ function drawTile(name) {
   } else if (name === 'iron_ore') {
     fillNoise(d, [120, 120, 125], 18, rng);
     blot(d, [210, 180, 150], rng, 7, 2);
+  } else if (name === 'gold_ore') {
+    fillNoise(d, [120, 120, 125], 18, rng);
+    blot(d, [232, 188, 48], rng, 7, 2);
+    blot(d, [255, 220, 90], rng, 4, 1);
+  } else if (name === 'castle_wall') {
+    fillNoise(d, [78, 92, 90], 16, rng);
+    blot(d, [58, 74, 72], rng, 6, 2);
+    blot(d, [42, 88, 82], rng, 4, 1);
+    for (let i = 0; i < TILE; i++) {
+      put(d, 0, i, 48, 70, 68);
+      put(d, 15, i, 48, 70, 68);
+      put(d, i, 0, 48, 70, 68);
+      put(d, i, 15, 48, 70, 68);
+    }
+    for (let y = 4; y < 12; y += 4) {
+      for (let x = 0; x < TILE; x++) put(d, x, y, 56, 78, 76);
+    }
   } else if (name === 'table_top') {
     fillNoise(d, [160, 110, 55], 12, rng);
     for (let i = 1; i < 15; i++) {
@@ -439,6 +458,13 @@ function drawItemIcon(kind) {
   function wood() { return '#c48a48'; }
   function stone() { return '#9a9aa2'; }
   function iron() { return '#d8d8e0'; }
+  function gold() { return '#e8c040'; }
+  function headOf(kind) {
+    if (kind.endsWith('wood')) return wood();
+    if (kind.endsWith('stone')) return stone();
+    if (kind.endsWith('gold')) return gold();
+    return iron();
+  }
 
   if (kind === 'stick') {
     g.fillStyle = '#c48a48';
@@ -458,26 +484,31 @@ function drawItemIcon(kind) {
     g.fillRect(8, 10, 16, 12);
     g.fillStyle = '#a8b0bc';
     g.fillRect(8, 18, 16, 4);
+  } else if (kind === 'gold') {
+    g.fillStyle = '#f0d060';
+    g.fillRect(8, 10, 16, 12);
+    g.fillStyle = '#c49828';
+    g.fillRect(8, 18, 16, 4);
   } else if (kind.startsWith('pick_')) {
-    const head = kind.endsWith('wood') ? wood() : kind.endsWith('stone') ? stone() : iron();
+    const head = headOf(kind);
     handle('#8a5a2a');
     g.fillStyle = head;
     g.fillRect(6, 6, 20, 6);
     g.fillRect(6, 6, 4, 8);
     g.fillRect(22, 6, 4, 8);
   } else if (kind.startsWith('axe_')) {
-    const head = kind.endsWith('wood') ? wood() : kind.endsWith('stone') ? stone() : iron();
+    const head = headOf(kind);
     handle('#8a5a2a');
     g.fillStyle = head;
     g.fillRect(8, 4, 14, 10);
     g.fillRect(16, 4, 8, 14);
   } else if (kind.startsWith('shovel_')) {
-    const head = kind.endsWith('wood') ? wood() : kind.endsWith('stone') ? stone() : iron();
+    const head = headOf(kind);
     handle('#8a5a2a');
     g.fillStyle = head;
     g.fillRect(12, 4, 8, 10);
   } else if (kind.startsWith('sword_')) {
-    const head = kind.endsWith('wood') ? wood() : kind.endsWith('stone') ? stone() : iron();
+    const head = headOf(kind);
     g.fillStyle = '#8a5a2a';
     g.fillRect(14, 20, 4, 10);
     g.fillStyle = '#c4a060';
@@ -645,6 +676,30 @@ function drawItemIcon(kind) {
     g.fillRect(15, 14, 12, 2);
     g.fillStyle = '#8a8a70';
     g.fillRect(25, 13, 4, 4);
+  } else if (kind === 'compass') {
+    g.fillStyle = '#c4a060';
+    g.beginPath();
+    g.arc(16, 16, 13, 0, Math.PI * 2);
+    g.fill();
+    g.fillStyle = '#8a6a28';
+    g.beginPath();
+    g.arc(16, 16, 11, 0, Math.PI * 2);
+    g.fill();
+    g.fillStyle = '#efe6d2';
+    g.beginPath();
+    g.arc(16, 16, 9, 0, Math.PI * 2);
+    g.fill();
+    g.fillStyle = '#c42828';
+    g.beginPath();
+    g.moveTo(16, 8);
+    g.lineTo(19, 16);
+    g.lineTo(13, 16);
+    g.closePath();
+    g.fill();
+    g.fillStyle = '#2a2a30';
+    g.beginPath();
+    g.arc(16, 16, 2, 0, Math.PI * 2);
+    g.fill();
   }
   return c.toDataURL();
 }
@@ -672,16 +727,17 @@ export function createAtlas() {
   // Original graphics use these drawn icons. The other settings overwrite
   // them with renders of the real item models, later, in itemicons.js.
   const itemKinds = [
-    'stick', 'coal', 'iron',
+    'stick', 'coal', 'iron', 'gold',
     'pick_wood', 'axe_wood', 'shovel_wood',
     'pick_stone', 'axe_stone', 'shovel_stone',
     'pick_iron', 'axe_iron', 'shovel_iron',
-    'sword_wood', 'sword_stone', 'sword_iron',
+    'pick_gold', 'axe_gold', 'shovel_gold',
+    'sword_wood', 'sword_stone', 'sword_iron', 'sword_gold',
     'meat_raw', 'meat_cooked', 'fruit', 'fruit_cooked',
     'hide_cow', 'hide_zebra', 'hide_sheep',
     'door', 'door_double', 'stairs', 'stairs_sand', 'stairs_stone', 'ladder',
     'wall_wood', 'wall_glass',
-    'lasso', 'revolver', 'bow',
+    'lasso', 'revolver', 'bow', 'compass',
   ];
   for (const kind of itemKinds) icons[kind] = drawItemIcon(kind);
 

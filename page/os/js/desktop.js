@@ -391,20 +391,9 @@ window.OS = (function () {
   function applyInstallPack(pack) {
     if (!api.state) return;
     const ids = window.OSCatalog.installPackIds ? window.OSCatalog.installPackIds(pack) : [];
-    const recommended = (window.OSCatalog.DEFAULT_INSTALLED || []).filter((id) => ids.includes(id));
     api.state.installed = ["settings", ...ids];
-    api.state.favorites = recommended.slice();
-    const keep = (api.state.desktopIcons || []).filter((id) => {
-      const app = window.OSCatalog.byId(id);
-      if (!app) return false;
-      if (app.kind === "native" || app.kind === "user") return true;
-      return ids.includes(id);
-    });
-    recommended.forEach((id) => {
-      if (!keep.includes(id)) keep.push(id);
-    });
-    api.state.desktopIcons = keep;
     api.state.appliedDefaultApps = (window.OSCatalog.DEFAULT_INSTALLED || []).slice();
+    api.state.clearedRecommendedPins = true;
     api.state.onboarded = true;
     persistNow();
   }
@@ -622,19 +611,15 @@ window.OS = (function () {
     layout[key] = { c: cell.c, r: cell.r };
   }
 
-  function arrangeDesktopIcons(keys) {
+  function compareLocale(a, b) {
+    return String(a || "").localeCompare(String(b || ""), htmlLang(api.lang), {
+      numeric: true,
+      sensitivity: "base",
+    });
+  }
+
+  function packDesktopKeys(ordered) {
     const metrics = gridMetrics();
-    const layout = layoutMap();
-    const others = keys
-      .filter((k) => k !== RECYCLE_KEY)
-      .sort((a, b) => {
-        const pa = layout[a] || { c: 999, r: 999 };
-        const pb = layout[b] || { c: 999, r: 999 };
-        if (pa.c !== pb.c) return pa.c - pb.c;
-        if (pa.r !== pb.r) return pa.r - pb.r;
-        return a.localeCompare(b);
-      });
-    const ordered = keys.includes(RECYCLE_KEY) ? [RECYCLE_KEY].concat(others) : others;
     const next = {};
     const taken = new Set();
     ordered.forEach((key) => {
@@ -645,25 +630,59 @@ window.OS = (function () {
     api.state.desktopLayout = next;
   }
 
-  async function currentDesktopKeys() {
-    const keys = [RECYCLE_KEY];
-    (api.state.desktopIcons || []).forEach((id) => {
-      const app = window.OSCatalog.byId(id);
-      if (app && isInstalled(app.id)) keys.push(deskKeyApp(app.id));
-    });
+  function iconSortMeta(key, appsById, filesById) {
+    if (key === RECYCLE_KEY) return { group: 0, type: "recycle", name: "" };
+    if (key.indexOf("app:") === 0) {
+      const app = appsById.get(key.slice(4));
+      return {
+        group: 3,
+        type: app ? window.OSCatalog.tagGroupKey(app) : "App",
+        name: app ? window.OSCatalog.displayName(app, api.lang) : key,
+      };
+    }
+    if (key.indexOf("fs:") === 0) {
+      const node = filesById.get(key.slice(3));
+      const name = node && node.name ? node.name : key;
+      if (node && node.kind === "folder") return { group: 1, type: "folder", name };
+      const type =
+        node && window.OSFS && window.OSFS.typeLabel
+          ? window.OSFS.typeLabel(node, window.OSI18n.t.bind(window.OSI18n))
+          : "";
+      return { group: 2, type, name };
+    }
+    return { group: 9, type: "", name: key };
+  }
+
+  async function arrangeDesktop(mode) {
+    const apps = (api.state.desktopIcons || [])
+      .map((id) => window.OSCatalog.byId(id))
+      .filter((app) => app && isInstalled(app.id));
+    let files = [];
     if (window.OSFS) {
       try {
         await window.OSFS.ready();
-        const files = await window.OSFS.listDesktop();
-        files.forEach((node) => keys.push(deskKeyFs(node.id)));
+        files = await window.OSFS.listDesktop();
       } catch (_err) {}
     }
-    return keys;
-  }
-
-  async function arrangeDesktop() {
-    const keys = await currentDesktopKeys();
-    arrangeDesktopIcons(keys);
+    const appsById = new Map(apps.map((app) => [app.id, app]));
+    const filesById = new Map(files.map((node) => [node.id, node]));
+    const keys = [RECYCLE_KEY]
+      .concat(apps.map((app) => deskKeyApp(app.id)))
+      .concat(files.map((node) => deskKeyFs(node.id)));
+    const rows = keys.map((key) => Object.assign({ key }, iconSortMeta(key, appsById, filesById)));
+    rows.sort((a, b) => {
+      if (a.key === RECYCLE_KEY) return -1;
+      if (b.key === RECYCLE_KEY) return 1;
+      if (mode === "type") {
+        if (a.group !== b.group) return a.group - b.group;
+        const typeCmp = compareLocale(a.type, b.type);
+        if (typeCmp) return typeCmp;
+      }
+      const nameCmp = compareLocale(a.name, b.name);
+      if (nameCmp) return nameCmp;
+      return a.key.localeCompare(b.key);
+    });
+    packDesktopKeys(rows.map((row) => row.key));
     persistNow();
     await renderDesktop();
   }
@@ -808,8 +827,6 @@ window.OS = (function () {
     notifyNativeFrames();
     if (window.OS && window.OS.applyIframeGlass) window.OS.applyIframeGlass();
     if (window.OSTray && window.OSTray.syncLabels) window.OSTray.syncLabels();
-    document.getElementById("start-btn").setAttribute("aria-label", window.OSI18n.t("start"));
-    document.getElementById("start-btn").setAttribute("title", window.OSI18n.t("start"));
     syncFullscreenButton();
   }
 
@@ -992,6 +1009,15 @@ window.OS = (function () {
           { act: "paste", label: window.OSI18n.t("fePaste"), disabled: !(clip && clip.ids.length) },
           { sep: true },
           {
+            act: "arrange",
+            label: window.OSI18n.t("desktopArrange"),
+            children: [
+              { act: "arrange-name", label: window.OSI18n.t("desktopArrangeByName") },
+              { act: "arrange-type", label: window.OSI18n.t("desktopArrangeByType") },
+            ],
+          },
+          { sep: true },
+          {
             act: "widgets",
             label: window.OSI18n.t("widgets"),
             children: window.OSWidgets ? window.OSWidgets.contextItems() : [],
@@ -1002,6 +1028,8 @@ window.OS = (function () {
         async (act) => {
           if (act === "newFolder") await window.OSFileExplorer.newFolder(window.OSFS.DESKTOP_ID);
           if (act === "paste") await window.OSFS.paste(window.OSFS.DESKTOP_ID);
+          if (act === "arrange-name") await arrangeDesktop("name");
+          if (act === "arrange-type") await arrangeDesktop("type");
           if (window.OSWidgets) window.OSWidgets.handleContext(act);
         }
       );

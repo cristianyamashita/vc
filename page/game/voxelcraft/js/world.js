@@ -1,14 +1,15 @@
 import {
   AIR, GRASS, DIRT, STONE, COBBLE, SAND, WATER, LOG, LEAVES, PLANKS,
-  COAL_ORE, IRON_ORE, TABLE, TORCH, BEDROCK, CACTUS,
+  COAL_ORE, IRON_ORE, GOLD_ORE, TABLE, TORCH, BEDROCK, CACTUS,
   FLOWER_RED, FLOWER_YELLOW, FLOWER_WHITE, FRUIT_HANG, FURNACE, DOOR, DOOR_OPEN,
   STAIRS, STAIRS_SAND, STAIRS_STONE, LADDER, GLASS, WALL_WOOD, WALL_GLASS,
-  WATER_SPRING, RED_EARTH, SURPRISE_BOX, isSolid, isOpaque, isDecor, isStair, isWall, isPlant,
+  WATER_SPRING, RED_EARTH, SURPRISE_BOX, CASTLE_WALL, isSolid, isOpaque, isDecor, isStair, isWall, isPlant,
 } from './blocks.js';
 import { fbm2, fbm3, hash2, hash3 } from './noise.js';
 import { afterBlockChange } from './leaves.js';
 import { onWaterBlockChange } from './water.js';
 import { onSpringBlockChange } from './spring.js';
+import { stampCastleChunk, inCastleFootprint } from './castle.js';
 
 export const CHUNK = 16;
 export const HEIGHT = 64;
@@ -72,8 +73,10 @@ const MAP_RGB = {
   [WATER_SPRING]: [70, 118, 168],
   [RED_EARTH]: [186, 92, 48],
   [SURPRISE_BOX]: [255, 196, 48],
+  [CASTLE_WALL]: [72, 92, 90],
   [COAL_ORE]: [72, 72, 76],
   [IRON_ORE]: [168, 150, 132],
+  [GOLD_ORE]: [214, 178, 62],
   [TABLE]: [160, 110, 55],
   [FURNACE]: [78, 78, 82],
   [DOOR]: [155, 118, 62],
@@ -107,6 +110,7 @@ export class World {
     this.waterMeta = {};
     this.waterWait = {};
     this.springs = {};
+    this.castleGuardsSpawned = false;
   }
 
   chunkKey(cx, cz) {
@@ -416,6 +420,7 @@ export class World {
           const ore = hash3(x, y, z, seed + 90);
           if (ore > 0.985 && y < 40) this.setLocal(chunk, lx, y, lz, COAL_ORE);
           else if (ore > 0.972 && ore <= 0.985 && y < 32) this.setLocal(chunk, lx, y, lz, IRON_ORE);
+          else if (ore > 0.964 && ore <= 0.972 && y < 20) this.setLocal(chunk, lx, y, lz, GOLD_ORE);
         }
       }
     }
@@ -432,6 +437,8 @@ export class World {
       }
       this.pending.delete(key);
     }
+
+    stampCastleChunk(this, chunk, cx, cz);
 
     for (let lz = 0; lz < CHUNK; lz++) {
       for (let lx = 0; lx < CHUNK; lx++) {
@@ -497,6 +504,7 @@ export class World {
       for (let ccz = c0z; ccz <= c1z; ccz++) {
         const p = this.crateLandPos(ccx, ccz);
         if (!p) continue;
+        if (inCastleFootprint(this, p.x, p.z)) continue;
         if ((p.x >> 4) === cx && (p.z >> 4) === cz) this.placeSurpriseBox(p.x, p.z);
       }
     }
@@ -573,6 +581,7 @@ export class World {
   }
 
   tryPlaceDecor(x, z) {
+    if (inCastleFootprint(this, x, z)) return;
     const h = this.heightNoise(x, z);
     if (h < WATER_LEVEL) return;
     const biome = this.biomeAt(x, z);

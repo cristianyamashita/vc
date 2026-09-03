@@ -3,7 +3,8 @@ import {
   WOOD_PICK, WOOD_AXE, WOOD_SHOVEL, WOOD_SWORD,
   STONE_PICK, STONE_AXE, STONE_SHOVEL, STONE_SWORD,
   IRON_PICK, IRON_AXE, IRON_SHOVEL, IRON_SWORD,
-  STICK, TORCH, LASSO, REVOLVER, BOW,
+  GOLD_PICK, GOLD_AXE, GOLD_SHOVEL, GOLD_SWORD,
+  STICK, TORCH, LASSO, REVOLVER, BOW, COMPASS,
   isFlower,
 } from './blocks.js';
 import { buildVoxGeometry, shadeHex } from './voxmodel.js';
@@ -132,6 +133,7 @@ export class Arms {
       WOOD_PICK, WOOD_AXE, WOOD_SHOVEL, WOOD_SWORD,
       STONE_PICK, STONE_AXE, STONE_SHOVEL, STONE_SWORD,
       IRON_PICK, IRON_AXE, IRON_SHOVEL, IRON_SWORD,
+      GOLD_PICK, GOLD_AXE, GOLD_SHOVEL, GOLD_SWORD,
       LASSO, REVOLVER, BOW,
     ].includes(this.heldId);
     const restX = holdingTool ? 0.48 : 0.22;
@@ -168,17 +170,17 @@ function makeToolMesh(id) {
 function applyHold(mesh, id) {
   // Tools are aimed the way they are actually used: pick and axe head swung
   // forward at the block ahead, shovel blade turned down at the ground.
-  if ([WOOD_PICK, STONE_PICK, IRON_PICK].includes(id)) {
+  if ([WOOD_PICK, STONE_PICK, IRON_PICK, GOLD_PICK].includes(id)) {
     mesh.rotation.set(0.3, -1.2, 0.5);
     mesh.position.set(0.06, -0.02, -0.06);
-  } else if ([WOOD_AXE, STONE_AXE, IRON_AXE].includes(id)) {
+  } else if ([WOOD_AXE, STONE_AXE, IRON_AXE, GOLD_AXE].includes(id)) {
     mesh.rotation.set(0.28, 0.85, 0.5);
     mesh.position.set(0.1, -0.05, -0.12);
     mesh.scale.setScalar(0.75);
-  } else if ([WOOD_SHOVEL, STONE_SHOVEL, IRON_SHOVEL].includes(id)) {
+  } else if ([WOOD_SHOVEL, STONE_SHOVEL, IRON_SHOVEL, GOLD_SHOVEL].includes(id)) {
     mesh.rotation.set(-2.0, 0, 0.35);
     mesh.position.set(0.12, -0.04, 0.0);
-  } else if ([WOOD_SWORD, STONE_SWORD, IRON_SWORD].includes(id)) {
+  } else if ([WOOD_SWORD, STONE_SWORD, IRON_SWORD, GOLD_SWORD].includes(id)) {
     mesh.rotation.set(0.25, 0, 0.45);
     mesh.position.set(0.03, 0.02, -0.06);
   } else if (id === LASSO) {
@@ -190,6 +192,9 @@ function applyHold(mesh, id) {
   } else if (id === BOW) {
     mesh.rotation.set(0.1, 0, 0.15);
     mesh.position.set(0.02, 0.02, -0.06);
+  } else if (id === COMPASS) {
+    mesh.rotation.set(-1.05, 0, 0.08);
+    mesh.position.set(0.04, -0.01, -0.07);
   } else if (id === STICK || id === TORCH || isFlower(id)) {
     mesh.position.set(0.02, -0.02, -0.05);
   } else {

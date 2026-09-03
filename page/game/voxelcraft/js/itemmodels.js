@@ -3,10 +3,11 @@ import {
   WOOD_PICK, WOOD_AXE, WOOD_SHOVEL, WOOD_SWORD,
   STONE_PICK, STONE_AXE, STONE_SHOVEL, STONE_SWORD,
   IRON_PICK, IRON_AXE, IRON_SHOVEL, IRON_SWORD,
-  STICK, TORCH, COAL, IRON, RAW_MEAT, COOKED_MEAT, FRUIT, COOKED_FRUIT,
+  GOLD_PICK, GOLD_AXE, GOLD_SHOVEL, GOLD_SWORD,
+  STICK, TORCH, COAL, IRON, GOLD, RAW_MEAT, COOKED_MEAT, FRUIT, COOKED_FRUIT,
   HIDE_COW, HIDE_ZEBRA, HIDE_SHEEP, DOOR, DOOR_DOUBLE,
   FLOWER_RED, FLOWER_YELLOW, FLOWER_WHITE,
-  LASSO, REVOLVER, BOW,
+  LASSO, REVOLVER, BOW, COMPASS,
   STAIRS, STAIRS_SAND, STAIRS_STONE, LADDER, WALL_WOOD, WALL_GLASS,
   BLOCKS, isBlock, isFlower,
 } from './blocks.js';
@@ -81,11 +82,12 @@ export function blockCube(id) {
 
 const WOOD = 0x8b5a2b;
 const WOOD_HI = 0xa8703a;
-const GOLD = 0xc8a24e;
+const GUARD = 0xc8a24e;
 
 function headColor(id) {
   if ([STONE_PICK, STONE_AXE, STONE_SHOVEL, STONE_SWORD].includes(id)) return 0x9195a0;
   if ([IRON_PICK, IRON_AXE, IRON_SHOVEL, IRON_SWORD].includes(id)) return 0xd8dce6;
+  if ([GOLD_PICK, GOLD_AXE, GOLD_SHOVEL, GOLD_SWORD].includes(id)) return 0xe8c44a;
   return 0xb8823c;
 }
 
@@ -101,7 +103,7 @@ export function itemParts(id) {
   const headHi = shadeHex(head, 1.12);
   const headLo = shadeHex(head, 0.82);
 
-  if ([WOOD_PICK, STONE_PICK, IRON_PICK].includes(id)) {
+  if ([WOOD_PICK, STONE_PICK, IRON_PICK, GOLD_PICK].includes(id)) {
     p(0.034, 0.44, 0.034, WOOD, 0, 0.04, 0, { grain: 0.09 });
     p(0.038, 0.05, 0.038, WOOD_HI, 0, 0.2, 0, { detail: true });
     p(0.07, 0.06, 0.055, head, 0, 0.25, 0);
@@ -116,7 +118,7 @@ export function itemParts(id) {
       }
     }
     p(0.06, 0.016, 0.052, headHi, 0, 0.278, 0, { flat: true, detail: true });
-  } else if ([WOOD_AXE, STONE_AXE, IRON_AXE].includes(id)) {
+  } else if ([WOOD_AXE, STONE_AXE, IRON_AXE, GOLD_AXE].includes(id)) {
     p(0.03, 0.46, 0.03, WOOD, 0, 0.02, 0, { grain: 0.09 });
     p(0.036, 0.05, 0.036, WOOD_HI, 0, -0.19, 0, { detail: true });
     // The head is kept a constant height. Aimed forward the blade is seen down
@@ -124,17 +126,17 @@ export function itemParts(id) {
     p(0.09, 0.2, 0.085, head, 0.01, 0.228, 0);
     p(0.175, 0.235, 0.078, head, 0.115, 0.233, 0, { n: 2, grain: 0.06 });
     p(0.035, 0.28, 0.084, headHi, 0.222, 0.238, 0);
-  } else if ([WOOD_SHOVEL, STONE_SHOVEL, IRON_SHOVEL].includes(id)) {
+  } else if ([WOOD_SHOVEL, STONE_SHOVEL, IRON_SHOVEL, GOLD_SHOVEL].includes(id)) {
     p(0.03, 0.42, 0.03, WOOD, 0, 0.03, 0, { grain: 0.09 });
     p(0.036, 0.05, 0.036, WOOD_HI, 0, -0.17, 0, { detail: true });
     p(0.055, 0.06, 0.034, headLo, 0, 0.2, 0);
     p(0.105, 0.14, 0.032, head, 0, 0.285, 0, { n: 2, grain: 0.06 });
     p(0.075, 0.045, 0.03, head, 0, 0.372, 0);
     p(0.022, 0.13, 0.038, headHi, 0, 0.285, 0, { detail: true });
-  } else if ([WOOD_SWORD, STONE_SWORD, IRON_SWORD].includes(id)) {
+  } else if ([WOOD_SWORD, STONE_SWORD, IRON_SWORD, GOLD_SWORD].includes(id)) {
     p(0.028, 0.2, 0.028, WOOD, 0, -0.05, 0, { grain: 0.09 });
-    p(0.045, 0.04, 0.04, GOLD, 0, -0.16, 0);
-    p(0.11, 0.035, 0.04, GOLD, 0, 0.07, 0);
+    p(0.045, 0.04, 0.04, GUARD, 0, -0.16, 0);
+    p(0.11, 0.035, 0.04, GUARD, 0, 0.07, 0);
     p(0.05, 0.3, 0.018, head, 0, 0.24, 0, { n: 2, grain: 0.05 });
     p(0.016, 0.28, 0.024, headHi, 0, 0.24, 0, { detail: true });
     p(0.03, 0.07, 0.016, head, 0, 0.42, 0, { rz: 0 });
@@ -170,6 +172,17 @@ export function itemParts(id) {
     p(0.02, 0.09, 0.022, limbHi, 0, 0.31, 0.115, { rx: 1.0, detail: true });
     p(0.02, 0.09, 0.022, limbHi, 0, -0.31, 0.115, { rx: -1.0, detail: true });
     p(0.012, 0.68, 0.012, 0xefe7d6, 0, 0, 0.15, { flat: true, grain: 0 });
+  } else if (id === COMPASS) {
+    const brass = 0xc4a060;
+    const brassD = 0x8a6a28;
+    for (let i = 0; i < 12; i++) {
+      const a = (i / 12) * Math.PI * 2;
+      p(0.04, 0.04, 0.028, i % 2 ? brass : brassD, Math.cos(a) * 0.1, Math.sin(a) * 0.1, 0, { rz: a });
+    }
+    p(0.175, 0.175, 0.018, 0xefe6d2, 0, 0, -0.004, { n: 2, grain: 0.04 });
+    p(0.028, 0.11, 0.02, 0xc42828, 0, 0.038, -0.016);
+    p(0.022, 0.07, 0.016, 0x3a3a42, 0, -0.03, -0.014, { detail: true });
+    p(0.03, 0.03, 0.026, 0x2a2a30, 0, 0, -0.02, { flat: true, detail: true });
   } else if (id === STICK) {
     p(0.03, 0.3, 0.03, WOOD, 0, 0, 0, { grain: 0.1 });
     p(0.034, 0.04, 0.034, WOOD_HI, 0, 0.13, 0, { detail: true });
@@ -241,6 +254,10 @@ export function itemParts(id) {
     p(0.17, 0.032, 0.095, 0xa9b0be, 0, -0.028, -0.02);
     p(0.145, 0.035, 0.078, 0xd5dae4, 0, 0.002, -0.02, { n: 2, grain: 0.05 });
     p(0.12, 0.016, 0.06, 0xeef2f8, 0, 0.025, -0.02, { flat: true, detail: true });
+  } else if (id === GOLD) {
+    p(0.17, 0.032, 0.095, 0xc49828, 0, -0.028, -0.02);
+    p(0.145, 0.035, 0.078, 0xf0d060, 0, 0.002, -0.02, { n: 2, grain: 0.05 });
+    p(0.12, 0.016, 0.06, 0xfff0b0, 0, 0.025, -0.02, { flat: true, detail: true });
   } else if (id === WALL_WOOD || id === WALL_GLASS) {
     const post = id === WALL_WOOD ? 0xb98446 : 0xcfe6ef;
     const rail = id === WALL_WOOD ? 0x8a5a28 : 0xa9d6e4;
