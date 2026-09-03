@@ -54,7 +54,7 @@ window.OSCatalog = (function () {
   },
   {
     "id": "sheets",
-    "href": "os/app/sheets/index.html",
+    "href": "os/apps/sheets/index.html",
     "icon": "../assets/icons/svg/os-sheets.svg",
     "kind": "native",
     "uninstallable": false,
