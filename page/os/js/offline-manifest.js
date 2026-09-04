@@ -996,6 +996,6 @@
     "models/tinyyolov2-7.onnx",
     "models/yolov8n-coco.onnx"
   ],
-  "version": "63f81e1110c5"
+  "version": "41d976165399"
 };
 })(typeof self !== "undefined" ? self : window);

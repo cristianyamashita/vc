@@ -18,6 +18,28 @@ const SLEEVE = 0x3aa38f;
 // hotbar slots never rebuilds meshes or uploads new buffers mid-game.
 const HELD_MAT = new THREE.MeshLambertMaterial({ vertexColors: true });
 
+// First-person rest pose. The shoulder sits just below and beside the camera,
+// the upper arm drops down and forward from it, and the elbow bends so the
+// forearm rises back into frame. Without that bend the limb reads as a
+// straight bar hinged behind the player, and the fist ends up below the
+// screen while the held item floats on its own.
+const SHOULDER = { x: 0.45, y: -0.30, z: -0.10 };
+const REST_ARM_X = 0.62;
+const REST_ELBOW = 1.78;
+// The forearm swings inwards from the elbow, not the shoulder, so the fist
+// crosses towards the middle of the screen and the limb reads as a diagonal
+// coming out of the corner.
+const REST_ELBOW_Z = 0.45;
+
+function restGrip(arm) {
+  // Items are authored in camera space, so the group they hang from cancels
+  // out the arm's rest rotation: at rest the item is framed exactly as
+  // before, and during a swing it travels with the fist.
+  const q = new THREE.Quaternion().setFromEuler(arm.group.rotation);
+  q.multiply(new THREE.Quaternion().setFromEuler(arm.elbow.rotation));
+  return q.invert();
+}
+
 export class Arms {
   constructor(camera, atlas) {
     this.root = new THREE.Group();
@@ -31,22 +53,30 @@ export class Arms {
 
   build() {
     this.ownGeo = [];
-    this.right = this.makeArm(0.28, -0.28, -0.38, 1);
-    this.left = this.makeArm(-0.34, -0.36, -0.48, -1);
+    this.right = this.makeArm(SHOULDER.x, SHOULDER.y, SHOULDER.z, 1);
+    this.left = this.makeArm(-SHOULDER.x - 0.03, SHOULDER.y - 0.04, SHOULDER.z, -1);
+    // The held item hangs off the fist, so hand and gear move as one. Each
+    // fist gets a fixed anchor; the mount group inside it is emptied whenever
+    // the item changes, so nothing that must survive a swap lives in there.
     this.toolHold = new THREE.Group();
-    this.toolHold.position.set(0.24, -0.06, -0.4);
+    this.toolHold.quaternion.copy(restGrip(this.right));
     this.toolHold.layers.set(1);
-    this.root.add(this.toolHold);
+    this.right.hand.add(this.toolHold);
+    this.offHold = new THREE.Group();
+    this.offHold.quaternion.copy(restGrip(this.left));
+    this.offHold.layers.set(1);
+    this.left.hand.add(this.offHold);
     this.tool = new THREE.Group();
-    this.offTool = new THREE.Group();
+    this.tool.position.set(0.01, 0.05, -0.05);
     this.toolHold.add(this.tool);
-    this.left.hand.add(this.offTool);
+    this.offTool = new THREE.Group();
+    this.offHold.add(this.offTool);
     this.ropeGrip = new THREE.Object3D();
-    this.ropeGrip.position.set(0.05, 0.01, -0.06);
+    this.ropeGrip.position.set(0.06, 0.06, -0.11);
     this.toolHold.add(this.ropeGrip);
     this.offRopeGrip = new THREE.Object3D();
-    this.offRopeGrip.position.set(0, -0.02, 0.06);
-    this.offTool.add(this.offRopeGrip);
+    this.offRopeGrip.position.set(-0.04, 0.05, -0.09);
+    this.offHold.add(this.offRopeGrip);
     this._gripWorld = new THREE.Vector3();
     this.heldId = -1;
     this.offId = -1;
@@ -69,7 +99,7 @@ export class Arms {
   rebuild() {
     const held = this.heldId > 0 ? this.heldId : 0;
     const off = this.offId > 0 ? this.offId : 0;
-    this.root.remove(this.right.group, this.left.group, this.toolHold);
+    this.root.remove(this.right.group, this.left.group);
     for (const geo of this.ownGeo) geo.dispose();
     this.build();
     this.setHeld(held);
@@ -82,18 +112,22 @@ export class Arms {
     arm.layers.set(1);
     const old = isOriginal();
     const sleeve = new THREE.Mesh(buildVoxGeometry(old ? [
-      { w: 0.12, h: 0.32, d: 0.12, color: SLEEVE, x: 0, y: -0.1, z: 0, flat: true, grain: 0 },
+      { w: 0.12, h: 0.22, d: 0.12, color: SLEEVE, x: 0, y: -0.05, z: 0, flat: true, grain: 0 },
     ] : [
       { w: 0.13, h: 0.2, d: 0.13, color: SLEEVE, x: 0, y: -0.04, z: 0, n: 2, grain: 0.05 },
       { w: 0.135, h: 0.04, d: 0.135, color: shadeHex(SLEEVE, 0.82), x: 0, y: -0.15, z: 0, detail: true },
     ]), HELD_MAT);
+    // Everything below the elbow is parented to a joint so the forearm can
+    // fold up towards the camera instead of continuing the upper arm's line.
+    const elbow = new THREE.Group();
+    elbow.position.set(0, -0.16, 0);
     const forearm = new THREE.Mesh(buildVoxGeometry(old ? [
-      { w: 0.11, h: 0.28, d: 0.11, color: SKIN, x: 0, y: -0.36, z: 0.02, flat: true, grain: 0 },
+      { w: 0.11, h: 0.3, d: 0.11, color: SKIN, x: 0, y: -0.19, z: 0, flat: true, grain: 0 },
     ] : [
-      { w: 0.105, h: 0.26, d: 0.105, color: SKIN, x: 0, y: -0.33, z: 0.015, grain: 0.04 },
+      { w: 0.105, h: 0.26, d: 0.105, color: SKIN, x: 0, y: -0.17, z: 0, grain: 0.04 },
     ]), HELD_MAT);
     const hand = new THREE.Group();
-    hand.position.set(0, -0.52, 0.04);
+    hand.position.set(0, -0.36, 0.01);
     const fist = new THREE.Mesh(buildVoxGeometry(old ? [
       { w: 0.1, h: 0.1, d: 0.1, color: SKIN, x: 0, y: 0, z: 0, flat: true, grain: 0 },
     ] : [
@@ -101,13 +135,15 @@ export class Arms {
       { w: 0.045, h: 0.055, d: 0.05, color: shadeHex(SKIN, 0.94), x: side * 0.05, y: 0.02, z: 0.03, detail: true },
     ]), HELD_MAT);
     hand.add(fist);
-    for (const m of [sleeve, forearm, fist, arm, hand]) m.layers.set(1);
+    for (const m of [sleeve, forearm, fist, arm, hand, elbow]) m.layers.set(1);
     this.ownGeo.push(sleeve.geometry, forearm.geometry, fist.geometry);
-    arm.add(sleeve, forearm, hand);
-    arm.rotation.x = 0.35;
-    arm.rotation.z = side * 0.12;
+    elbow.add(forearm, hand);
+    arm.add(sleeve, elbow);
+    arm.rotation.x = REST_ARM_X;
+    elbow.rotation.x = REST_ELBOW;
+    elbow.rotation.z = -side * REST_ELBOW_Z;
     this.root.add(arm);
-    return { group: arm, hand, side };
+    return { group: arm, elbow, hand, side };
   }
 
   punch() {
@@ -153,13 +189,16 @@ export class Arms {
       GOLD_PICK, GOLD_AXE, GOLD_SHOVEL, GOLD_SWORD,
       LASSO, REVOLVER, BOW,
     ].includes(this.heldId);
-    const restX = holdingTool ? 0.48 : 0.22;
-    this.right.group.rotation.x = restX + swingX * 0.85;
-    this.right.group.rotation.y = -0.12 - this.swing * 0.35;
-    this.toolHold.rotation.x = -0.05 - this.swing * 0.9;
-    this.toolHold.rotation.y = -0.12;
-    this.toolHold.rotation.z = 0.08;
-    this.left.group.rotation.x = 0.45 + Math.sin(this.bob) * 0.04 - (this.offId ? 0.12 : 0);
+    // A swing drops the shoulder forward and straightens the elbow, so the
+    // fist punches out and down instead of the whole limb pivoting.
+    const restElbow = (holdingTool ? REST_ELBOW : REST_ELBOW - 0.2) + Math.sin(this.bob) * 0.02;
+    this.right.group.rotation.x = REST_ARM_X + swingX * 0.35;
+    this.right.group.rotation.y = -0.08 - this.swing * 0.2;
+    this.right.elbow.rotation.x = restElbow - swingX * 0.8;
+    this.tool.rotation.x = -0.04 - this.swing * 0.3;
+    this.left.group.rotation.x = REST_ARM_X + Math.sin(this.bob) * 0.04;
+    this.left.elbow.rotation.x = REST_ELBOW - 0.24 + (this.offId ? 0.12 : 0)
+      + Math.sin(this.bob) * 0.03;
     this.root.position.y = Math.sin(this.bob) * (walking ? 0.025 : 0.008);
     this.root.position.x = Math.cos(this.bob * 0.5) * (walking ? 0.01 : 0);
   }

@@ -9,7 +9,13 @@ because the people who recorded these deserve them.
 Each clip is silence-trimmed, capped to a length that suits its role in the
 game, peak-normalised to about -6 dBFS and encoded as mono MP3 at 160 kbps.
 
-Three details matter if these are ever rebuilt:
+The order of the build matters more than any single setting: each clip is cut,
+folded to mono and shaped **first**, and only then measured and normalised.
+Every level bug in this pipeline came from measuring one signal and shipping
+another — a window that excluded the source's real peak, a stereo file whose
+mono fold moved the peak 6 dB, a probe `volumedetect` could not read.
+
+Details worth keeping if these are ever rebuilt:
 
 - **No fade-in.** An impact peaks in its first millisecond, so any ramp at the
   start flattens the attack — an 8 ms fade-in cost the footsteps up to 18 dB of
@@ -20,6 +26,20 @@ Three details matter if these are ever rebuilt:
   `js/sfx.js` makes the level back up.
 - **160 kbps, not 96.** At the lower rate the encoder smears sharp transients —
   a gunshot, breaking glass — into a swishy mess.
+- **Float all the way through.** The mono fold *sums* the channels instead of
+  averaging them, because the revolver's shot sits on the right channel 12 dB
+  above the left and an average throws that away. A sum can reach 1.8, so a
+  16-bit intermediate clips it flat — which is what 114 of the 133 clips were
+  quietly doing before.
+- **The revolver is limited, not compressed.** Its crack is about two
+  milliseconds long, so a compressor with a 4 ms attack never catches it and
+  the clip stays as quiet as it started. A fast limiter lifts the body and tail
+  against the crack; the strength is dialled per take so the two shots land at
+  the same loudness instead of 6 dB apart.
+- **Peak parity is not loudness parity.** Normalised to the same peak, the
+  revolver measured as loud as a footstep and sounded 20 dB quieter, because
+  nearly all its energy is in that one transient. Sounds like that need their
+  level set by loudness — the loudest 100 ms — not by their peak.
 
 Long recordings are cut around their loudest moment rather than from the top,
 since an eleven-second flock of chickens opens on ambience. The field

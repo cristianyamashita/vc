@@ -379,7 +379,10 @@ export function shoot(kind = 'gun', dist = 0) {
     play('bow', { gain: 0.5, dist, reach: 40, spread: 0.08 });
     return;
   }
-  play('gun', { gain: 0.65, dist, reach: 40, spread: 0.05 });
+  // The loudest thing in the game, and the only event that needs a gain
+  // above 1: even limited, a gunshot carries far less sustained energy
+  // than anything else at the same peak.
+  play('gun', { gain: 1.4, dist, reach: 40, spread: 0.05 });
 }
 
 export function arrowHit(dist = 0) {

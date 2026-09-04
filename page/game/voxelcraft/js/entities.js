@@ -1090,9 +1090,9 @@ export class Life {
     const eyeY = player.pos.y + (player.eyeHeight?.() ?? 1.62);
     const yaw = player.yaw || 0;
     const pitch = player.pitch || 0;
-    const lx = 0.26;
-    const ly = -0.08;
-    const lz = -0.42;
+    const lx = 0.39;
+    const ly = -0.13;
+    const lz = -0.53;
     const cy = Math.cos(yaw);
     const sy = Math.sin(yaw);
     const cp = Math.cos(pitch);
