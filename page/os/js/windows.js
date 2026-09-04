@@ -223,6 +223,10 @@ window.OSWindows = (function () {
     if (window.OS && window.OS.renderTaskbar) window.OS.renderTaskbar();
     writeHashNow();
     persist();
+    if (window.OSAnalytics) {
+      const focused = windows.get(id);
+      window.OSAnalytics.trackWin(focused && !focused.minimized ? focused : null);
+    }
   }
 
   function persist() {
@@ -733,6 +737,7 @@ window.OSWindows = (function () {
       writeHashNow();
       persist();
       if (window.OS && window.OS.renderTaskbar) window.OS.renderTaskbar();
+      if (window.OSAnalytics) window.OSAnalytics.trackDesktop();
     }
   }
 
@@ -774,6 +779,7 @@ window.OSWindows = (function () {
       writeHashNow();
       persist();
       if (window.OS && window.OS.renderTaskbar) window.OS.renderTaskbar();
+      if (window.OSAnalytics) window.OSAnalytics.trackDesktop();
     }
   }
 

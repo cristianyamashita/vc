@@ -420,6 +420,7 @@ window.OSSettings = (function () {
       offlineUnsub();
       offlineUnsub = null;
     }
+    if (window.OSAnalytics) window.OSAnalytics.trackApp("settings", currentPane || "preferences");
   }
 
   async function fillStorage(root) {
@@ -868,5 +869,5 @@ window.OSSettings = (function () {
     }
   }
 
-  return { mount, remountOpen };
+  return { mount, remountOpen, currentPane: () => currentPane };
 })();

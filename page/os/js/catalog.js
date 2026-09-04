@@ -288,6 +288,33 @@ window.OSCatalog = (function () {
     }
   },
   {
+    "id": "upgrade",
+    "href": "os/apps/upgrade/index.html",
+    "icon": "../assets/icons/svg/os-upgrade.svg",
+    "kind": "native",
+    "suite": "accessories",
+    "uninstallable": false,
+    "defaultInstalled": true,
+    "windowW": 720,
+    "windowH": 720,
+    "channel": "stable",
+    "tag": {
+      "en": "Accessories",
+      "pt": "Acessórios",
+      "ja": "アクセサリ"
+    },
+    "name": {
+      "en": "Upgrade Simulator",
+      "pt": "Simulador de Upgrade",
+      "ja": "アップグレードシミュレーター"
+    },
+    "desc": {
+      "en": "Fullscreen fake OS upgrade for Ubuntu, CentOS, Windows, or Mac. Press Esc to exit.",
+      "pt": "Simula um upgrade em tela cheia do Ubuntu, CentOS, Windows ou Mac. Esc sai da simulação.",
+      "ja": "Ubuntu / CentOS / Windows / Mac のアップグレード画面をフルスクリーンで再現。Esc で終了。"
+    }
+  },
+  {
     "id": "stickies",
     "href": "os/apps/stickies/index.html",
     "icon": "../assets/icons/svg/os-stickies.svg",

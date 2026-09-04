@@ -23,6 +23,7 @@ import {
 import { Life, KINDS } from './js/entities.js';
 import { ItemDrops } from './js/drops.js';
 import { initQuality, getQuality, setQuality } from './js/quality.js';
+import * as sfx from './js/sfx.js';
 import { initItemModels } from './js/itemmodels.js';
 import { renderItemIcons } from './js/itemicons.js';
 import { clearVoxCache } from './js/voxmodel.js';
@@ -30,7 +31,7 @@ import {
   emptyFurnace, furnaceKey, tickFurnace, dropFurnaceStacks,
   serializeFurnaces, loadFurnaces, COOK_SEC,
 } from './js/furnace.js';
-import { isDoorId, placeDoor, toggleDoor, removeDoor, serializeDoors, loadDoors } from './js/doors.js';
+import { isDoorId, isDoorOpenId, placeDoor, toggleDoor, removeDoor, serializeDoors, loadDoors } from './js/doors.js';
 import { placeStairs, placeLadder, serializeBlockDir } from './js/stairs.js';
 import { placeWall } from './js/walls.js';
 import { tickLeafDecay, serializeLeafDecay, loadLeafDecay } from './js/leaves.js';
@@ -72,6 +73,7 @@ const furnaceRow = document.getElementById('furnace-row');
 const timeSlider = document.getElementById('time-slider');
 const timeClock = document.getElementById('time-clock');
 const freezeTimeEl = document.getElementById('freeze-time');
+const soundToggleEl = document.getElementById('sound-toggle');
 const mapOverlay = document.getElementById('map-overlay');
 const mapCanvas = document.getElementById('world-map');
 const mapMeta = document.getElementById('map-meta');
@@ -124,6 +126,18 @@ let saving = false;
 let currentWorldId = null;
 let worldBusy = false;
 let last = performance.now();
+// Bookkeeping for the sound effects: footsteps are paced by distance walked and
+// the one-shot cues (jump, landing, hurt, splash) fire on state changes.
+let stepAcc = 0;
+let swimAcc = 0;
+let ladderAcc = 0;
+let wasOnGround = true;
+let wasInWater = false;
+let wasOnLadder = false;
+let fallPeak = 0;
+let lastHealth = 20;
+let mobCallCool = 5;
+let furnaceOut = 0;
 const tracers = [];
 const flyArrows = [];
 const crosshairEl = document.getElementById('crosshair');
@@ -131,7 +145,9 @@ const crosshairEl = document.getElementById('crosshair');
 initLang();
 initTheme();
 initQuality();
+sfx.initSfx();
 syncThemeBtn();
+syncSoundUi();
 
 const atlasData = createAtlas();
 atlas = atlasData;
@@ -223,6 +239,18 @@ timeSlider.addEventListener('input', () => {
 timeSlider.addEventListener('change', () => {
   setWorldTime(Number(timeSlider.value), true);
 });
+soundToggleEl.addEventListener('pointerdown', (e) => e.stopPropagation());
+soundToggleEl.addEventListener('change', () => {
+  sfx.setSoundOn(soundToggleEl.checked);
+  if (soundToggleEl.checked) sfx.click();
+});
+
+// Every button in the game clicks. This also doubles as the user gesture that
+// lets the browser start the audio context.
+document.addEventListener('pointerdown', (e) => {
+  if (e.target.closest?.('button')) sfx.click();
+}, true);
+
 freezeTimeEl.addEventListener('pointerdown', (e) => e.stopPropagation());
 freezeTimeEl.addEventListener('change', () => {
   freezeTime = !!freezeTimeEl.checked;
@@ -340,6 +368,10 @@ respawnBtn.addEventListener('click', () => {
     player.respawn();
   }
   deathEl.hidden = true;
+  lastHealth = player.health;
+  wasOnGround = true;
+  fallPeak = 0;
+  sfx.respawn();
   requestPlay();
 });
 document.getElementById('inv-close').addEventListener('click', () => closeInv());
@@ -444,6 +476,7 @@ window.addEventListener('keydown', (e) => {
   if (e.code === 'KeyQ' && isPlaying()) {
     e.preventDefault();
     const thrown = inv.dropOne();
+    if (thrown) sfx.dropItem();
     if (thrown && drops) {
       const drop = drops.throwFrom(player, player.yaw, player.pitch, thrown);
       if (life && foodInfo(thrown)) life.assignFoodHome(drop);
@@ -512,6 +545,25 @@ function syncThemeBtn() {
   themeBtn.textContent = getTheme() === 'dark' ? '☾' : '☀';
 }
 
+function syncSoundUi() {
+  soundToggleEl.checked = sfx.isSoundOn();
+}
+
+// Entering a world starts the sound bookkeeping from the player's real state,
+// so loading a wounded save does not sound a hurt cue on the first frame.
+function resetSfxState() {
+  stepAcc = 0;
+  swimAcc = 0;
+  ladderAcc = 0;
+  fallPeak = 0;
+  mobCallCool = 5;
+  furnaceOut = 0;
+  wasOnGround = true;
+  wasInWater = !!player?.inWater;
+  wasOnLadder = false;
+  lastHealth = player?.health ?? 20;
+}
+
 function persistUi() {
   saveSettings({ lang: document.documentElement.lang, theme: getTheme(), quality: getQuality() })
     .catch(() => {});
@@ -557,6 +609,7 @@ function showMenu(paused) {
   playBtn.textContent = paused ? t('resume') : t('clickToPlay');
   syncTimeUi();
   syncGfxUi();
+  syncSoundUi();
   refreshWorldList();
 }
 
@@ -603,6 +656,7 @@ function openCrateLoot(loot) {
   document.exitPointerLock();
   fillCrateLootModal();
   crateLootEl.hidden = false;
+  sfx.reward();
 }
 
 function closeCrateLoot() {
@@ -636,6 +690,7 @@ function requestPlay() {
     return;
   }
   awaitingLock = true;
+  sfx.resumeAudio();
   try {
     const ret = canvas.requestPointerLock?.();
     if (ret && typeof ret.catch === 'function') ret.catch(() => { awaitingLock = false; });
@@ -657,6 +712,7 @@ function openInv(table) {
   craft2Row.hidden = table;
   craft3Row.hidden = !table;
   invTitle.textContent = table ? t('craftingTable') : t('inventory');
+  sfx.panel(true);
   refreshInv();
   setRecipesOpen(true);
   setShopOpen(false);
@@ -676,6 +732,7 @@ function openFurnace(x, y, z) {
   craft3Row.hidden = true;
   furnaceRow.hidden = false;
   invTitle.textContent = t('furnace');
+  furnaceOut = currentFurnace().out?.n || 0;
   refreshInv();
   setRecipesOpen(false);
   setShopOpen(false);
@@ -691,6 +748,7 @@ function closeInv() {
   tableMode = false;
   invEl.hidden = true;
   cursorEl.hidden = true;
+  sfx.panel(false);
   setShopOpen(false);
   refreshHud();
   if (player.health > 0) canvas.requestPointerLock();
@@ -713,6 +771,9 @@ function tickFurnaces(dt) {
   for (const f of Object.values(world.furnaces)) tickFurnace(f, dt);
   if (!furnacePos) return;
   const f = currentFurnace();
+  const out = f.out?.n || 0;
+  if (out > furnaceOut) sfx.sizzle();
+  furnaceOut = out;
   paintSlot(document.getElementById('furnace-in'), f.input, false);
   paintSlot(document.getElementById('furnace-fuel'), f.fuel, false);
   paintSlot(document.getElementById('furnace-out'), f.out, false);
@@ -816,6 +877,7 @@ function generateFreshWorld() {
   player.pos.set(spawn.x, spawn.y, spawn.z);
   player.spawn.copy(player.pos);
   player.fallY = player.pos.y;
+  resetSfxState();
   inv = new Inventory();
   worldTime = 120;
   freezeTime = false;
@@ -1124,6 +1186,7 @@ async function loadFromSave(save) {
     ? { x: save.mapMark.x, z: save.mapMark.z }
     : null;
   syncMapMarkUi();
+  resetSfxState();
   refreshHud();
   syncTimeUi();
 }
@@ -1208,6 +1271,96 @@ function loop(now) {
   requestAnimationFrame(loop);
 }
 
+// The block the player is standing on, which decides how a footstep or a
+// landing sounds.
+function groundBlockId() {
+  const bx = Math.floor(player.pos.x);
+  const bz = Math.floor(player.pos.z);
+  const below = world.get(bx, Math.floor(player.pos.y - 0.2), bz);
+  if (below) return below;
+  return world.get(bx, Math.floor(player.pos.y - 0.9), bz);
+}
+
+// Footsteps, jumps, landings, swimming and getting hurt, all driven off the
+// player state that player.update() just produced.
+function movementSfx(dt) {
+  const speed = Math.hypot(player.vel.x, player.vel.z);
+  const ground = groundBlockId();
+
+  if (player.inWater !== wasInWater) {
+    sfx.splash(player.inWater);
+    swimAcc = 0;
+  } else if (player.inWater) {
+    swimAcc += speed * dt;
+    if (swimAcc > 1.4) {
+      swimAcc = 0;
+      sfx.swim();
+    }
+  }
+
+  if (player.onLadder && !player.inWater) {
+    ladderAcc += Math.abs(player.vel.y) * dt;
+    if (ladderAcc > 0.9) {
+      ladderAcc = 0;
+      sfx.ladderStep();
+    }
+  } else if (!player.onLadder) {
+    ladderAcc = 0;
+  }
+
+  if (player.onGround) {
+    if (!wasOnGround) {
+      // fallPeak is the fastest the player was falling before touching down.
+      sfx.land(ground, fallPeak < -13);
+      stepAcc = 0;
+    } else if (!player.inWater && speed > 0.6) {
+      stepAcc += speed * dt;
+      const stride = player.sneak ? 1.35 : player.sprint ? 2.35 : 1.85;
+      if (stepAcc >= stride) {
+        stepAcc = 0;
+        sfx.step(ground, { sneak: player.sneak, sprint: player.sprint });
+      }
+    }
+    fallPeak = 0;
+  } else {
+    if (wasOnGround && player.vel.y > 0.5 && !player.inWater && !player.onLadder) sfx.jump();
+    fallPeak = Math.min(fallPeak, player.vel.y);
+  }
+
+  if (player.health < lastHealth && player.health > 0) sfx.hurt();
+  lastHealth = player.health;
+  wasOnGround = player.onGround;
+  wasInWater = player.inWater;
+  wasOnLadder = player.onLadder;
+}
+
+// Animals and villagers call out now and then when they are close enough to
+// hear.
+function ambientMobSfx(dt) {
+  if (!life?.list?.length) return;
+  mobCallCool -= dt;
+  if (mobCallCool > 0) return;
+  mobCallCool = 3.5 + Math.random() * 6;
+  const near = life.list.filter((e) => !e.dying
+    && Math.hypot(e.x - player.pos.x, e.z - player.pos.z) < 22);
+  if (!near.length) return;
+  const e = near[Math.floor(Math.random() * near.length)];
+  sfx.mobIdle(e.kind, distTo(e));
+}
+
+function distTo(e) {
+  return Math.hypot(e.x - player.pos.x, e.y - player.pos.y, e.z - player.pos.z);
+}
+
+// One call for a blow that landed: a cry if the mob survived, a death sound if
+// it did not.
+function mobHitSfx(e) {
+  if (!e) return;
+  const d = distTo(e);
+  if (e.hp <= 0) sfx.mobDie(e.kind, d);
+  else sfx.mobHurt(e.kind, d);
+}
+
 function tick(dt) {
   if (!freezeTime) worldTime += dt;
   placeCool = Math.max(0, placeCool - dt);
@@ -1232,6 +1385,8 @@ function tick(dt) {
   world.unloadFar(player.pos.x, player.pos.z);
   syncChunkMeshes(world, bundle, player.pos.x, player.pos.z);
   player.applyLook(camera);
+  movementSfx(dt);
+  ambientMobSfx(dt);
 
   const hour = hourFromWorldTime(worldTime);
   const night = hour >= 19 || hour < 6;
@@ -1254,6 +1409,7 @@ function tick(dt) {
           new THREE.Vector3(to.x, to.y, to.z),
           0xff6a3a,
         );
+        sfx.shoot('gun', Math.hypot(from.x - player.pos.x, from.y - player.pos.y, from.z - player.pos.z));
         player.hurt(7);
       },
     };
@@ -1271,10 +1427,14 @@ function tick(dt) {
   if (drops) {
     const before = drops.list.length;
     drops.update(dt, world, player, inv);
-    if (drops.list.length !== before) refreshHud();
+    if (drops.list.length !== before) {
+      if (drops.list.length < before) sfx.pickup();
+      refreshHud();
+    }
   }
 
   if (player.health <= 0) {
+    sfx.die();
     if (life) life.clearLasso();
     castleDeath = inCastleArea(world, player.pos.x, player.pos.z);
     document.exitPointerLock();
@@ -1314,6 +1474,7 @@ function tick(dt) {
     breakBar.hidden = true;
     if (attackCool <= 0 && preferEnt) {
       life.setLassoed(entHit.e);
+      sfx.lasso();
       arms.punch();
       attackCool = 0.35;
       refreshHud();
@@ -1324,20 +1485,28 @@ function tick(dt) {
     if (attackCool <= 0) {
       if (ammoOf(held) > 0) {
         consumeAmmo(held);
+        sfx.shoot(held.id === BOW ? 'bow' : 'gun');
         const reach = preferEnt ? entHit.dist : (longHit?.dist ?? heldDef.range);
         const end = origin.clone().addScaledVector(dir, Math.max(0.4, reach));
         const from = origin.clone().addScaledVector(dir, 0.45);
         if (held.id === BOW) {
           const target = preferEnt && !entHit.e.dying ? entHit.e : null;
           spawnWhiteArrow(from, end, target, () => {
+            sfx.arrowHit(target ? distTo(target) : end.distanceTo(player.pos));
             if (!target || target.dying || !life?.list.includes(target)) return;
             life.hurt(target, 999, player.pos, { delayDeath: true, deathDelay: 0.12 });
+            mobHitSfx(target);
           });
         } else {
           spawnTracer(from, end, 0xffe08a);
-          if (preferEnt) life.hurt(entHit.e, 999, player.pos, { delayDeath: true });
+          if (preferEnt) {
+            life.hurt(entHit.e, 999, player.pos, { delayDeath: true });
+            mobHitSfx(entHit.e);
+          }
         }
         arms.punch();
+      } else {
+        sfx.denied();
       }
       attackCool = heldDef.cool || 0.45;
       refreshHud();
@@ -1347,6 +1516,7 @@ function tick(dt) {
     breakBar.hidden = true;
     if (attackCool <= 0) {
       const loot = life.hurt(entHit.e, attackDamage(held), player.pos);
+      mobHitSfx(entHit.e);
       giveEntityLoot(loot, entHit.e);
       if (ITEMS[held?.id]?.tool) inv.wearSelected();
       arms.punch();
@@ -1356,9 +1526,13 @@ function tick(dt) {
   } else if (mining) {
     if (!mine || mine.x !== hit.x || mine.y !== hit.y || mine.z !== hit.z) {
       mine = { x: hit.x, y: hit.y, z: hit.z, t: 0, need: mineSeconds(hit.id, inv.selectedStack()) };
+      sfx.dig(hit.id);
     }
     mine.t += dt;
-    if (mine.t >= 0.28 && mine.t % 0.28 < dt) arms.punch();
+    if (mine.t >= 0.28 && mine.t % 0.28 < dt) {
+      arms.punch();
+      sfx.dig(hit.id);
+    }
     const pct = mine.need === Infinity ? 0 : mine.t / mine.need;
     breakBar.hidden = false;
     breakBar.classList.remove('eat');
@@ -1370,6 +1544,10 @@ function tick(dt) {
     }
   } else {
     mine = null;
+    if (mouse.left && attackCool <= 0) {
+      sfx.swing();
+      attackCool = 0.4;
+    }
     if (!mouse.right) {
       breakBar.hidden = true;
       breakBar.classList.remove('eat');
@@ -1383,7 +1561,9 @@ function tick(dt) {
     if (isDoorId(hit?.id) && !sneak) {
       if (placeCool <= 0) {
         placeCool = 0.18;
+        const wasOpen = isDoorOpenId(hit.id);
         if (toggleDoor(world, hit.x, hit.y, hit.z, player, life, KINDS)) {
+          sfx.door(!wasOpen);
           remeshDirty(world, bundle);
         }
       }
@@ -1392,6 +1572,7 @@ function tick(dt) {
       if (placeCool <= 0 && life?.getLassoed()) {
         placeCool = 0.18;
         life.clearLasso();
+        sfx.lassoRelease();
       }
       eatAcc = 0;
     } else if (usingRanged) {
@@ -1405,6 +1586,7 @@ function tick(dt) {
     } else if (hit?.id === FURNACE && !sneak) {
       if (placeCool <= 0) {
         placeCool = 0.18;
+        sfx.furnaceOpen();
         openFurnace(hit.x, hit.y, hit.z);
       }
       eatAcc = 0;
@@ -1415,14 +1597,19 @@ function tick(dt) {
       breakBar.classList.add('eat');
       breakBar.querySelector('i').style.width = `${Math.min(100, pct * 100)}%`;
       if (eatAcc >= selFood.eatTime) {
-        if (player.eat(selFood.hunger, selFood.heal || 0)) inv.takeSelected(1);
+        if (player.eat(selFood.hunger, selFood.heal || 0)) {
+          inv.takeSelected(1);
+          sfx.eat();
+        }
         eatAcc = 0;
         refreshHud();
         arms.punch();
       }
     } else if (placeCool <= 0 && placeHit) {
       placeCool = 0.18;
-      placeBlock(placeHit);
+      const placed = placeBlock(placeHit);
+      if (placed === TORCH) sfx.torchLight();
+      else if (placed) sfx.blockPlace(placed);
       eatAcc = 0;
     } else if (offFood && canEatFood(offFood)) {
       eatAcc += dt;
@@ -1431,7 +1618,10 @@ function tick(dt) {
       breakBar.classList.add('eat');
       breakBar.querySelector('i').style.width = `${Math.min(100, pct * 100)}%`;
       if (eatAcc >= offFood.eatTime) {
-        if (player.eat(offFood.hunger, offFood.heal || 0)) inv.takeOffhand(1);
+        if (player.eat(offFood.hunger, offFood.heal || 0)) {
+          inv.takeOffhand(1);
+          sfx.eat();
+        }
         eatAcc = 0;
         refreshHud();
         arms.punch();
@@ -1602,6 +1792,7 @@ function tickTracers(dt) {
 function breakBlock(hit) {
   const id = world.get(hit.x, hit.y, hit.z);
   if (!id || isUnbreakable(id) || id === AIR) return;
+  sfx.blockBreak(id);
   if (isDoorId(id)) {
     const drop = removeDoor(world, hit.x, hit.y, hit.z);
     if (drop) inv.add(drop, 1);
@@ -1613,6 +1804,7 @@ function breakBlock(hit) {
   }
   if (id === SURPRISE_BOX) {
     if (!canHarvest(id, inv.selectedStack())) return;
+    sfx.chestOpen();
     const ox = hit.x + 0.5;
     const oy = hit.y + 0.4;
     const oz = hit.z + 0.5;
@@ -1648,6 +1840,8 @@ function breakBlock(hit) {
   arms.punch();
 }
 
+// Returns the id of the block that was placed, or 0 when nothing was, so the
+// caller knows which sound to play.
 function placeBlock(hit) {
   let fromOff = false;
   let stack = inv.selectedStack();
@@ -1655,58 +1849,60 @@ function placeBlock(hit) {
     stack = inv.offhand;
     fromOff = true;
   }
-  if (!stack || !isPlaceable(stack.id)) return;
+  if (!stack || !isPlaceable(stack.id)) return 0;
   if (isWall(stack.id)) {
-    if (!placeWall(world, hit, player.yaw, player.pitch, stack.id, player)) return;
+    if (!placeWall(world, hit, player.yaw, player.pitch, stack.id, player)) return 0;
     if (fromOff) inv.takeOffhand(1);
     else inv.takeSelected(1);
     remeshDirty(world, bundle);
     refreshHud();
-    return;
+    return stack.id;
   }
   const replaceHit = isLiquid(hit.id);
   const px = replaceHit ? hit.x : hit.x + hit.nx;
   const py = replaceHit ? hit.y : hit.y + hit.ny;
   const pz = replaceHit ? hit.z : hit.z + hit.nz;
-  if (!world.inBounds(px, py, pz)) return;
+  if (!world.inBounds(px, py, pz)) return 0;
   const dest = world.get(px, py, pz);
-  if (!isReplaceable(dest)) return;
-  if (player.overlapsBlock(px, py, pz) && isSolid(stack.id) && !isStair(stack.id)) return;
-  if (stack.id === TORCH && !isSolid(world.get(hit.x, hit.y, hit.z))) return;
-  if ((isFlower(stack.id) || isRug(stack.id)) && !isSolid(world.get(px, py - 1, pz))) return;
+  if (!isReplaceable(dest)) return 0;
+  if (player.overlapsBlock(px, py, pz) && isSolid(stack.id) && !isStair(stack.id)) return 0;
+  if (stack.id === TORCH && !isSolid(world.get(hit.x, hit.y, hit.z))) return 0;
+  if ((isFlower(stack.id) || isRug(stack.id)) && !isSolid(world.get(px, py - 1, pz))) return 0;
   if (stack.id === DOOR || stack.id === DOOR_DOUBLE) {
-    if (!placeDoor(world, px, py, pz, player.yaw, stack.id === DOOR_DOUBLE, player)) return;
+    if (!placeDoor(world, px, py, pz, player.yaw, stack.id === DOOR_DOUBLE, player)) return 0;
     if (fromOff) inv.takeOffhand(1);
     else inv.takeSelected(1);
     remeshDirty(world, bundle);
     refreshHud();
-    return;
+    return stack.id;
   }
   if (isStair(stack.id)) {
-    if (player.overlapsBlock(px, py, pz)) return;
-    if (!placeStairs(world, px, py, pz, player.yaw, stack.id)) return;
+    if (player.overlapsBlock(px, py, pz)) return 0;
+    if (!placeStairs(world, px, py, pz, player.yaw, stack.id)) return 0;
     if (fromOff) inv.takeOffhand(1);
     else inv.takeSelected(1);
     remeshDirty(world, bundle);
     refreshHud();
-    return;
+    return stack.id;
   }
   if (stack.id === LADDER) {
-    if (!placeLadder(world, px, py, pz, hit.nx, hit.ny, hit.nz)) return;
+    if (!placeLadder(world, px, py, pz, hit.nx, hit.ny, hit.nz)) return 0;
     if (fromOff) inv.takeOffhand(1);
     else inv.takeSelected(1);
     remeshDirty(world, bundle);
     refreshHud();
-    return;
+    return stack.id;
   }
   world.set(px, py, pz, stack.id);
   if (stack.id === TORCH) world.setTorchFacing(px, py, pz, torchFacingFromHit(hit.nx, hit.ny, hit.nz));
   if (stack.id === FURNACE) world.furnaces[furnaceKey(px, py, pz)] = emptyFurnace();
   if (isFlower(stack.id) && life) life.assignFlowerHome(px, py, pz);
+  const placedId = stack.id;
   if (fromOff) inv.takeOffhand(1);
   else inv.takeSelected(1);
   remeshDirty(world, bundle);
   refreshHud();
+  return placedId;
 }
 
 function updateHighlight(hit, entHit) {
@@ -1731,6 +1927,7 @@ function doSleep() {
   const rz = Math.floor(player.pos.z);
   player.spawn.set(rx + 0.5, player.pos.y, rz + 0.5);
   sleeping = true;
+  sfx.sleep();
   sleepVeil.hidden = false;
   requestAnimationFrame(() => sleepVeil.classList.add('show'));
   window.setTimeout(() => {
@@ -1871,6 +2068,9 @@ function teleportToMapMark() {
   player.fallY = y;
   player.onGround = true;
   if (life) life.snapLassoedTo(x, y, z, player.yaw);
+  sfx.teleport();
+  wasOnGround = true;
+  fallPeak = 0;
   world.ensureAround(x, z);
   if (bundle) syncChunkMeshes(world, bundle, x, z);
   closeMapSilent();
@@ -2057,6 +2257,10 @@ function render(dt = 0.016) {
   camera.updateProjectionMatrix();
 
   player.applyLook(camera);
+  if (life && arms) {
+    const mainLasso = !ITEMS[inv?.offhand?.id]?.lasso || !!ITEMS[inv?.selectedStack()?.id]?.lasso;
+    life.syncRope(player, arms.heldWorld(mainLasso));
+  }
   syncTorchLights();
   const bg = scene.background;
   renderer.clear();
@@ -2245,6 +2449,7 @@ function takeCraft(size, right) {
   if (inv.cursor && inv.cursor.n + made.n > stackMax(made.id)) return;
   if (right) return;
   consumeCraft(grid);
+  sfx.craft();
   if (!inv.cursor) inv.cursor = made;
   else inv.cursor.n += made.n;
 }
@@ -2409,10 +2614,12 @@ function buyFromShopRow(row) {
     } else {
       setShopStatus('');
     }
+    sfx.coins();
     refreshInv();
     refreshHud();
     return;
   }
+  sfx.denied();
   setShopStatus(result.reason === 'full' ? 'shopFull' : 'shopNeedGold');
   renderShop();
 }

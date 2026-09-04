@@ -1,0 +1,847 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <link rel="icon" href="../../../assets/icons/ico/os-upgrade.ico" type="image/x-icon">
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Upgrade Simulator</title>
+    <link rel="stylesheet" href="../apps.css" />
+    <style>
+      html:not(.hosted) { background: var(--bg); }
+      body {
+        display: flex;
+        flex-direction: column;
+        overflow: auto;
+      }
+      body.simulating { overflow: hidden; cursor: none; }
+      body.simulating #setup,
+      body.simulating #chrome { visibility: hidden; }
+      #chrome {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        padding: 8px 12px;
+        border-bottom: 1px solid var(--line);
+      }
+      html.hosted #chrome { display: none; }
+      #chrome select, #chrome button {
+        border: 1px solid var(--line);
+        background: transparent;
+        border-radius: 7px;
+        padding: 5px 10px;
+      }
+      .setup {
+        flex: 1;
+        display: grid;
+        place-items: center;
+        padding: 12px 16px 18px;
+      }
+      .panel {
+        width: min(640px, 100%);
+      }
+      h1 {
+        margin: 0 0 4px;
+        font-size: 20px;
+        font-weight: 700;
+      }
+      .lead {
+        margin: 0 0 12px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .os-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+        margin-bottom: 12px;
+      }
+      .os-pick {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
+        padding: 12px 8px 10px;
+        border: 1px solid var(--line);
+        background: color-mix(in srgb, var(--panel) 80%, transparent);
+        border-radius: 12px;
+        text-align: center;
+      }
+      .os-pick:hover { border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); }
+      .os-pick.selected {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 1px var(--accent);
+      }
+      .os-pick .logo {
+        width: 44px;
+        height: 44px;
+        display: grid;
+        place-items: center;
+        color: var(--ink);
+      }
+      .os-pick .logo svg { width: 40px; height: 40px; }
+      .os-pick .name { font-weight: 650; font-size: 14px; }
+      .os-pick .ver { font-size: 11px; color: var(--muted); }
+      .field { margin-bottom: 10px; }
+      .field label {
+        display: block;
+        font-size: 12px;
+        color: var(--muted);
+        margin-bottom: 6px;
+        font-weight: 600;
+      }
+      .duration-row {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+      .duration-row input, .duration-row select {
+        border: 1px solid var(--line);
+        background: var(--panel);
+        border-radius: 8px;
+        padding: 8px 10px;
+      }
+      .duration-row input { width: 96px; }
+      .chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 8px;
+      }
+      .chips button {
+        border: 1px solid var(--line);
+        background: transparent;
+        border-radius: 999px;
+        padding: 4px 10px;
+        font-size: 12px;
+      }
+      .chips button:hover, .chips button.on {
+        border-color: var(--accent);
+        background: color-mix(in srgb, var(--accent) 18%, transparent);
+      }
+      .start {
+        width: 100%;
+        margin-top: 8px;
+        border: 1px solid var(--accent);
+        background: var(--accent);
+        color: var(--accent-ink);
+        border-radius: 10px;
+        padding: 12px 16px;
+        font-size: 16px;
+        font-weight: 700;
+      }
+      .hint {
+        margin: 12px 0 0;
+        font-size: 12px;
+        color: var(--muted);
+        text-align: center;
+      }
+
+      #sim {
+        display: none;
+        position: fixed;
+        inset: 0;
+        z-index: 99999;
+        overflow: hidden;
+        cursor: none;
+        user-select: none;
+      }
+      body.simulating #sim { display: block; }
+      .stage {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 32px 24px;
+      }
+      .stage .logo { width: 88px; height: 88px; margin-bottom: 28px; }
+      .stage .logo svg { width: 100%; height: 100%; }
+      .stage .headline {
+        font-size: clamp(18px, 2.4vw, 28px);
+        font-weight: 400;
+        letter-spacing: 0.01em;
+        margin: 0 0 8px;
+        text-align: center;
+      }
+      .stage .sub {
+        font-size: clamp(13px, 1.6vw, 16px);
+        opacity: 0.85;
+        margin: 0 0 28px;
+        text-align: center;
+      }
+      .bar {
+        width: min(420px, 72vw);
+        height: 4px;
+        border-radius: 99px;
+        overflow: hidden;
+        background: rgba(255, 255, 255, 0.18);
+      }
+      .bar > i {
+        display: block;
+        height: 100%;
+        width: 0%;
+        border-radius: inherit;
+        transition: width 0.35s linear;
+      }
+      .log {
+        width: min(720px, 88vw);
+        margin-top: 28px;
+        font: 12px/1.55 ui-monospace, "Ubuntu Mono", "Cascadia Mono", Menlo, monospace;
+        opacity: 0.72;
+        min-height: 4.8em;
+        text-align: left;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+      .pct {
+        font-variant-numeric: tabular-nums;
+        font-size: clamp(22px, 3vw, 34px);
+        margin: 8px 0 12px;
+        font-weight: 300;
+      }
+
+      .stage[data-os="ubuntu"] {
+        background: radial-gradient(1200px 700px at 50% 40%, #5e2750 0%, #2c001e 58%, #1a0012 100%);
+        color: #fff;
+        font-family: "Ubuntu", "Segoe UI", sans-serif;
+      }
+      .stage[data-os="ubuntu"] .bar > i { background: #e95420; }
+      .stage[data-os="ubuntu"] .logo { width: 96px; height: 96px; }
+      .ub-pulse { animation: ubPulse 2.4s ease-in-out infinite; }
+      @keyframes ubPulse {
+        0%, 100% { filter: drop-shadow(0 0 0 rgba(233, 84, 32, 0)); }
+        50% { filter: drop-shadow(0 0 16px rgba(233, 84, 32, 0.55)); }
+      }
+
+      .stage[data-os="centos"] {
+        background: #111318;
+        color: #e8e8e8;
+        font-family: "Liberation Sans", "Noto Sans", "Segoe UI", sans-serif;
+      }
+      .stage[data-os="centos"] .bar {
+        height: 8px;
+        background: #2a2e36;
+        border: 1px solid #3d4450;
+      }
+      .stage[data-os="centos"] .bar > i { background: linear-gradient(90deg, #6ead3e, #932279); }
+      .stage[data-os="centos"] .log { color: #9aa3ad; }
+
+      .stage[data-os="windows"] {
+        background: #000;
+        color: #fff;
+        font-family: "Segoe UI", "Noto Sans JP", sans-serif;
+      }
+      .stage[data-os="windows"] .bar { display: none; }
+      .stage[data-os="windows"] .log { display: none; }
+      .stage[data-os="windows"] .logo { width: 72px; height: 72px; margin-bottom: 36px; color: #fff; }
+      .win-spinner {
+        position: relative;
+        width: 48px;
+        height: 48px;
+        margin-bottom: 28px;
+      }
+      .win-spinner span {
+        position: absolute;
+        left: 50%;
+        top: 0;
+        width: 7px;
+        height: 7px;
+        margin-left: -3.5px;
+        border-radius: 50%;
+        background: #fff;
+        transform-origin: 50% 24px;
+        animation: winDot 1.2s linear infinite;
+      }
+      .win-spinner span:nth-child(1) { transform: rotate(0deg); animation-delay: 0s; }
+      .win-spinner span:nth-child(2) { transform: rotate(45deg); animation-delay: 0.15s; }
+      .win-spinner span:nth-child(3) { transform: rotate(90deg); animation-delay: 0.3s; }
+      .win-spinner span:nth-child(4) { transform: rotate(135deg); animation-delay: 0.45s; }
+      .win-spinner span:nth-child(5) { transform: rotate(180deg); animation-delay: 0.6s; }
+      .win-spinner span:nth-child(6) { transform: rotate(225deg); animation-delay: 0.75s; }
+      .win-spinner span:nth-child(7) { transform: rotate(270deg); animation-delay: 0.9s; }
+      .win-spinner span:nth-child(8) { transform: rotate(315deg); animation-delay: 1.05s; }
+      @keyframes winDot {
+        0%, 20% { opacity: 1; }
+        100% { opacity: 0.12; }
+      }
+      .stage[data-os="windows"] .headline { font-weight: 300; font-size: clamp(16px, 2.2vw, 22px); }
+      .stage[data-os="windows"] .sub { font-weight: 300; opacity: 0.78; }
+
+      .stage[data-os="mac"] {
+        background: #000;
+        color: #f5f5f7;
+        font-family: "SF Pro Text", "Helvetica Neue", "Noto Sans JP", sans-serif;
+      }
+      .stage[data-os="mac"] .logo { width: 64px; height: 64px; margin-bottom: 42px; color: #f5f5f7; }
+      .stage[data-os="mac"] .bar {
+        height: 3px;
+        background: rgba(255, 255, 255, 0.16);
+        width: min(280px, 56vw);
+      }
+      .stage[data-os="mac"] .bar > i { background: #fff; transition: width 0.6s linear; }
+      .stage[data-os="mac"] .log { display: none; }
+      .stage[data-os="mac"] .headline { font-size: 15px; font-weight: 400; opacity: 0.92; }
+      .stage[data-os="mac"] .sub { font-size: 13px; opacity: 0.55; margin-top: 14px; margin-bottom: 0; }
+
+      .stage.restarting .win-spinner,
+      .stage.restarting .log,
+      .stage.restarting .bar { opacity: 0.35; }
+    </style>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-NWZDZ906DJ"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-NWZDZ906DJ');
+  </script>
+  </head>
+  <body>
+    <div id="chrome">
+      <select id="lang" aria-label="Language">
+        <option value="en">English</option>
+        <option value="pt">Português</option>
+        <option value="ja">日本語</option>
+      </select>
+      <button type="button" id="theme" aria-label="Theme">Dark</button>
+    </div>
+
+    <div class="setup" id="setup">
+      <div class="panel">
+        <h1 data-t="title">Upgrade Simulator</h1>
+        <p class="lead" data-t="lead">Pick an operating system and how long the fake upgrade should last. This is only a simulation.</p>
+        <div class="os-grid" id="osGrid"></div>
+        <div class="field">
+          <label data-t="duration">Duration</label>
+          <div class="duration-row">
+            <input id="amount" type="number" min="1" max="999" value="2" />
+            <select id="unit">
+              <option value="s" data-t="seconds">seconds</option>
+              <option value="m" selected data-t="minutes">minutes</option>
+              <option value="h" data-t="hours">hours</option>
+            </select>
+          </div>
+          <div class="chips" id="chips"></div>
+        </div>
+        <button type="button" class="start" id="start" data-t="start">Start</button>
+        <p class="hint" data-t="escHint">Press Esc at any time to leave the simulation.</p>
+      </div>
+    </div>
+
+    <div id="sim" aria-hidden="true">
+      <div class="stage" id="stage" data-os="ubuntu">
+        <div class="logo" id="simLogo"></div>
+        <div class="win-spinner" id="winSpinner" hidden>
+          <span></span><span></span><span></span><span></span>
+          <span></span><span></span><span></span><span></span>
+        </div>
+        <div class="pct" id="pct" hidden></div>
+        <p class="headline" id="headline"></p>
+        <p class="sub" id="sub"></p>
+        <div class="bar" id="bar"><i id="barFill"></i></div>
+        <div class="log" id="log"></div>
+      </div>
+    </div>
+
+    <script src="../../js/app-frame.js"></script>
+    <script>
+    window.OSAppFrame.sync();
+    (function () {
+      const PREFS = "os_upgrade_setup";
+      const frame = window.OSAppFrame;
+      const hosted = frame.hosted();
+      document.documentElement.classList.toggle("hosted", hosted);
+
+      const LOGOS = {
+        ubuntu: `<svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="30" fill="#E95420"/><circle cx="32" cy="32" r="11" fill="none" stroke="#fff" stroke-width="3.2"/><g fill="#fff"><circle cx="32" cy="12" r="5.2"/><circle cx="49.3" cy="42" r="5.2"/><circle cx="14.7" cy="42" r="5.2"/></g><g fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round"><path d="M32 21.2V17.2"/><path d="M41.2 37.4l3.4 2"/><path d="M22.8 37.4l-3.4 2"/></g></svg>`,
+        centos: `<svg viewBox="0 0 64 64" aria-hidden="true"><path fill="#6ead3e" d="M32 6l8 10-8 10-8-10z"/><path fill="#262577" d="M58 32l-10 8-10-8 10-8z"/><path fill="#932279" d="M32 58l-8-10 8-10 8 10z"/><path fill="#4d9acf" d="M6 32l10-8 10 8-10 8z"/><circle cx="32" cy="32" r="6" fill="#1a1a1a"/><circle cx="32" cy="32" r="3.2" fill="#c5c5c5"/></svg>`,
+        windows: `<svg viewBox="0 0 64 64" aria-hidden="true"><path fill="currentColor" d="M8 14.2l21.2-3v20.2H8zm23.6-3.4L56 7.2v24.2H31.6zM8 33.6h21.2V54.6L8 51.6zm23.6 0H56V56.8l-24.4-3.6z"/></svg>`,
+        mac: `<svg viewBox="0 0 64 64" aria-hidden="true"><path fill="currentColor" d="M44.6 34.6c-.1-7.4 6-10.9 6.3-11.1-3.4-5-8.7-5.7-10.6-5.8-4.5-.5-8.8 2.7-11.1 2.7-2.3 0-5.8-2.6-9.6-2.5-4.9.1-9.5 2.9-12 7.3-5.2 8.9-1.3 22.1 3.7 29.3 2.4 3.5 5.3 7.5 9.1 7.3 3.6-.1 5-2.4 9.4-2.4 4.4 0 5.6 2.4 9.5 2.3 3.9-.1 6.4-3.6 8.8-7.1 2.8-4 3.9-7.9 4-8.1-.1 0-7.5-2.9-7.5-11.9z"/><path fill="currentColor" d="M38.1 12.4c2-2.4 3.3-5.7 2.9-9-2.8.1-6.1 1.9-8.1 4.2-1.8 2.1-3.4 5.5-2.9 8.7 3.1.2 6.2-1.5 8.1-3.9z"/></svg>`
+      };
+
+      const I18N = {
+        en: {
+          title: "Upgrade Simulator",
+          lead: "Pick an operating system and how long the fake upgrade should last. This is only a simulation.",
+          duration: "Duration",
+          seconds: "seconds",
+          minutes: "minutes",
+          hours: "hours",
+          start: "Start",
+          escHint: "Press Esc at any time to leave the simulation.",
+          themeLight: "Light",
+          themeDark: "Dark",
+          ubuntu: "Linux Ubuntu",
+          centos: "Linux CentOS",
+          windows: "Windows",
+          mac: "Mac",
+          ubuntuVer: "24.04 LTS",
+          centosVer: "Stream 9",
+          windowsVer: "Windows 11",
+          macVer: "macOS Sequoia",
+          ubuntuHead: "Installing updates",
+          ubuntuSub: "Do not turn off your computer",
+          ubuntuRestart: "Restarting…",
+          centosHead: "Software Update",
+          centosSub: "Installing packages. Do not turn off this system.",
+          centosRestart: "Rebooting the system…",
+          winHead: "Working on updates {pct}%",
+          winSub: "Don't turn off your computer. This may take a while.",
+          winPrep: "Preparing to install updates",
+          winReady: "Getting things ready",
+          winRestart: "Restarting",
+          macHead: "Installing macOS Sequoia",
+          macSub: "Estimated time remaining: {time}",
+          macPrep: "Preparing to install…",
+          macMinute: "Less than a minute remaining",
+          macRestart: "Restarting…"
+        },
+        pt: {
+          title: "Simulador de Upgrade",
+          lead: "Escolha o sistema operacional e quanto tempo o upgrade falso deve durar. Isto é só uma simulação.",
+          duration: "Duração",
+          seconds: "segundos",
+          minutes: "minutos",
+          hours: "horas",
+          start: "Start",
+          escHint: "Pressione Esc a qualquer momento para sair da simulação.",
+          themeLight: "Claro",
+          themeDark: "Escuro",
+          ubuntu: "Linux Ubuntu",
+          centos: "Linux CentOS",
+          windows: "Windows",
+          mac: "Mac",
+          ubuntuVer: "24.04 LTS",
+          centosVer: "Stream 9",
+          windowsVer: "Windows 11",
+          macVer: "macOS Sequoia",
+          ubuntuHead: "Instalando atualizações",
+          ubuntuSub: "Não desligue o computador",
+          ubuntuRestart: "Reiniciando…",
+          centosHead: "Atualização de software",
+          centosSub: "Instalando pacotes. Não desligue este sistema.",
+          centosRestart: "Reiniciando o sistema…",
+          winHead: "Trabalhando nas atualizações {pct}%",
+          winSub: "Não desligue o computador. Isso pode demorar um pouco.",
+          winPrep: "Preparando para instalar atualizações",
+          winReady: "Deixando tudo pronto",
+          winRestart: "Reiniciando",
+          macHead: "Instalando o macOS Sequoia",
+          macSub: "Tempo restante estimado: {time}",
+          macPrep: "Preparando a instalação…",
+          macMinute: "Menos de um minuto restante",
+          macRestart: "Reiniciando…"
+        },
+        ja: {
+          title: "アップグレードシミュレーター",
+          lead: "OS の種類と、偽のアップグレードを続ける時間を選んでください。これはシミュレーションです。",
+          duration: "時間",
+          seconds: "秒",
+          minutes: "分",
+          hours: "時間",
+          start: "Start",
+          escHint: "Esc キーでいつでもシミュレーションを終了できます。",
+          themeLight: "ライト",
+          themeDark: "ダーク",
+          ubuntu: "Linux Ubuntu",
+          centos: "Linux CentOS",
+          windows: "Windows",
+          mac: "Mac",
+          ubuntuVer: "24.04 LTS",
+          centosVer: "Stream 9",
+          windowsVer: "Windows 11",
+          macVer: "macOS Sequoia",
+          ubuntuHead: "アップデートをインストールしています",
+          ubuntuSub: "コンピュータの電源を切らないでください",
+          ubuntuRestart: "再起動しています…",
+          centosHead: "ソフトウェアの更新",
+          centosSub: "パッケージをインストールしています。電源を切らないでください。",
+          centosRestart: "システムを再起動しています…",
+          winHead: "更新プログラムの作業中 {pct}%",
+          winSub: "コンピューターの電源を切らないでください。しばらくかかる場合があります。",
+          winPrep: "更新プログラムのインストールを準備しています",
+          winReady: "準備をしています",
+          winRestart: "再起動しています",
+          macHead: "macOS Sequoia をインストール中",
+          macSub: "残り時間の目安: {time}",
+          macPrep: "インストールの準備中…",
+          macMinute: "残り 1 分未満",
+          macRestart: "再起動しています…"
+        }
+      };
+
+      const OS_META = [
+        { id: "ubuntu", nameKey: "ubuntu", verKey: "ubuntuVer" },
+        { id: "centos", nameKey: "centos", verKey: "centosVer" },
+        { id: "windows", nameKey: "windows", verKey: "windowsVer" },
+        { id: "mac", nameKey: "mac", verKey: "macVer" }
+      ];
+
+      const PRESETS = [
+        { amount: 30, unit: "s", label: "30s" },
+        { amount: 1, unit: "m", label: "1m" },
+        { amount: 2, unit: "m", label: "2m" },
+        { amount: 5, unit: "m", label: "5m" },
+        { amount: 15, unit: "m", label: "15m" },
+        { amount: 30, unit: "m", label: "30m" },
+        { amount: 1, unit: "h", label: "1h" }
+      ];
+
+      const UBUNTU_LOG = [
+        "Preparing to unpack .../libssl3_3.0.13-0ubuntu3.2_amd64.deb",
+        "Unpacking libssl3:amd64 (3.0.13-0ubuntu3.2) over (3.0.13-0ubuntu3.1)",
+        "Setting up linux-headers-generic (6.8.0-40.40)",
+        "Processing triggers for man-db (2.12.0-4build2)",
+        "Unpacking ubuntu-desktop (1.539.2)",
+        "Setting up libc6:amd64 (2.39-0ubuntu8.3)",
+        "Installing new version of config file /etc/nsswitch.conf ...",
+        "Unpacking python3-minimal (3.12.3-0ubuntu2)",
+        "Setting up systemd (255.4-1ubuntu8.4)",
+        "Processing triggers for libc-bin (2.39-0ubuntu8.3)",
+        "Unpacking linux-image-generic (6.8.0-40.40)",
+        "Setting up grub-efi-amd64 (2.12-1ubuntu7)",
+        "Generating grub configuration file ...",
+        "Found linux image: /boot/vmlinuz-6.8.0-40-generic",
+        "Unpacking firefox (130.0+build2-0ubuntu0.24.04.1)",
+        "Setting up ubuntu-release-upgrader-core (1:24.04.23)",
+        "Processing triggers for desktop-file-utils (0.27-2build1)",
+        "Unpacking mesa-vulkan-drivers:amd64 (24.0.9-0ubuntu0.1)",
+        "Setting up snapd (2.63+24.04ubuntu0.1)",
+        "Running kernel postinst hook for 6.8.0-40-generic",
+        "Cleaning up leftover packages...",
+        "Update complete. Configuring remaining services..."
+      ];
+
+      const CENTOS_LOG = [
+        "Last metadata expiration check: 0:00:12 ago on CentOS Stream 9.",
+        "Dependencies resolved.",
+        "================================================================================",
+        " Package              Arch     Version                   Repository     Size",
+        "================================================================================",
+        "Upgrading:",
+        " kernel-core          x86_64   5.14.0-503.el9            baseos          16 M",
+        " systemd              x86_64   252-46.el9_5.2            baseos         4.2 M",
+        " glibc                x86_64   2.34-168.el9_5.7          baseos         2.0 M",
+        " openssl-libs         x86_64   1:3.0.7-29.el9            baseos         2.1 M",
+        "Running transaction check",
+        "Transaction check succeeded.",
+        "Running transaction test",
+        "Transaction test succeeded.",
+        "Running transaction",
+        "  Preparing        :                                                        1/1",
+        "  Upgrading        : glibc-2.34-168.el9_5.7.x86_64                          1/8",
+        "  Upgrading        : openssl-libs-1:3.0.7-29.el9.x86_64                     2/8",
+        "  Installing       : kernel-core-5.14.0-503.el9.x86_64                      3/8",
+        "  Upgrading        : systemd-252-46.el9_5.2.x86_64                          4/8",
+        "  Running scriptlet: systemd-252-46.el9_5.2.x86_64                          4/8",
+        "  Cleanup          : kernel-core-5.14.0-427.el9.x86_64                      5/8",
+        "  Verifying        : glibc-2.34-168.el9_5.7.x86_64                          1/8",
+        "  Verifying        : systemd-252-46.el9_5.2.x86_64                          4/8",
+        "Complete!"
+      ];
+
+      const els = {
+        lang: document.getElementById("lang"),
+        theme: document.getElementById("theme"),
+        osGrid: document.getElementById("osGrid"),
+        amount: document.getElementById("amount"),
+        unit: document.getElementById("unit"),
+        chips: document.getElementById("chips"),
+        start: document.getElementById("start"),
+        setup: document.getElementById("setup"),
+        sim: document.getElementById("sim"),
+        stage: document.getElementById("stage"),
+        simLogo: document.getElementById("simLogo"),
+        headline: document.getElementById("headline"),
+        sub: document.getElementById("sub"),
+        barFill: document.getElementById("barFill"),
+        log: document.getElementById("log"),
+        pct: document.getElementById("pct"),
+        winSpinner: document.getElementById("winSpinner")
+      };
+
+      let lang = "en";
+      let selected = "ubuntu";
+      let running = false;
+      let raf = 0;
+      let startedAt = 0;
+      let durationMs = 0;
+
+      function t(key, vars) {
+        const table = I18N[lang] || I18N.en;
+        let text = table[key] || I18N.en[key] || key;
+        if (vars) {
+          Object.keys(vars).forEach((k) => {
+            text = text.replaceAll("{" + k + "}", vars[k]);
+          });
+        }
+        return text;
+      }
+
+      function currentLang() {
+        if (hosted) {
+          const sync = frame.sync();
+          return sync.lang === "pt" || sync.lang === "ja" ? sync.lang : "en";
+        }
+        const stored = localStorage.getItem("app_lang");
+        return stored === "pt" || stored === "ja" ? stored : "en";
+      }
+
+      function applyTheme(theme) {
+        const next = theme === "light" ? "light" : "dark";
+        document.documentElement.dataset.theme = next;
+        if (!hosted) localStorage.setItem("app_theme", next);
+        els.theme.textContent = next === "light" ? t("themeDark") : t("themeLight");
+      }
+
+      function applyI18n() {
+        document.documentElement.lang = lang;
+        document.title = t("title");
+        document.querySelectorAll("[data-t]").forEach((el) => {
+          el.textContent = t(el.getAttribute("data-t"));
+        });
+        els.theme.textContent = (document.documentElement.dataset.theme === "light") ? t("themeDark") : t("themeLight");
+        renderOsCards();
+        renderChips();
+      }
+
+      function renderOsCards() {
+        els.osGrid.innerHTML = OS_META.map((os) => `
+          <button type="button" class="os-pick${os.id === selected ? " selected" : ""}" data-os="${os.id}">
+            <span class="logo">${LOGOS[os.id]}</span>
+            <span class="name">${t(os.nameKey)}</span>
+            <span class="ver">${t(os.verKey)}</span>
+          </button>
+        `).join("");
+      }
+
+      function renderChips() {
+        els.chips.innerHTML = PRESETS.map((p) => {
+          const on = Number(els.amount.value) === p.amount && els.unit.value === p.unit ? " on" : "";
+          return `<button type="button" class="${on}" data-amount="${p.amount}" data-unit="${p.unit}">${p.label}</button>`;
+        }).join("");
+      }
+
+      function loadPrefs() {
+        try {
+          const raw = JSON.parse(localStorage.getItem(PREFS) || "{}");
+          if (raw.os && LOGOS[raw.os]) selected = raw.os;
+          if (raw.amount) els.amount.value = raw.amount;
+          if (raw.unit && "smh".includes(raw.unit)) els.unit.value = raw.unit;
+        } catch (_err) {}
+      }
+
+      function savePrefs() {
+        localStorage.setItem(PREFS, JSON.stringify({
+          os: selected,
+          amount: Number(els.amount.value) || 2,
+          unit: els.unit.value
+        }));
+      }
+
+      function durationFromInputs() {
+        const n = Math.max(1, Number(els.amount.value) || 1);
+        const unit = els.unit.value;
+        let ms = n * 1000;
+        if (unit === "m") ms = n * 60 * 1000;
+        if (unit === "h") ms = n * 60 * 60 * 1000;
+        return Math.min(Math.max(ms, 5000), 8 * 60 * 60 * 1000);
+      }
+
+      function formatRemain(ms) {
+        const total = Math.max(0, Math.ceil(ms / 1000));
+        const h = Math.floor(total / 3600);
+        const m = Math.floor((total % 3600) / 60);
+        const s = total % 60;
+        if (lang === "ja") {
+          if (h) return `${h}時間 ${m}分`;
+          if (m) return `${m}分 ${s}秒`;
+          return `${s}秒`;
+        }
+        if (h) return `${h}h ${m}m`;
+        if (m) return `${m}m ${s}s`;
+        return `${s}s`;
+      }
+
+      function logSlice(list, p) {
+        const count = Math.max(1, Math.min(5, 1 + Math.floor(p * 4)));
+        const maxIdx = Math.min(list.length - 1, Math.floor(p * (list.length - 0.01)));
+        const start = Math.max(0, maxIdx - count + 1);
+        return list.slice(start, maxIdx + 1).join("\n");
+      }
+
+      function paintSim(p, restarting) {
+        const os = selected;
+        els.stage.dataset.os = os;
+        els.stage.classList.toggle("restarting", restarting);
+        els.simLogo.innerHTML = LOGOS[os];
+        els.simLogo.classList.toggle("ub-pulse", os === "ubuntu" && !restarting);
+        els.winSpinner.hidden = os !== "windows";
+        els.pct.hidden = true;
+        const pct = Math.min(100, Math.floor(p * 100));
+        els.barFill.style.width = (p * 100).toFixed(2) + "%";
+
+        if (os === "ubuntu") {
+          els.headline.textContent = restarting ? t("ubuntuRestart") : t("ubuntuHead");
+          els.sub.textContent = t("ubuntuSub");
+          els.log.textContent = restarting ? "" : logSlice(UBUNTU_LOG, p);
+        } else if (os === "centos") {
+          els.headline.textContent = restarting ? t("centosRestart") : t("centosHead");
+          els.sub.textContent = t("centosSub");
+          els.log.textContent = restarting ? "" : logSlice(CENTOS_LOG, p);
+        } else if (os === "windows") {
+          els.pct.textContent = pct + "%";
+          if (restarting) {
+            els.headline.textContent = t("winRestart");
+            els.sub.textContent = t("winSub");
+          } else if (p < 0.04) {
+            els.headline.textContent = t("winPrep");
+            els.sub.textContent = t("winSub");
+          } else if (p > 0.96) {
+            els.headline.textContent = t("winReady");
+            els.sub.textContent = t("winSub");
+          } else {
+            els.headline.textContent = t("winHead", { pct });
+            els.sub.textContent = t("winSub");
+          }
+          els.log.textContent = "";
+        } else {
+          const remain = durationMs * (1 - p);
+          if (restarting) {
+            els.headline.textContent = t("macRestart");
+            els.sub.textContent = "";
+          } else if (p < 0.03) {
+            els.headline.textContent = t("macPrep");
+            els.sub.textContent = "";
+          } else {
+            els.headline.textContent = t("macHead");
+            els.sub.textContent = remain < 60000 ? t("macMinute") : t("macSub", { time: formatRemain(remain) });
+          }
+          els.log.textContent = "";
+        }
+      }
+
+      function enterFullscreen() {
+        const node = document.documentElement;
+        const req = node.requestFullscreen || node.webkitRequestFullscreen;
+        if (!req) return Promise.resolve();
+        return Promise.resolve(req.call(node)).catch(() => {
+          try {
+            const frameEl = window.frameElement;
+            if (frameEl) {
+              const fr = frameEl.requestFullscreen || frameEl.webkitRequestFullscreen;
+              if (fr) return fr.call(frameEl);
+            }
+          } catch (_err) {}
+        });
+      }
+
+      function leaveFullscreen() {
+        const exit = document.exitFullscreen || document.webkitExitFullscreen;
+        if (exit && (document.fullscreenElement || document.webkitFullscreenElement)) {
+          Promise.resolve(exit.call(document)).catch(() => {});
+        }
+      }
+
+      function stopSim() {
+        if (!running && !document.body.classList.contains("simulating")) return;
+        running = false;
+        if (raf) cancelAnimationFrame(raf);
+        raf = 0;
+        document.body.classList.remove("simulating");
+        els.sim.setAttribute("aria-hidden", "true");
+        leaveFullscreen();
+      }
+
+      function tick(now) {
+        if (!running) return;
+        const elapsed = now - startedAt;
+        const restartWindow = Math.min(8000, Math.max(2500, durationMs * 0.05));
+        const restarting = elapsed >= durationMs - restartWindow;
+        const p = Math.min(1, elapsed / durationMs);
+        paintSim(p, restarting);
+        if (elapsed >= durationMs) {
+          stopSim();
+          return;
+        }
+        raf = requestAnimationFrame(tick);
+      }
+
+      async function startSim() {
+        savePrefs();
+        durationMs = durationFromInputs();
+        running = true;
+        startedAt = performance.now();
+        document.body.classList.add("simulating");
+        els.sim.setAttribute("aria-hidden", "false");
+        paintSim(0, false);
+        await enterFullscreen();
+        raf = requestAnimationFrame(tick);
+      }
+
+      function bind() {
+        els.osGrid.addEventListener("click", (e) => {
+          const btn = e.target.closest("[data-os]");
+          if (!btn) return;
+          selected = btn.dataset.os;
+          renderOsCards();
+        });
+        els.chips.addEventListener("click", (e) => {
+          const btn = e.target.closest("[data-amount]");
+          if (!btn) return;
+          els.amount.value = btn.dataset.amount;
+          els.unit.value = btn.dataset.unit;
+          renderChips();
+        });
+        els.amount.addEventListener("input", renderChips);
+        els.unit.addEventListener("change", renderChips);
+        els.start.addEventListener("click", startSim);
+        els.theme.addEventListener("click", () => {
+          const next = document.documentElement.dataset.theme === "light" ? "dark" : "light";
+          applyTheme(next);
+        });
+        els.lang.addEventListener("change", () => {
+          lang = els.lang.value;
+          localStorage.setItem("app_lang", lang);
+          applyI18n();
+        });
+        window.addEventListener("keydown", (e) => {
+          if (e.key !== "Escape") return;
+          if (!document.body.classList.contains("simulating")) return;
+          e.preventDefault();
+          e.stopPropagation();
+          if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+          stopSim();
+        }, true);
+        document.addEventListener("contextmenu", (e) => {
+          if (document.body.classList.contains("simulating")) e.preventDefault();
+        });
+        document.addEventListener("fullscreenchange", () => {
+          if (running && !document.fullscreenElement && !document.webkitFullscreenElement) stopSim();
+        });
+        document.addEventListener("webkitfullscreenchange", () => {
+          if (running && !document.fullscreenElement && !document.webkitFullscreenElement) stopSim();
+        });
+      }
+
+      loadPrefs();
+      lang = currentLang();
+      els.lang.value = lang;
+      if (!hosted) {
+        applyTheme(localStorage.getItem("app_theme") || "dark");
+      } else {
+        applyTheme(frame.sync().theme);
+      }
+      applyI18n();
+      bind();
+      frame.onMessage(() => {
+        if (hosted) {
+          lang = currentLang();
+          applyTheme(frame.sync().theme);
+          if (!running) applyI18n();
+        }
+      });
+    })();
+    </script>
+  </body>
+</html>

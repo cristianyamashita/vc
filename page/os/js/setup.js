@@ -213,6 +213,7 @@ window.OSSetup = (function () {
           ? root.querySelector(".os-setup-pack.selected") || root.querySelector("[data-setup-pack]")
           : root.querySelector(".os-setup-lang.selected") || root.querySelector("[data-setup-lang]");
     if (focus) focus.focus();
+    if (window.OSAnalytics) window.OSAnalytics.trackSetup(step);
   }
 
   function goName() {

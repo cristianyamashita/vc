@@ -169,6 +169,20 @@ const ENTITY_MAT = new THREE.MeshLambertMaterial({ vertexColors: true });
 // geometry cache stays bounded instead of growing one geometry per spawned id.
 const LOOK_VARIANTS = 16;
 
+const GAIT = {
+  cow: 'trot', zebra: 'trot', sheep: 'trot', lion: 'trot', tiger: 'trot', bull: 'trot',
+  chicken: 'biped', man: 'walk', woman: 'walk', guard: 'walk',
+};
+
+/** Tag a box as a moving limb. `joint` is the pivot in model space; nested
+ *  limbs (human shins) pass `parent` so they hang from the thigh. */
+function limb(name, jx, jy, jz, extra, parent) {
+  const o = { limb: name, joint: { x: jx, y: jy, z: jz } };
+  if (parent) o.parent = parent;
+  if (extra) Object.assign(o, extra);
+  return o;
+}
+
 function eyeSet(p, x, y, z, sc, white = 0xf7f2ea, iris = 0x1a1410) {
   const ew = 0.03 * sc;
   const eh = 0.045 * sc;
@@ -189,8 +203,9 @@ function beadEyes(p, x, y, z, r, dark = 0x140f0c) {
 }
 
 function quadLeg(p, x, z, top, legW, legH, fur, hoof, hoofH = 0.12) {
-  p(legW, legH, legW, fur, x, top - legH * 0.5, z, { grain: 0.07 });
-  p(legW * 1.1, hoofH, legW * 1.1, hoof, x, hoofH * 0.5, z, { grain: 0.04 });
+  const name = (x >= 0 ? 'f' : 'b') + (z >= 0 ? 'l' : 'r');
+  p(legW, legH, legW, fur, x, top - legH * 0.5, z, limb(name, x, top, z, { grain: 0.07 }));
+  p(legW * 1.1, hoofH, legW * 1.1, hoof, x, hoofH * 0.5, z, { limb: name, grain: 0.04 });
 }
 
 function buildParts(kind, wear, look) {
@@ -253,10 +268,11 @@ function buildParts(kind, wear, look) {
     p(0.05, 0.04, 0.05, black, 0.535, 1.26, 0.08, { detail: true });
     p(0.05, 0.04, 0.05, black, 0.535, 1.26, -0.08, { detail: true });
     for (const [x, z] of [[0.27, 0.15], [0.27, -0.15], [-0.27, 0.15], [-0.27, -0.15]]) {
-      p(0.11, 0.3, 0.11, white, x, 0.29, z, { grain: 0.05 });
-      p(0.115, 0.06, 0.115, black, x, 0.36, z, { detail: true });
-      p(0.115, 0.05, 0.115, black, x, 0.24, z, { detail: true });
-      p(0.12, 0.12, 0.12, black, x, 0.06, z);
+      const name = (x >= 0 ? 'f' : 'b') + (z >= 0 ? 'l' : 'r');
+      p(0.11, 0.3, 0.11, white, x, 0.29, z, limb(name, x, 0.44, z, { grain: 0.05 }));
+      p(0.115, 0.06, 0.115, black, x, 0.36, z, { limb: name, detail: true });
+      p(0.115, 0.05, 0.115, black, x, 0.24, z, { limb: name, detail: true });
+      p(0.12, 0.12, 0.12, black, x, 0.06, z, { limb: name });
     }
     p(0.05, 0.3, 0.05, white, -0.44, 0.62, 0, { rz: 0.12 });
     p(0.07, 0.14, 0.07, black, -0.47, 0.42, 0);
@@ -276,10 +292,10 @@ function buildParts(kind, wear, look) {
     p(0.03, 0.06, 0.03, 0xd0342c, 0.2, 0.61, 0);
     p(0.03, 0.05, 0.03, 0xd0342c, 0.25, 0.6, 0, { detail: true });
     beadEyes(p, 0.292, 0.53, 0.062, 0.028);
-    p(0.035, 0.13, 0.035, 0xf3a41c, 0.03, 0.075, 0.06);
-    p(0.035, 0.13, 0.035, 0xf3a41c, 0.03, 0.075, -0.06);
-    p(0.1, 0.03, 0.08, 0xdb9018, 0.06, 0.015, 0.06, { detail: true });
-    p(0.1, 0.03, 0.08, 0xdb9018, 0.06, 0.015, -0.06, { detail: true });
+    p(0.035, 0.13, 0.035, 0xf3a41c, 0.03, 0.075, 0.06, limb('l', 0.03, 0.14, 0.06));
+    p(0.035, 0.13, 0.035, 0xf3a41c, 0.03, 0.075, -0.06, limb('r', 0.03, 0.14, -0.06));
+    p(0.1, 0.03, 0.08, 0xdb9018, 0.06, 0.015, 0.06, { limb: 'l', detail: true });
+    p(0.1, 0.03, 0.08, 0xdb9018, 0.06, 0.015, -0.06, { limb: 'r', detail: true });
   } else if (kind === 'sheep') {
     const wool = 0xf1ede2;
     const woolD = 0xdcd6c4;
@@ -360,9 +376,11 @@ function buildParts(kind, wear, look) {
     p(0.03, 0.05, 0.055, black, 0.43, 0.99, 0.115, { flat: true, detail: true });
     p(0.03, 0.05, 0.055, black, 0.43, 0.99, -0.115, { flat: true, detail: true });
     for (const [x, z, lh] of [[0.24, 0.13, 0.32], [0.24, -0.13, 0.32], [-0.26, 0.13, 0.34], [-0.26, -0.13, 0.34]]) {
-      p(0.115, lh, 0.115, fur, x, 0.42 - lh * 0.5 + 0.02, z, { grain: 0.07 });
-      p(0.12, 0.04, 0.12, black, x, 0.34, z, { detail: true });
-      p(0.13, 0.1, 0.13, white, x, 0.05, z);
+      const name = (x >= 0 ? 'f' : 'b') + (z >= 0 ? 'l' : 'r');
+      const top = 0.44;
+      p(0.115, lh, 0.115, fur, x, 0.42 - lh * 0.5 + 0.02, z, limb(name, x, top, z, { grain: 0.07 }));
+      p(0.12, 0.04, 0.12, black, x, 0.34, z, { limb: name, detail: true });
+      p(0.13, 0.1, 0.13, white, x, 0.05, z, { limb: name });
     }
     p(0.05, 0.3, 0.05, fur, -0.46, 0.62, 0, { rz: 0.35 });
     p(0.055, 0.05, 0.055, black, -0.5, 0.55, 0, { detail: true });
@@ -406,24 +424,24 @@ function buildParts(kind, wear, look) {
     const skinD = shadeHex(skin, 0.9);
     const hair = look.hair;
     const hairD = shadeHex(hair, 0.72);
-    p(0.16, 0.09, 0.24, shoe, 0.02, 0.045, 0.1);
-    p(0.16, 0.09, 0.24, shoe, 0.02, 0.045, -0.1);
-    p(0.13, 0.26, 0.14, pants, 0, 0.22, 0.1, { grain: 0.045 });
-    p(0.13, 0.26, 0.14, pants, 0, 0.22, -0.1, { grain: 0.045 });
-    p(0.15, 0.24, 0.16, pants, 0, 0.45, 0.1, { grain: 0.045 });
-    p(0.15, 0.24, 0.16, pants, 0, 0.45, -0.1, { grain: 0.045 });
+    p(0.16, 0.09, 0.24, shoe, 0.02, 0.045, 0.1, { limb: 'lShin' });
+    p(0.16, 0.09, 0.24, shoe, 0.02, 0.045, -0.1, { limb: 'rShin' });
+    p(0.13, 0.26, 0.14, pants, 0, 0.22, 0.1, limb('lShin', 0, 0.35, 0.1, { grain: 0.045 }, 'lThigh'));
+    p(0.13, 0.26, 0.14, pants, 0, 0.22, -0.1, limb('rShin', 0, 0.35, -0.1, { grain: 0.045 }, 'rThigh'));
+    p(0.15, 0.24, 0.16, pants, 0, 0.45, 0.1, limb('lThigh', 0, 0.57, 0.1, { grain: 0.045 }));
+    p(0.15, 0.24, 0.16, pants, 0, 0.45, -0.1, limb('rThigh', 0, 0.57, -0.1, { grain: 0.045 }));
     p(0.24, 0.14, 0.35, pants, 0, 0.63, 0, { n: 2, grain: 0.045 });
     p(0.26, 0.06, 0.37, 0x4a3520, 0, 0.72, 0);
     p(0.05, 0.05, 0.05, 0xc9a63c, 0.13, 0.72, 0, { flat: true, detail: true });
     p(0.26, 0.44, 0.36, cloth, 0, 0.97, 0, { n: 3, grain: 0.055 });
     p(0.27, 0.09, 0.37, clothD, 0, 1.155, 0);
     p(0.1, 0.11, 0.16, skin, 0.045, 1.2, 0, { flat: true, detail: true });
-    p(0.12, 0.22, 0.12, cloth, 0, 1.08, 0.23, { grain: 0.05 });
-    p(0.12, 0.22, 0.12, cloth, 0, 1.08, -0.23, { grain: 0.05 });
-    p(0.1, 0.22, 0.105, skin, 0, 0.86, 0.23, { grain: 0.04 });
-    p(0.1, 0.22, 0.105, skin, 0, 0.86, -0.23, { grain: 0.04 });
-    p(0.11, 0.1, 0.11, skinD, 0, 0.71, 0.23);
-    p(0.11, 0.1, 0.11, skinD, 0, 0.71, -0.23);
+    p(0.12, 0.22, 0.12, cloth, 0, 1.08, 0.23, limb('lArm', 0, 1.19, 0.23, { grain: 0.05 }));
+    p(0.12, 0.22, 0.12, cloth, 0, 1.08, -0.23, limb('rArm', 0, 1.19, -0.23, { grain: 0.05 }));
+    p(0.1, 0.22, 0.105, skin, 0, 0.86, 0.23, { limb: 'lArm', grain: 0.04 });
+    p(0.1, 0.22, 0.105, skin, 0, 0.86, -0.23, { limb: 'rArm', grain: 0.04 });
+    p(0.11, 0.1, 0.11, skinD, 0, 0.71, 0.23, { limb: 'lArm' });
+    p(0.11, 0.1, 0.11, skinD, 0, 0.71, -0.23, { limb: 'rArm' });
     p(0.12, 0.1, 0.13, skinD, 0, 1.26, 0);
     p(0.24, 0.26, 0.25, skin, 0, 1.43, 0, { n: 3, grain: 0.04 });
     p(0.035, 0.08, 0.05, skinD, -0.01, 1.42, 0.14, { detail: true });
@@ -456,10 +474,12 @@ function buildParts(kind, wear, look) {
     const skinD = shadeHex(skin, 0.9);
     const hair = look.hair;
     const hairD = shadeHex(hair, 0.74);
-    p(0.14, 0.08, 0.2, shoe, 0.02, 0.04, 0.08);
-    p(0.14, 0.08, 0.2, shoe, 0.02, 0.04, -0.08);
-    p(0.1, 0.3, 0.11, skin, 0, 0.22, 0.08, { grain: 0.04 });
-    p(0.1, 0.3, 0.11, skin, 0, 0.22, -0.08, { grain: 0.04 });
+    p(0.14, 0.08, 0.2, shoe, 0.02, 0.04, 0.08, { limb: 'lShin' });
+    p(0.14, 0.08, 0.2, shoe, 0.02, 0.04, -0.08, { limb: 'rShin' });
+    p(0.1, 0.16, 0.11, skin, 0, 0.16, 0.08, limb('lShin', 0, 0.24, 0.08, { grain: 0.04 }, 'lThigh'));
+    p(0.1, 0.16, 0.11, skin, 0, 0.16, -0.08, limb('rShin', 0, 0.24, -0.08, { grain: 0.04 }, 'rThigh'));
+    p(0.1, 0.15, 0.11, skin, 0, 0.305, 0.08, limb('lThigh', 0, 0.38, 0.08, { grain: 0.04 }));
+    p(0.1, 0.15, 0.11, skin, 0, 0.305, -0.08, limb('rThigh', 0, 0.38, -0.08, { grain: 0.04 }));
     p(0.3, 0.05, 0.4, clothD, 0, 0.405, 0, { grain: 0.04 });
     p(0.29, 0.12, 0.39, skirt, 0, 0.49, 0, { n: 2, grain: 0.05 });
     p(0.25, 0.14, 0.34, skirt, 0, 0.62, 0, { n: 2, grain: 0.05 });
@@ -469,12 +489,12 @@ function buildParts(kind, wear, look) {
     p(0.07, 0.09, 0.11, cloth, 0.11, 1.05, -0.07, { detail: true });
     p(0.23, 0.07, 0.33, clothD, 0, 1.14, 0);
     p(0.09, 0.1, 0.14, skin, 0.04, 1.185, 0, { flat: true, detail: true });
-    p(0.1, 0.16, 0.1, cloth, 0, 1.12, 0.2, { grain: 0.05 });
-    p(0.1, 0.16, 0.1, cloth, 0, 1.12, -0.2, { grain: 0.05 });
-    p(0.09, 0.26, 0.095, skin, 0, 0.91, 0.2, { grain: 0.04 });
-    p(0.09, 0.26, 0.095, skin, 0, 0.91, -0.2, { grain: 0.04 });
-    p(0.1, 0.09, 0.1, skinD, 0, 0.74, 0.2);
-    p(0.1, 0.09, 0.1, skinD, 0, 0.74, -0.2);
+    p(0.1, 0.16, 0.1, cloth, 0, 1.12, 0.2, limb('lArm', 0, 1.2, 0.2, { grain: 0.05 }));
+    p(0.1, 0.16, 0.1, cloth, 0, 1.12, -0.2, limb('rArm', 0, 1.2, -0.2, { grain: 0.05 }));
+    p(0.09, 0.26, 0.095, skin, 0, 0.91, 0.2, { limb: 'lArm', grain: 0.04 });
+    p(0.09, 0.26, 0.095, skin, 0, 0.91, -0.2, { limb: 'rArm', grain: 0.04 });
+    p(0.1, 0.09, 0.1, skinD, 0, 0.74, 0.2, { limb: 'lArm' });
+    p(0.1, 0.09, 0.1, skinD, 0, 0.74, -0.2, { limb: 'rArm' });
     p(0.1, 0.09, 0.11, skinD, 0, 1.26, 0);
     p(0.22, 0.25, 0.24, skin, 0, 1.42, 0, { n: 3, grain: 0.04 });
     p(0.25, 0.1, 0.26, hair, 0, 1.57, 0, { n: 2, grain: 0.09 });
@@ -499,13 +519,107 @@ function buildParts(kind, wear, look) {
 function makeModel(kind, wear = 0, seed = 1) {
   const person = !!KINDS[kind]?.person || kind === 'guard';
   const variant = person ? (seed & (LOOK_VARIANTS - 1)) : 0;
-  const geo = cachedVoxGeometry(`${kind}|${wear}|${variant}`, () => {
-    const look = kind === 'woman' ? pickWomanLook(variant + 1)
-      : (kind === 'man' || kind === 'guard') ? pickManLook(variant + 1)
-        : null;
-    return isOriginal() ? legacyMobParts(kind, wear, look) : buildParts(kind, wear, look);
-  });
-  return new THREE.Mesh(geo, ENTITY_MAT.clone());
+  const look = kind === 'woman' ? pickWomanLook(variant + 1)
+    : (kind === 'man' || kind === 'guard') ? pickManLook(variant + 1)
+      : null;
+  const parts = isOriginal() ? legacyMobParts(kind, wear, look) : buildParts(kind, wear, look);
+  const keyBase = `${kind}|${wear}|${variant}`;
+  const mat = ENTITY_MAT.clone();
+  const body = [];
+  const limbParts = new Map();
+  const joints = {};
+  for (const b of parts) {
+    if (!b.limb) {
+      body.push(b);
+      continue;
+    }
+    if (!limbParts.has(b.limb)) limbParts.set(b.limb, []);
+    limbParts.get(b.limb).push(b);
+    if (b.joint && !joints[b.limb]) {
+      joints[b.limb] = { x: b.joint.x, y: b.joint.y, z: b.joint.z, parent: b.parent || null };
+    } else if (b.parent && joints[b.limb] && !joints[b.limb].parent) {
+      joints[b.limb].parent = b.parent;
+    }
+  }
+
+  const root = new THREE.Group();
+  if (body.length) {
+    root.add(new THREE.Mesh(cachedVoxGeometry(`${keyBase}|body`, () => body), mat));
+  }
+
+  const pivots = {};
+  const names = [...limbParts.keys()];
+  names.sort((a, b) => (joints[a]?.parent ? 1 : 0) - (joints[b]?.parent ? 1 : 0));
+  for (const name of names) {
+    const joint = joints[name];
+    const list = limbParts.get(name);
+    if (!joint || !list?.length) continue;
+    const geo = cachedVoxGeometry(`${keyBase}|${name}`, () => list.map((b) => ({
+      w: b.w, h: b.h, d: b.d, color: b.color,
+      x: b.x - joint.x, y: b.y - joint.y, z: b.z - joint.z,
+      rx: b.rx, ry: b.ry, rz: b.rz, grain: b.grain, flat: b.flat, n: b.n, detail: b.detail,
+    })));
+    const pivot = new THREE.Group();
+    const parentJoint = joint.parent ? joints[joint.parent] : null;
+    const parent = joint.parent && pivots[joint.parent] ? pivots[joint.parent] : root;
+    if (parentJoint) {
+      pivot.position.set(joint.x - parentJoint.x, joint.y - parentJoint.y, joint.z - parentJoint.z);
+    } else {
+      pivot.position.set(joint.x, joint.y, joint.z);
+    }
+    pivot.add(new THREE.Mesh(geo, mat));
+    parent.add(pivot);
+    pivots[name] = pivot;
+  }
+  root.userData.gait = GAIT[kind] || 'trot';
+  root.userData.pivots = pivots;
+  return root;
+}
+
+function poseWalk(e, dt) {
+  const mesh = e.mesh;
+  const pivots = mesh?.userData?.pivots;
+  if (!pivots) return;
+  const sleeping = e.state === 'sleep';
+  if (dt > 0) {
+    const dx = e.x - (e.prevX ?? e.x);
+    const dz = e.z - (e.prevZ ?? e.z);
+    e.prevX = e.x;
+    e.prevZ = e.z;
+    const spd = dt > 1e-4 ? Math.hypot(dx, dz) / dt : 0;
+    const moving = !sleeping && !e.dying && spd > 0.28;
+    e.walkAmp = e.walkAmp ?? 0;
+    e.walkCycle = e.walkCycle ?? 0;
+    if (sleeping || e.dying) e.walkAmp = 0;
+    else e.walkAmp += ((moving ? 1 : 0) - e.walkAmp) * Math.min(1, 8 * dt);
+    if (e.walkAmp < 0.002) e.walkAmp = 0;
+    if (e.walkAmp > 0) e.walkCycle += dt * (5.2 + spd * 2.4);
+    if (e.walkCycle > Math.PI * 8) e.walkCycle %= Math.PI * 2;
+  }
+  const a = e.walkAmp || 0;
+  const t = e.walkCycle || 0;
+  const s = Math.sin(t) * a;
+  const setZ = (name, z) => {
+    const p = pivots[name];
+    if (p) p.rotation.z = z;
+  };
+  const gait = mesh.userData.gait;
+  if (gait === 'walk') {
+    setZ('lThigh', s * 0.52);
+    setZ('rThigh', -s * 0.52);
+    setZ('lShin', -(0.12 + Math.max(0, Math.cos(t)) * 0.55) * a);
+    setZ('rShin', -(0.12 + Math.max(0, Math.cos(t + Math.PI)) * 0.55) * a);
+    setZ('lArm', -s * 0.42);
+    setZ('rArm', s * 0.42);
+  } else if (gait === 'biped') {
+    setZ('l', s * 0.6);
+    setZ('r', -s * 0.6);
+  } else {
+    setZ('fl', s * 0.48);
+    setZ('br', s * 0.48);
+    setZ('fr', -s * 0.48);
+    setZ('bl', -s * 0.48);
+  }
 }
 
 function chunkLoaded(world, x, z) {
@@ -681,21 +795,32 @@ export class Life {
     this.scene = scene;
     this.lassoedId = 0;
     const ropeMat = new THREE.MeshLambertMaterial({ color: 0xc4a060 });
-    this.rope = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 1, 5), ropeMat);
+    const ropeGeo = new THREE.CylinderGeometry(0.025, 0.025, 1, 5);
+    this.rope = new THREE.Mesh(ropeGeo, ropeMat);
     this.rope.visible = false;
     this.rope.castShadow = false;
     this.group.add(this.rope);
+    // Short first-person segment so the leash leaves the held lasso after
+    // the viewmodel pass clears depth (the world rope alone looks like it
+    // comes from the camera / waist).
+    this.fpRope = new THREE.Mesh(ropeGeo, ropeMat);
+    this.fpRope.visible = false;
+    this.fpRope.castShadow = false;
+    this.fpRope.layers.set(1);
+    this.group.add(this.fpRope);
     this._ropeUp = new THREE.Vector3(0, 1, 0);
     this._ropeDir = new THREE.Vector3();
+    this._ropeHand = new THREE.Vector3();
   }
 
   dispose() {
     for (const e of this.list) this.dropMesh(e);
     if (this.rope) {
-      this.group.remove(this.rope);
+      this.group.remove(this.rope, this.fpRope);
       this.rope.geometry?.dispose();
       this.rope.material?.dispose();
       this.rope = null;
+      this.fpRope = null;
     }
     this.scene.remove(this.group);
     this.list = [];
@@ -705,9 +830,13 @@ export class Life {
   dropMesh(e) {
     if (!e.mesh) return;
     this.group.remove(e.mesh);
-    // Geometry is shared through the vox cache; only the per-entity material
-    // (kept unique so hurt flashes don't bleed across mobs) is ours to free.
-    e.mesh.traverse((o) => o.material?.dispose());
+    const seen = new Set();
+    e.mesh.traverse((o) => {
+      const mat = o.material;
+      if (!mat || seen.has(mat)) return;
+      seen.add(mat);
+      mat.dispose();
+    });
     e.mesh = null;
   }
 
@@ -754,7 +883,7 @@ export class Life {
     }
   }
 
-  syncMesh(e) {
+  syncMesh(e, dt = 0) {
     if (!e.mesh) return;
     const sleeping = e.state === 'sleep';
     if (sleeping) {
@@ -766,6 +895,7 @@ export class Life {
       e.mesh.rotation.set(0, e.yaw - Math.PI / 2, 0);
       e.mesh.position.set(e.x, e.y, e.z);
     }
+    poseWalk(e, dt);
     const flash = e.hurtT > 0 || dyingBlink(e);
     const caught = !!e.lassoed && !e.dying;
     e.mesh.traverse((o) => {
@@ -901,6 +1031,8 @@ export class Life {
       e.state = 'wander';
     }
     this.lassoedId = 0;
+    if (this.rope) this.rope.visible = false;
+    if (this.fpRope) this.fpRope.visible = false;
   }
 
   snapLassoedTo(x, y, z, yaw = 0) {
@@ -916,16 +1048,18 @@ export class Life {
     this.syncMesh(e);
   }
 
-  syncRope(player) {
+  syncRope(player, handPos) {
     const e = this.getLassoed();
     if (!e || !player || !this.rope) {
       if (this.rope) this.rope.visible = false;
+      if (this.fpRope) this.fpRope.visible = false;
       return;
     }
     const def = KINDS[e.kind];
-    const ax = player.pos.x;
-    const ay = player.pos.y + 1.05;
-    const az = player.pos.z;
+    const hand = handPos || this.handAnchor(player);
+    const ax = hand.x;
+    const ay = hand.y;
+    const az = hand.z;
     const bx = e.x;
     const by = e.y + def.h * 0.55;
     const bz = e.z;
@@ -938,6 +1072,36 @@ export class Life {
     this._ropeDir.set(dx / len, dy / len, dz / len);
     this.rope.quaternion.setFromUnitVectors(this._ropeUp, this._ropeDir);
     this.rope.scale.set(1, len, 1);
+    if (this.fpRope) {
+      const fpLen = Math.min(0.95, len);
+      this.fpRope.visible = true;
+      this.fpRope.position.set(
+        ax + this._ropeDir.x * fpLen * 0.5,
+        ay + this._ropeDir.y * fpLen * 0.5,
+        az + this._ropeDir.z * fpLen * 0.5,
+      );
+      this.fpRope.quaternion.copy(this.rope.quaternion);
+      this.fpRope.scale.set(1, fpLen, 1);
+    }
+  }
+
+  /** Approximate first-person grip when the viewmodel pose is not passed in. */
+  handAnchor(player) {
+    const eyeY = player.pos.y + (player.eyeHeight?.() ?? 1.62);
+    const yaw = player.yaw || 0;
+    const pitch = player.pitch || 0;
+    const lx = 0.26;
+    const ly = -0.08;
+    const lz = -0.42;
+    const cy = Math.cos(yaw);
+    const sy = Math.sin(yaw);
+    const cp = Math.cos(pitch);
+    const sp = Math.sin(pitch);
+    return this._ropeHand.set(
+      player.pos.x + lx * cy + ly * sy * sp + lz * sy * cp,
+      eyeY + ly * cp - lz * sp,
+      player.pos.z - lx * sy + ly * cy * sp + lz * cy * cp,
+    );
   }
 
   raycast(origin, dir, maxDist = 5.5) {
@@ -1183,7 +1347,7 @@ export class Life {
             continue;
           }
         }
-        this.syncMesh(e);
+        this.syncMesh(e, dt);
         continue;
       }
 
@@ -1216,7 +1380,7 @@ export class Life {
         if (e.onGround && e.vy < 0) e.vy = 0;
         e.y = Math.max(1, Math.min(HEIGHT - 2, e.y));
         e.yaw = Math.atan2(px - e.x, pz - e.z);
-        this.syncMesh(e);
+        this.syncMesh(e, dt);
         continue;
       }
 
@@ -1382,7 +1546,7 @@ export class Life {
         ctx.hitPlayer = true;
       }
 
-      this.syncMesh(e);
+      this.syncMesh(e, dt);
     }
     this.separateNpcs(world);
     this.syncRope(player);

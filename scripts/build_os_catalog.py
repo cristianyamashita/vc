@@ -84,7 +84,7 @@ DEFAULT_INSTALLED = (
     "misc-logic_circuit",
     "game-roulette",
 )
-SKIP_HREFS = {"os/index.html", "os.html"}
+SKIP_HREFS = {"os/index.html", "os.html", "os/apps/upgrade/index.html"}
 MULTI_INSTANCE = {
     "utils-wordpad",
     "utils-markdown",
@@ -455,6 +455,25 @@ def main() -> None:
                 "en": "View, capture photos, and record videos with filters.",
                 "pt": "Visualize, tire fotos e grave vídeos com filtros.",
                 "ja": "フィルター付きで写真撮影・動画録画ができるカメラ。",
+            },
+        },
+        {
+            "id": "upgrade",
+            "href": "os/apps/upgrade/index.html",
+            "icon": "../assets/icons/svg/os-upgrade.svg",
+            "kind": "native",
+            "suite": "accessories",
+            "uninstallable": False,
+            "defaultInstalled": True,
+            "windowW": 720,
+            "windowH": 720,
+            "channel": "stable",
+            "tag": {"en": "Accessories", "pt": "Acessórios", "ja": "アクセサリ"},
+            "name": {"en": "Upgrade Simulator", "pt": "Simulador de Upgrade", "ja": "アップグレードシミュレーター"},
+            "desc": {
+                "en": "Fullscreen fake OS upgrade for Ubuntu, CentOS, Windows, or Mac. Press Esc to exit.",
+                "pt": "Simula um upgrade em tela cheia do Ubuntu, CentOS, Windows ou Mac. Esc sai da simulação.",
+                "ja": "Ubuntu / CentOS / Windows / Mac のアップグレード画面をフルスクリーンで再現。Esc で終了。",
             },
         },
         {

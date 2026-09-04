@@ -210,6 +210,9 @@ def seed_globs(buckets: dict[str, set[str]]) -> None:
         "assets/fontawesome/**/*.*",
         "assets/images/**/*.*",
         "models/**/*.*",
+        # Game sound effects are fetched by name at runtime, so nothing in the
+        # source text points at them for the scanner to find.
+        "game/**/audio/*.mp3",
         "**/*.html",
     ):
         for path in PAGE.glob(pattern):

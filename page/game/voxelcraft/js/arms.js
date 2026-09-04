@@ -41,8 +41,25 @@ export class Arms {
     this.offTool = new THREE.Group();
     this.toolHold.add(this.tool);
     this.left.hand.add(this.offTool);
+    this.ropeGrip = new THREE.Object3D();
+    this.ropeGrip.position.set(0.05, 0.01, -0.06);
+    this.toolHold.add(this.ropeGrip);
+    this.offRopeGrip = new THREE.Object3D();
+    this.offRopeGrip.position.set(0, -0.02, 0.06);
+    this.offTool.add(this.offRopeGrip);
+    this._gripWorld = new THREE.Vector3();
     this.heldId = -1;
     this.offId = -1;
+  }
+
+  /**
+   * World position of the held item in the right hand, or the off-hand
+   * grip when `mainHand` is false. Used so a lasso rope leaves the fist
+   * instead of the player's waist.
+   */
+  heldWorld(mainHand = true) {
+    const grip = mainHand ? this.ropeGrip : this.offRopeGrip;
+    return grip.getWorldPosition(this._gripWorld);
   }
 
   /**
