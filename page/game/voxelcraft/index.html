@@ -122,6 +122,7 @@
           <button type="button" class="primary" id="play-btn" data-i18n="clickToPlay">Click to play</button>
           <button type="button" id="new-world-btn" data-i18n="newWorld">New world</button>
           <button type="button" id="open-map-btn" data-i18n="worldMap">Known world</button>
+          <button type="button" id="open-eggs-btn" data-i18n="eggs">Humans &amp; eggs</button>
         </div>
         <div class="worlds-panel">
           <div class="worlds-head">
@@ -196,6 +197,85 @@
           <span><i class="swatch canyon"></i><span data-i18n="biomeRedDesert">Red Desert</span></span>
           <span><i class="swatch mountain"></i><span data-i18n="biomeMountain">Mountains</span></span>
           <span><i class="swatch water"></i><span data-i18n="blockWater">Water</span></span>
+        </div>
+      </div>
+    </div>
+
+
+    <div id="egg-overlay" class="overlay" hidden>
+      <div class="egg-card">
+        <header class="panel-head">
+          <h2 data-i18n="eggsTitle">Humans &amp; eggs</h2>
+          <div class="panel-actions">
+            <button type="button" class="text-btn" id="egg-close" data-i18n="close">Close</button>
+          </div>
+        </header>
+
+        <div id="egg-gallery">
+          <p class="egg-intro" data-i18n="eggIntro">Pick a starting human, sculpt and paint any body part, then save it as an egg. Buy eggs in the shop and hatch them anywhere.</p>
+          <h3 data-i18n="eggPickBase">Start from</h3>
+          <div class="egg-grid" id="egg-presets"></div>
+          <h3 data-i18n="eggMine">My eggs</h3>
+          <p class="egg-empty" id="egg-empty" data-i18n="eggNone">No eggs yet. Pick one of the six humans above to make your first.</p>
+          <p class="egg-empty" id="egg-limit" data-i18n="eggLimit" hidden>You have reached the maximum number of eggs. Delete one to make room.</p>
+          <div class="egg-grid" id="egg-saved"></div>
+        </div>
+
+        <div id="egg-editor" hidden>
+          <div class="egg-stage">
+            <canvas id="egg-canvas"></canvas>
+            <p class="egg-spin-hint" data-i18n="eggSpin">Drag to turn · Scroll to zoom · Right-drag turns while spraying</p>
+          </div>
+          <div class="egg-tools">
+            <label class="egg-name-row">
+              <span data-i18n="eggName">Name</span>
+              <input type="text" id="egg-name" maxlength="24">
+            </label>
+            <h3 data-i18n="eggOutfit">Outfit</h3>
+            <div class="egg-regions" id="egg-outfits"></div>
+            <h3 data-i18n="eggTool">Tool</h3>
+            <div class="egg-regions" id="egg-tools"></div>
+            <p class="egg-note" id="egg-gfx-note" data-i18n="eggAdvancedOnly" hidden>Spray paint only shows on Advanced graphics.</p>
+            <h3 data-i18n="eggRegion">Body part</h3>
+            <div class="egg-regions" id="egg-regions"></div>
+            <div id="egg-block-row">
+              <h3 data-i18n="eggBlock">Block</h3>
+              <div class="egg-regions egg-blocks" id="egg-blocks"></div>
+            </div>
+            <h3 data-i18n="eggPaint">Paint</h3>
+            <div class="egg-paint-row">
+              <input type="color" id="egg-color" value="#c8a07a">
+              <button type="button" class="text-btn" id="egg-paint-apply" data-i18n="eggPaintApply">Apply</button>
+              <button type="button" class="text-btn" id="egg-paint-clear" data-i18n="eggClearPaint">Remove paint</button>
+            </div>
+            <div class="egg-swatches" id="egg-swatches"></div>
+            <div id="egg-spray-row" hidden>
+              <h3 data-i18n="eggBrush">Brush</h3>
+              <div class="egg-brush-row">
+                <input type="range" id="egg-brush-range" min="1" max="8" step="1" value="3" data-i18n-aria="eggBrush" aria-label="Brush">
+                <i class="egg-slider-val" id="egg-brush-val"></i>
+              </div>
+              <div class="egg-spray-opts">
+                <label class="egg-check">
+                  <input type="checkbox" id="egg-only-region">
+                  <span data-i18n="eggOnlyRegion">Only the selected part</span>
+                </label>
+                <span class="egg-spray-count" id="egg-spray-count"></span>
+                <button type="button" class="text-btn" id="egg-spray-clear" data-i18n="eggSprayClear">Clear spray</button>
+              </div>
+            </div>
+            <div id="egg-sculpt-wrap">
+              <h3 data-i18n="eggSculpt">Sculpt</h3>
+              <p class="egg-scope" id="egg-sculpt-scope"></p>
+              <div class="egg-sliders" id="egg-sliders"></div>
+            </div>
+            <div class="egg-editor-actions">
+              <button type="button" id="egg-reset" data-i18n="eggReset">Reset part</button>
+              <button type="button" id="egg-reset-all" data-i18n="eggResetAll">Reset all</button>
+              <button type="button" id="egg-back" data-i18n="eggCancel">Cancel</button>
+              <button type="button" class="primary" id="egg-save" data-i18n="eggSave">Save egg</button>
+            </div>
+          </div>
         </div>
       </div>
     </div>

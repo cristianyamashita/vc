@@ -7,6 +7,7 @@ import {
 } from './blocks.js';
 import { fbm2, fbm3, hash2, hash3 } from './noise.js';
 import { afterBlockChange } from './leaves.js';
+import { afterBlockChange as afterGrassBlockChange } from './grassgrow.js';
 import { onWaterBlockChange } from './water.js';
 import { onSpringBlockChange } from './spring.js';
 import { stampCastleChunk, inCastleFootprint } from './castle.js';
@@ -106,6 +107,7 @@ export class World {
     this.furnaces = {};
     this.doors = {};
     this.leafDecay = {};
+    this.grassGrow = {};
     this.blockDir = {};
     this.waterMeta = {};
     this.waterWait = {};
@@ -181,6 +183,7 @@ export class World {
     }
     this.recordMapColumn(x, z);
     afterBlockChange(this, x, y, z, prev, id);
+    afterGrassBlockChange(this, x, y, z, prev, id);
     onWaterBlockChange(this, x, y, z, prev, id);
     onSpringBlockChange(this, x, y, z, prev, id);
     return true;

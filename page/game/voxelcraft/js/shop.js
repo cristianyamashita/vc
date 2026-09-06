@@ -16,6 +16,7 @@ import {
   ammoOf,
 } from './blocks.js';
 import { Inventory, cloneStack } from './inventory.js';
+import { EGG_BUNDLE, EGG_COST, listDesigns } from './humandesign.js';
 
 function offer(id, n, cost) {
   return { id, n, cost };
@@ -106,6 +107,20 @@ export const SHOP_SECTIONS = [
     ],
   },
 ];
+
+/** The shop's sections for the current game: the fixed catalogue plus one
+ *  live section holding an egg bundle for every human the player has saved. */
+export function shopSections() {
+  const designs = listDesigns();
+  if (!designs.length) return SHOP_SECTIONS;
+  return [
+    {
+      titleKey: 'shopEggs',
+      items: designs.map((d) => offer(d.itemId, EGG_BUNDLE, EGG_COST)),
+    },
+    ...SHOP_SECTIONS,
+  ];
+}
 
 export function offerStack(item) {
   const def = ITEMS[item.id];

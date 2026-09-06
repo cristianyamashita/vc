@@ -25,6 +25,15 @@ for (const f of FACES) {
   f.flip = cx * f.n[0] + cy * f.n[1] + cz * f.n[2] < 0;
 }
 
+/** Spray paint resolution: every box face is a PAINT_N x PAINT_N grid of
+ *  cells, and a cell is the "pixel" the spray tool colours. A box only pays
+ *  for that subdivision once something on it is actually painted. */
+export const PAINT_N = 6;
+
+/** The face frames, so the editor can place a paint cell's centre in model
+ *  space using exactly the same basis the geometry is built from. */
+export const FACE_BASIS = FACES.map((f) => ({ n: f.n, o: f.o, u: f.u, v: f.v }));
+
 const SRGB = new THREE.Color();
 
 function hash2(a, b, c) {
@@ -49,7 +58,10 @@ export function buildVoxGeometry(parts, full = false) {
   const advanced = full || isAdvanced();
   const boxes = advanced ? parts : parts.filter((b) => !b.detail);
   let quads = 0;
-  for (const b of boxes) quads += 6 * subdiv(b, advanced) * subdiv(b, advanced);
+  for (const b of boxes) {
+    const n = subdivOf(b, advanced);
+    quads += 6 * n * n;
+  }
 
   const pos = new Float32Array(quads * 4 * 3);
   const nor = new Float32Array(quads * 4 * 3);
@@ -69,7 +81,8 @@ export function buildVoxGeometry(parts, full = false) {
     const w = b.w;
     const h = b.h;
     const d = b.d;
-    const n = subdiv(b, advanced);
+    const n = subdivOf(b, advanced);
+    const paint = b.paint || null;
     const grain = advanced ? (b.grain ?? 0.055) : 0;
     const rot = !!(b.rx || b.ry || b.rz);
     if (rot) {
@@ -102,9 +115,22 @@ export function buildVoxGeometry(parts, full = false) {
           const b1 = (gy + 1) / n - 0.5;
           const tint = 1 + (hash2(bi * 6 + f, gx, gy) - 0.5) * grain * 2;
           const k = shade * tint;
-          const r = Math.min(1, cr * k);
-          const g = Math.min(1, cg * k);
-          const bl = Math.min(1, cb * k);
+          // A sprayed cell replaces the box colour but keeps the face shading
+          // and grain, so paint sits on the surface instead of flattening it.
+          const hit = paint ? paint.get(cellIndex(f, gx, gy)) : undefined;
+          let r;
+          let g;
+          let bl;
+          if (hit === undefined) {
+            r = Math.min(1, cr * k);
+            g = Math.min(1, cg * k);
+            bl = Math.min(1, cb * k);
+          } else {
+            SRGB.setHex(hit, THREE.SRGBColorSpace);
+            r = Math.min(1, SRGB.r * k);
+            g = Math.min(1, SRGB.g * k);
+            bl = Math.min(1, SRGB.b * k);
+          }
 
           const base = vi;
           for (const [ta, tb] of [[a0, b0], [a1, b0], [a1, b1], [a0, b1]]) {
@@ -156,8 +182,17 @@ export function buildVoxGeometry(parts, full = false) {
   return geo;
 }
 
-function subdiv(b, advanced) {
-  return advanced ? (b.n || 1) : 1;
+/** Index of one paint cell inside a box's own cell map. */
+export function cellIndex(face, gx, gy) {
+  return (face * PAINT_N + gy) * PAINT_N + gx;
+}
+
+/** Painted boxes always render at the paint grid so every cell can show; the
+ *  rest keep their authored subdivision and stay as cheap as before. */
+function subdivOf(b, advanced) {
+  if (!advanced) return 1;
+  if (b.paint) return PAINT_N;
+  return b.n || 1;
 }
 
 const geoCache = new Map();

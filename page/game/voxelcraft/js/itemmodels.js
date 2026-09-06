@@ -14,6 +14,7 @@ import {
 import { cachedVoxGeometry, shadeHex } from './voxmodel.js';
 import { isOriginal } from './quality.js';
 import { legacyHeldParts } from './legacymodels.js';
+import { designForItem, designHash, isEggItem } from './humandesign.js';
 import { tileUV } from './textures.js';
 
 // The one description of what every item looks like in 3D. The hand, the
@@ -45,7 +46,10 @@ export function itemMesh(id, opts = {}) {
     if (isBlock(id) && blockMat) return new THREE.Mesh(blockCube(id), blockMat);
     parts.push({ w: 0.14, h: 0.14, d: 0.05, color: 0xc9c9d2, x: 0, y: 0, z: -0.03, n: 2 });
   }
-  const key = `${opts.full ? 'item!' : 'item'}:${id}`;
+  // An egg's colours follow its design, so re-saving a design must not hand
+  // back the geometry baked from the previous one.
+  const stamp = isEggItem(id) ? `:${designHash(designForItem(id) || {})}` : '';
+  const key = `${opts.full ? 'item!' : 'item'}:${id}${stamp}`;
   return new THREE.Mesh(cachedVoxGeometry(key, () => parts, opts.full), ITEM_MAT);
 }
 
@@ -92,6 +96,7 @@ function headColor(id) {
 }
 
 export function itemParts(id) {
+  if (isEggItem(id)) return eggParts(id);
   if (isOriginal()) return legacyHeldParts(id).parts;
   const out = [];
   const p = (w, h, d, color, x, y, z, extra) => {
@@ -266,5 +271,32 @@ export function itemParts(id) {
     p(0.16, 0.028, 0.028, rail, 0, 0.07, -0.02);
     p(0.16, 0.028, 0.028, rail, 0, -0.05, -0.02);
   }
+  return out;
+}
+
+/** A speckled egg tinted with its design's own clothing and hair colours, so
+ *  a shelf of eggs is readable at a glance. */
+function eggParts(id) {
+  const design = designForItem(id);
+  const shell = design ? shadeHex(design.wear, 1.35) : 0xf0e6d2;
+  const shellHi = shadeHex(shell, 1.14);
+  const shellLo = shadeHex(shell, 0.84);
+  const spot = design ? design.look?.hair ?? 0x6b4a2a : 0x6b4a2a;
+  const out = [];
+  const p = (w, h, d, color, x, y, z, extra) => {
+    const b = { w, h, d, color, x, y, z };
+    if (extra) Object.assign(b, extra);
+    out.push(b);
+  };
+  // Five stacked slabs give the ovoid: narrow at the top, widest below centre.
+  p(0.070, 0.030, 0.070, shellHi, 0, 0.098, 0, { n: 2, grain: 0.05 });
+  p(0.108, 0.042, 0.108, shell, 0, 0.066, 0, { n: 2, grain: 0.05 });
+  p(0.132, 0.056, 0.132, shell, 0, 0.020, 0, { n: 2, grain: 0.05 });
+  p(0.126, 0.046, 0.126, shellLo, 0, -0.030, 0, { n: 2, grain: 0.05 });
+  p(0.086, 0.034, 0.086, shellLo, 0, -0.068, 0, { n: 2, grain: 0.05 });
+  p(0.030, 0.026, 0.030, spot, 0.052, 0.030, 0.014, { flat: true, detail: true });
+  p(0.022, 0.020, 0.022, spot, -0.040, 0.066, -0.032, { flat: true, detail: true });
+  p(0.026, 0.022, 0.026, spot, 0.014, -0.036, -0.054, { flat: true, detail: true });
+  p(0.020, 0.018, 0.020, spot, -0.030, -0.014, 0.050, { flat: true, detail: true });
   return out;
 }

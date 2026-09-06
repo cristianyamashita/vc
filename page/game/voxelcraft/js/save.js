@@ -3,6 +3,7 @@ const DB_VERSION = 1;
 const LEGACY_KEY = 'current';
 const INDEX_KEY = 'worldIndex';
 const SETTINGS_KEY = 'ui';
+const DESIGNS_KEY = 'humanDesigns';
 
 function openDB() {
   return new Promise((resolve, reject) => {
@@ -124,4 +125,17 @@ export async function loadSettings() {
 export async function saveSettings(data) {
   const db = await getDB();
   return txPut(db, 'settings', SETTINGS_KEY, data);
+}
+
+// Human designs are the player's own, not a world's, so they live in settings
+// and follow them into every world they load.
+export async function loadHumanDesigns() {
+  const db = await getDB();
+  const data = await txGet(db, 'settings', DESIGNS_KEY);
+  return Array.isArray(data?.list) ? data.list : [];
+}
+
+export async function saveHumanDesigns(list) {
+  const db = await getDB();
+  return txPut(db, 'settings', DESIGNS_KEY, { list: list || [] });
 }

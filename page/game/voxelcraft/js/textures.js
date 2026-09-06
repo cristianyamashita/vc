@@ -466,7 +466,18 @@ function drawItemIcon(kind) {
     return iron();
   }
 
-  if (kind === 'stick') {
+  if (kind === 'egg') {
+    // Original graphics have no model renders, so eggs need a drawn icon too.
+    const rows = [[13, 6, 6], [11, 9, 10], [9, 13, 14], [9, 17, 14], [11, 23, 10], [13, 27, 6]];
+    g.fillStyle = '#f0e6d2';
+    for (const [x, y, w] of rows) g.fillRect(x, y, w, y === 27 ? 3 : 4);
+    g.fillStyle = '#cbbfa6';
+    g.fillRect(9, 23, 14, 4);
+    g.fillRect(13, 27, 6, 3);
+    g.fillStyle = '#8a6a44';
+    g.fillRect(11, 13, 3, 3);
+    g.fillRect(18, 19, 3, 3);
+  } else if (kind === 'stick') {
     g.fillStyle = '#c48a48';
     g.fillRect(14, 4, 4, 24);
   } else if (kind === 'coal') {
@@ -737,7 +748,7 @@ export function createAtlas() {
     'hide_cow', 'hide_zebra', 'hide_sheep',
     'door', 'door_double', 'stairs', 'stairs_sand', 'stairs_stone', 'ladder',
     'wall_wood', 'wall_glass',
-    'lasso', 'revolver', 'bow', 'compass',
+    'lasso', 'revolver', 'bow', 'compass', 'egg',
   ];
   for (const kind of itemKinds) icons[kind] = drawItemIcon(kind);
 

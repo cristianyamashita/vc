@@ -6,6 +6,8 @@ import { cachedVoxGeometry, shadeHex } from './voxmodel.js';
 import { isOriginal } from './quality.js';
 import { legacyMobParts } from './legacymodels.js';
 import { getCastle, sightBlocked, inCastleFootprint } from './castle.js';
+import { applyEdits, applySpray, designHash, getDesign, randomDesign, hasDesigns } from './humandesign.js';
+import { buildHuman, MAN_WEAR, WOMAN_WEAR } from './outfits.js';
 
 const MAX_NEAR = 52;
 const UNLOAD = UNLOAD_RADIUS * 16;
@@ -13,8 +15,6 @@ const RUG_SEEK_R = 16;
 const RUG_SEEK_RETRY = 2.4;
 const CASTLE_LEASH = 20;
 
-const WOMAN_WEAR = [0xc62828, 0xe85a9a, 0xf5f2ea, 0xe8c220, 0xe07020];
-const MAN_WEAR = [0x2a5caa, 0x1e5a32, 0x6b3e22];
 
 export const KINDS = {
   cow: {
@@ -183,16 +183,6 @@ function limb(name, jx, jy, jz, extra, parent) {
   return o;
 }
 
-function eyeSet(p, x, y, z, sc, white = 0xf7f2ea, iris = 0x1a1410) {
-  const ew = 0.03 * sc;
-  const eh = 0.045 * sc;
-  const ed = 0.05 * sc;
-  p(ew, eh, ed, white, x, y, z, { flat: true, grain: 0 });
-  p(ew, eh, ed, white, x, y, -z, { flat: true, grain: 0 });
-  p(ew * 0.72, eh * 0.72, ed * 0.62, iris, x + ew * 0.5, y, z, { flat: true, grain: 0 });
-  p(ew * 0.72, eh * 0.72, ed * 0.62, iris, x + ew * 0.5, y, -z, { flat: true, grain: 0 });
-}
-
 // Beady animal eye: dark bead with a tiny catch-light, which is what makes a
 // cube of fur read as a face at gameplay distance.
 function beadEyes(p, x, y, z, r, dark = 0x140f0c) {
@@ -208,11 +198,16 @@ function quadLeg(p, x, z, top, legW, legH, fur, hoof, hoofH = 0.12) {
   p(legW * 1.1, hoofH, legW * 1.1, hoof, x, hoofH * 0.5, z, { limb: name, grain: 0.04 });
 }
 
-function buildParts(kind, wear, look) {
+function buildParts(kind, wear, look, outfit = 'default') {
   const out = [];
+  // Human boxes carry a `reg` tag so the egg editor can select, paint and
+  // sculpt one body region at a time. `reg` is set by the person branches
+  // below and simply stays null for animals.
+  let reg = null;
   const p = (w, h, d, color, x, y, z, extra) => {
     const b = { w, h, d, color, x, y, z };
     if (extra) Object.assign(b, extra);
+    if (reg && b.reg == null) b.reg = reg;
     out.push(b);
     return b;
   };
@@ -415,115 +410,27 @@ function buildParts(kind, wear, look) {
     quadLeg(p, -0.3, -0.18, 0.5, 0.16, 0.36, hide, hoof, 0.14);
     p(0.06, 0.34, 0.06, hideD, -0.46, 0.68, 0, { rz: 0.1 });
     p(0.09, 0.12, 0.09, 0x120d09, -0.5, 0.46, 0);
-  } else if (kind === 'man' || kind === 'guard') {
-    const cloth = kind === 'guard' ? (wear || 0x2a3038) : (wear || MAN_WEAR[0]);
-    const clothD = shadeHex(cloth, 0.78);
-    const pants = 0x2b323c;
-    const shoe = 0x2a2018;
-    const skin = 0xc8a07a;
-    const skinD = shadeHex(skin, 0.9);
-    const hair = look.hair;
-    const hairD = shadeHex(hair, 0.72);
-    p(0.16, 0.09, 0.24, shoe, 0.02, 0.045, 0.1, { limb: 'lShin' });
-    p(0.16, 0.09, 0.24, shoe, 0.02, 0.045, -0.1, { limb: 'rShin' });
-    p(0.13, 0.26, 0.14, pants, 0, 0.22, 0.1, limb('lShin', 0, 0.35, 0.1, { grain: 0.045 }, 'lThigh'));
-    p(0.13, 0.26, 0.14, pants, 0, 0.22, -0.1, limb('rShin', 0, 0.35, -0.1, { grain: 0.045 }, 'rThigh'));
-    p(0.15, 0.24, 0.16, pants, 0, 0.45, 0.1, limb('lThigh', 0, 0.57, 0.1, { grain: 0.045 }));
-    p(0.15, 0.24, 0.16, pants, 0, 0.45, -0.1, limb('rThigh', 0, 0.57, -0.1, { grain: 0.045 }));
-    p(0.24, 0.14, 0.35, pants, 0, 0.63, 0, { n: 2, grain: 0.045 });
-    p(0.26, 0.06, 0.37, 0x4a3520, 0, 0.72, 0);
-    p(0.05, 0.05, 0.05, 0xc9a63c, 0.13, 0.72, 0, { flat: true, detail: true });
-    p(0.26, 0.44, 0.36, cloth, 0, 0.97, 0, { n: 3, grain: 0.055 });
-    p(0.27, 0.09, 0.37, clothD, 0, 1.155, 0);
-    p(0.1, 0.11, 0.16, skin, 0.045, 1.2, 0, { flat: true, detail: true });
-    p(0.12, 0.22, 0.12, cloth, 0, 1.08, 0.23, limb('lArm', 0, 1.19, 0.23, { grain: 0.05 }));
-    p(0.12, 0.22, 0.12, cloth, 0, 1.08, -0.23, limb('rArm', 0, 1.19, -0.23, { grain: 0.05 }));
-    p(0.1, 0.22, 0.105, skin, 0, 0.86, 0.23, { limb: 'lArm', grain: 0.04 });
-    p(0.1, 0.22, 0.105, skin, 0, 0.86, -0.23, { limb: 'rArm', grain: 0.04 });
-    p(0.11, 0.1, 0.11, skinD, 0, 0.71, 0.23, { limb: 'lArm' });
-    p(0.11, 0.1, 0.11, skinD, 0, 0.71, -0.23, { limb: 'rArm' });
-    p(0.12, 0.1, 0.13, skinD, 0, 1.26, 0);
-    p(0.24, 0.26, 0.25, skin, 0, 1.43, 0, { n: 3, grain: 0.04 });
-    p(0.035, 0.08, 0.05, skinD, -0.01, 1.42, 0.14, { detail: true });
-    p(0.035, 0.08, 0.05, skinD, -0.01, 1.42, -0.14, { detail: true });
-    p(0.26, 0.08, 0.27, hair, 0, 1.58, 0, { n: 2, grain: 0.09 });
-    p(0.07, 0.18, 0.26, hair, -0.115, 1.49, 0, { grain: 0.09 });
-    p(0.24, 0.12, 0.05, hairD, 0, 1.5, 0.125, { grain: 0.08 });
-    p(0.24, 0.12, 0.05, hairD, 0, 1.5, -0.125, { grain: 0.08 });
-    p(0.06, 0.06, 0.25, hair, 0.105, 1.54, 0, { grain: 0.08, detail: true });
-    p(0.028, 0.022, 0.075, hairD, 0.122, 1.495, 0.06, { flat: true, detail: true });
-    p(0.028, 0.022, 0.075, hairD, 0.122, 1.495, -0.06, { flat: true, detail: true });
-    eyeSet(p, 0.12, 1.45, 0.062, look.eyeS);
-    p(0.055 * look.noseS, 0.05 * look.noseS, 0.05 * look.noseS, skinD, 0.135, 1.4, 0);
-    p(0.024, 0.02, 0.075, 0x8a5a50, 0.13, 1.335, 0, { flat: true, detail: true });
-    if (look.beard) {
-      p(0.05, 0.12, 0.2, hairD, 0.105, 1.33, 0, { grain: 0.09 });
-      p(0.16, 0.06, 0.25, hairD, 0.03, 1.3, 0, { grain: 0.09, detail: true });
-    }
-    if (kind === 'guard') {
-      p(0.22, 0.045, 0.05, 0x2a2a32, 0.18, 1.02, -0.3, { flat: true, grain: 0 });
-      p(0.08, 0.07, 0.055, 0x3a2a1c, 0.05, 0.98, -0.27, { flat: true, grain: 0 });
-      p(0.04, 0.04, 0.04, 0xc9a63c, 0.08, 1.04, -0.27, { flat: true, detail: true });
-    }
   } else {
-    const cloth = wear || WOMAN_WEAR[0];
-    const clothD = shadeHex(cloth, 0.78);
-    const skirt = shadeHex(cloth, 0.88);
-    const shoe = 0x3a241c;
-    const skin = 0xd4b08a;
-    const skinD = shadeHex(skin, 0.9);
-    const hair = look.hair;
-    const hairD = shadeHex(hair, 0.74);
-    p(0.14, 0.08, 0.2, shoe, 0.02, 0.04, 0.08, { limb: 'lShin' });
-    p(0.14, 0.08, 0.2, shoe, 0.02, 0.04, -0.08, { limb: 'rShin' });
-    p(0.1, 0.16, 0.11, skin, 0, 0.16, 0.08, limb('lShin', 0, 0.24, 0.08, { grain: 0.04 }, 'lThigh'));
-    p(0.1, 0.16, 0.11, skin, 0, 0.16, -0.08, limb('rShin', 0, 0.24, -0.08, { grain: 0.04 }, 'rThigh'));
-    p(0.1, 0.15, 0.11, skin, 0, 0.305, 0.08, limb('lThigh', 0, 0.38, 0.08, { grain: 0.04 }));
-    p(0.1, 0.15, 0.11, skin, 0, 0.305, -0.08, limb('rThigh', 0, 0.38, -0.08, { grain: 0.04 }));
-    p(0.3, 0.05, 0.4, clothD, 0, 0.405, 0, { grain: 0.04 });
-    p(0.29, 0.12, 0.39, skirt, 0, 0.49, 0, { n: 2, grain: 0.05 });
-    p(0.25, 0.14, 0.34, skirt, 0, 0.62, 0, { n: 2, grain: 0.05 });
-    p(0.235, 0.045, 0.325, clothD, 0, 0.705, 0);
-    p(0.22, 0.48, 0.32, cloth, 0, 0.96, 0, { n: 3, grain: 0.055 });
-    p(0.07, 0.09, 0.11, cloth, 0.11, 1.05, 0.07, { detail: true });
-    p(0.07, 0.09, 0.11, cloth, 0.11, 1.05, -0.07, { detail: true });
-    p(0.23, 0.07, 0.33, clothD, 0, 1.14, 0);
-    p(0.09, 0.1, 0.14, skin, 0.04, 1.185, 0, { flat: true, detail: true });
-    p(0.1, 0.16, 0.1, cloth, 0, 1.12, 0.2, limb('lArm', 0, 1.2, 0.2, { grain: 0.05 }));
-    p(0.1, 0.16, 0.1, cloth, 0, 1.12, -0.2, limb('rArm', 0, 1.2, -0.2, { grain: 0.05 }));
-    p(0.09, 0.26, 0.095, skin, 0, 0.91, 0.2, { limb: 'lArm', grain: 0.04 });
-    p(0.09, 0.26, 0.095, skin, 0, 0.91, -0.2, { limb: 'rArm', grain: 0.04 });
-    p(0.1, 0.09, 0.1, skinD, 0, 0.74, 0.2, { limb: 'lArm' });
-    p(0.1, 0.09, 0.1, skinD, 0, 0.74, -0.2, { limb: 'rArm' });
-    p(0.1, 0.09, 0.11, skinD, 0, 1.26, 0);
-    p(0.22, 0.25, 0.24, skin, 0, 1.42, 0, { n: 3, grain: 0.04 });
-    p(0.25, 0.1, 0.26, hair, 0, 1.57, 0, { n: 2, grain: 0.09 });
-    p(0.1, 0.34, 0.25, hair, -0.11, 1.38, 0, { n: 2, grain: 0.09 });
-    p(0.2, 0.24, 0.05, hair, 0.01, 1.43, 0.125, { grain: 0.09 });
-    p(0.2, 0.24, 0.05, hair, 0.01, 1.43, -0.125, { grain: 0.09 });
-    if (look.longHair) {
-      p(0.09, 0.2, 0.24, hair, -0.105, 1.14, 0, { grain: 0.09 });
-      p(0.07, 0.16, 0.07, hairD, -0.09, 1.0, 0.09, { grain: 0.08, detail: true });
-      p(0.07, 0.16, 0.07, hairD, -0.09, 1.0, -0.09, { grain: 0.08, detail: true });
-    }
-    p(0.06, 0.06, 0.22, hair, 0.1, 1.52, 0, { grain: 0.08, detail: true });
-    p(0.026, 0.02, 0.07, hairD, 0.112, 1.485, 0.055, { flat: true, detail: true });
-    p(0.026, 0.02, 0.07, hairD, 0.112, 1.485, -0.055, { flat: true, detail: true });
-    eyeSet(p, 0.11, 1.445, 0.057, look.eyeS);
-    p(0.05 * look.noseS, 0.045 * look.noseS, 0.045 * look.noseS, skinD, 0.125, 1.39, 0);
-    p(0.024, 0.024, 0.08, look.lip, 0.122, 1.335, 0, { flat: true, detail: true });
+    // Humans (and the castle guard) are dressed by the outfit module, which
+    // owns the body plan and tags every box with a `pid` the egg editor
+    // sprays onto.
+    return buildHuman(kind, wear, look, outfit);
   }
   return out;
 }
 
-function makeModel(kind, wear = 0, seed = 1) {
+export function makeModel(kind, wear = 0, seed = 1, design = null) {
   const person = !!KINDS[kind]?.person || kind === 'guard';
   const variant = person ? (seed & (LOOK_VARIANTS - 1)) : 0;
-  const look = kind === 'woman' ? pickWomanLook(variant + 1)
-    : (kind === 'man' || kind === 'guard') ? pickManLook(variant + 1)
-      : null;
-  const parts = isOriginal() ? legacyMobParts(kind, wear, look) : buildParts(kind, wear, look);
-  const keyBase = `${kind}|${wear}|${variant}`;
+  const look = design ? { ...design.look }
+    : kind === 'woman' ? pickWomanLook(variant + 1)
+      : (kind === 'man' || kind === 'guard') ? pickManLook(variant + 1)
+        : null;
+  // A designed human always goes through buildParts: the legacy models carry
+  // no region tags, so its paint, spray and sculpt would silently do nothing.
+  const parts = design ? designParts(kind, design, look)
+    : isOriginal() ? legacyMobParts(kind, wear, look) : buildParts(kind, wear, look);
+  const keyBase = design ? `design|${designHash(design)}` : `${kind}|${wear}|${variant}`;
   const mat = ENTITY_MAT.clone();
   const body = [];
   const limbParts = new Map();
@@ -544,7 +451,7 @@ function makeModel(kind, wear = 0, seed = 1) {
 
   const root = new THREE.Group();
   if (body.length) {
-    root.add(new THREE.Mesh(cachedVoxGeometry(`${keyBase}|body`, () => body), mat));
+    root.add(new THREE.Mesh(cachedVoxGeometry(`${keyBase}|body`, () => body, !!design), mat));
   }
 
   const pivots = {};
@@ -558,7 +465,8 @@ function makeModel(kind, wear = 0, seed = 1) {
       w: b.w, h: b.h, d: b.d, color: b.color,
       x: b.x - joint.x, y: b.y - joint.y, z: b.z - joint.z,
       rx: b.rx, ry: b.ry, rz: b.rz, grain: b.grain, flat: b.flat, n: b.n, detail: b.detail,
-    })));
+      paint: b.paint,
+    })), !!design);
     const pivot = new THREE.Group();
     const parentJoint = joint.parent ? joints[joint.parent] : null;
     const parent = joint.parent && pivots[joint.parent] ? pivots[joint.parent] : root;
@@ -574,6 +482,22 @@ function makeModel(kind, wear = 0, seed = 1) {
   root.userData.gait = GAIT[kind] || 'trot';
   root.userData.pivots = pivots;
   return root;
+}
+
+/** Sculpted, painted and sprayed boxes for one design. */
+function designParts(kind, design, look) {
+  const base = applyEdits(buildParts(kind, design.wear, look, design.outfit), design);
+  return applySpray(base, design);
+}
+
+/** The raw box list for a design, for the egg editor's live preview. The
+ *  editor builds its own geometry from this so dragging a slider does not
+ *  fill the shared model cache with a geometry per intermediate value.
+ *  `withSpray` is off while the editor needs the bare surface to hit-test. */
+export function humanParts(design, withSpray = true) {
+  const look = { ...design.look };
+  const base = applyEdits(buildParts(design.base, design.wear, look, design.outfit), design);
+  return withSpray ? applySpray(base, design) : base;
 }
 
 function poseWalk(e, dt) {
@@ -864,9 +788,10 @@ export class Life {
       lassoed: !!extra.lassoed,
       bed: extra.bed || null,
       castle: !!extra.castle,
+      design: extra.design || null,
       mesh: null,
     };
-    e.mesh = makeModel(kind, wear, id);
+    e.mesh = makeModel(kind, wear, id, getDesign(e.design));
     this.group.add(e.mesh);
     this.syncMesh(e);
     this.list.push(e);
@@ -877,7 +802,7 @@ export class Life {
   rebuildModels() {
     for (const e of this.list) {
       this.dropMesh(e);
-      e.mesh = makeModel(e.kind, e.wear, e.id);
+      e.mesh = makeModel(e.kind, e.wear, e.id, getDesign(e.design));
       this.group.add(e.mesh);
       this.syncMesh(e);
     }
@@ -922,6 +847,7 @@ export class Life {
       lassoed: !!e.lassoed,
       bed: e.bed || null,
       castle: !!e.castle,
+      design: e.design || null,
     }));
   }
 
@@ -934,7 +860,7 @@ export class Life {
     for (const raw of data) {
       if (!KINDS[raw.kind]) continue;
       const spawned = this.spawn(raw.kind, raw.x, raw.y, raw.z, {
-        id: raw.id, yaw: raw.yaw, hp: raw.hp, state: raw.state, home: raw.home, wear: raw.wear, lassoed: raw.lassoed, bed: raw.bed, castle: raw.castle,
+        id: raw.id, yaw: raw.yaw, hp: raw.hp, state: raw.state, home: raw.home, wear: raw.wear, lassoed: raw.lassoed, bed: raw.bed, castle: raw.castle, design: raw.design,
       });
       if (spawned) {
         if (world && overlapsSolid(world, spawned.x, spawned.y, spawned.z, KINDS[spawned.kind].w, KINDS[spawned.kind].h)) {
@@ -1209,14 +1135,24 @@ export class Life {
     const def = KINDS[kind];
     if (overlapsSolid(world, x, y, z, def.w, def.h)) return;
     if (this.npcOnCell(x, y, z)) return;
-    this.spawn(kind, x, y, z);
+    this.spawnPerson(kind, x, y, z);
     if (kind === 'woman' && Math.random() < 0.55 && this.list.length < MAX_NEAR) {
       const mx = x + 1.4;
       const mz = z + 0.4;
       if (!this.npcOnCell(mx, y, mz) && !overlapsSolid(world, mx, y, mz, KINDS.man.w, KINDS.man.h)) {
-        this.spawn('man', mx, y, mz);
+        this.spawnPerson('man', mx, y, mz);
       }
     }
+  }
+
+  /** Spawns `kind`, but once the player has saved humans of their own every
+   *  wandering villager is drawn from those designs instead of the stock ones.
+   *  Non-person kinds (animals, castle guards) are untouched. */
+  spawnPerson(kind, x, y, z, extra = {}) {
+    if (!KINDS[kind]?.person || !hasDesigns()) return this.spawn(kind, x, y, z, extra);
+    const design = randomDesign();
+    if (!design) return this.spawn(kind, x, y, z, extra);
+    return this.spawn(design.base, x, y, z, { ...extra, design: design.id, wear: design.wear });
   }
 
   populate(world, player, night) {

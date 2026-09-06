@@ -495,18 +495,22 @@ export const BLOCKS = {
   },
 };
 
+/** How many of one thing fit in a single inventory slot. Tools and other
+ *  one-off items override it with their own `stack`. */
+export const STACK_MAX = 1000;
+
 export const ITEMS = {
-  [STICK]: { nameKey: 'itemStick', stack: 64, place: 0, icon: 'stick' },
-  [COAL]: { nameKey: 'itemCoal', stack: 64, place: 0, icon: 'coal' },
-  [IRON]: { nameKey: 'itemIron', stack: 64, place: 0, icon: 'iron' },
-  [GOLD]: { nameKey: 'itemGold', stack: 64, place: 0, icon: 'gold' },
-  [RAW_MEAT]: { nameKey: 'itemRawMeat', stack: 64, place: 0, icon: 'meat_raw', food: { hunger: 5, eatTime: 0.5 } },
-  [COOKED_MEAT]: { nameKey: 'itemCookedMeat', stack: 64, place: 0, icon: 'meat_cooked', food: { hunger: 14, eatTime: 0.45, heal: 4 } },
-  [FRUIT]: { nameKey: 'itemFruit', stack: 64, place: 0, icon: 'fruit', food: { hunger: 3, eatTime: 0.4 } },
-  [COOKED_FRUIT]: { nameKey: 'itemCookedFruit', stack: 64, place: 0, icon: 'fruit_cooked', food: { hunger: 8, eatTime: 0.4, heal: 2 } },
-  [HIDE_COW]: { nameKey: 'itemHideCow', stack: 64, place: 0, icon: 'hide_cow' },
-  [HIDE_ZEBRA]: { nameKey: 'itemHideZebra', stack: 64, place: 0, icon: 'hide_zebra' },
-  [HIDE_SHEEP]: { nameKey: 'itemHideSheep', stack: 64, place: 0, icon: 'hide_sheep' },
+  [STICK]: { nameKey: 'itemStick', stack: STACK_MAX, place: 0, icon: 'stick' },
+  [COAL]: { nameKey: 'itemCoal', stack: STACK_MAX, place: 0, icon: 'coal' },
+  [IRON]: { nameKey: 'itemIron', stack: STACK_MAX, place: 0, icon: 'iron' },
+  [GOLD]: { nameKey: 'itemGold', stack: STACK_MAX, place: 0, icon: 'gold' },
+  [RAW_MEAT]: { nameKey: 'itemRawMeat', stack: STACK_MAX, place: 0, icon: 'meat_raw', food: { hunger: 5, eatTime: 0.5 } },
+  [COOKED_MEAT]: { nameKey: 'itemCookedMeat', stack: STACK_MAX, place: 0, icon: 'meat_cooked', food: { hunger: 14, eatTime: 0.45, heal: 4 } },
+  [FRUIT]: { nameKey: 'itemFruit', stack: STACK_MAX, place: 0, icon: 'fruit', food: { hunger: 3, eatTime: 0.4 } },
+  [COOKED_FRUIT]: { nameKey: 'itemCookedFruit', stack: STACK_MAX, place: 0, icon: 'fruit_cooked', food: { hunger: 8, eatTime: 0.4, heal: 2 } },
+  [HIDE_COW]: { nameKey: 'itemHideCow', stack: STACK_MAX, place: 0, icon: 'hide_cow' },
+  [HIDE_ZEBRA]: { nameKey: 'itemHideZebra', stack: STACK_MAX, place: 0, icon: 'hide_zebra' },
+  [HIDE_SHEEP]: { nameKey: 'itemHideSheep', stack: STACK_MAX, place: 0, icon: 'hide_sheep' },
   [WOOD_PICK]: { nameKey: 'itemWoodPick', stack: 1, tool: 'pickaxe', tier: 1, speed: 2, dura: 60, icon: 'pick_wood' },
   [WOOD_AXE]: { nameKey: 'itemWoodAxe', stack: 1, tool: 'axe', tier: 1, speed: 2, dura: 60, icon: 'axe_wood' },
   [WOOD_SHOVEL]: { nameKey: 'itemWoodShovel', stack: 1, tool: 'shovel', tier: 1, speed: 2, dura: 60, icon: 'shovel_wood' },
@@ -523,7 +527,7 @@ export const ITEMS = {
   [STONE_SWORD]: { nameKey: 'itemStoneSword', stack: 1, tool: 'sword', tier: 2, speed: 1, dura: 132, damage: 5, icon: 'sword_stone' },
   [IRON_SWORD]: { nameKey: 'itemIronSword', stack: 1, tool: 'sword', tier: 3, speed: 1, dura: 251, damage: 7, icon: 'sword_iron' },
   [GOLD_SWORD]: { nameKey: 'itemGoldSword', stack: 1, tool: 'sword', tier: 4, speed: 1, dura: 180, damage: 8, icon: 'sword_gold' },
-  [DOOR_DOUBLE]: { nameKey: 'itemDoorDouble', stack: 64, place: 0, icon: 'door_double' },
+  [DOOR_DOUBLE]: { nameKey: 'itemDoorDouble', stack: STACK_MAX, place: 0, icon: 'door_double' },
   [LASSO]: { nameKey: 'itemLasso', stack: 1, tool: 'lasso', lasso: true, range: 10, icon: 'lasso' },
   [REVOLVER]: { nameKey: 'itemRevolver', stack: 1, tool: 'gun', ranged: true, range: 48, cool: 0.42, ammoStart: 100, icon: 'revolver' },
   [BOW]: { nameKey: 'itemBow', stack: 1, tool: 'bow', ranged: true, range: 40, cool: 0.7, ammoStart: 200, icon: 'bow' },
@@ -656,8 +660,7 @@ export function nameKey(id) {
 
 export function stackMax(id) {
   if (ITEMS[id]) return ITEMS[id].stack;
-  if (BLOCKS[id]) return 64;
-  return 64;
+  return STACK_MAX;
 }
 
 export function heldTool(stack) {

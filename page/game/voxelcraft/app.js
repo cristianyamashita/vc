@@ -15,11 +15,14 @@ import { Arms } from './js/arms.js';
 import { Inventory, HOTBAR, clickSlot } from './js/inventory.js';
 import { matchRecipe, consumeCraft } from './js/crafting.js';
 import { RECIPE_GUIDE, MAT } from './js/recipes.js';
-import { SHOP_SECTIONS, buyShopItem, ownedRanged, ammoRestock } from './js/shop.js';
+import { shopSections, buyShopItem, ownedRanged, ammoRestock } from './js/shop.js';
 import {
   loadWorldSave, saveWorldSave, deleteWorldSave, saveSettings,
   loadWorldIndex, saveWorldIndex, migrateLegacyWorld, newWorldId,
+  loadHumanDesigns, saveHumanDesigns,
 } from './js/save.js';
+import { EGG_BASE, designForItem, isEggItem, loadDesigns, serializeDesigns } from './js/humandesign.js';
+import { initEggUI, openEggs, closeEggs, eggsOpen, eggsBack, refreshEggUI } from './js/humanedit.js';
 import { Life, KINDS } from './js/entities.js';
 import { ItemDrops } from './js/drops.js';
 import { initQuality, getQuality, setQuality } from './js/quality.js';
@@ -35,6 +38,7 @@ import { isDoorId, isDoorOpenId, placeDoor, toggleDoor, removeDoor, serializeDoo
 import { placeStairs, placeLadder, serializeBlockDir } from './js/stairs.js';
 import { placeWall } from './js/walls.js';
 import { tickLeafDecay, serializeLeafDecay, loadLeafDecay } from './js/leaves.js';
+import { tickGrassGrow, serializeGrassGrow, loadGrassGrow } from './js/grassgrow.js';
 import { tickWater, serializeWaterMeta, loadWaterMeta, serializeWaterWait, loadWaterWait } from './js/water.js';
 import { tickSprings, serializeSprings, loadSprings } from './js/spring.js';
 import { inCastleArea, isCastleChest, castleRespawn, getCastle, castleNeedleDeg } from './js/castle.js';
@@ -59,6 +63,14 @@ const shopBook = document.getElementById('shop-book');
 const shopBtn = document.getElementById('shop-btn');
 const breakBar = document.getElementById('break-bar');
 const blockLabel = document.getElementById('block-label');
+// A short-lived message that outranks the usual "what am I looking at" label.
+let labelHold = '';
+let labelHoldT = 0;
+
+function flashLabel(text) {
+  labelHold = text;
+  labelHoldT = 1.6;
+}
 const heartsEl = document.getElementById('hearts');
 const foodsEl = document.getElementById('foods');
 const sleepVeil = document.getElementById('sleep-veil');
@@ -220,6 +232,7 @@ document.querySelectorAll('[data-lang]').forEach((btn) => {
     syncTimeUi();
     refreshWorldList();
     fillCrateLootModal();
+    refreshEggUI();
     if (mapOpen()) drawWorldMap();
   });
 });
@@ -297,6 +310,64 @@ worldListEl.addEventListener('click', (e) => {
 document.getElementById('open-map-btn').addEventListener('click', (e) => {
   e.stopPropagation();
   openMap(true);
+});
+document.getElementById('open-eggs-btn').addEventListener('click', (e) => {
+  e.stopPropagation();
+  openEggs();
+});
+
+/** True while the player has at least one saved human. */
+function listedEggs() {
+  return serializeDesigns().length > 0;
+}
+
+/** Deleting a design unregisters its item, so any egg of it still lying in a
+ *  slot would be a nameless, iconless stack. Those eggs no longer exist. */
+function purgeDeadEggs() {
+  const dead = (st) => st && st.id >= EGG_BASE && !isEggItem(st.id);
+  let hit = false;
+  const sweep = (list) => {
+    for (let i = 0; i < list.length; i++) {
+      if (!dead(list[i])) continue;
+      list[i] = null;
+      hit = true;
+    }
+  };
+  sweep(inv.slots);
+  sweep(inv.craft2);
+  sweep(inv.craft3);
+  if (dead(inv.offhand)) {
+    inv.offhand = null;
+    hit = true;
+  }
+  if (dead(inv.cursor)) {
+    inv.cursor = null;
+    hit = true;
+  }
+  return hit;
+}
+
+// Saving or deleting a design changes the shop, the item table and the icons,
+// so everything that reads them is rebuilt in one place.
+async function designsChanged() {
+  renderItemIcons(atlas);
+  renderShop();
+  refreshInv();
+  refreshHud();
+  try {
+    await saveHumanDesigns(serializeDesigns());
+  } catch {
+    // A failed write only costs this session's designs; the game plays on.
+  }
+}
+
+initEggUI({
+  sfx,
+  onSave: designsChanged,
+  onDelete: () => {
+    purgeDeadEggs();
+    return designsChanged();
+  },
 });
 document.getElementById('map-close').addEventListener('click', (e) => {
   e.stopPropagation();
@@ -433,6 +504,10 @@ window.addEventListener('keydown', (e) => {
   if (e.code === 'ControlLeft' && isPlaying()) e.preventDefault();
   if (e.code === 'Escape') {
     if (e.repeat || performance.now() < ignoreEscUntil) return;
+    if (eggsOpen()) {
+      eggsBack();
+      return;
+    }
     if (crateLootOpen()) {
       closeCrateLoot();
       return;
@@ -449,7 +524,8 @@ window.addEventListener('keydown', (e) => {
     if (menuEl.hidden) {
       document.exitPointerLock?.();
       showMenu(true);
-    } else if (menuPaused) {
+    } else {
+      // From the menu Esc always drops straight back into the world.
       e.preventDefault();
       requestPlay();
     }
@@ -586,6 +662,7 @@ function applyQuality(next) {
   life?.rebuildModels();
   arms?.rebuild();
   drops?.rebuildMeshes();
+  refreshEggUI();
   if (world && bundle) {
     // Torches are built differently per setting, so the chunks must remesh.
     for (const key of bundle.meshes.keys()) world.dirty.add(key);
@@ -615,6 +692,7 @@ function showMenu(paused) {
 
 function hideMenu() {
   menuEl.hidden = true;
+  closeEggs();
 }
 
 function crateLootOpen() {
@@ -784,6 +862,7 @@ function tickDecay(dt) {
   if (!world || !bundle) return;
   let dirty = false;
   if (tickLeafDecay(world, dt)) dirty = true;
+  if (tickGrassGrow(world, dt)) dirty = true;
   if (tickWater(world, dt)) dirty = true;
   if (tickSprings(world, dt)) dirty = true;
   if (dirty) remeshDirty(world, bundle);
@@ -954,6 +1033,14 @@ async function refreshWorldList() {
 async function boot() {
   loadingEl.hidden = false;
   setLoadingText('loading');
+  // Designs first: a saved world's inventory may hold eggs, and those items
+  // only exist once their designs are registered.
+  try {
+    loadDesigns(await loadHumanDesigns());
+    if (listedEggs()) renderItemIcons(atlas);
+  } catch {
+    loadDesigns([]);
+  }
   const index = await migrateLegacyWorld(`${t('worldNamePrefix')} 1`);
   currentWorldId = index.current;
   if (currentWorldId) {
@@ -1145,6 +1232,7 @@ async function loadFromSave(save) {
   world.furnaces = loadFurnaces(save.furnaces);
   world.doors = loadDoors(save.doors);
   world.leafDecay = loadLeafDecay(save.leafDecay);
+  world.grassGrow = loadGrassGrow(save.grassGrow);
   world.loadBlockDir(save.blockDir);
   world.waterMeta = loadWaterMeta(save.waterMeta);
   world.waterWait = loadWaterWait(save.waterWait);
@@ -1171,7 +1259,11 @@ async function loadFromSave(save) {
     player.spawn.copy(player.pos);
   }
   player.fallY = player.pos.y;
-  if (save.inventory) inv.load(save.inventory);
+  if (save.inventory) {
+    inv.load(save.inventory);
+    // A world saved with eggs whose design has since been deleted.
+    purgeDeadEggs();
+  }
   world.ensureAround(player.pos.x, player.pos.z);
   syncChunkMeshes(world, bundle, player.pos.x, player.pos.z);
   world.rebuildMapFromChunks();
@@ -1202,6 +1294,7 @@ function snapshot() {
     furnaces: serializeFurnaces(world.furnaces),
     doors: serializeDoors(world.doors),
     leafDecay: serializeLeafDecay(world.leafDecay),
+    grassGrow: serializeGrassGrow(world.grassGrow),
     blockDir: serializeBlockDir(world.blockDir),
     waterMeta: serializeWaterMeta(world.waterMeta),
     waterWait: serializeWaterWait(world.waterWait),
@@ -1605,6 +1698,12 @@ function tick(dt) {
         refreshHud();
         arms.punch();
       }
+    } else if (isEggItem(inv.selectedStack()?.id)) {
+      if (placeCool <= 0 && placeHit) {
+        placeCool = 0.35;
+        hatchEgg(placeHit);
+      }
+      eatAcc = 0;
     } else if (placeCool <= 0 && placeHit) {
       placeCool = 0.18;
       const placed = placeBlock(placeHit);
@@ -1648,7 +1747,10 @@ function tick(dt) {
     sleepAcc = 0;
   }
 
-  if (preferEnt) {
+  labelHoldT = Math.max(0, labelHoldT - dt);
+  if (labelHoldT > 0) {
+    blockLabel.textContent = labelHold;
+  } else if (preferEnt) {
     const def = KINDS[entHit.e.kind];
     const caught = entHit.e.lassoed ? ` · ${t('lassoed')}` : '';
     blockLabel.textContent = `${t(def.nameKey)}  ${Math.max(0, Math.ceil(entHit.e.hp))}/${def.hp}${caught}`;
@@ -1842,6 +1944,43 @@ function breakBlock(hit) {
 
 // Returns the id of the block that was placed, or 0 when nothing was, so the
 // caller knows which sound to play.
+/** Hatches the held egg into its human, one block off the clicked face. */
+function hatchEgg(hit) {
+  const stack = inv.selectedStack();
+  const design = stack ? designForItem(stack.id) : null;
+  if (!design || !life || !world) return false;
+  const px = hit.x + hit.nx;
+  const py = hit.y + hit.ny;
+  const pz = hit.z + hit.nz;
+  if (!world.inBounds(px, py, pz)) return false;
+  const feet = world.get(px, py, pz);
+  const head = world.get(px, py + 1, pz);
+  const floor = world.get(px, py - 1, pz);
+  const blocked = isSolid(feet) || isLiquid(feet) || isSolid(head) || !isSolid(floor)
+    || player.overlapsBlock(px, py, pz);
+  if (blocked) {
+    sfx.denied();
+    flashLabel(t('eggNoRoom'));
+    return false;
+  }
+  const spawned = life.spawn(design.base, px + 0.5, py, pz + 0.5, {
+    design: design.id,
+    wear: design.wear,
+    yaw: player.yaw + Math.PI,
+  });
+  if (!spawned) {
+    sfx.denied();
+    return false;
+  }
+  inv.takeSelected(1);
+  sfx.reward();
+  flashLabel(t('eggHatched').replace('{name}', design.name || t('itemEgg')));
+  arms.punch();
+  refreshHud();
+  refreshInv();
+  return true;
+}
+
 function placeBlock(hit) {
   let fromOff = false;
   let stack = inv.selectedStack();
@@ -2337,15 +2476,9 @@ function paintSlot(el, stack, selected) {
     el.dataset.itemId = '';
   }
   if (stack && stack.n > 1) {
-    const c = document.createElement('span');
-    c.className = 'count';
-    c.textContent = String(stack.n);
-    el.appendChild(c);
+    el.appendChild(countBadge(stack.n));
   } else if (stack && ITEMS[stack.id]?.ranged) {
-    const c = document.createElement('span');
-    c.className = 'count';
-    c.textContent = String(ammoOf(stack));
-    el.appendChild(c);
+    el.appendChild(countBadge(ammoOf(stack)));
   }
   const maxD = ITEMS[stack?.id]?.dura;
   if (stack && maxD) {
@@ -2546,7 +2679,7 @@ function renderShop() {
   goldEl.appendChild(goldLabel);
 
   list.replaceChildren();
-  SHOP_SECTIONS.forEach((section, sIdx) => {
+  shopSections().forEach((section, sIdx) => {
     const wrap = document.createElement('section');
     wrap.className = 'shop-section';
     const title = document.createElement('h3');
@@ -2604,7 +2737,7 @@ function renderShop() {
 }
 
 function buyFromShopRow(row) {
-  const section = SHOP_SECTIONS[Number(row.dataset.section)];
+  const section = shopSections()[Number(row.dataset.section)];
   const item = section?.items[Number(row.dataset.index)];
   if (!item) return;
   const result = buyShopItem(inv, item);
@@ -2622,6 +2755,17 @@ function buyFromShopRow(row) {
   sfx.denied();
   setShopStatus(result.reason === 'full' ? 'shopFull' : 'shopNeedGold');
   renderShop();
+}
+
+/** Slot counts run to four digits now that a stack holds 1000, so the badge
+ *  steps down a size rather than spilling out of the 42px slot. */
+function countBadge(n) {
+  const c = document.createElement('span');
+  c.className = 'count';
+  const text = String(n);
+  if (text.length >= 4) c.classList.add('wide');
+  c.textContent = text;
+  return c;
 }
 
 function guideCell(id) {
@@ -2767,10 +2911,3 @@ try {
   coordsEl.textContent = String(err && err.message ? err.message : err);
   showMenu(false);
 }
-
-
-
-
-
-
-
