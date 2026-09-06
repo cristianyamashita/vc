@@ -1,5 +1,5 @@
-import { ACTIONS, DEFAULT_SPEED, REP_PERIOD, actionSpec, speechDuration, pathLength } from './actions.js';
-import { sampleClip } from '../anim/clips.js';
+import { FALLBACK_ACTION, isActorAction, speechDuration, pathLength } from './actions.js';
+import { performAction, actionDuration } from '../anim/perform.js';
 import { blendPose, overlayPose, ease } from '../anim/blend.js';
 
 // The compiler. A story goes in; a thing that can be sampled at any time comes
@@ -67,6 +67,7 @@ class Film {
       camera: this.sampleCamera(time, actors),
       balloons: this.balloons.filter((b) => time >= b.start && time < b.end),
       stage: this.sampleStage(time),
+      groupProps: this.sampleGroupProps(time),
     };
   }
 
@@ -76,10 +77,10 @@ class Film {
     // The posture underneath, cross-faded from the one before it.
     const ri = Math.max(0, findIndex(a.resting, t));
     const rest = a.resting[ri];
-    let pose = sampleClip(rest.clip, rest.params, t - rest.t);
+    let pose = performAction(rest.action, rest.params, t - rest.t, rest.part);
     if (ri > 0 && t - rest.t < FADE) {
       const prev = a.resting[ri - 1];
-      pose = blendPose(sampleClip(prev.clip, prev.params, t - prev.t), pose,
+      pose = blendPose(performAction(prev.action, prev.params, t - prev.t, prev.part), pose,
         ease((t - rest.t) / FADE));
     }
 
@@ -92,12 +93,17 @@ class Film {
         ease((span.end - t) / FADE),
       );
       if (weight > 0) {
-        const over = sampleClip(span.clip, span.params, t - span.start);
+        const over = performAction(span.action, span.params, t - span.start, span.part);
         pose = span.gesture ? overlayPose(pose, over, weight) : blendPose(pose, over, weight);
       }
     }
 
-    return { x: place.x, y: place.y, z: place.z, yaw: place.yaw, pose, doc: a.doc, outfit: a.outfit };
+    const hold = heldAt(a, t);
+    return {
+      x: place.x, y: place.y, z: place.z, yaw: place.yaw, pose,
+      doc: a.doc, outfit: a.outfit,
+      holds: hold.prop, hand: hold.hand,
+    };
   }
 
   sampleCamera(t, actors) {
@@ -128,6 +134,52 @@ class Film {
       look = [0, 1, 0];
     }
     return { at, look, fov };
+  }
+
+  /** Props a group action puts on the floor for its own duration — the rope
+   *  arc between two turners, a board two people play over. Anything held in
+   *  a hand travels on the actor's own held track instead. */
+  sampleGroupProps(t) {
+    const out = [];
+    for (const span of this.groupSpans) {
+      if (t < span.start || t >= span.end) continue;
+      const g = span.plan.group;
+      const cos = Math.cos(g.yaw);
+      const sin = Math.sin(g.yaw);
+      for (const pr of span.action.props || []) {
+        if (pr.hand) continue;
+        out.push({
+          key: `${span.action.id}.${span.start.toFixed(3)}.${pr.id}`,
+          prop: pr.prop,
+          at: [
+            g.at[0] + pr.at[0] * cos + pr.at[2] * sin,
+            g.at[1] + pr.at[1],
+            g.at[2] - pr.at[0] * sin + pr.at[2] * cos,
+          ],
+          yaw: g.yaw + (pr.yaw * Math.PI) / 180,
+          scale: pr.scale,
+          // `spin` is turns per second about the group's own left-right axis,
+          // which is what makes a skipping rope a skipping rope.
+          spin: pr.spin || pr.spinPhase
+            ? ((t - span.start) * (pr.spin || 0) + (pr.spinPhase || 0)) * Math.PI * 2
+            : 0,
+        });
+      }
+    }
+    return out;
+  }
+
+  /** Every prop this film can ever need to build, so the renderer can load
+   *  them up front and keep per-frame work synchronous. */
+  propIds() {
+    const ids = new Set();
+    for (const track of Object.values(this.held || {})) {
+      for (const h of track) if (h.prop) ids.add(h.prop);
+    }
+    for (const span of this.groupSpans) {
+      for (const pr of span.action.props || []) ids.add(pr.prop);
+    }
+    return [...ids];
   }
 
   sampleStage(t) {
@@ -196,12 +248,53 @@ export function compile(story, world) {
       pos: [c.at[0], c.at[1], c.at[2]],
       yaw: (c.yaw * Math.PI) / 180,
       frames: [],
-      resting: [{ t: 0, clip: 'idle', params: {} }],
+      resting: [{ t: 0, action: world.action('idle') || FALLBACK_ACTION, params: {} }],
       overlays: [],
       lastIndex: -1,
+      // Where this actor stands after each of their entries, by entry index.
+      // `facing: "<actor>"` reads it to aim at where the other character is
+      // at that point in the script, which is what an author means when they
+      // write the two lines next to each other.
+      trail: [{ index: -1, pos: [c.at[0], c.at[1], c.at[2]] }],
+      // What is in this actor's hands, over time. Sticky like a posture: you
+      // keep holding the torch until you put it down.
+      held: [{ t: 0, prop: c.holds || null, hand: c.hand || 'right' }],
     };
     actors[c.id].frames.push({ t: 0, x: c.at[0], y: c.at[1], z: c.at[2], yaw: actors[c.id].yaw });
   }
+
+  /** Where `id` stands once every entry before `index` has been accounted
+   *  for. Script order, not clock order — the same rule the rest of pass A
+   *  uses, so an actor's line reads sequentially. */
+  const actorPosAt = (id, index) => {
+    const trail = actors[id]?.trail;
+    if (!trail) return null;
+    let found = trail[0].pos;
+    for (const step of trail) {
+      if (step.index >= index) break;
+      found = step.pos;
+    }
+    return found;
+  };
+
+  /** The direction an entry wants its actor to end up pointing, in radians,
+   *  or null when it does not care. */
+  const facingYaw = (e, a, index) => {
+    if (typeof e.facing === 'string') {
+      const target = actorPosAt(e.facing, index);
+      if (!target) return null;
+      const dx = target[0] - a.pos[0];
+      const dz = target[2] - a.pos[2];
+      return Math.hypot(dx, dz) < 1e-4 ? null : Math.atan2(dz, dx);
+    }
+    if (Array.isArray(e.facing)) {
+      const dx = e.facing[0] - a.pos[0];
+      const dz = e.facing[2] - a.pos[2];
+      return Math.hypot(dx, dz) < 1e-4 ? null : Math.atan2(dz, dx);
+    }
+    if (e.yaw !== undefined) return (e.yaw * Math.PI) / 180;
+    return null;
+  };
 
   // ---- pass A: walk each actor's own entries in order, so a move knows
   // where it starts from and therefore how long it takes. This is array
@@ -211,7 +304,12 @@ export function compile(story, world) {
   const cueIndex = new Map();
 
   for (const [i, e] of story.timeline.entries()) {
-    const spec = actionSpec(e.do);
+    const spec = world.action(e.do);
+    if (!spec) {
+      fail(`timeline[${i}].do`, `no action document with id "${e.do}"`);
+      plans.push({ index: i, entry: e, spec: FALLBACK_ACTION, actor: e.actor || null, dur: 0, prev: -1 });
+      continue;
+    }
     const plan = { index: i, entry: e, spec, actor: e.actor || null, dur: 0, prev: -1 };
     const a = e.actor ? actors[e.actor] : null;
     if (e.actor && !a) {
@@ -219,12 +317,38 @@ export function compile(story, world) {
       continue;
     }
 
-    if (spec.type === 'move') {
+    if (spec.category === 'group') {
+      // A group action stands its cast in a formation and plays one part to
+      // each. It is placed as a whole — `at` and `yaw` position the formation,
+      // not any one person — which is what keeps three people turning the same
+      // rope instead of three people each doing their own idea of it.
+      plan.dur = actionDuration(spec, e);
+      plan.group = { at: e.at || [0, 0, 0], yaw: ((e.yaw || 0) * Math.PI) / 180, roles: [] };
+      for (const role of spec.roles) {
+        const who = e.cast?.[role.id];
+        if (!who) continue;
+        const target = actors[who];
+        if (!target) continue;
+        const cos = Math.cos(plan.group.yaw);
+        const sin = Math.sin(plan.group.yaw);
+        const at = [
+          plan.group.at[0] + role.at[0] * cos + role.at[2] * sin,
+          plan.group.at[1] + role.at[1],
+          plan.group.at[2] - role.at[0] * sin + role.at[2] * cos,
+        ];
+        const yaw = plan.group.yaw + (role.yaw * Math.PI) / 180;
+        plan.group.roles.push({ role: role.id, actor: who, at, yaw });
+        target.pos = [at[0], at[1], at[2]];
+        target.yaw = nearestAngle(target.yaw, yaw);
+        target.trail.push({ index: i, pos: target.pos.slice() });
+        target.lastIndex = i;
+      }
+    } else if (spec.type === 'move') {
       const from = a.pos.slice();
       const via = Array.isArray(e.via) ? e.via : [];
       const to = e.to || from;
       plan.path = [from, ...via, to];
-      const speed = e.speed || DEFAULT_SPEED[spec.speedKey] || 1.25;
+      const speed = e.speed || spec.speed || 1.25;
       const dist = pathLength(plan.path);
       plan.dur = e.for ?? Math.max(0.05, dist / speed);
       plan.speedParam = speed;
@@ -234,37 +358,52 @@ export function compile(story, world) {
       a.pos = to.slice();
       if (dist > 1e-4) a.yaw = nearestAngle(a.yaw, Math.atan2(dz, dx) || a.yaw);
     } else if (spec.type === 'turn') {
-      const target = e.to
-        ? Math.atan2(e.to[2] - a.pos[2], e.to[0] - a.pos[0])
-        : (e.yaw !== undefined ? (e.yaw * Math.PI) / 180 : a.yaw);
       plan.yawFrom = a.yaw;
-      plan.yawTo = nearestAngle(a.yaw, target);
+      const target = e.to ? Math.atan2(e.to[2] - a.pos[2], e.to[0] - a.pos[0]) : null;
+      plan.yawTo = target === null ? a.yaw : nearestAngle(a.yaw, target);
       a.yaw = plan.yawTo;
       plan.dur = e.for ?? spec.duration;
     } else if (spec.type === 'posture' && e.on) {
       // Sitting on something is placement as well as pose: the seat says
       // where the hips go and which way the actor ends up facing.
-      const anchor = world.anchor(e.on, e.do === 'lie' ? 'lie' : 'seat');
+      const anchorName = spec.anchor || 'seat';
+      const anchor = world.anchor(e.on, anchorName);
       if (!anchor) {
-        fail(`timeline[${i}].on`, `"${e.on}" has no ${e.do === 'lie' ? 'lie' : 'seat'} anchor`);
+        fail(`timeline[${i}].on`, `"${e.on}" has no ${anchorName} anchor`);
       } else {
         plan.snap = anchor;
         a.pos = [anchor.pos[0], a.pos[1], anchor.pos[2]];
+        // The seat's own direction, unless the entry says otherwise below.
         a.yaw = nearestAngle(a.yaw, (anchor.yaw * Math.PI) / 180);
         plan.seatY = anchor.pos[1];
       }
       plan.dur = e.for ?? spec.duration;
     } else if (spec.reps) {
-      const period = REP_PERIOD[e.do] || 1.2;
-      plan.period = period;
-      plan.dur = e.for ?? (e.reps ?? 5) * period;
+      plan.period = spec.period > 0.01 ? spec.period : 1.2;
+      plan.dur = actionDuration(spec, e);
     } else if (spec.type === 'speech') {
       plan.dur = e.for ?? speechDuration(e.text);
     } else {
       plan.dur = e.for ?? spec.duration ?? 0;
     }
 
+    if (!a && plan.group) {
+      plan.prev = lastStage;
+      lastStage = i;
+      if (e.cue) cueIndex.set(e.cue, i);
+      plans.push(plan);
+      continue;
+    }
     if (a) {
+      const faced = facingYaw(e, a, i);
+      if (faced !== null) {
+        plan.faceYaw = nearestAngle(spec.type === 'turn' ? plan.yawFrom : a.yaw, faced);
+        if (spec.type === 'turn') plan.yawTo = plan.faceYaw;
+        a.yaw = plan.faceYaw;
+      }
+      plan.restPos = a.pos.slice();
+      plan.restYaw = a.yaw;
+      a.trail.push({ index: i, pos: a.pos.slice() });
       plan.prev = a.lastIndex;
       a.lastIndex = i;
     } else {
@@ -319,6 +458,7 @@ export function compile(story, world) {
 
   // ---- pass C: tracks.
   const balloons = [];
+  const groupSpans = [];
   const cameraFrames = [{
     t: 0,
     at: story.camera.at.slice(),
@@ -340,8 +480,8 @@ export function compile(story, world) {
 
     if (spec.type === 'move' && a) {
       pushMove(a, plan, start, end);
-      a.overlays.push({ start, end, clip: spec.clip, params: { speed: plan.speedParam }, gesture: false });
-      pushResting(a, start, spec.posture || 'stand', {});
+      a.overlays.push({ start, end, action: spec, params: { speed: plan.speedParam }, gesture: false });
+      pushResting(a, start, world.action(spec.posture || 'stand') || FALLBACK_ACTION, {});
     } else if (spec.type === 'turn' && a) {
       const last = a.frames[a.frames.length - 1];
       a.frames.push({ t: start, x: last.x, y: last.y, z: last.z, yaw: plan.yawFrom });
@@ -349,9 +489,8 @@ export function compile(story, world) {
     } else if (spec.type === 'posture' && a) {
       if (plan.snap) {
         const last = a.frames[a.frames.length - 1];
-        const yaw = nearestAngle(last.yaw, (plan.snap.yaw * Math.PI) / 180);
         a.frames.push({ t: start, x: last.x, y: last.y, z: last.z, yaw: last.yaw });
-        a.frames.push({ t: end, x: plan.snap.pos[0], y: last.y, z: plan.snap.pos[2], yaw });
+        a.frames.push({ t: end, x: plan.snap.pos[0], y: last.y, z: plan.snap.pos[2], yaw: plan.restYaw });
       }
       const params = {};
       if (e.do === 'lie') params.face = e.face === 'down' ? 'down' : 'up';
@@ -364,16 +503,57 @@ export function compile(story, world) {
         if (e.do === 'lie') params.rise = plan.seatY / height;
         else params.lift = (plan.seatY - hipHeight(a.doc)) / height;
       }
-      const clip = e.do === 'lie' ? (params.face === 'down' ? 'lieDown' : 'lieUp') : spec.clip;
-      pushResting(a, start, clip, params);
+      // A posture may pick its base pose from a parameter — lying face up and
+      // face down are one action with two poses, not two actions.
+      const part = spec.poseByFace && params.face
+        ? { pose: spec.poseByFace[params.face] || spec.pose }
+        : null;
+      pushResting(a, start, spec, params, part);
+      if (!plan.snap) pushTurn(a, plan, start, end);
     } else if (spec.type === 'overlay' && a) {
       const params = {};
       if (spec.reps) params.period = plan.period;
       if (e.side) params.side = e.side;
-      if (e.do === 'jump') params.duration = plan.dur;
-      a.overlays.push({ start, end, clip: spec.clip, params, gesture: !!spec.gesture });
+      if (!spec.reps) params.duration = plan.dur;
+      a.overlays.push({ start, end, action: spec, params, gesture: !!spec.gesture });
+      pushTurn(a, plan, start, end);
+    } else if (spec.type === 'hold' && a) {
+      pushHeld(a, start, spec.grabs === false ? null : e.prop,
+        e.hand || spec.defaultHand || 'right');
+      pushTurn(a, plan, start, end);
     } else if (spec.type === 'speech' && a) {
       balloons.push({ actor: e.actor, start, end, text: e.text || { en: '', pt: '', ja: '' }, kind: spec.balloon });
+      pushTurn(a, plan, start, end);
+    } else if (spec.type === 'wait' && a) {
+      pushTurn(a, plan, start, end);
+    } else if (plan.group) {
+      // Props a role holds for the length of the action: the rope handles,
+      // the torch. They go back to whatever was in that hand afterwards.
+      for (const pr of spec.props || []) {
+        if (!pr.hand || !pr.role) continue;
+        const holder = plan.group.roles.find((r) => r.role === pr.role);
+        const target = holder && actors[holder.actor];
+        if (!target) continue;
+        const before = heldAt(target, start);
+        pushHeld(target, start, pr.prop, pr.hand);
+        pushHeld(target, end, before.prop, before.hand);
+      }
+      for (const r of plan.group.roles) {
+        const target = actors[r.actor];
+        if (!target) continue;
+        const last = target.frames[target.frames.length - 1];
+        const yaw = nearestAngle(last ? last.yaw : r.yaw, r.yaw);
+        const settle = Math.min(0.5, plan.dur || 0.5);
+        if (last) target.frames.push({ t: start, x: last.x, y: last.y, z: last.z, yaw: last.yaw });
+        target.frames.push({ t: start + settle, x: r.at[0], y: r.at[1], z: r.at[2], yaw });
+        const part = spec.parts?.[r.role] || null;
+        const params = {};
+        if (spec.reps) params.period = spec.period;
+        else params.duration = plan.dur;
+        if (spec.hold === 'posture') pushResting(target, start, spec, params, part);
+        else target.overlays.push({ start, end, action: spec, params, part, gesture: false });
+      }
+      groupSpans.push({ start, end, action: spec, plan });
     } else if (spec.type === 'camera') {
       cameraFrames.push({
         t: start,
@@ -397,6 +577,11 @@ export function compile(story, world) {
     }
   }
 
+  const held = {};
+  for (const [id, a] of Object.entries(actors)) {
+    a.held.sort((x, y) => x.t - y.t);
+    held[id] = a.held;
+  }
   for (const a of Object.values(actors)) {
     a.frames.sort((x, y) => x.t - y.t);
     a.resting.sort((x, y) => x.t - y.t);
@@ -416,6 +601,8 @@ export function compile(story, world) {
       camera: cameraFrames,
       follows,
       stageEvents,
+      groupSpans,
+      held,
       sky: story.sky || null,
       duration: Math.max(1, duration + TAIL),
     }),
@@ -438,6 +625,24 @@ function headingsFor(path) {
   return out;
 }
 
+/**
+ * A stationary turn, for the actions that are not about going anywhere.
+ *
+ * Turning is capped well below the action's own length: an actor who is told
+ * to speak for six seconds facing someone should turn to them and then talk,
+ * not rotate slowly for the whole line.
+ */
+function pushTurn(a, plan, start, end) {
+  if (plan.faceYaw === undefined) return;
+  const last = a.frames[a.frames.length - 1];
+  const from = last ? last.yaw : plan.faceYaw;
+  if (Math.abs(plan.faceYaw - from) < 1e-4) return;
+  const pos = plan.restPos || [last?.x ?? 0, last?.y ?? 0, last?.z ?? 0];
+  const turn = Math.min(0.5, Math.max(0.08, end - start));
+  a.frames.push({ t: start, x: pos[0], y: pos[1], z: pos[2], yaw: from });
+  a.frames.push({ t: start + turn, x: pos[0], y: pos[1], z: pos[2], yaw: plan.faceYaw });
+}
+
 /** Lays a move down as keyframes: one per waypoint, timed by distance so the
  *  actor holds a steady pace through a dog-leg instead of racing one leg. */
 function pushMove(a, plan, start, end) {
@@ -454,19 +659,55 @@ function pushMove(a, plan, start, end) {
     const heading = plan.headings[i - 1];
     if (heading !== null) yaw = nearestAngle(yaw, heading);
     const t = total > 1e-6 ? start + (end - start) * (travelled / total) : end;
-    a.frames.push({ t, x: path[i][0], y: path[i][1], z: path[i][2], yaw });
+    const last = i === path.length - 1;
+    if (last && plan.faceYaw !== undefined) {
+      // Hold the travel heading until the actor is nearly there, then turn.
+      // Spreading the turn over the whole walk would have them stride
+      // sideways across the room, because the walk cycle plays along
+      // whatever direction they face.
+      const turn = Math.min(0.6, (end - start) * 0.35);
+      if (t - turn > (a.frames[a.frames.length - 1]?.t ?? start)) {
+        a.frames.push({ t: t - turn, x: path[i][0], y: path[i][1], z: path[i][2], yaw });
+      }
+      a.frames.push({ t, x: path[i][0], y: path[i][1], z: path[i][2], yaw: plan.faceYaw });
+    } else {
+      a.frames.push({ t, x: path[i][0], y: path[i][1], z: path[i][2], yaw });
+    }
   }
+}
+
+/** What an actor is holding at `t`, reading the track as written so far. */
+function heldAt(a, t) {
+  let found = a.held[0];
+  for (const h of a.held) {
+    if (h.t > t) break;
+    found = h;
+  }
+  return found;
+}
+
+function pushHeld(a, t, prop, hand) {
+  const last = a.held[a.held.length - 1];
+  if (last && last.t === t) {
+    last.prop = prop || null;
+    last.hand = hand;
+    return;
+  }
+  if (last && last.prop === (prop || null) && last.hand === hand) return;
+  a.held.push({ t, prop: prop || null, hand });
 }
 
 /** Postures are sticky, so this appends to the resting track rather than
  *  producing a span with an end. */
-function pushResting(a, t, clip, params) {
+function pushResting(a, t, action, params, part = null) {
   const last = a.resting[a.resting.length - 1];
   if (last && last.t === t) {
-    last.clip = clip;
+    last.action = action;
     last.params = params;
+    last.part = part;
     return;
   }
-  if (last && last.clip === clip && JSON.stringify(last.params) === JSON.stringify(params)) return;
-  a.resting.push({ t, clip, params });
+  if (last && last.action === action && last.part === part
+      && JSON.stringify(last.params) === JSON.stringify(params)) return;
+  a.resting.push({ t, action, params, part });
 }

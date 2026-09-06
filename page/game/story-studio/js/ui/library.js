@@ -9,6 +9,7 @@ export const TABS = [
   { kind: 'character', labelKey: 'characters' },
   { kind: 'prop', labelKey: 'props' },
   { kind: 'set', labelKey: 'sets' },
+  { kind: 'action', labelKey: 'actions' },
 ];
 
 function summarise(doc) {
@@ -16,14 +17,27 @@ function summarise(doc) {
     return `${doc.cast.length} ${t('castLabel').toLowerCase()} · ${doc.timeline.length} ${t('actionsLabel').toLowerCase()}`;
   }
   if (doc.kind === 'character') {
-    const base = { man: 'baseMan', woman: 'baseWoman', child: 'baseChild' }[doc.base];
+    // `child` still appears in documents written before boys and girls were
+    // separate plans, and it reads as a boy everywhere else, so it labels the
+    // same way here rather than showing nothing.
+    const base = { man: 'baseMan', woman: 'baseWoman', boy: 'baseBoy', girl: 'baseGirl', child: 'baseBoy' }[doc.base];
     const h = doc.height ? `${doc.height.toFixed(2)} m` : '';
-    return [t(base), h, `${doc.wardrobe.length} ${t('outfits').toLowerCase()}`].filter(Boolean).join(' · ');
+    const hair = doc.look?.hairStyle;
+    return [base ? t(base) : '', h, hair, `${doc.wardrobe.length} ${t('outfits').toLowerCase()}`]
+      .filter(Boolean).join(' · ');
   }
   if (doc.kind === 'prop') {
     const anchors = Object.keys(doc.anchors);
     return [doc.source?.type, anchors.length ? `${t('anchors').toLowerCase()}: ${anchors.join(', ')}` : '']
       .filter(Boolean).join(' · ');
+  }
+  if (doc.kind === 'action') {
+    if (doc.category === 'group') {
+      return `${t('groupAction')} · ${doc.roles.map((r) => r.id).join(' + ')}`;
+    }
+    const len = doc.reps ? `${doc.period}s × ${t('reps').toLowerCase()}`
+      : doc.duration ? `${doc.duration}s` : '';
+    return [t('soloAction'), doc.type, len].filter(Boolean).join(' · ');
   }
   return `${doc.props.length} ${t('props').toLowerCase()} · ${doc.sky}`;
 }

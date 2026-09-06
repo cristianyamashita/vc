@@ -4,7 +4,7 @@ import { Balloons } from './balloons.js';
 import { buildCharacter, disposeCharacter } from '../cast/build.js';
 import { applyPose } from '../anim/blend.js';
 import { groundLift } from '../anim/ground.js';
-import { buildSet } from '../stage/build.js';
+import { buildSet, propObject } from '../stage/build.js';
 import { compile } from '../script/director.js';
 import { localised } from '../i18n.js';
 
@@ -21,6 +21,11 @@ export class Playback {
     this.film = null;
     this.set = null;
     this.actors = new Map();
+    // One built instance per prop a film can put in a hand or on the floor,
+    // loaded up front so drawing a frame never has to wait on a file.
+    this.propTemplates = new Map();
+    this.heldSlots = new Map();
+    this.groupProps = new Map();
     this.time = 0;
     this.playing = false;
     this.missing = [];
@@ -58,6 +63,8 @@ export class Playback {
 
     const world = {
       character: (id) => registry.character(id),
+      action: (id) => registry.action(id),
+      prop: (id) => registry.prop(id),
       anchor: (placementId, name) => this.set.anchor(placementId, name),
     };
     const compiled = compile(story, world);
@@ -79,6 +86,21 @@ export class Playback {
       this.actors.set(id, mesh);
     }
 
+    for (const propId of this.film.propIds()) {
+      const doc = registry.prop(propId);
+      if (!doc) {
+        this.missing = [...new Set([...this.missing, propId])];
+        continue;
+      }
+      try {
+        const object = await propObject(doc, (bid) => registry.blob(bid));
+        if (object) this.propTemplates.set(propId, { doc, object });
+        else this.missing = [...new Set([...this.missing, propId])];
+      } catch (_err) {
+        this.missing = [...new Set([...this.missing, propId])];
+      }
+    }
+
     this.seek(0);
     return { ok: true, errors: [] };
   }
@@ -86,6 +108,9 @@ export class Playback {
   clear() {
     for (const mesh of this.actors.values()) disposeCharacter(mesh);
     this.actors.clear();
+    this.propTemplates.clear();
+    this.heldSlots.clear();
+    this.groupProps.clear();
     this.stage.clearContent();
     this.balloons.update([]);
     this.set = null;
@@ -158,6 +183,7 @@ export class Playback {
         ? { root: { ...state.pose.root, lift: (state.pose.root.lift || 0) + rise / mesh.userData.height },
           joints: state.pose.joints }
         : state.pose);
+      this.applyHeld(id, mesh, state);
     }
 
     if (this.set) {
@@ -170,6 +196,8 @@ export class Playback {
       }
     }
     if (frame.stage.sky && frame.stage.sky !== this.stage.sky) this.stage.setSky(frame.stage.sky);
+
+    this.applyGroupProps(frame.groupProps);
 
     const items = [];
     for (const b of frame.balloons) {
@@ -185,6 +213,68 @@ export class Playback {
 
     this.stage.aim(frame.camera.at, frame.camera.look, frame.camera.fov);
     this.render();
+  }
+
+  /**
+   * Puts the right thing in the right hand.
+   *
+   * A held prop hangs off the hand joint itself, so it follows the whole arm
+   * for free — the grip anchor says which point of the prop the fist closes
+   * around, and everything else follows from that.
+   */
+  applyHeld(actorId, mesh, state) {
+    const want = state.holds;
+    const hand = state.hand === 'left' ? 'lHand' : 'rHand';
+    const key = `${actorId}`;
+    const slot = this.heldSlots.get(key);
+    if (slot && slot.prop === want && slot.hand === hand) {
+      slot.group.visible = !!want;
+      return;
+    }
+    if (slot) slot.group.parent?.remove(slot.group);
+    if (!want) {
+      this.heldSlots.delete(key);
+      return;
+    }
+    const template = this.propTemplates.get(want);
+    const pivot = mesh.userData.pivots?.[hand];
+    if (!template || !pivot) return;
+
+    const group = new THREE.Group();
+    const object = template.object.clone(true);
+    const grip = template.doc.anchors?.grip;
+    if (grip) {
+      object.position.set(-grip.pos[0], -grip.pos[1], -grip.pos[2]);
+      group.rotation.y = (grip.yaw * Math.PI) / 180;
+    }
+    if (template.doc.scale && template.doc.scale !== 1) group.scale.setScalar(template.doc.scale);
+    group.add(object);
+    pivot.add(group);
+    this.heldSlots.set(key, { prop: want, hand, group });
+  }
+
+  /** Props a group action lays out for its own duration. */
+  applyGroupProps(list) {
+    const live = new Set();
+    for (const item of list) {
+      live.add(item.key);
+      let holder = this.groupProps.get(item.key);
+      if (!holder) {
+        const template = this.propTemplates.get(item.prop);
+        if (!template) continue;
+        holder = new THREE.Group();
+        holder.add(template.object.clone(true));
+        this.stage.content.add(holder);
+        this.groupProps.set(item.key, holder);
+      }
+      holder.visible = true;
+      holder.position.set(item.at[0], item.at[1], item.at[2]);
+      holder.rotation.set(0, item.yaw, item.spin, 'YXZ');
+      holder.scale.setScalar(item.scale);
+    }
+    for (const [key, holder] of this.groupProps) {
+      if (!live.has(key)) holder.visible = false;
+    }
   }
 
   render() {

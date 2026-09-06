@@ -6,8 +6,11 @@ import { t } from '../i18n.js';
 // each with the field path that caused it, instead of stopping at the first.
 
 export class Editor {
-  constructor(root, { onApply }) {
+  constructor(root, { onApply, actions }) {
     this.root = root;
+    // The editor checks a story against the same action library the player
+    // will use, so "Valid." is not a promise the compiler then breaks.
+    this.actions = actions || (() => null);
     this.textarea = root.querySelector('.ss-editor-text');
     this.status = root.querySelector('.ss-editor-status');
     this.onApply = onApply;
@@ -40,7 +43,7 @@ export class Editor {
   }
 
   check() {
-    const res = parseDocument(this.textarea.value);
+    const res = parseDocument(this.textarea.value, { actions: this.actions() });
     this.report(res.ok ? [] : res.errors);
     return res;
   }

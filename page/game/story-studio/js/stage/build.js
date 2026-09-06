@@ -11,7 +11,7 @@ function yawRad(deg) {
   return (deg * Math.PI) / 180;
 }
 
-async function propObject(doc, blobs) {
+export async function propObject(doc, blobs) {
   if (!doc?.source) return null;
   if (doc.source.type === 'boxes') return boxMesh(doc);
   if (doc.source.type === 'gltf') return instance(await loadGltfFile(doc.source.file));

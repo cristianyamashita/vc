@@ -9,9 +9,14 @@
 // paste, run, read the error, fix. "Invalid document" would make that loop
 // useless.
 
+import { HAIR_STYLE_KEYS } from '../cast/hair.js';
+import { WAVE_NAMES, ROOT_FIELDS, AXES } from '../anim/channels.js';
+import { JOINT_NAMES } from '../cast/rig.js';
+import { POSE_NAMES } from '../anim/poses.js';
+
 export const FORMAT_VERSION = 1;
 
-export const KINDS = ['character', 'prop', 'set', 'story', 'bundle'];
+export const KINDS = ['character', 'prop', 'set', 'story', 'action', 'bundle'];
 
 export const LIMITS = {
   idLength: 64,
@@ -30,10 +35,21 @@ export const LIMITS = {
   wardrobe: 24,
   repeat: 200,
   bundleDocs: 200,
+  channels: 200,
+  roles: 8,
 };
+
+const ACTION_TYPES = ['posture', 'overlay', 'move', 'turn', 'speech', 'wait', 'hold', 'camera', 'cameraFollow', 'stage'];
+const ACTION_CATEGORIES = ['solo', 'group'];
 
 const ID_RE = /^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$/;
 const LANGS = ['en', 'pt', 'ja'];
+
+// `child` is kept for documents written before boys and girls were separate
+// plans; it resolves to `boy` and is not offered as a choice any more.
+const BODY_PLANS = ['man', 'woman', 'boy', 'girl'];
+const ACCEPTED_PLANS = [...BODY_PLANS, 'child'];
+const SKIES = ['day', 'dawn', 'dusk', 'night', 'indoor'];
 
 class Ctx {
   constructor() {
@@ -145,7 +161,7 @@ function character(ctx, doc) {
     version: FORMAT_VERSION,
     id: id(ctx, 'id', doc.id),
     name: name(ctx, 'name', doc.name, doc.id || 'Character'),
-    base: ['man', 'woman', 'child'].includes(doc.base) ? doc.base : 'man',
+    base: ACCEPTED_PLANS.includes(doc.base) ? doc.base : 'man',
     height: num(ctx, 'height', doc.height, LIMITS.height[0], LIMITS.height[1], undefined),
     build: num(ctx, 'build', doc.build, 0, 1, 0.5),
     look: {},
@@ -153,8 +169,8 @@ function character(ctx, doc) {
     wardrobe: [],
     defaultOutfit: undefined,
   };
-  if (doc.base !== undefined && !['man', 'woman', 'child'].includes(doc.base)) {
-    ctx.fail('base', `unknown body plan ${JSON.stringify(doc.base)}; expected man, woman or child`);
+  if (doc.base !== undefined && !ACCEPTED_PLANS.includes(doc.base)) {
+    ctx.fail('base', `unknown body plan ${JSON.stringify(doc.base)}; expected ${BODY_PLANS.join(', ')}`);
   }
 
   const look = isObj(doc.look) ? doc.look : {};
@@ -163,7 +179,13 @@ function character(ctx, doc) {
     hair: look.hair !== undefined ? color(ctx, 'look.hair', look.hair) : undefined,
     eyeScale: num(ctx, 'look.eyeScale', look.eyeScale, 0.5, 2, 1),
     beard: !!look.beard,
+    hairStyle: undefined,
+    hairLength: num(ctx, 'look.hairLength', look.hairLength, 0, 1, undefined),
   };
+  if (look.hairStyle !== undefined) {
+    if (HAIR_STYLE_KEYS.includes(look.hairStyle)) out.look.hairStyle = look.hairStyle;
+    else ctx.fail('look.hairStyle', `unknown hair style ${JSON.stringify(look.hairStyle)}; expected one of ${HAIR_STYLE_KEYS.join(', ')}`);
+  }
 
   const regions = isObj(doc.regions) ? doc.regions : {};
   for (const [key, entry] of Object.entries(regions)) {
@@ -288,6 +310,169 @@ function prop(ctx, doc) {
   return out;
 }
 
+/** One channel of an action: a joint or a root field driven by a wave. */
+function channel(ctx, path, c, forRoot) {
+  if (!isObj(c)) return ctx.fail(path, 'expected a channel object');
+  const out = {};
+  if (forRoot) {
+    if (!ROOT_FIELDS.includes(c.field)) {
+      return ctx.fail(`${path}.field`, `expected one of ${ROOT_FIELDS.join(', ')}`);
+    }
+    out.field = c.field;
+  } else {
+    if (!JOINT_NAMES.includes(c.joint)) {
+      return ctx.fail(`${path}.joint`, `unknown joint ${JSON.stringify(c.joint)}`);
+    }
+    if (!AXES.includes(c.axis)) {
+      return ctx.fail(`${path}.axis`, 'expected "x", "y" or "z"');
+    }
+    out.joint = c.joint;
+    out.axis = c.axis;
+  }
+  if (c.wave !== undefined && !WAVE_NAMES.includes(c.wave)) {
+    ctx.fail(`${path}.wave`, `unknown wave ${JSON.stringify(c.wave)}; expected ${WAVE_NAMES.join(', ')}`);
+  }
+  out.wave = WAVE_NAMES.includes(c.wave) ? c.wave : 'const';
+  if (c.amp !== undefined) out.amp = num(ctx, `${path}.amp`, c.amp, -50, 50, 1);
+  if (c.offset !== undefined) out.offset = num(ctx, `${path}.offset`, c.offset, -50, 50, 0);
+  if (c.freq !== undefined) out.freq = num(ctx, `${path}.freq`, c.freq, -64, 64, 1);
+  if (c.hz !== undefined) out.hz = num(ctx, `${path}.hz`, c.hz, -64, 64, 0);
+  if (c.phase !== undefined) out.phase = num(ctx, `${path}.phase`, c.phase, -64, 64, 0);
+  if (c.from !== undefined) out.from = num(ctx, `${path}.from`, c.from, 0, 1, 0);
+  if (c.to !== undefined) out.to = num(ctx, `${path}.to`, c.to, 0, 1, 1);
+  return out;
+}
+
+/** The movement half of an action: which pose it starts from and what it
+ *  pushes around. A group action has one of these per role. */
+function motion(ctx, path, src) {
+  const out = { root: [], joints: [] };
+  if (src.pose !== undefined) {
+    if (POSE_NAMES.includes(src.pose)) out.pose = src.pose;
+    else ctx.fail(`${path}.pose`, `unknown pose ${JSON.stringify(src.pose)}; expected ${POSE_NAMES.join(', ')}`);
+  }
+  if (src.breathe !== undefined) out.breathe = num(ctx, `${path}.breathe`, src.breathe, 0, 4, 0);
+  for (const [i, c] of array(ctx, `${path}.root`, src.root, LIMITS.channels).entries()) {
+    const ch = channel(ctx, `${path}.root[${i}]`, c, true);
+    if (ch) out.root.push(ch);
+  }
+  for (const [i, c] of array(ctx, `${path}.joints`, src.joints, LIMITS.channels).entries()) {
+    const ch = channel(ctx, `${path}.joints[${i}]`, c, false);
+    if (ch) out.joints.push(ch);
+  }
+  return out;
+}
+
+function action(ctx, doc) {
+  const out = {
+    kind: 'action',
+    version: FORMAT_VERSION,
+    id: id(ctx, 'id', doc.id),
+    name: name(ctx, 'name', doc.name, doc.id || 'Action'),
+    category: ACTION_CATEGORIES.includes(doc.category) ? doc.category : 'solo',
+    type: ACTION_TYPES.includes(doc.type) ? doc.type : 'overlay',
+    ...motion(ctx, '', doc),
+  };
+  if (doc.type !== undefined && !ACTION_TYPES.includes(doc.type)) {
+    ctx.fail('type', `unknown type ${JSON.stringify(doc.type)}; expected ${ACTION_TYPES.join(', ')}`);
+  }
+  if (doc.duration !== undefined) out.duration = num(ctx, 'duration', doc.duration, 0, LIMITS.duration[1], 1);
+  if (doc.period !== undefined) out.period = num(ctx, 'period', doc.period, 0.05, 60, 1);
+  if (doc.defaultReps !== undefined) out.defaultReps = Math.round(num(ctx, 'defaultReps', doc.defaultReps, 1, 200, 5));
+  if (doc.speed !== undefined) out.speed = num(ctx, 'speed', doc.speed, 0.05, 30, 1.25);
+  if (doc.reps) out.reps = true;
+  if (doc.gesture) out.gesture = true;
+  if (doc.mirrorable) out.mirrorable = true;
+  if (doc.instant) out.instant = true;
+  if (doc.balloon === 'say' || doc.balloon === 'think') out.balloon = doc.balloon;
+  if (doc.anchor !== undefined) out.anchor = id(ctx, 'anchor', doc.anchor);
+  if (doc.posture !== undefined) out.posture = id(ctx, 'posture', doc.posture);
+  if (doc.seatLift === 'set' || doc.seatLift === 'add') out.seatLift = doc.seatLift;
+  if (doc.hold === 'posture') out.hold = 'posture';
+  if (doc.grabs === false) out.grabs = false;
+  if (doc.defaultHand === 'left' || doc.defaultHand === 'right') out.defaultHand = doc.defaultHand;
+  if (isObj(doc.rate)) {
+    out.rate = {
+      base: num(ctx, 'rate.base', doc.rate.base, 0, 64, 4.4),
+      perSpeed: num(ctx, 'rate.perSpeed', doc.rate.perSpeed, -64, 64, 0),
+    };
+  }
+  if (isObj(doc.poseByFace)) {
+    out.poseByFace = {};
+    for (const [k, v] of Object.entries(doc.poseByFace)) {
+      if (POSE_NAMES.includes(v)) out.poseByFace[k] = v;
+      else ctx.fail(`poseByFace.${k}`, `unknown pose ${JSON.stringify(v)}`);
+    }
+  }
+
+  if (out.category === 'group') groupBody(ctx, doc, out);
+  return out;
+}
+
+/** Roles, where they stand relative to the group, and what each one does. */
+function groupBody(ctx, doc, out) {
+  out.roles = [];
+  out.parts = {};
+  out.props = [];
+  const seen = new Set();
+  for (const [i, r] of array(ctx, 'roles', doc.roles, LIMITS.roles).entries()) {
+    const path = `roles[${i}]`;
+    if (!isObj(r)) {
+      ctx.fail(path, 'expected an object');
+      continue;
+    }
+    const rid = id(ctx, `${path}.id`, r.id);
+    if (!rid) continue;
+    if (seen.has(rid)) ctx.fail(`${path}.id`, `duplicate role ${JSON.stringify(rid)}`);
+    seen.add(rid);
+    out.roles.push({
+      id: rid,
+      name: name(ctx, `${path}.name`, r.name, rid),
+      at: vec3(ctx, `${path}.at`, r.at),
+      yaw: num(ctx, `${path}.yaw`, r.yaw, -3600, 3600, 0),
+      optional: !!r.optional,
+    });
+  }
+  if (!out.roles.length) ctx.fail('roles', 'a group action needs at least one role');
+
+  const parts = isObj(doc.parts) ? doc.parts : {};
+  for (const [rid, part] of Object.entries(parts)) {
+    if (!seen.has(rid)) {
+      ctx.fail(`parts.${rid}`, `no role with id ${JSON.stringify(rid)}`);
+      continue;
+    }
+    if (!isObj(part)) {
+      ctx.fail(`parts.${rid}`, 'expected an object');
+      continue;
+    }
+    out.parts[rid] = motion(ctx, `parts.${rid}`, part);
+  }
+
+  for (const [i, pr] of array(ctx, 'props', doc.props, 24).entries()) {
+    const path = `props[${i}]`;
+    if (!isObj(pr)) {
+      ctx.fail(path, 'expected an object');
+      continue;
+    }
+    const entry = {
+      id: id(ctx, `${path}.id`, pr.id) || `prop${i}`,
+      prop: id(ctx, `${path}.prop`, pr.prop),
+      at: vec3(ctx, `${path}.at`, pr.at),
+      yaw: num(ctx, `${path}.yaw`, pr.yaw, -3600, 3600, 0),
+      scale: num(ctx, `${path}.scale`, pr.scale, LIMITS.scale[0], LIMITS.scale[1], 1),
+      spin: pr.spin === undefined ? undefined : num(ctx, `${path}.spin`, pr.spin, -64, 64, 0),
+      spinPhase: pr.spinPhase === undefined ? undefined : num(ctx, `${path}.spinPhase`, pr.spinPhase, -8, 8, 0),
+    };
+    if (pr.hand !== undefined) {
+      if (!seen.has(pr.role)) ctx.fail(`${path}.role`, 'a held prop needs the role holding it');
+      if (pr.hand !== 'left' && pr.hand !== 'right') ctx.fail(`${path}.hand`, 'expected "left" or "right"');
+      entry.role = pr.role;
+      entry.hand = pr.hand;
+    }
+    out.props.push(entry);
+  }
+}
+
 function setDoc(ctx, doc) {
   const ground = isObj(doc.ground) ? doc.ground : {};
   const light = isObj(doc.light) ? doc.light : {};
@@ -303,15 +488,15 @@ function setDoc(ctx, doc) {
       ],
       color: color(ctx, 'ground.color', ground.color, '#6d8f4a'),
     },
-    sky: ['day', 'dawn', 'dusk', 'night'].includes(doc.sky) ? doc.sky : 'day',
+    sky: SKIES.includes(doc.sky) ? doc.sky : 'day',
     light: {
       sun: vec3(ctx, 'light.sun', light.sun, [-0.4, 0.9, 0.35]),
       intensity: num(ctx, 'light.intensity', light.intensity, 0, 4, 1),
     },
     props: [],
   };
-  if (doc.sky !== undefined && !['day', 'dawn', 'dusk', 'night'].includes(doc.sky)) {
-    ctx.fail('sky', `unknown sky ${JSON.stringify(doc.sky)}; expected day, dawn, dusk or night`);
+  if (doc.sky !== undefined && !SKIES.includes(doc.sky)) {
+    ctx.fail('sky', `unknown sky ${JSON.stringify(doc.sky)}; expected ${SKIES.join(', ')}`);
   }
 
   const seen = new Set();
@@ -344,18 +529,15 @@ function setDoc(ctx, doc) {
   return out;
 }
 
-const ACTOR_ACTIONS = new Set([
-  'walkTo', 'runTo', 'crawlTo', 'swimTo', 'turnTo',
-  'stand', 'idle', 'sit', 'lie', 'kneel', 'crouch',
-  'wave', 'point', 'raiseArm', 'nod', 'shakeHead',
-  'jumpingJacks', 'situps', 'pushups', 'squats',
-  'jump', 'say', 'think', 'wait',
-]);
-const STAGE_ACTIONS = new Set(['cameraTo', 'cut', 'cameraFollow', 'propShow', 'propHide', 'propMove', 'setTime']);
+const STAGE_TYPES = new Set(['camera', 'cameraFollow', 'stage']);
 
-export const ACTION_NAMES = [...ACTOR_ACTIONS, ...STAGE_ACTIONS];
-
-function story(ctx, doc) {
+/**
+ * @param {object} doc
+ * @param {Map|null} known  id -> action document, when the caller has a
+ *   library to check against. Without one the format is still checked and an
+ *   unknown action is caught later, when the story is compiled.
+ */
+function story(ctx, doc, known) {
   const cam = isObj(doc.camera) ? doc.camera : {};
   const out = {
     kind: 'story',
@@ -419,6 +601,8 @@ function story(ctx, doc) {
       outfit: c.outfit === undefined ? undefined : String(c.outfit).slice(0, LIMITS.idLength),
       at: vec3(ctx, `${path}.at`, c.at),
       yaw: num(ctx, `${path}.yaw`, c.yaw, -3600, 3600, 0),
+      holds: c.holds === undefined ? undefined : id(ctx, `${path}.holds`, c.holds),
+      hand: c.hand === 'left' ? 'left' : c.hand === 'right' ? 'right' : undefined,
     });
   }
 
@@ -430,14 +614,25 @@ function story(ctx, doc) {
       continue;
     }
     const act = typeof e.do === 'string' ? e.do : '';
-    if (!ACTOR_ACTIONS.has(act) && !STAGE_ACTIONS.has(act)) {
-      ctx.fail(`${path}.do`, `unknown action ${JSON.stringify(e.do)}`);
+    if (!ID_RE.test(act)) {
+      ctx.fail(`${path}.do`, `expected an action id, got ${JSON.stringify(e.do)}`);
       continue;
     }
+    const spec = known ? known.get(act) : null;
+    if (known && !spec) {
+      ctx.fail(`${path}.do`, `no action document with id ${JSON.stringify(act)}`);
+      continue;
+    }
+    // A group action names no single actor — it casts its roles instead — so
+    // it is grouped with the entries that do not carry one.
+    // Without a library to ask, an entry naming an actor is an actor action.
+    const isStage = spec
+      ? (STAGE_TYPES.has(spec.type) || spec.category === 'group')
+      : e.actor === undefined;
     // Built field by field rather than spread: an imported document must not
     // be able to smuggle keys past the validator into the director.
     const entry = { do: act };
-    if (ACTOR_ACTIONS.has(act)) {
+    if (!isStage) {
       const actor = id(ctx, `${path}.actor`, e.actor);
       if (actor && !actors.has(actor)) {
         ctx.fail(`${path}.actor`, `no actor ${JSON.stringify(actor)} in cast`);
@@ -481,6 +676,19 @@ function story(ctx, doc) {
       ctx.fail(`${path}.look`, 'expected [x, y, z] or an actor id');
     }
     if (e.on !== undefined) entry.on = id(ctx, `${path}.on`, e.on);
+    // Which way the actor ends up pointing. Every actor action takes it,
+    // because "sit down facing the window" and "say this to her" are the
+    // normal case, not something worth a separate turnTo before each one.
+    if (Array.isArray(e.facing)) {
+      entry.facing = vec3(ctx, `${path}.facing`, e.facing);
+    } else if (typeof e.facing === 'string') {
+      const target = id(ctx, `${path}.facing`, e.facing);
+      if (target && !actors.has(target)) ctx.fail(`${path}.facing`, `no actor ${JSON.stringify(target)} in cast`);
+      if (target === entry.actor) ctx.fail(`${path}.facing`, 'an actor cannot face itself');
+      entry.facing = target;
+    } else if (e.facing !== undefined) {
+      ctx.fail(`${path}.facing`, 'expected [x, y, z] or an actor id');
+    }
     if (e.face !== undefined) {
       if (e.face === 'up' || e.face === 'down') entry.face = e.face;
       else ctx.fail(`${path}.face`, 'expected "up" or "down"');
@@ -490,6 +698,53 @@ function story(ctx, doc) {
       else ctx.fail(`${path}.side`, 'expected "left" or "right"');
     }
     if (e.target !== undefined) entry.target = id(ctx, `${path}.target`, e.target);
+    if (e.prop !== undefined) entry.prop = id(ctx, `${path}.prop`, e.prop);
+    if (e.hand !== undefined) {
+      if (e.hand === 'left' || e.hand === 'right') entry.hand = e.hand;
+      else ctx.fail(`${path}.hand`, 'expected "left" or "right"');
+    }
+    if (spec?.type === 'hold' && spec.grabs !== false && entry.prop === undefined) {
+      ctx.fail(`${path}.prop`, `${act} needs the "prop" to pick up`);
+    }
+    // The stage actions address a placement by id and may re-aim it. These
+    // were being dropped: the entry is built field by field so an import
+    // cannot smuggle keys through, which also means every field a director
+    // reads has to be listed here or it silently arrives undefined.
+    if (e.id !== undefined) entry.id = id(ctx, `${path}.id`, e.id);
+    if (e.yaw !== undefined) entry.yaw = num(ctx, `${path}.yaw`, e.yaw, -3600, 3600, 0);
+    if (e.fov !== undefined) entry.fov = num(ctx, `${path}.fov`, e.fov, 15, 110, 50);
+    if (spec?.type === 'stage' && act !== 'setTime' && entry.id === undefined) {
+      ctx.fail(`${path}.id`, `${act} needs the "id" of a placement to act on`);
+    }
+    if (act === 'setTime' && e.sky === undefined) {
+      ctx.fail(`${path}.sky`, 'setTime needs a "sky"');
+    }
+    // A group action casts its roles instead of naming a single actor.
+    if (spec?.category === 'group') {
+      const roles = isObj(e.cast) ? e.cast : {};
+      entry.cast = {};
+      for (const role of spec.roles || []) {
+        const who = roles[role.id];
+        if (who === undefined) {
+          if (!role.optional) ctx.fail(`${path}.cast.${role.id}`, `this group action needs a "${role.id}"`);
+          continue;
+        }
+        const actorId = id(ctx, `${path}.cast.${role.id}`, who);
+        if (actorId && !actors.has(actorId)) {
+          ctx.fail(`${path}.cast.${role.id}`, `no actor ${JSON.stringify(actorId)} in cast`);
+        }
+        entry.cast[role.id] = actorId;
+      }
+      for (const given of Object.keys(roles)) {
+        if (!(spec.roles || []).some((r) => r.id === given)) {
+          ctx.fail(`${path}.cast.${given}`, `"${act}" has no role called ${JSON.stringify(given)}`);
+        }
+      }
+    }
+    if (e.sky !== undefined) {
+      if (SKIES.includes(e.sky)) entry.sky = e.sky;
+      else ctx.fail(`${path}.sky`, `unknown sky ${JSON.stringify(e.sky)}; expected ${SKIES.join(', ')}`);
+    }
     out.timeline.push(entry);
   }
 
@@ -502,7 +757,7 @@ function story(ctx, doc) {
 
   if (Array.isArray(doc.embeds)) {
     for (const [i, sub] of array(ctx, 'embeds', doc.embeds, LIMITS.bundleDocs).entries()) {
-      const res = validate(sub);
+      const res = validate(sub, { actions: known });
       if (!res.ok) {
         for (const err of res.errors) ctx.fail(`embeds[${i}].${err.path}`, err.message);
       } else if (res.doc.kind === 'story') {
@@ -566,10 +821,18 @@ function checkTimingCycles(ctx, timeline) {
   }
 }
 
-function bundle(ctx, doc) {
+function bundle(ctx, doc, known) {
   const out = { kind: 'bundle', version: FORMAT_VERSION, documents: [] };
+  // Actions first: a story later in the same bundle may name one of them.
+  const local = new Map(known || []);
+  for (const sub of Array.isArray(doc.documents) ? doc.documents : []) {
+    if (isObj(sub) && sub.kind === 'action') {
+      const res = validate(sub);
+      if (res.ok) local.set(res.doc.id, res.doc);
+    }
+  }
   for (const [i, sub] of array(ctx, 'documents', doc.documents, LIMITS.bundleDocs).entries()) {
-    const res = validate(sub);
+    const res = validate(sub, { actions: local });
     if (!res.ok) {
       for (const err of res.errors) ctx.fail(`documents[${i}].${err.path}`, err.message);
     } else if (res.doc.kind === 'bundle') {
@@ -582,12 +845,12 @@ function bundle(ctx, doc) {
   return out;
 }
 
-const VALIDATORS = { character, prop, set: setDoc, story, bundle };
+const VALIDATORS = { character, prop, set: setDoc, story, action, bundle };
 
 /**
  * @returns {{ ok: boolean, doc: object|null, errors: Array<{path, message}> }}
  */
-export function validate(input) {
+export function validate(input, options) {
   const ctx = new Ctx();
   if (!isObj(input)) {
     return { ok: false, doc: null, errors: [{ path: '', message: 'expected a JSON object' }] };
@@ -603,19 +866,19 @@ export function validate(input) {
   if (input.version !== undefined && Number(input.version) > FORMAT_VERSION) {
     ctx.fail('version', `document is version ${input.version}, this app reads up to ${FORMAT_VERSION}`);
   }
-  const doc = VALIDATORS[kind](ctx, input);
+  const doc = VALIDATORS[kind](ctx, input, options?.actions ?? null);
   return { ok: ctx.errors.length === 0, doc: ctx.errors.length ? null : doc, errors: ctx.errors };
 }
 
 /** Parses text and validates in one step, so the editor has one entry point. */
-export function parseDocument(source) {
+export function parseDocument(source, options) {
   let data;
   try {
     data = JSON.parse(source);
   } catch (err) {
     return { ok: false, doc: null, errors: [{ path: '', message: `not valid JSON: ${err.message}` }] };
   }
-  return validate(data);
+  return validate(data, options);
 }
 
 export function formatErrors(errors) {

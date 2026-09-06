@@ -148,6 +148,10 @@ export const POSES = {
   },
 };
 
+/** The poses an action document may name. They stay in code because their
+ *  heights are measured against the floor by a calibration pass, not chosen. */
+export const POSE_NAMES = Object.keys(POSES);
+
 /** A pose object with nothing set, for blends that start from neutral. */
 export function emptyPose() {
   return { root: { tiltZ: 0, lift: 0, shift: 0 }, joints: {} };

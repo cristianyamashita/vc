@@ -100,6 +100,19 @@ async function openPreview(doc) {
     $('#ss-outfits').innerHTML = '';
     const ok = await viewer.showProp(doc, (id) => registry.blob(id));
     if (!ok) notice(t('notFound'), 'warn');
+  } else if (doc.kind === 'action') {
+    $('#ss-outfits').innerHTML = '';
+    const demo = demoStory(doc);
+    if (!demo) {
+      notice(t('noDemo'), 'warn');
+      return;
+    }
+    show('player');
+    $('#ss-player-title').textContent = localised(doc.name, doc.id);
+    const res = await playback.load(demo, registry);
+    if (!res.ok) notice(`${t('problems')}: ${res.errors.map((e) => `${e.path} ${e.message}`).join('; ')}`, 'bad');
+    transport.sync();
+    playback.play();
   } else if (doc.kind === 'set') {
     // A set previews as the story that would play in it: an empty stage with
     // nobody in it, which is exactly what a set is.
@@ -114,6 +127,42 @@ async function openPreview(doc) {
     }, registry);
     transport.sync();
   }
+}
+
+/** A throwaway story that performs one action on the empty stage.
+ *
+ *  Actions are documents now, so the honest way to preview one is to play it
+ *  through the same pipeline a real story uses rather than to describe it.
+ *  Group actions get one body per role. */
+function demoStory(doc) {
+  if (['camera', 'cameraFollow', 'stage', 'turn'].includes(doc.type)) return null;
+  const pool = ['leo', 'ana', 'tom', 'mira', 'kai', 'noa', 'sol', 'vic']
+    .filter((id) => registry.character(id));
+  if (!pool.length) return null;
+
+  const roles = doc.category === 'group' ? doc.roles : [{ id: 'solo' }];
+  const cast = roles.map((role, i) => ({
+    id: role.id,
+    character: pool[i % pool.length],
+    at: [0, 0, 0],
+    yaw: 0,
+  }));
+
+  const entry = doc.category === 'group'
+    ? { do: doc.id, at: [0, 0, 0], yaw: 0, for: 8, cast: Object.fromEntries(roles.map((r) => [r.id, r.id])) }
+    : { actor: 'solo', do: doc.id, for: 8, ...(doc.type === 'speech' ? { text: { en: '…', pt: '…', ja: '…' } } : {}),
+      ...(doc.type === 'hold' ? { prop: 'torch' } : {}), ...(doc.type === 'move' ? { to: [3, 0, 0] } : {}) };
+
+  const height = doc.category === 'group' ? 4.4 : 3.2;
+  return {
+    kind: 'story', version: 1, id: `demo.${doc.id}`, name: doc.name,
+    set: 'studio',
+    camera: { at: [height, height * 0.55, height], look: [0, 0.9, 0], fov: 44 },
+    setEdits: [{ op: 'remove', id: 'mark' }],
+    cast,
+    timeline: [entry],
+    embeds: [],
+  };
 }
 
 /** Frames a set by where its props actually are. A fixed camera works for
@@ -173,7 +222,7 @@ async function acceptDocuments(result) {
     status.textContent = result.errors.map((e) => (e.path ? `${e.path}: ${e.message}` : e.message)).join('\n');
     return false;
   }
-  const saved = await saveAll(result.documents);
+  const saved = await saveAll(result.documents, registry.actionMap());
   await registry.loadUser();
   libraryView.render();
   status.className = 'ss-editor-status is-ok';
@@ -189,7 +238,7 @@ function openEditor(doc) {
 }
 
 async function applyEdited(doc) {
-  await saveAll([doc]);
+  await saveAll([doc], registry.actionMap());
   await registry.loadUser();
   libraryView.render();
   $('#dlg-editor').close();
@@ -238,7 +287,7 @@ async function main() {
   playback = new Playback($('#ss-canvas'), $('#ss-stage-wrap'));
   viewer = new Viewer($('#ss-preview-canvas'));
   transport = new Transport($('#ss-transport'), playback);
-  editor = new Editor($('#dlg-editor'), { onApply: applyEdited });
+  editor = new Editor($('#dlg-editor'), { onApply: applyEdited, actions: () => registry.actionMap() });
 
   libraryView = new LibraryView($('#view-library'), {
     registry,
@@ -257,11 +306,11 @@ async function main() {
   $('#ss-back').addEventListener('click', backToLibrary);
   $('#ss-import').addEventListener('click', openImport);
   $('#ss-import-do').addEventListener('click', async () => {
-    await acceptDocuments(readText($('#ss-import-text').value));
+    await acceptDocuments(readText($('#ss-import-text').value, registry.actionMap()));
   });
   $('#ss-import-file').addEventListener('change', async (e) => {
     const file = e.target.files?.[0];
-    if (file) await acceptDocuments(await readFile(file));
+    if (file) await acceptDocuments(await readFile(file, registry.actionMap()));
     e.target.value = '';
   });
   $('#ss-import-glb').addEventListener('change', async (e) => {
@@ -297,7 +346,7 @@ async function main() {
       }
       return;
     }
-    await acceptDocuments(await readFile(file));
+    await acceptDocuments(await readFile(file, registry.actionMap()));
   });
 
   addEventListener('resize', resize);

@@ -7,11 +7,18 @@ import { listDocuments, getBlob } from './store.js';
 // whose id is `ana` and every official story that casts Ana now casts yours,
 // without editing a single story.
 
-const KINDS = ['character', 'prop', 'set', 'story'];
+const KINDS = ['character', 'prop', 'set', 'action', 'story'];
 
 // Spelled out rather than derived: "story" pluralises to "stories", and a
 // naive `kind + "s"` quietly looks for data/storys/ and finds nothing.
-const FOLDER = { character: 'characters', prop: 'props', set: 'sets', story: 'stories' };
+const FOLDER = {
+  character: 'characters', prop: 'props', set: 'sets',
+  action: 'actions', story: 'stories',
+};
+
+// Stories are validated against the action library, so actions have to be in
+// hand before any story is read. Everything else is independent.
+const LOAD_ORDER = [['character', 'prop', 'set', 'action'], ['story']];
 
 const DATA = new URL('../../data/', import.meta.url);
 
@@ -38,13 +45,15 @@ export class Registry {
       return this;
     }
 
-    const jobs = [];
-    for (const kind of KINDS) {
-      for (const file of index[FOLDER[kind]] || []) {
-        jobs.push(this.loadOne(kind, file));
+    for (const phase of LOAD_ORDER) {
+      const jobs = [];
+      for (const kind of phase) {
+        for (const file of index[FOLDER[kind]] || []) {
+          jobs.push(this.loadOne(kind, file));
+        }
       }
+      await Promise.all(jobs);
     }
-    await Promise.all(jobs);
     return this;
   }
 
@@ -56,7 +65,7 @@ export class Registry {
       // Shipped content goes through the same validator as an import. If a
       // hand-edited official file drifts from the schema, it should say so
       // here rather than fail obscurely three layers down.
-      const { ok, doc, errors } = validate(raw);
+      const { ok, doc, errors } = validate(raw, { actions: this.actionMap() });
       if (!ok) {
         this.problems.push(`data/${FOLDER[kind]}/${file}: ${errors[0].path} ${errors[0].message}`);
         return;
@@ -84,6 +93,18 @@ export class Registry {
       if (this.user.has(doc.kind)) this.user.get(doc.kind).set(doc.id, doc);
     }
     return this;
+  }
+
+  /** Every action the app can currently perform, the visitor's own included.
+   *  This is what a story is validated against. */
+  actionMap() {
+    const out = new Map(this.official.get('action') ?? []);
+    for (const [id, doc] of this.user.get('action') ?? []) out.set(id, doc);
+    return out;
+  }
+
+  action(id) {
+    return this.get('action', id);
   }
 
   get(kind, id) {

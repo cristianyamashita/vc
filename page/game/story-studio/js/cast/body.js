@@ -1,5 +1,6 @@
 import { shadeHex } from '../render/geometry.js';
 import { resolveCut, palette, legIsBare, sleeveReach } from './wardrobe.js';
+import { hairParts, resolveStyle, defaultHairLength } from './hair.js';
 
 // One dressed figure, laid out as boxes plus the rest position of every joint
 // in `cast/rig.js`. Forked from VoxelCraft's js/outfits.js and reworked in two
@@ -28,22 +29,45 @@ const PLANS = {
     shoulderW: 0.202, chestD: 0.100, waistW: 0.142, hipW: 0.196, hipD: 0.102,
     armW: 0.041, foreW: 0.036, thighW: 0.069, shinW: 0.053, footL: 0.096,
   },
-  child: {
+  // Boy and girl are separate plans, not one "child". The anatomical
+  // difference at this age is genuinely small — a shade narrower across the
+  // shoulders, a shade wider at the hip — and most of what actually reads is
+  // hair and clothing. Keeping them apart anyway means a document can say
+  // which it means instead of leaving it to the reader.
+  boy: {
     ankle: 0.042, knee: 0.260, hip: 0.485, waist: 0.590, chest: 0.690,
     shoulder: 0.790, neck: 0.812, chin: 0.825,
-    shoulderW: 0.192, chestD: 0.096, waistW: 0.150, hipW: 0.176, hipD: 0.096,
+    shoulderW: 0.194, chestD: 0.096, waistW: 0.150, hipW: 0.174, hipD: 0.096,
     armW: 0.042, foreW: 0.038, thighW: 0.064, shinW: 0.052, footL: 0.090,
+  },
+  girl: {
+    ankle: 0.042, knee: 0.262, hip: 0.482, waist: 0.592, chest: 0.688,
+    shoulder: 0.786, neck: 0.810, chin: 0.824,
+    shoulderW: 0.182, chestD: 0.092, waistW: 0.142, hipW: 0.182, hipD: 0.094,
+    armW: 0.039, foreW: 0.035, thighW: 0.062, shinW: 0.050, footL: 0.086,
   },
 };
 
 export const BODY_PLANS = Object.keys(PLANS);
 
+// `child` predates the split and still appears in documents written before
+// it. It resolves to `boy` rather than erroring, because an old document
+// should keep playing; the README says to write `boy` or `girl` now.
+const ALIASES = { child: 'boy' };
+
 export function planOf(base) {
-  return PLANS[base] ? base : 'man';
+  const named = ALIASES[base] || base;
+  return PLANS[named] ? named : 'man';
+}
+
+/** True for the two child plans, which share most of their treatment. */
+export function isChildPlan(base) {
+  const named = planOf(base);
+  return named === 'boy' || named === 'girl';
 }
 
 /** Default standing height in metres, used when a document omits `height`. */
-export const DEFAULT_HEIGHT = { man: 1.76, woman: 1.66, child: 1.24 };
+export const DEFAULT_HEIGHT = { man: 1.76, woman: 1.66, boy: 1.24, girl: 1.22 };
 
 /**
  * @param {object} spec
@@ -74,8 +98,10 @@ export function buildBody(spec) {
   const headH = u(1 - P.chin);
   const headW = headH * 0.70;
   const headD = headH * 0.78;
-  const isChild = base === 'child';
-  const isWoman = base === 'woman';
+  const isChild = base === 'boy' || base === 'girl';
+  // The shapes a skirt hangs from and the waist is cut to are shared by the
+  // two feminine plans, so they are asked about together rather than by name.
+  const isFem = base === 'woman' || base === 'girl';
 
   const parts = [];
   let limbTag = 'hips';
@@ -185,7 +211,7 @@ export function buildBody(spec) {
   limbTag = 'chest';
   const waistW = u(P.waistW) * trunk;
   const chestD = u(P.chestD) * trunk;
-  const waistD = chestD * (isWoman ? 0.86 : 0.92);
+  const waistD = chestD * (isFem ? 0.86 : 0.92);
   const topBare = cut.top === 'bare' || cut.top === 'bikini';
   const torsoColor = topBare ? C.skin : C.top;
 
@@ -265,15 +291,15 @@ export function buildBody(spec) {
     headD * 0.5, headY + headH * 0.06, headW * 0.21, { flat: true, detail: true });
 
   reg = 'hair';
-  const capH = headH * (isWoman ? 0.30 : 0.24);
-  p(headD * 1.04, capH, headW * 1.05, C.hair, 0, headY + headH / 2 - capH * 0.32, 0,
-    { n: 2, grain: 0.05 });
-  p(headD * 0.2, headH * 0.5, headW * 1.05, C.hairDark, -headD * 0.46, headY + headH * 0.08, 0,
-    { detail: true });                                    // back of the head
-  if (isWoman) {
-    p(headD * 1.06, headH * 0.62, headW * 0.3, C.hairDark, -headD * 0.1, headY - headH * 0.12, 0,
-      { n: 2, detail: true });                            // hair falling behind
+  for (const b of hairParts({
+    headW, headD, headH, headY,
+    hair: C.hair, hairDark: C.hairDark,
+    style: resolveStyle(look.hairStyle, base),
+    length: Number.isFinite(look.hairLength) ? look.hairLength : defaultHairLength(base),
+  })) {
+    p(b.w, b.h, b.d, b.color, b.x, b.y, b.z, b);
   }
+
   if (look.beard && base === 'man') {
     p(headD * 0.72, headH * 0.26, headW * 1.0, C.hairDark, headD * 0.2, u(P.chin) + headH * 0.12, 0,
       { detail: true });

@@ -9,6 +9,10 @@ const SKIES = {
   dawn: { top: 0x6d84b4, bottom: 0xf0c9a0, sun: 0xffd9a8, ambient: 0x8f8ea8, intensity: 0.85, fog: 0xe7c7ac },
   dusk: { top: 0x3c4a72, bottom: 0xe09a6a, sun: 0xffb87a, ambient: 0x6a6a90, intensity: 0.72, fog: 0xc79a80 },
   night: { top: 0x0e1526, bottom: 0x1c2740, sun: 0xb9c8ee, ambient: 0x3a4460, intensity: 0.34, fog: 0x18213a },
+  // Indoors there is no sky to light the scene, so the bounce comes from the
+  // walls: a warm, low-contrast fill and a much weaker directional, which is
+  // what stops a living room from looking like a lawn with furniture on it.
+  indoor: { top: 0xefe7d8, bottom: 0x6f665c, sun: 0xfff4e2, ambient: 0xa79c8f, intensity: 0.95, fog: 0x6f665c, flat: true },
 };
 
 export const SKY_NAMES = Object.keys(SKIES);
@@ -51,12 +55,14 @@ export class Stage {
     const s = SKIES[name] || SKIES.day;
     this.sky = name in SKIES ? name : 'day';
     this.scene.background = new THREE.Color(s.bottom);
-    this.scene.fog = this.useFog ? new THREE.Fog(s.fog, 30, 140) : null;
+    // Indoors the fog closes in much sooner, so the far wall of a room reads
+    // as a wall instead of dissolving into open distance.
+    this.scene.fog = this.useFog ? new THREE.Fog(s.fog, s.flat ? 10 : 30, s.flat ? 46 : 140) : null;
     this.hemi.color.setHex(s.top);
     this.hemi.groundColor.setHex(s.bottom);
-    this.hemi.intensity = 0.7 * s.intensity * intensity;
+    this.hemi.intensity = (s.flat ? 1.45 : 0.7) * s.intensity * intensity;
     this.sun.color.setHex(s.sun);
-    this.sun.intensity = 1.25 * s.intensity * intensity;
+    this.sun.intensity = (s.flat ? 0.75 : 1.25) * s.intensity * intensity;
   }
 
   setSunDirection(dir) {

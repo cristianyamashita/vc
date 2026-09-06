@@ -27,6 +27,16 @@ export function bundleFor(story, registry) {
   const setDoc = registry.get('set', story.set);
   for (const pl of setDoc?.props || []) add('prop', pl.prop);
   for (const e of story.setEdits) if (e.op === 'add') add('prop', e.prop);
+  // Only the actions this story is not shipped with: bundling all thirty
+  // would bury the story under boilerplate every time.
+  for (const e of story.timeline) {
+    const doc = registry.get('action', e.do);
+    if (doc && registry.list('action').some((x) => x.doc === doc && x.source === 'user')) {
+      add('action', e.do);
+    }
+    for (const pr of doc?.props || []) add('prop', pr.prop);
+  }
+  for (const c of story.cast) if (c.holds) add('prop', c.holds);
 
   return {
     kind: 'bundle',
@@ -39,7 +49,7 @@ export function bundleFor(story, registry) {
  * Reads text into documents, without saving anything.
  * @returns {{ ok, documents: Array, errors: Array }}
  */
-export function readText(source) {
+export function readText(source, actions) {
   if (typeof source !== 'string') {
     return { ok: false, documents: [], errors: [{ path: '', message: 'expected text' }] };
   }
@@ -50,24 +60,28 @@ export function readText(source) {
       errors: [{ path: '', message: `file is ${(source.length / 1048576).toFixed(1)} MB; the limit is 4 MB` }],
     };
   }
-  const res = parseDocument(source);
+  const res = parseDocument(source, { actions });
   if (!res.ok) return { ok: false, documents: [], errors: res.errors };
   if (res.doc.kind === 'bundle') return { ok: true, documents: res.doc.documents, errors: [] };
   return { ok: true, documents: [res.doc], errors: [] };
 }
 
-export async function readFile(file) {
+export async function readFile(file, actions) {
   if (file.size > MAX_IMPORT_BYTES) {
     return { ok: false, documents: [], errors: [{ path: '', message: 'file is larger than 4 MB' }] };
   }
-  return readText(await file.text());
+  return readText(await file.text(), actions);
 }
 
 /** Saves documents into the visitor's library. */
-export async function saveAll(documents) {
+export async function saveAll(documents, actions) {
   const saved = [];
+  // Actions first, so a story saved in the same breath can be checked
+  // against the ones arriving with it.
+  const known = new Map(actions || []);
+  for (const doc of documents) if (doc.kind === 'action') known.set(doc.id, doc);
   for (const doc of documents) {
-    const res = validate(doc);
+    const res = validate(doc, { actions: known });
     if (!res.ok) continue;
     await putDocument(res.doc);
     saved.push(res.doc);

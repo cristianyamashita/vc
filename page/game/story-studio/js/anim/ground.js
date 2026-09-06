@@ -21,6 +21,10 @@ import { JOINT_ORDER, jointParent } from '../cast/rig.js';
 export function contactPoints(parts, joints) {
   const bounds = new Map();
   for (const b of parts) {
+    // Hair is not something you stand on. Counting it would make a character
+    // with a plait to the waist levitate the moment they lie down, because
+    // the clamp would dutifully lift the whole body clear of the floor.
+    if (b.reg === 'hair') continue;
     const limb = joints[b.limb] ? b.limb : 'hips';
     const j = joints[limb];
     let e = bounds.get(limb);
