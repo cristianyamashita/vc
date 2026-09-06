@@ -1628,6 +1628,30 @@ window.OSCatalog = (function () {
     }
   },
   {
+    "id": "game-story-studio",
+    "href": "game/story-studio/index.html",
+    "icon": "../assets/icons/svg/game-story-studio.svg",
+    "kind": "site",
+    "uninstallable": true,
+    "defaultInstalled": false,
+    "channel": "stable",
+    "tag": {
+      "en": "3D Storyteller",
+      "pt": "3Dストーリー",
+      "ja": "Contador 3D"
+    },
+    "name": {
+      "en": "Story Studio",
+      "pt": "Story Studio",
+      "ja": "Story Studio"
+    },
+    "desc": {
+      "en": "Watch short 3D films, then take them apart: characters, objects, sets and the story itself are all editable JSON you can export, change and import back.",
+      "pt": "短い3D映画を観て、そのまま分解できます。登場人物も物体も舞台も物語そのものも、書き出して直して読み込み直せるJSONです。",
+      "ja": "Assista a pequenos filmes 3D e depois desmonte-os: personagens, objetos, cenários e a própria história são JSON editável que você exporta, altera e importa de volta."
+    }
+  },
+  {
     "id": "game-voxelcraft",
     "href": "game/voxelcraft/index.html",
     "icon": "../assets/icons/svg/game-voxelcraft.svg",

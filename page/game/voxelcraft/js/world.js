@@ -72,7 +72,7 @@ const MAP_RGB = {
   [WALL_WOOD]: [175, 140, 80],
   [WALL_GLASS]: [170, 210, 220],
   [WATER_SPRING]: [70, 118, 168],
-  [RED_EARTH]: [186, 92, 48],
+  [RED_EARTH]: [158, 106, 84],
   [SURPRISE_BOX]: [255, 196, 48],
   [CASTLE_WALL]: [72, 92, 90],
   [COAL_ORE]: [72, 72, 76],
@@ -394,8 +394,9 @@ export class World {
           } else if (biome === BIOME_CANYON) {
             if (y === h || y >= h - 1) id = RED_EARTH;
             else if (y >= h - 16) {
-              const stripe = Math.floor(y / 2) % 4;
-              id = stripe === 1 ? DIRT : RED_EARTH;
+              // One faint band every eight blocks rather than every four, so
+              // the cliff face reads as layered rock instead of stripes.
+              id = Math.floor(y / 2) % 8 === 1 ? DIRT : RED_EARTH;
             } else id = STONE;
           } else if (biome === BIOME_MOUNTAIN) {
             if (y === h) id = wet ? SAND : (h >= 38 ? STONE : GRASS);

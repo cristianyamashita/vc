@@ -386,9 +386,11 @@ function drawTile(name) {
     put(d, 7, 7, 90, 160, 220);
     put(d, 8, 8, 70, 140, 210);
   } else if (name === 'red_earth') {
-    fillNoise(d, [186, 96, 48], 22, rng);
-    blot(d, [150, 64, 32], rng, 7, 2);
-    blot(d, [214, 132, 64], rng, 5, 1);
+    // Canyon rock reads better as weathered, dusty clay than as bright red, so
+    // the base is desaturated and the speckling is kept faint and close to it.
+    fillNoise(d, [158, 106, 84], 9, rng);
+    blot(d, [144, 95, 75], rng, 4, 2);
+    blot(d, [172, 121, 97], rng, 3, 1);
   } else if (name === 'crate_top' || name === 'crate_side') {
     fillNoise(d, [168, 118, 58], 14, rng);
     for (let y = 0; y < TILE; y += 4) {
@@ -687,6 +689,22 @@ function drawItemIcon(kind) {
     g.fillRect(15, 14, 12, 2);
     g.fillStyle = '#8a8a70';
     g.fillRect(25, 13, 4, 4);
+  } else if (kind.startsWith('armor_')) {
+    const body = kind === 'armor_leather' ? '#8a5a30'
+      : kind === 'armor_chain' ? '#8d929c'
+        : kind === 'armor_iron' ? '#d0d5df' : '#e4bc44';
+    const trim = kind === 'armor_leather' ? '#5f3d20'
+      : kind === 'armor_chain' ? '#5f636b'
+        : kind === 'armor_iron' ? '#8f96a4' : '#a3811f';
+    g.fillStyle = body;
+    g.fillRect(8, 8, 16, 17);
+    g.fillStyle = trim;
+    g.fillRect(4, 9, 5, 8);
+    g.fillRect(23, 9, 5, 8);
+    g.fillRect(8, 21, 16, 3);
+    g.fillRect(12, 8, 8, 3);
+    g.fillStyle = body;
+    g.fillRect(14, 21, 4, 3);
   } else if (kind === 'compass') {
     g.fillStyle = '#c4a060';
     g.beginPath();
@@ -749,6 +767,7 @@ export function createAtlas() {
     'door', 'door_double', 'stairs', 'stairs_sand', 'stairs_stone', 'ladder',
     'wall_wood', 'wall_glass',
     'lasso', 'revolver', 'bow', 'compass', 'egg',
+    'armor_leather', 'armor_chain', 'armor_iron', 'armor_gold',
   ];
   for (const kind of itemKinds) icons[kind] = drawItemIcon(kind);
 

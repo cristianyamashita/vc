@@ -20,6 +20,7 @@ export class Inventory {
     this.slots = Array(INV_SIZE).fill(null);
     this.selected = 0;
     this.offhand = null;
+    this.armor = null;
     this.cursor = null;
     this.craft2 = Array(4).fill(null);
     this.craft3 = Array(9).fill(null);
@@ -144,6 +145,7 @@ export class Inventory {
       slots: this.slots.map(cloneStack),
       selected: this.selected,
       offhand: cloneStack(this.offhand),
+      armor: cloneStack(this.armor),
     };
   }
 
@@ -153,6 +155,7 @@ export class Inventory {
     for (let i = 0; i < INV_SIZE; i++) this.slots[i] = cloneStack(data.slots[i]);
     this.selected = Math.max(0, Math.min(8, data.selected || 0));
     this.offhand = cloneStack(data.offhand);
+    this.armor = cloneStack(data.armor);
   }
 
   returnCraft(grid) {

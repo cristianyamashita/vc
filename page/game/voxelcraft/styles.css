@@ -11,6 +11,8 @@
   --slot-sel: #f2f6f5;
   --heart: #d64545;
   --heart-empty: #3a2222;
+  --shield: #8fa9c4;
+  --shield-empty: #2c333c;
   --food: #d4a017;
   --food-empty: #3a3420;
   --shadow: 0 18px 50px #0008;
@@ -27,6 +29,8 @@
   --slot-sel: #0d3d37;
   --heart: #c62828;
   --heart-empty: #d7b4b4;
+  --shield: #4c6b8a;
+  --shield-empty: #bcc6d2;
   --food: #c47a12;
   --food-empty: #cbb892;
   --shadow: 0 18px 50px #12332a33;
@@ -193,6 +197,42 @@ body { font-family: "Segoe UI", "Hiragino Sans", sans-serif; color: var(--ink); 
 .food.half {
   background: linear-gradient(90deg, var(--food) 50%, var(--food-empty) 50%);
 }
+
+/* Worn armour: a row of plates for how much a hit is softened, over a slim bar
+   for how much life the plate has left. Both hide when nothing is worn. */
+#shields {
+  display: flex;
+  gap: 3px;
+}
+
+.shield {
+  width: 12px;
+  height: 13px;
+  clip-path: polygon(50% 100%, 6% 62%, 6% 8%, 94% 8%, 94% 62%);
+  background: var(--shield-empty);
+}
+
+.shield.on { background: var(--shield); }
+.shield.half {
+  background: linear-gradient(90deg, var(--shield) 50%, var(--shield-empty) 50%);
+}
+
+#armor-wear {
+  width: 147px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--shield-empty);
+  overflow: hidden;
+}
+
+#armor-wear i {
+  display: block;
+  height: 100%;
+  width: 100%;
+  background: var(--shield);
+}
+
+#inv-armor { border-color: var(--shield); }
 
 #sleep-veil {
   position: fixed;
@@ -720,7 +760,7 @@ button.primary:hover, .text-btn:hover, button:hover { filter: brightness(1.08); 
   width: calc(9 * 42px + 8 * 3px);
   min-width: 0;
 }
-#inv-offhand, #inv-trash { flex-shrink: 0; }
+#inv-offhand, #inv-armor, #inv-trash { flex-shrink: 0; }
 #inv-trash { margin-left: auto; }
 #inv-offhand { border-color: var(--accent); }
 #inv-trash {

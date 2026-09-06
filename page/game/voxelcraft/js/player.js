@@ -2,10 +2,14 @@ import * as THREE from 'three';
 import { AIR, LADDER, isSolid, isLiquid, isStair, isWall } from './blocks.js';
 import { HEIGHT } from './world.js';
 import { solidBoxes, aabbHitsBox } from './stairs.js';
+import { absorbDamage } from './armor.js';
 
 const WIDTH = 0.6;
 const HEIGHT_STAND = 1.8;
 const HEIGHT_SNEAK = 1.5;
+// How far a sneaking player may drop without the edge guard stopping them, so
+// they can still step down onto a stair or a slab the way Minecraft allows.
+const SNEAK_STEP_DOWN = 0.55;
 export const EYE_STAND = 1.62;
 export const EYE_SNEAK = 1.32;
 
@@ -29,6 +33,8 @@ export class Player {
     this.spawn = this.pos.clone();
     this.regenAcc = 0;
     this.hurtAcc = 0;
+    // Set by the game so a hit can be run through the worn armour.
+    this.inv = null;
   }
 
   eyeHeight() {
@@ -62,7 +68,12 @@ export class Player {
     const body = world.get(Math.floor(this.pos.x), Math.floor(this.pos.y + 1.1), Math.floor(this.pos.z));
     this.inWater = isLiquid(feet) || isLiquid(body);
     this.onLadder = this.touchingLadder(world);
-    this.sneak = input.sneak && this.onGround && !this.inWater && !this.onLadder;
+    // Minecraft lets you crouch in mid-air too, and keeps you crouched while a
+    // low ceiling would not clear a standing body — let go of Shift inside a
+    // two-block crawl space and you stay down until you are out of it.
+    const wasSneak = this.sneak;
+    this.sneak = !!input.sneak && !this.inWater;
+    if (!this.sneak && wasSneak && this.overlaps(world, 0, 0, 0, HEIGHT_STAND)) this.sneak = true;
 
     const wish = new THREE.Vector3();
     const s = Math.sin(this.yaw);
@@ -119,7 +130,7 @@ export class Player {
       const dist = (this.fallY ?? beforeY) - this.pos.y;
       if (dist > 3.2 && !this.inWater) {
         const dmg = Math.floor((dist - 3) * 1.4);
-        if (dmg > 0) this.hurt(dmg);
+        if (dmg > 0) this.hurt(dmg, { ignoreArmor: true });
       }
       this.vel.y = 0;
       this.fallY = this.pos.y;
@@ -133,7 +144,7 @@ export class Player {
     if (this.hunger <= 0) {
       this.starveAcc += dt;
       if (this.starveAcc >= 4) {
-        this.hurt(1);
+        this.hurt(1, { ignoreArmor: true });
         this.starveAcc = 0;
       }
     } else {
@@ -170,19 +181,46 @@ export class Player {
     return true;
   }
 
+  /** True while something solid holds the player up, allowing the small drop a
+   *  sneaking player is still permitted to take (a stair or a slab). */
+  supported(world) {
+    return this.overlaps(world, 0, -SNEAK_STEP_DOWN, 0);
+  }
+
+  /**
+   * Eating fills the hunger bar first. Anything that no longer fits — a whole
+   * meal once the bar is already full — goes into health instead, so food is
+   * still worth eating when you are stuffed but wounded.
+   */
   eat(amount, heal = 0) {
-    const fillHunger = amount > 0 && this.hunger < this.maxHunger;
-    const fillHealth = heal > 0 && this.health < this.maxHealth;
-    if (!fillHunger && !fillHealth) return false;
-    if (fillHunger) this.hunger = Math.min(this.maxHunger, this.hunger + amount);
-    if (heal > 0) this.health = Math.min(this.maxHealth, this.health + heal);
+    const room = this.maxHunger - this.hunger;
+    const fill = Math.max(0, Math.min(room, amount));
+    const spare = amount - fill;
+    const bonus = spare > 0 ? Math.min(3, Math.max(1, Math.round(spare * 0.25))) : 0;
+    const mend = heal + bonus;
+    const canHeal = mend > 0 && this.health < this.maxHealth;
+    if (fill <= 0 && !canHeal) return false;
+    if (fill > 0) this.hunger = Math.min(this.maxHunger, this.hunger + fill);
+    if (canHeal) this.health = Math.min(this.maxHealth, this.health + mend);
     return true;
   }
 
-  hurt(amount) {
-    if (amount <= 0) return;
-    this.health = Math.max(0, this.health - amount);
+  /**
+   * Takes a hit. Worn armour soaks up part of it and wears down doing so;
+   * damage that armour cannot help with — falling, starving — passes
+   * `ignoreArmor` and lands in full.
+   */
+  hurt(amount, opts = {}) {
+    if (amount <= 0) return 0;
+    let dealt = amount;
+    if (!opts.ignoreArmor && this.inv) {
+      const hit = absorbDamage(this.inv, amount);
+      dealt = hit.damage;
+      this.armorBroke = hit.broke;
+    }
+    this.health = Math.max(0, this.health - dealt);
     this.hurtAcc = 1.15;
+    return dealt;
   }
 
   respawn() {
@@ -214,8 +252,8 @@ export class Player {
     return false;
   }
 
-  overlaps(world, ox = 0, oy = 0, oz = 0) {
-    const h = this.bodyHeight();
+  overlaps(world, ox = 0, oy = 0, oz = 0, height = this.bodyHeight()) {
+    const h = height;
     const w = WIDTH * 0.5;
     const minX = this.pos.x + ox - w;
     const maxX = this.pos.x + ox + w;
@@ -294,22 +332,34 @@ export class Player {
   }
 
   moveAxis(world, dx, dy, dz) {
+    // Sneaking on solid ground refuses any step that would leave the player
+    // standing on nothing, the way Shift keeps you on a ledge in Minecraft.
+    // It is checked per axis so you can still slide along an edge.
+    const edgeGuard = this.sneak && this.onGround && !this.inWater && !this.onLadder;
     if (dx) {
+      const fromX = this.pos.x;
       this.pos.x += dx;
       if (this.overlaps(world)) {
         if (!this.tryStep(world)) {
-          this.pos.x -= dx;
+          this.pos.x = fromX;
           this.vel.x = 0;
         }
+      } else if (edgeGuard && !this.supported(world)) {
+        this.pos.x = fromX;
+        this.vel.x = 0;
       }
     }
     if (dz) {
+      const fromZ = this.pos.z;
       this.pos.z += dz;
       if (this.overlaps(world)) {
         if (!this.tryStep(world)) {
-          this.pos.z -= dz;
+          this.pos.z = fromZ;
           this.vel.z = 0;
         }
+      } else if (edgeGuard && !this.supported(world)) {
+        this.pos.z = fromZ;
+        this.vel.z = 0;
       }
     }
     if (dy) {
@@ -336,7 +386,15 @@ export class Player {
   }
 }
 
-export function raycast(world, origin, dir, maxDist = 5.5, hitLiquid = false) {
+/**
+ * Walks the voxel grid from `origin` along `dir` and returns the first block
+ * hit, or null within `maxDist`.
+ *
+ * Pass a `pierce` collector — `{ test, hits }` — to shoot through some blocks
+ * instead of stopping on them: every cell whose id passes `test` is appended to
+ * `hits` (with the distance it was met at) and the ray carries on.
+ */
+export function raycast(world, origin, dir, maxDist = 5.5, hitLiquid = false, pierce = null) {
   const x = Math.floor(origin.x);
   const y = Math.floor(origin.y);
   const z = Math.floor(origin.z);
@@ -360,7 +418,11 @@ export function raycast(world, origin, dir, maxDist = 5.5, hitLiquid = false) {
   for (let i = 0; i < 64; i++) {
     const id = world.get(ix, iy, iz);
     if (id && id !== AIR && (hitLiquid || !isLiquid(id))) {
-      return { x: ix, y: iy, z: iz, nx, ny, nz, dist, id };
+      if (pierce && pierce.test(id)) {
+        pierce.hits.push({ x: ix, y: iy, z: iz, id, dist });
+      } else {
+        return { x: ix, y: iy, z: iz, nx, ny, nz, dist, id };
+      }
     }
     if (tMaxX < tMaxY && tMaxX < tMaxZ) {
       dist = tMaxX;

@@ -8,6 +8,7 @@ import {
   HIDE_COW, HIDE_ZEBRA, HIDE_SHEEP, DOOR, DOOR_DOUBLE,
   FLOWER_RED, FLOWER_YELLOW, FLOWER_WHITE,
   LASSO, REVOLVER, BOW, COMPASS,
+  ARMOR_LEATHER, ARMOR_CHAIN, ARMOR_IRON, ARMOR_GOLD,
   STAIRS, STAIRS_SAND, STAIRS_STONE, LADDER, WALL_WOOD, WALL_GLASS,
   BLOCKS, isBlock, isFlower,
 } from './blocks.js';
@@ -205,6 +206,21 @@ export function itemParts(id) {
       const a = (i / 4) * Math.PI * 2;
       p(0.045, 0.025, 0.03, petal, Math.cos(a) * 0.042, 0.14, Math.sin(a) * 0.042, { ry: -a });
     }
+  } else if ([ARMOR_LEATHER, ARMOR_CHAIN, ARMOR_IRON, ARMOR_GOLD].includes(id)) {
+    // A chest plate seen front-on: shoulders, a body panel and a belt line, in
+    // the material's own colour so the four tiers read apart at a glance.
+    const body = id === ARMOR_LEATHER ? 0x8a5a30
+      : id === ARMOR_CHAIN ? 0x8d929c
+        : id === ARMOR_IRON ? 0xd0d5df : 0xe4bc44;
+    const trim = shadeHex(body, 0.78);
+    const shine = shadeHex(body, 1.2);
+    p(0.2, 0.2, 0.075, body, 0, 0.01, -0.02, { n: 2, grain: id === ARMOR_CHAIN ? 0.14 : 0.06 });
+    p(0.075, 0.09, 0.08, trim, -0.135, 0.075, -0.02, { rz: 0.28 });
+    p(0.075, 0.09, 0.08, trim, 0.135, 0.075, -0.02, { rz: -0.28 });
+    p(0.21, 0.03, 0.082, trim, 0, -0.085, -0.02);
+    p(0.05, 0.035, 0.086, shine, 0, -0.085, -0.02, { detail: true });
+    p(0.09, 0.045, 0.084, trim, 0, 0.115, -0.02, { flat: true });
+    p(0.03, 0.13, 0.084, shine, -0.055, 0.02, -0.02, { detail: true });
   } else if (id === RAW_MEAT || id === COOKED_MEAT) {
     const m = id === RAW_MEAT ? 0xc05656 : 0x8a4a24;
     p(0.12, 0.09, 0.09, m, 0.02, 0.02, -0.02, { n: 2, grain: 0.1 });

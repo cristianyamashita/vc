@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Story Studio</title>
+    <meta name="description" content="Little 3D films you can take apart: characters, objects, sets and stories, all editable JSON.">
+    <link rel="icon" href="../../assets/icons/ico/game-story-studio.ico" type="image/x-icon">
+    <link rel="stylesheet" href="styles.css">
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.module.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/"
+        }
+      }
+    </script>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-NWZDZ906DJ"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-NWZDZ906DJ');
+    </script>
+  </head>
+  <body>
+    <header class="ss-header">
+      <button id="ss-back" class="ss-icon" data-i18n-title="back" data-i18n-aria="back" hidden>&#8592;</button>
+      <div class="ss-brand">
+        <h1 data-i18n="title">Story Studio</h1>
+        <p data-i18n="tagline">Little 3D films you can take apart</p>
+      </div>
+      <div class="ss-tools">
+        <label class="ss-detail">
+          <input type="checkbox" id="ss-detail" checked>
+          <span data-i18n="detail">Detail</span>
+        </label>
+        <button id="ss-import" class="ss-button" data-i18n="import">Import</button>
+        <select id="langSelect" data-i18n-aria="language">
+          <option value="en">EN</option>
+          <option value="pt">PT</option>
+          <option value="ja">JA</option>
+        </select>
+        <button id="themeBtn" class="ss-icon" data-i18n-title="theme" data-i18n-aria="theme">&#9790;</button>
+      </div>
+    </header>
+
+    <p id="ss-notice" class="ss-notice" hidden></p>
+
+    <main>
+      <section id="view-library" class="ss-view">
+        <nav class="ss-tabs"></nav>
+        <div class="ss-list"></div>
+      </section>
+
+      <section id="view-player" class="ss-view" hidden>
+        <h2 id="ss-player-title" class="ss-view-title"></h2>
+        <div id="ss-stage-wrap" class="ss-stage">
+          <canvas id="ss-canvas"></canvas>
+        </div>
+        <div id="ss-transport" class="ss-transport">
+          <button class="ss-play" type="button">&#9654;</button>
+          <span class="ss-now">0:00</span>
+          <input class="ss-scrub" type="range" min="0" max="1000" value="0" step="1" aria-label="Progress">
+          <span class="ss-total">0:00</span>
+        </div>
+      </section>
+
+      <section id="view-preview" class="ss-view" hidden>
+        <h2 id="ss-preview-title" class="ss-view-title"></h2>
+        <div id="ss-preview-wrap" class="ss-stage">
+          <canvas id="ss-preview-canvas"></canvas>
+        </div>
+        <div id="ss-outfits" class="ss-outfits"></div>
+      </section>
+    </main>
+
+    <p id="ss-boot" class="ss-boot" data-i18n="loading">Loading&#8230;</p>
+
+    <dialog id="dlg-import" class="ss-dialog">
+      <form method="dialog" class="ss-dialog-close">
+        <button class="ss-icon" data-i18n-aria="close">&#10005;</button>
+      </form>
+      <h2 data-i18n="importTitle">Import a document</h2>
+      <p class="ss-hint" data-i18n="importHint"></p>
+      <textarea id="ss-import-text" class="ss-editor-text" rows="12" spellcheck="false" data-i18n-placeholder="importPaste"></textarea>
+      <p id="ss-import-status" class="ss-editor-status"></p>
+      <div class="ss-dialog-actions">
+        <button id="ss-import-do" class="ss-primary" type="button" data-i18n="importDo">Import</button>
+        <label class="ss-file">
+          <span data-i18n="importFile">Choose a .json file</span>
+          <input id="ss-import-file" type="file" accept="application/json,.json">
+        </label>
+        <label class="ss-file">
+          <span data-i18n="importGlb">Upload a .glb model</span>
+          <input id="ss-import-glb" type="file" accept=".glb,model/gltf-binary">
+        </label>
+      </div>
+    </dialog>
+
+    <dialog id="dlg-editor" class="ss-dialog is-wide">
+      <form method="dialog" class="ss-dialog-close">
+        <button class="ss-icon" data-i18n-aria="close">&#10005;</button>
+      </form>
+      <h2 data-i18n="editorTitle">Edit as JSON</h2>
+      <textarea class="ss-editor-text" rows="20" spellcheck="false"></textarea>
+      <p class="ss-editor-status"></p>
+      <div class="ss-dialog-actions">
+        <button class="ss-editor-apply ss-primary" type="button" data-i18n="apply">Apply and play</button>
+        <button class="ss-editor-revert" type="button" data-i18n="revert">Revert</button>
+      </div>
+    </dialog>
+
+    <script type="module" src="app.js"></script>
+  </body>
+</html>

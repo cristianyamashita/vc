@@ -4,6 +4,7 @@ window.OSSettings = (function () {
 
   let currentPane = "preferences";
   let installFilter = "";
+  let urlDraft = newUrlDraft();
   let customWalls = [];
   let uploadHint = "";
   let fileBound = false;
@@ -333,6 +334,120 @@ window.OSSettings = (function () {
     `;
   }
 
+  function newUrlDraft() {
+    return {
+      open: false,
+      editingId: null,
+      url: "",
+      name: "",
+      nameAuto: false,
+      desc: "",
+      icon: null,
+      useSiteIcon: false,
+      galleryId: "globe",
+      galleryColor: "teal",
+      status: "",
+      error: "",
+      busy: false,
+    };
+  }
+
+  function galleryIconUrl(id, color) {
+    return window.OSBuilderIcons.dataUrl(id || "globe", color || "teal");
+  }
+
+  function draftIconUrl() {
+    if (urlDraft.useSiteIcon && urlDraft.icon && urlDraft.icon.preview) return urlDraft.icon.preview;
+    return galleryIconUrl(urlDraft.galleryId, urlDraft.galleryColor);
+  }
+
+  function urlFormHtml() {
+    if (!urlDraft.open) return "";
+    const colors = Object.keys((window.OSBuilderIcons && window.OSBuilderIcons.COLORS) || { teal: 1 });
+    const colorChips = colors
+      .map(
+        (id) =>
+          `<button type="button" class="icon-chip${urlDraft.galleryColor === id ? " selected" : ""}" data-url-color="${id}">
+            <img src="${escapeHtml(galleryIconUrl(urlDraft.galleryId, id))}" alt="">
+          </button>`
+      )
+      .join("");
+    const siteTile = urlDraft.icon
+      ? `<button type="button" class="icon-tile site${urlDraft.useSiteIcon ? " selected" : ""}" data-url-site-icon="1" title="${escapeHtml(t("installUrlSiteIcon"))}">
+          <img src="${escapeHtml(urlDraft.icon.preview)}" alt="">
+        </button>`
+      : "";
+    const tiles = ((window.OSBuilderIcons && window.OSBuilderIcons.IDS) || [])
+      .map(
+        (id) =>
+          `<button type="button" class="icon-tile${!urlDraft.useSiteIcon && urlDraft.galleryId === id ? " selected" : ""}" data-url-icon="${id}">
+            <img src="${escapeHtml(galleryIconUrl(id, urlDraft.galleryColor))}" alt="">
+          </button>`
+      )
+      .join("");
+    return `
+      <div class="install-url-form">
+        <label class="install-url-field">
+          <span>${escapeHtml(t("installUrlLabel"))}</span>
+          <input id="os-url-input" type="url" spellcheck="false" autocomplete="off"
+            placeholder="https://owner.github.io/repo/" value="${escapeHtml(urlDraft.url)}">
+        </label>
+        <div class="install-url-row">
+          <button type="button" id="os-url-check" ${urlDraft.busy ? "disabled" : ""}>${escapeHtml(t("installUrlCheck"))}</button>
+          <span class="muted">${escapeHtml(t("installUrlCheckHint"))}</span>
+        </div>
+        ${urlDraft.status ? `<p class="install-url-status">${escapeHtml(urlDraft.status)}</p>` : ""}
+        ${urlDraft.error ? `<p class="install-url-error">${escapeHtml(urlDraft.error)}</p>` : ""}
+        <label class="install-url-field">
+          <span>${escapeHtml(t("installUrlName"))}</span>
+          <input id="os-url-name" type="text" value="${escapeHtml(urlDraft.name)}" maxlength="60">
+        </label>
+        <div class="install-url-field">
+          <span>${escapeHtml(t("installUrlIcon"))}</span>
+          <div class="install-url-icon">
+            <img class="install-url-preview" src="${escapeHtml(draftIconUrl())}" alt="">
+            <div class="icon-chips">${colorChips}</div>
+          </div>
+          <div class="icon-tiles">${siteTile}${tiles}</div>
+        </div>
+        <div class="install-url-row">
+          <button type="button" id="os-url-install" class="btn-install" ${urlDraft.busy ? "disabled" : ""}>
+            ${escapeHtml(urlDraft.editingId ? t("installUrlSave") : t("installUrlInstall"))}
+          </button>
+          <button type="button" id="os-url-cancel">${escapeHtml(t("installUrlCancel"))}</button>
+        </div>
+        <p class="muted install-url-note">${escapeHtml(t("installUrlFrameHint"))}</p>
+      </div>
+    `;
+  }
+
+  function userAppsHtml() {
+    const apps = (window.OSCatalog.userApps ? window.OSCatalog.userApps() : []).slice();
+    if (!apps.length) return "";
+    const lang = window.OS.lang;
+    const q = installFilter.trim().toLowerCase();
+    const rows = apps
+      .filter((app) => {
+        if (!q) return true;
+        return `${window.OSCatalog.displayName(app, lang)} ${app.url || ""} ${app.id}`.toLowerCase().includes(q);
+      })
+      .map((app) => {
+        const detail = app.mode === "url" ? app.url || "" : t("installUrlLocalApp");
+        return `<div class="install-row">
+          <img src="${escapeHtml(app.icon || "")}" alt="">
+          <div class="meta">
+            <strong>${escapeHtml(window.OSCatalog.displayName(app, lang))}</strong>
+            <p class="install-desc install-url-link">${escapeHtml(detail)}</p>
+          </div>
+          ${app.mode === "url" ? `<button type="button" data-url-edit="${escapeHtml(app.id)}">${escapeHtml(t("installUrlEdit"))}</button>` : ""}
+          <button type="button" class="btn-uninstall" data-url-remove="${escapeHtml(app.id)}">${escapeHtml(t("uninstall"))}</button>
+        </div>`;
+      })
+      .join("");
+    if (!rows) return "";
+    return `<div class="install-group"><h3>${escapeHtml(t("myApps"))}</h3>${rows}</div>`;
+  }
+
   function installHtml() {
     const lang = window.OS.lang;
     const q = installFilter.trim().toLowerCase();
@@ -386,6 +501,20 @@ window.OSSettings = (function () {
           <button type="button" id="os-install-prerelease" class="btn-install">${escapeHtml(t("installPrerelease"))}</button>
         </div>
       </div>
+      <section class="install-url">
+        <div class="install-url-head">
+          <div>
+            <h3>${escapeHtml(t("installByUrl"))}</h3>
+            <p class="muted">${escapeHtml(t("installByUrlHint"))}</p>
+          </div>
+          <button type="button" id="os-url-toggle" class="${urlDraft.open ? "" : "btn-install"}">
+            ${escapeHtml(urlDraft.open ? t("close") : t("installByUrl"))}
+          </button>
+        </div>
+        ${!urlDraft.open && urlDraft.status ? `<p class="install-url-status">${escapeHtml(urlDraft.status)}</p>` : ""}
+        ${urlFormHtml()}
+      </section>
+      ${userAppsHtml()}
       ${groups}
     `;
   }
@@ -617,6 +746,246 @@ window.OSSettings = (function () {
     });
   }
 
+  function readUrlForm(root) {
+    const url = root.querySelector("#os-url-input");
+    const name = root.querySelector("#os-url-name");
+    if (url) urlDraft.url = url.value;
+    if (name) urlDraft.name = name.value;
+  }
+
+  function paintUrl(root, focusId) {
+    paint(root);
+    const target = focusId ? root.querySelector("#" + focusId) : null;
+    if (target) {
+      target.focus();
+      const end = target.value.length;
+      if (target.setSelectionRange && target.type !== "url") target.setSelectionRange(end, end);
+    }
+    const form = root.querySelector(".install-url-form");
+    if (form && !focusId) form.scrollIntoView({ block: "nearest" });
+  }
+
+  function draftFromRecord(record) {
+    const isSiteIcon = record.iconType === "blob" || record.iconType === "url";
+    const preview = window.OSAppBuilder ? window.OSAppBuilder.iconUrlFor(record) : "";
+    return {
+      open: true,
+      editingId: record.id,
+      url: record.url || "",
+      name: record.name || "",
+      nameAuto: false,
+      desc: record.desc || "",
+      icon: isSiteIcon
+        ? {
+            iconType: record.iconType,
+            iconBlob: record.iconBlob || null,
+            iconUrl: record.iconUrl || "",
+            preview,
+          }
+        : null,
+      useSiteIcon: isSiteIcon,
+      galleryId: record.galleryId || "globe",
+      galleryColor: record.galleryColor || "teal",
+      status: "",
+      error: "",
+      busy: false,
+    };
+  }
+
+  async function checkUrl(root) {
+    readUrlForm(root);
+    const parsed = window.OSUrlApp.normalize(urlDraft.url);
+    if (!parsed) {
+      urlDraft.error = t("installUrlInvalid");
+      urlDraft.status = "";
+      paintUrl(root);
+      return;
+    }
+    const typedName = urlDraft.nameAuto ? "" : urlDraft.name.trim();
+    urlDraft.url = parsed.url;
+    urlDraft.icon = null;
+    urlDraft.useSiteIcon = false;
+    urlDraft.busy = true;
+    urlDraft.error = "";
+    urlDraft.status = parsed.converted
+      ? t("installUrlGithubHint", { url: parsed.url })
+      : t("installUrlChecking");
+    paintUrl(root);
+    try {
+      const meta = await window.OSUrlApp.inspect(parsed.url);
+      urlDraft.url = meta.url;
+      urlDraft.desc = String(meta.desc || "").slice(0, 200);
+      if (!typedName) {
+        urlDraft.name = (meta.title || window.OSUrlApp.titleFromUrl(meta.url)).slice(0, 60);
+        urlDraft.nameAuto = true;
+      }
+      const icon = await window.OSUrlApp.firstIcon(meta.icons);
+      if (icon) {
+        urlDraft.icon = icon;
+        urlDraft.useSiteIcon = true;
+      }
+      urlDraft.status = t(icon ? "installUrlFound" : "installUrlFoundNoIcon", {
+        title: urlDraft.name || meta.url,
+      });
+    } catch (_err) {
+      if (!typedName) {
+        urlDraft.name = window.OSUrlApp.titleFromUrl(urlDraft.url).slice(0, 60);
+        urlDraft.nameAuto = true;
+      }
+      const icon = await window.OSUrlApp.firstIcon(window.OSUrlApp.guessIcons(urlDraft.url), 12);
+      if (icon) {
+        urlDraft.icon = icon;
+        urlDraft.useSiteIcon = true;
+      }
+      urlDraft.status = "";
+      urlDraft.error = t("installUrlNoFetch");
+    } finally {
+      urlDraft.busy = false;
+      paintUrl(root);
+    }
+  }
+
+  async function saveUrlApp(root) {
+    readUrlForm(root);
+    const parsed = window.OSUrlApp.normalize(urlDraft.url);
+    if (!parsed) {
+      urlDraft.error = t("installUrlInvalid");
+      paintUrl(root);
+      return;
+    }
+    urlDraft.url = parsed.url;
+    const name = urlDraft.name.trim() || window.OSUrlApp.titleFromUrl(parsed.url);
+    if (!name) {
+      urlDraft.error = t("installUrlNeedName");
+      paintUrl(root);
+      return;
+    }
+    const existing = (window.OSAppBuilder.list() || []).find(
+      (row) => row.mode === "url" && row.id !== urlDraft.editingId && window.OSUrlApp.sameUrl(row.url, parsed.url)
+    );
+    if (existing) {
+      urlDraft.error = t("installUrlDuplicate", { name: existing.name });
+      paintUrl(root);
+      return;
+    }
+    const current = urlDraft.editingId ? window.OSAppBuilder.get(urlDraft.editingId) : null;
+    const siteIcon = urlDraft.useSiteIcon && urlDraft.icon ? urlDraft.icon : null;
+    const now = Date.now();
+    const record = {
+      id: urlDraft.editingId || window.OSUrlApp.newId(),
+      mode: "url",
+      name,
+      desc: urlDraft.desc || "",
+      url: parsed.url,
+      html: "",
+      iconBlob: siteIcon && siteIcon.iconType === "blob" ? siteIcon.iconBlob : null,
+      iconType: siteIcon ? siteIcon.iconType : "gallery",
+      iconUrl: siteIcon && siteIcon.iconType === "url" ? siteIcon.iconUrl : "",
+      galleryId: urlDraft.galleryId || "globe",
+      galleryColor: urlDraft.galleryColor || "teal",
+      createdAt: current && current.createdAt ? current.createdAt : now,
+      updatedAt: now,
+    };
+    urlDraft.busy = true;
+    paintUrl(root);
+    try {
+      await window.OSAppBuilder.save(record);
+      urlDraft = newUrlDraft();
+      urlDraft.status = t("installUrlInstalled", { name: record.name });
+      if (window.OS && window.OS.refreshChrome) window.OS.refreshChrome();
+      else paint(root);
+    } catch (_err) {
+      urlDraft.busy = false;
+      urlDraft.error = t("installUrlSaveFailed");
+      paintUrl(root);
+    }
+  }
+
+  function bindUrlInstall(root) {
+    if (currentPane !== "install" || !window.OSUrlApp || !window.OSAppBuilder) return;
+    const toggle = root.querySelector("#os-url-toggle");
+    if (toggle) {
+      toggle.addEventListener("click", () => {
+        const wasOpen = urlDraft.open;
+        urlDraft = newUrlDraft();
+        urlDraft.open = !wasOpen;
+        paintUrl(root, urlDraft.open ? "os-url-input" : null);
+      });
+    }
+    const urlInput = root.querySelector("#os-url-input");
+    if (urlInput) {
+      urlInput.addEventListener("input", () => {
+        urlDraft.url = urlInput.value;
+      });
+      urlInput.addEventListener("keydown", (e) => {
+        if (e.key !== "Enter") return;
+        e.preventDefault();
+        checkUrl(root);
+      });
+    }
+    const nameInput = root.querySelector("#os-url-name");
+    if (nameInput) {
+      nameInput.addEventListener("input", () => {
+        urlDraft.name = nameInput.value;
+        urlDraft.nameAuto = false;
+      });
+    }
+    const check = root.querySelector("#os-url-check");
+    if (check) check.addEventListener("click", () => checkUrl(root));
+    const install = root.querySelector("#os-url-install");
+    if (install) install.addEventListener("click", () => saveUrlApp(root));
+    const cancel = root.querySelector("#os-url-cancel");
+    if (cancel) {
+      cancel.addEventListener("click", () => {
+        urlDraft = newUrlDraft();
+        paint(root);
+      });
+    }
+    root.querySelectorAll("[data-url-icon]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        readUrlForm(root);
+        urlDraft.galleryId = btn.dataset.urlIcon;
+        urlDraft.useSiteIcon = false;
+        paintUrl(root);
+      });
+    });
+    root.querySelectorAll("[data-url-color]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        readUrlForm(root);
+        urlDraft.galleryColor = btn.dataset.urlColor;
+        urlDraft.useSiteIcon = false;
+        paintUrl(root);
+      });
+    });
+    const siteIcon = root.querySelector("[data-url-site-icon]");
+    if (siteIcon) {
+      siteIcon.addEventListener("click", () => {
+        readUrlForm(root);
+        urlDraft.useSiteIcon = true;
+        paintUrl(root);
+      });
+    }
+    root.querySelectorAll("[data-url-edit]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const record = window.OSAppBuilder.get(btn.dataset.urlEdit);
+        if (!record) return;
+        urlDraft = draftFromRecord(record);
+        paintUrl(root, "os-url-input");
+      });
+    });
+    root.querySelectorAll("[data-url-remove]").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const id = btn.dataset.urlRemove;
+        const app = window.OSCatalog.byId(id);
+        const name = app ? window.OSCatalog.displayName(app, window.OS.lang) : id;
+        if (!confirm(t("installUrlRemoveConfirm", { name }))) return;
+        if (urlDraft.editingId === id) urlDraft = newUrlDraft();
+        await window.OSAppBuilder.remove(id);
+        paint(root);
+      });
+    });
+  }
+
   function bind(root) {
     root.querySelectorAll("[data-pane]").forEach((btn) => {
       btn.addEventListener("click", () => {
@@ -744,6 +1113,7 @@ window.OSSettings = (function () {
         paint(root);
       });
     }
+    bindUrlInstall(root);
     root.querySelectorAll("[data-wallpaper-id]").forEach((btn) => {
       btn.addEventListener("click", () => {
         window.OS.setWallpaper(btn.dataset.wallpaperId);

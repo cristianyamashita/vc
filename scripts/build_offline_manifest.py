@@ -106,7 +106,10 @@ def classify(rel: str) -> str:
     lower = path.lower()
     if path.startswith(("http://", "https://")):
         return "cdn"
-    if lower.endswith(".onnx") or path.startswith("models/"):
+    # 3D models are big and optional, so they belong in the "full" pack with
+    # the other heavy assets rather than in "core", which every visitor who
+    # takes the collection offline downloads.
+    if lower.endswith((".onnx", ".glb", ".gltf")) or path.startswith("models/"):
         return "models"
     if path.startswith("assets/images/"):
         return "images"
@@ -213,6 +216,11 @@ def seed_globs(buckets: dict[str, set[str]]) -> None:
         # Game sound effects are fetched by name at runtime, so nothing in the
         # source text points at them for the scanner to find.
         "game/**/audio/*.mp3",
+        # Same reason: a game that keeps its content as data builds these
+        # paths from an index at runtime, so the scanner never sees them.
+        "game/**/models/*.glb",
+        "game/**/data/*.json",
+        "game/**/data/**/*.json",
         "**/*.html",
     ):
         for path in PAGE.glob(pattern):

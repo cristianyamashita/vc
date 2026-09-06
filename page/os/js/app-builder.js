@@ -32,7 +32,15 @@ window.OSAppBuilder = (function () {
       iconUrls.set(record.id, url);
       return url;
     }
+    if (record.iconType === "url" && record.iconUrl) return record.iconUrl;
     return window.OSBuilderIcons.dataUrl("globe", "teal");
+  }
+
+  function revokeIcon(id) {
+    const url = iconUrls.get(id);
+    if (!url) return;
+    URL.revokeObjectURL(url);
+    iconUrls.delete(id);
   }
 
   function toCatalogApp(record) {
@@ -70,5 +78,32 @@ window.OSAppBuilder = (function () {
     syncCatalog();
   }
 
-  return { hydrate };
+  function list() {
+    return records.slice();
+  }
+
+  function get(id) {
+    return records.find((row) => row.id === id) || null;
+  }
+
+  async function save(record) {
+    if (!isValidRecord(record)) throw new Error("invalid-record");
+    revokeIcon(record.id);
+    await window.OSState.putUserApp(record);
+    await hydrate();
+    if (window.OS && window.OS.registerUserApp) window.OS.registerUserApp(record.id, { desktop: false });
+    if (window.OSWindows && window.OSWindows.refreshUserApp) window.OSWindows.refreshUserApp(record.id);
+    return record;
+  }
+
+  async function remove(id) {
+    if (!id) return;
+    if (window.OS && window.OS.unregisterUserApp) window.OS.unregisterUserApp(id);
+    await window.OSState.deleteUserApp(id);
+    revokeIcon(id);
+    await hydrate();
+    if (window.OS && window.OS.refreshChrome) window.OS.refreshChrome();
+  }
+
+  return { hydrate, list, get, save, remove, iconUrlFor, toCatalogApp };
 })();

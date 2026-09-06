@@ -13,6 +13,7 @@ import {
   IRON_PICK, IRON_AXE, IRON_SHOVEL, IRON_SWORD,
   GOLD_PICK, GOLD_AXE, GOLD_SHOVEL, GOLD_SWORD,
   LASSO, REVOLVER, BOW, COMPASS,
+  ARMOR_LEATHER, ARMOR_CHAIN, ARMOR_IRON, ARMOR_GOLD,
   ammoOf,
 } from './blocks.js';
 import { Inventory, cloneStack } from './inventory.js';
@@ -31,6 +32,16 @@ export const SHOP_SECTIONS = [
       offer(REVOLVER, 1, 5),
       // Intended price is 20 gold; 1 while testing the castle hunt.
       offer(COMPASS, 1, 1),
+    ],
+  },
+  {
+    // Better plates stop more of a hit and cost more gold for it.
+    titleKey: 'shopArmor',
+    items: [
+      offer(ARMOR_LEATHER, 1, 3),
+      offer(ARMOR_CHAIN, 1, 5),
+      offer(ARMOR_IRON, 1, 8),
+      offer(ARMOR_GOLD, 1, 12),
     ],
   },
   {

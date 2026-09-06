@@ -291,7 +291,8 @@ window.OSWindows = (function () {
     el.className = "os-window";
     el.dataset.appId = app.id;
     const name = window.OSCatalog.displayName(app, lang());
-    const canExternal = app.kind === "site" && app.href;
+    const canExternal =
+      (app.kind === "site" && app.href) || (app.kind === "user" && app.mode === "url" && app.url);
     el.innerHTML = `
       <div class="titlebar">
         <img class="titlebar-icon" src="${escapeAttr(app.icon || "")}" alt="">

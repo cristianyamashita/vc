@@ -5,7 +5,8 @@ import {
   AIR, GRASS, SAND, LOG, LEAVES, TABLE, TORCH, BEDROCK, CACTUS, FURNACE, DOOR, DOOR_DOUBLE, LADDER, ITEMS, BLOCKS,
   SURPRISE_BOX, BOW, GOLD, COMPASS,
   isPlaceable, isSolid, isFlower, isRug, isStair, isWall, isLiquid, isReplaceable, mineSeconds, nameKey, stackMax,
-  foodInfo, attackDamage, canHarvest, ammoOf, consumeAmmo, crateLoot, hasLasso, isUnbreakable,
+  foodInfo, attackDamage, shotDamage, canHarvest, ammoOf, consumeAmmo, crateLoot, hasLasso, isUnbreakable,
+  isArmor, armorInfo, isFragile,
 } from './js/blocks.js';
 import { World, GEN_PER_TICK, biomeNameKey, CHUNK, mapRgb, torchFacingFromHit } from './js/world.js';
 import { createAtlas, itemIcon } from './js/textures.js';
@@ -13,6 +14,7 @@ import { createWorldMeshes, remeshDirty, disposeMeshes, syncChunkMeshes, setWorl
 import { Player, raycast } from './js/player.js';
 import { Arms } from './js/arms.js';
 import { Inventory, HOTBAR, clickSlot } from './js/inventory.js';
+import { equipArmor, wornProtection, wornWear } from './js/armor.js';
 import { matchRecipe, consumeCraft } from './js/crafting.js';
 import { RECIPE_GUIDE, MAT } from './js/recipes.js';
 import { shopSections, buyShopItem, ownedRanged, ammoRestock } from './js/shop.js';
@@ -77,6 +79,8 @@ const sleepVeil = document.getElementById('sleep-veil');
 const hurtVeil = document.getElementById('hurt-veil');
 const hotbarEl = document.getElementById('hotbar');
 const offhandSlotEl = document.getElementById('offhand-slot');
+const shieldsEl = document.getElementById('shields');
+const armorWearEl = document.getElementById('armor-wear');
 const coordsEl = document.getElementById('coords');
 const savePill = document.getElementById('save-pill');
 const cursorEl = document.getElementById('cursor-item');
@@ -209,6 +213,7 @@ scene.add(highlight);
 arms = new Arms(camera, atlas);
 buildHearts();
 buildFoods();
+buildShields();
 buildHotbarHud();
 buildInvDom();
 syncGfxUi();
@@ -917,8 +922,11 @@ function updateItemTip(e) {
     hideItemTip();
     return;
   }
+  // Armour is bought for its numbers, so the tip spells out how much of a hit
+  // the plate soaks up.
+  const armor = armorInfo({ id });
   itemTip.hidden = false;
-  itemTip.textContent = name;
+  itemTip.textContent = armor ? `${name} · ${t('armorProtection')} ${Math.round(armor.protect * 100)}%` : name;
   itemTip.style.left = `${e.clientX + 14}px`;
   itemTip.style.top = `${e.clientY + 16}px`;
 }
@@ -958,6 +966,7 @@ function generateFreshWorld() {
   player.fallY = player.pos.y;
   resetSfxState();
   inv = new Inventory();
+  player.inv = inv;
   worldTime = 120;
   freezeTime = false;
   if (freezeTimeEl) freezeTimeEl.checked = false;
@@ -1245,6 +1254,7 @@ async function loadFromSave(save) {
   scene.add(bundle.group);
   player = new Player();
   inv = new Inventory();
+  player.inv = inv;
   if (save.player) {
     player.pos.set(save.player.x, save.player.y, save.player.z);
     player.yaw = save.player.yaw || 0;
@@ -1547,7 +1557,12 @@ function tick(dt) {
   const aimRange = usingRanged ? (heldDef.range || 48) : usingLasso ? (heldDef.range || 10) : 5.5;
   const hit = raycast(world, origin, dir);
   const placeHit = raycast(world, origin, dir, 5.5, true);
-  const longHit = (usingRanged || usingLasso) ? raycast(world, origin, dir, aimRange) : hit;
+  // A shot punches through torches, flowers and doors rather than being stopped
+  // by them; the props it went through are held so firing can break them.
+  const pierce = usingRanged ? { test: isFragile, hits: [] } : null;
+  const longHit = (usingRanged || usingLasso)
+    ? raycast(world, origin, dir, aimRange, false, pierce)
+    : hit;
   const entHit = life ? life.raycast(origin, dir, aimRange) : null;
   const preferEnt = entHit && (!longHit || entHit.dist <= longHit.dist);
   updateHighlight(hit, preferEnt ? entHit : null);
@@ -1582,18 +1597,20 @@ function tick(dt) {
         const reach = preferEnt ? entHit.dist : (longHit?.dist ?? heldDef.range);
         const end = origin.clone().addScaledVector(dir, Math.max(0.4, reach));
         const from = origin.clone().addScaledVector(dir, 0.45);
+        const shot = shotDamage(held);
+        shootThroughProps(pierce, reach);
         if (held.id === BOW) {
           const target = preferEnt && !entHit.e.dying ? entHit.e : null;
           spawnWhiteArrow(from, end, target, () => {
             sfx.arrowHit(target ? distTo(target) : end.distanceTo(player.pos));
             if (!target || target.dying || !life?.list.includes(target)) return;
-            life.hurt(target, 999, player.pos, { delayDeath: true, deathDelay: 0.12 });
+            life.hurt(target, shot, player.pos, { delayDeath: true, deathDelay: 0.12 });
             mobHitSfx(target);
           });
         } else {
           spawnTracer(from, end, 0xffe08a);
           if (preferEnt) {
-            life.hurt(entHit.e, 999, player.pos, { delayDeath: true });
+            life.hurt(entHit.e, shot, player.pos, { delayDeath: true });
             mobHitSfx(entHit.e);
           }
         }
@@ -1608,7 +1625,11 @@ function tick(dt) {
     mine = null;
     breakBar.hidden = true;
     if (attackCool <= 0) {
-      const loot = life.hurt(entHit.e, attackDamage(held), player.pos);
+      // Swinging on the way down out of a jump lands a critical hit, worth
+      // double what the same tool does with both feet on the ground.
+      const crit = !player.onGround && player.vel.y < 0 && !player.inWater && !player.onLadder;
+      const loot = life.hurt(entHit.e, attackDamage(held) * (crit ? 2 : 1), player.pos);
+      if (crit) spawnCritSpark(entHit.e);
       mobHitSfx(entHit.e);
       giveEntityLoot(loot, entHit.e);
       if (ITEMS[held?.id]?.tool) inv.wearSelected();
@@ -1698,6 +1719,17 @@ function tick(dt) {
         refreshHud();
         arms.punch();
       }
+    } else if (isArmor(inv.selectedStack()?.id)) {
+      if (placeCool <= 0) {
+        placeCool = 0.35;
+        // Putting a plate on swaps out whatever was already worn.
+        const worn = equipArmor(inv, inv.selectedStack());
+        inv.slots[inv.selected] = worn;
+        sfx.craft();
+        refreshHud();
+        refreshInv();
+      }
+      eatAcc = 0;
     } else if (isEggItem(inv.selectedStack()?.id)) {
       if (placeCool <= 0 && placeHit) {
         placeCool = 0.35;
@@ -1765,6 +1797,7 @@ function tick(dt) {
   coordsEl.textContent = `${player.pos.x.toFixed(1)} ${player.pos.y.toFixed(1)} ${player.pos.z.toFixed(1)} · ${biome}`;
   refreshHearts();
   refreshFoods();
+  refreshShields();
 }
 
 function giveOrDrop(id, n, x, y, z, extra = {}) {
@@ -1874,6 +1907,46 @@ function spawnTracer(from, to, color) {
   const line = new THREE.Line(geo, new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.9 }));
   scene.add(line);
   tracers.push({ line, geo, t: 0.1 });
+}
+
+/**
+ * Breaks every small prop a shot passed through on its way to what it struck.
+ * The pieces fall where they stood rather than into the pack, since the player
+ * is shooting from a distance — walk over to pick them up.
+ */
+function shootThroughProps(pierce, reach) {
+  if (!pierce?.hits.length) return;
+  let broke = false;
+  for (const cell of pierce.hits) {
+    if (cell.dist > reach) continue;
+    const id = world.get(cell.x, cell.y, cell.z);
+    if (!id || id === AIR || !isFragile(id)) continue;
+    sfx.blockBreak(id);
+    const at = [cell.x + 0.5, cell.y + 0.4, cell.z + 0.5];
+    if (isDoorId(id)) {
+      const drop = removeDoor(world, cell.x, cell.y, cell.z);
+      if (drop) drops?.spawn(drop, 1, ...at, 0, 1.4, 0);
+    } else {
+      for (const d of BLOCKS[id]?.drops || []) drops?.spawn(d.id, d.n, ...at, 0, 1.4, 0);
+      if (isFlower(id) && life) life.clearFlowerHome(cell.x, cell.y, cell.z);
+      world.set(cell.x, cell.y, cell.z, AIR);
+    }
+    broke = true;
+  }
+  if (broke) remeshDirty(world, bundle);
+}
+
+// A critical hit throws a little burst of sparks off the mob, so a jump attack
+// reads as landing harder than a plain swing. Reuses the tracer machinery.
+function spawnCritSpark(e) {
+  if (!e) return;
+  const at = new THREE.Vector3(e.x, e.y + (KINDS[e.kind]?.h || 1) * 0.7, e.z);
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2 + Math.random() * 0.5;
+    const r = 0.28 + Math.random() * 0.22;
+    const to = at.clone().add(new THREE.Vector3(Math.cos(a) * r, 0.18 + Math.random() * 0.3, Math.sin(a) * r));
+    spawnTracer(at.clone(), to, 0xffe9a8);
+  }
 }
 
 function tickTracers(dt) {
@@ -2432,12 +2505,37 @@ function buildFoods() {
   }
 }
 
+function buildShields() {
+  shieldsEl.innerHTML = '';
+  for (let i = 0; i < 10; i++) {
+    const el = document.createElement('div');
+    el.className = 'shield';
+    shieldsEl.appendChild(el);
+  }
+}
+
+function refreshShields() {
+  if (!shieldsEl || !armorWearEl) return;
+  const protect = inv ? wornProtection(inv) : 0;
+  shieldsEl.hidden = protect <= 0;
+  armorWearEl.hidden = protect <= 0;
+  if (protect <= 0) return;
+  const pips = protect * 20;
+  shieldsEl.querySelectorAll('.shield').forEach((el, i) => {
+    const v = pips - i * 2;
+    el.classList.toggle('on', v >= 2);
+    el.classList.toggle('half', v >= 1 && v < 2);
+  });
+  const bar = armorWearEl.querySelector('i');
+  if (bar) bar.style.width = `${Math.round(wornWear(inv) * 100)}%`;
+}
+
 function refreshHearts() {
   const hp = player?.health ?? 20;
   heartsEl.querySelectorAll('.heart').forEach((el, i) => {
     const v = hp - i * 2;
     el.classList.toggle('on', v >= 2);
-    el.classList.toggle('half', v === 1);
+    el.classList.toggle('half', v >= 1 && v < 2);
   });
 }
 
@@ -2472,6 +2570,7 @@ function paintSlot(el, stack, selected) {
     el.dataset.itemId = String(stack.id);
   } else {
     if (el.id === 'offhand-slot' || el.id === 'inv-offhand') el.setAttribute('aria-label', t('offhand'));
+    else if (el.id === 'inv-armor') el.setAttribute('aria-label', t('armor'));
     else el.removeAttribute('aria-label');
     el.dataset.itemId = '';
   }
@@ -2498,6 +2597,7 @@ function refreshHud() {
   paintSlot(offhandSlotEl, inv?.offhand, false);
   refreshHearts();
   refreshFoods();
+  refreshShields();
 }
 
 function buildInvDom() {
@@ -2540,6 +2640,16 @@ function handleSlotClick(el, right) {
     const arr = [inv.offhand];
     inv.cursor = clickSlot(arr, 0, inv.cursor, right);
     inv.offhand = arr[0];
+    refreshInv();
+    refreshHud();
+    return;
+  }
+  if (list === 'armor') {
+    // Only a plate goes on the body: anything else stays on the cursor.
+    if (inv.cursor && !isArmor(inv.cursor.id)) return;
+    const arr = [inv.armor];
+    inv.cursor = clickSlot(arr, 0, inv.cursor, right);
+    inv.armor = arr[0];
     refreshInv();
     refreshHud();
     return;
@@ -2595,6 +2705,7 @@ function refreshInv() {
   };
   paintList(document.getElementById('inv-grid'), inv.slots, 9);
   paintList(document.getElementById('inv-hotbar'), inv.slots, 0, inv.selected);
+  paintSlot(document.getElementById('inv-armor'), inv.armor, false);
   paintSlot(document.getElementById('inv-offhand'), inv.offhand, false);
   const trash = document.getElementById('inv-trash');
   if (trash) trash.classList.toggle('ready', !!inv.cursor);

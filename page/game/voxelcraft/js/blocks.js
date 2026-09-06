@@ -74,6 +74,11 @@ export const GOLD_SWORD = 69;
 export const CASTLE_WALL = 70;
 export const COMPASS = 71;
 
+export const ARMOR_LEATHER = 72;
+export const ARMOR_CHAIN = 73;
+export const ARMOR_IRON = 74;
+export const ARMOR_GOLD = 75;
+
 export const BLOCKS = {
   [GRASS]: {
     nameKey: 'blockGrass',
@@ -529,9 +534,16 @@ export const ITEMS = {
   [GOLD_SWORD]: { nameKey: 'itemGoldSword', stack: 1, tool: 'sword', tier: 4, speed: 1, dura: 180, damage: 8, icon: 'sword_gold' },
   [DOOR_DOUBLE]: { nameKey: 'itemDoorDouble', stack: STACK_MAX, place: 0, icon: 'door_double' },
   [LASSO]: { nameKey: 'itemLasso', stack: 1, tool: 'lasso', lasso: true, range: 10, icon: 'lasso' },
-  [REVOLVER]: { nameKey: 'itemRevolver', stack: 1, tool: 'gun', ranged: true, range: 48, cool: 0.42, ammoStart: 100, icon: 'revolver' },
-  [BOW]: { nameKey: 'itemBow', stack: 1, tool: 'bow', ranged: true, range: 40, cool: 0.7, ammoStart: 200, icon: 'bow' },
+  [REVOLVER]: { nameKey: 'itemRevolver', stack: 1, tool: 'gun', ranged: true, range: 48, cool: 0.42, ammoStart: 100, damage: 6, icon: 'revolver' },
+  [BOW]: { nameKey: 'itemBow', stack: 1, tool: 'bow', ranged: true, range: 40, cool: 0.7, ammoStart: 200, damage: 4, icon: 'bow' },
   [COMPASS]: { nameKey: 'itemCompass', stack: 1, tool: null, compass: true, icon: 'compass' },
+  // Body armour. `protect` is the share of an incoming hit the plate soaks up;
+  // every hit also grinds the plate down, so a better suit costs more gold but
+  // is not a permanent shield.
+  [ARMOR_LEATHER]: { nameKey: 'itemArmorLeather', stack: 1, armor: { tier: 1, protect: 0.2 }, dura: 90, icon: 'armor_leather' },
+  [ARMOR_CHAIN]: { nameKey: 'itemArmorChain', stack: 1, armor: { tier: 2, protect: 0.35 }, dura: 160, icon: 'armor_chain' },
+  [ARMOR_IRON]: { nameKey: 'itemArmorIron', stack: 1, armor: { tier: 3, protect: 0.5 }, dura: 260, icon: 'armor_iron' },
+  [ARMOR_GOLD]: { nameKey: 'itemArmorGold', stack: 1, armor: { tier: 4, protect: 0.65 }, dura: 200, icon: 'armor_gold' },
 };
 
 export function def(id) {
@@ -597,6 +609,13 @@ export function isGlass(id) {
   return !!BLOCKS[id]?.glass;
 }
 
+/** Small props a bullet or an arrow tears straight through: a torch, a flower,
+ *  a hanging fruit, a door of either state. Anything a player builds with —
+ *  blocks, thin walls, glass, ladders — stops a shot as before. */
+export function isFragile(id) {
+  return id === TORCH || isPlant(id) || isFruitHang(id) || !!BLOCKS[id]?.door;
+}
+
 export function isDecor(id) {
   return id === TORCH || id === LADDER || isPlant(id) || isRug(id) || isFruitHang(id)
     || !!BLOCKS[id]?.door || isWall(id);
@@ -613,6 +632,22 @@ export function attackDamage(stack) {
   if (item?.tool === 'sword') return item.damage || 4;
   if (item?.tool) return 3;
   return 2;
+}
+
+/** Damage one shot from a ranged weapon deals. Small animals go down in one,
+ *  big ones and people take several. */
+export function shotDamage(stack) {
+  const item = stack ? ITEMS[stack.id] : null;
+  return item?.ranged ? (item.damage || 4) : 0;
+}
+
+export function armorInfo(stack) {
+  if (!stack) return null;
+  return ITEMS[stack.id]?.armor || null;
+}
+
+export function isArmor(id) {
+  return !!ITEMS[id]?.armor;
 }
 
 export function isLasso(id) {

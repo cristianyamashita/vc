@@ -18,11 +18,11 @@ const CASTLE_LEASH = 20;
 
 export const KINDS = {
   cow: {
-    nameKey: 'mobCow', hp: 10, speed: 1.55, w: 0.9, h: 1.12,
+    nameKey: 'mobCow', hp: 14, speed: 1.55, w: 0.9, h: 1.12,
     hostile: false, person: false, meat: 2, hide: HIDE_COW, step: 1,
   },
   zebra: {
-    nameKey: 'mobZebra', hp: 10, speed: 1.85, w: 0.85, h: 1.15,
+    nameKey: 'mobZebra', hp: 14, speed: 1.85, w: 0.85, h: 1.15,
     hostile: false, person: false, meat: 2, hide: HIDE_ZEBRA, step: 1,
   },
   chicken: {
@@ -34,11 +34,11 @@ export const KINDS = {
     hostile: false, person: false, meat: 1, hide: HIDE_SHEEP, step: 1,
   },
   lion: {
-    nameKey: 'mobLion', hp: 18, speed: 3.1, w: 0.88, h: 1.05,
+    nameKey: 'mobLion', hp: 16, speed: 3.1, w: 0.88, h: 1.05,
     hostile: true, nocturnal: true, person: false, meat: 3, hide: 0, damage: 4, range: 16, step: 2,
   },
   tiger: {
-    nameKey: 'mobTiger', hp: 18, speed: 3.2, w: 0.86, h: 1.02,
+    nameKey: 'mobTiger', hp: 16, speed: 3.2, w: 0.86, h: 1.02,
     hostile: true, nocturnal: true, person: false, meat: 3, hide: 0, damage: 4, range: 16, step: 2,
   },
   bull: {
@@ -1069,10 +1069,14 @@ export class Life {
       const len = Math.hypot(dx, dz) || 1;
       e.vx += (dx / len) * 4;
       e.vz += (dz / len) * 4;
-      if (!def.hostile && !opts.delayDeath) {
+      const survived = e.hp > 0;
+      if (!def.hostile && (survived || !opts.delayDeath)) {
         e.state = 'flee';
         e.bed = null;
       }
+      // A shot that does not kill gives the shooter away, so hostiles come for
+      // the player instead of standing there taking fire.
+      if (def.hostile && survived) e.state = 'chase';
     }
     if (e.hp > 0) return [];
     const loot = [];
@@ -1323,7 +1327,9 @@ export class Life {
       const duskNight = !!ctx.duskNight;
       const nightRest = def.person && (duskNight || !!ctx.night);
       const mayHunt = def.hostile && !ctx.sleeping && (e.castle || !def.nocturnal || duskNight);
-      const huntRange = mayHunt ? ((duskNight && !e.castle) ? def.range + 8 : def.range) : 0;
+      // Crouching makes the player harder to spot, as sneaking does in Minecraft.
+      const seen = player.sneak ? 0.8 : 1;
+      const huntRange = mayHunt ? ((duskNight && !e.castle) ? def.range + 8 : def.range) * seen : 0;
       const homeDist = e.home ? Math.hypot(e.x - e.home.x - 0.5, e.z - e.home.z - 0.5) : 0;
       const onLeash = !e.castle || homeDist <= CASTLE_LEASH;
       if (overlapsSolid(world, e.x, e.y + 0.08, e.z, def.w * 0.7, 0.35)) {
@@ -1469,7 +1475,7 @@ export class Life {
       e.y = Math.max(1, Math.min(HEIGHT - 2, e.y));
 
       const buried = overlapsSolid(world, e.x, e.y + 0.2, e.z, def.w * 0.55, def.h * 0.4);
-      const see = !buried && canSeePlayer(world, e, player, def.range || 8);
+      const see = !buried && canSeePlayer(world, e, player, (def.range || 8) * (player.sneak ? 0.8 : 1));
       if (def.ranged && e.state === 'chase' && !ctx.sleeping && dist < def.range && Math.abs(e.y - py) < 4 && e.attackCd <= 0 && see) {
         const from = { x: e.x, y: e.y + 1.35, z: e.z };
         const to = { x: px, y: py + 1.42, z: pz };

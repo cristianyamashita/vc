@@ -1,0 +1,344 @@
+/* Story Studio. Two themes, both explicit: the stage renders its own sky, so
+   the page chrome is what carries light and dark. */
+
+:root {
+  color-scheme: dark;
+  --bg: #12151b;
+  --panel: #1a1f28;
+  --panel-2: #222836;
+  --line: #2e3644;
+  --ink: #e7ecf3;
+  --ink-dim: #9aa6b6;
+  --accent: #4fd1c5;
+  --accent-ink: #08302c;
+  --danger: #ff7a7a;
+  --warn: #ffd479;
+  --ok: #7ee3a8;
+  --radius: 12px;
+  --shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #f4f6fa;
+  --panel: #ffffff;
+  --panel-2: #eef1f7;
+  --line: #d9dfe9;
+  --ink: #1a2130;
+  --ink-dim: #5d6a7d;
+  --accent: #0f8f82;
+  --accent-ink: #ffffff;
+  --danger: #b4342f;
+  --warn: #8a6100;
+  --ok: #1c7a44;
+  --shadow: 0 8px 24px rgba(20, 30, 50, 0.12);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  /* The app owns the viewport: the stage has to end above the fold or the
+     transport bar, which is the whole point of the player, scrolls away. */
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--ink);
+  font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ------------------------------------------------------------------ header */
+
+.ss-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 18px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+  flex-wrap: wrap;
+}
+
+.ss-brand { flex: 1 1 auto; min-width: 0; }
+.ss-brand h1 { margin: 0; font-size: 18px; letter-spacing: 0.01em; }
+.ss-brand p { margin: 0; color: var(--ink-dim); font-size: 13px; }
+
+.ss-tools { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+/* Embedded in the desktop shell: the window chrome names the app, so the
+   brand block is dropped and the header keeps only what it alone provides. */
+body.is-embedded .ss-brand { display: none; }
+body.is-embedded .ss-header { padding: 8px 14px; }
+
+.ss-detail {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ink-dim);
+  font-size: 13px;
+  user-select: none;
+}
+
+button, select, input[type="range"] { font: inherit; }
+
+.ss-button, .ss-primary, .ss-danger, .ss-card-actions button, .ss-tabs button, .ss-outfits button {
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+  color: var(--ink);
+  border-radius: 9px;
+  padding: 7px 13px;
+  cursor: pointer;
+}
+
+.ss-primary { background: var(--accent); color: var(--accent-ink); border-color: transparent; font-weight: 600; }
+.ss-danger { color: var(--danger); }
+.ss-button:hover, .ss-card-actions button:hover, .ss-tabs button:hover { border-color: var(--accent); }
+
+.ss-icon {
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+  color: var(--ink);
+  border-radius: 9px;
+  width: 34px;
+  height: 34px;
+  cursor: pointer;
+  line-height: 1;
+}
+
+select {
+  background: var(--panel-2);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 6px 8px;
+}
+
+/* ----------------------------------------------------------------- notices */
+
+.ss-notice {
+  margin: 0;
+  padding: 10px 18px;
+  font-size: 13px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel-2);
+}
+.ss-notice.is-warn { color: var(--warn); }
+.ss-notice.is-bad { color: var(--danger); }
+
+.ss-boot { padding: 24px 18px; color: var(--ink-dim); }
+
+/* ------------------------------------------------------------------- views */
+
+main { flex: 1 1 auto; display: flex; min-height: 0; overflow: hidden; }
+.ss-view { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; padding: 16px 18px 20px; gap: 14px; }
+.ss-view[hidden] { display: none; }
+.ss-view-title { margin: 0; font-size: 17px; }
+
+.ss-tabs { display: flex; gap: 8px; flex-wrap: wrap; }
+.ss-tabs button.is-active { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
+
+.ss-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+  gap: 14px;
+  align-content: start;
+  overflow-y: auto;
+}
+
+.ss-card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ss-card-head { display: flex; align-items: baseline; gap: 8px; }
+.ss-card-head h3 { margin: 0; font-size: 15px; flex: 1 1 auto; }
+
+.ss-badge {
+  font-size: 11px;
+  padding: 2px 7px;
+  border-radius: 99px;
+  border: 1px solid var(--line);
+  color: var(--ink-dim);
+  white-space: nowrap;
+}
+.ss-badge.is-user { color: var(--accent); border-color: var(--accent); }
+
+.ss-meta { margin: 0; color: var(--ink-dim); font-size: 13px; }
+.ss-override { margin: 0; color: var(--warn); font-size: 12px; }
+.ss-id { color: var(--ink-dim); font-size: 12px; word-break: break-all; }
+.ss-empty { color: var(--ink-dim); }
+
+.ss-card-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: auto; }
+.ss-card-actions button { padding: 5px 10px; font-size: 13px; }
+
+/* ------------------------------------------------------------------- stage */
+
+.ss-stage {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 260px;
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: #0b0e14;
+  box-shadow: var(--shadow);
+}
+
+.ss-stage canvas { display: block; width: 100%; height: 100%; }
+
+/* CSS2DRenderer draws into this layer; it must not eat clicks meant for the
+   canvas underneath, and it must not add its own scrollbars. */
+.ss-labels {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+/* Placement is CSS2DObject's `center`, not a transform here: the renderer
+   rewrites `transform` inline on every frame and would win. */
+.ss-balloon {
+  position: absolute;
+  max-width: 230px;
+  padding: 9px 13px;
+  background: #fffdf6;
+  color: #16181d;
+  border: 2px solid #16181d;
+  border-radius: 14px;
+  font-size: 14px;
+  line-height: 1.35;
+  text-align: center;
+  white-space: pre-wrap;
+  box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.28);
+}
+
+/* The tail is what makes it read as speech rather than as a caption. */
+.ss-balloon.is-say::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -11px;
+  margin-left: -8px;
+  border: 9px solid transparent;
+  border-top-color: #16181d;
+  border-bottom: 0;
+}
+
+.ss-balloon.is-think {
+  border-radius: 22px;
+  font-style: italic;
+}
+.ss-balloon.is-think::after,
+.ss-balloon.is-think::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  background: #fffdf6;
+  border: 2px solid #16181d;
+  border-radius: 50%;
+}
+.ss-balloon.is-think::after { width: 12px; height: 12px; bottom: -16px; margin-left: -14px; }
+.ss-balloon.is-think::before { width: 7px; height: 7px; bottom: -27px; margin-left: -4px; }
+
+/* --------------------------------------------------------------- transport */
+
+.ss-transport {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.ss-play {
+  border: none;
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  font-size: 15px;
+  cursor: pointer;
+  flex: none;
+}
+
+.ss-now, .ss-total {
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-dim);
+  font-size: 13px;
+  flex: none;
+  min-width: 38px;
+}
+.ss-total { text-align: right; }
+
+.ss-scrub {
+  flex: 1 1 auto;
+  min-width: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.ss-outfits { display: flex; gap: 8px; flex-wrap: wrap; }
+.ss-outfits button.is-active { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
+
+/* ----------------------------------------------------------------- dialogs */
+
+.ss-dialog {
+  width: min(680px, 92vw);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+  color: var(--ink);
+  padding: 18px;
+  box-shadow: var(--shadow);
+}
+.ss-dialog.is-wide { width: min(900px, 94vw); }
+.ss-dialog::backdrop { background: rgba(6, 9, 14, 0.55); }
+.ss-dialog h2 { margin: 0 0 8px; font-size: 16px; }
+.ss-dialog-close { display: flex; justify-content: flex-end; }
+.ss-hint { margin: 0 0 10px; color: var(--ink-dim); font-size: 13px; }
+
+.ss-editor-text {
+  width: 100%;
+  background: var(--bg);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 10px;
+  font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  resize: vertical;
+  tab-size: 2;
+}
+
+.ss-editor-status { margin: 10px 0 0; font-size: 13px; color: var(--ink-dim); }
+.ss-editor-status.is-ok { color: var(--ok); }
+.ss-editor-status.is-bad { color: var(--danger); }
+.ss-editor-status ul { margin: 6px 0 0; padding-left: 18px; }
+.ss-editor-status li { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; }
+
+.ss-dialog-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 12px; }
+
+.ss-file {
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+  border-radius: 9px;
+  padding: 7px 13px;
+  cursor: pointer;
+  font-size: 14px;
+}
+.ss-file input { display: none; }
+
+@media (max-width: 620px) {
+  .ss-brand p { display: none; }
+  .ss-view { padding: 12px 12px 16px; }
+  .ss-list { grid-template-columns: 1fr; }
+}
