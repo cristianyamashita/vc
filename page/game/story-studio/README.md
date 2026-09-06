@@ -9,6 +9,25 @@ There is no server. Your documents live in the browser, in the
 `StoryStudioDB` IndexedDB database, and are included in the collection's
 [backup tool](../../utils/backup.html).
 
+## Conventions
+
+Everything below assumes these. They are the things that are easy to get
+wrong and impossible to guess.
+
+| | |
+|---|---|
+| **Axes** | A character faces **+X**. Up is **+Y**. Their left and right are **±Z**. |
+| **Units** | Distances are metres. `yaw` and a prop's `rx`/`ry`/`rz` are **degrees**; a joint channel's value is **radians**. Time is seconds. |
+| **Positions** | `[x, y, z]`, or `[x, z]` when y is 0 — the two-number form is the common case and saves writing a zero. |
+| **Colours** | `"#rrggbb"` strings. |
+| **Ids** | `[a-zA-Z0-9][a-zA-Z0-9_.-]*`, up to 64 characters. Ids are how documents refer to each other, and an imported document with an existing id **replaces** it everywhere. |
+| **Names** | `{ "en": …, "pt": …, "ja": … }`, or a plain string when you only have one language. Missing languages fall back to whichever is present. |
+| **Unknown fields** | are dropped, silently. If something has no effect, check the spelling against the tables here. |
+
+Anything out of range is clamped and reported; anything malformed is refused
+with the field path that caused it. Nothing is ever executed — an action is
+data, not code, so importing a document from a stranger cannot run anything.
+
 ## The six kinds
 
 ```
@@ -78,6 +97,11 @@ documents.
 
 Regions: `head` `hair` `eyes` `torso` `belly` `arms` `hands` `legs` `feet`.
 
+`build` widens the trunk far more than the limbs, so 0 is slight and 1 is
+heavy rather than simply bigger. `height` drives everything else: a plan is
+written as fractions of it, so 1.2 m and 1.9 m are the same anatomy at two
+sizes.
+
 ### Hair
 
 Hair does more than anything else to tell one character from another at this
@@ -103,14 +127,20 @@ would otherwise lift a character clean off the floor when they lie down.
 
 An outfit is a preset name or a cut written out longhand:
 
-* `legs`: `trousers` `shorts` `briefs` `bare`
-* `top`: `shirt` `tee` `jacket` `dress` `bikini` `bare`
-* `sleeve`: `long` `short` `upper` `none`
-* `feet`: `shoe` `sneaker` `boot` `dress` `flat` `bare`
-* flags: `belt` `tie` `cap` `skirt` `straps`
+| field | values |
+|---|---|
+| `legs` | `trousers` `shorts` `briefs` `bare` |
+| `top` | `shirt` `tee` `jacket` `dress` `bikini` `bare` |
+| `sleeve` | `long` `short` `upper` `none` |
+| `feet` | `shoe` `sneaker` `boot` `dress` `flat` `bare` |
+| flags | `belt` `tie` `cap` `skirt` `straps` |
 
-Presets: `casual` `shortsTee` `suit` `dress` `shirt` `swim` `swimsuit`
-`overalls` `pyjamas`.
+Presets, usable by name in place of the object: `casual` `shortsTee` `suit`
+`dress` `shirt` `swim` `swimsuit` `overalls` `pyjamas`.
+
+An unknown value in any one field falls back to a sensible default rather
+than failing the document, so one typo dresses a leg oddly instead of losing
+the character.
 
 ## `prop`
 
@@ -234,35 +264,29 @@ are for syncing between actors. `for` overrides an action's natural length.
 
 Positions are `[x, y, z]`, or `[x, z]` when the y is 0. `yaw` is in degrees.
 
-### Actions
+### What an entry can do
 
-| group | actions |
-|---|---|
-| moving | `walkTo` `runTo` `crawlTo` `swimTo` `turnTo` |
-| posture | `stand` `idle` `sit` `kneel` `crouch` `lie` |
-| gesture | `wave` `point` `raiseArm` `nod` `shakeHead` `jump` |
-| exercise | `jumpingJacks` `squats` `pushups` `situps` |
-| gym | `jog` `cycle` `row` `overheadPress` `benchPress` |
-| holding | `hold` `drop` |
-| together | `oddsAndEvens` `shoulderCarry` `skipRope` |
-| speech | `say` `think` |
-| waiting | `wait` |
-| camera | `cameraTo` `cut` `cameraFollow` |
-| stage | `propShow` `propHide` `propMove` `setTime` |
+`do` names an **action document** — any of them, including ones you write. The
+catalogue below lists every shipped action with the fields each one reads.
 
-That table is the shipped library, not a fixed list: `do` names any action
-document, including ones you write.
+The fields an entry may carry:
 
-Useful fields: `to` (destination) and optional `via` (waypoints) on moves,
-`speed` in m/s, `on` (a placement id) for `sit` and `lie`, `face: "up"` or
-`"down"` for `lie`, `reps` for exercises, `side: "left"` or `"right"` for
-one-armed gestures, `text` for speech, and `at` / `look` / `for` for the
-camera. `look` takes a point **or an actor id**, which is usually what you
-want.
-
-The stage actions address a placement by `id`: `propShow`, `propHide` and
-`propMove` all need one, `propMove` also takes `at` and `yaw`, and `setTime`
-takes a `sky`.
+| field | on | meaning |
+|---|---|---|
+| `actor` | actor actions | who does it |
+| `t` `after` `cue` `for` | any | when it starts and how long it lasts |
+| `to` `via` `speed` | moves | where to, by what route, how fast |
+| `on` | `sit` `lie` `cycle` `row` `benchPress` | a placement id with the right anchor |
+| `face` | `lie` | `"up"` or `"down"` |
+| `reps` | repetitive actions | how many |
+| `side` | one-armed gestures | `"left"` or `"right"` |
+| `text` | `say` `think` | the line, per language |
+| `prop` `hand` | `hold` | what to pick up, and in which hand |
+| `yaw` `facing` | actor actions | which way to end up pointing |
+| `at` `look` `fov` | camera | where from, what at, how wide |
+| `id` | `propShow` `propHide` `propMove` | which placement |
+| `sky` | `setTime` | the new time of day |
+| `cast` | group actions | which actor plays each role |
 
 ### Which way an actor faces
 
@@ -383,7 +407,7 @@ plainly broken.
 | field | meaning |
 |---|---|
 | `type` | `posture` `overlay` `move` `turn` `speech` `wait` `hold` `camera` `stage` |
-| `pose` | the base pose: `stand` `sit` `kneel` `crouch` `lieUp` `lieDown` `crawl` `plank` `situpDown` `swim` |
+| `pose` | the base pose, from the table below |
 | `duration` / `period` / `reps` | how long it runs; `reps` makes the length a count of periods |
 | `gesture` | only claims the joints it names, so it plays over any posture |
 | `mirrorable` | `side: "left"` plays it mirrored, so a wave is written once |
@@ -392,6 +416,45 @@ plainly broken.
 | `anchor` / `seatLift` | which prop anchor a posture uses, and whether it sets or adds the height |
 
 Postures **stick**; overlays play and hand the body back.
+
+### The joints
+
+```
+hips ── chest ── neck ── head
+ │        ├───── lArm ── lFore ── lHand
+ │        └───── rArm ── rFore ── rHand
+ ├── lThigh ── lShin ── lFoot
+ └── rThigh ── rShin ── rFoot
+```
+
+All sixteen are writable. A channel names one and an axis: `z` is the
+forward/back swing, `x` the sideways swing, `y` the twist.
+
+### The base poses
+
+| pose | what it is | already touching |
+|---|---|---|
+| `stand` | upright | feet |
+| `sit` | thighs forward, shins down | feet (hips go on a seat) |
+| `kneel` | shins flat behind, sitting on the heels | shins |
+| `crouch` | deep squat, feet flat | feet |
+| `lieUp` | supine | back |
+| `lieDown` | prone | front |
+| `crawl` | hands and knees, torso horizontal | hands, knees |
+| `plank` | face down on straight arms | hands, toes |
+| `situpDown` | supine with the knees up | back, feet |
+| `swim` | prone and floating — the one pose that does **not** touch the floor |
+
+Their heights against the floor are measured, not chosen: a calibration pass
+runs forward kinematics over the man, woman, boy and girl plans and sets each
+pose so the worst of the four just touches. Change a pose's joints and that
+needs redoing, or it will sink or float.
+
+A running clamp catches the rest — a cross-fade between two grounded poses is
+not itself grounded, and an imported pose was never calibrated at all — but it
+only ever lifts, so a jump still leaves the ground. Hair is excluded from it:
+a plait to the waist would otherwise levitate its owner the moment they lay
+down.
 
 ## Group actions
 
@@ -487,6 +550,96 @@ A story that uses characters or objects of your own has to travel with them.
 **Export with everything it uses** writes the bundle for you; importing one
 brings in every document at once.
 
+## Writing one, start to finish
+
+### A character
+
+1. Pick a `base`: `man` `woman` `boy` `girl`.
+2. Give it a `height` in metres and a `build` from 0 to 1.
+3. Set `look.hair` and `look.skin`, and a `hairStyle` if the default for that
+   plan is not what you want.
+4. List a `wardrobe` — each entry is an id, a cut (preset name or object) and
+   a colour — and name one of them as `defaultOutfit`.
+
+### An object
+
+1. Decide the source. `boxes` needs no files and is what you can write
+   directly; `gltf` points at a `.glb` in `models/`.
+2. Build it around the origin with **y = 0 on the floor**, in metres.
+3. Give it a `footprint` — roughly its size in X and Z — so a set can lay
+   things out without overlap.
+4. Add the anchors that say what it is *for*: `seat` where the hips go and
+   which way that faces, `lie` for a surface to lie on, `grip` where a fist
+   closes around it, `stand` for a machine to stand on. **A prop with no
+   anchor can be looked at but not used.**
+
+### A set
+
+1. Choose `ground` size and colour and a `sky`. Use `indoor` for anything with
+   walls, or the room will look like a lawn with furniture on it.
+2. Place props, each with its own `id` — that id is how a story removes it,
+   repaints it, or sits somebody on it.
+3. Use `repeat` for a run of the same thing: a fence, a row of lamps.
+4. For an interior, give **each wall its own placement**, and keep tall
+   furniture off the wall a story will shoot through.
+
+### An action
+
+1. Choose a `type` and a base `pose`.
+2. Decide its clock: `period` + `reps` for something repetitive, `rate` for
+   something that follows walking speed, or `duration` for a one-shot.
+3. Add `joints` channels. Start with `wave: "const"` values to get the shape
+   right, then make the ones that should move into `sin` or `rise`.
+4. Add `root` channels for anything that moves the body as a whole.
+5. Preview it in the library — an action's Preview performs it on the empty
+   stage, casting a body per role.
+
+### A story
+
+1. Name a `set` and any `setEdits` — remove the wall you are filming through,
+   add the props this story needs.
+2. Write the `cast`: an actor id, which `character`, which `outfit`, and where
+   they start.
+3. Write the `timeline` in narrative order. Give each actor their own line and
+   let entries follow one another; use `t`, `cue` and `after` only to
+   synchronise between actors.
+4. Give the camera somewhere to be. Check it is not inside a wall or behind
+   the furniture.
+
+## What goes wrong
+
+The mistakes that are easy to make and hard to see:
+
+| | |
+|---|---|
+| **`walkTo` walks through walls** | It goes in a straight line and does no pathfinding. Steer it with `via`. |
+| **The camera is inside a building** | Camera positions are not checked against anything. A wall filling the frame with a flat colour is usually this. |
+| **Furniture in front of the subject** | Nothing culls it. Raise the camera or move the shot to the other side. |
+| **A tall prop on the removed wall** | Filming an interior through a missing wall puts anything standing against that wall between you and everyone. |
+| **`+z` on the chest leans backward** | See [the sign trap](#the-sign-trap). |
+| **Group actions do not move** | The formation is placed once. A carry that walks is not supported. |
+| **A posture sticks** | An actor who sits stays sitting until something else says otherwise. That is deliberate; `stand` is how you undo it. |
+| **`facing` an actor reads script order** | It aims at where that actor is after the entries written above it, not at the clock. For a moving target, aim at a point. |
+| **Only six lights** | The nearest six to the camera are lit; the rest go dark. |
+| **An unknown field does nothing** | It is dropped without complaint. |
+
+## Limits
+
+Anything outside these is clamped, and the error names the field.
+
+| | |
+|---|---|
+| height | 0.2 – 3.0 m |
+| build, hairLength, region scale | 0 – 1, 0 – 1, 0.5 – 2.0 |
+| coordinates | ±5000 m |
+| camera fov | 15 – 110° |
+| one action | up to 600 s |
+| one story | up to 3600 s, 2000 timeline entries, 40 cast |
+| one set | 4000 placements, `repeat` up to 200 |
+| a boxes prop | 4000 boxes |
+| a bundle | 200 documents |
+| an import | 4 MB of JSON, 12 MB per `.glb` |
+
 ## Sharing your own work
 
 Export writes a file; import takes a pasted document, a dropped `.json`, or an
@@ -494,31 +647,18 @@ uploaded `.glb`. Imported documents are validated field by field, and the
 errors name the field — `cast[1].outfit: unknown outfit "swin"` — because the
 loop is paste, run, read the error, fix.
 
-## What ships with the app
+## Two stories worth reading first
 
-| sets | |
-|---|---|
-| `backyard` | a house, a pool, garden furniture |
-| `street` | a road between houses, at dusk |
-| `forest` | pines around an open clearing |
-| `camp` | tents, a fire and logs to sit on |
-| `construction` | a slab, wall frames, scaffolding and materials |
-| `living-room` | a four-walled interior; remove `wall.south` to film it |
-| `abandoned` | bare concrete, open window and door holes, pallets and sacks |
-| `gym` | treadmill, bike, rower, bench and racks, against a mirror wall |
-| `studio` | an empty stage, for testing |
+`rig-check` walks one character through every pose in turn. `playground` uses
+the group actions and the held props together. Between them they exercise most
+of the vocabulary, and both are in `data/stories/`.
 
-Fourteen characters, seventy-five objects and forty-one actions come with
-them. `rig-check` walks one character through every pose in turn, and
-`playground` uses the group actions and the held props together — the two
-quickest ways to see what the vocabulary actually looks like.
+Every action also has a **Preview** in the library that performs it on the
+empty stage, casting a body per role, so an action you write can be watched
+before it goes anywhere near a story.
 
-Every action has a **Preview** in the library that performs it on the empty
-stage, casting a body per role, so an action you write can be watched before
-it goes anywhere near a story.
-
-**Filming an interior.** A room with four walls has no camera angle, so the
-living room gives each wall its own placement id and a story removes the one
+**Filming an interior.** A room with four walls has no camera angle, so an
+interior set gives each wall its own placement id and a story removes the one
 it shoots through:
 
 ```json
@@ -528,7 +668,230 @@ it shoots through:
 
 Keep tall furniture off that wall as well, or its back fills the shot.
 
+## Catalogue
+
+Everything the app already knows about. This is what a new document can refer
+to by id.
+
+<!-- catalogue:start -->
+
+_Generated by `scripts/build_story_studio_readme.py`. Run it after adding documents to `data/`._
+
+### Characters
+
+| id | plan | height | build | hair | outfits |
+|---|---|---|---|---|---|
+| `ana` | woman | 1.68 m | 0.45 | long 0.62 | `casual` `dress` `swim` `work` |
+| `beto` | man | 1.66 m | 0.82 | bun 0.35 | `casual` `overalls` `shirt` |
+| `dado` | boy | 1.38 m | 0.58 | buzz | `casual` `swim` `pyjamas` |
+| `elza` | woman | 1.63 m | 0.6 | bun 0.3 | `casual` `dress` `pyjamas` |
+| `kai` | man | 1.78 m | 0.46 | ponytail 0.45 | `casual` `shirt` `swim` |
+| `leo` | man | 1.81 m | 0.55 | short | `casual` `work` `swim` `shirt` |
+| `mira` | woman | 1.59 m | 0.7 | bob 0.3 | `casual` `dress` `swim` |
+| `nina` | woman | 1.7 m | 0.5 | braid 0.75 | `casual` `work` `swim` |
+| `noa` | girl | 1.06 m | 0.5 | pigtails 0.5 | `casual` `dress` `swim` |
+| `pip` | girl | 1.31 m | 0.44 | long 0.7 | `casual` `dress` `swim` |
+| `rui` | man | 1.86 m | 0.62 | crop | `work` `casual` `shirt` |
+| `sol` | woman | 1.74 m | 0.38 | afro | `casual` `work` `overalls` `swim` |
+| `tom` | boy | 1.22 m | 0.42 | crop | `casual` `swim` `pyjamas` |
+| `vic` | man | 1.72 m | 0.28 | buzz | `casual` `shirt` `pyjamas` |
+
+### Objects
+
+A prop's anchors are what actions can use it for: `seat` for `sit`, `lie` for `lie` and `benchPress`, `stand` for a machine you stand on, `grip` for anything that can be carried.
+
+| id | source | anchors | light | footprint |
+|---|---|---|---|---|
+| `armchair` | boxes | `seat` | — | 0.95×0.95 |
+| `backpack` | boxes | — | — | 0.4×0.5 |
+| `ball` | boxes | — | — | 0.32×0.32 |
+| `barbell` | boxes | `grip` | — | 0.5×1.8 |
+| `barrier` | boxes | — | — | 0.2×2.5 |
+| `bench` | boxes | `seat` | — | 0.55×1.6 |
+| `book` | boxes | `grip` | — | 0.18×0.22 |
+| `bookshelf` | boxes | — | — | 0.35×1.35 |
+| `bricks` | boxes | — | — | 0.55×1.1 |
+| `bush` | boxes | — | — | 1.1×1.1 |
+| `campfire` | boxes | — | yes | 1.3×1.3 |
+| `cement-sack` | boxes | `seat` | — | 0.65×0.42 |
+| `chair` | boxes | `seat` | — | 0.5×0.5 |
+| `coffee-table` | boxes | — | — | 1.15×0.75 |
+| `concrete-door` | boxes | — | — | 0.24×4.2 |
+| `concrete-floor` | boxes | — | — | 9.0×8.0 |
+| `concrete-wall` | boxes | — | — | 0.24×4.2 |
+| `concrete-window` | boxes | — | — | 0.24×4.2 |
+| `cone` | boxes | — | — | 0.45×0.45 |
+| `cooler` | boxes | `seat` | — | 0.85×0.55 |
+| `crate` | gltf | `seat` | — | 0.8×0.8 |
+| `dirt-patch` | boxes | — | — | 3.2×2.2 |
+| `dumbbell` | boxes | `grip` | — | 0.3×0.2 |
+| `exercise-bike` | boxes | `seat` | — | 1.1×0.5 |
+| `fence` | boxes | — | — | 0.15×1.9 |
+| `fern` | boxes | — | — | 1.1×1.1 |
+| `flashlight` | boxes | `grip` | yes | 0.1×0.1 |
+| `floor-lamp` | boxes | — | yes | 0.4×0.4 |
+| `gym-floor` | boxes | — | — | 11.0×9.0 |
+| `gym-mirror` | boxes | — | — | 0.2×4.0 |
+| `hairdryer` | boxes | `grip` | — | 0.3×0.15 |
+| `house-small` | boxes | — | — | 6.0×4.8 |
+| `houseplant` | boxes | — | — | 0.65×0.65 |
+| `ladder` | boxes | — | — | 0.6×0.6 |
+| `lamp` | boxes | — | — | 0.4×0.4 |
+| `lantern` | boxes | — | yes | 0.25×0.25 |
+| `log` | boxes | `seat` | — | 2.7×0.6 |
+| `lounger` | boxes | `lie` `seat` | — | 1.9×0.7 |
+| `mixer` | boxes | — | — | 0.9×0.9 |
+| `mug` | boxes | `grip` | — | 0.12×0.1 |
+| `old-books` | boxes | — | — | 0.3×0.25 |
+| `pallet` | boxes | `seat` | — | 1.15×1.05 |
+| `picture` | boxes | — | — | 0.06×0.85 |
+| `pine` | boxes | — | — | 2.5×2.5 |
+| `planks` | boxes | — | — | 3.1×0.95 |
+| `planter` | boxes | — | — | 0.72×0.72 |
+| `pool` | boxes | `swim` | — | 6.6×4.4 |
+| `road` | boxes | — | — | 8.0×7.0 |
+| `rock` | boxes | — | — | 1.5×1.3 |
+| `room-door` | boxes | — | — | 0.2×4.0 |
+| `room-floor` | boxes | — | — | 8.0×7.0 |
+| `room-wall` | boxes | — | — | 0.2×4.0 |
+| `room-window` | boxes | — | — | 0.2×4.0 |
+| `rope-arc` | boxes | `grip` | — | 0.1×2.7 |
+| `rope-handle` | boxes | `grip` | — | 0.06×0.06 |
+| `rowing-machine` | boxes | `seat` | — | 2.2×0.55 |
+| `rubble` | boxes | — | — | 0.8×0.7 |
+| `rug` | boxes | — | — | 3.0×2.2 |
+| `sand-pile` | boxes | — | — | 2.2×2.0 |
+| `scaffold` | boxes | `seat` | — | 1.9×1.4 |
+| `slab` | boxes | — | — | 6.1×5.1 |
+| `sofa` | boxes | `lie` `seat` | — | 1.0×2.2 |
+| `steel-drum` | boxes | `seat` | — | 0.6×0.6 |
+| `stool` | boxes | `seat` | — | 0.4×0.4 |
+| `stump` | boxes | `seat` | — | 0.9×0.9 |
+| `table` | boxes | — | — | 1.4×0.95 |
+| `tent` | boxes | `lie` `seat` | — | 2.6×2.2 |
+| `torch` | boxes | `grip` | yes | 0.15×0.15 |
+| `treadmill` | boxes | `stand` | — | 1.8×0.7 |
+| `tree` | boxes | — | — | 1.9×1.9 |
+| `tv` | boxes | — | — | 0.45×1.45 |
+| `wall` | boxes | — | — | 0.3×2.0 |
+| `wall-frame` | boxes | — | — | 0.2×3.6 |
+| `weight-bench` | boxes | `lie` `seat` | — | 1.4×0.85 |
+| `weight-rack` | boxes | — | — | 1.0×0.45 |
+
+### Sets
+
+Each list is the placement ids a story can `remove`, `tint` or sit an actor on. A `×N` placement expands to `id.0` … `id.N-1`, and removing the bare id removes all of them.
+
+**`abandoned`** — Abandoned building, sky `indoor`, ground 36×36 m
+
+> `floor`, `wall.north.a`, `wall.north.b`, `wall.west.a`, `wall.west.b`, `wall.east.a`, `wall.east.b`, `wall.south.a`, `wall.south.b`, `pallet.a`, `pallet.b`, `pallet.c`, `pallet.stack`, `sack.a`, `sack.b`, `sack.c`, `sack.d`, `books.a`, `books.b`, `books.c`, `rubble.a`, `rubble.b`, `rubble.c`, `drum`
+
+**`backyard`** — Backyard, sky `day`, ground 46×46 m
+
+> `house`, `pool`, `lounger.a`, `lounger.b`, `table`, `chair.a`, `chair.b`, `bench`, `tree.a`, `tree.b`, `bush.a`, `bush.b`, `planter`, `ball`, `fence.north` (×10), `fence.east` (×10)
+
+**`camp`** — Campsite, sky `dusk`, ground 64×64 m
+
+> `ground`, `tent.a`, `tent.b`, `fire`, `log.a`, `log.b`, `stump`, `cooler`, `backpack`, `lantern`, `planks`, `pine.ring` (×7), `pine.side` (×6), `tree.back`, `rock`, `fern`
+
+**`construction`** — House under construction, sky `day`, ground 60×60 m
+
+> `slab`, `frame.north`, `frame.south`, `frame.west`, `scaffold.a`, `scaffold.b`, `bricks.a`, `bricks.b`, `sand`, `mixer`, `planks`, `ladder`, `cones` (×5), `barrier.a`, `barrier.b`, `crate`, `tree`, `bush`, `fence` (×9)
+
+**`forest`** — Forest clearing, sky `day`, ground 70×70 m
+
+> `clearing`, `tree.0`, `tree.1`, `tree.2`, `tree.3`, `tree.4`, `tree.5`, `tree.6`, `tree.7`, `tree.8`, `tree.9`, `tree.10`, `tree.11`, `tree.12`, `tree.13`, `fern.0`, `fern.1`, `fern.2`, `fern.3`, `fern.4`, `fern.5`, `rock.a`, `rock.b`, `rock.c`, `log`, `stump`, `bush.a`, `bush.b`
+
+**`gym`** — Gym, sky `indoor`, ground 30×30 m
+
+> `floor`, `wall.north.a`, `wall.north.b`, `wall.west`, `wall.east`, `wall.south.a`, `wall.south.b`, `treadmill`, `bike`, `rower`, `bench`, `rack`, `plates`, `mat`, `drum`, `plant`, `bookshelf`
+
+**`living-room`** — Living room, sky `indoor`, ground 26×26 m
+
+> `floor`, `wall.north`, `wall.east`, `wall.west`, `wall.south`, `rug`, `sofa`, `tv`, `table`, `armchair.a`, `armchair.b`, `shelf`, `lamp`, `plant`, `picture`, `stool`
+
+**`street`** — Street, sky `dusk`, ground 60×60 m
+
+> `road` (×6), `house.a`, `house.b`, `house.c`, `lamp` (×4), `wall` (×8), `tree.a`, `tree.b`, `bench`, `bush`
+
+**`studio`** — Empty studio, sky `day`, ground 30×30 m
+
+> `mark`
+
+### Actions
+
+| id | category | type | length | reads |
+|---|---|---|---|---|
+| `benchPress` | solo | posture | `reps` × 2.4s | `on` (needs a `lie` anchor) `reps` |
+| `cameraFollow` | solo | cameraFollow | 0s | `target` `for` |
+| `cameraTo` | solo | camera | 2s | `at` `look` `fov` |
+| `crawlTo` | solo | move | distance ÷ 0.7 m/s | `to` `via` `speed` |
+| `crouch` | solo | posture | 0.5s | — |
+| `cut` | solo | camera | 0s | `at` `look` `fov` |
+| `cycle` | solo | posture | `reps` × 0.9s | `on` (needs a `seat` anchor) `reps` |
+| `drop` | solo | hold | 0.5s | — |
+| `hold` | solo | hold | 0.5s | `prop` `hand` |
+| `idle` | solo | posture | 0.4s | — |
+| `jog` | solo | overlay | `reps` × 0.62s | `reps` |
+| `jump` | solo | overlay | 0.9s | — |
+| `jumpingJacks` | solo | overlay | `reps` × 0.9s | `reps` |
+| `kneel` | solo | posture | 0.6s | — |
+| `lie` | solo | posture | 0.9s | `on` (needs a `lie` anchor) `face` |
+| `nod` | solo | overlay | 1.6s | — |
+| `oddsAndEvens` | group | overlay | `reps` × 1.1s | `reps` `cast` `a`+`b` |
+| `overheadPress` | solo | overlay | `reps` × 2.2s | `reps` |
+| `point` | solo | overlay | 1.6s | `side` |
+| `propHide` | solo | stage | 0s | `id` |
+| `propMove` | solo | stage | 0s | `id` |
+| `propShow` | solo | stage | 0s | `id` |
+| `pushups` | solo | overlay | `reps` × 1.5s | `reps` |
+| `raiseArm` | solo | overlay | 1.4s | `side` |
+| `row` | solo | posture | `reps` × 2.0s | `on` (needs a `seat` anchor) `reps` |
+| `runTo` | solo | move | distance ÷ 3.4 m/s | `to` `via` `speed` |
+| `say` | solo | speech | length of the line | `text` |
+| `setTime` | solo | stage | 0s | `sky` |
+| `shakeHead` | solo | overlay | 1.6s | — |
+| `shoulderCarry` | group | overlay | 4.0s | `cast` `carrier`+`rider` |
+| `sit` | solo | posture | 0.6s | `on` (needs a `seat` anchor) |
+| `situps` | solo | overlay | `reps` × 1.8s | `reps` |
+| `skipRope` | group | overlay | `reps` × 1.0s | `reps` `cast` `turnerA`+`turnerB`+`jumper` |
+| `squats` | solo | overlay | `reps` × 1.6s | `reps` |
+| `stand` | solo | posture | 0.4s | — |
+| `swimTo` | solo | move | distance ÷ 0.9 m/s | `to` `via` `speed` |
+| `think` | solo | speech | length of the line | `text` |
+| `turnTo` | solo | turn | 0.6s | `to` `yaw` `facing` |
+| `wait` | solo | wait | 1s | — |
+| `walkTo` | solo | move | distance ÷ 1.25 m/s | `to` `via` `speed` |
+| `wave` | solo | overlay | 2.2s | `side` |
+
+### Stories
+
+| id | set | cast | entries |
+|---|---|---|---|
+| `abandoned-night` | `abandoned` | `vic` `sol` `dado` | 14 |
+| `camp-night` | `camp` | `kai` `nina` `dado` | 14 |
+| `forest-walk` | `forest` | `ana` `tom` `noa` | 14 |
+| `gym-session` | `gym` | `sol` `kai` `nina` `rui` `beto` | 15 |
+| `living-room-evening` | `living-room` | `elza` `pip` `beto` | 16 |
+| `playground` | `backyard` | `ana` `leo` `tom` `noa` `pip` | 18 |
+| `pool-afternoon` | `backyard` | `ana` `leo` `tom` | 17 |
+| `rig-check` | `studio` | `kit` | 43 |
+| `site-morning` | `construction` | `rui` `sol` `beto` | 13 |
+| `street-evening` | `street` | `vic` `mira` `noa` | 13 |
+
+<!-- catalogue:end -->
+
 ## Adding to the shipped library
 
-Drop the file in `data/characters/`, `data/props/`, `data/sets/` or
-`data/stories/` and add its filename to `data/index.json`.
+Drop the file in `data/characters/`, `data/props/`, `data/sets/`,
+`data/actions/` or `data/stories/`, add its filename to `data/index.json`,
+then run:
+
+```bash
+python3 scripts/build_story_studio_readme.py
+```
+
+which refreshes the catalogue above from the documents themselves.
+
+Nothing needs building otherwise — the app is plain ES modules served as
+static files.
