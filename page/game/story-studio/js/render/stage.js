@@ -4,6 +4,10 @@ import * as THREE from 'three';
 // the library's little turntable preview uses the same class as the player,
 // so there is only one place where lighting is decided.
 
+/** How many prop lights can be lit at once. Every one of them is compiled
+ *  into every material, so this is a real budget, not a formality. */
+const MAX_LAMPS = 6;
+
 const SKIES = {
   day: { top: 0x8fbfe8, bottom: 0xdaeaf5, sun: 0xfff4e0, ambient: 0x9fb4c8, intensity: 1.0, fog: 0xcfe1ee },
   dawn: { top: 0x6d84b4, bottom: 0xf0c9a0, sun: 0xffd9a8, ambient: 0x8f8ea8, intensity: 0.85, fog: 0xe7c7ac },
@@ -46,6 +50,18 @@ export class Stage {
 
     this.content = new THREE.Group();
     this.scene.add(this.content);
+
+    // A fixed pool of point lights, reassigned every frame to whichever
+    // emitters are nearest the camera. Adding and removing lights would make
+    // three.js recompile every material each time a torch was picked up, so
+    // the pool exists from the start and unused slots simply sit at zero.
+    this.lampPool = [];
+    for (let i = 0; i < MAX_LAMPS; i++) {
+      const lamp = new THREE.PointLight(0xffffff, 0, 10, 1.6);
+      lamp.visible = true;
+      this.scene.add(lamp);
+      this.lampPool.push(lamp);
+    }
     this.setSky('day');
     this._look = new THREE.Vector3();
     this._fov = 50;
@@ -102,6 +118,33 @@ export class Stage {
     if (Math.abs(this.camera.fov - fov) > 0.01) {
       this.camera.fov = fov;
       this.camera.updateProjectionMatrix();
+    }
+  }
+
+  /**
+   * Points the pool at the emitters that matter.
+   * @param {Array} emitters { pos, color, intensity, distance }
+   */
+  applyLamps(emitters) {
+    const from = this.camera.position;
+    const sorted = emitters.length > this.lampPool.length
+      ? [...emitters].sort((a, b) => {
+        const da = (a.pos[0] - from.x) ** 2 + (a.pos[1] - from.y) ** 2 + (a.pos[2] - from.z) ** 2;
+        const db = (b.pos[0] - from.x) ** 2 + (b.pos[1] - from.y) ** 2 + (b.pos[2] - from.z) ** 2;
+        return da - db;
+      })
+      : emitters;
+    for (let i = 0; i < this.lampPool.length; i++) {
+      const lamp = this.lampPool[i];
+      const e = sorted[i];
+      if (!e) {
+        lamp.intensity = 0;
+        continue;
+      }
+      lamp.position.set(e.pos[0], e.pos[1], e.pos[2]);
+      lamp.color.setHex(e.color);
+      lamp.intensity = e.intensity;
+      lamp.distance = e.distance;
     }
   }
 

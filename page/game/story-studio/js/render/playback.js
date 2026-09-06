@@ -7,6 +7,7 @@ import { groundLift } from '../anim/ground.js';
 import { buildSet, propObject } from '../stage/build.js';
 import { compile } from '../script/director.js';
 import { localised } from '../i18n.js';
+import { toHex } from './geometry.js';
 
 // Binds a compiled film to a canvas. The clock lives here and nowhere else:
 // this class decides what time it is, asks the film what the world looks like
@@ -26,6 +27,7 @@ export class Playback {
     this.propTemplates = new Map();
     this.heldSlots = new Map();
     this.groupProps = new Map();
+    this._lampAt = new THREE.Vector3();
     this.time = 0;
     this.playing = false;
     this.missing = [];
@@ -212,6 +214,7 @@ export class Playback {
     this.balloons.update(items);
 
     this.stage.aim(frame.camera.at, frame.camera.look, frame.camera.fov);
+    this.stage.applyLamps(this.gatherLamps());
     this.render();
   }
 
@@ -263,6 +266,7 @@ export class Playback {
         const template = this.propTemplates.get(item.prop);
         if (!template) continue;
         holder = new THREE.Group();
+        holder.userData.prop = item.prop;
         holder.add(template.object.clone(true));
         this.stage.content.add(holder);
         this.groupProps.set(item.key, holder);
@@ -275,6 +279,44 @@ export class Playback {
     for (const [key, holder] of this.groupProps) {
       if (!live.has(key)) holder.visible = false;
     }
+  }
+
+  /**
+   * Every light burning right now, wherever its prop has ended up.
+   *
+   * A torch in a hand and a fire on the ground are the same thing here: the
+   * emitter hangs off the object, so it is read out of the scene graph after
+   * the pose has been applied rather than tracked separately.
+   */
+  gatherLamps() {
+    const out = [];
+    const t = this.time;
+    const add = (doc, object) => {
+      const light = doc?.light;
+      if (!light || !object) return;
+      this._lampAt.set(light.at[0], light.at[1], light.at[2]);
+      object.updateWorldMatrix(true, false);
+      this._lampAt.applyMatrix4(object.matrixWorld);
+      out.push({
+        pos: [this._lampAt.x, this._lampAt.y, this._lampAt.z],
+        color: toHex(light.color, 0xffd9a0),
+        intensity: light.intensity * flickerAt(light, t),
+        distance: light.distance,
+      });
+    };
+
+    if (this.set) {
+      for (const entry of this.set.placements.values()) {
+        if (entry.object.visible) add(entry.doc, entry.object);
+      }
+    }
+    for (const slot of this.heldSlots.values()) {
+      if (slot.group.visible) add(this.propTemplates.get(slot.prop)?.doc, slot.group);
+    }
+    for (const [key, holder] of this.groupProps) {
+      if (holder.visible) add(this.propTemplates.get(holder.userData.prop)?.doc, holder);
+    }
+    return out;
   }
 
   render() {
@@ -298,6 +340,20 @@ export class Playback {
     this.balloons.dispose();
     this.stage.dispose();
   }
+}
+
+/**
+ * A fire's flicker, from the film's own clock.
+ *
+ * Two sines that do not share a period, so it never settles into an obvious
+ * beat — and never uses a random number, which would mean a scene looked
+ * different every time it was replayed from the same moment.
+ */
+function flickerAt(light, t) {
+  if (!light.flicker) return 1;
+  const hz = light.flickerHz;
+  const n = Math.sin(t * hz) * 0.6 + Math.sin(t * hz * 2.37 + 1.3) * 0.4;
+  return 1 + light.flicker * n * 0.5;
 }
 
 export { THREE };

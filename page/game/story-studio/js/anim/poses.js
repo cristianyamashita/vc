@@ -66,7 +66,7 @@ export const POSES = {
   crouch: {
     root: { tiltZ: 0, lift: -0.262, shift: -0.05 },
     joints: {
-      chest: [0, 0, 0.34],
+      chest: [0, 0, -0.34],
       lThigh: [0.05, 0, 1.62], rThigh: [-0.05, 0, 1.62],
       lShin: [0, 0, -1.86], rShin: [0, 0, -1.86],
       lFoot: [0, 0, 0.26], rFoot: [0, 0, 0.26],
@@ -103,9 +103,12 @@ export const POSES = {
   crawl: {
     root: { tiltZ: 0, lift: -0.256, shift: 0 },
     joints: {
-      chest: [0, 0, PI2 * 0.97],
-      head: [0, 0, -PI2 * 0.80],
-      lArm: [0.05, 0, -1.50], rArm: [-0.05, 0, -1.50],
+      // The torso folds FORWARD over the hands: negative on the chest. The
+      // arms then need the opposite sign to hang straight down from the
+      // shoulders, and the head to come back up to look ahead.
+      chest: [0, 0, -PI2 * 0.97],
+      head: [0, 0, PI2 * 0.84],
+      lArm: [0.05, 0, 1.50], rArm: [-0.05, 0, 1.50],
       lFore: [0, 0, 0.10], rFore: [0, 0, 0.10],
       lShin: [0, 0, -PI2], rShin: [0, 0, -PI2],
       lFoot: [0, 0, -PI2 * 0.95], rFoot: [0, 0, -PI2 * 0.95],

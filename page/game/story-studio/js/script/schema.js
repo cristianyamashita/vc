@@ -295,6 +295,21 @@ function prop(ctx, doc) {
     ctx.fail('source.type', 'expected "gltf", "gltfBlob" or "boxes"');
   }
 
+  // A prop may give off light. Held or placed, the emitter travels with it.
+  if (isObj(doc.light)) {
+    out.light = {
+      color: color(ctx, 'light.color', doc.light.color, '#ffd9a0'),
+      intensity: num(ctx, 'light.intensity', doc.light.intensity, 0, 40, 2),
+      distance: num(ctx, 'light.distance', doc.light.distance, 0.2, 200, 8),
+      at: vec3(ctx, 'light.at', doc.light.at, [0, 0.5, 0]),
+      // Flicker is driven from the film's own clock, never from a random
+      // number: a fire that danced differently on every replay would break
+      // the one promise the whole engine rests on.
+      flicker: num(ctx, 'light.flicker', doc.light.flicker, 0, 1, 0),
+      flickerHz: num(ctx, 'light.flickerHz', doc.light.flickerHz, 0.05, 40, 6),
+    };
+  }
+
   const anchors = isObj(doc.anchors) ? doc.anchors : {};
   for (const [key, a] of Object.entries(anchors)) {
     const path = `anchors.${key}`;

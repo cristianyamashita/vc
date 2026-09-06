@@ -136,6 +136,29 @@ Three ways to supply the shape:
 * `{"type": "gltfBlob", "blobId": "…"}` — a `.glb` you uploaded, kept in your
   browser. Made for you by the **Upload a .glb model** button.
 
+### Light
+
+A prop can give off light, held or placed:
+
+```json
+"light": {
+  "color": "#ff9038", "intensity": 6.5, "distance": 11,
+  "at": [0, 0.55, 0], "flicker": 0.45, "flickerHz": 7.5
+}
+```
+
+`at` is the emitter's position in the prop's own space, so a torch lights from
+its flame and travels with the hand carrying it. `flicker` is driven from the
+**film's own clock**, never from a random number — a fire that danced
+differently on each replay would break the one promise the whole engine rests
+on.
+
+Six lights can burn at once. They are a fixed pool reassigned each frame to
+whichever emitters are nearest the camera, because adding and removing lights
+would make every material recompile the moment somebody picked up a torch.
+
+Props that light: `campfire` `torch` `lantern` `flashlight` `floor-lamp`.
+
 **Anchors are how an actor uses a prop.** `sit on chair1` finds that
 placement's `seat` anchor and puts the actor's hips exactly there, facing the
 anchor's `yaw`; `lie on lounger1` uses a `lie` anchor the same way. A prop
@@ -336,6 +359,24 @@ holding a crouch, an arc and a landing that way.
 A `root` channel drives the body as a whole instead of a joint — `field` is
 `lift`, `shift` or `tiltZ`.
 
+### The sign trap
+
+A joint's `z` axis swings it toward the character's face. For a limb that
+**hangs down** from its joint — a thigh, an upper arm — that means positive is
+forward, which is what you expect.
+
+The torso is the exception, and it catches everyone once. `chest` and `neck`
+point **up** from their joint, so positive `z` leans them **backward**.
+Leaning forward is negative:
+
+```json
+{ "joint": "chest", "axis": "z", "amp": -0.26, "wave": "rise" }
+```
+
+It is invisible on a standing figure and obvious the moment anyone crawls or
+runs, so it is worth checking whenever a pose looks subtly wrong rather than
+plainly broken.
+
 ### The rest of an action
 
 | field | meaning |
@@ -447,9 +488,10 @@ loop is paste, run, read the error, fix.
 | `camp` | tents, a fire and logs to sit on |
 | `construction` | a slab, wall frames, scaffolding and materials |
 | `living-room` | a four-walled interior; remove `wall.south` to film it |
+| `abandoned` | bare concrete, open window and door holes, pallets and sacks |
 | `studio` | an empty stage, for testing |
 
-Fourteen characters, fifty-seven objects and thirty-six actions come with
+Fourteen characters, sixty-six objects and thirty-six actions come with
 them. `rig-check` walks one character through every pose in turn, and
 `playground` uses the group actions and the held props together — the two
 quickest ways to see what the vocabulary actually looks like.
