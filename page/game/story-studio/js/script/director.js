@@ -1,5 +1,6 @@
 import { FALLBACK_ACTION, isActorAction, speechDuration, pathLength } from './actions.js';
 import { performAction, actionDuration } from '../anim/perform.js';
+import { channelValue, clockOf } from '../anim/channels.js';
 import { blendPose, overlayPose, ease } from '../anim/blend.js';
 
 // The compiler. A story goes in; a thing that can be sampled at any time comes
@@ -67,7 +68,7 @@ class Film {
       camera: this.sampleCamera(time, actors),
       balloons: this.balloons.filter((b) => time >= b.start && time < b.end),
       stage: this.sampleStage(time),
-      groupProps: this.sampleGroupProps(time),
+      groupProps: this.samplePropSpans(time, actors),
     };
   }
 
@@ -136,33 +137,52 @@ class Film {
     return { at, look, fov };
   }
 
-  /** Props a group action puts on the floor for its own duration — the rope
-   *  arc between two turners, a board two people play over. Anything held in
-   *  a hand travels on the actor's own held track instead. */
-  sampleGroupProps(t) {
+  /**
+   * Props an action puts in the world for its own duration — the rope arc
+   * between two turners, the bar somebody is pressing. Anything held in a
+   * hand travels on that actor's held track instead.
+   *
+   * The frame a prop is placed in is the action's own: a group's formation,
+   * or the single actor's footprint for a solo action.
+   */
+  samplePropSpans(t, actors) {
     const out = [];
-    for (const span of this.groupSpans) {
+    for (const span of this.propSpans) {
       if (t < span.start || t >= span.end) continue;
-      const g = span.plan.group;
-      const cos = Math.cos(g.yaw);
-      const sin = Math.sin(g.yaw);
+      const frame = span.group
+        ? { at: span.group.at, yaw: span.group.yaw }
+        : (() => {
+          const a = actors?.[span.actor];
+          if (!a) return null;
+          // Measured from the BODY, not from the patch of ground under it.
+          // Otherwise a bar authored to sit at chest height ends up on the
+          // floor the moment its owner lies down on a bench.
+          const lift = (a.pose?.root?.lift || 0) * (a.doc?.height || 1.7);
+          return { at: [a.x, a.y + lift, a.z], yaw: a.yaw };
+        })();
+      if (!frame) continue;
+      const cos = Math.cos(frame.yaw);
+      const sin = Math.sin(frame.yaw);
+      const u = clockOf(span.action, t - span.start, span.params);
+
       for (const pr of span.action.props || []) {
         if (pr.hand) continue;
+        const m = { x: 0, y: 0, z: 0, spin: 0 };
+        for (const ch of pr.motion || []) {
+          m[ch.field] += channelValue(ch, u, t - span.start);
+        }
+        const lx = pr.at[0] + m.x;
+        const ly = pr.at[1] + m.y;
+        const lz = pr.at[2] + m.z;
         out.push({
           key: `${span.action.id}.${span.start.toFixed(3)}.${pr.id}`,
           prop: pr.prop,
-          at: [
-            g.at[0] + pr.at[0] * cos + pr.at[2] * sin,
-            g.at[1] + pr.at[1],
-            g.at[2] - pr.at[0] * sin + pr.at[2] * cos,
-          ],
-          yaw: g.yaw + (pr.yaw * Math.PI) / 180,
+          at: [frame.at[0] + lx * cos + lz * sin, frame.at[1] + ly, frame.at[2] - lx * sin + lz * cos],
+          yaw: frame.yaw + (pr.yaw * Math.PI) / 180,
           scale: pr.scale,
-          // `spin` is turns per second about the group's own left-right axis,
-          // which is what makes a skipping rope a skipping rope.
-          spin: pr.spin || pr.spinPhase
-            ? ((t - span.start) * (pr.spin || 0) + (pr.spinPhase || 0)) * Math.PI * 2
-            : 0,
+          // `spin` is turns per second about the prop's own long axis, which
+          // is what makes a skipping rope a skipping rope.
+          spin: ((t - span.start) * (pr.spin || 0) + (pr.spinPhase || 0)) * Math.PI * 2 + m.spin,
         });
       }
     }
@@ -176,7 +196,7 @@ class Film {
     for (const track of Object.values(this.held || {})) {
       for (const h of track) if (h.prop) ids.add(h.prop);
     }
-    for (const span of this.groupSpans) {
+    for (const span of this.propSpans) {
       for (const pr of span.action.props || []) ids.add(pr.prop);
     }
     return [...ids];
@@ -377,7 +397,10 @@ export function compile(story, world) {
         a.yaw = nearestAngle(a.yaw, (anchor.yaw * Math.PI) / 180);
         plan.seatY = anchor.pos[1];
       }
-      plan.dur = e.for ?? spec.duration;
+      // Through `actionDuration`, because a posture can be repetitive too:
+      // pedalling and rowing are both "sit on this and keep going".
+      if (spec.reps) plan.period = spec.period > 0.01 ? spec.period : 1.2;
+      plan.dur = actionDuration(spec, e);
     } else if (spec.reps) {
       plan.period = spec.period > 0.01 ? spec.period : 1.2;
       plan.dur = actionDuration(spec, e);
@@ -413,6 +436,17 @@ export function compile(story, world) {
     if (e.cue) cueIndex.set(e.cue, i);
     plans.push(plan);
   }
+
+  // A duration that is not a number poisons every start time after it and
+  // ends up as a blank stage with a NaN clock — far harder to trace back than
+  // the one-line cause. Catch it where it is still local.
+  for (const plan of plans) {
+    if (!Number.isFinite(plan.dur)) {
+      fail(`timeline[${plan.index}]`, `"${plan.entry.do}" produced no usable duration`);
+      plan.dur = 0;
+    }
+  }
+  if (errors.length) return { ok: false, film: null, errors };
 
   // ---- pass B: start times. An entry is anchored by `t`, chained after a
   // cue, or follows the previous entry on its own line. Those form a graph,
@@ -458,7 +492,7 @@ export function compile(story, world) {
 
   // ---- pass C: tracks.
   const balloons = [];
-  const groupSpans = [];
+  const propSpans = [];
   const cameraFrames = [{
     t: 0,
     at: story.camera.at.slice(),
@@ -499,9 +533,20 @@ export function compile(story, world) {
         // gets one of them wrong. Sitting is about a joint: put the HIPS on
         // the cushion. Lying is about a surface: the pose already rests the
         // body on the ground, so it only has to RISE to the surface.
+        //
+        // Which one applies is the action document's `seatLift`, not its
+        // name. Keying on the name worked while `lie` was the only action
+        // that lay on anything, and quietly did the wrong thing the moment a
+        // bench press wanted the same treatment.
+        //
+        // Both are measured from the actor's own feet, not from world zero:
+        // a room with a raised floor put everybody the thickness of that
+        // floor above their chair, which is invisible on a lawn and obvious
+        // in a gym.
         const height = a.doc.height || 1.7;
-        if (e.do === 'lie') params.rise = plan.seatY / height;
-        else params.lift = (plan.seatY - hipHeight(a.doc)) / height;
+        const above = plan.seatY - a.pos[1];
+        if (spec.seatLift === 'add') params.rise = above / height;
+        else params.lift = (above - hipHeight(a.doc)) / height;
       }
       // A posture may pick its base pose from a parameter — lying face up and
       // face down are one action with two poses, not two actions.
@@ -509,6 +554,7 @@ export function compile(story, world) {
         ? { pose: spec.poseByFace[params.face] || spec.pose }
         : null;
       pushResting(a, start, spec, params, part);
+      if (spec.props?.length) propSpans.push({ start, end, action: spec, actor: e.actor, params });
       if (!plan.snap) pushTurn(a, plan, start, end);
     } else if (spec.type === 'overlay' && a) {
       const params = {};
@@ -516,6 +562,7 @@ export function compile(story, world) {
       if (e.side) params.side = e.side;
       if (!spec.reps) params.duration = plan.dur;
       a.overlays.push({ start, end, action: spec, params, gesture: !!spec.gesture });
+      if (spec.props?.length) propSpans.push({ start, end, action: spec, actor: e.actor, params });
       pushTurn(a, plan, start, end);
     } else if (spec.type === 'hold' && a) {
       pushHeld(a, start, spec.grabs === false ? null : e.prop,
@@ -553,7 +600,7 @@ export function compile(story, world) {
         if (spec.hold === 'posture') pushResting(target, start, spec, params, part);
         else target.overlays.push({ start, end, action: spec, params, part, gesture: false });
       }
-      groupSpans.push({ start, end, action: spec, plan });
+      propSpans.push({ start, end, action: spec, group: plan.group, params: groupParams(spec, plan) });
     } else if (spec.type === 'camera') {
       cameraFrames.push({
         t: start,
@@ -601,12 +648,17 @@ export function compile(story, world) {
       camera: cameraFrames,
       follows,
       stageEvents,
-      groupSpans,
+      propSpans,
       held,
       sky: story.sky || null,
       duration: Math.max(1, duration + TAIL),
     }),
   };
+}
+
+/** The clock parameters a group action's props should read. */
+function groupParams(spec, plan) {
+  return spec.reps ? { period: spec.period } : { duration: plan.dur };
 }
 
 /** Standing hip height in metres, matching the plans in cast/body.js. */

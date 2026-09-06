@@ -242,6 +242,7 @@ Positions are `[x, y, z]`, or `[x, z]` when the y is 0. `yaw` is in degrees.
 | posture | `stand` `idle` `sit` `kneel` `crouch` `lie` |
 | gesture | `wave` `point` `raiseArm` `nod` `shakeHead` `jump` |
 | exercise | `jumpingJacks` `squats` `pushups` `situps` |
+| gym | `jog` `cycle` `row` `overheadPress` `benchPress` |
 | holding | `hold` `drop` |
 | together | `oddsAndEvens` `shoulderCarry` `skipRope` |
 | speech | `say` `think` |
@@ -429,10 +430,25 @@ formation:
 keeps three people turning the same rope rather than three people each doing
 their own idea of it. A role with `optional: true` may be left uncast.
 
-A group `props` entry either goes in a role's hand (`role` + `hand`) or stands
-in the group's own space, where `spin` turns it about its long axis and
-`spinPhase` offsets that turn. The skipping rope reaches the floor exactly
-when the jumper is at the top of their hop because of that offset.
+A `props` entry either goes in a hand (`hand`, plus `role` for a group) or
+stands in the action's own space — the formation for a group action, the
+actor's own footprint for a solo one, measured from their **body** rather
+than the ground under it, so a bar authored at chest height stays at chest
+height when its owner lies down on a bench.
+
+`spin` turns a prop about its long axis and `spinPhase` offsets that turn: the
+skipping rope reaches the floor exactly when the jumper is at the top of their
+hop because of that offset. A `motion` list drives `x`, `y`, `z` or `spin`
+with the same channels the joints use, which is how a barbell rises with the
+press that lifts it:
+
+```json
+{ "id": "bar", "prop": "barbell", "at": [0.06, 1.42, 0],
+  "motion": [{ "field": "y", "amp": 0.52, "wave": "rise" }] }
+```
+
+Props are not a group-only feature — a bench press is one person and a bar,
+and there is no sense in calling that a group.
 
 Group actions happen **in one place**. A carry that walks would need one rig
 parented to another, which this does not do yet.
@@ -489,9 +505,10 @@ loop is paste, run, read the error, fix.
 | `construction` | a slab, wall frames, scaffolding and materials |
 | `living-room` | a four-walled interior; remove `wall.south` to film it |
 | `abandoned` | bare concrete, open window and door holes, pallets and sacks |
+| `gym` | treadmill, bike, rower, bench and racks, against a mirror wall |
 | `studio` | an empty stage, for testing |
 
-Fourteen characters, sixty-six objects and thirty-six actions come with
+Fourteen characters, seventy-five objects and forty-one actions come with
 them. `rig-check` walks one character through every pose in turn, and
 `playground` uses the group actions and the held props together — the two
 quickest ways to see what the vocabulary actually looks like.

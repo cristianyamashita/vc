@@ -112,12 +112,19 @@ export function buildBody(spec) {
     parts.push(b);
     return b;
   };
-  /** Same box on both sides, tagged into the matching left/right joint. */
+  /** Same box on both sides, tagged into the matching left/right joint.
+   *
+   *  It puts the joint back afterwards. It used to leave it pointing at the
+   *  right arm, which silently bolted whatever was drawn next onto that arm —
+   *  a bikini top, a jacket lapel and a tie all rode up when the wearer
+   *  raised a hand. */
   const pair = (nameL, nameR, w, h, d, color, x, y, z, extra) => {
+    const was = limbTag;
     limbTag = nameL;
     p(w, h, d, color, x, y, z, extra);
     limbTag = nameR;
     p(w, h, d, color, x, y, -z, extra);
+    limbTag = was;
   };
 
   // ------------------------------------------------------------- skeleton

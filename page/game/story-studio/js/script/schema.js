@@ -421,14 +421,67 @@ function action(ctx, doc) {
   }
 
   if (out.category === 'group') groupBody(ctx, doc, out);
+  actionProps(ctx, doc, out);
   return out;
+}
+
+const PROP_MOTION_FIELDS = ['x', 'y', 'z', 'spin'];
+
+/**
+ * Props an action brings with it: a barbell it lifts, a rope it turns.
+ *
+ * Available to any action, not only a group one — a bench press is one person
+ * and a bar, and there is no sense in calling that a group. A `hand` entry
+ * rides in someone's fist; anything else stands in the action's own space,
+ * which is the group's formation for a group action and the actor's own
+ * footprint for a solo one.
+ */
+function actionProps(ctx, doc, out) {
+  out.props = [];
+  const roles = new Set((out.roles || []).map((r) => r.id));
+  for (const [i, pr] of array(ctx, 'props', doc.props, 24).entries()) {
+    const path = `props[${i}]`;
+    if (!isObj(pr)) {
+      ctx.fail(path, 'expected an object');
+      continue;
+    }
+    const entry = {
+      id: id(ctx, `${path}.id`, pr.id) || `prop${i}`,
+      prop: id(ctx, `${path}.prop`, pr.prop),
+      at: vec3(ctx, `${path}.at`, pr.at),
+      yaw: num(ctx, `${path}.yaw`, pr.yaw, -3600, 3600, 0),
+      scale: num(ctx, `${path}.scale`, pr.scale, LIMITS.scale[0], LIMITS.scale[1], 1),
+      spin: pr.spin === undefined ? undefined : num(ctx, `${path}.spin`, pr.spin, -64, 64, 0),
+      spinPhase: pr.spinPhase === undefined ? undefined : num(ctx, `${path}.spinPhase`, pr.spinPhase, -8, 8, 0),
+      motion: [],
+    };
+    if (pr.hand !== undefined) {
+      if (out.category === 'group' && !roles.has(pr.role)) {
+        ctx.fail(`${path}.role`, 'a held prop needs the role holding it');
+      }
+      if (pr.hand !== 'left' && pr.hand !== 'right') ctx.fail(`${path}.hand`, 'expected "left" or "right"');
+      if (pr.role !== undefined) entry.role = pr.role;
+      entry.hand = pr.hand;
+    }
+    // The same channels the joints use, so a bar that rises with the press is
+    // written the same way as an arm that rises with it.
+    for (const [k, c] of array(ctx, `${path}.motion`, pr.motion, LIMITS.channels).entries()) {
+      const mp = `${path}.motion[${k}]`;
+      if (!isObj(c) || !PROP_MOTION_FIELDS.includes(c.field)) {
+        ctx.fail(mp, `expected a channel with field ${PROP_MOTION_FIELDS.join(', ')}`);
+        continue;
+      }
+      const ch = channel(ctx, mp, { ...c, field: 'lift' }, true);
+      if (ch) entry.motion.push({ ...ch, field: c.field });
+    }
+    out.props.push(entry);
+  }
 }
 
 /** Roles, where they stand relative to the group, and what each one does. */
 function groupBody(ctx, doc, out) {
   out.roles = [];
   out.parts = {};
-  out.props = [];
   const seen = new Set();
   for (const [i, r] of array(ctx, 'roles', doc.roles, LIMITS.roles).entries()) {
     const path = `roles[${i}]`;
@@ -463,29 +516,6 @@ function groupBody(ctx, doc, out) {
     out.parts[rid] = motion(ctx, `parts.${rid}`, part);
   }
 
-  for (const [i, pr] of array(ctx, 'props', doc.props, 24).entries()) {
-    const path = `props[${i}]`;
-    if (!isObj(pr)) {
-      ctx.fail(path, 'expected an object');
-      continue;
-    }
-    const entry = {
-      id: id(ctx, `${path}.id`, pr.id) || `prop${i}`,
-      prop: id(ctx, `${path}.prop`, pr.prop),
-      at: vec3(ctx, `${path}.at`, pr.at),
-      yaw: num(ctx, `${path}.yaw`, pr.yaw, -3600, 3600, 0),
-      scale: num(ctx, `${path}.scale`, pr.scale, LIMITS.scale[0], LIMITS.scale[1], 1),
-      spin: pr.spin === undefined ? undefined : num(ctx, `${path}.spin`, pr.spin, -64, 64, 0),
-      spinPhase: pr.spinPhase === undefined ? undefined : num(ctx, `${path}.spinPhase`, pr.spinPhase, -8, 8, 0),
-    };
-    if (pr.hand !== undefined) {
-      if (!seen.has(pr.role)) ctx.fail(`${path}.role`, 'a held prop needs the role holding it');
-      if (pr.hand !== 'left' && pr.hand !== 'right') ctx.fail(`${path}.hand`, 'expected "left" or "right"');
-      entry.role = pr.role;
-      entry.hand = pr.hand;
-    }
-    out.props.push(entry);
-  }
 }
 
 function setDoc(ctx, doc) {
