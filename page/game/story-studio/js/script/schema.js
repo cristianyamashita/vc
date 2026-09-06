@@ -721,6 +721,10 @@ function story(ctx, doc, known) {
       ctx.fail(`${path}.look`, 'expected [x, y, z] or an actor id');
     }
     if (e.on !== undefined) entry.on = id(ctx, `${path}.on`, e.on);
+    // Which anchor of that placement to use. An action names a default —
+    // `sit` looks for `seat` — but a double bed has two places to lie and a
+    // bench has several to sit, so an entry may pick one by name.
+    if (e.anchor !== undefined) entry.anchor = id(ctx, `${path}.anchor`, e.anchor);
     // Which way the actor ends up pointing. Every actor action takes it,
     // because "sit down facing the window" and "say this to her" are the
     // normal case, not something worth a separate turnTo before each one.
@@ -758,6 +762,10 @@ function story(ctx, doc, known) {
     if (e.id !== undefined) entry.id = id(ctx, `${path}.id`, e.id);
     if (e.yaw !== undefined) entry.yaw = num(ctx, `${path}.yaw`, e.yaw, -3600, 3600, 0);
     if (e.fov !== undefined) entry.fov = num(ctx, `${path}.fov`, e.fov, 15, 110, 50);
+    // A camera move eases in and out by default, which is right for a cut
+    // between two setups and wrong for a walk: it stops dead at every corner.
+    // Marking a run of moves `glide` makes them one continuous travel.
+    if (e.glide) entry.glide = true;
     if (spec?.type === 'stage' && act !== 'setTime' && entry.id === undefined) {
       ctx.fail(`${path}.id`, `${act} needs the "id" of a placement to act on`);
     }

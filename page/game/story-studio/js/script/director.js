@@ -118,7 +118,11 @@ class Film {
     // A cut is a hard change: hold the previous framing right up to it rather
     // than sliding into it, or every cut becomes a two-second dolly.
     if (i >= 0 && next && !next.hard) {
-      const k = ease((t - cur.t) / Math.max(1e-6, next.t - cur.t));
+      const raw = (t - cur.t) / Math.max(1e-6, next.t - cur.t);
+      // Both ends have to be marked, so `glide` describes a RUN of moves.
+      // Easing only where the run begins and ends is what makes a walk read
+      // as one travel rather than as a series of little arrivals.
+      const k = cur.glide && next.glide ? Math.max(0, Math.min(1, raw)) : ease(raw);
       at = vecLerp(cur.at, next.at, k);
       fov = lerp(cur.fov, next.fov, k);
       if (Array.isArray(cur.look) && Array.isArray(next.look)) look = vecLerp(cur.look, next.look, k);
@@ -386,7 +390,7 @@ export function compile(story, world) {
     } else if (spec.type === 'posture' && e.on) {
       // Sitting on something is placement as well as pose: the seat says
       // where the hips go and which way the actor ends up facing.
-      const anchorName = spec.anchor || 'seat';
+      const anchorName = e.anchor || spec.anchor || 'seat';
       const anchor = world.anchor(e.on, anchorName);
       if (!anchor) {
         fail(`timeline[${i}].on`, `"${e.on}" has no ${anchorName} anchor`);
@@ -609,6 +613,7 @@ export function compile(story, world) {
           : cameraFrames[cameraFrames.length - 1].look,
         fov: e.fov ?? cameraFrames[cameraFrames.length - 1].fov,
         hard: !!spec.instant,
+        glide: !!e.glide,
       });
       if (!spec.instant && plan.dur > 0) {
         // A move needs a "leave from here" frame at its start, or the camera

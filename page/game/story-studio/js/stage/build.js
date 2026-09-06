@@ -150,7 +150,13 @@ export async function buildSet(setDoc, setEdits, resolveProp, blobs) {
         entry.placement.at[1] + ay * s,
         entry.placement.at[2] + (-ax * sin + az * cos) * s,
       ],
-      yaw: entry.placement.yaw + a.yaw,
+      // Negated on the way out, because the two conventions differ in the
+      // sign of Z: a prop's `rotation.y` sends its local +X to
+      // (cos, 0, -sin), while an actor's yaw is an atan2 angle facing
+      // (cos, 0, sin). Passing the number straight through seats people
+      // mirrored — invisible on a chair at 0° or 180°, exactly backwards at
+      // 90°, which is every chair along the side of a table.
+      yaw: -(entry.placement.yaw + a.yaw),
     };
   };
 
