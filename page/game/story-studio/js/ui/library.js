@@ -1,14 +1,16 @@
 import { t, localised } from '../i18n.js';
 
-// The four tabs. Official and imported documents sit in the same list on
-// purpose: the point of the format is that they are the same kind of thing,
-// and a visitor's chair should not live in a second-class section.
+// The library tabs, one per kind. Official and imported documents sit in the
+// same list on purpose: the point of the format is that they are the same
+// kind of thing, and a visitor's chair should not live in a second-class
+// section.
 
 export const TABS = [
   { kind: 'story', labelKey: 'stories' },
   { kind: 'character', labelKey: 'characters' },
   { kind: 'prop', labelKey: 'props' },
   { kind: 'set', labelKey: 'sets' },
+  { kind: 'outfit', labelKey: 'outfits' },
   { kind: 'action', labelKey: 'actions' },
 ];
 
@@ -31,6 +33,13 @@ function summarise(doc) {
     return [doc.source?.type, anchors.length ? `${t('anchors').toLowerCase()}: ${anchors.join(', ')}` : '']
       .filter(Boolean).join(' · ');
   }
+  if (doc.kind === 'outfit') {
+    const cut = doc.cut;
+    const paints = `${doc.paints.length} ${t('fitPaints').toLowerCase()}`;
+    const cells = doc.paints.reduce((n, p) => n + Object.keys(p.spray || {}).length, 0);
+    return [`${cut.top} · ${cut.legs} · ${cut.feet}`, paints,
+      cells ? t('fitSprayed', { n: String(cells) }) : ''].filter(Boolean).join(' · ');
+  }
   if (doc.kind === 'action') {
     if (doc.category === 'group') {
       return `${t('groupAction')} · ${doc.roles.map((r) => r.id).join(' + ')}`;
@@ -43,10 +52,10 @@ function summarise(doc) {
 }
 
 export class LibraryView {
-  constructor(root, { registry, onOpen, onExport, onExportBundle, onEdit, onDelete }) {
+  constructor(root, { registry, onOpen, onExport, onExportBundle, onEdit, onVisualEdit, onStoryEdit, onDuplicate, onDelete }) {
     this.root = root;
     this.registry = registry;
-    this.handlers = { onOpen, onExport, onExportBundle, onEdit, onDelete };
+    this.handlers = { onOpen, onExport, onExportBundle, onEdit, onVisualEdit, onStoryEdit, onDuplicate, onDelete };
     this.tab = 'story';
     this.tabsEl = root.querySelector('.ss-tabs');
     this.listEl = root.querySelector('.ss-list');
@@ -126,6 +135,13 @@ export class LibraryView {
     };
     add(doc.kind === 'story' ? t('play') : t('preview'), 'ss-primary', this.handlers.onOpen);
     add(t('edit'), '', this.handlers.onEdit);
+    // A set is a floor plan, and typing coordinates is a poor way to lay one
+    // out, so it gets the mouse as well as the JSON.
+    if (doc.kind === 'set' || doc.kind === 'outfit') add(t('visualEdit'), '', this.handlers.onVisualEdit);
+    if (doc.kind === 'story') add(t('storyEdit'), '', this.handlers.onStoryEdit);
+    // Next to Edit, because that is what it is for: a copy is where you edit
+    // without losing the thing that already worked.
+    add(t('duplicate'), '', this.handlers.onDuplicate);
     add(t('export'), '', this.handlers.onExport);
     if (doc.kind === 'story') add(t('exportBundle'), '', this.handlers.onExportBundle);
     if (source === 'user') add(t('remove'), 'ss-danger', this.handlers.onDelete);

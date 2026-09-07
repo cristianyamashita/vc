@@ -11,6 +11,13 @@ function yawRad(deg) {
   return (deg * Math.PI) / 180;
 }
 
+/** A placement's size as three numbers, whichever way it was written. */
+export function scaleTriple(scale) {
+  if (Array.isArray(scale)) return [scale[0] ?? 1, scale[1] ?? 1, scale[2] ?? 1];
+  const s = Number.isFinite(scale) ? scale : 1;
+  return [s, s, s];
+}
+
 export async function propObject(doc, blobs) {
   if (!doc?.source) return null;
   if (doc.source.type === 'boxes') return boxMesh(doc);
@@ -34,7 +41,7 @@ function missingMesh() {
   return mesh;
 }
 
-function tintOf(object, color) {
+export function tintOf(object, color) {
   const hex = toHex(color, 0xffffff);
   object.traverse((o) => {
     if (!o.isMesh) return;
@@ -57,8 +64,11 @@ export function expandPlacements(setDoc, setEdits = []) {
         prop: pl.prop,
         at: [pl.at[0] + step[0] * i, pl.at[1] + step[1] * i, pl.at[2] + step[2] * i],
         yaw: pl.yaw,
+        pitch: pl.pitch,
+        roll: pl.roll,
         scale: pl.scale,
         tint: pl.tint,
+        locked: pl.locked,
       });
     }
   }
@@ -67,7 +77,8 @@ export function expandPlacements(setDoc, setEdits = []) {
     if (edit.op === 'add') {
       list.push({
         id: edit.id, group: edit.id, prop: edit.prop, at: edit.at,
-        yaw: edit.yaw, scale: edit.scale, tint: edit.tint,
+        yaw: edit.yaw, pitch: edit.pitch, roll: edit.roll,
+        scale: edit.scale, tint: edit.tint,
       });
     } else if (edit.op === 'remove') {
       // A repeated placement is removed by its group name, so "remove the
@@ -110,8 +121,13 @@ export async function buildSet(setDoc, setEdits, resolveProp, blobs) {
     // the placement's transform only and never by the model correction.
     const holder = new THREE.Group();
     holder.position.set(pl.at[0], pl.at[1], pl.at[2]);
-    holder.rotation.y = yawRad(pl.yaw);
-    holder.scale.setScalar(pl.scale);
+    // The same three senses a held prop uses, on the same axes: yaw turns it
+    // about the upright, pitch tips its nose up or down, roll leans it
+    // sideways. YXZ, like every other rotation in the app.
+    holder.rotation.order = 'YXZ';
+    holder.rotation.set(yawRad(pl.roll || 0), yawRad(pl.yaw), yawRad(pl.pitch || 0));
+    const size = scaleTriple(pl.scale);
+    holder.scale.set(size[0], size[1], size[2]);
 
     let object = null;
     try {
@@ -131,6 +147,7 @@ export async function buildSet(setDoc, setEdits, resolveProp, blobs) {
     holder.add(object);
     root.add(holder);
     placements.set(pl.id, { placement: pl, doc, object: holder, scale: pl.scale });
+
   }
 
   /** World-space anchor: the prop's own anchor point, scaled, spun by the
@@ -139,24 +156,25 @@ export async function buildSet(setDoc, setEdits, resolveProp, blobs) {
     const entry = placements.get(id) || placements.get(`${id}.0`);
     const a = entry?.doc?.anchors?.[name];
     if (!a) return null;
-    const yaw = yawRad(entry.placement.yaw);
-    const cos = Math.cos(yaw);
-    const sin = Math.sin(yaw);
-    const [ax, ay, az] = a.pos;
-    const s = entry.scale;
+    const pl = entry.placement;
+    const s = scaleTriple(entry.scale);
+    // Through the placement's own rotation rather than a second copy of the
+    // yaw maths: the two would agree until the day a placement leaned, and
+    // then disagree silently about where a seat is. Scale first, then spin —
+    // the same order the scene graph applies them.
+    const spin = new THREE.Euler(
+      yawRad(pl.roll || 0), yawRad(pl.yaw), yawRad(pl.pitch || 0), 'YXZ',
+    );
+    const v = new THREE.Vector3(a.pos[0] * s[0], a.pos[1] * s[1], a.pos[2] * s[2]).applyEuler(spin);
     return {
-      pos: [
-        entry.placement.at[0] + (ax * cos + az * sin) * s,
-        entry.placement.at[1] + ay * s,
-        entry.placement.at[2] + (-ax * sin + az * cos) * s,
-      ],
+      pos: [pl.at[0] + v.x, pl.at[1] + v.y, pl.at[2] + v.z],
       // Negated on the way out, because the two conventions differ in the
       // sign of Z: a prop's `rotation.y` sends its local +X to
       // (cos, 0, -sin), while an actor's yaw is an atan2 angle facing
       // (cos, 0, sin). Passing the number straight through seats people
       // mirrored — invisible on a chair at 0° or 180°, exactly backwards at
       // 90°, which is every chair along the side of a table.
-      yaw: -(entry.placement.yaw + a.yaw),
+      yaw: -(pl.yaw + a.yaw),
     };
   };
 

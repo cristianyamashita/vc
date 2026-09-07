@@ -193,6 +193,25 @@ def extract_from_text(source: Path, text: str, buckets: dict[str, set[str]]) -> 
             add_url(buckets, resolved)
 
 
+# Modules an importmap resolves, which the scanner cannot see.
+#
+# The scanner collects absolute URLs out of the source text. A bare specifier
+# like `three/addons/controls/OrbitControls.js` is not one: the browser turns
+# it into a CDN URL at load time from the importmap, so nothing in any file
+# spells the address out. Left to itself the offline package ships the three
+# core module and none of the addons, and the app opens to a blank stage with
+# an import error. Anything reached through an importmap prefix belongs here,
+# including a module's own relative imports — GLTFLoader pulls in
+# BufferGeometryUtils, and half a dependency graph is no better than none.
+IMPORTMAP_CDN = (
+    "https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/loaders/GLTFLoader.js",
+    "https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/utils/BufferGeometryUtils.js",
+    "https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/renderers/CSS2DRenderer.js",
+    "https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/controls/OrbitControls.js",
+    "https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/controls/TransformControls.js",
+)
+
+
 def seed_globs(buckets: dict[str, set[str]]) -> None:
     def add_file(path: Path) -> None:
         if not path.is_file() or skip_dir(path):
@@ -236,6 +255,9 @@ def seed_globs(buckets: dict[str, set[str]]) -> None:
         PAGE / "assets" / "timezones.json",
     ):
         add_file(extra)
+
+    for url in IMPORTMAP_CDN:
+        add_url(buckets, url)
 
 
 def scan_text_files(buckets: dict[str, set[str]]) -> None:

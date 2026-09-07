@@ -1,4 +1,5 @@
 import { validate } from '../script/schema.js';
+import { installOutfits } from '../cast/wardrobe.js';
 import { listDocuments, getBlob } from './store.js';
 
 // One place to ask "give me the character called ana". It looks at the
@@ -7,18 +8,20 @@ import { listDocuments, getBlob } from './store.js';
 // whose id is `ana` and every official story that casts Ana now casts yours,
 // without editing a single story.
 
-const KINDS = ['character', 'prop', 'set', 'action', 'story'];
+const KINDS = ['outfit', 'character', 'prop', 'set', 'action', 'story'];
 
 // Spelled out rather than derived: "story" pluralises to "stories", and a
 // naive `kind + "s"` quietly looks for data/storys/ and finds nothing.
 const FOLDER = {
-  character: 'characters', prop: 'props', set: 'sets',
+  outfit: 'outfits', character: 'characters', prop: 'props', set: 'sets',
   action: 'actions', story: 'stories',
 };
 
-// Stories are validated against the action library, so actions have to be in
-// hand before any story is read. Everything else is independent.
-const LOAD_ORDER = [['character', 'prop', 'set', 'action'], ['story']];
+// Two orderings that are not preferences but requirements: a character names
+// its outfits, and a story names its actions, and each is checked against the
+// library rather than against a list in the code. So outfits come first, the
+// things that name them second, and stories last.
+const LOAD_ORDER = [['outfit'], ['character', 'prop', 'set', 'action'], ['story']];
 
 const DATA = new URL('../../data/', import.meta.url);
 
@@ -53,8 +56,20 @@ export class Registry {
         }
       }
       await Promise.all(jobs);
+      // Installed as soon as the phase that carries them is in, because the
+      // very next phase validates characters against this book.
+      if (phase.includes('outfit')) this.syncOutfits();
     }
     return this;
+  }
+
+  /** Hands the loaded outfits to the wardrobe, which is where every part of
+   *  the app that dresses somebody looks them up. Imports and deletions call
+   *  it again through `loadUser`. */
+  syncOutfits() {
+    const book = new Map(this.official.get('outfit') ?? []);
+    for (const [id, doc] of this.user.get('outfit') ?? []) book.set(id, doc);
+    installOutfits(book);
   }
 
   async loadOne(kind, file) {
@@ -92,6 +107,7 @@ export class Registry {
     for (const doc of docs) {
       if (this.user.has(doc.kind)) this.user.get(doc.kind).set(doc.id, doc);
     }
+    this.syncOutfits();
     return this;
   }
 
@@ -136,6 +152,10 @@ export class Registry {
 
   prop(id) {
     return this.get('prop', id);
+  }
+
+  outfit(id) {
+    return this.get('outfit', id);
   }
 
   blob(id) {

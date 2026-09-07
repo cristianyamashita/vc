@@ -3,12 +3,18 @@ import { initTheme, toggleTheme, getTheme } from './js/theme.js';
 import { setDetailed } from './js/render/geometry.js';
 import { Registry } from './js/library/registry.js';
 import { available as storageAvailable } from './js/library/store.js';
-import { readText, readFile, saveAll, removeDocument, importGlb, bundleFor, toJson, download } from './js/library/io.js';
+import { readText, readFile, saveAll, removeDocument, importGlb, bundleFor, copyOf, toJson, download } from './js/library/io.js';
 import { Playback } from './js/render/playback.js';
 import { Viewer } from './js/ui/viewer.js';
 import { Transport } from './js/ui/transport.js';
 import { LibraryView } from './js/ui/library.js';
 import { Editor } from './js/ui/editor.js';
+import { SetEditor } from './js/ui/setedit.js';
+import { StoryEditor } from './js/ui/storyedit.js';
+import { OutfitEditor } from './js/ui/outfitedit.js';
+import { characterParts } from './js/cast/build.js';
+import { presetsFor } from './js/cast/wardrobe.js';
+import { planOf } from './js/cast/body.js';
 import { validate } from './js/script/schema.js';
 import { expandPlacements } from './js/stage/build.js';
 
@@ -26,7 +32,15 @@ let viewer = null;
 let transport = null;
 let libraryView = null;
 let editor = null;
+let setEditor = null;
+let storyEditor = null;
+let outfitEditor = null;
 let currentView = 'library';
+// What is on screen, so the Edit button in the player and the preview has
+// something to open. Watching and editing are the same loop — you play a
+// story, see the thing that is wrong, and want the JSON right there — so the
+// way back into the editor has to be one click, not a trip to the library.
+let currentDoc = null;
 
 // --------------------------------------------------------------- messages
 
@@ -45,18 +59,25 @@ function clearNotice() {
 
 function show(view) {
   currentView = view;
-  for (const name of ['library', 'player', 'preview']) {
+  for (const name of ['library', 'player', 'preview', 'setedit', 'storyedit', 'fitedit']) {
     $(`#view-${name}`).hidden = name !== view;
   }
   $('#ss-back').hidden = view === 'library';
   if (view !== 'player') playback?.pause();
   if (view === 'preview') viewer?.start();
   else viewer?.stop();
+  if (view === 'setedit') setEditor?.start();
+  else setEditor?.stop();
+  if (view === 'storyedit') storyEditor?.start();
+  else storyEditor?.stop();
+  if (view === 'fitedit') outfitEditor?.start();
+  else outfitEditor?.stop();
   if (view !== 'library') resize();
 }
 
 function backToLibrary() {
   clearNotice();
+  currentDoc = null;
   playback?.pause();
   show('library');
   libraryView.render();
@@ -66,6 +87,7 @@ function backToLibrary() {
 
 async function openStory(doc) {
   clearNotice();
+  currentDoc = doc;
   $('#ss-player-title').textContent = localised(doc.name, doc.id);
   show('player');
   const res = await playback.load(doc, registry);
@@ -77,8 +99,14 @@ async function openStory(doc) {
     transport.sync();
     return res;
   }
-  if (playback.missing.length) {
-    notice(t('missingProps', { list: playback.missing.join(', ') }), 'warn');
+  const notes = [];
+  if (playback.missing.length) notes.push(t('missingProps', { list: playback.missing.join(', ') }));
+  // Warnings are things the compiler worked around rather than refused. They
+  // belong on screen: a film that quietly plays something other than what was
+  // written is worse than one that says so.
+  for (const w of playback.warnings || []) notes.push(`${w.path} ${w.message}`);
+  if (notes.length) {
+    notice(notes.join(' · '), 'warn');
     resize();
   }
   transport.sync();
@@ -91,17 +119,20 @@ async function openStory(doc) {
 
 async function openPreview(doc) {
   clearNotice();
+  currentDoc = doc;
   $('#ss-preview-title').textContent = localised(doc.name, doc.id);
   show('preview');
   if (doc.kind === 'character') {
     viewer.showCharacter(doc, doc.defaultOutfit);
     renderOutfitPicker(doc);
+    const worn = doc.wardrobe.find((w) => w.id === doc.defaultOutfit);
+    renderPaintRow(doc, typeof worn?.outfit === 'string' ? worn.outfit : null, worn);
   } else if (doc.kind === 'prop') {
-    $('#ss-outfits').innerHTML = '';
+    clearPickers();
     const ok = await viewer.showProp(doc, (id) => registry.blob(id));
     if (!ok) notice(t('notFound'), 'warn');
   } else if (doc.kind === 'action') {
-    $('#ss-outfits').innerHTML = '';
+    clearPickers();
     const demo = demoStory(doc);
     if (!demo) {
       notice(t('noDemo'), 'warn');
@@ -113,10 +144,23 @@ async function openPreview(doc) {
     if (!res.ok) notice(`${t('problems')}: ${res.errors.map((e) => `${e.path} ${e.message}`).join('; ')}`, 'bad');
     transport.sync();
     playback.play();
+  } else if (doc.kind === 'outfit') {
+    // An outfit is previewed the only way it can be seen: on somebody. The
+    // stand-in is built here rather than kept as a document, because a body
+    // that lived in the library would be a character nobody wrote.
+    clearPickers();
+    const plan = doc.plans?.length && !doc.plans.includes('man') ? doc.plans[0] : 'man';
+    const paint = doc.paints[0];
+    viewer.showCharacter(validate({
+      kind: 'character', version: 1, id: `preview.${doc.id}`, name: doc.name, base: plan,
+      look: { skin: '#c8a07a', hair: '#2a1810', hairStyle: 'short', hairLength: 0.2 },
+      wardrobe: doc.paints.map((p) => ({ id: p.id, outfit: doc.id, paint: p.id, color: p.color })),
+    }).doc, paint.id);
+    renderPaintPicker(doc);
   } else if (doc.kind === 'set') {
     // A set previews as the story that would play in it: an empty stage with
     // nobody in it, which is exactly what a set is.
-    $('#ss-outfits').innerHTML = '';
+    clearPickers();
     show('player');
     $('#ss-player-title').textContent = localised(doc.name, doc.id);
     await playback.load({
@@ -190,20 +234,128 @@ function setPreviewCamera(doc) {
   };
 }
 
-function renderOutfitPicker(doc) {
+/**
+ * The turntable's outfit chips: everything the character owns, and then every
+ * preset they do not.
+ *
+ * A character's wardrobe is a costume list, not a catalogue — four entries,
+ * chosen for the stories they appear in — and the preview used to show only
+ * those, so a new cut shipped in the format was invisible until somebody
+ * edited a document to try it. The second row dresses the character in a
+ * preset without touching the document: the entry exists for the length of
+ * one click, in a copy, so trying `military` on somebody never writes
+ * `military` into their wardrobe.
+ */
+function clearPickers() {
+  $('#ss-outfits').innerHTML = '';
+  $('#ss-paints').innerHTML = '';
+}
+
+/** The paint chips under an outfit preview: one per scheme the outfit ships,
+ *  which is the whole reason a garment carries more than one. */
+function renderPaintPicker(doc) {
   const host = $('#ss-outfits');
   host.innerHTML = '';
-  if (doc.wardrobe.length < 2) return;
-  for (const w of doc.wardrobe) {
+  if (doc.paints.length < 2) return;
+  const mannequin = validate({
+    kind: 'character', version: 1, id: `preview.${doc.id}`, name: doc.name,
+    base: doc.plans?.length && !doc.plans.includes('man') ? doc.plans[0] : 'man',
+    look: { skin: '#c8a07a', hair: '#2a1810', hairStyle: 'short', hairLength: 0.2 },
+    wardrobe: doc.paints.map((p) => ({ id: p.id, outfit: doc.id, paint: p.id, color: p.color })),
+  }).doc;
+  doc.paints.forEach((p, i) => {
     const b = document.createElement('button');
-    b.textContent = w.id;
-    b.className = w.id === doc.defaultOutfit ? 'is-active' : '';
+    b.textContent = localised(p.name, p.id);
+    b.className = i === 0 ? 'is-active' : '';
     b.addEventListener('click', () => {
-      viewer.showCharacter(doc, w.id);
+      viewer.showCharacter(mannequin, p.id);
       for (const other of host.children) other.className = '';
       b.className = 'is-active';
     });
     host.appendChild(b);
+  });
+}
+
+/**
+ * The paints of whichever outfit is currently on the figure.
+ *
+ * A garment carries its schemes — plain, camouflaged, striped — and a picker
+ * that only ever showed the first would hide most of what an outfit document
+ * is for. Picking one dresses the character in it here and now; writing it
+ * into the story is a `paint` on the wardrobe entry.
+ */
+function renderPaintRow(doc, outfitId, wear) {
+  const host = $('#ss-paints');
+  host.innerHTML = '';
+  const outfit = registry.outfit(outfitId);
+  if (!outfit || outfit.paints.length < 2) return;
+  outfit.paints.forEach((p, i) => {
+    const b = document.createElement('button');
+    b.textContent = localised(p.name, p.id);
+    b.className = i === 0 ? 'is-active' : '';
+    b.addEventListener('click', () => {
+      const fitting = {
+        ...doc,
+        wardrobe: [...doc.wardrobe, { id: `try.${p.id}`, outfit: outfitId, paint: p.id, color: p.color }],
+      };
+      viewer.showCharacter(fitting, `try.${p.id}`);
+      for (const other of host.children) other.className = '';
+      b.className = 'is-active';
+    });
+    host.appendChild(b);
+  });
+  // The entry's own colour beats the paint's, so the first chip is only
+  // honest about what is on screen when nothing overrode it.
+  if (wear?.color && !wear.paint) host.firstChild.className = '';
+}
+
+function renderOutfitPicker(doc) {
+  const host = $('#ss-outfits');
+  host.innerHTML = '';
+  const own = doc.wardrobe;
+  // Only string outfits can be matched against the preset list; a longhand
+  // cut is its own thing and hides nothing from the second row.
+  const worn = new Set(own.map((w) => w.outfit).filter((o) => typeof o === 'string'));
+  const base = own.find((w) => w.id === doc.defaultOutfit) || own[0];
+  const colour = base?.color || '#2a5caa';
+
+  const chip = (label, extra, onPick) => {
+    const b = document.createElement('button');
+    b.textContent = label;
+    b.className = extra;
+    b.dataset.rest = extra;
+    b.addEventListener('click', () => {
+      onPick();
+      for (const other of host.children) {
+        if (other.tagName === 'BUTTON') other.className = other.dataset.rest || '';
+      }
+      b.className = extra ? `${extra} is-active` : 'is-active';
+    });
+    host.appendChild(b);
+    return b;
+  };
+
+  for (const w of own) {
+    const b = chip(w.id, '', () => {
+      viewer.showCharacter(doc, w.id);
+      renderPaintRow(doc, typeof w.outfit === 'string' ? w.outfit : null, w);
+    });
+    if (w.id === doc.defaultOutfit) b.className = 'is-active';
+  }
+
+  const rest = presetsFor(planOf(doc.base)).filter((preset) => !worn.has(preset));
+  if (!rest.length) return;
+  // A line of its own, so the costumes the character actually owns are not
+  // lost in a wall of presets.
+  const brk = document.createElement('div');
+  brk.className = 'ss-outfits-break';
+  host.appendChild(brk);
+  for (const preset of rest) {
+    chip(preset, 'is-try', () => {
+      const fitting = { ...doc, wardrobe: [...own, { id: `try.${preset}`, outfit: preset, color: colour }] };
+      viewer.showCharacter(fitting, `try.${preset}`);
+      renderPaintRow(doc, preset, { color: colour });
+    });
   }
 }
 
@@ -230,11 +382,67 @@ async function acceptDocuments(result) {
   return true;
 }
 
+// ---------------------------------------------------------- visual editor
+
+/** The set editor, on the same document the JSON panel edits.
+ *
+ *  Saving writes a normal `set` through the normal validator, so a set laid
+ *  out with the mouse and one typed by hand are the same thing afterwards —
+ *  which is the property that stops this becoming a second format. */
+async function openSetEditor(doc) {
+  clearNotice();
+  currentDoc = doc;
+  show('setedit');
+  await setEditor.load(doc);
+  resize();
+}
+
+/** The outfit editor, on the same document the JSON panel edits. */
+async function openOutfitEditor(doc) {
+  clearNotice();
+  currentDoc = doc;
+  show('fitedit');
+  outfitEditor.load(doc);
+  resize();
+}
+
+/** The story editor, on the same document the JSON panel edits. */
+async function openStoryEditor(doc) {
+  clearNotice();
+  currentDoc = doc;
+  show('storyedit');
+  await storyEditor.load(doc);
+  resize();
+}
+
 // ----------------------------------------------------------------- editor
 
 function openEditor(doc) {
+  if (!doc) return;
+  // A film running behind the dialog is a distraction and keeps burning
+  // frames, so opening the editor stops it where it stands.
+  playback?.pause();
+  transport?.sync();
   editor.load(doc);
   $('#dlg-editor').showModal();
+}
+
+/** Duplicate, then open the copy in the editor.
+ *
+ *  Nobody duplicates a document in order to keep an identical one: the copy
+ *  exists to be changed, so the editor is the next click either way, and it
+ *  is also where the new id is visible. */
+async function duplicate(doc) {
+  const copy = copyOf(doc, registry);
+  const saved = await saveAll([copy], registry.actionMap());
+  if (!saved.length) {
+    notice(t('storageOff'), 'warn');
+    return;
+  }
+  await registry.loadUser();
+  libraryView.render();
+  notice(t('duplicated', { id: copy.id }), 'info');
+  openEditor(saved[0]);
 }
 
 async function applyEdited(doc) {
@@ -250,10 +458,17 @@ async function applyEdited(doc) {
 // ----------------------------------------------------------------- layout
 
 function resize() {
-  const stage = currentView === 'player' ? $('#ss-stage-wrap') : $('#ss-preview-wrap');
+  const id = currentView === 'player' ? '#ss-stage-wrap'
+    : currentView === 'setedit' ? '#ss-edit-stage'
+      : currentView === 'storyedit' ? '#ss-story-stage'
+        : currentView === 'fitedit' ? '#ss-fit-stage' : '#ss-preview-wrap';
+  const stage = $(id);
   if (!stage) return;
   const rect = stage.getBoundingClientRect();
   if (currentView === 'player') playback?.resize(rect.width, rect.height);
+  else if (currentView === 'setedit') setEditor?.resize(rect.width, rect.height);
+  else if (currentView === 'storyedit') storyEditor?.resize(rect.width, rect.height);
+  else if (currentView === 'fitedit') outfitEditor?.resize(rect.width, rect.height);
   else viewer?.resize(rect.width, rect.height);
 }
 
@@ -288,11 +503,69 @@ async function main() {
   viewer = new Viewer($('#ss-preview-canvas'));
   transport = new Transport($('#ss-transport'), playback);
   editor = new Editor($('#dlg-editor'), { onApply: applyEdited, actions: () => registry.actionMap() });
+  setEditor = new SetEditor($('#view-setedit'), {
+    registry,
+    onSave: async (doc) => {
+      const saved = await saveAll([doc], registry.actionMap());
+      if (!saved.length) {
+        notice(t('storageOff'), 'warn');
+        return;
+      }
+      await registry.loadUser();
+      backToLibrary();
+      notice(t('editSaved', { id: doc.id }), 'info');
+    },
+    onCancel: () => {
+      if (setEditor.dirty && !confirm(t('editDiscard'))) return;
+      backToLibrary();
+    },
+  });
+
+  storyEditor = new StoryEditor($('#view-storyedit'), {
+    registry,
+    onSave: async (doc) => {
+      const saved = await saveAll([doc], registry.actionMap());
+      if (!saved.length) {
+        notice(t('storageOff'), 'warn');
+        return;
+      }
+      await registry.loadUser();
+      backToLibrary();
+      notice(t('storySaved', { id: doc.id }), 'info');
+    },
+    onCancel: () => {
+      if (storyEditor.dirty && !confirm(t('storyDiscard'))) return;
+      backToLibrary();
+    },
+  });
+  // The palette draws a character by baking its body to boxes, which is the
+  // cast builder's job and not the editor's to import for itself.
+  storyEditor.partsFor = (doc) => characterParts(doc, doc.defaultOutfit).parts;
+
+  outfitEditor = new OutfitEditor($('#view-fitedit'), {
+    onSave: async (doc) => {
+      const saved = await saveAll([doc], registry.actionMap());
+      if (!saved.length) {
+        notice(t('storageOff'), 'warn');
+        return;
+      }
+      await registry.loadUser();
+      backToLibrary();
+      notice(t('fitSaved', { id: doc.id }), 'info');
+    },
+    onCancel: () => {
+      if (outfitEditor.dirty && !confirm(t('fitDiscard'))) return;
+      backToLibrary();
+    },
+  });
 
   libraryView = new LibraryView($('#view-library'), {
     registry,
     onOpen: (doc) => (doc.kind === 'story' ? openStory(doc) : openPreview(doc)),
     onEdit: openEditor,
+    onVisualEdit: (doc) => (doc.kind === 'outfit' ? openOutfitEditor(doc) : openSetEditor(doc)),
+    onStoryEdit: openStoryEditor,
+    onDuplicate: duplicate,
     onExport: (doc) => download(`${doc.kind}-${doc.id}.json`, toJson(doc)),
     onExportBundle: (doc) => download(`story-${doc.id}.bundle.json`, toJson(bundleFor(doc, registry))),
     onDelete: async (doc) => {
@@ -304,6 +577,8 @@ async function main() {
   });
 
   $('#ss-back').addEventListener('click', backToLibrary);
+  $('#ss-player-edit').addEventListener('click', () => openEditor(currentDoc));
+  $('#ss-preview-edit').addEventListener('click', () => openEditor(currentDoc));
   $('#ss-import').addEventListener('click', openImport);
   $('#ss-import-do').addEventListener('click', async () => {
     await acceptDocuments(readText($('#ss-import-text').value, registry.actionMap()));

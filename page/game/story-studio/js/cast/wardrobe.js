@@ -1,31 +1,29 @@
-import { shadeHex, toHex } from '../render/geometry.js';
+import { shadeHex, toHex, cellIndex, PAINT_N } from '../render/geometry.js';
 
-// The clothing vocabulary. An outfit is not a model: it is a handful of cuts
-// ("trousers, tee, short sleeve, sneakers") that the anatomy in body.js reads
-// while it lays out boxes. That is what lets one character carry five outfits
-// without five models, and what lets a character document invent an outfit
-// inline without touching code.
+// The clothing vocabulary, and the book of outfits the app has loaded.
+//
+// An outfit is not a model: it is a handful of cuts ("trousers, tee, short
+// sleeve, sneakers") that the anatomy in body.js reads while it lays out
+// boxes. That is what lets one character carry fifteen outfits without
+// fifteen models.
+//
+// The cuts themselves used to be a constant table in this file. They are
+// documents now — `data/outfits/*.json`, loaded like every other kind — and
+// what stays here is the book they are installed into. The vocabulary below
+// is still code because it is what the anatomy can actually draw; which
+// combinations exist, what they are called, how far they stand off the body
+// and how they are painted belong to the document.
 
-/** Named cuts a document may reference by string. Anything here can also be
- *  written out longhand in a character's wardrobe entry. */
-export const OUTFIT_PRESETS = {
-  casual: { legs: 'trousers', top: 'tee', sleeve: 'short', feet: 'sneaker', belt: true },
-  shortsTee: { legs: 'shorts', top: 'tee', sleeve: 'short', feet: 'sneaker' },
-  suit: { legs: 'trousers', top: 'jacket', sleeve: 'long', feet: 'dress', belt: true, tie: true },
-  dress: { legs: 'bare', top: 'dress', sleeve: 'upper', feet: 'flat', skirt: true },
-  shirt: { legs: 'trousers', top: 'shirt', sleeve: 'upper', feet: 'shoe', belt: true },
-  swim: { legs: 'briefs', top: 'bare', sleeve: 'none', feet: 'bare' },
-  swimsuit: { legs: 'briefs', top: 'bikini', sleeve: 'none', feet: 'bare' },
-  overalls: { legs: 'trousers', top: 'tee', sleeve: 'short', feet: 'boot', straps: true },
-  pyjamas: { legs: 'trousers', top: 'tee', sleeve: 'long', feet: 'bare' },
-};
+/** The cut fields, and every value the anatomy knows how to draw. */
+export const LEGS = ['trousers', 'shorts', 'briefs', 'bare'];
+export const TOPS = ['shirt', 'tee', 'jacket', 'dress', 'nightie', 'bikini', 'bra',
+  'towel', 'tube', 'croptop', 'fatigues', 'bare'];
+export const SLEEVES = ['long', 'short', 'upper', 'none'];
+export const FEET = ['shoe', 'sneaker', 'boot', 'dress', 'flat', 'bare'];
+export const CUT_FLAGS = ['belt', 'tie', 'cap', 'skirt', 'straps'];
 
-export const OUTFIT_KEYS = Object.keys(OUTFIT_PRESETS);
-
-const LEGS = ['trousers', 'shorts', 'briefs', 'bare'];
-const TOPS = ['shirt', 'tee', 'jacket', 'dress', 'bikini', 'bare'];
-const SLEEVES = ['long', 'short', 'upper', 'none'];
-const FEET = ['shoe', 'sneaker', 'boot', 'dress', 'flat', 'bare'];
+/** How far cloth may stand off the skin, in metres on a 1.76 m frame. */
+export const SWELL_RANGE = [-0.02, 0.06];
 
 const DEFAULT_CUT = { legs: 'trousers', top: 'tee', sleeve: 'short', feet: 'sneaker' };
 
@@ -39,18 +37,55 @@ const DRESS_SHOE = 0x1c1712;
 
 const SKIN = { man: 0xc8a07a, woman: 0xd4b08a, child: 0xd8b48c };
 
+// ------------------------------------------------------------------- book
+
+/** id -> outfit document. Filled by the registry once the library is read. */
+let BOOK = new Map();
+
+/**
+ * Installs the loaded outfit documents. Everything that names an outfit by
+ * string — a character's wardrobe, the preview's picker, the validator — asks
+ * this one book, so an imported outfit dresses every character that names it
+ * without a line of code changing.
+ */
+export function installOutfits(docs) {
+  BOOK = docs instanceof Map ? new Map(docs) : new Map(Object.entries(docs || {}));
+}
+
+export function outfitDoc(id) {
+  return (typeof id === 'string' && BOOK.get(id)) || null;
+}
+
+/** Every installed outfit id, in the order the library loaded them. */
+export function outfitIds() {
+  return [...BOOK.keys()];
+}
+
+/**
+ * The outfits worth offering for one body plan. Every cut RENDERS on every
+ * plan and a document may name any of them — `plans` is what an outfit is
+ * suggested for, not what it is allowed on.
+ */
+export function presetsFor(plan) {
+  const out = [];
+  for (const [id, doc] of BOOK) {
+    if (!doc.plans?.length || doc.plans.includes(plan)) out.push(id);
+  }
+  return out;
+}
+
 function pick(value, allowed, fallback) {
   return allowed.includes(value) ? value : fallback;
 }
 
 /**
- * Normalises whatever a document said into a full cut. Accepts a preset name
+ * Normalises whatever a document said into a full cut. Accepts an outfit id
  * or an inline object, and silently falls back per field: one unknown cut in
  * an imported character should dress that part oddly, not fail the import.
  */
 export function resolveCut(outfit) {
-  const raw = typeof outfit === 'string' ? OUTFIT_PRESETS[outfit] : outfit;
-  const src = raw && typeof raw === 'object' ? raw : OUTFIT_PRESETS.casual;
+  const named = typeof outfit === 'string' ? outfitDoc(outfit)?.cut : null;
+  const src = named || (outfit && typeof outfit === 'object' ? outfit : null) || DEFAULT_CUT;
   return {
     legs: pick(src.legs, LEGS, DEFAULT_CUT.legs),
     top: pick(src.top, TOPS, DEFAULT_CUT.top),
@@ -59,28 +94,108 @@ export function resolveCut(outfit) {
     belt: !!src.belt,
     tie: !!src.tie,
     cap: !!src.cap,
-    skirt: !!src.skirt || src.top === 'dress',
+    // A tube dress and a towel reach past the hip too, but as a straight
+    // wrap: they are drawn by their own cut, not by the flared skirt.
+    skirt: !!src.skirt || src.top === 'dress' || src.top === 'nightie',
     straps: !!src.straps,
   };
 }
 
+/** How far a named outfit's cloth stands off the body. An inline cut has no
+ *  document to carry the dial, so it sits on the skin. */
+export function resolveFit(outfit) {
+  const doc = typeof outfit === 'string' ? outfitDoc(outfit) : null;
+  return doc?.fit || { swell: 0 };
+}
+
+// ------------------------------------------------------------------ paint
+
 /**
- * The palette one dressed figure draws from. `color` is the character's
- * chosen garment colour; everything else is derived so a new outfit never
- * needs a second colour table.
+ * The paint scheme to wear: the one asked for by id, else the outfit's
+ * default, else its first. A paint carries the garment's main colour and its
+ * sprayed cells, which is what lets one outfit ship plain and camouflaged
+ * without being two documents.
+ */
+export function resolvePaint(outfit, paintId) {
+  const doc = typeof outfit === 'string' ? outfitDoc(outfit) : null;
+  const list = doc?.paints;
+  if (!list?.length) return null;
+  return (paintId && list.find((p) => p.id === paintId))
+    || list.find((p) => p.id === doc.defaultPaint)
+    || list[0];
+}
+
+// A paint's cell map is built once and kept alongside the paint object: a
+// story rebuilds its whole cast on every load, and re-parsing four thousand
+// spray keys per character is work nobody asked for.
+const CELLS = new WeakMap();
+
+/**
+ * `{ "topChest|4|2,3": "#3a4030" }` -> Map(pid -> Map(cellIndex -> colour)),
+ * which is the shape `buildGeometry` reads. A malformed key is dropped rather
+ * than thrown on: one bad cell in an imported outfit should cost that cell.
+ */
+export function sprayCells(paint) {
+  if (!paint?.spray) return null;
+  if (CELLS.has(paint)) return CELLS.get(paint);
+  const byPid = new Map();
+  for (const [key, value] of Object.entries(paint.spray)) {
+    const bar = key.indexOf('|');
+    const bar2 = key.indexOf('|', bar + 1);
+    const comma = key.indexOf(',', bar2 + 1);
+    if (bar < 1 || bar2 < 0 || comma < 0) continue;
+    const face = Number(key.slice(bar + 1, bar2));
+    const gx = Number(key.slice(bar2 + 1, comma));
+    const gy = Number(key.slice(comma + 1));
+    if (!(face >= 0 && face < 6)) continue;
+    if (!(gx >= 0 && gx < PAINT_N) || !(gy >= 0 && gy < PAINT_N)) continue;
+    const pid = key.slice(0, bar);
+    let cells = byPid.get(pid);
+    if (!cells) {
+      cells = new Map();
+      byPid.set(pid, cells);
+    }
+    cells.set(cellIndex(face, gx, gy), toHex(value, 0x808080));
+  }
+  const out = byPid.size ? byPid : null;
+  CELLS.set(paint, out);
+  return out;
+}
+
+/** Address of one sprayable cell: a garment box's pid, a face, a grid cell. */
+export function sprayKey(pid, face, gx, gy) {
+  return `${pid}|${face}|${gx},${gy}`;
+}
+
+// ---------------------------------------------------------------- palette
+
+/**
+ * The palette one dressed figure draws from. `color` is the garment colour —
+ * the paint's, or the character's own override — and everything else is
+ * derived so a new outfit never needs a second colour table.
  */
 export function palette(plan, cut, color, look = {}) {
   const cloth = toHex(color, 0x2a5caa);
   const suited = cut.top === 'jacket';
-  const main = suited ? shadeHex(cloth, 0.45) : cloth;
+  // Nightwear, underwear and a towel are pale, soft cloth: taking the chosen
+  // colour straight would give a midnight-blue slip where the author asked
+  // for the same blue they use on a tee.
+  const soft = cut.top === 'nightie' || cut.top === 'bra' || cut.top === 'towel';
+  const main = suited ? shadeHex(cloth, 0.45) : soft ? shadeHex(cloth, 1.28) : cloth;
   const skin = toHex(look.skin, SKIN[plan] ?? SKIN.man);
   const hair = toHex(look.hair, 0x2a1810);
   return {
     top: main,
     topDark: shadeHex(main, 0.78),
-    legs: cut.legs === 'briefs' ? cloth
-      : cut.legs === 'shorts' ? DENIM
-        : suited ? main : TROUSER,
+    // Fatigue trousers are the tunic's own cloth a shade darker, not
+    // charcoal: a uniform is one cloth, and a paint that dresses the tunic
+    // has to dress the legs with it or camouflage stops at the waist.
+    legs: cut.top === 'fatigues' ? shadeHex(main, 0.82)
+      : cut.legs === 'briefs' ? (soft ? shadeHex(cloth, 1.28) : cloth)
+        // Sports shorts belong to the top they came with; loose ones are
+        // denim, which is what a shorts-and-tee outfit means by "shorts".
+        : cut.legs === 'shorts' ? (cut.top === 'croptop' ? cloth : DENIM)
+          : suited ? main : TROUSER,
     shoe: cut.feet === 'boot' ? BOOT
       : cut.feet === 'sneaker' ? SNEAKER
         : cut.feet === 'dress' ? DRESS_SHOE

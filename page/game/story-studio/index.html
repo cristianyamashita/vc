@@ -54,7 +54,10 @@
       </section>
 
       <section id="view-player" class="ss-view" hidden>
-        <h2 id="ss-player-title" class="ss-view-title"></h2>
+        <div class="ss-view-head">
+          <h2 id="ss-player-title" class="ss-view-title"></h2>
+          <button id="ss-player-edit" class="ss-button" type="button" data-i18n="edit">Edit</button>
+        </div>
         <div id="ss-stage-wrap" class="ss-stage">
           <canvas id="ss-canvas"></canvas>
         </div>
@@ -66,12 +69,186 @@
         </div>
       </section>
 
+      <section id="view-setedit" class="ss-view" hidden>
+        <div class="ss-edit-bar">
+          <h2 id="ss-edit-title" class="ss-view-title"></h2>
+          <div class="ss-edit-tools">
+            <button id="ss-edit-move" class="ss-button is-active" type="button" data-i18n="editMove">Move</button>
+            <button id="ss-edit-rotate" class="ss-button" type="button" data-i18n="editRotate">Rotate</button>
+            <button id="ss-edit-snap" class="ss-button" type="button" data-i18n="editSnap">Snap</button>
+            <button id="ss-edit-duplicate" class="ss-button" type="button" data-i18n="duplicate">Duplicate</button>
+            <button id="ss-edit-delete" class="ss-button ss-danger" type="button" data-i18n="remove">Delete</button>
+            <select id="ss-edit-sky" data-i18n-aria="editSky"></select>
+            <button id="ss-edit-save" class="ss-primary" type="button" data-i18n="save">Save</button>
+            <button id="ss-edit-cancel" class="ss-button" type="button" data-i18n="cancel">Cancel</button>
+          </div>
+        </div>
+        <div class="ss-edit-body">
+          <aside class="ss-edit-side">
+            <input id="ss-edit-search" type="search" class="ss-edit-search" data-i18n-placeholder="editSearch">
+            <div id="ss-edit-palette" class="ss-pal"></div>
+            <h3 class="ss-edit-heading" data-i18n="editInScene">In the set</h3>
+            <div id="ss-edit-list" class="ss-edit-rows"></div>
+          </aside>
+          <div id="ss-edit-stage" class="ss-stage">
+            <canvas id="ss-edit-canvas"></canvas>
+          </div>
+          <aside id="ss-edit-props" class="ss-edit-props" hidden>
+            <div class="ss-prop-head">
+              <h3 class="ss-edit-heading" data-i18n="editProps">Properties</h3>
+              <button id="ss-prop-lock" class="ss-button ss-prop-lock" type="button"></button>
+            </div>
+            <p id="ss-prop-of" class="ss-prop-of"></p>
+            <label class="ss-prop-row"><span data-i18n="editId">Name</span>
+              <input id="ss-prop-id" type="text" spellcheck="false"></label>
+            <p class="ss-prop-group" data-i18n="editPos">Position</p>
+            <div class="ss-prop-trio">
+              <label><span>X</span><input id="ss-prop-x" type="number" step="0.05"></label>
+              <label><span>Y</span><input id="ss-prop-y" type="number" step="0.05"></label>
+              <label><span>Z</span><input id="ss-prop-z" type="number" step="0.05"></label>
+            </div>
+            <p class="ss-prop-group" data-i18n="editRot">Rotation</p>
+            <div class="ss-prop-trio">
+              <label><span data-i18n="editYaw">yaw</span><input id="ss-prop-yaw" type="number" step="5"></label>
+              <label><span data-i18n="editPitch">pitch</span><input id="ss-prop-pitch" type="number" step="5"></label>
+              <label><span data-i18n="editRoll">roll</span><input id="ss-prop-roll" type="number" step="5"></label>
+            </div>
+            <p class="ss-prop-group">
+              <span data-i18n="editSize">Size</span>
+              <label class="ss-prop-link"><input id="ss-prop-uniform" type="checkbox" checked>
+                <span data-i18n="editUniform">linked</span></label>
+            </p>
+            <div class="ss-prop-trio">
+              <label><span>X</span><input id="ss-prop-sx" type="number" step="0.05" min="0.01"></label>
+              <label><span>Y</span><input id="ss-prop-sy" type="number" step="0.05" min="0.01"></label>
+              <label><span>Z</span><input id="ss-prop-sz" type="number" step="0.05" min="0.01"></label>
+            </div>
+            <p class="ss-prop-group" data-i18n="editTint">Colour</p>
+            <div class="ss-prop-tint">
+              <input id="ss-prop-tint" type="color">
+              <button id="ss-prop-tint-clear" class="ss-button" type="button" data-i18n="editTintClear">Original</button>
+            </div>
+            <p class="ss-prop-group" data-i18n="editRepeat">Repeat</p>
+            <div class="ss-prop-trio">
+              <label><span data-i18n="editCount">count</span><input id="ss-prop-count" type="number" step="1" min="1"></label>
+              <label><span>&#8594;X</span><input id="ss-prop-stepx" type="number" step="0.1"></label>
+              <label><span>&#8594;Z</span><input id="ss-prop-stepz" type="number" step="0.1"></label>
+            </div>
+          </aside>
+        </div>
+        <p id="ss-edit-status" class="ss-edit-status-bar"></p>
+      </section>
+
+      <section id="view-storyedit" class="ss-view" hidden>
+        <div class="ss-edit-bar">
+          <h2 id="ss-story-title" class="ss-view-title"></h2>
+          <div class="ss-edit-tools">
+            <label class="ss-prop-row ss-inline"><span data-i18n="editSet">Set</span>
+              <select id="ss-story-set"></select></label>
+            <button id="ss-story-shot" class="ss-button" type="button" data-i18n="editShot">Free look</button>
+            <button id="ss-story-play" class="ss-button" type="button">&#9654;</button>
+            <button id="ss-story-save" class="ss-primary" type="button" data-i18n="save">Save</button>
+            <button id="ss-story-cancel" class="ss-button" type="button" data-i18n="cancel">Cancel</button>
+          </div>
+        </div>
+        <div class="ss-edit-body">
+          <aside class="ss-edit-side">
+            <nav class="ss-tabs ss-story-tabs">
+              <button data-kind="character" class="is-active" data-i18n="characters">Characters</button>
+              <button data-kind="prop" data-i18n="props">Objects</button>
+            </nav>
+            <input id="ss-story-search" type="search" class="ss-edit-search" data-i18n-placeholder="editSearch">
+            <div id="ss-story-palette" class="ss-pal"></div>
+            <h3 class="ss-edit-heading" data-i18n="editInScene">In the set</h3>
+            <div id="ss-story-list" class="ss-edit-rows"></div>
+          </aside>
+          <div id="ss-story-stage" class="ss-stage">
+            <canvas id="ss-story-canvas"></canvas>
+            <div id="ss-story-labels" class="ss-labels"></div>
+          </div>
+          <aside id="ss-story-props" class="ss-edit-props"></aside>
+        </div>
+        <div class="ss-tl">
+          <div class="ss-tl-head">
+            <span id="ss-tl-clock" class="ss-tl-clock">0:00</span>
+            <button id="ss-tl-add" class="ss-button" type="button" data-i18n="editAddAction">Add action</button>
+            <button id="ss-tl-dup" class="ss-button" type="button" data-i18n="duplicate">Duplicate</button>
+            <button id="ss-tl-del" class="ss-button ss-danger" type="button" data-i18n="remove">Delete</button>
+            <span id="ss-tl-note" class="ss-tl-note"></span>
+          </div>
+          <div id="ss-tl-scroll" class="ss-tl-scroll">
+            <div id="ss-tl-lanes" class="ss-tl-lanes"></div>
+          </div>
+        </div>
+        <p id="ss-story-status" class="ss-edit-status-bar"></p>
+      </section>
+
+      <section id="view-fitedit" class="ss-view" hidden>
+        <div class="ss-edit-bar">
+          <h2 id="ss-fit-title" class="ss-view-title"></h2>
+          <div class="ss-edit-tools">
+            <label class="ss-prop-row ss-inline"><span data-i18n="editId">Name</span>
+              <input id="ss-fit-name" type="text" spellcheck="false"></label>
+            <label class="ss-prop-row ss-inline"><span data-i18n="fitPreviewOn">Try it on</span>
+              <select id="ss-fit-plan"></select></label>
+            <button id="ss-fit-save" class="ss-primary" type="button" data-i18n="save">Save</button>
+            <button id="ss-fit-cancel" class="ss-button" type="button" data-i18n="cancel">Cancel</button>
+          </div>
+        </div>
+        <div class="ss-edit-body">
+          <aside class="ss-edit-side">
+            <h3 class="ss-edit-heading" data-i18n="fitCut">Cut</h3>
+            <label class="ss-prop-row"><span>legs</span><select id="ss-fit-legs"></select></label>
+            <label class="ss-prop-row"><span>top</span><select id="ss-fit-top"></select></label>
+            <label class="ss-prop-row"><span>sleeve</span><select id="ss-fit-sleeve"></select></label>
+            <label class="ss-prop-row"><span>feet</span><select id="ss-fit-feet"></select></label>
+            <div id="ss-fit-flags" class="ss-fit-checks"></div>
+            <h3 class="ss-edit-heading" data-i18n="fitFit">Fit</h3>
+            <label class="ss-prop-row"><span data-i18n="fitSwell">Stands off the body</span>
+              <input id="ss-fit-swell" type="range"></label>
+            <p id="ss-fit-swell-out" class="ss-fit-out">0 mm</p>
+            <h3 class="ss-edit-heading" data-i18n="fitPlans">Offered to</h3>
+            <div id="ss-fit-plans" class="ss-fit-checks"></div>
+          </aside>
+          <div id="ss-fit-stage" class="ss-stage">
+            <canvas id="ss-fit-canvas"></canvas>
+          </div>
+          <aside class="ss-edit-props">
+            <h3 class="ss-edit-heading" data-i18n="fitPaints">Paints</h3>
+            <div id="ss-fit-paints" class="ss-fit-paints"></div>
+            <div class="ss-fit-row">
+              <button id="ss-fit-paint-add" class="ss-button" type="button" data-i18n="fitAdd">New</button>
+              <button id="ss-fit-paint-copy" class="ss-button" type="button" data-i18n="fitCopy">Copy</button>
+              <button id="ss-fit-paint-del" class="ss-button ss-danger" type="button" data-i18n="remove">Delete</button>
+            </div>
+            <label class="ss-prop-row"><span data-i18n="fitPaintName">Paint name</span>
+              <input id="ss-fit-paint-name" type="text" spellcheck="false"></label>
+            <label class="ss-prop-row"><span data-i18n="fitColor">Main colour</span>
+              <input id="ss-fit-color" type="color"></label>
+            <h3 class="ss-edit-heading" data-i18n="fitSpray">Spray</h3>
+            <div id="ss-fit-tools" class="ss-fit-row"></div>
+            <label class="ss-prop-row"><span data-i18n="fitInk">Ink</span>
+              <input id="ss-fit-ink" type="color" value="#20242c"></label>
+            <label class="ss-prop-row"><span data-i18n="fitDots">Dots</span>
+              <input id="ss-fit-dots" type="range"></label>
+            <p id="ss-fit-dots-out" class="ss-fit-out">3</p>
+            <p id="ss-fit-count" class="ss-fit-out"></p>
+            <button id="ss-fit-clear" class="ss-button" type="button" data-i18n="fitClear">Clear spray</button>
+            <p class="ss-hint" data-i18n="fitHint"></p>
+          </aside>
+        </div>
+      </section>
+
       <section id="view-preview" class="ss-view" hidden>
-        <h2 id="ss-preview-title" class="ss-view-title"></h2>
+        <div class="ss-view-head">
+          <h2 id="ss-preview-title" class="ss-view-title"></h2>
+          <button id="ss-preview-edit" class="ss-button" type="button" data-i18n="edit">Edit</button>
+        </div>
         <div id="ss-preview-wrap" class="ss-stage">
           <canvas id="ss-preview-canvas"></canvas>
         </div>
         <div id="ss-outfits" class="ss-outfits"></div>
+        <div id="ss-paints" class="ss-outfits ss-outfits-paints"></div>
       </section>
     </main>
 

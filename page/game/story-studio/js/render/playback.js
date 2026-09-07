@@ -68,7 +68,16 @@ export class Playback {
       action: (id) => registry.action(id),
       prop: (id) => registry.prop(id),
       anchor: (placementId, name) => this.set.anchor(placementId, name),
+      // Where the set put a placement, before any propMove touched it. A
+      // move needs somewhere to travel from, and this is the only side of
+      // the app that knows.
+      placement: (placementId) => this.set.placements.get(placementId)?.placement || null,
     };
+    // Kept, so the editor can recompile a changed timeline without rebuilding
+    // the set and every character: retiming an action must feel instant, and
+    // rebuilding takes about a second.
+    this.world = world;
+    this.story = story;
     const compiled = compile(story, world);
     if (!compiled.ok) {
       // Draw the set anyway. A story that fails to compile still has a place
@@ -81,6 +90,10 @@ export class Playback {
 
     this.film = compiled.film;
     this.film.sky = setDoc.sky;
+    // Things that are wrong but not fatal: an action told to sit on something
+    // that is not a seat. They reach the notice bar, the same place a missing
+    // prop does, instead of being swallowed.
+    this.warnings = compiled.warnings || [];
 
     for (const [id, a] of Object.entries(this.film.actors)) {
       const mesh = buildCharacter(a.doc, a.outfit);
@@ -104,7 +117,26 @@ export class Playback {
     }
 
     this.seek(0);
-    return { ok: true, errors: [] };
+    return { ok: true, errors: [], warnings: this.warnings };
+  }
+
+  /**
+   * Swaps in a changed story without touching the meshes.
+   *
+   * Only safe while the set, the cast and the props in play are the same —
+   * the caller reloads for those. What this is for is the edit you make fifty
+   * times in a row: dragging an action to a different second.
+   */
+  recompile(story) {
+    if (!this.world) return { ok: false, errors: [{ path: '', message: 'nothing loaded' }] };
+    const compiled = compile(story, this.world);
+    if (!compiled.ok) return { ok: false, errors: compiled.errors };
+    this.story = story;
+    this.film = compiled.film;
+    this.film.sky = this.baseSky;
+    this.warnings = compiled.warnings || [];
+    this.seek(Math.min(this.time, this.film.duration));
+    return { ok: true, errors: [], warnings: this.warnings };
   }
 
   clear() {
@@ -229,8 +261,9 @@ export class Playback {
     const want = state.holds;
     const hand = state.hand === 'left' ? 'lHand' : 'rHand';
     const key = `${actorId}`;
+    const tilt = state.grip || null;
     const slot = this.heldSlots.get(key);
-    if (slot && slot.prop === want && slot.hand === hand) {
+    if (slot && slot.prop === want && slot.hand === hand && sameTilt(slot.tilt, tilt)) {
       slot.group.visible = !!want;
       return;
     }
@@ -246,14 +279,27 @@ export class Playback {
     const group = new THREE.Group();
     const object = template.object.clone(true);
     const grip = template.doc.anchors?.grip;
-    if (grip) {
-      object.position.set(-grip.pos[0], -grip.pos[1], -grip.pos[2]);
-      group.rotation.y = (grip.yaw * Math.PI) / 180;
-    }
+    if (grip) object.position.set(-grip.pos[0], -grip.pos[1], -grip.pos[2]);
+    // The angle is the sum of two: the prop's own `grip` anchor, which says
+    // how the thing is normally carried, and the story's, which says how this
+    // character carries it now. Rotation happens around the grip point,
+    // because the object was offset by it first — turn the wrist and the
+    // handle stays in the fist. YXZ to match every other pivot in the rig.
+    //
+    // pitch/yaw/roll are named for what the author means, then mapped onto
+    // the rig's own axes: z swings forward and back, x sideways, y twists.
+    // The same convention the joints use, and the same trap — writing pitch
+    // into rotation.x tips the torch sideways instead of forward.
+    const deg = Math.PI / 180;
+    const pitch = ((grip?.pitch || 0) + (tilt ? tilt[0] : 0)) * deg;
+    const yaw = ((grip?.yaw || 0) + (tilt ? tilt[1] : 0)) * deg;
+    const roll = ((grip?.roll || 0) + (tilt ? tilt[2] : 0)) * deg;
+    group.rotation.order = 'YXZ';
+    group.rotation.set(roll, yaw, pitch);
     if (template.doc.scale && template.doc.scale !== 1) group.scale.setScalar(template.doc.scale);
     group.add(object);
     pivot.add(group);
-    this.heldSlots.set(key, { prop: want, hand, group });
+    this.heldSlots.set(key, { prop: want, hand, tilt, group });
   }
 
   /** Props a group action lays out for its own duration. */
@@ -349,6 +395,12 @@ export class Playback {
  * beat — and never uses a random number, which would mean a scene looked
  * different every time it was replayed from the same moment.
  */
+/** Whether a held prop's angle changed, so the slot can be kept. */
+function sameTilt(a, b) {
+  if (!a || !b) return !a === !b;
+  return a[0] === b[0] && a[1] === b[1] && a[2] === b[2];
+}
+
 function flickerAt(light, t) {
   if (!light.flicker) return 1;
   const hz = light.flickerHz;

@@ -103,7 +103,7 @@ class Film {
     return {
       x: place.x, y: place.y, z: place.z, yaw: place.yaw, pose,
       doc: a.doc, outfit: a.outfit,
-      holds: hold.prop, hand: hold.hand,
+      holds: hold.prop, hand: hold.hand, grip: hold.grip || null,
     };
   }
 
@@ -211,14 +211,39 @@ class Film {
     const moved = new Map();
     let sky = this.sky;
     for (const e of this.stageEvents) {
+      // Everything before `t` is replayed in order, so a move that started
+      // earlier and has not finished is the last one this loop sees — which
+      // is exactly the one that needs interpolating.
       if (e.t > t) break;
       if (e.op === 'propHide') hidden.add(e.id);
       else if (e.op === 'propShow') hidden.delete(e.id);
-      else if (e.op === 'propMove') moved.set(e.id, e);
+      else if (e.op === 'propMove') moved.set(e.id, movedAt(e, moved.get(e.id), t));
       else if (e.op === 'setTime') sky = e.sky;
     }
     return { sky, hidden, moved };
   }
+}
+
+/**
+ * Where a prop is partway through a move.
+ *
+ * `prev` is where this same placement had got to earlier in the scan, which is
+ * what a second move leaves from — the ball is thrown on from wherever it was
+ * caught, not from where the set first put it. The fraction is clamped, so a
+ * finished move reads as its own endpoint and a chain of them composes.
+ */
+function movedAt(e, prev, t) {
+  const from = prev?.at || e.from;
+  const fromYaw = prev?.yaw ?? e.fromYaw;
+  if (!e.at || !from) return { at: e.at, yaw: e.yaw };
+  const k = e.end > e.t ? Math.max(0, Math.min(1, (t - e.t) / (e.end - e.t))) : 1;
+  // A parabola through both ends, highest in the middle. `arc` is that height
+  // in metres, so an author writes the clearance they want over the net.
+  const bow = e.arc ? e.arc * 4 * k * (1 - k) : 0;
+  return {
+    at: [lerp(from[0], e.at[0], k), lerp(from[1], e.at[1], k) + bow, lerp(from[2], e.at[2], k)],
+    yaw: e.yaw === undefined ? fromYaw : lerp(fromYaw, e.yaw, k),
+  };
 }
 
 function samplePlacement(frames, t) {
@@ -258,6 +283,12 @@ class CompileError extends Error {}
 export function compile(story, world) {
   const errors = [];
   const fail = (path, message) => errors.push({ path, message });
+  // Not everything wrong with a story is worth refusing to play it for.
+  // A missing prop already draws a magenta box rather than a black screen;
+  // this is the same idea for the timeline, and it is the difference between
+  // "your film has a note on it" and "your film is gone".
+  const warnings = [];
+  const warn = (path, message) => warnings.push({ path, message });
 
   const actors = {};
   for (const c of story.cast) {
@@ -282,7 +313,7 @@ export function compile(story, world) {
       trail: [{ index: -1, pos: [c.at[0], c.at[1], c.at[2]] }],
       // What is in this actor's hands, over time. Sticky like a posture: you
       // keep holding the torch until you put it down.
-      held: [{ t: 0, prop: c.holds || null, hand: c.hand || 'right' }],
+      held: [{ t: 0, prop: c.holds || null, hand: c.hand || 'right', grip: c.grip || null }],
     };
     actors[c.id].frames.push({ t: 0, x: c.at[0], y: c.at[1], z: c.at[2], yaw: actors[c.id].yaw });
   }
@@ -393,7 +424,12 @@ export function compile(story, world) {
       const anchorName = e.anchor || spec.anchor || 'seat';
       const anchor = world.anchor(e.on, anchorName);
       if (!anchor) {
-        fail(`timeline[${i}].on`, `"${e.on}" has no ${anchorName} anchor`);
+        // A warning, not an error. Naming something that turns out not to be
+        // a seat is an ordinary authoring slip — one entry in twenty — and
+        // losing the whole film over it teaches nothing and costs everything.
+        // The actor performs the posture where they already stand, which is
+        // visibly wrong in the one place that is wrong.
+        warn(`timeline[${i}].on`, `"${e.on}" has no ${anchorName} anchor; performed where the actor stands`);
       } else {
         plan.snap = anchor;
         a.pos = [anchor.pos[0], a.pos[1], anchor.pos[2]];
@@ -450,7 +486,7 @@ export function compile(story, world) {
       plan.dur = 0;
     }
   }
-  if (errors.length) return { ok: false, film: null, errors };
+  if (errors.length) return { ok: false, film: null, errors, warnings };
 
   // ---- pass B: start times. An entry is anchored by `t`, chained after a
   // cue, or follows the previous entry on its own line. Those form a graph,
@@ -487,12 +523,12 @@ export function compile(story, world) {
   } catch (err) {
     if (err instanceof CompileError) {
       fail('timeline', err.message);
-      return { ok: false, film: null, errors };
+      return { ok: false, film: null, errors, warnings };
     }
     throw err;
   }
 
-  if (errors.length) return { ok: false, film: null, errors };
+  if (errors.length) return { ok: false, film: null, errors, warnings };
 
   // ---- pass C: tracks.
   const balloons = [];
@@ -526,9 +562,14 @@ export function compile(story, world) {
       a.frames.push({ t: end, x: last.x, y: last.y, z: last.z, yaw: plan.yawTo });
     } else if (spec.type === 'posture' && a) {
       if (plan.snap) {
+        // Sitting down is a short settle, not a travel. Spreading it over a
+        // twenty-second pedal would spin the actor around the bike for the
+        // whole exercise. Cap it the same way a spoken turn is capped; a
+        // 0.6s `sit` still uses its full length.
         const last = a.frames[a.frames.length - 1];
+        const settle = Math.min(0.6, Math.max(0.12, plan.dur));
         a.frames.push({ t: start, x: last.x, y: last.y, z: last.z, yaw: last.yaw });
-        a.frames.push({ t: end, x: plan.snap.pos[0], y: last.y, z: plan.snap.pos[2], yaw: plan.restYaw });
+        a.frames.push({ t: start + settle, x: plan.snap.pos[0], y: last.y, z: plan.snap.pos[2], yaw: plan.restYaw });
       }
       const params = {};
       if (e.do === 'lie') params.face = e.face === 'down' ? 'down' : 'up';
@@ -570,7 +611,7 @@ export function compile(story, world) {
       pushTurn(a, plan, start, end);
     } else if (spec.type === 'hold' && a) {
       pushHeld(a, start, spec.grabs === false ? null : e.prop,
-        e.hand || spec.defaultHand || 'right');
+        e.hand || spec.defaultHand || 'right', e.grip || null);
       pushTurn(a, plan, start, end);
     } else if (spec.type === 'speech' && a) {
       balloons.push({ actor: e.actor, start, end, text: e.text || { en: '', pt: '', ja: '' }, kind: spec.balloon });
@@ -586,8 +627,8 @@ export function compile(story, world) {
         const target = holder && actors[holder.actor];
         if (!target) continue;
         const before = heldAt(target, start);
-        pushHeld(target, start, pr.prop, pr.hand);
-        pushHeld(target, end, before.prop, before.hand);
+        pushHeld(target, start, pr.prop, pr.hand, pr.grip || null);
+        pushHeld(target, end, before.prop, before.hand, before.grip || null);
       }
       for (const r of plan.group.roles) {
         const target = actors[r.actor];
@@ -625,7 +666,24 @@ export function compile(story, world) {
     } else if (spec.type === 'cameraFollow') {
       follows.push({ start, actor: e.target || e.actor, end: e.for ? start + e.for : Infinity });
     } else if (spec.type === 'stage') {
-      stageEvents.push({ t: start, op: e.do, id: e.id, at: e.at, yaw: e.yaw, sky: e.sky });
+      // A `propMove` with a `for` is a travel, not a teleport: it carries the
+      // moment it ends and where it started, so `sampleStage` can read a
+      // position at any instant in between. Without that a ball can only
+      // jump from hand to hand, which is what a thrown ball must not do.
+      stageEvents.push({
+        t: start,
+        end: e.do === 'propMove' && e.for > 0 ? start + e.for : start,
+        op: e.do,
+        id: e.id,
+        at: e.at,
+        yaw: e.yaw,
+        arc: e.arc || 0,
+        // Where the placement sits before anything has moved it. Read once,
+        // here, because the compiler is the only place that can still ask.
+        from: e.do === 'propMove' ? (world.placement?.(e.id)?.at || null) : null,
+        fromYaw: e.do === 'propMove' ? (world.placement?.(e.id)?.yaw ?? 0) : 0,
+        sky: e.sky,
+      });
     }
   }
 
@@ -646,6 +704,7 @@ export function compile(story, world) {
   return {
     ok: true,
     errors: [],
+    warnings,
     film: new Film({
       story,
       actors,
@@ -655,6 +714,19 @@ export function compile(story, world) {
       stageEvents,
       propSpans,
       held,
+      // When each timeline entry starts and how long it runs, in array order.
+      // The compiler is the only thing that knows — `t`, `after` and "follows
+      // the actor's previous line" all resolve here — and a visual timeline
+      // cannot draw a single block without it. Working it out a second time
+      // in the editor is how the two would drift apart.
+      schedule: plans.map((p, i) => ({
+        index: p.index,
+        start: starts[i],
+        dur: p.dur,
+        actor: p.actor,
+        type: p.spec.type,
+        category: p.spec.category,
+      })),
       sky: story.sky || null,
       duration: Math.max(1, duration + TAIL),
     }),
@@ -743,15 +815,23 @@ function heldAt(a, t) {
   return found;
 }
 
-function pushHeld(a, t, prop, hand) {
+function pushHeld(a, t, prop, hand, grip = null) {
   const last = a.held[a.held.length - 1];
   if (last && last.t === t) {
     last.prop = prop || null;
     last.hand = hand;
+    last.grip = grip;
     return;
   }
-  if (last && last.prop === (prop || null) && last.hand === hand) return;
-  a.held.push({ t, prop: prop || null, hand });
+  if (last && last.prop === (prop || null) && last.hand === hand && sameGrip(last.grip, grip)) return;
+  a.held.push({ t, prop: prop || null, hand, grip });
+}
+
+/** Two hold angles are the same hold. Compared rather than kept by identity
+ *  so an unchanged grip does not add a keyframe to the held track. */
+function sameGrip(a, b) {
+  if (!a || !b) return !a === !b;
+  return a[0] === b[0] && a[1] === b[1] && a[2] === b[2];
 }
 
 /** Postures are sticky, so this appends to the resting track rather than

@@ -69,13 +69,20 @@ export function isChildPlan(base) {
 /** Default standing height in metres, used when a document omits `height`. */
 export const DEFAULT_HEIGHT = { man: 1.76, woman: 1.66, boy: 1.24, girl: 1.22 };
 
+/** Where the bust dial sits when a document says nothing. A girl is a child,
+ *  so hers is barely there; the masculine plans ignore the dial entirely. */
+export const DEFAULT_BUST = { man: 0, woman: 0.45, boy: 0, girl: 0.12 };
+
 /**
  * @param {object} spec
  *   base    'man' | 'woman' | 'child'
  *   height  metres
  *   build   0..1, slim to heavy
- *   outfit  preset name or inline cut
+ *   bust    0..1, flat to full; feminine plans only, default per plan
+ *   outfit  outfit id, or a cut written out longhand
  *   color   main garment colour
+ *   fit     { swell } how far the cloth stands off the body, in metres
+ *   paint   Map of garment pid -> Map(cellIndex -> colour), the sprayed cells
  *   look    { skin, hair, eyeScale, noseScale, beard }
  * @returns {{ parts: Array, joints: Object, height: number }}
  */
@@ -93,6 +100,12 @@ export function buildBody(spec) {
   // scaled-up person rather than a heavier one.
   const trunk = 0.86 + build * 0.44;
   const limb = 0.92 + build * 0.24;
+  // How far past the middle of the range the build sits, in each direction.
+  // Width alone reads as a broad person rather than a heavy one — what says
+  // "heavy" is depth at the waist, and what says "thin" is the waist being
+  // narrower than the ribs above it.
+  const heavy = Math.max(0, build - 0.5) * 2;
+  const lean = Math.max(0, 0.5 - build) * 2;
 
   const u = (f) => f * H;                       // fraction of height -> metres
   const headH = u(1 - P.chin);
@@ -102,13 +115,41 @@ export function buildBody(spec) {
   // The shapes a skirt hangs from and the waist is cut to are shared by the
   // two feminine plans, so they are asked about together rather than by name.
   const isFem = base === 'woman' || base === 'girl';
+  // A dial of its own rather than a corner of `build`: a heavy figure is not
+  // a busty one, and an author who wants one and not the other should not
+  // have to fight the other. It does nothing on the masculine plans, which
+  // is simpler than giving the same field two meanings.
+  const bust = isFem
+    ? Math.max(0, Math.min(1, spec.bust ?? DEFAULT_BUST[base]))
+    : 0;
+
+  // How far the cloth stands off the skin. One dial rather than a length per
+  // garment: what an author wants is "looser everywhere", and a box grown by
+  // the same amount on every axis is exactly that.
+  const swell = Math.max(-0.02, Math.min(0.06, spec.fit?.swell ?? 0)) * (H / 1.76);
+  const paint = spec.paint instanceof Map ? spec.paint : null;
 
   const parts = [];
   let limbTag = 'hips';
   let reg = 'torso';
+  /**
+   * One box. A `pid` marks it as cloth rather than body, and that one tag
+   * carries everything the outfit layer does: it is what `swell` grows, what
+   * the spray addresses, and what the editor lets you click. Skin, hair and
+   * eyes have no pid, which is why paint can only ever land on a garment.
+   */
   const p = (w, h, d, color, x, y, z, extra) => {
     const b = { w, h, d, color, x, y, z, limb: limbTag, reg };
     if (extra) Object.assign(b, extra);
+    if (b.pid) {
+      if (swell) {
+        b.w += swell * 2;
+        b.h += swell * 2;
+        b.d += swell * 2;
+      }
+      const cells = paint?.get(b.pid);
+      if (cells) b.paint = cells;
+    }
     parts.push(b);
     return b;
   };
@@ -120,10 +161,14 @@ export function buildBody(spec) {
    *  raised a hand. */
   const pair = (nameL, nameR, w, h, d, color, x, y, z, extra) => {
     const was = limbTag;
+    // The two sides take their own pid. Sharing one would mirror every spray
+    // stroke onto the other arm, and a stripe painted down one sleeve is not
+    // a thing anybody asked the far sleeve to copy.
+    const pid = extra?.pid;
     limbTag = nameL;
-    p(w, h, d, color, x, y, z, extra);
+    p(w, h, d, color, x, y, z, pid ? { ...extra, pid: `${pid}L` } : extra);
     limbTag = nameR;
-    p(w, h, d, color, x, y, -z, extra);
+    p(w, h, d, color, x, y, -z, pid ? { ...extra, pid: `${pid}R` } : extra);
     limbTag = was;
   };
 
@@ -170,14 +215,21 @@ export function buildBody(spec) {
   const thighColor = legIsBare(cut, 'thigh') ? C.skin : C.legs;
   const shinColor = legIsBare(cut, 'shin') ? C.skin : C.legs;
 
+  // Limbs are round. The torso and head stay square on purpose — that is
+  // the voxel look, and it is what lets a character bake into one mesh — but
+  // an arm or a leg is a tube in life, and a box one reads as a plank the
+  // moment it swings.
   pair('lThigh', 'rThigh', thighW, thighH * 0.98, thighW * 1.06, thighColor,
-    0, u(P.hip) - thighH / 2, hipZ, { n: 2, grain: 0.045 });
+    0, u(P.hip) - thighH / 2, hipZ,
+    { shape: 'cylinder', n: 3, grain: 0.045, pid: legIsBare(cut, 'thigh') ? undefined : 'legThigh' });
   pair('lShin', 'rShin', shinW, shinH * 0.98, shinW * 1.08, shinColor,
-    0, u(P.knee) - shinH / 2, hipZ, { n: 2, grain: 0.045 });
+    0, u(P.knee) - shinH / 2, hipZ,
+    { shape: 'cylinder', n: 3, grain: 0.045, pid: legIsBare(cut, 'shin') ? undefined : 'legShin' });
   // A knee cap keeps the thigh/shin seam from reading as a gap when the leg
   // bends hard, which is exactly what sitting and kneeling do.
   pair('lShin', 'rShin', shinW * 1.02, shinH * 0.16, shinW * 1.06, shadeHex(shinColor, 0.94),
-    0, u(P.knee) - shinH * 0.06, hipZ, { detail: true });
+    0, u(P.knee) - shinH * 0.06, hipZ,
+    { shape: 'cylinder', n: 3, detail: true, pid: legIsBare(cut, 'shin') ? undefined : 'legKnee' });
 
   // ---------------------------------------------------------------- feet
   reg = 'feet';
@@ -185,14 +237,15 @@ export function buildBody(spec) {
   const footL = u(P.footL);
   const footW = shinW * 1.12;
   pair('lFoot', 'rFoot', footL, footH, footW, C.shoe,
-    footL * 0.22, footH / 2, hipZ, { n: 2 });
+    footL * 0.22, footH / 2, hipZ, { n: 2, pid: cut.feet === 'bare' ? undefined : 'shoe' });
   if (cut.feet === 'boot') {
     pair('lShin', 'rShin', shinW * 1.16, shinH * 0.36, shinW * 1.2, C.shoe,
-      0, u(P.ankle) + shinH * 0.18, hipZ, { detail: true });
+      0, u(P.ankle) + shinH * 0.18, hipZ,
+      { shape: 'cylinder', n: 3, detail: true, pid: 'bootShaft' });
   }
   if (cut.feet !== 'bare') {
     pair('lFoot', 'rFoot', footL * 0.5, footH * 0.34, footW * 1.02, shadeHex(C.shoe, 0.82),
-      footL * 0.38, footH * 0.2, hipZ, { detail: true });
+      footL * 0.38, footH * 0.2, hipZ, { detail: true, pid: 'shoeToe' });
   }
 
   // ----------------------------------------------------------------- hips
@@ -202,51 +255,155 @@ export function buildBody(spec) {
   const hipD = u(P.hipD) * trunk;
   const hipH = u(P.waist - P.hip) * 1.05;
   p(hipD, hipH, hipW, cut.legs === 'bare' ? C.skin : C.legs,
-    0, u(P.hip) + hipH * 0.32, 0, { n: 2, grain: 0.04 });
+    0, u(P.hip) + hipH * 0.32, 0,
+    { n: 2, grain: 0.04, pid: cut.legs === 'bare' ? undefined : 'legHip' });
   if (cut.legs === 'briefs') {
-    p(hipD * 1.03, hipH * 0.7, hipW * 1.02, C.legs, 0, u(P.hip) + hipH * 0.36, 0, { n: 2 });
+    p(hipD * 1.03, hipH * 0.7, hipW * 1.02, C.legs, 0, u(P.hip) + hipH * 0.36, 0,
+      { n: 2, pid: 'briefs' });
   }
   if (cut.belt) {
-    p(hipD * 1.06, u(0.018), hipW * 1.04, C.belt, 0, u(P.waist) - u(0.012), 0, { detail: true, flat: true });
+    p(hipD * 1.06, u(0.018), hipW * 1.04, C.belt, 0, u(P.waist) - u(0.012), 0,
+      { detail: true, flat: true, pid: 'belt' });
+  }
+  // A towel and a tube dress reach past the hip as a straight wrap, so they
+  // are drawn here rather than as a skirt: the skirt's flare is exactly what
+  // neither of them has.
+  if (cut.top === 'towel' || cut.top === 'tube') {
+    const drop = cut.top === 'towel' ? 0.42 : 0.58;
+    const hem = u(P.hip) - u(P.hip - P.knee) * drop;
+    const wrapH = u(P.waist) - hem;
+    p(hipD * 1.12, wrapH, hipW * 1.08, C.top, 0, hem + wrapH / 2, 0,
+      { n: 3, grain: cut.top === 'towel' ? 0.09 : 0.04, pid: 'wrapHip' });
+    // The tucked corner is what makes a towel a towel and not a short skirt.
+    if (cut.top === 'towel') {
+      p(hipD * 1.16, u(0.05), hipW * 0.34, shadeHex(C.top, 0.9),
+        0, u(P.waist) - u(0.03), hipW * 0.34, { detail: true, pid: 'wrapTuck' });
+    }
   }
   if (cut.skirt) {
-    const skirtH = u(isChild ? 0.10 : 0.13);
-    p(hipD * 1.5, skirtH, hipW * 1.42, C.top, 0, u(P.hip) + skirtH * 0.42, 0, { n: 2, grain: 0.04 });
+    if (cut.top === 'nightie') {
+      // Measured between two landmarks rather than given a length, so it
+      // reaches mid-thigh on a woman and on a girl alike instead of ending
+      // at the knee on one of them.
+      const hem = u(P.hip) - u(P.hip - P.knee) * 0.5;
+      const skirtH = u(P.waist) - hem;
+      p(hipD * 1.42, skirtH, hipW * 1.34, C.top,
+        0, hem + skirtH / 2, 0, { n: 2, grain: 0.04, pid: 'skirt' });
+    } else {
+      const skirtH = u(isChild ? 0.10 : 0.13);
+      p(hipD * 1.5, skirtH, hipW * 1.42, C.top, 0, u(P.hip) + skirtH * 0.42, 0,
+        { n: 2, grain: 0.04, pid: 'skirt' });
+    }
   }
 
   // ---------------------------------------------------------------- torso
   limbTag = 'chest';
-  const waistW = u(P.waistW) * trunk;
+  const waistW = u(P.waistW) * trunk * (1 - lean * 0.07);
   const chestD = u(P.chestD) * trunk;
-  const waistD = chestD * (isFem ? 0.86 : 0.92);
-  const topBare = cut.top === 'bare' || cut.top === 'bikini';
+  const waistD = chestD * (isFem ? 0.86 : 0.92) * (1 + heavy * 0.34 - lean * 0.08);
+  // A bare chest, a bikini and a bra all leave the trunk as skin; the band
+  // is drawn over it afterwards.
+  // A bare chest, a bikini, a bra, a crop top, a towel and a tube dress all
+  // leave the trunk as skin; the band or the wrap is drawn over it below.
+  const topBare = cut.top === 'bare' || cut.top === 'bikini' || cut.top === 'bra'
+    || cut.top === 'croptop' || cut.top === 'towel' || cut.top === 'tube';
   const torsoColor = topBare ? C.skin : C.top;
 
   reg = 'belly';
-  p(waistD, u(P.chest - P.waist), waistW, torsoColor,
-    0, u(P.waist) + u(P.chest - P.waist) / 2, 0, { n: 2, grain: 0.04 });
+  const bellyH = u(P.chest - P.waist);
+  // The belly of a heavy figure hangs forward and a shade low, rather than
+  // being a wider version of the same barrel.
+  p(waistD, bellyH, waistW, torsoColor,
+    (waistD - chestD) * 0.42, u(P.waist) + bellyH * (0.5 - heavy * 0.04), 0,
+    { n: 2, grain: 0.04, pid: topBare ? undefined : 'topBelly' });
   reg = 'torso';
   p(chestD, u(P.shoulder - P.chest) * 1.04, chestW, torsoColor,
-    0, u(P.chest) + u(P.shoulder - P.chest) / 2, 0, { n: 2, grain: 0.04 });
+    0, u(P.chest) + u(P.shoulder - P.chest) / 2, 0,
+    { n: 2, grain: 0.04, pid: topBare ? undefined : 'topChest' });
   // Shoulder caps: the box torso ends square, and a small pad on each side is
   // what stops the arm from looking bolted to a plank.
   pair('lArm', 'rArm', chestD * 0.92, u(0.042), armW * 1.02, topBare ? C.skin : C.top,
-    0, u(P.shoulder) - u(0.014), shoulderZ, { detail: true });
+    0, u(P.shoulder) - u(0.014), shoulderZ,
+    { shape: 'sphere', n: 3, detail: true, pid: topBare ? undefined : 'topShoulder' });
 
-  if (cut.top === 'bikini') {
-    p(chestD * 1.04, u(0.045), chestW * 1.02, C.top, 0, u(P.chest) + u(0.05), 0, { detail: true });
+  // ----------------------------------------------------------------- bust
+  // Its own region, hung off `chest` like the shoulder caps: a raised arm
+  // must not carry it, which is the same mistake the bikini top made when it
+  // was tagged onto the arm.
+  const bustSpan = u(P.shoulder - P.chest);
+  const bustY = u(P.chest) + bustSpan * 0.44;
+  const bustOut = bust > 0.02 ? chestD * (0.34 + bust * 0.52) : 0;
+  if (bustOut > 0) {
+    reg = 'bust';
+    limbTag = 'chest';
+    pair('chest', 'chest', bustOut, bustSpan * (0.50 + bust * 0.34), chestW * (0.30 + bust * 0.12),
+      torsoColor, chestD * 0.5, bustY, chestW * 0.23,
+      { shape: 'sphere', n: 3, grain: 0.04, pid: topBare ? undefined : 'topBust' });
+    reg = 'torso';
+  }
+  // How far the band has to reach forward to sit on top of all that, and
+  // where it sits: on a flat chest it stays where it always was.
+  const bandOut = bustOut * 0.62;
+  const bandY = bustOut > 0 ? bustY : u(P.chest) + u(0.05);
+
+  if (cut.top === 'bikini' || cut.top === 'bra') {
+    p(chestD * 1.04 + bandOut, u(0.045) + bustOut * 0.28, chestW * 1.02, C.top,
+      bandOut * 0.5, bandY, 0, { detail: true, pid: 'band' });
+  }
+  // Straps over the shoulder are what tells a bra from a bikini top at this
+  // size, so they are not decoration.
+  if (cut.top === 'bra') {
+    pair('chest', 'chest', u(0.022), bustSpan * 0.92, u(0.022), C.top,
+      chestD * 0.34, bustY + bustSpan * 0.42, chestW * 0.30, { detail: true, pid: 'strap' });
+  }
+  // Above the waist a towel only exists on the feminine plans — a man out of
+  // the shower wears it at the hip — while a tube dress always does. Both are
+  // one straight wrap meeting the one drawn at the hip, topped just above the
+  // bust so it reads as strapless rather than as a vest.
+  if (cut.top === 'tube' || (cut.top === 'towel' && isFem)) {
+    const wrapTop = u(P.chest) + bustSpan * 0.82;
+    const wrapH = wrapTop - u(P.waist);
+    p(chestD * 1.05 + bandOut, wrapH, chestW * 1.06, C.top,
+      bandOut * 0.45, u(P.waist) + wrapH / 2, 0,
+      { n: 3, grain: cut.top === 'towel' ? 0.09 : 0.04, pid: 'wrapChest' });
+    if (cut.top === 'towel') {
+      p(chestD * 1.08 + bandOut, u(0.05), chestW * 0.3, shadeHex(C.top, 0.9),
+        bandOut * 0.45, wrapTop - u(0.035), chestW * 0.36, { detail: true, pid: 'wrapKnot' });
+    }
+  }
+  if (cut.top === 'croptop') {
+    // A band deep enough to be a garment rather than a bikini top, and thin
+    // straps: the two together are what tells a crop top from a bra.
+    p(chestD * 1.05 + bandOut, bustSpan * 0.62 + bustOut * 0.3, chestW * 1.04, C.top,
+      bandOut * 0.45, bandY + bustSpan * 0.05, 0, { n: 2, grain: 0.04, pid: 'band' });
+    pair('chest', 'chest', u(0.024), bustSpan * 0.88, u(0.024), C.top,
+      chestD * 0.32, bustY + bustSpan * 0.46, chestW * 0.29, { detail: true, pid: 'strap' });
+  }
+  if (cut.top === 'nightie') {
+    pair('chest', 'chest', u(0.026), bustSpan * 0.86, u(0.030), C.top,
+      chestD * 0.30, u(P.chest) + bustSpan * 0.72, chestW * 0.32, { detail: true, pid: 'strap' });
   }
   if (cut.top === 'jacket') {
     p(chestD * 1.06, u(P.shoulder - P.waist) * 0.98, chestW * 0.34, C.topDark,
-      0, u(P.waist) + u(P.shoulder - P.waist) / 2, 0, { detail: true });
+      0, u(P.waist) + u(P.shoulder - P.waist) / 2, 0, { detail: true, pid: 'lapel' });
+  }
+  if (cut.top === 'fatigues') {
+    // Patch pockets and a collar. At this size they are the whole difference
+    // between a uniform and an olive long-sleeved tee.
+    pair('chest', 'chest', chestD * 0.07, u(0.08), chestW * 0.28, C.topDark,
+      chestD * 0.5 + bandOut, u(P.chest) + bustSpan * 0.26, chestW * 0.27,
+      { flat: true, detail: true, pid: 'pocket' });
+    p(chestD * 1.04, u(0.032), chestW * 1.05, C.topDark,
+      0, u(P.shoulder) - u(0.022), 0, { detail: true, pid: 'collar' });
   }
   if (cut.tie) {
     p(chestD * 1.1, u(P.shoulder - P.waist) * 0.62, u(0.026), C.tie,
-      0, u(P.chest) + u(0.03), 0, { detail: true, flat: true });
+      0, u(P.chest) + u(0.03), 0, { detail: true, flat: true, pid: 'tie' });
   }
   if (cut.straps) {
     pair('chest', 'chest', chestD * 1.08, u(P.shoulder - P.chest) * 1.1, u(0.026), C.legs,
-      0, u(P.chest) + u(P.shoulder - P.chest) / 2, chestW * 0.28, { detail: true });
+      0, u(P.chest) + u(P.shoulder - P.chest) / 2, chestW * 0.28,
+      { detail: true, pid: 'brace' });
   }
 
   // ----------------------------------------------------------------- arms
@@ -257,18 +414,21 @@ export function buildBody(spec) {
 
   if (sleeveH > 0.001) {
     pair('lArm', 'rArm', armW * 1.08, sleeveH, armW * 1.08, C.top,
-      0, u(P.shoulder) - sleeveH / 2, shoulderZ, { n: 2, grain: 0.045 });
+      0, u(P.shoulder) - sleeveH / 2, shoulderZ,
+      { shape: 'cylinder', n: 3, grain: 0.045, pid: 'sleeve' });
   }
   if (bareArmH > 0.001) {
     pair('lArm', 'rArm', armW, bareArmH, armW, C.skin,
-      0, u(P.shoulder) - sleeveH - bareArmH / 2, shoulderZ, { n: 2, grain: 0.04 });
+      0, u(P.shoulder) - sleeveH - bareArmH / 2, shoulderZ, { shape: 'cylinder', n: 3, grain: 0.04 });
   }
   const foreClothed = reach > 1;
   pair('lFore', 'rFore', foreClothed ? foreW * 1.1 : foreW, foreLen, foreClothed ? foreW * 1.1 : foreW,
-    foreClothed ? C.top : C.skin, 0, elbowY - foreLen / 2, shoulderZ, { n: 2, grain: 0.04 });
+    foreClothed ? C.top : C.skin, 0, elbowY - foreLen / 2, shoulderZ,
+    { shape: 'cylinder', n: 3, grain: 0.04, pid: foreClothed ? 'sleeveFore' : undefined });
   if (foreClothed) {
     pair('lFore', 'rFore', foreW * 1.14, u(0.02), foreW * 1.14, C.topDark,
-      0, wristY + u(0.014), shoulderZ, { detail: true });
+      0, wristY + u(0.014), shoulderZ,
+      { shape: 'cylinder', n: 3, detail: true, pid: 'cuff' });
   }
 
   reg = 'hands';
@@ -280,7 +440,8 @@ export function buildBody(spec) {
   limbTag = 'neck';
   reg = 'torso';
   const neckH = u(P.chin - P.neck) * 1.4;
-  p(headD * 0.42, neckH, headW * 0.46, C.skinDark, 0, u(P.neck) + neckH * 0.35, 0);
+  p(headD * 0.42, neckH, headW * 0.46, C.skinDark, 0, u(P.neck) + neckH * 0.35, 0,
+    { shape: 'cylinder', n: 3 });
 
   limbTag = 'head';
   reg = 'head';
@@ -312,9 +473,10 @@ export function buildBody(spec) {
       { detail: true });
   }
   if (cut.cap) {
-    p(headD * 1.1, headH * 0.2, headW * 1.1, C.top, 0, headY + headH * 0.44, 0, { n: 2 });
+    p(headD * 1.1, headH * 0.2, headW * 1.1, C.top, 0, headY + headH * 0.44, 0,
+      { n: 2, pid: 'cap' });
     p(headD * 0.5, headH * 0.06, headW * 1.02, C.topDark, headD * 0.72, headY + headH * 0.36, 0,
-      { detail: true, flat: true });
+      { detail: true, flat: true, pid: 'capBrim' });
   }
 
   return { parts, joints, height: H };

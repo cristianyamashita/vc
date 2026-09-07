@@ -24,6 +24,7 @@ START = "<!-- catalogue:start -->"
 END = "<!-- catalogue:end -->"
 
 FOLDER = {
+    "outfit": "outfits",
     "character": "characters",
     "prop": "props",
     "set": "sets",
@@ -61,7 +62,10 @@ def placements(doc: dict) -> list[str]:
 
 
 def characters() -> list[str]:
-    rows = ["| id | plan | height | build | hair | outfits |", "|---|---|---|---|---|---|"]
+    rows = [
+        "| id | plan | height | build | bust | hair | outfits |",
+        "|---|---|---|---|---|---|---|",
+    ]
     for d in load("character"):
         look = d.get("look", {})
         hair = look.get("hairStyle", "—")
@@ -69,10 +73,36 @@ def characters() -> list[str]:
         if length is not None:
             hair += f" {length}"
         wardrobe = " ".join(f"`{w['id']}`" for w in d.get("wardrobe", []))
+        # The masculine plans ignore the dial, so printing a number there
+        # would suggest it does something.
+        bust = d.get("bust")
+        if d.get("base") not in ("woman", "girl"):
+            bust = "—"
+        elif bust is None:
+            bust = "default"
         rows.append(
             f"| `{d['id']}` | {d.get('base', 'man')} | {d.get('height', '—')} m | "
-            f"{d.get('build', 0.5)} | {hair} | {wardrobe} |"
+            f"{d.get('build', 0.5)} | {bust} | {hair} | {wardrobe} |"
         )
+    return rows
+
+
+def outfits() -> list[str]:
+    rows = ["| id | cut | offered to | fit | paints |", "|---|---|---|---|---|"]
+    for d in load("outfit"):
+        c = d.get("cut", {})
+        flags = " ".join(f"`{k}`" for k in ("belt", "tie", "cap", "skirt", "straps") if c.get(k))
+        cut = f"{c.get('legs')} · {c.get('top')} · {c.get('sleeve')} sleeve · {c.get('feet')}"
+        if flags:
+            cut += f" · {flags}"
+        plans = " ".join(d.get("plans") or []) or "everyone"
+        swell = d.get("fit", {}).get("swell", 0)
+        fit = f"+{round(swell * 1000)} mm" if swell else "—"
+        paints = []
+        for paint in d.get("paints", []):
+            cells = len(paint.get("spray", {}))
+            paints.append(f"`{paint['id']}`" + (f" ({cells})" if cells else ""))
+        rows.append(f"| `{d['id']}` | {cut} | {plans} | {fit} | {' '.join(paints)} |")
     return rows
 
 
@@ -164,6 +194,15 @@ def main() -> None:
         "### Characters",
         "",
         *characters(),
+        "",
+        "### Outfits",
+        "",
+        "A paint is the garment's main colour plus its sprayed cells; the"
+        " number in brackets is how many cells it carries. `offered to` is"
+        " which body plans the app suggests the outfit for — any character"
+        " may name any of them.",
+        "",
+        *outfits(),
         "",
         "### Objects",
         "",

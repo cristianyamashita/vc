@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { buildGeometry, BOX_MATERIAL, toHex } from '../render/geometry.js';
 import { buildBody, DEFAULT_HEIGHT, planOf } from './body.js';
+import { resolvePaint, resolveFit, sprayCells } from './wardrobe.js';
 import { JOINT_ORDER, jointParent } from './rig.js';
 import { contactPoints, jointChain } from '../anim/ground.js';
 
@@ -16,6 +17,7 @@ const REGION_ANCHOR = {
   eyes: 'center',
   torso: 'center',
   belly: 'center',
+  bust: 'center',
   arms: 'max',
   hands: 'max',
   legs: 'max',
@@ -96,6 +98,7 @@ export function normaliseCharacter(doc) {
     base,
     height: Number.isFinite(doc?.height) && doc.height > 0 ? doc.height : DEFAULT_HEIGHT[base],
     build: Number.isFinite(doc?.build) ? doc.build : 0.5,
+    bust: Number.isFinite(doc?.bust) ? doc.bust : undefined,
     look: doc?.look || {},
     regions: doc?.regions || null,
   };
@@ -115,12 +118,20 @@ export function outfitEntry(doc, wanted) {
 export function characterParts(doc, outfitId) {
   const spec = normaliseCharacter(doc);
   const wear = outfitEntry(doc, outfitId);
+  // Which paint the entry wears, and therefore what colour it is. An entry
+  // that names a paint takes that paint's colour; one that does not keeps
+  // its own, which is how every character written before outfits had paints
+  // still says what colour their shirt is.
+  const paint = resolvePaint(wear.outfit, wear.paint);
   const body = buildBody({
     base: spec.base,
     height: spec.height,
     build: spec.build,
+    bust: spec.bust,
     outfit: wear.outfit,
-    color: wear.color,
+    color: wear.paint && paint ? paint.color : wear.color,
+    fit: resolveFit(wear.outfit),
+    paint: sprayCells(paint),
     look: spec.look,
   });
   applyRegions(body.parts, spec.regions);

@@ -12,8 +12,48 @@ export function toJson(doc) {
   return JSON.stringify(doc, null, 2);
 }
 
-/** A story plus every custom character, prop and set it leans on, so a scene
- *  can be shared as one file instead of "import these six in this order". */
+// A copy is marked in every language at once, not just the one the page
+// happens to be showing: the document travels, and a Portuguese reader
+// opening an English author's copy should still see that it is one.
+const COPY_SUFFIX = { en: ' (copy)', pt: ' (cópia)', ja: '（コピー）' };
+const MAX_ID = 64;                        // LIMITS.idLength in the schema
+
+/** A duplicate of `doc`, under an id nothing is using yet.
+ *
+ *  Duplicating is how you start from something that already works — take the
+ *  official gym story, give it your own cast — so the copy has to be a
+ *  separate document rather than an override: same id would shadow the
+ *  original everywhere instead of sitting beside it.
+ *
+ *  References inside are left exactly as they are. A copied story still uses
+ *  the same characters and set, which is the point; copying `ana` does not
+ *  recast the stories that name her. */
+export function copyOf(doc, registry) {
+  const copy = JSON.parse(JSON.stringify(doc));
+  copy.id = freeId(doc.kind, doc.id, registry);
+  copy.name = {};
+  for (const lang of Object.keys(COPY_SUFFIX)) {
+    const base = doc.name?.[lang] || doc.name?.en || doc.id;
+    copy.name[lang] = `${base}${COPY_SUFFIX[lang]}`;
+  }
+  return copy;
+}
+
+/** `chair` → `chair-copy` → `chair-copy-2`… The number only appears from the
+ *  second copy on, because `-copy-1` reads like there is a `-copy-0`. */
+function freeId(kind, from, registry) {
+  const stem = `${from}-copy`.replace(/(-copy)+$/, '-copy').slice(0, MAX_ID - 3);
+  if (!registry.has(kind, stem)) return stem;
+  for (let n = 2; n < 500; n += 1) {
+    const candidate = `${stem}-${n}`;
+    if (!registry.has(kind, candidate)) return candidate;
+  }
+  return `${stem}-${Date.now().toString(36)}`.slice(0, MAX_ID);
+}
+
+/** A story plus every custom character, outfit, prop and set it leans on, so
+ *  a scene can be shared as one file instead of "import these six in this
+ *  order". */
 export function bundleFor(story, registry) {
   const wanted = new Map();
   const add = (kind, id) => {
@@ -23,7 +63,15 @@ export function bundleFor(story, registry) {
   };
 
   add('set', story.set);
-  for (const c of story.cast) add('character', c.character);
+  for (const c of story.cast) {
+    add('character', c.character);
+    // The clothes are documents too, and a cast bundled without them arrives
+    // somewhere else dressed in the fallback cut.
+    const doc = registry.get('character', c.character);
+    for (const w of doc?.wardrobe || []) {
+      if (typeof w.outfit === 'string') add('outfit', w.outfit);
+    }
+  }
   const setDoc = registry.get('set', story.set);
   for (const pl of setDoc?.props || []) add('prop', pl.prop);
   for (const e of story.setEdits) if (e.op === 'add') add('prop', e.prop);

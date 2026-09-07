@@ -37,7 +37,7 @@ export const HAIR_STYLES = {
   pigtails: { cap: 0.28, back: 0.50, sides: 0.34, twin: 1, fringe: true },
   bun: { cap: 0.28, back: 0.46, sides: 0.26, bun: 1 },
   braid: { cap: 0.28, back: 0.50, sides: 0.34, braid: 1 },
-  afro: { cap: 0.52, back: 0.62, round: true },
+  afro: { cap: 0.55, back: 0.70, round: true, fringe: true },
 };
 
 export const HAIR_STYLE_KEYS = Object.keys(HAIR_STYLES);
@@ -85,11 +85,19 @@ export function hairParts(g) {
 
   // ------------------------------------------------------------------ skull
   if (S.round) {
-    const capH = headH * S.cap;
-    box(headD * 1.34, headH * 0.92, headW * 1.34, hair, -headD * 0.04,
-      headY + headH * 0.20, 0, { n: 3, grain: 0.07 });
-    box(headD * 1.10, capH * 0.5, headW * 1.16, hairDark, -headD * 0.12,
-      headY + headH * 0.58, 0, { detail: true, grain: 0.07 });
+    // Built like the other women's styles — a cap, a back, two sides —
+    // just round and larger, so it reads as an afro rather than as a hood
+    // or a bun. Front edges stay behind the face plane; the crown stays
+    // above the eyes.
+    box(headD * 1.42, headH * 0.95, headW * 1.52, hair, -headD * 0.08,
+      headY + headH * 0.62, 0, { shape: 'sphere', n: 3, grain: 0.07 });
+    box(headD * 0.90, headH * 1.02, headW * 1.22, hair, -headD * 0.50,
+      headY + headH * 0.14, 0, { shape: 'sphere', n: 3, grain: 0.07 });
+    for (const s of [1, -1]) {
+      box(headD * 0.90, headH * 0.84, headW * 0.78, hair, -headD * 0.16,
+        headY + headH * 0.20, s * headW * 0.58,
+        { shape: 'sphere', n: 3, grain: 0.07 });
+    }
   } else {
     const capH = headH * S.cap;
     box(headD * 1.05, capH, headW * 1.06, hair, 0,

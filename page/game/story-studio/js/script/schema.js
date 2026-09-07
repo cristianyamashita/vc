@@ -1,4 +1,4 @@
-// Validation for the five document kinds. Anything that arrives here may have
+// Validation for the seven document kinds. Anything that arrives here may have
 // been pasted in by a visitor, so this is a trust boundary, not a formality:
 // nothing is ever eval'd, unknown fields are dropped rather than carried, and
 // every number is clamped. A set with fifty thousand props or a story that
@@ -10,13 +10,14 @@
 // useless.
 
 import { HAIR_STYLE_KEYS } from '../cast/hair.js';
+import { outfitIds, LEGS, TOPS, SLEEVES, FEET, CUT_FLAGS, SWELL_RANGE } from '../cast/wardrobe.js';
 import { WAVE_NAMES, ROOT_FIELDS, AXES } from '../anim/channels.js';
 import { JOINT_NAMES } from '../cast/rig.js';
 import { POSE_NAMES } from '../anim/poses.js';
 
 export const FORMAT_VERSION = 1;
 
-export const KINDS = ['character', 'prop', 'set', 'story', 'action', 'bundle'];
+export const KINDS = ['character', 'prop', 'set', 'story', 'action', 'outfit', 'bundle'];
 
 export const LIMITS = {
   idLength: 64,
@@ -35,6 +36,10 @@ export const LIMITS = {
   wardrobe: 24,
   repeat: 200,
   bundleDocs: 200,
+  paints: 16,
+  // A whole garment is about 4 000 cells at the paint grid, so this is "you
+  // may cover every inch of it" and not an arbitrary ceiling.
+  sprayCells: 6000,
   channels: 200,
   roles: 8,
 };
@@ -118,6 +123,23 @@ function text(ctx, path, v) {
   return out;
 }
 
+/** Three degrees of rotation, in degrees: [pitch, yaw, roll].
+ *
+ *  Kept separate from vec3 because these are angles, not a position: they
+ *  belong to the rotation limits, not the world-size ones, and a two-number
+ *  form would be a trap here — nobody means "pitch and roll" by [a, b]. */
+function angles3(ctx, path, v) {
+  if (v === undefined) return undefined;
+  if (!Array.isArray(v) || v.length !== 3) {
+    return ctx.fail(path, 'expected [pitch, yaw, roll] in degrees') ?? undefined;
+  }
+  return [
+    num(ctx, `${path}[0]`, v[0], -3600, 3600, 0),
+    num(ctx, `${path}[1]`, v[1], -3600, 3600, 0),
+    num(ctx, `${path}[2]`, v[2], -3600, 3600, 0),
+  ];
+}
+
 function vec3(ctx, path, v, fallback = [0, 0, 0]) {
   if (v === undefined) return fallback.slice();
   if (!Array.isArray(v) || v.length < 2) return ctx.fail(path, 'expected [x, y, z]') ?? fallback.slice();
@@ -164,6 +186,10 @@ function character(ctx, doc) {
     base: ACCEPTED_PLANS.includes(doc.base) ? doc.base : 'man',
     height: num(ctx, 'height', doc.height, LIMITS.height[0], LIMITS.height[1], undefined),
     build: num(ctx, 'build', doc.build, 0, 1, 0.5),
+    // Left undefined rather than defaulted here, so the body plan can pick:
+    // 0.45 for a woman, almost nothing for a girl, ignored for the masculine
+    // plans. Writing 0.5 in would flatten that distinction.
+    bust: num(ctx, 'bust', doc.bust, 0, 1, undefined),
     look: {},
     regions: {},
     wardrobe: [],
@@ -213,11 +239,27 @@ function character(ctx, doc) {
       ctx.fail(path, 'expected an object');
       continue;
     }
-    out.wardrobe.push({
+    // A misspelled preset used to dress the character in `casual` without a
+    // word, which is the one failure the error paths here exist to prevent:
+    // the outfit you asked for is simply not the one you see.
+    // The known outfits are whatever the library loaded, so an imported
+    // outfit document is namable the moment it is in. An empty book means
+    // the check cannot be made — a document validated before the library is
+    // read should not have every outfit it names called a typo.
+    const known = outfitIds();
+    if (typeof w.outfit === 'string' && known.length && !known.includes(w.outfit)) {
+      ctx.fail(`${path}.outfit`, `unknown outfit ${JSON.stringify(w.outfit)}; expected one of ${known.join(', ')}, or an inline cut`);
+    }
+    const entry = {
       id: id(ctx, `${path}.id`, w.id) || `outfit${i}`,
       outfit: typeof w.outfit === 'string' || isObj(w.outfit) ? w.outfit : 'casual',
       color: color(ctx, `${path}.color`, w.color, '#2a5caa'),
-    });
+    };
+    // Which of the outfit's paint schemes to wear. The colour above still
+    // wins over the paint's own, because that is how every character written
+    // before outfits had paints says what colour their shirt is.
+    if (w.paint !== undefined) entry.paint = id(ctx, `${path}.paint`, w.paint);
+    out.wardrobe.push(entry);
   }
   if (!out.wardrobe.length) {
     out.wardrobe.push({ id: 'default', outfit: 'casual', color: '#2a5caa' });
@@ -232,6 +274,42 @@ function character(ctx, doc) {
   }
   if (!out.defaultOutfit) out.defaultOutfit = out.wardrobe[0].id;
   return out;
+}
+
+/** A part is a box unless it says otherwise. Only one alternative so far, and
+ *  an unknown name is an error rather than a silent box: getting a sphere you
+ *  did not ask for is confusing, but asking for one and getting a cube with
+ *  no explanation is worse. */
+const BOX_SHAPES = ['box', 'sphere', 'cylinder', 'cone'];
+
+/** A placement's size: one number for the usual uniform case, or three to
+ *  stretch. Written back in the form it arrived in, so a set full of plain
+ *  `"scale": 1.4` does not come back as arrays it never asked for. */
+function placementScale(ctx, path, v) {
+  if (Array.isArray(v)) {
+    const [lo, hi] = LIMITS.scale;
+    return [
+      num(ctx, `${path}[0]`, v[0], lo, hi, 1),
+      num(ctx, `${path}[1]`, v[1], lo, hi, 1),
+      num(ctx, `${path}[2]`, v[2], lo, hi, 1),
+    ];
+  }
+  return num(ctx, path, v, LIMITS.scale[0], LIMITS.scale[1], 1);
+}
+
+function boxShape(ctx, path, v) {
+  if (v === undefined || v === 'box') return undefined;
+  if (BOX_SHAPES.includes(v)) return v;
+  return ctx.fail(path, `unknown shape ${JSON.stringify(v)}; expected one of ${BOX_SHAPES.join(', ')}`) ?? undefined;
+}
+
+/** Which way a cylinder or cone runs. Meaningless on a box or a sphere, and
+ *  dropped there rather than carried as a field that does nothing. */
+function boxAxis(ctx, path, v, shape) {
+  if (v === undefined) return undefined;
+  if (shape !== 'cylinder' && shape !== 'cone') return undefined;
+  if (v === 'x' || v === 'y' || v === 'z') return v;
+  return ctx.fail(path, `expected "x", "y" or "z", got ${JSON.stringify(v)}`) ?? undefined;
 }
 
 function boxList(ctx, path, list) {
@@ -254,6 +332,8 @@ function boxList(ctx, path, list) {
       rz: num(ctx, `${p}.rz`, b.rz, -7, 7, 0),
       color: color(ctx, `${p}.color`, b.color, '#a0a0a0'),
       n: Math.round(num(ctx, `${p}.n`, b.n, 1, 4, 1)),
+      shape: boxShape(ctx, `${p}.shape`, b.shape),
+      axis: boxAxis(ctx, `${p}.axis`, b.axis, b.shape),
       grain: num(ctx, `${p}.grain`, b.grain, 0, 1, undefined),
       flat: !!b.flat,
       detail: !!b.detail,
@@ -317,9 +397,14 @@ function prop(ctx, doc) {
       ctx.fail(path, 'expected { pos: [x, y, z], yaw }');
       continue;
     }
+    // `pitch` and `roll` matter for `grip`, where they say how the object
+    // sits in the fist: a torch points up out of it, a mug hangs level, a
+    // book is read face-on. Seats and beds only ever needed the yaw.
     out.anchors[key] = {
       pos: vec3(ctx, `${path}.pos`, a.pos),
       yaw: num(ctx, `${path}.yaw`, a.yaw, -3600, 3600, 0),
+      pitch: num(ctx, `${path}.pitch`, a.pitch, -3600, 3600, 0),
+      roll: num(ctx, `${path}.roll`, a.roll, -3600, 3600, 0),
     };
   }
   return out;
@@ -462,6 +547,7 @@ function actionProps(ctx, doc, out) {
       if (pr.hand !== 'left' && pr.hand !== 'right') ctx.fail(`${path}.hand`, 'expected "left" or "right"');
       if (pr.role !== undefined) entry.role = pr.role;
       entry.hand = pr.hand;
+      if (pr.grip !== undefined) entry.grip = angles3(ctx, `${path}.grip`, pr.grip);
     }
     // The same channels the joints use, so a bar that rises with the press is
     // written the same way as an arm that rises with it.
@@ -559,8 +645,18 @@ function setDoc(ctx, doc) {
       prop: id(ctx, `${path}.prop`, pl.prop),
       at: vec3(ctx, `${path}.at`, pl.at),
       yaw: num(ctx, `${path}.yaw`, pl.yaw, -3600, 3600, 0),
-      scale: num(ctx, `${path}.scale`, pl.scale, LIMITS.scale[0], LIMITS.scale[1], 1),
+      // A placement can lean as well as turn. `yaw` alone is enough for
+      // furniture, which is why it was alone for so long; a ladder against a
+      // wall, a fallen sign, a plank on a slope all need the other two.
+      pitch: num(ctx, `${path}.pitch`, pl.pitch, -3600, 3600, 0),
+      roll: num(ctx, `${path}.roll`, pl.roll, -3600, 3600, 0),
+      scale: placementScale(ctx, `${path}.scale`, pl.scale),
       tint: pl.tint !== undefined ? color(ctx, `${path}.tint`, pl.tint) : undefined,
+      // Only the visual editor reads this: it refuses to move, turn or delete
+      // a locked placement. It lives in the document rather than in the
+      // editor's own memory because "I have finished with the walls" is worth
+      // keeping, and a note that vanishes on reload is not worth making.
+      locked: pl.locked === true ? true : undefined,
       repeat: undefined,
     };
     if (isObj(pl.repeat)) {
@@ -614,7 +710,9 @@ function story(ctx, doc, known) {
         prop: id(ctx, `${path}.prop`, e.prop),
         at: vec3(ctx, `${path}.at`, e.at),
         yaw: num(ctx, `${path}.yaw`, e.yaw, -3600, 3600, 0),
-        scale: num(ctx, `${path}.scale`, e.scale, LIMITS.scale[0], LIMITS.scale[1], 1),
+        pitch: num(ctx, `${path}.pitch`, e.pitch, -3600, 3600, 0),
+        roll: num(ctx, `${path}.roll`, e.roll, -3600, 3600, 0),
+        scale: placementScale(ctx, `${path}.scale`, e.scale),
         tint: e.tint !== undefined ? color(ctx, `${path}.tint`, e.tint) : undefined,
       });
     } else if (e.op === 'remove') {
@@ -648,6 +746,10 @@ function story(ctx, doc, known) {
       yaw: num(ctx, `${path}.yaw`, c.yaw, -3600, 3600, 0),
       holds: c.holds === undefined ? undefined : id(ctx, `${path}.holds`, c.holds),
       hand: c.hand === 'left' ? 'left' : c.hand === 'right' ? 'right' : undefined,
+      // How the thing sits in that hand, on top of whatever the prop's own
+      // `grip` anchor says. The anchor is the prop's usual carry; this is
+      // this character, in this story, holding it their way.
+      grip: angles3(ctx, `${path}.grip`, c.grip),
     });
   }
 
@@ -752,6 +854,7 @@ function story(ctx, doc, known) {
       if (e.hand === 'left' || e.hand === 'right') entry.hand = e.hand;
       else ctx.fail(`${path}.hand`, 'expected "left" or "right"');
     }
+    if (e.grip !== undefined) entry.grip = angles3(ctx, `${path}.grip`, e.grip);
     if (spec?.type === 'hold' && spec.grabs !== false && entry.prop === undefined) {
       ctx.fail(`${path}.prop`, `${act} needs the "prop" to pick up`);
     }
@@ -766,6 +869,10 @@ function story(ctx, doc, known) {
     // between two setups and wrong for a walk: it stops dead at every corner.
     // Marking a run of moves `glide` makes them one continuous travel.
     if (e.glide) entry.glide = true;
+    // How high a moving prop bows above the straight line between its two
+    // ends, in metres. A ball travels in an arc; a chair being repositioned
+    // does not, so it defaults to none.
+    if (e.arc !== undefined) entry.arc = num(ctx, `${path}.arc`, e.arc, -50, 50, 0);
     if (spec?.type === 'stage' && act !== 'setTime' && entry.id === undefined) {
       ctx.fail(`${path}.id`, `${act} needs the "id" of a placement to act on`);
     }
@@ -898,7 +1005,115 @@ function bundle(ctx, doc, known) {
   return out;
 }
 
-const VALIDATORS = { character, prop, set: setDoc, story, action, bundle };
+
+// ------------------------------------------------------------------ outfit
+
+/** One sprayable cell: a garment box's pid, a face 0..5, and a cell on the
+ *  6x6 grid that face is divided into. */
+const SPRAY_KEY = /^[A-Za-z0-9_]{1,24}\|[0-5]\|[0-5],[0-5]$/;
+
+function cut(ctx, path, v) {
+  const src = isObj(v) ? v : {};
+  const one = (field, allowed, fallback) => {
+    const value = src[field];
+    if (value === undefined) return fallback;
+    if (allowed.includes(value)) return value;
+    return ctx.fail(`${path}.${field}`,
+      `expected one of ${allowed.join(', ')}, got ${JSON.stringify(value)}`) ?? fallback;
+  };
+  const out = {
+    legs: one('legs', LEGS, 'trousers'),
+    top: one('top', TOPS, 'tee'),
+    sleeve: one('sleeve', SLEEVES, 'short'),
+    feet: one('feet', FEET, 'sneaker'),
+  };
+  // Flags are written only when true. A cut that lists five falses reads as
+  // if it had turned something off, and there is nothing to turn off.
+  for (const flag of CUT_FLAGS) if (src[flag]) out[flag] = true;
+  return out;
+}
+
+function paints(ctx, doc) {
+  const out = [];
+  const seen = new Set();
+  let cells = 0;
+  for (const [i, p] of array(ctx, 'paints', doc.paints, LIMITS.paints).entries()) {
+    const path = `paints[${i}]`;
+    if (!isObj(p)) {
+      ctx.fail(path, 'expected an object');
+      continue;
+    }
+    const pid = id(ctx, `${path}.id`, p.id) || `paint${i}`;
+    if (seen.has(pid)) ctx.fail(`${path}.id`, `two paints share the id ${JSON.stringify(pid)}`);
+    seen.add(pid);
+    const entry = {
+      id: pid,
+      name: name(ctx, `${path}.name`, p.name, pid),
+      color: color(ctx, `${path}.color`, p.color, '#2a5caa'),
+    };
+    if (isObj(p.spray)) {
+      const spray = {};
+      for (const [key, value] of Object.entries(p.spray)) {
+        if (!SPRAY_KEY.test(key)) {
+          ctx.fail(`${path}.spray`, `${JSON.stringify(key)} is not a cell address (pid|face|gx,gy)`);
+          break;
+        }
+        if (++cells > LIMITS.sprayCells) {
+          ctx.fail(`${path}.spray`, `an outfit may carry ${LIMITS.sprayCells} sprayed cells at most`);
+          break;
+        }
+        spray[key] = color(ctx, `${path}.spray[${key}]`, value, '#808080');
+      }
+      if (Object.keys(spray).length) entry.spray = spray;
+    }
+    out.push(entry);
+  }
+  return out;
+}
+
+function outfit(ctx, doc) {
+  const out = {
+    kind: 'outfit',
+    version: FORMAT_VERSION,
+    id: id(ctx, 'id', doc.id),
+    name: name(ctx, 'name', doc.name, doc.id || 'Outfit'),
+    cut: cut(ctx, 'cut', doc.cut),
+    // How far the cloth stands off the skin, everywhere at once. Negative
+    // takes it in, which is how a garment stops poking through a bigger one.
+    fit: { swell: num(ctx, 'fit.swell', doc.fit?.swell, SWELL_RANGE[0], SWELL_RANGE[1], 0) },
+    plans: [],
+    paints: paints(ctx, doc),
+    defaultPaint: '',
+  };
+
+  // Which plans the outfit is OFFERED to. Empty means all of them, and no
+  // list ever stops a character from naming it: `swim` is trunks and a bare
+  // chest, which is a suggestion the app should not make for every body, not
+  // a costume it should refuse to draw.
+  for (const [i, plan] of array(ctx, 'plans', doc.plans, 8).entries()) {
+    if (!BODY_PLANS.includes(plan)) {
+      ctx.fail(`plans[${i}]`, `expected one of ${BODY_PLANS.join(', ')}, got ${JSON.stringify(plan)}`);
+      continue;
+    }
+    if (!out.plans.includes(plan)) out.plans.push(plan);
+  }
+
+  if (!out.paints.length) {
+    out.paints.push({ id: 'plain', name: name(ctx, 'paints[0].name', null, 'Plain'), color: '#2a5caa' });
+  }
+  if (doc.defaultPaint !== undefined) {
+    const want = String(doc.defaultPaint);
+    if (!out.paints.some((p) => p.id === want)) {
+      ctx.fail('defaultPaint', `no paint with id ${JSON.stringify(want)}`);
+    } else {
+      out.defaultPaint = want;
+    }
+  }
+  if (!out.defaultPaint) out.defaultPaint = out.paints[0].id;
+  return out;
+}
+
+const VALIDATORS = { character, prop, set: setDoc, story, action, outfit, bundle };
 
 /**
  * @returns {{ ok: boolean, doc: object|null, errors: Array<{path, message}> }}
