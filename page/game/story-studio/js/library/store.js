@@ -4,9 +4,10 @@
 // site has no server to fall back on.
 
 const DB_NAME = 'StoryStudioDB';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const DOCS = 'documents';
 const BLOBS = 'blobs';
+const PREFERENCES = 'preferences';
 
 let dbPromise = null;
 
@@ -21,6 +22,9 @@ function open() {
       }
       if (!db.objectStoreNames.contains(BLOBS)) {
         db.createObjectStore(BLOBS, { keyPath: 'id' });
+      }
+      if (!db.objectStoreNames.contains(PREFERENCES)) {
+        db.createObjectStore(PREFERENCES, { keyPath: 'key' });
       }
     };
     req.onsuccess = () => resolve(req.result);
@@ -87,6 +91,19 @@ export function deleteBlob(id) {
 
 export function listBlobs() {
   return run(BLOBS, 'readonly', (s) => s.getAll());
+}
+
+/** Small app-wide values that are not library documents. Keeping these in
+ *  their own store means a preference can be shared by every object editor
+ *  without being copied into, or accidentally exported as, an object. */
+export async function getPreference(key, fallback = null) {
+  const row = await run(PREFERENCES, 'readonly', (s) => s.get(key));
+  return row?.value ?? fallback;
+}
+
+export async function putPreference(key, value) {
+  await run(PREFERENCES, 'readwrite', (s) => s.put({ key, value, saved: Date.now() }));
+  return value;
 }
 
 /** True when storage is usable at all. A private window with site data

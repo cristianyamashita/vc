@@ -90,6 +90,9 @@ export function buildBody(spec) {
   const base = planOf(spec.base);
   const P = PLANS[base];
   const H = spec.height > 0 ? spec.height : DEFAULT_HEIGHT[base];
+  // Experimental visual skin. It is intentionally opt-in from the character
+  // builder so the shipped voxel characters keep their exact appearance.
+  const softShell = !!spec.softShell;
   const cut = resolveCut(spec.outfit);
   const look = spec.look || {};
   const C = palette(base, cut, spec.color, look);
@@ -141,6 +144,29 @@ export function buildBody(spec) {
   const p = (w, h, d, color, x, y, z, extra) => {
     const b = { w, h, d, color, x, y, z, limb: limbTag, reg };
     if (extra) Object.assign(b, extra);
+    // Round the large masses, but leave small facial/clothing details alone.
+    // The parts remain separate and attached to the same joints, so this is a
+    // visual skin rather than a second, un-rigged character. Garments retain
+    // their character: a skirt flares, while fitted tops and wraps follow the
+    // rounded torso without becoming balloons.
+    if (softShell && !b.detail) {
+      if (reg === 'head') {
+        b.shape = 'sphere';
+        b.n = Math.max(b.n || 1, 5);
+      } else if (b.pid === 'skirt') {
+        // An elliptical frustum reads as fabric around two legs; a rounded
+        // box still reads as a solid block, especially from the side.
+        b.shape = 'cylinder';
+        b.axis = 'y';
+        b.scaleBottom = b.scaleBottom || [1, 1];
+        b.scaleTop = b.scaleTop || [0.80, 0.80];
+        b.n = Math.max(b.n || 1, 6);
+      } else if (reg === 'belly' || reg === 'torso' || reg === 'hands' || reg === 'feet') {
+        b.shape = 'rounded';
+        b.roundness = reg === 'torso' || reg === 'belly' ? 0.18 : 0.22;
+        b.n = Math.max(b.n || 1, 6);
+      }
+    }
     if (b.pid) {
       if (swell) {
         b.w += swell * 2;
@@ -287,12 +313,16 @@ export function buildBody(spec) {
       // at the knee on one of them.
       const hem = u(P.hip) - u(P.hip - P.knee) * 0.5;
       const skirtH = u(P.waist) - hem;
-      p(hipD * 1.42, skirtH, hipW * 1.34, C.top,
-        0, hem + skirtH / 2, 0, { n: 2, grain: 0.04, pid: 'skirt' });
+      p(hipD * 1.32, skirtH * 1.03, hipW * 1.32, C.top,
+        0, hem + skirtH * 0.515, 0,
+        { n: 2, grain: 0.04, pid: 'skirt', scaleTop: [0.82, 0.82] });
     } else {
-      const skirtH = u(isChild ? 0.10 : 0.13);
-      p(hipD * 1.5, skirtH, hipW * 1.42, C.top, 0, u(P.hip) + skirtH * 0.42, 0,
-        { n: 2, grain: 0.04, pid: 'skirt' });
+      const skirtH = u(isChild ? 0.18 : 0.20);
+      // The top overlaps the waist by a few millimetres, avoiding a visible
+      // skin band between the bodice and skirt while the actor moves.
+      p(hipD * 1.38, skirtH, hipW * 1.38, C.top,
+        0, u(P.waist) - skirtH * 0.46, 0,
+        { n: 2, grain: 0.04, pid: 'skirt', scaleTop: [0.78, 0.78] });
     }
   }
 
@@ -313,13 +343,34 @@ export function buildBody(spec) {
   const bellyH = u(P.chest - P.waist);
   // The belly of a heavy figure hangs forward and a shade low, rather than
   // being a wider version of the same barrel.
-  p(waistD, bellyH, waistW, torsoColor,
-    (waistD - chestD) * 0.42, u(P.waist) + bellyH * (0.5 - heavy * 0.04), 0,
-    { n: 2, grain: 0.04, pid: topBare ? undefined : 'topBelly' });
+  if (softShell) {
+    // One tapered, overlapping abdominal volume: narrow at the waist, full at
+    // the ribs. It meets both hip and chest instead of reading as a separate
+    // rounded brick between them.
+    p(chestD, bellyH * 1.16, chestW, torsoColor,
+      0, u(P.waist) + bellyH * 0.52, 0,
+      {
+        n: 6, grain: 0.04, pid: topBare ? undefined : 'topBelly',
+        shape: 'rounded', roundness: 0.16,
+        scaleBottom: [waistD / chestD, waistW / chestW],
+        scaleTop: [1, 1],
+      });
+  } else {
+    p(waistD, bellyH, waistW, torsoColor,
+      (waistD - chestD) * 0.42, u(P.waist) + bellyH * (0.5 - heavy * 0.04), 0,
+      { n: 2, grain: 0.04, pid: topBare ? undefined : 'topBelly' });
+  }
   reg = 'torso';
-  p(chestD, u(P.shoulder - P.chest) * 1.04, chestW, torsoColor,
-    0, u(P.chest) + u(P.shoulder - P.chest) / 2, 0,
-    { n: 2, grain: 0.04, pid: topBare ? undefined : 'topChest' });
+  const chestH = u(P.shoulder - P.chest);
+  p(chestD, chestH * (softShell ? 1.16 : 1.04), chestW, torsoColor,
+    0, u(P.chest) + chestH * (softShell ? 0.46 : 0.5), 0,
+    softShell
+      ? {
+        n: 6, grain: 0.04, pid: topBare ? undefined : 'topChest',
+        shape: 'rounded', roundness: 0.15,
+        scaleBottom: [0.96, 0.94], scaleTop: [1, 1.04],
+      }
+      : { n: 2, grain: 0.04, pid: topBare ? undefined : 'topChest' });
   // Shoulder caps: the box torso ends square, and a small pad on each side is
   // what stops the arm from looking bolted to a plank.
   pair('lArm', 'rArm', chestD * 0.92, u(0.042), armW * 1.02, topBare ? C.skin : C.top,
@@ -332,7 +383,10 @@ export function buildBody(spec) {
   // was tagged onto the arm.
   const bustSpan = u(P.shoulder - P.chest);
   const bustY = u(P.chest) + bustSpan * 0.44;
-  const bustOut = bust > 0.02 ? chestD * (0.34 + bust * 0.52) : 0;
+  // A tiny child bust reads as two stuck-on balls at this resolution. The
+  // tapered torso already carries the subtle volume more convincingly.
+  const visibleBust = softShell && isChild && bust < 0.18 ? 0 : bust;
+  const bustOut = visibleBust > 0.02 ? chestD * (0.34 + visibleBust * 0.52) : 0;
   if (bustOut > 0) {
     reg = 'bust';
     limbTag = 'chest';
@@ -439,8 +493,12 @@ export function buildBody(spec) {
   // ----------------------------------------------------------------- head
   limbTag = 'neck';
   reg = 'torso';
-  const neckH = u(P.chin - P.neck) * 1.4;
-  p(headD * 0.42, neckH, headW * 0.46, C.skinDark, 0, u(P.neck) + neckH * 0.35, 0,
+  // Extend the neck into both the head and the shoulder line. The old short
+  // cylinder left a visible air gap above the torso, especially on children.
+  const neckBottom = u(P.shoulder) - u(0.008);
+  const neckTop = u(P.chin) + u(0.006);
+  const neckH = neckTop - neckBottom;
+  p(headD * 0.42, neckH, headW * 0.46, C.skinDark, 0, neckBottom + neckH / 2, 0,
     { shape: 'cylinder', n: 3 });
 
   limbTag = 'head';

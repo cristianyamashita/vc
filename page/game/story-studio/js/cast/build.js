@@ -101,6 +101,9 @@ export function normaliseCharacter(doc) {
     bust: Number.isFinite(doc?.bust) ? doc.bust : undefined,
     look: doc?.look || {},
     regions: doc?.regions || null,
+    // Temporary experiment: only Duda gets the procedural skin until the
+    // result is approved and the feature gets a real document-level setting.
+    softShell: doc?.id === 'duda',
   };
 }
 
@@ -133,6 +136,7 @@ export function characterParts(doc, outfitId) {
     fit: resolveFit(wear.outfit),
     paint: sprayCells(paint),
     look: spec.look,
+    softShell: spec.softShell,
   });
   applyRegions(body.parts, spec.regions);
   return body;
@@ -193,6 +197,31 @@ export function buildCharacter(doc, outfitId) {
     pivots[name] = pivot;
   }
 
+  // Experimental joint skin for Duda. These low-poly caps overlap the limb
+  // segments at their existing pivots and hide the “pieces bolted together”
+  // reading without changing the animation rig or contact calculations.
+  if (specificallySoftShell(doc)) {
+    const capJoints = new Set([
+      'lArm', 'rArm', 'lFore', 'rFore',
+      'lThigh', 'rThigh', 'lShin', 'rShin',
+    ]);
+    for (const name of capJoints) {
+      const pivot = pivots[name];
+      const list = byLimb.get(name);
+      if (!pivot || !list?.length) continue;
+      const source = list.find((part) => !part.detail) || list[0];
+      const radius = Math.max(0.018, Math.min(source.w, source.d) * 0.54);
+      const cap = new THREE.Mesh(
+        new THREE.SphereGeometry(radius, 6, 4),
+        new THREE.MeshLambertMaterial({ color: toHex(source.color, 0xffffff), flatShading: true }),
+      );
+      cap.castShadow = true;
+      cap.receiveShadow = true;
+      cap.userData.softShell = true;
+      pivot.add(cap);
+    }
+  }
+
   root.userData.pivots = pivots;
   root.userData.body = body;
   root.userData.height = height;
@@ -202,10 +231,15 @@ export function buildCharacter(doc, outfitId) {
   return root;
 }
 
+function specificallySoftShell(doc) {
+  return doc?.id === 'duda';
+}
+
 /** Frees the per-character geometry. Materials are shared and stay. */
 export function disposeCharacter(root) {
   root.traverse((o) => {
     if (o.isMesh) o.geometry?.dispose();
+    if (o.userData?.softShell) o.material?.dispose();
   });
 }
 

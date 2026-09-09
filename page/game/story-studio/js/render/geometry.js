@@ -75,7 +75,7 @@ const AXIS_INDEX = { x: 0, y: 1, z: 2 };
  * scaled by w/h/d afterwards, which is why three unequal sizes give an
  * ellipsoid, an elliptical cylinder, or a cone on an oval base for free.
  */
-function roundPoint(shape, axis, dx, dy, dz, fn, out) {
+function roundPoint(shape, axis, dx, dy, dz, fn, roundness, out) {
   if (shape === 'sphere') {
     const len = Math.hypot(dx, dy, dz) || 1;
     out.px = (dx / len) * 0.5;
@@ -84,6 +84,37 @@ function roundPoint(shape, axis, dx, dy, dz, fn, out) {
     out.nx = dx / len;
     out.ny = dy / len;
     out.nz = dz / len;
+    return;
+  }
+
+  if (shape === 'rounded') {
+    // A rounded box is the original cube with each point projected away from
+    // a smaller inner box. Face centres stay flat while edges and corners get
+    // a real radius, unlike an ellipsoid which makes a torso look inflated.
+    const radius = Math.max(0.04, Math.min(0.28, roundness ?? 0.16));
+    const core = 0.5 - radius;
+    const cx = Math.max(-core, Math.min(core, dx));
+    const cy = Math.max(-core, Math.min(core, dy));
+    const cz = Math.max(-core, Math.min(core, dz));
+    const vx = dx - cx;
+    const vy = dy - cy;
+    const vz = dz - cz;
+    const len = Math.hypot(vx, vy, vz);
+    if (len > 1e-9) {
+      out.nx = vx / len;
+      out.ny = vy / len;
+      out.nz = vz / len;
+      out.px = cx + out.nx * radius;
+      out.py = cy + out.ny * radius;
+      out.pz = cz + out.nz * radius;
+    } else {
+      out.px = dx;
+      out.py = dy;
+      out.pz = dz;
+      out.nx = fn[0];
+      out.ny = fn[1];
+      out.nz = fn[2];
+    }
     return;
   }
 
@@ -146,11 +177,28 @@ function subdivOf(b, advanced) {
   if (b.shape && b.shape !== 'box') {
     return advanced ? Math.max(b.paint ? PAINT_N : 3, b.n || 4) : 3;
   }
+  // A painted surface must keep its cells even in the simple detail tier;
+  // otherwise the texture vanishes as soon as the viewer chooses Simple.
+  if (b.paint) return Math.max(PAINT_N, b.n || 1);
   if (!advanced) return 1;
   // A painted box always renders at the paint grid, or the cells it carries
   // would have nowhere to land.
-  if (b.paint) return Math.max(PAINT_N, b.n || 1);
   return b.n || 1;
+}
+
+function crossScale(value, component) {
+  if (Array.isArray(value)) return Number.isFinite(value[component]) ? value[component] : 1;
+  return Number.isFinite(value) ? value : 1;
+}
+
+/** Width/depth scale for a vertically tapered part at unit-local y. */
+function taperScale(b, y) {
+  const t = Math.max(0, Math.min(1, y + 0.5));
+  const bx = crossScale(b.scaleBottom, 0);
+  const bz = crossScale(b.scaleBottom, 1);
+  const tx = crossScale(b.scaleTop, 0);
+  const tz = crossScale(b.scaleTop, 1);
+  return [bx + (tx - bx) * t, bz + (tz - bz) * t];
 }
 
 /**
@@ -160,16 +208,18 @@ function subdivOf(b, advanced) {
  *   n:      face subdivision (1 = one quad per face). Only worth raising on
  *           big parts, where it turns `grain` into visible texture — and on
  *           spheres, where it is what makes them round.
- *   shape:  "sphere", "cylinder" or "cone" pushes the subdivided cube out
- *           onto that solid. Nothing else about the part changes, so w/h/d
- *           still give its size and three unequal numbers give an ellipsoid,
- *           an elliptical cylinder, or a cone on an oval base.
+ *   shape:  "sphere", "cylinder", "cone" or "rounded" pushes the subdivided
+ *           cube onto that solid. Nothing else about the part changes, so
+ *           w/h/d still give its size. `rounded` preserves flat face centres
+ *           and rounds only the box edges and corners.
+ *   roundness: rounded-box corner radius in unit-cube space (0.04..0.28).
+ *   scaleBottom/scaleTop: optional x/z scales for a vertically tapered part.
  *   axis:   "x" | "y" | "z", which way a cylinder or cone runs. Default "y",
  *           and a cone's point is at the +axis end.
  *   detail: decorative, dropped entirely when the detail tier is off.
- *   paint:  Map of cellIndex(face, gx, gy) -> colour, sprayed over the box's
- *           own colour. The cell keeps the face shading and the grain, so
- *           paint sits on the surface instead of flattening it.
+ *   paint:  Map or sparse object of cellIndex(face, gx, gy) -> colour, sprayed
+ *           over the box's own colour. The cell keeps the face shading and
+ *           the grain, so paint sits on the surface instead of flattening it.
  * @param {boolean} full  force the detailed tier regardless of the setting.
  */
 export function buildGeometry(parts, full = false) {
@@ -248,11 +298,12 @@ export function buildGeometry(parts, full = false) {
           let g = cg;
           let bl = cb;
           if (paint) {
-            const hit = paint.get(cellIndex(f,
+            const key = cellIndex(f,
               Math.min(PAINT_N - 1, Math.floor((gx / n) * PAINT_N)),
-              Math.min(PAINT_N - 1, Math.floor((gy / n) * PAINT_N))));
+              Math.min(PAINT_N - 1, Math.floor((gy / n) * PAINT_N)));
+            const hit = paint instanceof Map ? paint.get(key) : paint[key];
             if (hit !== undefined) {
-              SRGB.setHex(hit, THREE.SRGBColorSpace);
+              SRGB.setHex(toHex(hit, 0xa0a0a0), THREE.SRGBColorSpace);
               r = SRGB.r;
               g = SRGB.g;
               bl = SRGB.b;
@@ -272,8 +323,9 @@ export function buildGeometry(parts, full = false) {
               roundPoint(shape, axis,
                 F.o[0] + F.u[0] * ta + F.v[0] * tb,
                 F.o[1] + F.u[1] * ta + F.v[1] * tb,
-                F.o[2] + F.u[2] * ta + F.v[2] * tb, F.n, R);
-              p.set(R.px * w, R.py * h, R.pz * d);
+                F.o[2] + F.u[2] * ta + F.v[2] * tb, F.n, b.roundness, R);
+              const [tsx, tsz] = taperScale(b, R.py);
+              p.set(R.px * w * tsx, R.py * h, R.pz * d * tsz);
               nv.set(R.nx, R.ny, R.nz);
             } else {
               p.set(ox + ux * ta + vx * tb, oy + uy * ta + vy * tb, oz + uz * ta + vz * tb);
@@ -354,8 +406,9 @@ export function cellPoint(b, face, gx, gy, p, nv) {
   const dz = F.o[2] + F.u[2] * ta + F.v[2] * tb;
   const shape = b.shape && b.shape !== 'box' ? b.shape : null;
   if (shape) {
-    roundPoint(shape, AXIS_INDEX[b.axis] ?? 1, dx, dy, dz, F.n, _round);
-    p.set(_round.px * b.w, _round.py * b.h, _round.pz * b.d);
+    roundPoint(shape, AXIS_INDEX[b.axis] ?? 1, dx, dy, dz, F.n, b.roundness, _round);
+    const [tsx, tsz] = taperScale(b, _round.py);
+    p.set(_round.px * b.w * tsx, _round.py * b.h, _round.pz * b.d * tsz);
     nv.set(_round.nx, _round.ny, _round.nz);
   } else {
     p.set(dx * b.w, dy * b.h, dz * b.d);

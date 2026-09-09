@@ -280,7 +280,7 @@ function character(ctx, doc) {
  *  an unknown name is an error rather than a silent box: getting a sphere you
  *  did not ask for is confusing, but asking for one and getting a cube with
  *  no explanation is worse. */
-const BOX_SHAPES = ['box', 'sphere', 'cylinder', 'cone'];
+const BOX_SHAPES = ['box', 'rounded', 'sphere', 'cylinder', 'cone'];
 
 /** A placement's size: one number for the usual uniform case, or three to
  *  stretch. Written back in the form it arrived in, so a set full of plain
@@ -312,6 +312,21 @@ function boxAxis(ctx, path, v, shape) {
   return ctx.fail(path, `expected "x", "y" or "z", got ${JSON.stringify(v)}`) ?? undefined;
 }
 
+function boxPaint(ctx, path, value) {
+  if (value === undefined) return undefined;
+  if (!isObj(value)) return ctx.fail(path, 'expected an object of painted surface cells') ?? undefined;
+  const out = {};
+  for (const [key, ink] of Object.entries(value)) {
+    const index = Number(key);
+    if (!Number.isInteger(index) || index < 0 || index >= 6 * 6 * 6) {
+      ctx.fail(`${path}.${key}`, 'expected a surface cell index between 0 and 215');
+      continue;
+    }
+    out[String(index)] = color(ctx, `${path}.${key}`, ink, '#808080');
+  }
+  return Object.keys(out).length ? out : undefined;
+}
+
 function boxList(ctx, path, list) {
   const out = [];
   for (const [i, b] of array(ctx, path, list, LIMITS.propBoxes).entries()) {
@@ -331,12 +346,14 @@ function boxList(ctx, path, list) {
       ry: num(ctx, `${p}.ry`, b.ry, -7, 7, 0),
       rz: num(ctx, `${p}.rz`, b.rz, -7, 7, 0),
       color: color(ctx, `${p}.color`, b.color, '#a0a0a0'),
+      opacity: num(ctx, `${p}.opacity`, b.opacity, 0.05, 1, 1),
       n: Math.round(num(ctx, `${p}.n`, b.n, 1, 4, 1)),
       shape: boxShape(ctx, `${p}.shape`, b.shape),
       axis: boxAxis(ctx, `${p}.axis`, b.axis, b.shape),
       grain: num(ctx, `${p}.grain`, b.grain, 0, 1, undefined),
       flat: !!b.flat,
       detail: !!b.detail,
+      paint: boxPaint(ctx, `${p}.paint`, b.paint),
     });
   }
   return out;
@@ -350,6 +367,7 @@ function prop(ctx, doc) {
     name: name(ctx, 'name', doc.name, doc.id || 'Prop'),
     scale: num(ctx, 'scale', doc.scale, LIMITS.scale[0], LIMITS.scale[1], 1),
     yaw: num(ctx, 'yaw', doc.yaw, -3600, 3600, 0),
+    opacity: num(ctx, 'opacity', doc.opacity, 0.05, 1, 1),
     footprint: [
       num(ctx, 'footprint[0]', doc.footprint?.[0], 0, 500, 0.5),
       num(ctx, 'footprint[1]', doc.footprint?.[1], 0, 500, 0.5),

@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="pt" data-theme="dark">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#071b25">
+    <link rel="icon" href="../../assets/icons/ico/game-sculpt-lab.ico" type="image/x-icon">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+    <title>Orbit Sculpt Lab</title>
+    <link rel="stylesheet" href="styles.css">
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.module.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div class="brand">
+          <div class="brand-mark" aria-hidden="true"><span></span><i></i></div>
+          <div>
+            <p class="overline" data-i18n="brandOverline">ORBIT / 3D PLAYGROUND</p>
+            <h1 data-i18n="appTitle">Orbit Sculpt Lab</h1>
+          </div>
+        </div>
+        <div class="top-actions">
+          <span id="save-state" class="save-state"><span class="status-dot"></span><span data-i18n="ready">Pronto</span></span>
+          <div class="language-switcher" aria-label="Language" data-i18n-aria="language">
+            <button type="button" data-lang="en">EN</button>
+            <button type="button" data-lang="pt" class="active">PT</button>
+            <button type="button" data-lang="ja">JA</button>
+          </div>
+          <button id="theme-toggle" class="icon-button" type="button" title="Alternar tema" aria-label="Alternar tema" data-i18n-title="themeToggle" data-i18n-aria="themeToggle">☼</button>
+        </div>
+      </header>
+
+      <main class="workspace">
+        <aside class="sidebar left-sidebar">
+          <section class="panel compact-panel">
+            <div class="panel-heading">
+              <div><span class="section-kicker">01</span><h2 data-i18n="baseMesh">Malha base</h2></div>
+              <span class="live-badge" data-i18n="live">LIVE</span>
+            </div>
+            <div class="primitive-grid">
+              <button class="primitive-card active" data-primitive="sphere" type="button"><span class="primitive-preview sphere-preview"></span><strong data-i18n="sphere">Esfera</strong><small data-i18n="organicBase">Base orgânica</small></button>
+              <button class="primitive-card" data-primitive="box" type="button"><span class="primitive-preview box-preview"></span><strong data-i18n="box">Caixa</strong><small data-i18n="hardSurface">Superfície dura</small></button>
+            </div>
+            <label class="field-label" for="density" data-i18n="density">Densidade</label>
+            <div class="range-row"><input id="density" type="range" min="1" max="5" value="3"><output id="density-value">3 / 5</output></div>
+            <button id="new-mesh" class="secondary-button full-width" type="button"><span>＋</span><span data-i18n="newMesh">Nova malha</span></button>
+          </section>
+
+          <section class="panel compact-panel brush-panel">
+            <div class="panel-heading"><div><span class="section-kicker">02</span><h2 data-i18n="brush">Pincel</h2></div><span id="active-tool-name" class="tool-name">Clay</span></div>
+            <div class="tool-grid">
+              <button class="tool-button active" data-tool="clay" type="button"><span class="tool-icon">✦</span><span data-i18n="clay">Clay</span><kbd>1</kbd></button>
+              <button class="tool-button" data-tool="inflate" type="button"><span class="tool-icon">◉</span><span data-i18n="inflate">Inflar</span><kbd>2</kbd></button>
+              <button class="tool-button" data-tool="sink" type="button"><span class="tool-icon">⊖</span><span data-i18n="sink">Afundar</span><kbd>6</kbd></button>
+              <button class="tool-button" data-tool="carve" type="button"><span class="tool-icon">⌄</span><span data-i18n="carve">Cavar</span><kbd>7</kbd></button>
+              <button class="tool-button" data-tool="grab" type="button"><span class="tool-icon">✣</span><span data-i18n="grab">Puxar</span><kbd>3</kbd></button>
+              <button class="tool-button" data-tool="smooth" type="button"><span class="tool-icon">≈</span><span data-i18n="smooth">Suavizar</span><kbd>4</kbd></button>
+              <button class="tool-button" data-tool="paint" type="button"><span class="tool-icon">●</span><span data-i18n="paint">Pintar</span><kbd>5</kbd></button>
+              <button class="tool-button" data-tool="erase" type="button"><span class="tool-icon">⌫</span><span data-i18n="erase">Apagar cor</span><kbd>E</kbd></button>
+            </div>
+            <div class="control-block"><div class="range-heading"><label for="radius" data-i18n="radius">Raio</label><output id="radius-value">0.32</output></div><input id="radius" type="range" min="0.05" max="0.85" step="0.01" value="0.32"></div>
+            <div class="control-block"><div class="range-heading"><label for="strength" data-i18n="strength">Força</label><output id="strength-value">45%</output></div><input id="strength" type="range" min="0.05" max="1" step="0.01" value="0.45"></div>
+            <div class="color-control"><label for="paint-color" data-i18n="color">Cor</label><input id="paint-color" type="color" value="#ef8b67"><output id="paint-color-value">#EF8B67</output></div>
+            <label class="toggle-row"><input id="symmetry" type="checkbox"><span class="toggle-ui"></span><span data-i18n="symmetry">Simetria X</span><kbd>X</kbd></label>
+          </section>
+
+          <section class="panel compact-panel scene-panel">
+            <div class="panel-heading"><div><span class="section-kicker">03</span><h2 data-i18n="display">Visualização</h2></div></div>
+            <label class="toggle-row"><input id="wireframe" type="checkbox"><span class="toggle-ui"></span><span data-i18n="wireframe">Wireframe</span></label>
+            <label class="toggle-row"><input id="show-grid" type="checkbox" checked><span class="toggle-ui"></span><span data-i18n="floorGrid">Grade no chão</span></label>
+            <button id="reduce-vertices" class="secondary-button full-width reduce-button" type="button"><span>▽</span><span data-i18n="reduceVertices">Reduzir vértices</span><kbd>½</kbd></button>
+            <button id="refine-vertices" class="secondary-button full-width refine-button" type="button"><span>◇</span><span data-i18n="refineVertices">Refinar áreas esticadas</span><kbd>＋</kbd></button>
+            <p class="micro-note" data-i18n="topologyNote">Reduzir simplifica tudo; Refinar adiciona pontos somente onde estão muito espaçados.</p>
+          </section>
+        </aside>
+
+        <section class="viewport-panel">
+          <div class="viewport-toolbar">
+            <div class="toolbar-group">
+              <button id="undo" class="toolbar-button" type="button" title="Desfazer (Ctrl+Z)">↶<span data-i18n="undo">Desfazer</span></button>
+              <button id="redo" class="toolbar-button" type="button" title="Refazer (Ctrl+Shift+Z)">↷<span data-i18n="redo">Refazer</span></button>
+            </div>
+            <div class="toolbar-group interaction-buttons" aria-label="Controles de interação">
+              <button class="toolbar-button interaction-button active" data-camera-tool="sculpt" type="button"><b>✦</b><span data-i18n="sculptMode">Esculpir</span><kbd>B</kbd></button>
+              <button class="toolbar-button interaction-button" data-camera-tool="pan" type="button"><b>✥</b><span data-i18n="moveCamera">Mover</span><kbd>Space</kbd></button>
+              <button class="toolbar-button interaction-button" data-camera-tool="orbit" type="button"><b>◌</b><span data-i18n="orbitCamera">Rodar</span><kbd data-i18n="rightMouse">botão direito</kbd></button>
+            </div>
+            <div class="toolbar-group view-buttons">
+              <button class="view-button" data-view="front" type="button" data-i18n="front">Frente</button>
+              <button class="view-button" data-view="top" type="button" data-i18n="top">Topo</button>
+              <button class="view-button active" data-view="iso" type="button" data-i18n="isometric">Isométrica</button>
+              <button id="reset-view" class="reset-view" type="button" title="Reset view">⟳</button>
+            </div>
+          </div>
+          <div id="viewport" class="viewport" tabindex="0">
+            <div class="viewport-noise"></div>
+            <div id="brush-cursor" class="brush-cursor" hidden></div>
+            <div class="axis-gizmo" aria-hidden="true"><span class="axis-x">X</span><span class="axis-y">Y</span><span class="axis-z">Z</span><i></i></div>
+            <div class="viewport-hint"><span class="hint-dot"></span><span id="interaction-hint" data-i18n="dragHint">Arraste sobre a malha para esculpir</span></div>
+            <div id="loading" class="loading"><span class="loader"></span><span data-i18n="loading">Carregando motor 3D…</span></div>
+          </div>
+          <div class="viewport-footer">
+            <div class="object-readout"><span class="readout-dot"></span><strong id="object-name">Untitled form</strong><span class="readout-divider">/</span><span id="object-type">Sphere</span></div>
+            <div class="mesh-stats"><span><b id="vertex-count">0</b> <span data-i18n="vertices">vértices</span></span><span><b id="face-count">0</b> <span data-i18n="faces">faces</span></span></div>
+          </div>
+        </section>
+
+        <aside class="sidebar right-sidebar">
+          <section class="panel project-panel">
+            <div class="panel-heading"><div><span class="section-kicker">04</span><h2 data-i18n="project">Projeto</h2></div><span class="project-id" data-i18n="localOnly">LOCAL</span></div>
+            <label class="field-label" for="project-name" data-i18n="projectName">Nome do projeto</label>
+            <input id="project-name" class="text-input" value="Untitled form" data-i18n-placeholder="projectNamePlaceholder" placeholder="Dê um nome à sua forma">
+            <button id="save-project" class="primary-button full-width" type="button"><span>↓</span><span data-i18n="saveProject">Salvar no navegador</span><kbd>⌘S</kbd></button>
+            <p id="save-note" class="micro-note" data-i18n="saveNote">IndexedDB · salvo somente neste dispositivo</p>
+          </section>
+
+          <section class="panel files-panel">
+            <div class="panel-heading"><div><span class="section-kicker">05</span><h2 data-i18n="fileStudio">Arquivos</h2></div></div>
+            <div class="file-actions"><button id="export-glb" class="file-button accent" type="button"><span>↗</span><span data-i18n="exportGlb">Exportar GLB</span></button><button id="import-file" class="file-button" type="button"><span>↙</span><span data-i18n="importFile">Importar modelo</span></button><button id="export-json" class="file-button" type="button"><span>⌁</span><span data-i18n="exportJson">Exportar JSON</span></button><button id="import-json" class="file-button" type="button"><span>⌁</span><span data-i18n="importJson">Importar JSON</span></button></div>
+            <input id="file-input" type="file" accept=".glb,.gltf,.json,model/gltf-binary,model/gltf+json,application/json" hidden>
+            <p class="micro-note" data-i18n="fileNote">GLB leva a malha e as cores do vértice. JSON mantém o projeto editável.</p>
+          </section>
+
+          <section class="panel saved-panel">
+            <div class="panel-heading"><div><span class="section-kicker">06</span><h2 data-i18n="savedProjects">Projetos salvos</h2></div><button id="refresh-projects" class="mini-button" type="button" title="Atualizar">↻</button></div>
+            <div id="project-list" class="project-list"><div class="empty-state" data-i18n="noProjects">Nenhum projeto salvo ainda.</div></div>
+          </section>
+
+          <section class="panel shortcut-panel">
+            <div class="panel-heading"><div><span class="section-kicker">07</span><h2 data-i18n="shortcuts">Atalhos</h2></div></div>
+            <div class="shortcut-list"><div><span data-i18n="moveCamera">Mover câmera</span><kbd>SPACE</kbd></div><div><span data-i18n="orbitCamera">Rodar câmera</span><kbd data-i18n="rightMouse">botão direito</kbd></div><div><span data-i18n="sculptMode">Esculpir</span><kbd>B</kbd></div><div><span data-i18n="zoom">Zoom</span><kbd data-i18n="scrollKey">scroll</kbd></div><div><span data-i18n="brushSize">Tamanho do pincel</span><kbd>[ ]</kbd></div></div>
+          </section>
+
+          <section class="panel tool-guide-panel">
+            <div class="panel-heading"><div><span class="section-kicker">08</span><h2 data-i18n="toolGuideHeading">Ferramenta selecionada</h2></div></div>
+            <div class="tool-guide-card">
+              <div id="tool-guide-icon" class="guide-icon">✦</div>
+              <div><h3 id="tool-guide-title">Clay</h3><p id="tool-guide-desc">Adiciona volume à superfície, como modelar argila.</p></div>
+            </div>
+            <div class="guide-use"><span class="section-kicker" data-i18n="howToUse">COMO USAR</span><p id="tool-guide-use">Clique e arraste sobre a malha para construir a forma.</p></div>
+          </section>
+        </aside>
+      </main>
+    </div>
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <script type="module" src="app.js"></script>
+  </body>
+</html>

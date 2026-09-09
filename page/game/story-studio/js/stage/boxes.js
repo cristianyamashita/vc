@@ -33,7 +33,10 @@ export function boxMesh(doc) {
     };
     cache.set(doc.id, entry);
   }
-  const mesh = new THREE.Mesh(entry.geo, BOX_MATERIAL);
+  const material = BOX_MATERIAL.clone();
+  material.transparent = (doc.opacity ?? 1) < 1;
+  material.opacity = doc.opacity ?? 1;
+  const mesh = new THREE.Mesh(entry.geo, material);
   mesh.castShadow = true;
   mesh.receiveShadow = true;
   return mesh;

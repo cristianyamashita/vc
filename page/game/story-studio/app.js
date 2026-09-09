@@ -4,6 +4,7 @@ import { setDetailed } from './js/render/geometry.js';
 import { Registry } from './js/library/registry.js';
 import { available as storageAvailable } from './js/library/store.js';
 import { readText, readFile, saveAll, removeDocument, importGlb, bundleFor, copyOf, toJson, download } from './js/library/io.js';
+import { exportDocumentGlb } from './js/library/glb.js';
 import { Playback } from './js/render/playback.js';
 import { Viewer } from './js/ui/viewer.js';
 import { Transport } from './js/ui/transport.js';
@@ -12,6 +13,7 @@ import { Editor } from './js/ui/editor.js';
 import { SetEditor } from './js/ui/setedit.js';
 import { StoryEditor } from './js/ui/storyedit.js';
 import { OutfitEditor } from './js/ui/outfitedit.js';
+import { PropEditor } from './js/ui/propedit.js';
 import { characterParts } from './js/cast/build.js';
 import { presetsFor } from './js/cast/wardrobe.js';
 import { planOf } from './js/cast/body.js';
@@ -35,6 +37,7 @@ let editor = null;
 let setEditor = null;
 let storyEditor = null;
 let outfitEditor = null;
+let propEditor = null;
 let currentView = 'library';
 // What is on screen, so the Edit button in the player and the preview has
 // something to open. Watching and editing are the same loop — you play a
@@ -59,7 +62,7 @@ function clearNotice() {
 
 function show(view) {
   currentView = view;
-  for (const name of ['library', 'player', 'preview', 'setedit', 'storyedit', 'fitedit']) {
+  for (const name of ['library', 'player', 'preview', 'setedit', 'storyedit', 'fitedit', 'propedit']) {
     $(`#view-${name}`).hidden = name !== view;
   }
   $('#ss-back').hidden = view === 'library';
@@ -72,6 +75,8 @@ function show(view) {
   else storyEditor?.stop();
   if (view === 'fitedit') outfitEditor?.start();
   else outfitEditor?.stop();
+  if (view === 'propedit') propEditor?.start();
+  else propEditor?.stop();
   if (view !== 'library') resize();
 }
 
@@ -406,6 +411,14 @@ async function openOutfitEditor(doc) {
   resize();
 }
 
+async function openPropEditor(doc) {
+  clearNotice();
+  currentDoc = doc;
+  show('propedit');
+  await propEditor.load(doc);
+  resize();
+}
+
 /** The story editor, on the same document the JSON panel edits. */
 async function openStoryEditor(doc) {
   clearNotice();
@@ -461,7 +474,8 @@ function resize() {
   const id = currentView === 'player' ? '#ss-stage-wrap'
     : currentView === 'setedit' ? '#ss-edit-stage'
       : currentView === 'storyedit' ? '#ss-story-stage'
-        : currentView === 'fitedit' ? '#ss-fit-stage' : '#ss-preview-wrap';
+        : currentView === 'fitedit' ? '#ss-fit-stage'
+          : currentView === 'propedit' ? '#ss-prop-stage' : '#ss-preview-wrap';
   const stage = $(id);
   if (!stage) return;
   const rect = stage.getBoundingClientRect();
@@ -469,6 +483,7 @@ function resize() {
   else if (currentView === 'setedit') setEditor?.resize(rect.width, rect.height);
   else if (currentView === 'storyedit') storyEditor?.resize(rect.width, rect.height);
   else if (currentView === 'fitedit') outfitEditor?.resize(rect.width, rect.height);
+  else if (currentView === 'propedit') propEditor?.resize(rect.width, rect.height);
   else viewer?.resize(rect.width, rect.height);
 }
 
@@ -488,6 +503,7 @@ async function main() {
   onLangChange(() => {
     libraryView?.render();
     transport?.sync();
+    propEditor?.refreshLanguage();
   });
   $('#themeBtn').addEventListener('click', () => {
     toggleTheme();
@@ -559,20 +575,59 @@ async function main() {
     },
   });
 
+  propEditor = new PropEditor($('#view-propedit'), {
+    registry,
+    onExportGlb: async (doc) => {
+      try {
+        await exportDocumentGlb(doc);
+        notice(t('exportedGlb'), 'info');
+      } catch (err) {
+        console.error(err);
+        notice(t('exportGlbFailed'), 'warn');
+      }
+    },
+    onSave: async (doc) => {
+      const saved = await saveAll([doc], registry.actionMap());
+      if (!saved.length) { notice(t('storageOff'), 'warn'); return; }
+      await registry.loadUser();
+      backToLibrary();
+      notice(t('propSaved', { id: doc.id }), 'info');
+    },
+    onCancel: () => {
+      if (propEditor.dirty && !confirm(t('propDiscard'))) return;
+      backToLibrary();
+    },
+  });
+
   libraryView = new LibraryView($('#view-library'), {
     registry,
     onOpen: (doc) => (doc.kind === 'story' ? openStory(doc) : openPreview(doc)),
     onEdit: openEditor,
-    onVisualEdit: (doc) => (doc.kind === 'outfit' ? openOutfitEditor(doc) : openSetEditor(doc)),
+    onVisualEdit: (doc) => (doc.kind === 'outfit' ? openOutfitEditor(doc) : doc.kind === 'prop' ? openPropEditor(doc) : openSetEditor(doc)),
     onStoryEdit: openStoryEditor,
     onDuplicate: duplicate,
     onExport: (doc) => download(`${doc.kind}-${doc.id}.json`, toJson(doc)),
+    onExportGlb: async (doc) => {
+      try {
+        await exportDocumentGlb(doc);
+        notice(t('exportedGlb'), 'info');
+      } catch (err) {
+        console.error(err);
+        notice(t('exportGlbFailed'), 'warn');
+      }
+    },
     onExportBundle: (doc) => download(`story-${doc.id}.bundle.json`, toJson(bundleFor(doc, registry))),
     onDelete: async (doc) => {
       if (!confirm(t('removeConfirm', { name: localised(doc.name, doc.id) }))) return;
       await removeDocument(doc.kind, doc.id);
       await registry.loadUser();
       libraryView.render();
+    },
+    onNewProp: async () => {
+      const id = `object-${Date.now().toString(36)}`;
+      const doc = { kind: 'prop', version: 1, id, name: { en: 'New object', pt: 'Novo objeto', ja: '新しい物体' }, source: { type: 'boxes', boxes: [{ w: 1, h: 1, d: 1, x: 0, y: .5, z: 0, color: '#4fd1c5' }] }, footprint: [1, 1] };
+      const saved = await saveAll([doc], registry.actionMap());
+      await registry.loadUser(); libraryView.render(); openPropEditor(saved[0] || doc);
     },
   });
 

@@ -52,10 +52,10 @@ function summarise(doc) {
 }
 
 export class LibraryView {
-  constructor(root, { registry, onOpen, onExport, onExportBundle, onEdit, onVisualEdit, onStoryEdit, onDuplicate, onDelete }) {
+  constructor(root, { registry, onOpen, onExport, onExportGlb, onExportBundle, onEdit, onVisualEdit, onStoryEdit, onDuplicate, onDelete, onNewProp }) {
     this.root = root;
     this.registry = registry;
-    this.handlers = { onOpen, onExport, onExportBundle, onEdit, onVisualEdit, onStoryEdit, onDuplicate, onDelete };
+    this.handlers = { onOpen, onExport, onExportGlb, onExportBundle, onEdit, onVisualEdit, onStoryEdit, onDuplicate, onDelete, onNewProp };
     this.tab = 'story';
     this.tabsEl = root.querySelector('.ss-tabs');
     this.listEl = root.querySelector('.ss-list');
@@ -77,6 +77,9 @@ export class LibraryView {
       b.className = tab.kind === this.tab ? 'is-active' : '';
       b.setAttribute('aria-pressed', String(tab.kind === this.tab));
       this.tabsEl.appendChild(b);
+    }
+    if (this.tab === 'prop' && this.handlers.onNewProp) {
+      const b = document.createElement('button'); b.className = 'ss-new-inline'; b.textContent = `＋ ${t('propNew')}`; b.onclick = this.handlers.onNewProp; this.tabsEl.appendChild(b);
     }
 
     this.listEl.innerHTML = '';
@@ -137,12 +140,13 @@ export class LibraryView {
     add(t('edit'), '', this.handlers.onEdit);
     // A set is a floor plan, and typing coordinates is a poor way to lay one
     // out, so it gets the mouse as well as the JSON.
-    if (doc.kind === 'set' || doc.kind === 'outfit') add(t('visualEdit'), '', this.handlers.onVisualEdit);
+    if (doc.kind === 'set' || doc.kind === 'outfit' || (doc.kind === 'prop' && doc.source?.type === 'boxes')) add(t('visualEdit'), '', this.handlers.onVisualEdit);
     if (doc.kind === 'story') add(t('storyEdit'), '', this.handlers.onStoryEdit);
     // Next to Edit, because that is what it is for: a copy is where you edit
     // without losing the thing that already worked.
     add(t('duplicate'), '', this.handlers.onDuplicate);
     add(t('export'), '', this.handlers.onExport);
+    if ((doc.kind === 'prop' || doc.kind === 'character') && this.handlers.onExportGlb) add(t('exportGlb'), '', this.handlers.onExportGlb);
     if (doc.kind === 'story') add(t('exportBundle'), '', this.handlers.onExportBundle);
     if (source === 'user') add(t('remove'), 'ss-danger', this.handlers.onDelete);
     el.appendChild(actions);

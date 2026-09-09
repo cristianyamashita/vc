@@ -1173,6 +1173,13 @@ ICONS: dict[str, list[Shape]] = {
         r(15.1, 20.6, 1.8, 4.6, fill=DARK),
         l(12.9, 22.0, 19.1, 22.0, stroke=DARK, sw=1.5),
     ],
+    "game-sculpt-lab": [
+        c(16, 16, 10, fill=None, stroke=WHITE, sw=1.8),
+        c(16, 16, 5, fill=DARK),
+        pl([(8, 16), (11, 12), (16, 10), (21, 12), (24, 16)], stroke=WHITE, sw=1.5),
+        p([(21, 7), (26, 12), (24, 14), (19, 9)], fill=WHITE),
+        p([(23, 13), (27, 17), (25, 19), (21, 15)], fill=DARK),
+    ],
     "misc-code_runner": [
         r(6, 8, 20, 16, rad=2, fill=None, stroke=WHITE, sw=2),
         p([(12, 12), (20, 16), (12, 20)]),
