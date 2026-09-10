@@ -4,6 +4,7 @@ import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { SimplifyModifier } from 'three/addons/modifiers/SimplifyModifier.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { edgeTable, triTable } from 'three/addons/objects/MarchingCubes.js';
 
 const $ = (selector) => document.querySelector(selector);
 const viewport = $('#viewport');
@@ -12,43 +13,61 @@ const DB_VERSION = 2;
 const STORE = 'projects';
 const SESSION_STORE = 'session';
 const DEFAULT_COLOR = '#c9a69d';
+const BUILTIN_PRIMITIVES = new Set(['sphere', 'box', 'capsule', 'cylinder', 'torus', 'body']);
+const UNTITLED_KEYS = {
+  sphere: 'untitledForm',
+  box: 'untitledBlock',
+  capsule: 'untitledCapsule',
+  cylinder: 'untitledCylinder',
+  torus: 'untitledTorus',
+  body: 'untitledBody'
+};
+const TYPE_KEYS = {
+  sphere: 'typeSphere',
+  box: 'typeBox',
+  capsule: 'typeCapsule',
+  cylinder: 'typeCylinder',
+  torus: 'typeTorus',
+  body: 'typeBody',
+  imported: 'typeImported'
+};
 
 const translations = {
   pt: {
     brandOverline: 'ORBIT / PLAYGROUND 3D', appTitle: 'Orbit Sculpt Lab', language: 'Idioma', themeToggle: 'Alternar tema', localOnly: 'LOCAL', dragKey: 'arraste', scrollKey: 'scroll', rightMouse: 'botão direito', untitledForm: 'Forma sem nome', untitledBlock: 'Bloco sem nome', delete: 'Excluir', toolGuideHeading: 'Ferramenta selecionada', howToUse: 'COMO USAR',
     clayGuideTitle: 'Clay', clayGuideDesc: 'Adiciona volume à superfície, como modelar argila.', clayGuideUse: 'Clique e arraste sobre a malha para construir a forma.', inflateGuideTitle: 'Inflar', inflateGuideDesc: 'Expande a superfície para criar saliências e formas arredondadas.', inflateGuideUse: 'Arraste devagar sobre uma área para fazê-la crescer.', sinkGuideTitle: 'Afundar', sinkGuideDesc: 'Empurra uma área ampla para dentro da forma, criando depressões suaves.', sinkGuideUse: 'Arraste sobre a superfície; ajuste o raio para controlar a largura da depressão.', carveGuideTitle: 'Cavar', carveGuideDesc: 'Escava um sulco mais estreito e profundo no centro do pincel.', carveGuideUse: 'Arraste como uma goiva; reduza o raio para desenhar detalhes fundos.', grabGuideTitle: 'Puxar', grabGuideDesc: 'Move uma região inteira da malha sem perder o volume ao redor.', grabGuideUse: 'Arraste a área na direção desejada; use raios maiores para formas largas.', smoothGuideTitle: 'Suavizar', smoothGuideDesc: 'Mistura os vértices vizinhos para remover marcas e transições duras.', smoothGuideUse: 'Passe o pincel várias vezes sobre a marca que deseja suavizar.', paintGuideTitle: 'Pintar', paintGuideDesc: 'Aplica a cor escolhida diretamente nos vértices da superfície.', paintGuideUse: 'Escolha uma cor e arraste como se estivesse usando uma caneta.', eraseGuideTitle: 'Apagar cor', eraseGuideDesc: 'Retorna a área pintada para a cor original da massa.', eraseGuideUse: 'Arraste sobre as cores que deseja remover.',
     ready: 'Pronto', saving: 'Salvando…', saved: 'Salvo', loaded: 'Projeto carregado', sessionRestored: 'Sessão anterior restaurada', reduceVertices: 'Reduzir vértices', reducingVertices: 'Reduzindo…', verticesReduced: 'Vértices reduzidos: {before} → {after}', minimumVertices: 'A malha já está no limite mínimo', refineVertices: 'Refinar áreas esticadas', refiningVertices: 'Refinando…', verticesRefined: '{added} vértices adicionados nas áreas esparsas', noSparseAreas: 'Nenhuma área esticada precisa de mais vértices', meshTooDense: 'A malha atingiu o limite de segurança', topologyNote: 'Reduzir simplifica tudo; Refinar adiciona pontos somente onde estão muito espaçados.',
-    baseMesh: 'Malha base', live: 'AO VIVO', sphere: 'Esfera', box: 'Caixa', organicBase: 'Base orgânica', hardSurface: 'Superfície dura', density: 'Densidade', newMesh: 'Nova malha',
+    baseMesh: 'Malha base', live: 'AO VIVO', sphere: 'Esfera', box: 'Caixa', capsule: 'Cápsula', cylinder: 'Cilindro', torus: 'Torus', body: 'Corpo', organicBase: 'Base orgânica', hardSurface: 'Superfície dura', capsuleBase: 'Volume arredondado', columnBase: 'Coluna', ringBase: 'Anel', figureBase: 'Figura humana', density: 'Densidade', newMesh: 'Nova malha', untitledCapsule: 'Cápsula sem nome', untitledCylinder: 'Cilindro sem nome', untitledTorus: 'Torus sem nome', untitledBody: 'Corpo sem nome',
     brush: 'Pincel', clay: 'Clay', inflate: 'Inflar', sink: 'Afundar', carve: 'Cavar', grab: 'Puxar', smooth: 'Suavizar', paint: 'Pintar', erase: 'Apagar cor', radius: 'Raio', strength: 'Força', color: 'Cor', symmetry: 'Simetria X', display: 'Visualização', wireframe: 'Wireframe', floorGrid: 'Grade no chão',
     undo: 'Desfazer', redo: 'Refazer', sculptMode: 'Esculpir', moveCamera: 'Mover câmera', orbitCamera: 'Rodar câmera', front: 'Frente', top: 'Topo', isometric: 'Isométrica', dragHint: 'Arraste sobre a malha para esculpir', panHint: 'Arraste para mover a câmera', orbitHint: 'Arraste para rodar a câmera', loading: 'Carregando motor 3D…', vertices: 'vértices', faces: 'faces',
     project: 'Projeto', projectName: 'Nome do projeto', projectNamePlaceholder: 'Dê um nome à sua forma', saveProject: 'Salvar no navegador', saveNote: 'IndexedDB · salvo somente neste dispositivo', fileStudio: 'Arquivos', exportGlb: 'Exportar GLB', importFile: 'Importar modelo', exportJson: 'Exportar JSON', importJson: 'Importar JSON', fileNote: 'GLB leva a malha e as cores do vértice. JSON mantém o projeto editável.',
     savedProjects: 'Projetos salvos', noProjects: 'Nenhum projeto salvo ainda.', shortcuts: 'Atalhos', orbit: 'Orbitar', zoom: 'Zoom', rotate: 'Rotacionar câmera', brushSize: 'Tamanho do pincel',
     meshCreated: 'Nova malha criada', sculptSaved: 'Projeto salvo no navegador', exportDone: 'Arquivo GLB exportado', jsonExportDone: 'Projeto JSON exportado', imported: 'Modelo importado', partsImported: '{count} partes importadas e unificadas', jsonImported: 'Projeto JSON importado', noUndo: 'Nada para desfazer', noRedo: 'Nada para refazer', deleted: 'Projeto excluído', invalidFile: 'Arquivo não reconhecido', dbError: 'Não foi possível acessar o armazenamento',
-    typeSphere: 'Esfera', typeBox: 'Caixa', typeImported: 'Importado', toolClay: 'Clay', toolInflate: 'Inflar', toolSink: 'Afundar', toolCarve: 'Cavar', toolGrab: 'Puxar', toolSmooth: 'Suavizar', toolPaint: 'Pintar', toolErase: 'Apagar cor', confirmDelete: 'Excluir este projeto?'
+    typeSphere: 'Esfera', typeBox: 'Caixa', typeCapsule: 'Cápsula', typeCylinder: 'Cilindro', typeTorus: 'Torus', typeBody: 'Corpo', typeImported: 'Importado', toolClay: 'Clay', toolInflate: 'Inflar', toolSink: 'Afundar', toolCarve: 'Cavar', toolGrab: 'Puxar', toolSmooth: 'Suavizar', toolPaint: 'Pintar', toolErase: 'Apagar cor', confirmDelete: 'Excluir este projeto?'
   },
   en: {
     brandOverline: 'ORBIT / 3D PLAYGROUND', appTitle: 'Orbit Sculpt Lab', language: 'Language', themeToggle: 'Toggle theme', localOnly: 'LOCAL', dragKey: 'drag', scrollKey: 'scroll', rightMouse: 'right mouse', untitledForm: 'Untitled form', untitledBlock: 'Untitled block', delete: 'Delete', toolGuideHeading: 'Selected tool', howToUse: 'HOW TO USE',
     clayGuideTitle: 'Clay', clayGuideDesc: 'Adds volume to the surface, like shaping clay.', clayGuideUse: 'Click and drag over the mesh to build the form.', inflateGuideTitle: 'Inflate', inflateGuideDesc: 'Expands the surface to create bumps and rounded forms.', inflateGuideUse: 'Drag slowly over an area to make it grow.', sinkGuideTitle: 'Sink', sinkGuideDesc: 'Pushes a broad area into the form to create soft depressions.', sinkGuideUse: 'Drag over the surface; adjust the radius to control the depression width.', carveGuideTitle: 'Carve', carveGuideDesc: 'Cuts a narrower, deeper groove at the center of the brush.', carveGuideUse: 'Drag like a gouge; reduce the radius to draw deep details.', grabGuideTitle: 'Grab', grabGuideDesc: 'Moves an entire region of the mesh while keeping nearby volume.', grabGuideUse: 'Drag the area in the desired direction; use a larger radius for broad forms.', smoothGuideTitle: 'Smooth', smoothGuideDesc: 'Blends neighboring vertices to remove marks and hard transitions.', smoothGuideUse: 'Brush over a mark several times to soften it.', paintGuideTitle: 'Paint', paintGuideDesc: 'Applies the selected color directly to surface vertices.', paintGuideUse: 'Choose a color and drag as if you were using a pen.', eraseGuideTitle: 'Erase color', eraseGuideDesc: 'Returns painted areas to the original material color.', eraseGuideUse: 'Drag over the colors you want to remove.',
     ready: 'Ready', saving: 'Saving…', saved: 'Saved', loaded: 'Project loaded', sessionRestored: 'Previous session restored', reduceVertices: 'Reduce vertices', reducingVertices: 'Reducing…', verticesReduced: 'Vertices reduced: {before} → {after}', minimumVertices: 'The mesh is already at the minimum limit', refineVertices: 'Refine stretched areas', refiningVertices: 'Refining…', verticesRefined: '{added} vertices added to sparse areas', noSparseAreas: 'No stretched area needs more vertices', meshTooDense: 'The mesh reached the safety limit', topologyNote: 'Reduce simplifies everything; Refine adds points only where they are too far apart.',
-    baseMesh: 'Base mesh', live: 'LIVE', sphere: 'Sphere', box: 'Box', organicBase: 'Organic base', hardSurface: 'Hard surface', density: 'Density', newMesh: 'New mesh',
+    baseMesh: 'Base mesh', live: 'LIVE', sphere: 'Sphere', box: 'Box', capsule: 'Capsule', cylinder: 'Cylinder', torus: 'Torus', body: 'Body', organicBase: 'Organic base', hardSurface: 'Hard surface', capsuleBase: 'Rounded volume', columnBase: 'Column', ringBase: 'Ring', figureBase: 'Human figure', density: 'Density', newMesh: 'New mesh', untitledCapsule: 'Untitled capsule', untitledCylinder: 'Untitled cylinder', untitledTorus: 'Untitled torus', untitledBody: 'Untitled body',
     brush: 'Brush', clay: 'Clay', inflate: 'Inflate', sink: 'Sink', carve: 'Carve', grab: 'Grab', smooth: 'Smooth', paint: 'Paint', erase: 'Erase color', radius: 'Radius', strength: 'Strength', color: 'Color', symmetry: 'X symmetry', display: 'Display', wireframe: 'Wireframe', floorGrid: 'Floor grid',
     undo: 'Undo', redo: 'Redo', sculptMode: 'Sculpt', moveCamera: 'Move camera', orbitCamera: 'Rotate camera', front: 'Front', top: 'Top', isometric: 'Isometric', dragHint: 'Drag over the mesh to sculpt', panHint: 'Drag to move the camera', orbitHint: 'Drag to rotate the camera', loading: 'Loading 3D engine…', vertices: 'vertices', faces: 'faces',
     project: 'Project', projectName: 'Project name', projectNamePlaceholder: 'Name your form', saveProject: 'Save in browser', saveNote: 'IndexedDB · saved on this device only', fileStudio: 'Files', exportGlb: 'Export GLB', importFile: 'Import model', exportJson: 'Export JSON', importJson: 'Import JSON', fileNote: 'GLB carries mesh and vertex colors. JSON keeps the project editable.',
     savedProjects: 'Saved projects', noProjects: 'No saved projects yet.', shortcuts: 'Shortcuts', orbit: 'Orbit', zoom: 'Zoom', rotate: 'Rotate camera', brushSize: 'Brush size',
     meshCreated: 'New mesh created', sculptSaved: 'Project saved in browser', exportDone: 'GLB file exported', jsonExportDone: 'JSON project exported', imported: 'Model imported', partsImported: '{count} parts imported and merged', jsonImported: 'JSON project imported', noUndo: 'Nothing to undo', noRedo: 'Nothing to redo', deleted: 'Project deleted', invalidFile: 'Unrecognized file', dbError: 'Could not access storage',
-    typeSphere: 'Sphere', typeBox: 'Box', typeImported: 'Imported', toolClay: 'Clay', toolInflate: 'Inflate', toolSink: 'Sink', toolCarve: 'Carve', toolGrab: 'Grab', toolSmooth: 'Smooth', toolPaint: 'Paint', toolErase: 'Erase color', confirmDelete: 'Delete this project?'
+    typeSphere: 'Sphere', typeBox: 'Box', typeCapsule: 'Capsule', typeCylinder: 'Cylinder', typeTorus: 'Torus', typeBody: 'Body', typeImported: 'Imported', toolClay: 'Clay', toolInflate: 'Inflate', toolSink: 'Sink', toolCarve: 'Carve', toolGrab: 'Grab', toolSmooth: 'Smooth', toolPaint: 'Paint', toolErase: 'Erase color', confirmDelete: 'Delete this project?'
   },
   ja: {
     brandOverline: 'ORBIT / PLAYGROUND 3D', appTitle: 'Orbit Sculpt Lab', language: '言語', themeToggle: 'テーマ切替', localOnly: 'LOCAL', dragKey: 'ドラッグ', scrollKey: 'スクロール', rightMouse: '右クリック', untitledForm: '名前のない形', untitledBlock: '名前のないブロック', delete: '削除', toolGuideHeading: '選択中のツール', howToUse: '使い方',
     clayGuideTitle: 'クレイ', clayGuideDesc: '粘土を形作るように、表面にボリュームを加えます。', clayGuideUse: 'メッシュ上をクリックしてドラッグし、形を作ります。', inflateGuideTitle: '膨らませる', inflateGuideDesc: '表面を広げて、ふくらみや丸い形を作ります。', inflateGuideUse: '育てたい部分をゆっくりドラッグします。', sinkGuideTitle: '押し込む', sinkGuideDesc: '広い範囲を形の内側へ押し込み、滑らかなくぼみを作ります。', sinkGuideUse: '表面をドラッグし、半径でくぼみの幅を調整します。', carveGuideTitle: '彫る', carveGuideDesc: 'ブラシの中心に細く深い溝を彫ります。', carveGuideUse: '丸のみのようにドラッグします。細部には半径を小さくします。', grabGuideTitle: '引っ張る', grabGuideDesc: '周囲のボリュームを保ちながら、メッシュの領域を動かします。', grabGuideUse: '動かしたい方向へドラッグします。広い形には大きな半径を使います。', smoothGuideTitle: 'スムーズ', smoothGuideDesc: '隣接する頂点を混ぜ、跡や硬い境目を滑らかにします。', smoothGuideUse: '滑らかにしたい跡の上を何度かブラシします。', paintGuideTitle: 'ペイント', paintGuideDesc: '選択した色を表面の頂点に直接適用します。', paintGuideUse: '色を選び、ペンのようにドラッグします。', eraseGuideTitle: '色を消す', eraseGuideDesc: 'ペイントした部分を元のマテリアル色に戻します。', eraseGuideUse: '消したい色の上をドラッグします。',
     ready: '準備完了', saving: '保存中…', saved: '保存済み', loaded: 'プロジェクトを読み込みました', sessionRestored: '前回のセッションを復元しました', reduceVertices: '頂点を減らす', reducingVertices: '削減中…', verticesReduced: '頂点を削減: {before} → {after}', minimumVertices: 'メッシュはすでに最小限です', refineVertices: '伸びた部分を細分化', refiningVertices: '細分化中…', verticesRefined: '疎な部分に頂点を{added}個追加しました', noSparseAreas: '頂点を追加する必要がある部分はありません', meshTooDense: 'メッシュが安全上限に達しました', topologyNote: '削減は全体を簡略化し、細分化は間隔が広い部分だけに頂点を追加します。',
-    baseMesh: 'ベースメッシュ', live: 'LIVE', sphere: '球体', box: 'ボックス', organicBase: '有機的なベース', hardSurface: 'ハードサーフェス', density: '密度', newMesh: '新しいメッシュ',
+    baseMesh: 'ベースメッシュ', live: 'LIVE', sphere: '球体', box: 'ボックス', capsule: 'カプセル', cylinder: '円柱', torus: 'トーラス', body: '人体', organicBase: '有機的なベース', hardSurface: 'ハードサーフェス', capsuleBase: '丸い立体', columnBase: '柱', ringBase: 'リング', figureBase: '人体ベース', density: '密度', newMesh: '新しいメッシュ', untitledCapsule: '名前のないカプセル', untitledCylinder: '名前のない円柱', untitledTorus: '名前のないトーラス', untitledBody: '名前のない人体',
     brush: 'ブラシ', clay: 'クレイ', inflate: '膨らませる', sink: '押し込む', carve: '彫る', grab: '引っ張る', smooth: 'スムーズ', paint: 'ペイント', erase: '色を消す', radius: '半径', strength: '強さ', color: '色', symmetry: 'X対称', display: '表示', wireframe: 'ワイヤーフレーム', floorGrid: '床グリッド',
     undo: '元に戻す', redo: 'やり直す', sculptMode: '造形', moveCamera: 'カメラ移動', orbitCamera: 'カメラ回転', front: '正面', top: '上面', isometric: 'アイソメ', dragHint: 'メッシュ上をドラッグして造形', panHint: 'ドラッグしてカメラを移動', orbitHint: 'ドラッグしてカメラを回転', loading: '3Dエンジンを読み込み中…', vertices: '頂点', faces: '面',
     project: 'プロジェクト', projectName: 'プロジェクト名', projectNamePlaceholder: '形に名前を付ける', saveProject: 'ブラウザに保存', saveNote: 'IndexedDB · このデバイスだけに保存', fileStudio: 'ファイル', exportGlb: 'GLBを書き出す', importFile: 'モデルを読み込む', exportJson: 'JSONを書き出す', importJson: 'JSONを読み込む', fileNote: 'GLBはメッシュと頂点カラーを保持。JSONは編集可能なプロジェクトを保持します。',
     savedProjects: '保存済みプロジェクト', noProjects: '保存済みプロジェクトはありません。', shortcuts: 'ショートカット', orbit: '回転', zoom: 'ズーム', rotate: 'カメラ回転', brushSize: 'ブラシサイズ',
     meshCreated: '新しいメッシュを作成しました', sculptSaved: 'ブラウザに保存しました', exportDone: 'GLBを書き出しました', jsonExportDone: 'JSONを書き出しました', imported: 'モデルを読み込みました', partsImported: '{count}個のパーツを読み込み、統合しました', jsonImported: 'JSONプロジェクトを読み込みました', noUndo: '元に戻す操作はありません', noRedo: 'やり直す操作はありません', deleted: 'プロジェクトを削除しました', invalidFile: '認識できないファイルです', dbError: 'ストレージにアクセスできません',
-    typeSphere: '球体', typeBox: 'ボックス', typeImported: '読み込み', toolClay: 'クレイ', toolInflate: '膨らませる', toolSink: '押し込む', toolCarve: '彫る', toolGrab: '引っ張る', toolSmooth: 'スムーズ', toolPaint: 'ペイント', toolErase: '色を消す', confirmDelete: 'このプロジェクトを削除しますか？'
+    typeSphere: '球体', typeBox: 'ボックス', typeCapsule: 'カプセル', typeCylinder: '円柱', typeTorus: 'トーラス', typeBody: '人体', typeImported: '読み込み', toolClay: 'クレイ', toolInflate: '膨らませる', toolSink: '押し込む', toolCarve: '彫る', toolGrab: '引っ張る', toolSmooth: 'スムーズ', toolPaint: 'ペイント', toolErase: '色を消す', confirmDelete: 'このプロジェクトを削除しますか？'
   }
 };
 
@@ -188,6 +207,181 @@ function createLegacyGeometry(kind, level) {
   return new THREE.IcosahedronGeometry(1.35, level);
 }
 
+function smin(a, b, k) {
+  const h = Math.max(k - Math.abs(a - b), 0) / k;
+  return Math.min(a, b) - h * h * k * 0.25;
+}
+
+function sdCapsule(px, py, pz, ax, ay, az, bx, by, bz, r) {
+  const abx = bx - ax, aby = by - ay, abz = bz - az;
+  const apx = px - ax, apy = py - ay, apz = pz - az;
+  const ab2 = abx * abx + aby * aby + abz * abz;
+  let t = ab2 > 0 ? (apx * abx + apy * aby + apz * abz) / ab2 : 0;
+  t = t < 0 ? 0 : t > 1 ? 1 : t;
+  return Math.hypot(apx - abx * t, apy - aby * t, apz - abz * t) - r;
+}
+
+function sdEllipsoid(px, py, pz, cx, cy, cz, rx, ry, rz) {
+  const dx = px - cx, dy = py - cy, dz = pz - cz;
+  const k0 = Math.hypot(dx / rx, dy / ry, dz / rz);
+  const k1 = Math.hypot(dx / (rx * rx), dy / (ry * ry), dz / (rz * rz));
+  return k0 * (k0 - 1) / (k1 || 1e-12);
+}
+
+function humanoidSDF(x, y, z) {
+  const ax = Math.abs(x);
+  let d = sdEllipsoid(ax, y, z, 0, 1.02, 0.03, 0.19, 0.23, 0.2);
+  d = smin(d, sdCapsule(ax, y, z, 0, 0.8, 0.01, 0, 0.93, 0.02, 0.09), 0.05);
+  d = smin(d, sdEllipsoid(ax, y, z, 0, 0.48, 0.04, 0.3, 0.38, 0.18), 0.09);
+  d = smin(d, sdCapsule(ax, y, z, 0, 0.14, 0.02, 0, 0.42, 0.03, 0.22), 0.09);
+  d = smin(d, sdEllipsoid(ax, y, z, 0, 0.04, 0.01, 0.26, 0.15, 0.16), 0.08);
+  d = smin(d, sdEllipsoid(ax, y, z, 0.3, 0.62, 0.01, 0.12, 0.11, 0.11), 0.08);
+  d = smin(d, sdCapsule(ax, y, z, 0.14, 0.06, 0.01, 0.16, -0.48, 0.02, 0.145), 0.075);
+  d = smin(d, sdCapsule(ax, y, z, 0.16, -0.48, 0.02, 0.13, -1.04, 0, 0.1), 0.055);
+  d = smin(d, sdCapsule(ax, y, z, 0.13, -1.14, -0.02, 0.13, -1.16, 0.18, 0.08), 0.045);
+  d = smin(d, sdCapsule(ax, y, z, 0.3, 0.6, 0.01, 0.54, 0.22, 0.03, 0.095), 0.07);
+  d = smin(d, sdCapsule(ax, y, z, 0.54, 0.22, 0.03, 0.7, -0.16, 0.01, 0.075), 0.05);
+  d = smin(d, sdEllipsoid(ax, y, z, 0.74, -0.24, 0.03, 0.08, 0.09, 0.06), 0.045);
+  return d;
+}
+
+function lerpZero(p1, v1, p2, v2, out) {
+  const t = v1 / ((v1 - v2) || 1e-12);
+  out[0] = p1[0] + (p2[0] - p1[0]) * t;
+  out[1] = p1[1] + (p2[1] - p1[1]) * t;
+  out[2] = p1[2] + (p2[2] - p1[2]) * t;
+  return out;
+}
+
+function orientTrianglesOutward(positions, sdf) {
+  const eps = 0.035;
+  for (let i = 0; i < positions.length; i += 9) {
+    const ax = positions[i], ay = positions[i + 1], az = positions[i + 2];
+    const bx = positions[i + 3], by = positions[i + 4], bz = positions[i + 5];
+    const cx = positions[i + 6], cy = positions[i + 7], cz = positions[i + 8];
+    const mx = (ax + bx + cx) / 3;
+    const my = (ay + by + cy) / 3;
+    const mz = (az + bz + cz) / 3;
+    let nx = (by - ay) * (cz - az) - (bz - az) * (cy - ay);
+    let ny = (bz - az) * (cx - ax) - (bx - ax) * (cz - az);
+    let nz = (bx - ax) * (cy - ay) - (by - ay) * (cx - ax);
+    const len = Math.hypot(nx, ny, nz);
+    if (len < 1e-12) continue;
+    nx = (nx / len) * eps;
+    ny = (ny / len) * eps;
+    nz = (nz / len) * eps;
+    if (sdf(mx + nx, my + ny, mz + nz) < sdf(mx - nx, my - ny, mz - nz)) {
+      positions[i + 3] = cx; positions[i + 4] = cy; positions[i + 5] = cz;
+      positions[i + 6] = bx; positions[i + 7] = by; positions[i + 8] = bz;
+    }
+  }
+}
+
+function geometryFromTriangles(positions) {
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setIndex(Array.from({ length: positions.length / 3 }, (_, index) => index));
+  geometry.computeVertexNormals();
+  geometry.computeBoundingBox();
+  geometry.computeBoundingSphere();
+  return geometry;
+}
+
+function fitGeometryHeight(geometry, height = 2.55) {
+  geometry.computeBoundingBox();
+  const size = new THREE.Vector3();
+  const center = new THREE.Vector3();
+  geometry.boundingBox.getSize(size);
+  geometry.boundingBox.getCenter(center);
+  geometry.translate(-center.x, -center.y, -center.z);
+  if (size.y > 1e-6) {
+    const scale = height / size.y;
+    geometry.scale(scale, scale, scale);
+  }
+  return geometry;
+}
+
+function createHumanoidGeometry(level) {
+  const res = 24 + Math.max(1, level) * 8;
+  const minX = -0.98, maxX = 0.98;
+  const minY = -1.42, maxY = 1.36;
+  const minZ = -0.46, maxZ = 0.52;
+  const n = res + 1;
+  const sx = (maxX - minX) / res;
+  const sy = (maxY - minY) / res;
+  const sz = (maxZ - minZ) / res;
+  const field = new Float32Array(n * n * n);
+  let cursor = 0;
+  for (let k = 0; k < n; k++) {
+    const z = minZ + k * sz;
+    for (let j = 0; j < n; j++) {
+      const y = minY + j * sy;
+      for (let i = 0; i < n; i++) {
+        field[cursor++] = humanoidSDF(minX + i * sx, y, z);
+      }
+    }
+  }
+
+  const at = (i, j, k) => field[i + n * (j + n * k)];
+  const point = (i, j, k) => [minX + i * sx, minY + j * sy, minZ + k * sz];
+  const positions = [];
+  const corners = new Array(8);
+  const values = new Float32Array(8);
+  const verts = Array.from({ length: 12 }, () => [0, 0, 0]);
+  const edges = [
+    [0, 1], [1, 2], [2, 3], [3, 0],
+    [4, 5], [5, 6], [6, 7], [7, 4],
+    [0, 4], [1, 5], [2, 6], [3, 7]
+  ];
+
+  for (let k = 0; k < res; k++) {
+    for (let j = 0; j < res; j++) {
+      for (let i = 0; i < res; i++) {
+        corners[0] = point(i, j, k);
+        corners[1] = point(i + 1, j, k);
+        corners[2] = point(i + 1, j, k + 1);
+        corners[3] = point(i, j, k + 1);
+        corners[4] = point(i, j + 1, k);
+        corners[5] = point(i + 1, j + 1, k);
+        corners[6] = point(i + 1, j + 1, k + 1);
+        corners[7] = point(i, j + 1, k + 1);
+        values[0] = at(i, j, k);
+        values[1] = at(i + 1, j, k);
+        values[2] = at(i + 1, j, k + 1);
+        values[3] = at(i, j, k + 1);
+        values[4] = at(i, j + 1, k);
+        values[5] = at(i + 1, j + 1, k);
+        values[6] = at(i + 1, j + 1, k + 1);
+        values[7] = at(i, j + 1, k + 1);
+
+        let cubeindex = 0;
+        for (let c = 0; c < 8; c++) if (values[c] < 0) cubeindex |= 1 << c;
+        const bits = edgeTable[cubeindex];
+        if (bits === 0) continue;
+
+        for (let e = 0; e < 12; e++) {
+          if (bits & (1 << e)) {
+            const [a, b] = edges[e];
+            lerpZero(corners[a], values[a], corners[b], values[b], verts[e]);
+          }
+        }
+
+        const row = cubeindex << 4;
+        for (let t = 0; triTable[row + t] !== -1; t += 3) {
+          const va = verts[triTable[row + t]];
+          const vb = verts[triTable[row + t + 1]];
+          const vc = verts[triTable[row + t + 2]];
+          positions.push(va[0], va[1], va[2], vb[0], vb[1], vb[2], vc[0], vc[1], vc[2]);
+        }
+      }
+    }
+  }
+
+  if (positions.length < 9) return new THREE.IcosahedronGeometry(1.35, Math.max(1, level * 2));
+  orientTrianglesOutward(positions, humanoidSDF);
+  return fitGeometryHeight(geometryFromTriangles(positions));
+}
+
 function weldGeometry(source, displacedPositions = null, displacedColors = null, tolerance = 1e-5) {
   const base = source.attributes.position;
   if (!base) throw new Error('Geometry has no position attribute');
@@ -251,12 +445,21 @@ function weldGeometry(source, displacedPositions = null, displacedColors = null,
 }
 
 function createGeometry(kind, level) {
+  const density = Math.max(1, Number(level) || 1);
   let source;
   if (kind === 'box') {
-    const segments = Math.max(1, level * 4);
+    const segments = Math.max(1, density * 4);
     source = new THREE.BoxGeometry(2.5, 2.5, 2.5, segments, segments, segments);
+  } else if (kind === 'cylinder') {
+    source = new THREE.CylinderGeometry(0.85, 0.85, 2.5, 10 + density * 8, 3 + density * 4, false);
+  } else if (kind === 'capsule') {
+    source = new THREE.CapsuleGeometry(0.7, 1.2, 3 + density * 2, 8 + density * 6);
+  } else if (kind === 'torus') {
+    source = new THREE.TorusGeometry(1.05, 0.38, 8 + density * 4, 12 + density * 8);
+  } else if (kind === 'body') {
+    source = createHumanoidGeometry(density);
   } else {
-    source = new THREE.IcosahedronGeometry(1.35, Math.max(1, level * 2));
+    source = new THREE.IcosahedronGeometry(1.35, Math.max(1, density * 2));
   }
   const geometry = weldGeometry(source);
   source.dispose();
@@ -264,7 +467,16 @@ function createGeometry(kind, level) {
 }
 
 function geometryFromSnapshot(kind, level, snapshot) {
-  const levels = [Number(level), 1, 2, 3, 4, 5].filter((value, index, values) => values.indexOf(value) === index);
+  const storedLevel = Number(level);
+  if (kind === 'body') {
+    const geometry = createGeometry(kind, storedLevel);
+    if (snapshot?.positions?.length === geometry.attributes.position.count * 3) {
+      return { geometry, applySnapshotAfter: true, level: storedLevel };
+    }
+    return { geometry, applySnapshotAfter: false, level: storedLevel };
+  }
+  const levels = [storedLevel, 1, 2, 3, 4, 5].filter((value, index, values) => values.indexOf(value) === index);
+  const tryLegacy = kind === 'sphere' || kind === 'box';
   for (const candidateLevel of levels) {
     const geometry = createGeometry(kind, candidateLevel);
     if (snapshot?.positions?.length === geometry.attributes.position.count * 3) {
@@ -272,6 +484,7 @@ function geometryFromSnapshot(kind, level, snapshot) {
     }
     geometry.dispose();
 
+    if (!tryLegacy) continue;
     const legacy = createLegacyGeometry(kind, candidateLevel);
     if (snapshot?.positions?.length === legacy.attributes.position.count * 3) {
       const migratedGeometry = weldGeometry(legacy, snapshot.positions, snapshot.colors);
@@ -282,7 +495,7 @@ function geometryFromSnapshot(kind, level, snapshot) {
   }
 
   const rawGeometry = geometryFromRawSnapshot(snapshot);
-  return { geometry: rawGeometry || createGeometry(kind, level), applySnapshotAfter: false, level: Number(level) };
+  return { geometry: rawGeometry || createGeometry(kind, storedLevel), applySnapshotAfter: false, level: storedLevel };
 }
 
 function geometryFromRawSnapshot(snapshot) {
@@ -333,7 +546,7 @@ function createMesh(kind = primitive, level = detail, notify = true) {
   disposeMesh();
   material = createMaterial();
   mesh = new THREE.Mesh(geometry, material);
-  mesh.name = kind === 'sphere' ? t('untitledForm') : t('untitledBlock');
+  mesh.name = t(UNTITLED_KEYS[kind] || 'untitledForm');
   mesh.userData.kind = kind;
   configureMesh(mesh);
   scene.add(mesh);
@@ -817,7 +1030,7 @@ async function refineStretchedAreas() {
 function updateObjectLabel() {
   if (!mesh) return;
   $('#object-name').textContent = $('#project-name')?.value || mesh.name || 'Untitled form';
-  $('#object-type').textContent = primitive === 'sphere' ? t('typeSphere') : primitive === 'box' ? t('typeBox') : t('typeImported');
+  $('#object-type').textContent = t(TYPE_KEYS[primitive] || 'typeImported');
 }
 
 function updatePrimitiveButtons() {
@@ -1016,7 +1229,7 @@ async function restoreCurrentSession() {
     detail = Number(record.detail || 3);
     let geometry;
     let applyStoredPositions = false;
-    if (primitive === 'sphere' || primitive === 'box') {
+    if (BUILTIN_PRIMITIVES.has(primitive)) {
       const result = geometryFromSnapshot(primitive, detail, record.mesh);
       geometry = result.geometry;
       detail = result.level;
@@ -1110,7 +1323,7 @@ async function loadProject(id) {
     const record = await new Promise((resolve, reject) => { const tx = db.transaction(STORE, 'readonly'); const req = tx.objectStore(STORE).get(id); req.onsuccess = () => resolve(req.result); req.onerror = () => reject(req.error); });
     if (!record) return;
     primitive = record.primitive || 'sphere'; detail = Number(record.detail || 3);
-    const restored = primitive === 'sphere' || primitive === 'box' ? geometryFromSnapshot(primitive, detail, record.mesh) : null;
+    const restored = BUILTIN_PRIMITIVES.has(primitive) ? geometryFromSnapshot(primitive, detail, record.mesh) : null;
     const geometry = restored ? restored.geometry : geometryFromRawSnapshot(record.mesh);
     if (!geometry) return;
     if (restored) detail = restored.level;
@@ -1154,7 +1367,7 @@ function importJson(text) {
   const data = payload.mesh || payload;
   if (!data.positions?.length) throw new Error('Missing positions');
   primitive = payload.primitive || 'sphere'; detail = Number(payload.detail || 3);
-  if (primitive === 'sphere' || primitive === 'box') {
+  if (BUILTIN_PRIMITIVES.has(primitive)) {
     const restored = geometryFromSnapshot(primitive, detail, data);
     detail = restored.level;
     replaceGeometry(restored.geometry, payload.name || 'Imported form', primitive, false);
