@@ -112,7 +112,7 @@ const mapTeleportBtn = document.getElementById('map-teleport');
 let mapMark = null;
 
 const keys = Object.create(null);
-const mouse = { left: false, right: false };
+const mouse = { left: false, middle: false, right: false, forward: false, back: false };
 let world;
 let bundle;
 let player;
@@ -468,12 +468,30 @@ document.getElementById('shop-list').addEventListener('click', (e) => {
 canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 canvas.addEventListener('mousedown', (e) => {
   if (e.button === 0) mouse.left = true;
+  if (e.button === 1) {
+    e.preventDefault();
+    mouse.middle = true;
+  }
   if (e.button === 2) mouse.right = true;
+  if (e.button === 3) {
+    e.preventDefault();
+    mouse.back = true;
+  }
+  if (e.button === 4) {
+    e.preventDefault();
+    mouse.forward = true;
+  }
   if (!document.pointerLockElement && !invOpen() && deathEl.hidden && !mapOpen() && !crateLootOpen()) requestPlay();
 });
 window.addEventListener('mouseup', (e) => {
   if (e.button === 0) mouse.left = false;
+  if (e.button === 1) mouse.middle = false;
   if (e.button === 2) mouse.right = false;
+  if (e.button === 3) mouse.back = false;
+  if (e.button === 4) mouse.forward = false;
+});
+window.addEventListener('auxclick', (e) => {
+  if (e.button === 1 || e.button === 3 || e.button === 4) e.preventDefault();
 });
 window.addEventListener('mousemove', (e) => {
   if (document.pointerLockElement && player) player.lookDelta(e.movementX, e.movementY);
@@ -491,6 +509,9 @@ document.addEventListener('pointerlockchange', () => {
     awaitingLock = false;
     return;
   }
+  mouse.forward = false;
+  mouse.back = false;
+  mouse.middle = false;
   if (awaitingLock) {
     awaitingLock = false;
     return;
@@ -736,6 +757,9 @@ function openCrateLoot(loot) {
   lastCrateLoot = loot;
   mouse.left = false;
   mouse.right = false;
+  mouse.middle = false;
+  mouse.forward = false;
+  mouse.back = false;
   document.exitPointerLock();
   fillCrateLootModal();
   crateLootEl.hidden = false;
@@ -748,6 +772,9 @@ function closeCrateLoot() {
   lastCrateLoot = null;
   mouse.left = false;
   mouse.right = false;
+  mouse.middle = false;
+  mouse.forward = false;
+  mouse.back = false;
   keys.Space = false;
   keys.Enter = false;
   if (player?.health > 0 && menuEl.hidden) canvas.requestPointerLock();
@@ -1474,13 +1501,13 @@ function tick(dt) {
   }
 
   const input = {
-    forward: keys.KeyW || keys.ArrowUp,
-    back: keys.KeyS || keys.ArrowDown,
+    forward: keys.KeyW || keys.ArrowUp || mouse.forward || mouse.middle,
+    back: keys.KeyS || keys.ArrowDown || mouse.back,
     left: keys.KeyA || keys.ArrowLeft,
     right: keys.KeyD || keys.ArrowRight,
     jump: keys.Space,
     sneak: keys.ShiftLeft || keys.ShiftRight,
-    sprint: keys.ControlLeft,
+    sprint: keys.ControlLeft || mouse.middle,
   };
   world.ensureAround(player.pos.x, player.pos.z, undefined, GEN_PER_TICK);
   player.update(dt, world, input);

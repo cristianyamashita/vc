@@ -492,6 +492,13 @@ ICONS: dict[str, list[Shape]] = {
         r(10, 6, 14, 20, rad=1, fill=None, stroke=WHITE, sw=1.8),
         pl([(14, 16), (17, 20), (22, 12)], sw=2),
     ],
+    "utils-mouse_tester": [
+        r(9, 4, 14, 24, rad=7),
+        l(16, 5, 16, 16, stroke=DARK, sw=1.5),
+        r(14.2, 8, 3.6, 6, rad=1.7, fill=DARK),
+        r(6.5, 16, 3.5, 5, rad=1, fill=DARK),
+        r(22, 16, 3.5, 5, rad=1, fill=DARK),
+    ],
     "utils-audio_player": [
         p([(8, 12), (14, 12), (20, 7), (20, 25), (14, 20), (8, 20)]),
         c(24, 16, 3, fill=None, stroke=WHITE, sw=1.8),
