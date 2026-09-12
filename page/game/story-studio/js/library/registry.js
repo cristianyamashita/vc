@@ -38,7 +38,7 @@ export class Registry {
   }
 
   /** Loads the shipped library from `data/index.json`. */
-  async loadOfficial() {
+  async loadOfficial(onProgress = () => {}) {
     let index;
     try {
       const res = await fetch(new URL('index.json', DATA));
@@ -49,11 +49,20 @@ export class Registry {
       return this;
     }
 
+    const fileCount = KINDS.reduce((count, kind) => count + (index[FOLDER[kind]] || []).length, 0);
+    const modelCount = (index[FOLDER.character] || []).length;
+    const total = 1 + fileCount + modelCount;
+    let completed = 1;
+    onProgress(completed / total);
+
     for (const phase of LOAD_ORDER) {
       const jobs = [];
       for (const kind of phase) {
         for (const file of index[FOLDER[kind]] || []) {
-          jobs.push(this.loadOne(kind, file));
+          jobs.push(this.loadOne(kind, file).finally(() => {
+            completed++;
+            onProgress(completed / total);
+          }));
         }
       }
       await Promise.all(jobs);
@@ -61,16 +70,21 @@ export class Registry {
       // very next phase validates characters against this book.
       if (phase.includes('outfit')) this.syncOutfits();
     }
-    await this.prepareModels();
+    await this.prepareModels(() => {
+      completed++;
+      onProgress(completed / total);
+    });
+    onProgress(1);
     return this;
   }
 
-  async prepareModels() {
+  async prepareModels(onProgress = () => {}) {
     await Promise.all(this.list('character').map(async ({ doc }) => {
       try { await prepareCharacterModel(doc); }
       catch (err) {
         this.problems.push(`${doc.id}: ${err.message} (voxel fallback)`);
       }
+      finally { onProgress(); }
     }));
   }
 

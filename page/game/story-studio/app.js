@@ -59,6 +59,12 @@ function clearNotice() {
   $('#ss-notice').hidden = true;
 }
 
+function bootProgress(value) {
+  const percent = Math.round(Math.min(1, Math.max(0, value)) * 100);
+  $('#ss-boot-progress').value = percent;
+  $('#ss-boot-percent').value = `${percent}%`;
+}
+
 // ------------------------------------------------------------------ views
 
 function show(view) {
@@ -510,6 +516,7 @@ async function main() {
   initI18n();
   initTheme();
   applyI18n();
+  bootProgress(0);
 
   // Inside the desktop shell the window already carries the app's name, so
   // repeating it in the page's own header just spends a row of the frame.
@@ -707,8 +714,11 @@ async function main() {
   });
 
   if (!(await storageAvailable())) notice(t('storageOff'), 'warn');
-  await registry.loadOfficial();
+  bootProgress(5 / 100);
+  await registry.loadOfficial((progress) => bootProgress(.05 + progress * .9));
+  bootProgress(96 / 100);
   await registry.loadUser();
+  bootProgress(1);
   if (registry.problems.length) {
     notice(t('libraryProblems', { list: registry.problems.slice(0, 3).join('; ') }), 'warn');
   }
