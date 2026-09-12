@@ -14,6 +14,7 @@ import { outfitIds, LEGS, TOPS, SLEEVES, FEET, CUT_FLAGS, SWELL_RANGE } from '..
 import { WAVE_NAMES, ROOT_FIELDS, AXES } from '../anim/channels.js';
 import { JOINT_NAMES } from '../cast/rig.js';
 import { POSE_NAMES } from '../anim/poses.js';
+import { CHARACTER_MODELS } from '../cast/models.js';
 
 export const FORMAT_VERSION = 1;
 
@@ -197,6 +198,10 @@ function character(ctx, doc) {
   };
   if (doc.base !== undefined && !ACCEPTED_PLANS.includes(doc.base)) {
     ctx.fail('base', `unknown body plan ${JSON.stringify(doc.base)}; expected ${BODY_PLANS.join(', ')}`);
+  }
+  if (doc.model !== undefined) {
+    if (typeof doc.model === 'string' && Object.hasOwn(CHARACTER_MODELS, doc.model)) out.model = doc.model;
+    else ctx.fail('model', 'unknown built-in character model');
   }
 
   const look = isObj(doc.look) ? doc.look : {};

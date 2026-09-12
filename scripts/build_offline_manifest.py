@@ -111,6 +111,8 @@ def classify(rel: str) -> str:
     # takes the collection offline downloads.
     if lower.endswith((".onnx", ".glb", ".gltf")) or path.startswith("models/"):
         return "models"
+    if path.startswith("assets/images/wallpaper-thumbs/"):
+        return "core"
     if path.startswith("assets/images/"):
         return "images"
     if lower.endswith(".html") and path not in {"os/index.html", "os/offline.html", "index.html"}:

@@ -4,6 +4,8 @@ export const LANGS = ['en', 'pt', 'ja'];
 
 export const STRINGS = {
   en: {
+    modelBlender: 'Blender prototype', modelVoxel: 'Compare voxel', modelSource: 'Blender file',
+    modelHint: 'New cuts and sculpting are edited in Blender; fabric painting uses the voxel version.',
     title: 'Story Studio',
     tagline: 'Little 3D films you can take apart',
     stories: 'Stories', characters: 'Characters', props: 'Objects', sets: 'Sets',
@@ -74,6 +76,8 @@ export const STRINGS = {
     docs: 'Format reference',
   },
   pt: {
+    modelBlender: 'Protótipo Blender', modelVoxel: 'Comparar voxel', modelSource: 'Arquivo Blender',
+    modelHint: 'Novos cortes e escultura são editados no Blender; a pintura do tecido usa a versão voxel.',
     title: 'Story Studio',
     tagline: 'Pequenos filmes 3D que você pode desmontar',
     stories: 'Histórias', characters: 'Personagens', props: 'Objetos', sets: 'Cenários',
@@ -144,6 +148,8 @@ export const STRINGS = {
     docs: 'Referência do formato',
   },
   ja: {
+    modelBlender: 'Blender試作', modelVoxel: 'ボクセルと比較', modelSource: 'Blenderファイル',
+    modelHint: '新しい服の形や造形はBlenderで編集します。布のペイントにはボクセル版を使います。',
     title: 'Story Studio',
     tagline: '分解できる小さな3D映画',
     stories: '物語', characters: '登場人物', props: '物体', sets: '舞台',

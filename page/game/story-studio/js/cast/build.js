@@ -4,6 +4,7 @@ import { buildBody, DEFAULT_HEIGHT, planOf } from './body.js';
 import { resolvePaint, resolveFit, sprayCells } from './wardrobe.js';
 import { JOINT_ORDER, jointParent } from './rig.js';
 import { contactPoints, jointChain } from '../anim/ground.js';
+import { buildSkinnedCharacter } from './skinned.js';
 
 // A character document becomes a rigged THREE.Group: one mesh per joint,
 // nested so that bending the chest carries the head and both arms with it.
@@ -147,6 +148,8 @@ export function characterParts(doc, outfitId) {
  * is what the animation layer writes joint rotations into.
  */
 export function buildCharacter(doc, outfitId) {
+  const skinned = buildSkinnedCharacter(doc, outfitEntry(doc, outfitId));
+  if (skinned) return skinned;
   const { parts, joints, height } = characterParts(doc, outfitId);
 
   const byLimb = new Map();
@@ -237,10 +240,14 @@ function specificallySoftShell(doc) {
 
 /** Frees the per-character geometry. Materials are shared and stay. */
 export function disposeCharacter(root) {
+  const skeletons = new Set();
   root.traverse((o) => {
-    if (o.isMesh) o.geometry?.dispose();
+    if (o.isMesh && !o.userData.sharedCharacterGeometry) o.geometry?.dispose();
+    if (o.isSkinnedMesh) skeletons.add(o.skeleton);
     if (o.userData?.softShell) o.material?.dispose();
   });
+  skeletons.forEach((s) => s.dispose());
+  root.userData.ownedMaterials?.forEach((m) => m.dispose());
 }
 
 export { toHex };

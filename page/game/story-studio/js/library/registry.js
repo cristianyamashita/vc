@@ -1,6 +1,7 @@
 import { validate } from '../script/schema.js';
 import { installOutfits } from '../cast/wardrobe.js';
 import { listDocuments, getBlob } from './store.js';
+import { prepareCharacterModel } from '../cast/skinned.js';
 
 // One place to ask "give me the character called ana". It looks at the
 // visitor's own documents first and the shipped ones second, which is what
@@ -60,7 +61,17 @@ export class Registry {
       // very next phase validates characters against this book.
       if (phase.includes('outfit')) this.syncOutfits();
     }
+    await this.prepareModels();
     return this;
+  }
+
+  async prepareModels() {
+    await Promise.all(this.list('character').map(async ({ doc }) => {
+      try { await prepareCharacterModel(doc); }
+      catch (err) {
+        this.problems.push(`${doc.id}: ${err.message} (voxel fallback)`);
+      }
+    }));
   }
 
   /** Hands the loaded outfits to the wardrobe, which is where every part of
@@ -108,6 +119,7 @@ export class Registry {
       if (this.user.has(doc.kind)) this.user.get(doc.kind).set(doc.id, doc);
     }
     this.syncOutfits();
+    await this.prepareModels();
     return this;
   }
 

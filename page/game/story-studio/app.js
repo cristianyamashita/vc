@@ -14,6 +14,7 @@ import { SetEditor } from './js/ui/setedit.js';
 import { StoryEditor } from './js/ui/storyedit.js';
 import { OutfitEditor } from './js/ui/outfitedit.js';
 import { PropEditor } from './js/ui/propedit.js';
+import { CHARACTER_MODELS } from './js/cast/models.js';
 import { characterParts } from './js/cast/build.js';
 import { presetsFor } from './js/cast/wardrobe.js';
 import { planOf } from './js/cast/body.js';
@@ -124,6 +125,22 @@ async function openStory(doc) {
 
 async function openPreview(doc) {
   clearNotice();
+  const model = doc.kind === 'character' && CHARACTER_MODELS[doc.model];
+  $('#ss-model-options').hidden = !model;
+  if (model) $('#ss-model-source').href = model.source;
+  viewer.useBlender = true;
+  $('#ss-model-blender').classList.add('is-active');
+  $('#ss-model-voxel').classList.remove('is-active');
+  $('#ss-model-blender').onclick = () => {
+    viewer.compareModel(true);
+    $('#ss-model-blender').classList.add('is-active');
+    $('#ss-model-voxel').classList.remove('is-active');
+  };
+  $('#ss-model-voxel').onclick = () => {
+    viewer.compareModel(false);
+    $('#ss-model-blender').classList.remove('is-active');
+    $('#ss-model-voxel').classList.add('is-active');
+  };
   currentDoc = doc;
   $('#ss-preview-title').textContent = localised(doc.name, doc.id);
   show('preview');

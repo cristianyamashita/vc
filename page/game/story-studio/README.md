@@ -9,6 +9,14 @@ There is no server. Your documents live in the browser, in the
 `StoryStudioDB` IndexedDB database, and are included in the collection's
 [backup tool](../../utils/backup.html).
 
+Lia also has a built-in Blender model, selected by `"model": "lia-v1"` in her
+character document. See the [Lia model notes](models/lia/README.md) for the editable
+source, wardrobe, rig contract, tests and current limitations. Omitting `model`
+uses the existing voxel builder.
+Carmen uses `"model": "carmen-v1"`, with adult proportions, long wavy hair and
+14 outfits. See the [Carmen model notes](models/carmen/README.md). The preview's
+Blender source link resolves to the selected character's own file.
+
 ## Conventions
 
 Everything below assumes these. They are the things that are easy to get
@@ -1393,6 +1401,7 @@ Each list is the placement ids a story can `remove`, `tint` or sit an actor on. 
 | `classroom-lesson` | `classroom` | `tom` `noa` `dado` `pip` `zeca` `lia` `ravi` `bel` `elza` | 24 |
 | `forest-walk` | `forest` | `ana` `tom` `noa` | 14 |
 | `gym-session` | `gym` | `sol` `kai` `nina` `rui` `beto` | 15 |
+| `lia-blender` | `studio` | `kit` | 43 |
 | `living-room-evening` | `living-room` | `elza` `pip` `beto` | 16 |
 | `living-room-game` | `living-room` | `tom` `dado` | 13 |
 | `office-interview` | `office` | `ana` `mira` `nina` `rui` | 19 |

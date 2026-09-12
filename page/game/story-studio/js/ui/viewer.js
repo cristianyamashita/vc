@@ -3,6 +3,8 @@ import { Stage } from '../render/stage.js';
 import { buildCharacter, disposeCharacter } from '../cast/build.js';
 import { boxMesh } from '../stage/boxes.js';
 import { loadGltfFile, loadGltfBlob, instance } from '../stage/gltf.js';
+import { applyPose } from '../anim/blend.js';
+import { POSES } from '../anim/poses.js';
 
 // The little turntable in the library. A character or an object you cannot
 // look at is just an id in a list, so this is what makes the library
@@ -17,6 +19,7 @@ export class Viewer {
     this.centre = new THREE.Vector3(0, 1, 0);
     this.angle = 0.6;
     this.spin = true;
+    this.useBlender = true;
     this._raf = 0;
     this._last = 0;
     this._loop = this._loop.bind(this);
@@ -33,9 +36,17 @@ export class Viewer {
 
   showCharacter(doc, outfitId) {
     this.clear();
-    this.subject = buildCharacter(doc, outfitId);
+    this.characterDoc = doc;
+    this.outfitId = outfitId;
+    this.subject = buildCharacter(this.useBlender ? doc : { ...doc, model: undefined }, outfitId);
+    if (this.subject.userData.model) applyPose(this.subject, POSES.stand);
     this.stage.content.add(this.subject);
     this.frame(doc.height || 1.7);
+  }
+
+  compareModel(useBlender) {
+    this.useBlender = useBlender;
+    if (this.characterDoc) this.showCharacter(this.characterDoc, this.outfitId);
   }
 
   async showProp(doc, blobs) {
@@ -98,6 +109,15 @@ export class Viewer {
     const z = this.centre.z + Math.sin(this.angle) * this.radius;
     this.stage.aim([x, this.centre.y + this.radius * 0.36, z],
       [this.centre.x, this.centre.y, this.centre.z], 45);
+    if (this.subject?.userData.pivots && this.characterDoc?.model) {
+      // A model review needs the full figure to fill a portrait viewport.
+      // The film renderer preserves a wide shot by widening FOV; doing that
+      // on this turntable made Lia too small to judge her face and clothing.
+      this.stage.camera.fov = 45;
+      this.stage.camera.updateProjectionMatrix();
+      this.stage.sun.position.set(x + this.radius * .5,
+        this.centre.y + this.radius * 1.3, z + this.radius * .3);
+    }
     this.stage.render();
     this._raf = requestAnimationFrame(this._loop);
   }

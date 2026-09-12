@@ -76,8 +76,15 @@ window.OS = (function () {
   }
 
   const GRADIENT_WALLPAPERS = ["bloom", "aurora", "dusk", "horizon"];
-  const PHOTO_WALLPAPER_COUNT = 25;
-  const PHOTO_WALLPAPER_IDS = Array.from({ length: PHOTO_WALLPAPER_COUNT }, (_, i) => `wp${i + 1}`);
+  const PHOTO_WALLPAPER_IDS = [
+    ...Array.from({ length: 25 }, (_, i) => `wp${i + 1}`),
+    "w9-1",
+    "w9-2",
+    "w9-3",
+    "w9-4",
+    "w9-5",
+    "w9-6",
+  ];
   const IMAGE_WALLPAPERS = {
     "playground-dark": "../assets/images/hero-playground-dark.png",
     "playground-light": "../assets/images/hero-playground-light.png",
@@ -89,6 +96,11 @@ window.OS = (function () {
 
   function wallpaperImageSrc(id) {
     return IMAGE_WALLPAPERS[id] || null;
+  }
+
+  function wallpaperThumbSrc(id) {
+    if (!IMAGE_WALLPAPERS[id]) return null;
+    return `../assets/images/wallpaper-thumbs/${id}.webp`;
   }
 
   function refreshInstalledChrome() {
@@ -1282,6 +1294,7 @@ window.OS = (function () {
   api.setIconColor = setIconColor;
   api.applyWallpaper = applyWallpaper;
   api.wallpaperImageSrc = wallpaperImageSrc;
+  api.wallpaperThumbSrc = wallpaperThumbSrc;
   api.BUILTIN_WALLPAPERS = [
     ...GRADIENT_WALLPAPERS,
     "playground-dark",

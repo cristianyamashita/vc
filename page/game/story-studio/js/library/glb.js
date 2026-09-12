@@ -3,6 +3,7 @@ import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
 import { buildGeometry, toHex } from '../render/geometry.js';
 import { buildCharacter, disposeCharacter } from '../cast/build.js';
 import { getBlob } from './store.js';
+import { prepareCharacterModel } from '../cast/skinned.js';
 
 const APP_ROOT = new URL('../../', import.meta.url);
 
@@ -48,11 +49,15 @@ function exportBoxes(doc) {
   });
 }
 
-function exportCharacter(doc) {
+async function exportCharacter(doc) {
+  await prepareCharacterModel(doc);
   const character = buildCharacter(doc, doc.defaultOutfit);
+  const runtimeData = character.userData;
+  character.userData = runtimeData.model ? { model: runtimeData.model } : {};
   character.name = doc.id;
   character.traverse((object) => {
     if (!object.isMesh) return;
+    if (runtimeData.model) return;
     const source = object.material;
     const hasVertexColors = !!object.geometry.getAttribute('color');
     object.material = new THREE.MeshStandardMaterial({
@@ -68,9 +73,11 @@ function exportCharacter(doc) {
 
   return new Promise((resolve, reject) => {
     new GLTFExporter().parse(character, (result) => {
+      character.userData = runtimeData;
       disposeCharacter(character);
       resolve(new Blob([result], { type: 'model/gltf-binary' }));
     }, (error) => {
+      character.userData = runtimeData;
       disposeCharacter(character);
       reject(error);
     }, { binary: true, onlyVisible: true });

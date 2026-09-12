@@ -58,6 +58,12 @@ window.OSSettings = (function () {
       wp6: "wallpaperWp6",
       wp7: "wallpaperWp7",
       wp8: "wallpaperWp8",
+      "w9-1": "wallpaperW91",
+      "w9-2": "wallpaperW92",
+      "w9-3": "wallpaperW93",
+      "w9-4": "wallpaperW94",
+      "w9-5": "wallpaperW95",
+      "w9-6": "wallpaperW96",
     };
     if (keys[id]) return t(keys[id]);
     const wp = /^wp(\d+)$/.exec(id);
@@ -252,9 +258,11 @@ window.OSSettings = (function () {
       .join("");
     const builtinTiles = builtinWallpapers().map((id) => {
       const selected = current === id ? " selected" : "";
-      const imageSrc = window.OS.wallpaperImageSrc(id);
-      const preview = imageSrc
-        ? `<div class="wallpaper-preview" style="background-image:url('${imageSrc}')"></div>`
+      const thumbSrc = window.OS.wallpaperThumbSrc
+        ? window.OS.wallpaperThumbSrc(id)
+        : window.OS.wallpaperImageSrc(id);
+      const preview = thumbSrc
+        ? `<div class="wallpaper-preview"><img src="${thumbSrc}" alt="" loading="lazy" decoding="async"></div>`
         : `<div class="wallpaper-preview" data-preset="${id}"></div>`;
       return `<div class="wallpaper-card">
         <button type="button" class="wallpaper-tile${selected}" data-wallpaper-id="${id}">
