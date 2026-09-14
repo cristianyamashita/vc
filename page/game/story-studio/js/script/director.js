@@ -1,6 +1,7 @@
 import { FALLBACK_ACTION, isActorAction, speechDuration, pathLength } from './actions.js';
 import { performAction, actionDuration } from '../anim/perform.js';
-import { channelValue, clockOf } from '../anim/channels.js';
+import { clockOf } from '../anim/channels.js';
+import { samplePropTransform } from '../anim/prop-motion.js';
 import { blendPose, overlayPose, ease } from '../anim/blend.js';
 
 // The compiler. A story goes in; a thing that can be sampled at any time comes
@@ -165,28 +166,31 @@ class Film {
           return { at: [a.x, a.y + lift, a.z], yaw: a.yaw };
         })();
       if (!frame) continue;
-      const cos = Math.cos(frame.yaw);
-      const sin = Math.sin(frame.yaw);
       const u = clockOf(span.action, t - span.start, span.params);
 
       for (const pr of span.action.props || []) {
-        if (pr.hand) continue;
-        const m = { x: 0, y: 0, z: 0, spin: 0 };
-        for (const ch of pr.motion || []) {
-          m[ch.field] += channelValue(ch, u, t - span.start);
-        }
-        const lx = pr.at[0] + m.x;
-        const ly = pr.at[1] + m.y;
-        const lz = pr.at[2] + m.z;
+        if (pr.hand || (pr.whenUnanchored && span.params?.anchored)) continue;
+        const owner = span.group?.roles.find(r => r.role === pr.role)?.actor || span.actor;
+        const actor = actors?.[owner];
+        if (span.group && pr.role && !actor) continue;
+        const localFrame = pr.role && actor ? { at: [actor.x, actor.y + (pr.space === 'ground' ? 0 : (actor.pose?.root?.lift || 0) * actor.doc.height), actor.z], yaw: actor.yaw } : frame;
+        const cos = Math.cos(localFrame.yaw), sin = Math.sin(localFrame.yaw);
+        const transform = samplePropTransform(pr, u, t - span.start);
+        const [lx, ly, lz] = transform.at;
+        const originY = pr.space === 'ground' && !span.group ? actors[span.actor].y : localFrame.at[1];
+        const rotation = [...transform.rotation];
+        if (!pr.joint) rotation[1] += localFrame.yaw;
         out.push({
-          key: `${span.action.id}.${span.start.toFixed(3)}.${pr.id}`,
+          actor: pr.joint ? owner : null, joint: pr.joint, bodyScale: pr.bodyScale, spinAxis: pr.spinAxis || 'z',
+          key: `${span.action.id}.${span.actor || span.group.roles.map(r => r.actor).join("+")}.${span.start.toFixed(6)}.${pr.id}`,
           prop: pr.prop,
-          at: [frame.at[0] + lx * cos + lz * sin, frame.at[1] + ly, frame.at[2] - lx * sin + lz * cos],
-          yaw: frame.yaw + (pr.yaw * Math.PI) / 180,
-          scale: pr.scale,
+          at: pr.joint ? [lx, ly, lz] : [localFrame.at[0] + lx * cos + lz * sin, originY + ly, localFrame.at[2] - lx * sin + lz * cos],
+          rotation, offset: pr.offset,
+          yaw: (pr.joint ? 0 : localFrame.yaw) + (pr.yaw * Math.PI) / 180,
+          scale: transform.scale,
           // `spin` is turns per second about the prop's own long axis, which
           // is what makes a skipping rope a skipping rope.
-          spin: ((t - span.start) * (pr.spin || 0) + (pr.spinPhase || 0)) * Math.PI * 2 + m.spin,
+          spin: transform.rotation[['x', 'y', 'z'].indexOf(pr.spinAxis || 'z')] - ((pr.spinAxis === 'y' ? pr.yaw : 0) || 0) * Math.PI / 180,
         });
       }
     }
@@ -571,7 +575,7 @@ export function compile(story, world) {
         a.frames.push({ t: start, x: last.x, y: last.y, z: last.z, yaw: last.yaw });
         a.frames.push({ t: start + settle, x: plan.snap.pos[0], y: last.y, z: plan.snap.pos[2], yaw: plan.restYaw });
       }
-      const params = {};
+      const params = { anchored: !!plan.snap };
       if (e.do === 'lie') params.face = e.face === 'down' ? 'down' : 'up';
       if (plan.seatY !== undefined) {
         // Sitting and lying need different corrections, and one shared field
@@ -697,6 +701,13 @@ export function compile(story, world) {
     a.resting.sort((x, y) => x.t - y.t);
     a.overlays.sort((x, y) => x.start - y.start);
   }
+  // A resting pose survives its timeline block. Its accessories must last
+  // until the next posture too (a rider cannot lose the horse during a wait).
+  for (const span of propSpans) {
+    if (span.action.type !== 'posture' || !span.actor) continue;
+    const next = actors[span.actor].resting.find(r => r.t > span.start);
+    span.end = next?.t ?? Infinity;
+  }
   cameraFrames.sort((x, y) => x.t - y.t);
   stageEvents.sort((x, y) => x.t - y.t);
   follows.sort((x, y) => x.start - y.start);
@@ -740,7 +751,8 @@ function groupParams(spec, plan) {
 
 /** Standing hip height in metres, matching the plans in cast/body.js. */
 function hipHeight(doc) {
-  const frac = doc.base === 'woman' ? 0.520 : doc.base === 'child' ? 0.485 : 0.530;
+  // Match the four landmarks in cast/body.js, including the legacy alias.
+  const frac = { man: 0.530, woman: 0.520, boy: 0.485, girl: 0.482, child: 0.485 }[doc.base] ?? 0.530;
   return (doc.height || 1.7) * frac;
 }
 

@@ -6,7 +6,7 @@ import { registerHooks } from 'node:module';
 import { pathToFileURL } from 'node:url';
 
 const characterId = process.argv[2] || 'lia';
-assert(['lia', 'carmen'].includes(characterId));
+assert(['lia', 'carmen', 'rui', 'tom'].includes(characterId));
 const characterName = characterId[0].toUpperCase() + characterId.slice(1);
 const modelId = `${characterId}-v1`;
 const deps = process.env.SS_TEST_NODE_MODULES || '/tmp/story-studio-lia-qa/node_modules';
@@ -94,7 +94,7 @@ assert.deepEqual(registry.problems, []);
 const doc = registry.character(characterId);
 assert.equal(validate(JSON.parse(JSON.stringify(doc))).doc.model, modelId, 'model survives JSON backup/import');
 assert.equal(validate({ ...doc, model: 'https://invalid.example/model.glb' }).ok, false);
-const second = buildCharacter(doc, 'dress');
+const second = buildCharacter(doc, doc.wardrobe.at(-1).id);
 let samples = 0;
 let maxEdgeGrowth = 0;
 for (const wear of doc.wardrobe) {
@@ -116,7 +116,7 @@ for (const wear of doc.wardrobe) {
     }
   }
   assertConnectedShoulders(meshes.filter(m=>m.name.startsWith(`${characterName}_Body`)),`${wear.id}/skin`);
-  if(['casual','shortsTee','dress','suit','shirt','overalls','pyjamas','military'].includes(wear.id))
+  if(['casual','shortsTee','dress','suit','shirt','overalls','pyjamas','military'].includes(wear.outfit))
     assertConnectedShoulders(meshes.filter(m=>m.userData.wardrobe===wear.id),`${wear.id}/sleeves`,true);
   for (const [poseName, pose] of Object.entries(posesToCheck)) {
     const rise = groundLift(root.userData.contacts, root.userData.chain, pose, doc.height);
@@ -159,6 +159,12 @@ for (const wear of doc.wardrobe) {
   }
   // Hand attachment stays in the same coordinate frame as a voxel character.
   const voxel = buildCharacter({ ...doc, model: undefined }, wear.id);
+  applyPose(root, POSES.stand); applyPose(voxel, POSES.stand);
+  root.updateMatrixWorld(true); voxel.updateMatrixWorld(true);
+  for (const [name, bone] of Object.entries(root.userData.pivots)) {
+    const expected = voxel.userData.pivots[name].getWorldPosition(new THREE.Vector3());
+    assert(bone.getWorldPosition(new THREE.Vector3()).distanceTo(expected) < 1e-6, `${name}: original body-plan landmark`);
+  }
   for (const pose of [POSES.stand, POSES.sit, POSES.crouch]) {
     applyPose(root, pose); applyPose(voxel, pose);
     root.updateMatrixWorld(true); voxel.updateMatrixWorld(true);
@@ -188,7 +194,7 @@ assert.equal(exportReport.issues.numErrors, 0, 'Export GLB generates a valid ski
 const jsonLength = new DataView(exportedBytes.buffer).getUint32(12, true);
 const exportedDoc = JSON.parse(new TextDecoder().decode(exportedBytes.slice(20,20+jsonLength)));
 assert(exportedDoc.skins?.length > 0, 'export retains deform bones');
-assert(exportedDoc.nodes.filter((n) => n.extras?.wardrobe).every((n) => n.extras.wardrobe === 'casual'));
+assert(exportedDoc.nodes.filter((n) => n.extras?.wardrobe).every((n) => n.extras.wardrobe === doc.defaultOutfit));
 const story = registry.get('story', `${characterId}-blender`);
 const film = compile(story, {
   character: (id) => registry.character(id), action: (id) => registry.action(id),
@@ -209,7 +215,7 @@ const report = { character: characterId, outfits: doc.wardrobe.length, bones: 16
   gltfErrors: result.issues.numErrors, gltfWarnings: result.issues.numWarnings,
   checks: ['wardrobe isolation', 'independent skeletons', 'normalized weights', 'finite deformations',
     'connected chest and arms', 'connected shirt and sleeves', 'raised-arm deformations',
-    'no skin spikes over 12 cm', 'unchanged hand attachments', 'cache disposal', 'JSON round trip',
+    'no skin spikes over 12 cm', 'original body-plan landmarks', 'unchanged hand attachments', 'cache disposal', 'JSON round trip',
     'voxel regression', 'skinned GLB export', 'demo timeline seeking'] };
 await writeFile(new URL(`../../page/game/story-studio/models/${characterId}/validation.json`, import.meta.url), JSON.stringify(report,null,2)+'\n');
 disposeCharacter(second); disposeCharacter(rebuilt);

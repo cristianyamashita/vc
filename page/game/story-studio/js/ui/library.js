@@ -52,10 +52,10 @@ function summarise(doc) {
 }
 
 export class LibraryView {
-  constructor(root, { registry, onOpen, onExport, onExportGlb, onExportBundle, onEdit, onVisualEdit, onStoryEdit, onDuplicate, onDelete, onNewProp }) {
+  constructor(root, { registry, onOpen, onExport, onExportGlb, onExportBundle, onEdit, onVisualEdit, onStoryEdit, onDuplicate, onDelete, onNewProp, onNewAction }) {
     this.root = root;
     this.registry = registry;
-    this.handlers = { onOpen, onExport, onExportGlb, onExportBundle, onEdit, onVisualEdit, onStoryEdit, onDuplicate, onDelete, onNewProp };
+    this.handlers = { onOpen, onExport, onExportGlb, onExportBundle, onEdit, onVisualEdit, onStoryEdit, onDuplicate, onDelete, onNewProp, onNewAction };
     this.tab = 'story';
     this.tabsEl = root.querySelector('.ss-tabs');
     this.listEl = root.querySelector('.ss-list');
@@ -80,6 +80,10 @@ export class LibraryView {
     }
     if (this.tab === 'prop' && this.handlers.onNewProp) {
       const b = document.createElement('button'); b.className = 'ss-new-inline'; b.textContent = `＋ ${t('propNew')}`; b.onclick = this.handlers.onNewProp; this.tabsEl.appendChild(b);
+    }
+
+    if (this.tab === 'action' && this.handlers.onNewAction) {
+      const b = document.createElement('button'); b.className = 'ss-new-inline'; b.textContent = `＋ ${t('aeNew')}`; b.onclick = this.handlers.onNewAction; this.tabsEl.appendChild(b);
     }
 
     this.listEl.innerHTML = '';
@@ -140,7 +144,7 @@ export class LibraryView {
     add(t('edit'), '', this.handlers.onEdit);
     // A set is a floor plan, and typing coordinates is a poor way to lay one
     // out, so it gets the mouse as well as the JSON.
-    if (doc.kind === 'set' || doc.kind === 'outfit' || (doc.kind === 'prop' && doc.source?.type === 'boxes')) add(t('visualEdit'), '', this.handlers.onVisualEdit);
+    if ((doc.kind === 'action' && (doc.category === 'group' || ['overlay', 'posture', 'move'].includes(doc.type))) || doc.kind === 'set' || doc.kind === 'outfit' || (doc.kind === 'prop' && doc.source?.type === 'boxes')) add(t('visualEdit'), '', this.handlers.onVisualEdit);
     if (doc.kind === 'story') add(t('storyEdit'), '', this.handlers.onStoryEdit);
     // Next to Edit, because that is what it is for: a copy is where you edit
     // without losing the thing that already worked.

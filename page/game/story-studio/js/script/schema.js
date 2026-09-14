@@ -452,6 +452,22 @@ function channel(ctx, path, c, forRoot) {
     out.joint = c.joint;
     out.axis = c.axis;
   }
+  if (c.keys !== undefined) {
+    out.keys = [];
+    let previous = -1;
+    for (const [i, key] of array(ctx, `${path}.keys`, c.keys, 601).entries()) {
+      const kp = `${path}.keys[${i}]`;
+      if (!isObj(key)) { ctx.fail(kp, 'expected a keyframe'); continue; }
+      if (!Number.isFinite(key.t) || !Number.isFinite(key.value)) ctx.fail(kp, 'keyframes require finite t and value numbers');
+      const time = num(ctx, `${kp}.t`, key.t, 0, 1, 0);
+      const value = num(ctx, `${kp}.value`, key.value, -50, 50, 0);
+      if (time <= previous) ctx.fail(`${kp}.t`, 'key times must be strictly increasing');
+      previous = time; out.keys.push({ t: time, value });
+    }
+    if (!out.keys.length) ctx.fail(`${path}.keys`, 'at least one keyframe is required');
+    out.interpolation = ['linear', 'smooth', 'step'].includes(c.interpolation) ? c.interpolation : 'smooth';
+    out.loop = !!c.loop;
+  }
   if (c.wave !== undefined && !WAVE_NAMES.includes(c.wave)) {
     ctx.fail(`${path}.wave`, `unknown wave ${JSON.stringify(c.wave)}; expected ${WAVE_NAMES.join(', ')}`);
   }
@@ -529,6 +545,12 @@ function action(ctx, doc) {
   }
 
   if (out.category === 'group') groupBody(ctx, doc, out);
+  if (isObj(doc.previewCast)) {
+    out.previewCast = {};
+    for (const role of out.category === 'group' ? out.roles : [{ id: 'solo' }]) {
+      if (doc.previewCast[role.id] !== undefined) out.previewCast[role.id] = id(ctx, `previewCast.${role.id}`, doc.previewCast[role.id]);
+    }
+  }
   actionProps(ctx, doc, out);
   return out;
 }
@@ -547,6 +569,7 @@ const PROP_MOTION_FIELDS = ['x', 'y', 'z', 'spin'];
 function actionProps(ctx, doc, out) {
   out.props = [];
   const roles = new Set((out.roles || []).map((r) => r.id));
+  const seen = new Set();
   for (const [i, pr] of array(ctx, 'props', doc.props, 24).entries()) {
     const path = `props[${i}]`;
     if (!isObj(pr)) {
@@ -563,6 +586,43 @@ function actionProps(ctx, doc, out) {
       spinPhase: pr.spinPhase === undefined ? undefined : num(ctx, `${path}.spinPhase`, pr.spinPhase, -8, 8, 0),
       motion: [],
     };
+    if (seen.has(entry.id)) ctx.fail(`${path}.id`, 'duplicate prop id');
+    seen.add(entry.id);
+    if (pr.offset !== undefined) entry.offset = vec3(ctx, `${path}.offset`, pr.offset);
+    if (pr.transform !== undefined) {
+      if (!isObj(pr.transform)) ctx.fail(`${path}.transform`, 'expected an object');
+      else {
+        const keys = array(ctx, `${path}.transform.keys`, pr.transform.keys, 601);
+        if (keys.length < 2) ctx.fail(`${path}.transform.keys`, 'at least two keys are required');
+        let previous = -1;
+        entry.transform = { interpolation: ['smooth', 'linear', 'step'].includes(pr.transform.interpolation) ? pr.transform.interpolation : 'smooth', loop: !!pr.transform.loop, keys: [] };
+        for (const [k, key] of keys.entries()) {
+          const kp = `${path}.transform.keys[${k}]`;
+          if (!isObj(key)) { ctx.fail(kp, 'expected a transform key'); continue; }
+          if (key.t === undefined) ctx.fail(`${kp}.t`, 'time is required');
+          const time = num(ctx, `${kp}.t`, key.t, 0, 1, 0);
+          if (time <= previous) ctx.fail(`${kp}.t`, 'key times must increase');
+          previous = time;
+          entry.transform.keys.push({ t: time, at: vec3(ctx, `${kp}.at`, key.at), rotation: vec3(ctx, `${kp}.rotation`, key.rotation), scale: num(ctx, `${kp}.scale`, key.scale, ...LIMITS.scale, 1) });
+        }
+      }
+    }
+    if (pr.role !== undefined) {
+      if (out.category === 'group' && !roles.has(pr.role)) ctx.fail(`${path}.role`, 'unknown attachment role');
+      entry.role = pr.role;
+    }
+    if (pr.joint !== undefined) {
+      if (!JOINT_NAMES.includes(pr.joint)) ctx.fail(`${path}.joint`, 'unknown attachment joint');
+      else entry.joint = pr.joint;
+      if (pr.role !== undefined) {
+        if (out.category === 'group' && !roles.has(pr.role)) ctx.fail(`${path}.role`, 'unknown attachment role');
+        entry.role = pr.role;
+      } else if (out.category === 'group') ctx.fail(`${path}.role`, 'a joint attachment needs a role');
+    }
+    if (pr.bodyScale) entry.bodyScale = true;
+    if (pr.whenUnanchored) entry.whenUnanchored = true;
+    if (pr.space === 'ground') entry.space = 'ground';
+    if (['x', 'y', 'z'].includes(pr.spinAxis)) entry.spinAxis = pr.spinAxis;
     if (pr.hand !== undefined) {
       if (out.category === 'group' && !roles.has(pr.role)) {
         ctx.fail(`${path}.role`, 'a held prop needs the role holding it');

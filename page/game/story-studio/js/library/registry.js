@@ -41,7 +41,9 @@ export class Registry {
   async loadOfficial(onProgress = () => {}) {
     let index;
     try {
-      const res = await fetch(new URL('index.json', DATA));
+      // Revalidate the catalogue so newly shipped entries appear on reload,
+      // even when the host gives JSON files a long cache lifetime.
+      const res = await fetch(new URL('index.json', DATA), { cache: 'no-cache' });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       index = await res.json();
     } catch (err) {
@@ -99,7 +101,7 @@ export class Registry {
 
   async loadOne(kind, file) {
     try {
-      const res = await fetch(new URL(`${FOLDER[kind]}/${file}`, DATA));
+      const res = await fetch(new URL(`${FOLDER[kind]}/${file}`, DATA), { cache: 'no-cache' });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const raw = await res.json();
       // Shipped content goes through the same validator as an import. If a

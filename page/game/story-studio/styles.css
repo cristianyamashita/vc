@@ -395,7 +395,7 @@ main { flex: 1 1 auto; display: flex; min-height: 0; overflow: hidden; }
    `.ss-view` already lays this out as a column of the right height. */
 
 .ss-edit-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.ss-edit-tools { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-left: auto; }
+#view-actionedit .ss-edit-tools { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-left: auto; }
 .ss-edit-tools button.is-active { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
 
 .ss-edit-body { display: flex; gap: 12px; min-height: 0; flex: 1; }
@@ -666,3 +666,57 @@ main { flex: 1 1 auto; display: flex; min-height: 0; overflow: hidden; }
 .ss-outfits-paints button { font-size: 12px; padding: 5px 10px; }
 .ss-fit-out { margin: -4px 0 10px; color: var(--ink-dim); font-size: 12px; }
 #ss-fit-stage canvas { touch-action: none; }
+
+/* Visual action authoring: one timeline per participant, shared playback. */
+#view-actionedit { display: flex; flex-direction: column; gap: 12px; overflow: auto; }
+#view-actionedit[hidden] { display: none; }
+#view-actionedit h2 { margin: 0; font-size: 19px; }
+#view-actionedit .ss-edit-tools { display: flex; flex-wrap: wrap; gap: 6px; margin-left: auto; }
+.ss-ae-body { display: grid; grid-template-columns: 225px minmax(0, 1fr) 245px; gap: 12px; flex: 1 1 auto; min-height: 260px; }
+.ss-ae-panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px; min-height: 0; overflow: auto; display: flex; flex-direction: column; gap: 10px; }
+.ss-ae-panel > *, #view-actionedit > :not(.ss-ae-body) { flex-shrink: 0; }
+.ss-ae-panel button { font-size: 12px; }
+#view-actionedit .ss-ae-panel .ss-ae-buttons button { padding: 6px 8px; }
+.ss-ae-fold { font-size: 12px; color: var(--ink-dim); }
+.ss-ae-fold summary { cursor: pointer; }
+.ss-ae-fold[open] > div, .ss-ae-fold[open] > p { margin-top: 8px; }
+.ss-ae-panel label, .ss-ae-settings label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--ink-dim); }
+.ss-ae-panel label.ss-ae-check { flex-direction: row; align-items: center; }
+.ss-ae-panel input:not([type=checkbox]), .ss-ae-panel select { width: 100%; min-width: 0; }
+.ss-ae-panel p { color: var(--ink-dim); font-size: 12px; line-height: 1.6; }
+.ss-ae-panel output { color: var(--danger, #e77878); white-space: pre-wrap; font-size: 12px; }
+#ss-action-stage { position: relative; min-height: 0; height: 100%; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+#ss-action-canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+.ss-ae-buttons { display: flex; gap: 7px; align-items: center; flex-wrap: wrap; }
+.ss-ae-angles { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 5px; font-size: 12px; }
+.ss-ae-angles input { padding: 6px; }
+.ss-ae-timeline { background: var(--panel); padding: 10px 24px; border: 1px solid var(--line); border-radius: 12px; }
+.ss-ae-timeline input[type=number] { width: 90px; }
+.ss-ae-timeline input[type=range] { width: 100%; margin: 12px 0 0; padding: 0; }
+.ss-ae-timeline output { color: var(--ink-dim); font-size: 12px; margin-left: auto; }
+.ss-ae-keys { position: relative; height: 32px; margin: 0 7px; border-top: 1px solid var(--line); }
+.ss-ae-key { position: absolute; top: 2px; transform: translateX(-50%); padding: 3px 1px; min-width: 12px; background: transparent; border: 0; color: var(--accent); cursor: ew-resize; touch-action: none; }
+.ss-ae-key.is-active { color: #f2a844; }
+.ss-ae-panel h3 { margin: 0; font-size: 13px; display: flex; justify-content: space-between; gap: 8px; }
+.ss-ae-panel small { color: var(--ink-dim); white-space: nowrap; }
+.ss-ae-panel p { margin: 0; }
+.ss-ae-list, .ss-ae-fields { display: flex; flex-direction: column; gap: 9px; }
+.ss-ae-list { color: var(--ink-dim); font-size: 12px; }
+.ss-ae-list button { text-align: left; overflow-wrap: anywhere; }
+.ss-ae-stage-label { position: absolute; left: 12px; top: 12px; right: 12px; width: fit-content; max-width: calc(100% - 24px); padding: 6px 10px; border-radius: 7px; color: var(--ink); background: var(--panel); font-size: 12px; pointer-events: none; }
+.ss-ae-settings { background: var(--panel); padding: 10px 14px; border: 1px solid var(--line); border-radius: 10px; font-size: 13px; }
+.ss-ae-settings summary { cursor: pointer; }
+.ss-ae-settings > div { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; padding-top: 12px; }
+.ss-ae-settings input, .ss-ae-settings select { width: 100%; min-width: 0; }
+.ss-ae-settings .ss-ae-check { flex-direction: row; align-items: center; }
+.ss-ae-settings input[type=checkbox] { width: auto; }
+#view-actionedit [hidden] { display: none !important; }
+#view-actionedit > output { font-size: 13px; color: var(--ink-dim); white-space: pre-wrap; }
+#view-actionedit > output:empty { display: none; }
+@media (max-width: 1050px) { .ss-ae-body { flex: 0 0 auto; grid-template-columns: 190px minmax(0,1fr); grid-template-rows: 380px auto; } .ss-ae-inspector { grid-column: 1 / -1; max-height: 310px; } .ss-ae-settings > div { grid-template-columns: repeat(2,minmax(0,1fr)); } }
+@media (max-width: 680px) { .ss-ae-body { grid-template-columns: 1fr; grid-template-rows: auto 330px auto; } .ss-ae-panel { max-height: 240px; } #ss-action-stage { min-height: 0; } #view-actionedit .ss-edit-tools { margin-left: 0; } .ss-ae-settings > div { grid-template-columns: 1fr; } }
+
+#view-actionedit button:not(.ss-ae-key) { border: 1px solid var(--line); border-radius: 8px; padding: 7px 11px; background: var(--panel-2); color: var(--ink); cursor: pointer; }
+#view-actionedit button.ss-primary, #view-actionedit button.is-active:not(.ss-ae-key) { background: var(--accent); color: var(--accent-ink); }
+#view-actionedit button:hover { border-color: var(--accent); }
+#view-actionedit input:not([type=checkbox]):not([type=range]) { border: 1px solid var(--line); border-radius: 7px; padding: 7px; background: var(--panel-2); color: var(--ink); }

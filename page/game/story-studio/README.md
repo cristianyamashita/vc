@@ -16,6 +16,32 @@ uses the existing voxel builder.
 Carmen uses `"model": "carmen-v1"`, with adult proportions, long wavy hair and
 14 outfits. See the [Carmen model notes](models/carmen/README.md). The preview's
 Blender source link resolves to the selected character's own file.
+[Rui](models/rui/README.md) (`rui-v1`, adult man, 9 outfits) and
+[Tom](models/tom/README.md) (`tom-v1`, boy, 8 outfits) share the connected rig
+construction with separate body proportions and short hairstyles.
+
+## Kitchen dinner
+
+The `kitchen` set includes a stove and oven, sink and running-water prop,
+refrigerator, preparation counters and a central dining table with four chairs.
+The 65-second `kitchen-family-dinner` story casts the Blender versions of Rui,
+Carmen, Lia and Tom: chopping vegetables, stirring pasta, washing ingredients,
+mixing salad, bringing the dishes over and eating together. Names and dialogue
+are available in EN, PT and JA.
+
+The 27 new objects and eight actions are ordinary reusable library documents.
+`carryDishTo` combines walking legs with steady arms, and `eatMeal` is a gesture
+that preserves the actor's seated posture. Use `sit` on a chair before it.
+The food changes are authored stage events; there is no cooking simulation.
+
+To regenerate this content and its catalogue, or verify the four rigs, tool
+contacts, seating, timeline seeking and existing story compilation:
+
+```bash
+python3 scripts/build_story_studio_kitchen.py
+python3 scripts/build_story_studio_readme.py
+node scripts/tests/story_studio_kitchen.mjs
+```
 
 ## Conventions
 
@@ -1170,6 +1196,7 @@ A prop's anchors are what actions can use it for: `seat` for `sit`, `lie` for `l
 
 | id | source | anchors | light | footprint |
 |---|---|---|---|---|
+| `arm-wrestling-table` | boxes | — | — | 0.95×0.9 |
 | `armchair` | boxes | `seat` | — | 0.95×0.95 |
 | `backpack` | boxes | — | — | 0.4×0.5 |
 | `ball` | boxes | — | — | 0.32×0.32 |
@@ -1180,23 +1207,34 @@ A prop's anchors are what actions can use it for: `seat` for `sit`, `lie` for `l
 | `blackboard` | boxes | — | — | 0.14×3.2 |
 | `book` | boxes | `grip` | — | 0.18×0.22 |
 | `bookshelf` | boxes | — | — | 0.35×1.35 |
+| `bread-basket` | boxes | — | — | 0.38×0.38 |
 | `bricks` | boxes | — | — | 0.55×1.1 |
 | `bush` | boxes | — | — | 1.1×1.1 |
 | `campfire` | boxes | — | yes | 1.3×1.3 |
 | `car` | boxes | `seat` `seatB` | — | 4.35×1.85 |
+| `cave-rock` | boxes | — | — | 2×1.8 |
 | `cement-sack` | boxes | `seat` | — | 0.65×0.42 |
 | `chair` | boxes | `seat` | — | 0.5×0.5 |
+| `child-bed` | boxes | `lie` `seat` | — | 1.9×0.9 |
+| `chopped-vegetables` | boxes | — | — | 0.4×0.25 |
 | `coffee-table` | boxes | — | — | 1.15×0.75 |
 | `concrete-door` | boxes | — | — | 0.24×4.2 |
 | `concrete-floor` | boxes | — | — | 9.0×8.0 |
 | `concrete-wall` | boxes | — | — | 0.24×4.2 |
 | `concrete-window` | boxes | — | — | 0.24×4.2 |
 | `cone` | boxes | — | — | 0.45×0.45 |
+| `cooking-pot` | boxes | — | — | 0.56×0.43 |
+| `cooking-spoon` | boxes | `grip` | — | 0.07×0.05 |
+| `cooking-steam` | boxes | — | — | 0.22×0.15 |
 | `cooler` | boxes | `seat` | — | 0.85×0.55 |
 | `court-line` | boxes | — | — | 9.0×0.12 |
 | `crate` | gltf | `seat` | — | 0.8×0.8 |
 | `crt-tv` | boxes | — | — | 0.6×0.6 |
 | `desk` | boxes | `stand` | — | 0.85×1.7 |
+| `dice-six` | boxes | `grip` | — | 0.26×0.17 |
+| `dinner-fork` | boxes | `grip` | — | 0.05×0.025 |
+| `dinner-meal` | boxes | `grip` | — | 0.3×0.3 |
+| `dinner-plate` | boxes | `grip` | — | 0.3×0.3 |
 | `dirt-patch` | boxes | — | — | 3.2×2.2 |
 | `double-bed` | boxes | `lie` `lieB` `seat` | — | 2.2×1.7 |
 | `dumbbell` | boxes | `grip` | — | 0.3×0.2 |
@@ -1206,34 +1244,56 @@ A prop's anchors are what actions can use it for: `seat` for `sit`, `lie` for `l
 | `filing-cabinet` | boxes | — | — | 0.55×0.95 |
 | `flashlight` | boxes | `grip` | yes | 0.1×0.1 |
 | `floor-lamp` | boxes | — | yes | 0.4×0.4 |
+| `flower-bed` | boxes | — | — | 1×0.7 |
 | `game-console` | boxes | — | — | 0.3×0.36 |
 | `gamepad` | boxes | `grip` | — | 0.14×0.34 |
 | `glass-bottle` | boxes | `grip` | — | 0.09×0.09 |
 | `gym-floor` | boxes | — | — | 11.0×9.0 |
 | `gym-mirror` | boxes | — | — | 0.2×4.0 |
 | `hairdryer` | boxes | `grip` | — | 0.3×0.15 |
+| `hospital-bed` | boxes | `lie` `seat` | — | 2.25×1.05 |
 | `house-small` | boxes | — | — | 6.0×4.8 |
 | `houseplant` | boxes | — | — | 0.65×0.65 |
+| `hula-hoop` | boxes | `grip` | — | 1.02×1.02 |
+| `kitchen-board` | boxes | — | — | 0.6×0.33 |
+| `kitchen-child-chair` | boxes | `seat` | — | 0.55×0.55 |
+| `kitchen-counter` | boxes | `work` | — | 1.46×0.76 |
+| `kitchen-floor` | boxes | — | — | 8×7 |
+| `kitchen-fridge` | boxes | — | — | 0.94×0.84 |
+| `kitchen-hood` | boxes | — | — | 1.3×0.8 |
+| `kitchen-knife` | boxes | `grip` | — | 0.06×0.06 |
+| `kitchen-sink` | boxes | — | — | 1.4×0.76 |
+| `kitchen-step` | boxes | `stand` | — | 0.65×0.74 |
+| `kitchen-stove` | boxes | — | — | 1.1×0.78 |
+| `kitchen-table` | boxes | — | — | 2.5×1.24 |
+| `kitchen-wall` | boxes | — | — | 8×0.18 |
+| `kitchen-window-wall` | boxes | — | — | 0.22×7 |
 | `ladder` | boxes | — | — | 0.6×0.6 |
 | `lamp` | boxes | — | — | 0.4×0.4 |
 | `lantern` | boxes | — | yes | 0.25×0.25 |
+| `laptop` | boxes | — | — | 0.38×0.47 |
 | `log` | boxes | `seat` | — | 2.7×0.6 |
 | `lounger` | boxes | `lie` `seat` | — | 1.9×0.7 |
 | `magazine` | boxes | `grip` | — | 0.22×0.29 |
 | `magazine-open` | boxes | `grip` | — | 0.46×0.3 |
 | `magazines` | boxes | — | — | 0.34×0.38 |
+| `mechanical-bull` | boxes | `seat` | — | 3.3×3.0 |
+| `medical-monitor` | boxes | — | — | 0.55×0.4 |
 | `meeting-table` | boxes | — | — | 4.7×1.7 |
 | `mixer` | boxes | — | — | 0.9×0.9 |
 | `money-stack` | boxes | `grip` | — | 0.18×0.09 |
 | `motorcycle` | boxes | `seat` | — | 2.1×0.75 |
 | `mug` | boxes | `grip` | — | 0.12×0.1 |
 | `nightstand` | boxes | — | — | 0.46×0.46 |
+| `notebook` | boxes | `grip` | — | 0.32×0.24 |
 | `office-chair` | boxes | `seat` | — | 0.55×0.55 |
 | `office-floor` | boxes | — | — | 17.0×13.0 |
 | `old-books` | boxes | — | — | 0.3×0.25 |
 | `old-mattress` | boxes | `lie` `seat` | — | 1.95×0.95 |
 | `pallet` | boxes | `seat` | — | 1.15×1.05 |
 | `pallet-rack` | boxes | — | — | 1.2×2.6 |
+| `pasta-bowl` | boxes | `grip` | — | 0.48×0.48 |
+| `pencil` | boxes | `grip` | — | 0.02×0.17 |
 | `picture` | boxes | — | — | 0.06×0.85 |
 | `pine` | boxes | — | — | 2.5×2.5 |
 | `planks` | boxes | — | — | 3.1×0.95 |
@@ -1245,6 +1305,7 @@ A prop's anchors are what actions can use it for: `seat` for `sit`, `lie` for `l
 | `room-door` | boxes | — | — | 0.2×4.0 |
 | `room-doorway` | boxes | — | — | 0.2×4.0 |
 | `room-floor` | boxes | — | — | 8.0×7.0 |
+| `room-shell-open` | boxes | — | — | 7×6 |
 | `room-wall` | boxes | — | — | 0.2×4.0 |
 | `room-window` | boxes | — | — | 0.2×4.0 |
 | `rope-arc` | boxes | `grip` | — | 0.1×2.7 |
@@ -1252,21 +1313,28 @@ A prop's anchors are what actions can use it for: `seat` for `sit`, `lie` for `l
 | `rowing-machine` | boxes | `seat` | — | 2.2×0.55 |
 | `rubble` | boxes | — | — | 0.8×0.7 |
 | `rug` | boxes | — | — | 3.0×2.2 |
+| `running-water` | boxes | — | — | 0.02×0.02 |
 | `sack-pallet` | boxes | `seat` | — | 1.2×1.1 |
+| `saddle-horse` | boxes | `seat` | — | 2.05×0.7 |
+| `salad-bowl` | boxes | `grip` | — | 0.42×0.42 |
 | `sand-pile` | boxes | — | — | 2.2×2.0 |
 | `scaffold` | boxes | `seat` | — | 1.9×1.4 |
 | `school-desk` | boxes | `seat` | — | 1.0×0.65 |
+| `serving-platter` | boxes | `grip` | — | 0.5×0.42 |
 | `slab` | boxes | — | — | 6.1×5.1 |
 | `sleeping-bag` | boxes | `lie` | — | 2.0×0.7 |
 | `sleeping-bag-red` | boxes | `lie` | — | 2.0×0.7 |
 | `sofa` | boxes | `lie` `seat` | — | 1.0×2.2 |
+| `stalagmites` | boxes | — | — | 0.9×0.8 |
 | `steel-drum` | boxes | `seat` | — | 0.6×0.6 |
 | `stool` | boxes | `seat` | — | 0.4×0.4 |
 | `stump` | boxes | `seat` | — | 0.9×0.9 |
 | `table` | boxes | — | — | 1.4×0.95 |
 | `teacher-desk` | boxes | `stand` | — | 0.8×1.55 |
 | `tent` | boxes | `lie` `seat` | — | 2.6×2.2 |
+| `tent-interior` | boxes | — | — | 4.6×3.5 |
 | `torch` | boxes | `grip` | yes | 0.15×0.15 |
+| `toy-blocks` | boxes | — | — | 0.7×0.35 |
 | `treadmill` | boxes | `stand` | — | 1.8×0.7 |
 | `tree` | boxes | — | — | 1.9×1.9 |
 | `tv` | boxes | — | — | 0.45×1.45 |
@@ -1274,7 +1342,9 @@ A prop's anchors are what actions can use it for: `seat` for `sit`, `lie` for `l
 | `volleyball` | boxes | `grip` | — | 0.24×0.24 |
 | `wall` | boxes | — | — | 0.3×2.0 |
 | `wall-frame` | boxes | — | — | 0.2×3.6 |
+| `wash-vegetables` | boxes | — | — | 0.3×0.25 |
 | `water-cooler` | boxes | — | — | 0.4×0.4 |
+| `water-glass` | boxes | — | — | 0.1×0.1 |
 | `weight-bench` | boxes | `lie` `seat` | — | 1.4×0.85 |
 | `weight-rack` | boxes | — | — | 1.0×0.45 |
 | `whiteboard` | boxes | — | — | 0.12×2.6 |
@@ -1299,6 +1369,18 @@ Each list is the placement ids a story can `remove`, `tint` or sit an actor on. 
 
 > `ground`, `tent.a`, `tent.b`, `fire`, `log.a`, `log.b`, `stump`, `cooler`, `backpack`, `lantern`, `planks`, `pine.ring` (×7), `pine.side` (×6), `tree.back`, `rock`, `fern`
 
+**`camping-tent`** — Inside the camping tent, sky `dusk`, ground 30×30 m
+
+> `tent`, `bag.a`, `bag.b`, `lantern`, `pack`, `book`, `dice`, `pine.a`, `pine.b`
+
+**`cave`** — Cave, sky `night`, ground 35×35 m
+
+> `floor`, `rock.0`, `rock.1`, `rock.2`, `rock.3`, `rock.4`, `rock.5`, `rock.6`, `rock.7`, `rock.8`, `rock.9`, `rock.10`, `rock.11`, `rock.12`, `spires.0`, `spires.1`, `spires.2`, `spires.3`, `spires.4`, `spires.5`, `spires.6`, `ceiling.0`, `ceiling.1`, `ceiling.2`, `ceiling.3`, `ceiling.4`, `lantern`, `rock.front`
+
+**`child-bedroom`** — Child bedroom, sky `indoor`, ground 30×30 m
+
+> `shell`, `bed`, `rug`, `blocks`, `ball`, `shelf`, `desk`, `notebook`, `hoop`, `lamp`
+
 **`classroom`** — Classroom, sky `indoor`, ground 30×30 m
 
 > `floor`, `wall.north.0`, `wall.south.0`, `wall.north.1`, `wall.south.1`, `wall.north.2`, `wall.south.2`, `wall.west.0`, `wall.west.1`, `wall.west.2`, `wall.east.0`, `wall.east.1`, `wall.east.2`, `board`, `teacher.desk`, `globe`, `shelf`, `cabinet`, `desk.00`, `desk.01`, `desk.02`, `desk.10`, `desk.11`, `desk.12`, `desk.20`, `desk.21`, `desk.22`
@@ -1307,13 +1389,33 @@ Each list is the placement ids a story can `remove`, `tint` or sit an actor on. 
 
 > `slab`, `frame.north`, `frame.south`, `frame.west`, `scaffold.a`, `scaffold.b`, `bricks.a`, `bricks.b`, `sand`, `mixer`, `planks`, `ladder`, `cones` (×5), `barrier.a`, `barrier.b`, `crate`, `tree`, `bush`, `fence` (×9)
 
+**`deep-grove`** — Detailed woodland, sky `day`, ground 60×60 m
+
+> `tree.0`, `tree.1`, `tree.2`, `tree.3`, `tree.4`, `tree.5`, `tree.6`, `tree.7`, `tree.8`, `tree.9`, `tree.10`, `tree.11`, `tree.12`, `tree.13`, `tree.14`, `tree.15`, `tree.16`, `tree.17`, `tree.18`, `tree.19`, `tree.20`, `tree.21`, `tree.22`, `tree.23`, `tree.24`, `tree.25`, `tree.26`, `tree.27`, `tree.28`, `tree.29`, `tree.30`, `tree.31`, `tree.32`, `tree.33`, `tree.34`, `tree.35`, `tree.36`, `tree.37`, `tree.38`, `tree.39`, `tree.40`, `tree.41`, `tree.42`, `tree.43`, `tree.44`, `tree.45`, `tree.46`, `tree.47`, `tree.48`, `tree.49`, `tree.50`, `tree.51`, `tree.52`, `tree.53`, `tree.54`, `tree.55`, `tree.56`, `tree.57`, `tree.58`, `tree.59`, `tree.60`, `tree.61`, `tree.62`, `tree.63`, `undergrowth.0`, `undergrowth.1`, `undergrowth.2`, `undergrowth.3`, `undergrowth.4`, `undergrowth.5`, `undergrowth.6`, `undergrowth.7`, `undergrowth.8`, `undergrowth.9`, `undergrowth.10`, `undergrowth.11`, `undergrowth.12`, `undergrowth.13`, `undergrowth.14`, `undergrowth.15`, `undergrowth.16`, `undergrowth.17`, `undergrowth.18`, `undergrowth.19`, `undergrowth.20`, `undergrowth.21`, `undergrowth.22`, `undergrowth.23`, `undergrowth.24`, `undergrowth.25`, `undergrowth.26`, `undergrowth.27`, `undergrowth.28`, `undergrowth.29`, `undergrowth.30`, `undergrowth.31`, `undergrowth.32`, `undergrowth.33`, `undergrowth.34`, `clearing`, `log`, `rock`
+
 **`forest`** — Forest clearing, sky `day`, ground 70×70 m
 
 > `clearing`, `tree.0`, `tree.1`, `tree.2`, `tree.3`, `tree.4`, `tree.5`, `tree.6`, `tree.7`, `tree.8`, `tree.9`, `tree.10`, `tree.11`, `tree.12`, `tree.13`, `fern.0`, `fern.1`, `fern.2`, `fern.3`, `fern.4`, `fern.5`, `rock.a`, `rock.b`, `rock.c`, `log`, `stump`, `bush.a`, `bush.b`
 
+**`garden-bench`** — Park bench and garden, sky `day`, ground 36×36 m
+
+> `bench`, `path`, `lamp`, `flowers.0`, `flowers.1`, `flowers.2`, `flowers.3`, `flowers.4`, `flowers.5`, `flowers.6`, `flowers.7`, `tree.0`, `bush.0`, `tree.1`, `bush.1`, `tree.2`, `bush.2`, `tree.3`, `bush.3`
+
 **`gym`** — Gym, sky `indoor`, ground 30×30 m
 
 > `floor`, `wall.north.a`, `wall.north.b`, `wall.west`, `wall.east`, `wall.south.a`, `wall.south.b`, `treadmill`, `bike`, `rower`, `bench`, `rack`, `plates`, `mat`, `drum`, `plant`, `bookshelf`
+
+**`hospital-room`** — Hospital room, sky `indoor`, ground 30×30 m
+
+> `shell`, `bed`, `monitor`, `cabinet`, `visitor`, `water`, `window`, `plant`
+
+**`hotel-room`** — Hotel room, sky `indoor`, ground 30×30 m
+
+> `shell`, `bed`, `nightstand`, `lamp`, `desk`, `chair`, `laptop`, `rug`, `bag`, `plant`
+
+**`kitchen`** — Family kitchen, sky `indoor`, ground 26×26 m
+
+> `floor`, `wall.back`, `wall.window`, `fridge`, `counter`, `stove`, `hood`, `sink`, `counter.side`, `table`, `chair.rui`, `chair.carmen`, `chair.tom`, `chair.lia`, `step`, `board`, `vegetables`, `wash.veg`, `pot`, `salad`, `bread`, `plant`, `plate.rui`, `glass.rui`, `plate.carmen`, `glass.carmen`, `plate.tom`, `glass.tom`, `plate.lia`, `glass.lia`
 
 **`living-room`** — Living room, sky `indoor`, ground 26×26 m
 
@@ -1343,21 +1445,31 @@ Each list is the placement ids a story can `remove`, `tint` or sit an actor on. 
 
 | id | category | type | length | reads |
 |---|---|---|---|---|
+| `armWrestle` | group | overlay | `reps` × 3.2s | `reps` `cast` `a`+`b` |
 | `benchPress` | solo | posture | `reps` × 2.4s | `on` (needs a `lie` anchor) `reps` |
+| `birthPosition` | solo | posture | 0.8s | `on` (needs a `lie` anchor) |
 | `cameraFollow` | solo | cameraFollow | 0s | `target` `for` |
 | `cameraTo` | solo | camera | 2s | `at` `look` `fov` |
+| `carryDish` | solo | overlay | `reps` × 2s | `reps` |
+| `carryDishTo` | solo | move | distance ÷ 1.25 m/s | `to` `via` `speed` |
+| `celebrate` | solo | overlay | `reps` × 1.2s | `reps` |
+| `chopFood` | solo | overlay | `reps` × 0.8s | `reps` |
 | `crawlTo` | solo | move | distance ÷ 0.7 m/s | `to` `via` `speed` |
 | `crouch` | solo | posture | 0.5s | — |
 | `cut` | solo | camera | 0s | `at` `look` `fov` |
 | `cycle` | solo | posture | `reps` × 0.9s | `on` (needs a `seat` anchor) `reps` |
 | `drop` | solo | hold | 0.5s | — |
+| `eatMeal` | solo | overlay | `reps` × 3.2s | `reps` |
 | `hold` | solo | hold | 0.5s | `prop` `hand` |
+| `hulaKneeling` | solo | overlay | `reps` × 1.2s | `reps` |
+| `hulaStanding` | solo | overlay | `reps` × 1.2s | `reps` |
 | `idle` | solo | posture | 0.4s | — |
 | `jog` | solo | overlay | `reps` × 0.62s | `reps` |
 | `jump` | solo | overlay | 0.9s | — |
 | `jumpingJacks` | solo | overlay | `reps` × 0.9s | `reps` |
 | `kneel` | solo | posture | 0.6s | — |
 | `lie` | solo | posture | 0.9s | `on` (needs a `lie` anchor) `face` |
+| `mixSalad` | solo | overlay | `reps` × 1.5s | `reps` |
 | `nod` | solo | overlay | 1.6s | — |
 | `oddsAndEvens` | group | overlay | `reps` × 1.1s | `reps` `cast` `a`+`b` |
 | `overheadPress` | solo | overlay | `reps` × 2.2s | `reps` |
@@ -1368,9 +1480,12 @@ Each list is the placement ids a story can `remove`, `tint` or sit an actor on. 
 | `pushups` | solo | overlay | `reps` × 1.5s | `reps` |
 | `raiseArm` | solo | overlay | 1.4s | `side` |
 | `ready` | solo | posture | 0.6s | — |
+| `rideHorse` | solo | posture | `reps` × 1.0s | `on` (needs a `seat` anchor) `reps` |
+| `rollDice` | solo | overlay | 2.6s | — |
 | `row` | solo | posture | `reps` × 2.0s | `on` (needs a `seat` anchor) `reps` |
 | `runTo` | solo | move | distance ÷ 3.4 m/s | `to` `via` `speed` |
 | `say` | solo | speech | length of the line | `text` |
+| `serveFood` | solo | overlay | `reps` × 2.4s | `reps` |
 | `setTime` | solo | stage | 0s | `sky` |
 | `shakeHead` | solo | overlay | 1.6s | — |
 | `shoulderCarry` | group | overlay | 4.0s | `cast` `carrier`+`rider` |
@@ -1380,14 +1495,18 @@ Each list is the placement ids a story can `remove`, `tint` or sit an actor on. 
 | `spike` | solo | overlay | `reps` × 1.6s | `reps` |
 | `squats` | solo | overlay | `reps` × 1.6s | `reps` |
 | `stand` | solo | posture | 0.4s | — |
+| `stirPot` | solo | overlay | `reps` × 1.8s | `reps` |
 | `swimTo` | solo | move | distance ÷ 0.9 m/s | `to` `via` `speed` |
 | `think` | solo | speech | length of the line | `text` |
 | `throw` | solo | overlay | `reps` × 1.2s | `reps` |
 | `tread` | solo | posture | `reps` × 1.4s | `reps` |
 | `turnTo` | solo | turn | 0.6s | `to` `yaw` `facing` |
+| `typeLaptop` | solo | posture | `reps` × 0.42s | `on` (needs a `seat` anchor) `reps` |
 | `wait` | solo | wait | 1s | — |
 | `walkTo` | solo | move | distance ÷ 1.25 m/s | `to` `via` `speed` |
+| `washFood` | solo | overlay | `reps` × 1.4s | `reps` |
 | `wave` | solo | overlay | 2.2s | `side` |
+| `writeNotebook` | solo | posture | `reps` × 0.65s | `on` (needs a `seat` anchor) `reps` |
 
 ### Stories
 
@@ -1398,9 +1517,11 @@ Each list is the placement ids a story can `remove`, `tint` or sit an actor on. 
 | `bedroom-talk` | `bedroom` | `leo` `mira` | 13 |
 | `camp-asleep` | `camp` | `tom` `zeca` `noa` `bel` | 9 |
 | `camp-night` | `camp` | `kai` `nina` `dado` | 14 |
+| `carmen-blender` | `studio` | `kit` | 43 |
 | `classroom-lesson` | `classroom` | `tom` `noa` `dado` `pip` `zeca` `lia` `ravi` `bel` `elza` | 24 |
 | `forest-walk` | `forest` | `ana` `tom` `noa` | 14 |
 | `gym-session` | `gym` | `sol` `kai` `nina` `rui` `beto` | 15 |
+| `kitchen-family-dinner` | `kitchen` | `rui` `carmen` `lia` `tom` | 88 |
 | `lia-blender` | `studio` | `kit` | 43 |
 | `living-room-evening` | `living-room` | `elza` `pip` `beto` | 16 |
 | `living-room-game` | `living-room` | `tom` `dado` | 13 |
@@ -1411,8 +1532,10 @@ Each list is the placement ids a story can `remove`, `tint` or sit an actor on. 
 | `pool-ball` | `backyard` | `tom` `noa` `zeca` `bel` | 32 |
 | `rig-check` | `studio` | `kit` | 43 |
 | `roll-call` | `studio` | `beto` `kai` `leo` `rui` `vic` `ana` `bia` `carmen` `elza` `lena` `mira` `nina` `sol` `dado` `ravi` `tom` `zeca` `bel` `duda` `lia` `noa` `pip` | 47 |
+| `rui-blender` | `studio` | `kit` | 43 |
 | `site-morning` | `construction` | `rui` `sol` `beto` | 13 |
 | `street-evening` | `street` | `vic` `mira` `noa` | 13 |
+| `tom-blender` | `studio` | `kit` | 43 |
 | `volley-match` | `volley-court` | `tom` `noa` `zeca` `bel` `ravi` `lia` | 30 |
 | `warehouse-search` | `warehouse` | `vic` `sol` `beto` | 19 |
 
@@ -1432,3 +1555,69 @@ which refreshes the catalogue above from the documents themselves.
 
 Nothing needs building otherwise — the app is plain ES modules served as
 static files.
+
+## Visual movement editor
+
+In **Actions → New action**, choose a preview character, a base pose and a
+cycle duration. Select a joint using the green dots or the joint menu. **Rotate**
+shows rotation handles; **Drag position** moves a target and bends the arm or
+leg while preserving bone lengths. Dragging the hips moves the body. Numeric
+angles provide precise adjustments.
+
+Move the timeline cursor and adjust the body to record a pose automatically,
+or use **Add pose**. Drag the diamonds to retime intermediate poses; the first
+and last remain at the ends of the cycle. Intermediate poses can be deleted.
+Choose smooth, linear or held interpolation, preview playback, and use undo or
+redo before saving. Looping closes the last pose onto the first.
+
+**Visual edit** also opens existing movement actions. For a group action,
+choose a participant in the list to edit their poses on the shared clock.
+The roster supports one to eight participants, preview character selection,
+formation position and direction. Adding a participant copies the selected
+participant's motion and personal accessories; shared group objects stay shared.
+Changing the number of roles in a saved action creates a new action ID, preserving
+the role contract used by existing stories. `previewCast` remembers the characters
+for the library demo without recasting stories that already use the action.
+
+Auxiliary objects are selectable in the list or directly in the viewport. Move,
+rotate and uniformly scale them with handles or numeric fields. Each object has
+its own keys on the same timeline; adjustments can target the current instant
+or offset the entire animation. Add/remove objects from the library, attach them
+to any participant's joints or footprint, and detach them while preserving their
+sampled world trajectory. Legacy hand props preserve their grip origin when
+converted to an editable attachment. Undo/redo includes object edits, attachment
+changes and roster changes. Previous/next key and pose copy/paste work on both
+participants and objects. The frame-all button fits the current cast and props.
+
+Saving uses the ordinary action document in `StoryStudioDB`; export/import and
+collection backup already include this store. Editing an official action saves
+a local override, as with other library documents. Exported animation channels
+contain normalized `keys: [{ t, value }]`, `interpolation` and `loop`. Joint
+values are radians relative to the base pose; root lift and shift are height
+fractions. The director samples these channels deterministically when playing
+or seeking a story. Visual authoring exports a full-body pose, replacing any
+original gesture-only or face-dependent pose selection. Object animation uses
+`transform: {keys: [{t, at, rotation, scale}], interpolation, loop}`. Positions are
+local metres and rotations are unwrapped YXZ Euler radians (whole turns remain
+available for spinning props). These transforms override the legacy placement
+and procedural motion fields. Optional `offset` adjusts the geometry's grip
+origin. Object tracks use the same deterministic sampler in preview and playback.
+
+The leisure/rooms expansion includes the requested six objects plus supporting
+items, nine actions and seven sets. `rideHorse` can use a horse or mechanical
+bull's `seat` anchor; without an anchor it supplies its own horse.
+`birthPosition` uses a bed's `lie` anchor. The arm-wrestling formation is
+calibrated for Rui and Carmen; use the participant editor to adjust the poses
+when casting characters with substantially different heights.
+
+Regenerate this expansion and validate its animation support with:
+
+```bash
+# Requires Node 22.15+ and three@0.164.1 at SS_TEST_NODE_MODULES
+# (defaults to /tmp/story-studio-lia-qa/node_modules).
+python3 scripts/build_story_studio_expansion.py
+node scripts/tests/story_studio_expansion.mjs
+node scripts/tests/story_studio_action_editor.mjs
+node scripts/tests/story_studio_kitchen.mjs
+python3 scripts/build_story_studio_readme.py
+```

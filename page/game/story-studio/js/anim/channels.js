@@ -1,3 +1,4 @@
+import { sampleKeys } from './keyframes.js';
 // The little language an action document is written in.
 //
 // Every clip in this app turned out to be the same shape: take a base pose,
@@ -62,6 +63,7 @@ export function clockOf(action, localT, params) {
 
 /** One channel's contribution. */
 export function channelValue(ch, u, localT) {
+  if (ch.keys?.length) return sampleKeys(ch.keys, u, ch.interpolation, ch.loop);
   const wave = WAVES[ch.wave] || WAVES.const;
   const x = Number.isFinite(ch.hz)
     ? ch.hz * localT + (ch.phase || 0)

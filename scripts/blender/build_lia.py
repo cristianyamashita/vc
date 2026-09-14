@@ -5,6 +5,7 @@ Authoring coordinates below are Story Studio's: +X face, +Y up, +Z left.
 All assets are original procedural geometry; no downloaded character assets.
 """
 import bpy
+import bmesh
 import math
 import json
 import sys
@@ -156,6 +157,12 @@ def join(obs, name):
 
 def smooth_union(obs, name, voxel):
     ob = join(obs,name)
+    if DOC['base'] in ['man','boy']:
+        # The closed lofts and Blender primitives must have the same winding
+        # before voxel union; mixed signs can cancel overlapping volumes.
+        bm=bmesh.new();bm.from_mesh(ob.data)
+        bmesh.ops.recalc_face_normals(bm,faces=list(bm.faces))
+        bm.to_mesh(ob.data);bm.free()
     mod = ob.modifiers.new('Sculpt • seamless volumes', 'REMESH')
     mod.mode = 'VOXEL'; mod.voxel_size = voxel; mod.use_smooth_shade = True
     bpy.ops.object.modifier_apply(modifier=mod.name)
@@ -248,7 +255,7 @@ def pieceweights(ob):
     name=ob.name
     if name.startswith(('Shoe','Sole','Sneaker')):
         return lambda p: {'lFoot' if p[2]>0 else 'rFoot':1}
-    if name.startswith(('Continuous trousers','Cuff seam')): return legweights
+    if name.startswith(('Continuous trousers','Cuff seam','Boot shaft','Boot cuff','Boot lace')): return legweights
     if name.startswith(('Soft skirt','Skirt hem','Towel overlap')): return skirtweights
     if name.startswith('Sleeve seam'): return armweights
     if name.startswith('Sleeve'): return shirtweights
@@ -299,11 +306,20 @@ vol.append(ellipsoid('Neck sculpt',(0,1.026,0),(.027,.051,.031),skin))
 legparts=[loft('Hip overlap',[(.59,.048,.070,0,0),(.63,.055,.088,0,0),(.69,.054,.084,0,0)],skin)]
 for s in [1,-1]:
     z=s*shoulder
-    arms.append(loft('Lia_Arm_'+('L' if s>0 else 'R'),[(.604,.018,.021,0,z),(.64,.019,.022,0,z),(.70,.023,.024,-.002,z),
+    armrows=[(.604,.018,.021,0,z),(.64,.019,.022,0,z),(.70,.023,.024,-.002,z),
         (.78,.024,.024,0,z),(.81,.026,.026,0,z+s*.005),(.91,.028,.028,0,z+s*.011),
         (.934,.028,.029,0,z+s*.007),(.953,.028,.029,0,z),(.972,.025,.029,0,z-s*.010),
         (.984,.020,.029,0,z-s*.026),(.989,.013,.029,0,z-s*.047),
-        (.991,.010,.018,0,z-s*.064)],skin,32))
+        (.991,.010,.018,0,z-s*.064)]
+    if DOC['base'] in ['man','boy']:
+        armrows=[row for row in armrows if row[0]<.94]+[
+            (.960,.029,.030,0,z),(.980,.030,.031,0,z-s*.003),
+            (.995,.028,.034,0,z-s*.014),(1.004,.025,.037,0,z-s*.028),
+            (1.010,.020,.035,0,z-s*.047),(1.014,.010,.032,0,z-s*.067),
+            (1.015,.004,.025,0,z-s*.085)]
+    arms.append(loft('Lia_Arm_'+('L' if s>0 else 'R'),armrows,skin,40 if DOC['base'] in ['man','boy'] else 32))
+    if DOC['base'] in ['man','boy']:
+        vol.append(ellipsoid('Clavicle bridge',(0,.989,s*.063),(.040,.025,.050),skin,40,28))
     handparts=[ellipsoid('Palm sculpt',(.002,.586,z),(.018,.033,.023),skin)]
     for k in range(4):
         zz=z+(k-1.5)*.011
@@ -657,43 +673,75 @@ def garment_rows(bottom=.665, top=.996, depth=0, width=0):
 def trim_ring(name,y,rx,rz,mat,x=0,z=0,r=.0018):
     return tube(name,[(x+rx*cos(a*2*pi/48),y,z+rz*sin(a*2*pi/48)) for a in range(49)],r,mat)
 
+def overall_band(sign, mat):
+    # A flat strap follows the shoulder contour with enough samples to avoid
+    # straight chords disappearing through the T-shirt.
+    controls=[(.079,.68),(.078,.90),(.073,.958),(.057,.984),(.029,1.005),
+              (-.005,1.009),(-.040,.990),(-.065,.965),(-.074,.90),(-.074,.68)]
+    centres=[]
+    for j in range(len(controls)-1):
+        a=Vector(controls[max(0,j-1)]);b=Vector(controls[j]);c=Vector(controls[j+1]);d=Vector(controls[min(len(controls)-1,j+2)])
+        for k in range(7):
+            t=k/7
+            q=.5*((2*b)+(-a+c)*t+(2*a-5*b+4*c-d)*t*t+(-a+3*b-3*c+d)*t*t*t)
+            q.y+=.012*max(0,min(1,(q.y-.960)/.035))
+            centres.append(q)
+    centres.append(Vector(controls[-1]));verts=[];faces=[]
+    for j,q in enumerate(centres):
+        tangent=(centres[min(j+1,len(centres)-1)]-centres[max(0,j-1)]).normalized()
+        normal=Vector((-tangent.y,tangent.x))
+        for dz,thickness in [(-.009,-.0015),(.009,-.0015),(.009,.0015),(-.009,.0015)]:
+            vq=q+normal*thickness;verts.append((vq.x,vq.y,sign*.054+dz))
+    for j in range(len(centres)-1):
+        for k in range(4):
+            a=j*4+k;b=j*4+(k+1)%4;faces.append((a,b,b+4,a+4))
+    faces += [(3,2,1,0),tuple((len(centres)-1)*4+k for k in range(4))]
+    return mesh('Overall strap',verts,faces,mat)
+
 for entry in DOC['wardrobe']:
-    wid=entry['id']; color=entry['color']; pieces=[]
+    wid=entry['id']; cut=entry['outfit']; cut='swim' if cut=='swimsuit' else cut
+    masculine=DOC['base'] in ['man','boy']
+    color=entry['color']; pieces=[]
     main=material('Cloth_'+wid,color,.84)
     dark=material('Seam_'+wid,color,.92)
     # Explicit material roles let the existing color picker recolor each instance.
     main['colorRole']='main'; dark['colorRole']='main'
-    skirt=wid in ['dress','nightie','towel','tubeDress']
-    trousers=wid in ['suit','shirt','overalls','pyjamas','military']
-    sleeves= 'long' if trousers else 'short' if wid in ['casual','shortsTee','dress'] else 'none'
-    if wid in ['towel','tubeDress']:
+    skirt=cut in ['dress','nightie','towel','tubeDress']
+    trousers=cut in ['suit','shirt','overalls','pyjamas','military'] or masculine and cut=='casual'
+    sleeves= 'long' if trousers else 'short' if cut in ['casual','shortsTee','dress'] else 'none'
+    if masculine:
+        sleeves='long' if cut in ['suit','shirt','pyjamas','military'] else 'short' if cut in ['casual','shortsTee','overalls'] else 'none'
+    topmat=ivory if masculine and cut=='overalls' else main
+    if masculine and cut in ['swim','towel']:
+        if cut=='towel':pieces.append(trim_ring('Waist towel binding',.696,.061,.095,ivory))
+    elif cut in ['towel','tubeDress']:
         pieces.append(loft('Wrap bodice',garment_rows(.638,.948,.003,.002),main))
         pieces.append(trim_ring('Bound upper edge',.948,.066,.111,ivory))
-    elif wid=='underwear':
+    elif cut=='underwear':
         pieces.append(loft('Opaque bralette',garment_rows(.831,.961,.001,.001),main,64))
         pieces.append(loft('Opaque briefs',[(.59,.055,.091,0,0),(.63,.062,.096,0,0),(.68,.060,.093,0,0)],main,64))
         for s in [1,-1]:
             pieces.append(tube('Bralette strap',[(.055,.953,s*.059),(.020,.995,s*.063),(-.046,.953,s*.058)],.006,main,10))
-    elif wid=='shortsTop':
+    elif cut=='shortsTop':
         pieces.append(loft('Sport top',garment_rows(.788,.991),main))
-    elif wid=='nightie':
+    elif cut=='nightie':
         pieces.append(loft('Nightdress bodice',garment_rows(.66,.967),main))
-    elif wid=='swim':
+    elif cut=='swim':
         pieces.append(loft('One piece swimsuit',garment_rows(.594,.973,-.001,0),main))
         for s in [1,-1]:
             pieces.append(tube('Swimsuit strap',[(.052,.951,s*.062),(.019,.994,s*.063),(-.040,.969,s*.062)],.006,main,10))
     else:
-        pieces.append(loft('Tailored top',garment_rows(.662,.996,.002,.002),main))
+        pieces.append(loft('Tailored top',garment_rows(.662,.996,.002,.002),topmat))
         pieces.append(trim_ring('Collar piping',.996,.034,.050,ivory,r=.0028))
     if skirt:
-        hem=.425 if wid in ['dress','nightie'] else .453
-        flare=.142 if wid=='dress' else .122 if wid=='nightie' else .107
+        hem=.425 if cut in ['dress','nightie'] else .453
+        flare=.142 if cut=='dress' else .122 if cut=='nightie' else .107
         rows=[(hem,.085,flare,.003,0),(hem+.014,.084,flare,0,0),(.50,.076,max(.116,flare*.95),0,0),
               (.58,.070,.124,0,0),(.63,.067,.120,0,0),(.66,.064,.110,0,0),(.695,.060,.094,0,0)]
-        pieces.append(loft('Soft skirt',rows,main,64,.022 if wid=='dress' else .008))
+        pieces.append(loft('Soft skirt',rows,main,64,.022 if cut=='dress' else .008))
         pieces.append(trim_ring('Skirt hem',hem+.008,.086,flare+.001,ivory,r=.002))
-    if not skirt and wid not in ['swim','underwear']:
-        legmat=denim if wid in ['casual','shortsTee'] else main if wid in ['overalls','pyjamas','military','shortsTop'] else charcoal
+    if not skirt and (cut not in ['swim','underwear'] or masculine and cut=='swim'):
+        legmat=denim if cut in ['casual','shortsTee'] else main if cut in ['overalls','pyjamas','military','shortsTop','swim'] else charcoal
         pants=[loft('Waistband',[(.59,.054,.106,0,0),(.62,.062,.116,0,0),(.65,.063,.111,0,0),(.685,.060,.105,0,0)],legmat)]
         for s in [1,-1]:
             zz=s*hip; bottom=.070 if trousers else .43
@@ -710,35 +758,69 @@ for entry in DOC['wardrobe']:
             rows += [(.968,.033,.034,0,z-s*.003),(.982,.027,.030,0,z-s*.012),
                      (.992,.020,.026,0,z-s*.025),(.995,.012,.020,0,z-s*.038),
                      (.997,.003,.010,0,z-s*.047)]
-            pieces.append(smooth_union([loft('Sleeve',rows,main,40)],'Sleeve',.002))
+            if masculine:
+                rows=[row for row in rows if row[0]<.94]+[
+                    (.962,.034,.035,0,z),(.983,.035,.036,0,z-s*.003),
+                    (.999,.033,.038,0,z-s*.014),(1.008,.030,.041,0,z-s*.028),
+                    (1.014,.025,.040,0,z-s*.047),(1.018,.016,.034,0,z-s*.067),
+                    (1.019,.006,.030,0,z-s*.085)]
+            if masculine:
+                pieces.append(ellipsoid('Sleeve clavicle bridge',(0,.989,s*.063),(.045,.029,.055),topmat,40,28))
+            pieces.append(smooth_union([loft('Sleeve',rows,topmat,40)],'Sleeve',.002))
             pieces.append(trim_ring('Sleeve seam',bottom+.003,rows[0][1]+.001,rows[0][2]+.001,ivory,z=rows[0][4]))
-    if wid in ['shirt','suit','pyjamas','military']:
+    if cut in ['shirt','suit','pyjamas','military']:
         for k in range(4):
             pieces.append(ellipsoid('Button',(.065,.928-k*.057,0),(.003,.005,.005),gold,12,8))
-        if wid in ['suit','shirt']:
+        if cut in ['suit','shirt']:
             for s in [1,-1]:
                 pieces.append(tube('Folded collar',[(.041,.991,s*.015),(.066,.951,s*.04),(.067,.978,s*.052)],.009,ivory,8))
-        if wid=='suit':
+        if cut=='suit':
             pieces.append(tube('Tie',[(.062,.969,0),(.069,.91,0),(.064,.838,0)],[.009,.011,.006],gold,8))
-    if wid in ['overalls','military']:
+    if masculine and cut=='overalls':
+        verts=[];faces=[]
+        for j in range(13):
+            y=.671+(.903-.671)*j/12;width=.068-.010*j/12
+            for k in range(13):
+                z=width*(-1+2*k/12);verts.append((.076*(1-(z/.135)**2)**.5,y,z))
+        for j in range(12):
+            for k in range(12):
+                a=j*13+k;faces.append((a,a+1,a+14,a+13))
+        pieces.append(mesh('Overall bib',verts,faces,main))
+        pieces.append(mesh('Bib pocket',[(.079,.778,-.035),(.079,.778,.035),(.079,.830,.035),(.079,.830,-.035)],[(0,1,2,3)],dark))
+        pieces.append(tube('Bib pocket stitch',[(.080,.827,-.035),(.080,.827,.035)],.001,ivory,6))
+    if cut in ['overalls','military']:
         for s in [1,-1]:
-            if wid=='overalls':
-                pieces.append(tube('Overall strap',[(.062,.77,s*.052),(.070,.925,s*.052),(.015,1.005,s*.060),(-.058,.94,s*.054)],.012,denim,8))
-            pieces.append(ellipsoid('Patch pocket',(.066,.837,s*.05),(.008,.032,.025),dark,24,16))
-            pieces.append(ellipsoid('Pocket button',(.074,.852,s*.05),(.003,.004,.004),gold,12,8))
-    if wid=='dress':
+            if cut=='overalls':
+                if masculine:
+                    pieces.append(overall_band(s,main))
+                    pieces.append(ellipsoid('Bib fastener',(.082,.884,s*.054),(.002,.004,.004),gold,12,8))
+                else:pieces.append(tube('Overall strap',[(.062,.77,s*.052),(.070,.925,s*.052),(.015,1.005,s*.060),(-.058,.94,s*.054)],.012,denim,8))
+            if masculine:
+                if cut=='military':
+                    pieces.append(mesh('Flat patch pocket',[(.073,.804,s*.05-.021),(.073,.804,s*.05+.021),(.073,.856,s*.05+.021),(.073,.856,s*.05-.021)],[(0,1,2,3)],dark))
+                    pieces.append(tube('Pocket flap stitch',[(.075,.851,s*.05-.021),(.075,.851,s*.05+.021)],.001,ivory,6))
+                    pieces.append(ellipsoid('Pocket button',(.075,.844,s*.05),(.002,.003,.003),gold,12,8))
+            else:
+                pieces.append(ellipsoid('Patch pocket',(.066,.837,s*.05),(.008,.032,.025),dark,24,16))
+                pieces.append(ellipsoid('Pocket button',(.074,.852,s*.05),(.003,.004,.004),gold,12,8))
+    if cut=='dress':
         pieces.append(trim_ring('Waist piping',.706,.059,.090,ivory,r=.003))
         for s in [1,-1]:
             pieces.append(ellipsoid('Waist bow',(.066,.71,s*.017),(.008,.012,.017),ivory,20,12))
-    if wid=='towel':
-        pieces.append(tube('Towel overlap',[(.070,.93,.04),(.071,.71,.045),(.081,.48,.05)],.003,ivory,8))
-    if wid not in ['swim','underwear','nightie','towel','pyjamas']:
-        shoemat=main if wid in ['dress','tubeDress'] else ivory if wid in ['casual','shortsTee','shortsTop'] else charcoal
+    if cut=='towel':
+        pieces.append(tube('Towel overlap',[(.065,.69,.04),(.071,.60,.045),(.081,.48,.05)] if masculine else [(.070,.93,.04),(.071,.71,.045),(.081,.48,.05)],.003,ivory,8))
+    if cut not in ['swim','underwear','nightie','towel','pyjamas']:
+        shoemat=main if cut in ['dress','tubeDress'] else ivory if cut in ['casual','shortsTee','shortsTop'] else charcoal
         for s in [1,-1]:
             z=s*hip
             pieces.append(ellipsoid('Shoe',(.022,.035,z),(.068,.034,.035),shoemat))
             pieces.append(ellipsoid('Sole',(.023,.016,z),(.069,.014,.036),sole))
-            if wid in ['casual','shortsTee','shortsTop']:
+            if masculine and cut in ['overalls','military']:
+                pieces.append(loft('Boot shaft',[(.046,.033,.037,0,z),(.085,.034,.039,0,z),(.14,.035,.039,0,z)],charcoal,32))
+                pieces.append(trim_ring('Boot cuff',.14,.036,.040,sole,z=z,r=.002))
+                for k in range(4):
+                    pieces.append(tube('Boot lace',[(.036,.08+k*.013,z-.020),(.038,.082+k*.013,z+.020)],.0016,sole,6))
+            if cut in ['casual','shortsTee','shortsTop']:
                 for k in range(3):
                     pieces.append(tube('Sneaker lace',[(.020+k*.012,.064-k*.004,z-.023),(.020+k*.012,.067-k*.004,z+.023)],.0019,ivory,6))
     # Weld the shirt and both sleeves before binding, including the armpit.
@@ -782,7 +864,7 @@ for ob in wardrobe:
     col=bpy.data.collections.new('Wardrobe • '+ob['wardrobe']);bpy.context.scene.collection.children.link(col)
     for old in list(ob.users_collection): old.objects.unlink(ob)
     col.objects.link(ob)
-    ob.hide_render=ob['wardrobe']!='casual'; ob.hide_set(ob['wardrobe']!='casual')
+    ob.hide_render=ob['wardrobe']!=DOC['defaultOutfit']; ob.hide_set(ob['wardrobe']!=DOC['defaultOutfit'])
 
 def aim(ob,point):
     ob.rotation_euler=(v(point)-ob.location).to_track_quat('-Z','Y').to_euler()

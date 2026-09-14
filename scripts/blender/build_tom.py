@@ -1,0 +1,4 @@
+"""Build Tom's editable Blender character and all eight wardrobes."""
+import runpy
+from pathlib import Path
+runpy.run_path(str(Path(__file__).with_name('build_male.py')),run_name='__main__',init_globals={'CHARACTER_ID':'tom'})

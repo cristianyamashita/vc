@@ -225,8 +225,11 @@ export class Playback {
         const hidden = frame.stage.hidden.has(id) || frame.stage.hidden.has(entry.placement.group);
         entry.object.visible = !hidden;
         const move = frame.stage.moved.get(id) || frame.stage.moved.get(entry.placement.group);
-        if (move?.at) entry.object.position.set(move.at[0], move.at[1], move.at[2]);
-        if (move?.yaw !== undefined) entry.object.rotation.y = (move.yaw * Math.PI) / 180;
+        // A backward seek can precede this object's first move. Restore the
+        // authored placement instead of retaining the later frame's state.
+        const at = move?.at || entry.placement.at;
+        entry.object.position.set(at[0], at[1], at[2]);
+        entry.object.rotation.y = ((move?.yaw ?? entry.placement.yaw) * Math.PI) / 180;
       }
     }
     if (frame.stage.sky && frame.stage.sky !== this.stage.sky) this.stage.setSky(frame.stage.sky);
@@ -318,9 +321,17 @@ export class Playback {
         this.groupProps.set(item.key, holder);
       }
       holder.visible = true;
-      holder.position.set(item.at[0], item.at[1], item.at[2]);
-      holder.rotation.set(0, item.yaw, item.spin, 'YXZ');
-      holder.scale.setScalar(item.scale);
+      const actor = item.actor && this.actors.get(item.actor);
+      const pivot = item.joint && actor?.userData.pivots?.[item.joint];
+      const parent = pivot || this.stage.content;
+      if (holder.parent !== parent) parent.add(holder);
+      const size = item.bodyScale && actor ? actor.userData.height / 1.76 : 1;
+      holder.position.set(...item.at.map(v => v * size));
+      if(item.offset) holder.children[0].position.set(...item.offset);
+      if (item.rotation) holder.rotation.set(...item.rotation, 'YXZ');
+      else holder.rotation.set(item.spinAxis === 'x' ? item.spin : 0,
+        item.yaw + (item.spinAxis === 'y' ? item.spin : 0), item.spinAxis === 'z' ? item.spin : 0, 'YXZ');
+      holder.scale.setScalar(item.scale * size);
     }
     for (const [key, holder] of this.groupProps) {
       if (!live.has(key)) holder.visible = false;

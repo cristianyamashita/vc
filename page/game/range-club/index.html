@@ -1,0 +1,366 @@
+<!doctype html>
+<html lang="pt" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="theme-color" content="#151c19" />
+    <title>Range Club — 3D</title>
+    <link
+      rel="icon"
+      href="../../assets/icons/ico/game-range-club.ico"
+      type="image/x-icon"
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=DM+Sans:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="../../index.html"
+        ><span class="brand-icon">◎</span
+        ><span
+          >RANGE<span class="brand-thin">CLUB</span
+          ><small data-i18n="brandSub">PRECISÃO. RITMO. NATUREZA.</small></span
+        ></a
+      >
+      <nav class="main-nav">
+        <button class="active" id="range-tab" data-i18n="range">
+          Stand de tiro</button
+        ><button id="armory" data-i18n="armory">Arsenal</button
+        ><button id="help" data-i18n="guide">Como jogar</button>
+      </nav>
+      <div class="top-actions">
+        <span class="wallet">◈ <b id="credits">0</b> <small>CR</small></span
+        ><select id="language" aria-label="Idioma">
+          <option value="pt">PT</option>
+          <option value="en">EN</option>
+          <option value="ja">JA</option></select
+        ><button class="icon-btn" id="theme" data-label="theme">☼</button
+        ><button class="icon-btn" id="sound" data-label="sound">♫</button>
+      </div>
+    </header>
+    <main class="layout">
+      <section class="range-view" id="viewport" aria-label="3D">
+        <div id="scene"></div>
+        <div class="vignette"></div>
+        <div id="loading" class="loading">
+          <span class="loader"></span
+          ><b data-i18n="loading">Preparando o stand…</b>
+          <p id="load-detail"></p>
+          <button id="retry" hidden data-i18n="retry">Tentar novamente</button>
+        </div>
+        <div class="scene-top">
+          <div>
+            <span class="eyebrow"
+              ><i class="live-dot"></i
+              ><span data-i18n="privateRange">SEU STAND PARTICULAR</span></span
+            >
+            <h1 id="scene-title">Bosque de cedros</h1>
+            <p id="scene-description"></p>
+          </div>
+          <button
+            class="icon-btn glass"
+            id="fullscreen"
+            data-label="fullscreen"
+          >
+            ⛶
+          </button>
+        </div>
+        <div class="conditions">
+          <span
+            ><i>↔</i><b id="distance-hud">18 m</b
+            ><small data-i18n="distance">Distância</small></span
+          ><span
+            ><i id="wind-arrow">→</i><b id="wind-hud">2.0 m/s</b
+            ><small data-i18n="wind">Vento lateral</small></span
+          ><span
+            ><i>◎</i><b id="target-hud">Papel</b
+            ><small data-i18n="target">Alvos</small></span
+          >
+        </div>
+        <div id="reticle" hidden><span></span></div>
+        <div id="scope-view" hidden aria-hidden="true">
+          <div class="scope-glass"></div>
+          <div class="scope-crosshair horizontal"></div>
+          <div class="scope-crosshair vertical"></div>
+          <div class="scope-center"></div>
+          <div class="scope-markings">− · · · &nbsp; &nbsp; · · · +</div>
+          <span class="scope-power">4×</span>
+          <span id="scope-distance"></span>
+        </div>
+        <div id="hit-feedback" aria-live="polite"></div>
+        <div id="play-hud" hidden>
+          <div class="round-head">
+            <span id="round-name"></span
+            ><button id="pause" data-i18n="pause">Pausar · Esc</button>
+          </div>
+          <div class="score-strip">
+            <div>
+              <small data-i18n="score">PONTOS</small
+              ><strong id="score">000</strong>
+            </div>
+            <div>
+              <small data-i18n="accuracy">PRECISÃO</small
+              ><strong id="accuracy">—</strong>
+            </div>
+            <div>
+              <small data-i18n="goal">META</small><strong id="goal">120</strong>
+            </div>
+          </div>
+          <div class="goal-track"><i id="goal-bar"></i></div>
+        </div>
+        <div class="scene-bottom" id="preview-caption">
+          <span class="coordinate"
+            >35° 41′ N &nbsp; 139° 41′ E
+            <small data-i18n="virtual">AMBIENTE VIRTUAL</small></span
+          ><span class="preview-pill"
+            ><i class="live-dot"></i
+            ><span data-i18n="preview">PRÉVIA 3D EM TEMPO REAL</span></span
+          >
+        </div>
+        <div class="weapon-hud" id="weapon-hud" hidden>
+          <div>
+            <small id="weapon-kind"></small><strong id="weapon-name"></strong
+            ><span id="ammo"></span>
+          </div>
+          <div class="stamina">
+            <span data-i18n="breath">Fôlego</span>
+            <div><i id="breath-bar"></i></div>
+          </div>
+          <p id="play-hint"></p>
+          <button id="touch-fire" data-i18n="shoot">Disparar</button
+          ><button id="touch-reload" data-i18n="reload">Recarregar</button
+          ><button id="touch-zoom" data-i18n="zoom">Aproximar</button>
+        </div>
+        <div class="pause-overlay" id="paused" hidden>
+          <span class="eyebrow" data-i18n="takeBreath">RESPIRE FUNDO</span>
+          <h2 data-i18n="paused">Sessão pausada</h2>
+          <button class="primary" id="resume" data-i18n="resume">
+            Continuar sessão</button
+          ><button class="secondary" id="leave" data-i18n="leave">
+            Voltar ao clube
+          </button>
+        </div>
+      </section>
+      <aside class="setup" id="setup">
+        <div class="setup-heading">
+          <span class="eyebrow" data-i18n="yourSession">MONTE SUA SESSÃO</span>
+          <h2 data-i18n="findFocus">Encontre seu foco.</h2>
+          <p data-i18n="sessionDesc">
+            Um alvo. Uma respiração. Seu melhor disparo.
+          </p>
+          <button
+            class="text-btn mobile-guide"
+            id="mobile-help"
+            data-i18n="guide"
+          >
+            Como jogar
+          </button>
+        </div>
+        <div class="mode-switch">
+          <button data-mode="free" class="active">
+            <span>∞</span><span data-i18n="free">Diversão</span></button
+          ><button data-mode="tournament">
+            <span>♜</span><span data-i18n="tournament">Torneio</span>
+          </button>
+        </div>
+        <div id="tournament-note" class="tournament-note" hidden></div>
+        <section class="setting">
+          <div class="section-label">
+            <span><em>01</em><span data-i18n="environment">AMBIENTE</span></span
+            ><small data-i18n="threeRanges">3 stands</small>
+          </div>
+          <div class="environment-options">
+            <button class="environment forest active" data-env="forest">
+              <span class="env-art"><i></i><i></i><i></i><i></i></span
+              ><b data-i18n="forest">Bosque</b
+              ><span class="check">✓</span></button
+            ><button class="environment field" data-env="field">
+              <span class="env-art"><i></i><i></i></span
+              ><b data-i18n="field">Campo aberto</b
+              ><span class="check">✓</span></button
+            ><button class="environment indoor" data-env="indoor">
+              <span class="env-art"><i></i><i></i><i></i></span
+              ><b data-i18n="indoor">Interno</b><span class="check">✓</span>
+            </button>
+          </div>
+        </section>
+        <section class="setting">
+          <div class="section-label">
+            <span
+              ><em>02</em><span data-i18n="equipment">EQUIPAMENTO</span></span
+            ><button id="browse-weapons" class="text-btn" data-i18n="viewAll">
+              Ver todos ↗
+            </button>
+          </div>
+          <button class="selected-weapon" id="weapon-card">
+            <svg viewBox="0 0 160 75" aria-hidden="true">
+              <path
+                d="M22 25h91v-6h20v16h-26l-15 4H65l-6 26-24-5 9-25H22z"
+                fill="currentColor"
+              />
+              <rect
+                x="67"
+                y="20"
+                width="27"
+                height="21"
+                rx="8"
+                fill="#647267"
+              />
+              <path
+                d="M68 44h19l-3 10H67"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="4"
+              /></svg
+            ><span
+              ><small id="selected-kind"></small
+              ><strong id="selected-name"></strong
+              ><small id="selected-info"></small></span
+            ><b>›</b>
+          </button>
+        </section>
+        <div class="start-area">
+          <button class="primary" id="start" disabled>
+            <span data-i18n="start">Entrar no stand</span><b>↗</b>
+          </button>
+          <p>
+            <span class="live-dot"></span
+            ><span data-i18n="savedLocal">Progresso salvo neste navegador</span>
+          </p>
+        </div>
+        <section class="setting">
+          <div class="section-label">
+            <span><em>03</em><span data-i18n="targets">ALVOS</span></span
+            ><button
+              id="photos-button"
+              class="text-btn"
+              data-i18n="managePhotos"
+            >
+              Gerenciar fotos ↗
+            </button>
+          </div>
+          <div class="target-options">
+            <button data-target="paper" class="active">
+              <span>◎</span><b data-i18n="paper">Papel</b></button
+            ><button data-target="can">
+              <span>▤</span><b data-i18n="can">Latas</b></button
+            ><button data-target="bottle">
+              <span>♙</span><b data-i18n="bottle">Garrafas</b>
+            </button>
+          </div>
+          <div class="target-upload-card">
+            <div class="target-upload-preview" id="target-upload-preview">
+              <img id="target-upload-image" alt="" hidden />
+              <span id="target-upload-placeholder">＋</span>
+            </div>
+            <div class="target-upload-copy">
+              <small data-i18n="targetImage">IMAGEM DO ALVO</small>
+              <strong id="target-upload-status" data-i18n="noCustomTarget"
+                >Nenhuma imagem enviada</strong
+              >
+              <span data-i18n="uploadTargetHint"
+                >JPG, PNG ou WebP · máx. 10 MB</span
+              >
+            </div>
+            <div class="target-upload-actions">
+              <label class="target-upload-button">
+                <input
+                  id="target-upload"
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  multiple
+                />
+                <span data-i18n="uploadTarget">Enviar imagem</span>
+              </label>
+              <button
+                id="target-remove-photo"
+                class="target-remove-button"
+                type="button"
+                data-i18n="removeImage"
+                hidden
+              >
+                Remover imagem
+              </button>
+            </div>
+          </div>
+          <label class="target-photo-use">
+            <input id="target-use-photos" type="checkbox" checked />
+            <span data-i18n="usePhotos">Usar fotos nos alvos</span>
+          </label>
+        </section>
+        <section class="setting tuning">
+          <div class="slider-label">
+            <label for="distance" data-i18n="distance">Distância</label
+            ><output id="distance-value">18 m</output>
+          </div>
+          <input
+            id="distance"
+            type="range"
+            min="8"
+            max="90"
+            value="18"
+            step="1"
+          />
+          <div class="range-scale"><span>8 m</span><span>90 m</span></div>
+          <div class="slider-label">
+            <label for="wind" data-i18n="wind">Vento lateral</label
+            ><output id="wind-value">2 m/s</output>
+          </div>
+          <input id="wind" type="range" min="0" max="10" value="2" step="0.5" />
+          <div class="toggles">
+            <label
+              ><input type="checkbox" id="moving" /><span data-i18n="moving"
+                >Alvos móveis</span
+              ></label
+            ><label
+              ><input type="checkbox" id="sway" checked /><span data-i18n="sway"
+                >Balanço da arma</span
+              ></label
+            >
+          </div>
+        </section>
+      </aside>
+    </main>
+    <footer class="footer">
+      <span
+        ><kbd data-i18n="mouse">MOUSE</kbd
+        ><span data-i18n="aimShoot">Mirar e disparar</span></span
+      ><span><kbd>R</kbd><span data-i18n="reload">Recarregar</span></span
+      ><span
+        ><kbd>SHIFT</kbd
+        ><span data-i18n="steady">Segurar a respiração</span></span
+      ><span
+        ><kbd data-i18n="space">ESPAÇO</kbd
+        ><span data-i18n="zoom">Aproximar</span></span
+      ><span class="footer-brand">RANGE CLUB <i> / </i> EST. 2026</span>
+    </footer>
+    <dialog id="modal">
+      <div class="modal-header">
+        <span class="eyebrow" id="modal-kicker">RANGE CLUB</span
+        ><button id="close-modal" class="icon-btn" data-label="close">×</button>
+      </div>
+      <div id="modal-body"></div>
+    </dialog>
+    <div id="toast" role="status"></div>
+    <script type="module" src="game.js"></script>
+    <script>
+      setTimeout(() => {
+        if (!window.rangeClub) {
+          document.getElementById("load-detail").textContent =
+            {
+              pt: "Não foi possível carregar o 3D. Verifique a conexão e o suporte a WebGL.",
+              en: "Could not load 3D. Check your connection and WebGL support.",
+              ja: "3Dを読み込めません。接続とWebGL対応をご確認ください。",
+            }[document.documentElement.lang] || "3D unavailable";
+          document.getElementById("retry").hidden = false;
+        }
+      }, 20000);
+      document.getElementById("retry").onclick = () => location.reload();
+    </script>
+  </body>
+</html>

@@ -82,6 +82,15 @@ def slug_from_relpath(rel: str) -> str:
 # --- catalog -----------------------------------------------------------------
 
 ICONS: dict[str, list[Shape]] = {
+    "game-range-club": [
+        c(14, 15, 9, fill=None, stroke=WHITE, sw=2),
+        c(14, 15, 5, fill=None, stroke=WHITE, sw=2),
+        c(14, 15, 1.8),
+        l(6, 28, 10, 24, sw=2), l(22, 28, 18, 24, sw=2),
+        l(18, 11, 27, 4, stroke=DARK, sw=4),
+        l(17, 12, 27, 4, sw=2),
+        p([(22, 4), (28, 3), (27, 9)]),
+    ],
     # Index
     "index": [
         r(6, 6, 8, 8, rad=2),

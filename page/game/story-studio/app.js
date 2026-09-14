@@ -13,6 +13,7 @@ import { Editor } from './js/ui/editor.js';
 import { SetEditor } from './js/ui/setedit.js';
 import { StoryEditor } from './js/ui/storyedit.js';
 import { OutfitEditor } from './js/ui/outfitedit.js';
+import { ActionEditor } from './js/ui/actionedit.js';
 import { PropEditor } from './js/ui/propedit.js';
 import { CHARACTER_MODELS } from './js/cast/models.js';
 import { characterParts } from './js/cast/build.js';
@@ -39,6 +40,7 @@ let setEditor = null;
 let storyEditor = null;
 let outfitEditor = null;
 let propEditor = null;
+let actionEditor = null;
 let currentView = 'library';
 // What is on screen, so the Edit button in the player and the preview has
 // something to open. Watching and editing are the same loop — you play a
@@ -69,7 +71,7 @@ function bootProgress(value) {
 
 function show(view) {
   currentView = view;
-  for (const name of ['library', 'player', 'preview', 'setedit', 'storyedit', 'fitedit', 'propedit']) {
+  for (const name of ['library', 'player', 'preview', 'setedit', 'storyedit', 'fitedit', 'propedit', 'actionedit']) {
     $(`#view-${name}`).hidden = name !== view;
   }
   $('#ss-back').hidden = view === 'library';
@@ -84,10 +86,13 @@ function show(view) {
   else outfitEditor?.stop();
   if (view === 'propedit') propEditor?.start();
   else propEditor?.stop();
+  if (view === 'actionedit') actionEditor?.start();
+  else actionEditor?.stop();
   if (view !== 'library') resize();
 }
 
 function backToLibrary() {
+  if (currentView === 'actionedit' && actionEditor?.dirty && !confirm(t('aeDiscard'))) return;
   clearNotice();
   currentDoc = null;
   playback?.pause();
@@ -208,14 +213,14 @@ async function openPreview(doc) {
  *  Group actions get one body per role. */
 function demoStory(doc) {
   if (['camera', 'cameraFollow', 'stage', 'turn'].includes(doc.type)) return null;
-  const pool = ['leo', 'ana', 'tom', 'mira', 'kai', 'noa', 'sol', 'vic']
+  const pool = ['rui', 'carmen', 'tom', 'lia', 'leo', 'ana', 'mira', 'kai', 'noa', 'sol', 'vic']
     .filter((id) => registry.character(id));
   if (!pool.length) return null;
 
   const roles = doc.category === 'group' ? doc.roles : [{ id: 'solo' }];
   const cast = roles.map((role, i) => ({
     id: role.id,
-    character: pool[i % pool.length],
+    character: registry.character(doc.previewCast?.[role.id]) ? doc.previewCast[role.id] : pool[i % pool.length],
     at: [0, 0, 0],
     yaw: 0,
   }));
@@ -225,11 +230,15 @@ function demoStory(doc) {
     : { actor: 'solo', do: doc.id, for: 8, ...(doc.type === 'speech' ? { text: { en: '…', pt: '…', ja: '…' } } : {}),
       ...(doc.type === 'hold' ? { prop: 'torch' } : {}), ...(doc.type === 'move' ? { to: [3, 0, 0] } : {}) };
 
-  const height = doc.category === 'group' ? 4.4 : 3.2;
+  const points = roles.map(r => r.at || [0, 0, 0]);
+  const min = [0, 1, 2].map(i => Math.min(...points.map(p => p[i])));
+  const max = [0, 1, 2].map(i => Math.max(...points.map(p => p[i])));
+  const center = min.map((v, i) => (v + max[i]) / 2);center[1] += .9;
+  const height = Math.max(3.2, Math.max(...max.map((v, i) => v - min[i])) * .75 + 1);
   return {
     kind: 'story', version: 1, id: `demo.${doc.id}`, name: doc.name,
     set: 'studio',
-    camera: { at: [height, height * 0.55, height], look: [0, 0.9, 0], fov: 44 },
+    camera: { at: [center[0] + height, center[1] + height * .55, center[2] + height], look: center, fov: 44 },
     setEdits: [{ op: 'remove', id: 'mark' }],
     cast,
     timeline: [entry],
@@ -434,6 +443,15 @@ async function openOutfitEditor(doc) {
   resize();
 }
 
+async function openActionEditor(doc) {
+  clearNotice();
+  currentDoc = doc;
+  show('actionedit');
+  window.scrollTo({ top: 0 });
+  await actionEditor.load(doc);
+  resize();
+}
+
 async function openPropEditor(doc) {
   clearNotice();
   currentDoc = doc;
@@ -498,7 +516,7 @@ function resize() {
     : currentView === 'setedit' ? '#ss-edit-stage'
       : currentView === 'storyedit' ? '#ss-story-stage'
         : currentView === 'fitedit' ? '#ss-fit-stage'
-          : currentView === 'propedit' ? '#ss-prop-stage' : '#ss-preview-wrap';
+          : currentView === 'propedit' ? '#ss-prop-stage' : currentView === 'actionedit' ? '#ss-action-stage' : '#ss-preview-wrap';
   const stage = $(id);
   if (!stage) return;
   const rect = stage.getBoundingClientRect();
@@ -507,6 +525,7 @@ function resize() {
   else if (currentView === 'storyedit') storyEditor?.resize(rect.width, rect.height);
   else if (currentView === 'fitedit') outfitEditor?.resize(rect.width, rect.height);
   else if (currentView === 'propedit') propEditor?.resize(rect.width, rect.height);
+  else if (currentView === 'actionedit') actionEditor?.resize(rect.width, rect.height);
   else viewer?.resize(rect.width, rect.height);
 }
 
@@ -528,6 +547,7 @@ async function main() {
     libraryView?.render();
     transport?.sync();
     propEditor?.refreshLanguage();
+    actionEditor?.translate();
   });
   $('#themeBtn').addEventListener('click', () => {
     toggleTheme();
@@ -623,11 +643,24 @@ async function main() {
     },
   });
 
+  actionEditor = new ActionEditor($('#view-actionedit'), {
+    registry,
+    onSave: async (doc) => {
+      const saved = await saveAll([doc], registry.actionMap());
+      if (!saved.length) { notice(t('storageOff'), 'warn'); return; }
+      await registry.loadUser();
+      actionEditor.dirty = false;
+      backToLibrary();
+      notice(t('aeSaved', { id: doc.id }));
+    },
+    onCancel: backToLibrary,
+  });
+
   libraryView = new LibraryView($('#view-library'), {
     registry,
     onOpen: (doc) => (doc.kind === 'story' ? openStory(doc) : openPreview(doc)),
     onEdit: openEditor,
-    onVisualEdit: (doc) => (doc.kind === 'outfit' ? openOutfitEditor(doc) : doc.kind === 'prop' ? openPropEditor(doc) : openSetEditor(doc)),
+    onVisualEdit: (doc) => (doc.kind === 'action' ? openActionEditor(doc) : doc.kind === 'outfit' ? openOutfitEditor(doc) : doc.kind === 'prop' ? openPropEditor(doc) : openSetEditor(doc)),
     onStoryEdit: openStoryEditor,
     onDuplicate: duplicate,
     onExport: (doc) => download(`${doc.kind}-${doc.id}.json`, toJson(doc)),
@@ -647,6 +680,7 @@ async function main() {
       await registry.loadUser();
       libraryView.render();
     },
+    onNewAction: () => openActionEditor({ kind: 'action', version: 1, id: `action-${Date.now().toString(36)}`, name: { en: 'New movement', pt: 'Novo movimento', ja: '新しい動き' }, category: 'solo', type: 'overlay', pose: 'stand', duration: 4, joints: [], root: [], props: [] }),
     onNewProp: async () => {
       const id = `object-${Date.now().toString(36)}`;
       const doc = { kind: 'prop', version: 1, id, name: { en: 'New object', pt: 'Novo objeto', ja: '新しい物体' }, source: { type: 'boxes', boxes: [{ w: 1, h: 1, d: 1, x: 0, y: .5, z: 0, color: '#4fd1c5' }] }, footprint: [1, 1] };
@@ -703,6 +737,9 @@ async function main() {
     await acceptDocuments(await readFile(file, registry.actionMap()));
   });
 
+  addEventListener('beforeunload', (e) => {
+    if (currentView === 'actionedit' && actionEditor?.dirty) { e.preventDefault(); e.returnValue = ''; }
+  });
   addEventListener('resize', resize);
   addEventListener('keydown', (e) => {
     if (e.target.matches('input, textarea, select')) return;
