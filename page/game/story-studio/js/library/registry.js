@@ -24,14 +24,28 @@ const FOLDER = {
 // things that name them second, and stories last.
 const LOAD_ORDER = [['outfit'], ['character', 'prop', 'set', 'action', 'position'], ['story', 'staticStory']];
 
-/** Men and boys first, then women and girls; tallest to shortest within each. */
-const MALE_BASES = new Set(['man', 'boy']);
+/** Men, boys, women, girls — separate bands, tallest to shortest within each. */
+const BASE_RANK = { man: 0, boy: 1, child: 1, woman: 2, girl: 3 };
+export const CHARACTER_GROUPS = [
+  { id: 'man', labelKey: 'baseMan' },
+  { id: 'boy', labelKey: 'baseBoy' },
+  { id: 'woman', labelKey: 'baseWoman' },
+  { id: 'girl', labelKey: 'baseGirl' },
+];
+
+export function characterGroup(base) {
+  if (base === 'boy' || base === 'child') return 'boy';
+  if (base === 'woman') return 'woman';
+  if (base === 'girl') return 'girl';
+  return 'man';
+}
+
 function compareCharacters(a, b) {
   const da = a.doc;
   const db = b.doc;
-  const maleA = MALE_BASES.has(da.base) ? 0 : 1;
-  const maleB = MALE_BASES.has(db.base) ? 0 : 1;
-  if (maleA !== maleB) return maleA - maleB;
+  const rankA = BASE_RANK[da.base] ?? 9;
+  const rankB = BASE_RANK[db.base] ?? 9;
+  if (rankA !== rankB) return rankA - rankB;
   const ha = da.height ?? 0;
   const hb = db.height ?? 0;
   if (hb !== ha) return hb - ha;

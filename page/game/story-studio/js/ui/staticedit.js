@@ -10,6 +10,7 @@ import { localised, t } from '../i18n.js';
 import { validate } from '../script/schema.js';
 import { SKY_NAMES } from '../render/stage.js';
 import { toHex } from '../render/geometry.js';
+import { CHARACTER_GROUPS, characterGroup } from '../library/registry.js';
 
 const DEG = Math.PI / 180;
 const VIEW_STORE = 'storyStudio.staticView';
@@ -823,28 +824,42 @@ export class StaticStoryEditor {
     const list = this.registry.list(this.tab)
       .filter(({ doc }) => !q || doc.id.includes(q) || localised(doc.name, doc.id).toLowerCase().includes(q));
     this.paletteEl.innerHTML = '';
-    for (const { doc } of list) {
-      const item = document.createElement('button');
-      item.className = 'ss-pal-item';
-      item.draggable = true;
-      item.title = `${localised(doc.name, doc.id)} — ${doc.id}`;
-      const img = document.createElement('img');
-      img.alt = '';
-      img.dataset.thumb = `${this.tab}:${doc.id}`;
-      const label = document.createElement('span');
-      label.textContent = localised(doc.name, doc.id);
-      item.append(img, label);
-      item.addEventListener('dragstart', (e) => {
-        e.dataTransfer.setData('text/plain', `${this.tab}:${doc.id}`);
-        e.dataTransfer.effectAllowed = 'copy';
-      });
-      item.addEventListener('click', () => {
-        if (this.tab === CHAR_ROW) this.addCharacter(doc.id, [0, 0, 0]);
-        else this.addObject(doc.id, [0, 0, 0]);
-      });
-      this.paletteEl.appendChild(item);
+    if (this.tab === CHAR_ROW) {
+      for (const group of CHARACTER_GROUPS) {
+        const members = list.filter(({ doc }) => characterGroup(doc.base) === group.id);
+        if (!members.length) continue;
+        const head = document.createElement('div');
+        head.className = 'ss-pal-group';
+        head.textContent = t(group.labelKey);
+        this.paletteEl.appendChild(head);
+        for (const { doc } of members) this.appendPalItem(doc);
+      }
+    } else {
+      for (const { doc } of list) this.appendPalItem(doc);
     }
     this.fillThumbs();
+  }
+
+  appendPalItem(doc) {
+    const item = document.createElement('button');
+    item.className = 'ss-pal-item';
+    item.draggable = true;
+    item.title = `${localised(doc.name, doc.id)} — ${doc.id}`;
+    const img = document.createElement('img');
+    img.alt = '';
+    img.dataset.thumb = `${this.tab}:${doc.id}`;
+    const label = document.createElement('span');
+    label.textContent = localised(doc.name, doc.id);
+    item.append(img, label);
+    item.addEventListener('dragstart', (e) => {
+      e.dataTransfer.setData('text/plain', `${this.tab}:${doc.id}`);
+      e.dataTransfer.effectAllowed = 'copy';
+    });
+    item.addEventListener('click', () => {
+      if (this.tab === CHAR_ROW) this.addCharacter(doc.id, [0, 0, 0]);
+      else this.addObject(doc.id, [0, 0, 0]);
+    });
+    this.paletteEl.appendChild(item);
   }
 
   fillThumbs() {
