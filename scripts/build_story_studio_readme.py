@@ -29,7 +29,9 @@ FOLDER = {
     "prop": "props",
     "set": "sets",
     "action": "actions",
+    "position": "positions",
     "story": "stories",
+    "staticStory": "static-stories",
 }
 
 
@@ -38,6 +40,16 @@ def load(kind: str) -> list[dict]:
     out = []
     for name in index[FOLDER[kind]]:
         out.append(json.loads((DATA / FOLDER[kind] / name).read_text()))
+    if kind == "character":
+        male = {"man", "boy"}
+        return sorted(
+            out,
+            key=lambda d: (
+                0 if d.get("base") in male else 1,
+                -(d.get("height") or 0),
+                d["id"],
+            ),
+        )
     return sorted(out, key=lambda d: d["id"])
 
 
@@ -184,6 +196,26 @@ def stories() -> list[str]:
     return rows
 
 
+def positions() -> list[str]:
+    rows = ["| id | pose | joints | root | sits/lies on |", "|---|---|---|---|---|"]
+    for d in load("position"):
+        sits = d.get("anchor") or "—"
+        rows.append(
+            f"| `{d['id']}` | `{d.get('pose', 'stand')}` | {len(d.get('joints') or [])} | "
+            f"{len(d.get('root') or [])} | {sits} |"
+        )
+    return rows
+
+
+def static_stories() -> list[str]:
+    rows = ["| id | pages | sets |", "|---|---|---|"]
+    for d in load("staticStory"):
+        pages = d.get("pages") or []
+        sets = " ".join(f"`{p.get('set', '—')}`" for p in pages) or "—"
+        rows.append(f"| `{d['id']}` | {len(pages)} | {sets} |")
+    return rows
+
+
 def main() -> None:
     block = [
         START,
@@ -223,9 +255,23 @@ def main() -> None:
         "",
         *actions(),
         "",
+        "### Positions",
+        "",
+        "A position is one still pose: a base plus const joint/root offsets,"
+        " with no timeline. Static-story pages name these instead of actions.",
+        "",
+        *positions(),
+        "",
         "### Stories",
         "",
         *stories(),
+        "",
+        "### Static stories",
+        "",
+        "Each page has its own set, camera, sky and placements. Hidden pages"
+        " stay in the editor and are skipped in the book.",
+        "",
+        *static_stories(),
         "",
         END,
     ]

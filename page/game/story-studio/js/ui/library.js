@@ -6,15 +6,23 @@ import { t, localised } from '../i18n.js';
 // section.
 
 export const TABS = [
+  { kind: 'staticStory', labelKey: 'staticStories' },
   { kind: 'story', labelKey: 'stories' },
   { kind: 'character', labelKey: 'characters' },
   { kind: 'prop', labelKey: 'props' },
   { kind: 'set', labelKey: 'sets' },
   { kind: 'outfit', labelKey: 'outfits' },
+  { kind: 'position', labelKey: 'positions' },
   { kind: 'action', labelKey: 'actions' },
 ];
 
 function summarise(doc) {
+  if (doc.kind === 'staticStory') {
+    return `${doc.pages.length} ${t('pagesLabel').toLowerCase()} · ${doc.pages[0]?.set || '—'}`;
+  }
+  if (doc.kind === 'position') {
+    return doc.pose || 'stand';
+  }
   if (doc.kind === 'story') {
     return `${doc.cast.length} ${t('castLabel').toLowerCase()} · ${doc.timeline.length} ${t('actionsLabel').toLowerCase()}`;
   }
@@ -52,11 +60,11 @@ function summarise(doc) {
 }
 
 export class LibraryView {
-  constructor(root, { registry, onOpen, onExport, onExportGlb, onExportBundle, onEdit, onVisualEdit, onStoryEdit, onDuplicate, onDelete, onNewProp, onNewAction }) {
+  constructor(root, { registry, onOpen, onExport, onExportGlb, onExportBundle, onEdit, onVisualEdit, onStoryEdit, onDuplicate, onDelete, onNewProp, onNewAction, onNewStaticStory, onNewPosition }) {
     this.root = root;
     this.registry = registry;
-    this.handlers = { onOpen, onExport, onExportGlb, onExportBundle, onEdit, onVisualEdit, onStoryEdit, onDuplicate, onDelete, onNewProp, onNewAction };
-    this.tab = 'story';
+    this.handlers = { onOpen, onExport, onExportGlb, onExportBundle, onEdit, onVisualEdit, onStoryEdit, onDuplicate, onDelete, onNewProp, onNewAction, onNewStaticStory, onNewPosition };
+    this.tab = 'staticStory';
     this.tabsEl = root.querySelector('.ss-tabs');
     this.listEl = root.querySelector('.ss-list');
 
@@ -82,6 +90,12 @@ export class LibraryView {
       const b = document.createElement('button'); b.className = 'ss-new-inline'; b.textContent = `＋ ${t('propNew')}`; b.onclick = this.handlers.onNewProp; this.tabsEl.appendChild(b);
     }
 
+    if (this.tab === 'staticStory' && this.handlers.onNewStaticStory) {
+      const b = document.createElement('button'); b.className = 'ss-new-inline'; b.textContent = `＋ ${t('staticNew')}`; b.onclick = this.handlers.onNewStaticStory; this.tabsEl.appendChild(b);
+    }
+    if (this.tab === 'position' && this.handlers.onNewPosition) {
+      const b = document.createElement('button'); b.className = 'ss-new-inline'; b.textContent = `＋ ${t('posNew')}`; b.onclick = this.handlers.onNewPosition; this.tabsEl.appendChild(b);
+    }
     if (this.tab === 'action' && this.handlers.onNewAction) {
       const b = document.createElement('button'); b.className = 'ss-new-inline'; b.textContent = `＋ ${t('aeNew')}`; b.onclick = this.handlers.onNewAction; this.tabsEl.appendChild(b);
     }
@@ -140,18 +154,18 @@ export class LibraryView {
       actions.appendChild(b);
       return b;
     };
-    add(doc.kind === 'story' ? t('play') : t('preview'), 'ss-primary', this.handlers.onOpen);
+    add((doc.kind === 'story' || doc.kind === 'staticStory') ? t('play') : t('preview'), 'ss-primary', this.handlers.onOpen);
     add(t('edit'), '', this.handlers.onEdit);
     // A set is a floor plan, and typing coordinates is a poor way to lay one
     // out, so it gets the mouse as well as the JSON.
-    if ((doc.kind === 'action' && (doc.category === 'group' || ['overlay', 'posture', 'move'].includes(doc.type))) || doc.kind === 'set' || doc.kind === 'outfit' || (doc.kind === 'prop' && doc.source?.type === 'boxes')) add(t('visualEdit'), '', this.handlers.onVisualEdit);
-    if (doc.kind === 'story') add(t('storyEdit'), '', this.handlers.onStoryEdit);
+    if ((doc.kind === 'action' && (doc.category === 'group' || ['overlay', 'posture', 'move'].includes(doc.type))) || doc.kind === 'set' || doc.kind === 'outfit' || doc.kind === 'position' || (doc.kind === 'prop' && doc.source?.type === 'boxes')) add(t('visualEdit'), '', this.handlers.onVisualEdit);
+    if (doc.kind === 'story' || doc.kind === 'staticStory') add(t('storyEdit'), '', this.handlers.onStoryEdit);
     // Next to Edit, because that is what it is for: a copy is where you edit
     // without losing the thing that already worked.
     add(t('duplicate'), '', this.handlers.onDuplicate);
     add(t('export'), '', this.handlers.onExport);
     if ((doc.kind === 'prop' || doc.kind === 'character') && this.handlers.onExportGlb) add(t('exportGlb'), '', this.handlers.onExportGlb);
-    if (doc.kind === 'story') add(t('exportBundle'), '', this.handlers.onExportBundle);
+    if (doc.kind === 'story' || doc.kind === 'staticStory') add(t('exportBundle'), '', this.handlers.onExportBundle);
     if (source === 'user') add(t('remove'), 'ss-danger', this.handlers.onDelete);
     el.appendChild(actions);
     return el;

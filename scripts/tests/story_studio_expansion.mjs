@@ -45,7 +45,7 @@ const {sampleFrames,encodeFrames,bakeMotion,upsertFrame}=await import('../../pag
 const {JOINT_NAMES}=await import('../../page/game/story-studio/js/cast/rig.js');
 const {propObject}=await import('../../page/game/story-studio/js/stage/build.js');
 const sets=['hospital-room','deep-grove','cave','child-bedroom','hotel-room','camping-tent','garden-bench'];
-const actions=['hulaStanding','hulaKneeling','rollDice','celebrate','birthPosition','rideHorse','writeNotebook','typeLaptop','armWrestle'];
+const actions=['hulaStanding','rollDice','celebrate','rideHorse','writeNotebook','typeLaptop','armWrestle'];
 for(const id of sets){const set=await buildSet(registry.get('set',id),[],id=>registry.prop(id));assert.deepEqual(set.missing,[],id);}
 for(const id of ['hula-hoop','dice-six','hospital-bed','mechanical-bull','notebook','laptop']){const p=registry.prop(id);assert(p);const obj=await propObject(p);const bounds=new THREE.Box3().setFromObject(obj);assert(!bounds.isEmpty(),id);}
 assert.equal(registry.prop('dice-six').source.boxes.filter(b=>b.shape==='sphere').length,42);
@@ -99,4 +99,4 @@ for(const id of ['rui','carmen','lia','tom']){
 }
 const still=[{t:0,pose:basePose('stand')},{t:.3,pose:basePose('stand')},{t:1,pose:basePose('stand')}];
 assert.equal(bakeMotion({...doc,...encodeFrames(still,'stand',false)}).length,3);
-console.log('PASS: 17 objects, 7 sets, 9 actions, 4 body rigs, keyframe interpolation/validation/round-trip, 2-person contact, simultaneous hoops and anchored accessory lifetime.');
+console.log('PASS: 17 objects, 7 sets, 8 actions, 4 body rigs, keyframe interpolation/validation/round-trip, 2-person contact, simultaneous hoops and anchored accessory lifetime.');

@@ -20,29 +20,28 @@ Blender source link resolves to the selected character's own file.
 [Tom](models/tom/README.md) (`tom-v1`, boy, 8 outfits) share the connected rig
 construction with separate body proportions and short hairstyles.
 
-## Kitchen dinner
+## Kitchen
 
 The `kitchen` set includes a stove and oven, sink and running-water prop,
 refrigerator, preparation counters and a central dining table with four chairs.
-The 65-second `kitchen-family-dinner` story casts the Blender versions of Rui,
-Carmen, Lia and Tom: chopping vegetables, stirring pasta, washing ingredients,
-mixing salad, bringing the dishes over and eating together. Names and dialogue
-are available in EN, PT and JA.
+Reusable props and actions cover chopping, stirring, carrying dishes and eating
+while seated. Names and dialogue on the sample film are available in EN, PT and
+JA. The dinner film itself is kept under `_local/stories/` for now and is not
+part of the shipped library index.
 
-The 27 new objects and eight actions are ordinary reusable library documents.
+The objects and actions are ordinary reusable library documents.
 `carryDishTo` combines walking legs with steady arms, and `eatMeal` is a gesture
 that preserves the actor's seated posture. Use `sit` on a chair before it.
 The food changes are authored stage events; there is no cooking simulation.
 
-To regenerate this content and its catalogue, or verify the four rigs, tool
-contacts, seating, timeline seeking and existing story compilation:
+To regenerate the kitchen documents and catalogue, or verify the four rigs, tool
+contacts, seating, timeline seeking and the local dinner film:
 
 ```bash
 python3 scripts/build_story_studio_kitchen.py
 python3 scripts/build_story_studio_readme.py
 node scripts/tests/story_studio_kitchen.mjs
 ```
-
 ## Conventions
 
 Everything below assumes these. They are the things that are easy to get
@@ -62,16 +61,18 @@ Anything out of range is clamped and reported; anything malformed is refused
 with the field path that caused it. Nothing is ever executed — an action is
 data, not code, so importing a document from a stranger cannot run anything.
 
-## The seven kinds
+## The nine kinds
 
 ```
-character   a person: body plan, height, build, colouring, wardrobe
-outfit      clothes: how they are cut, how they fit, how they are painted
-prop        an object: a chair, a house, a torch you can carry
-set         a place: ground, sky, light, and props placed in it
-action      a thing a body can do: walk, sit, skip a rope with two friends
-story       a set, a cast, and a timeline of actions
-bundle      several of the above in one file
+character    a person: body plan, height, build, colouring, wardrobe
+outfit       clothes: how they are cut, how they fit, how they are painted
+prop         an object: a chair, a house, a torch you can carry
+set          a place: ground, sky, light, and props placed in it
+action       a thing a body can do: walk, sit, skip a rope with two friends
+position     a still pose: a base plus const joint offsets, no time
+story        a set, a cast, and a timeline of actions
+staticStory  a comic of still pages: each page has its own set, camera, cast
+bundle       several of the above in one file
 ```
 
 **Actions and outfits are documents too**, so the vocabulary of the app is
@@ -81,7 +82,7 @@ it, and export either for someone else to use.
 Every document starts the same way:
 
 ```json
-{ "kind": "story", "version": 1, "id": "pool-afternoon",
+{ "kind": "story", "version": 1, "id": "pool-ball",
   "name": { "en": "…", "pt": "…", "ja": "…" } }
 ```
 
@@ -488,8 +489,8 @@ seat somebody has to sit in squarely.
 
 ```json
 {
-  "kind": "story", "version": 1, "id": "pool-afternoon",
-  "name": { "en": "An afternoon by the pool" },
+  "kind": "story", "version": 1, "id": "pool-ball",
+  "name": { "en": "Pool ball" },
   "set": "backyard",
   "camera": { "at": [7.5, 3.1, 7.0], "look": [-0.5, 1.1, 3.0], "fov": 44 },
   "setEdits": [
@@ -593,9 +594,9 @@ moves `glide` and they become one continuous travel:
 
 **Both ends of a leg have to be marked**, so `glide` describes a run rather
 than a single point: the first and last moves still ease, and everything
-between them holds a steady pace. `office-walkthrough` is the worked example —
-it walks out of an open-plan room, through a doorway, once round a meeting
-table and onto the presenter at the board.
+between them holds a steady pace. A continuous travel through several rooms is
+written that way: each leg shares `glide: true` except the open and close of
+the whole run.
 
 `cut` changes framing instantly instead of travelling. `cameraFollow` keeps
 the camera aimed at an actor while its position keyframes carry on.
@@ -639,6 +640,72 @@ underneath, so an actor can wave while seated.
 ```json
 { "actor": "ana", "do": "walkTo", "to": [3, 0, 2], "via": [[-2, 0, 4.6]] }
 ```
+
+## `position`
+
+A still pose with no clock. Static-story pages name these the way animated
+stories name actions. Joint and root channels are const offsets only — no
+waves, no keys.
+
+```json
+{
+  "kind": "position",
+  "version": 1,
+  "id": "sit",
+  "name": { "en": "Sit", "pt": "Sentar", "ja": "座る" },
+  "pose": "sit",
+  "joints": [{ "joint": "chest", "axis": "z", "offset": -0.10 }],
+  "root": [],
+  "anchor": "seat",
+  "seatLift": "set"
+}
+```
+
+`anchor` / `seatLift` are kept for sitting and lying so a page can still
+place someone on a chair or a bed. `previewCast.solo` is who the library
+preview dresses.
+
+## `staticStory`
+
+A comic of still 3D pages. There is no shared timeline: each page owns its
+set, sky, light, camera, cast, props and optional light points. The camera is
+a posed object (`at` + `yaw` / `pitch`) and looks along its forward axis.
+Light points illuminate the page but have no mesh: their markers appear only
+in the visual editor. Hidden pages stay in the editor strip and are skipped
+in the book.
+
+```json
+{
+  "kind": "staticStory",
+  "version": 1,
+  "id": "volley-three",
+  "name": { "en": "Six a side" },
+  "pages": [
+    {
+      "id": "p1",
+      "hidden": false,
+      "set": "volley-court",
+      "sky": "day",
+      "light": { "intensity": 1 },
+      "camera": { "at": [0.9, 2.35, -7.4], "yaw": 173, "pitch": -5, "fov": 50 },
+      "cast": [{
+        "id": "noa",
+        "character": "noa",
+        "outfit": "casual",
+        "position": "ready",
+        "at": [-3.2, 0, 0],
+        "yaw": -90,
+        "text": "Here it comes!",
+        "balloon": "say"
+      }],
+      "props": [{ "id": "ball", "prop": "volleyball", "at": [-2.65, 1.05, 0], "yaw": 0, "scale": 1.25 }],
+      "lamps": [{ "id": "fill", "at": [0, 2.4, -2], "color": "#ffd9a0", "intensity": 2, "distance": 10 }]
+    }
+  ]
+}
+```
+
+Cast `joints` are optional per-page overrides on top of the named Position.
 
 ## `action`
 
@@ -1097,7 +1164,7 @@ action, and `via` waypoints. Those are still the JSON panel's, which remains
 the interface that can do everything.
 
 **Duplicate** sits next to Edit on every card. It saves a copy under a free id
-— `camp-night` becomes `camp-night-copy`, then `-copy-2` — marks the name as a
+— `volley-match` becomes `volley-match-copy`, then `-copy-2` — marks the name as a
 copy in all three languages, and opens it in the editor, which is the only
 reason anyone duplicates anything. The copy is a document of its own, not an
 override: keeping the id would shadow the original everywhere instead of
@@ -1113,9 +1180,10 @@ saves the document to your own library and starts it again from the top.
 
 ## Two stories worth reading first
 
-`rig-check` walks one character through every pose in turn. `playground` uses
-the group actions and the held props together. Between them they exercise most
-of the vocabulary, and both are in `data/stories/`.
+`tom-blender` walks one Blender character through many poses. `volley-match`
+and `pool-ball` use group actions, held props and continuous camera travel.
+Between them they exercise most of the vocabulary, and all three are in
+`data/stories/`.
 
 Every action also has a **Preview** in the library that performs it on the
 empty stage, casting a body per role, so an action you write can be watched
@@ -1145,28 +1213,28 @@ _Generated by `scripts/build_story_studio_readme.py`. Run it after adding docume
 
 | id | plan | height | build | bust | hair | outfits |
 |---|---|---|---|---|---|---|
-| `ana` | woman | 1.68 m | 0.45 | default | long 0.62 | `casual` `dress` `swim` `work` `shirt` `overalls` `pyjamas` `nightie` `underwear` `towel` `tubeDress` `shortsTop` `military` |
-| `bel` | girl | 1.14 m | 0.52 | default | bob 0.3 | `casual` `dress` `swim` `shortsTee` `suit` `shirt` `overalls` `pyjamas` `nightie` `towel` `tubeDress` `shortsTop` `military` |
-| `beto` | man | 1.66 m | 0.82 | — | bun 0.35 | `casual` `overalls` `shirt` `shortsTee` `suit` `swim` `pyjamas` `towel` `military` |
-| `bia` | woman | 1.64 m | 0.86 | 0.72 | bun 0.35 | `casual` `nightie` `underwear` `dress` `shortsTee` `suit` `shirt` `swimsuit` `overalls` `pyjamas` `towel` `tubeDress` `shortsTop` `military` |
-| `carmen` | woman | 1.67 m | 0.52 | 0.92 | wavy 0.6 | `casual` `nightie` `underwear` `swim` `shortsTee` `suit` `dress` `shirt` `overalls` `pyjamas` `towel` `tubeDress` `shortsTop` `military` |
-| `dado` | boy | 1.38 m | 0.58 | — | buzz | `casual` `swim` `pyjamas` `shortsTee` `suit` `shirt` `overalls` `towel` `military` |
-| `duda` | girl | 1.26 m | 0.36 | 0.06 | pigtails 0.5 | `casual` `nightie` `swim` `shortsTee` `suit` `dress` `shirt` `overalls` `pyjamas` `towel` `tubeDress` `shortsTop` `military` |
-| `elza` | woman | 1.63 m | 0.6 | default | bun 0.3 | `casual` `dress` `pyjamas` `shortsTee` `suit` `shirt` `swimsuit` `overalls` `nightie` `underwear` `towel` `tubeDress` `shortsTop` `military` |
-| `kai` | man | 1.78 m | 0.46 | — | ponytail 0.45 | `casual` `shirt` `swim` `suit` `overalls` `pyjamas` `towel` `military` |
-| `lena` | woman | 1.71 m | 0.14 | 0.18 | long 0.82 | `casual` `nightie` `underwear` `work` `shortsTee` `dress` `shirt` `swimsuit` `overalls` `pyjamas` `towel` `tubeDress` `shortsTop` `military` |
-| `leo` | man | 1.81 m | 0.55 | — | short | `casual` `work` `swim` `shirt` `pyjamas` `shortsTee` `overalls` `towel` `military` |
-| `lia` | girl | 1.27 m | 0.46 | default | braid 0.6 | `casual` `dress` `swim` `suit` `shirt` `overalls` `pyjamas` `nightie` `towel` `tubeDress` `shortsTop` `military` |
-| `mira` | woman | 1.59 m | 0.7 | default | bob 0.3 | `casual` `dress` `swim` `pyjamas` `shortsTee` `suit` `shirt` `overalls` `nightie` `underwear` `towel` `tubeDress` `shortsTop` `military` |
-| `nina` | woman | 1.7 m | 0.5 | default | braid 0.75 | `casual` `work` `swim` `dress` `shirt` `overalls` `pyjamas` `nightie` `underwear` `towel` `tubeDress` `shortsTop` `military` |
-| `noa` | girl | 1.06 m | 0.5 | default | pigtails 0.5 | `casual` `dress` `swim` `suit` `shirt` `overalls` `pyjamas` `nightie` `towel` `tubeDress` `shortsTop` `military` |
-| `pip` | girl | 1.31 m | 0.44 | default | long 0.7 | `casual` `dress` `swim` `shortsTee` `suit` `shirt` `overalls` `pyjamas` `nightie` `towel` `tubeDress` `shortsTop` `military` |
-| `ravi` | boy | 1.18 m | 0.46 | — | crop | `casual` `swim` `pyjamas` `suit` `shirt` `overalls` `towel` `military` |
 | `rui` | man | 1.86 m | 0.62 | — | crop | `work` `casual` `shirt` `shortsTee` `suit` `swim` `pyjamas` `towel` `military` |
-| `sol` | woman | 1.74 m | 0.38 | default | afro | `casual` `work` `overalls` `swim` `shortsTee` `dress` `shirt` `pyjamas` `nightie` `underwear` `towel` `tubeDress` `shortsTop` `military` |
-| `tom` | boy | 1.22 m | 0.42 | — | crop | `casual` `swim` `pyjamas` `suit` `shirt` `overalls` `towel` `military` |
+| `leo` | man | 1.81 m | 0.55 | — | short | `casual` `work` `swim` `shirt` `pyjamas` `shortsTee` `overalls` `towel` `military` |
+| `kai` | man | 1.78 m | 0.46 | — | ponytail 0.45 | `casual` `shirt` `swim` `suit` `overalls` `pyjamas` `towel` `military` |
 | `vic` | man | 1.72 m | 0.28 | — | buzz | `casual` `shirt` `pyjamas` `shortsTee` `suit` `swim` `overalls` `towel` `military` |
+| `beto` | man | 1.66 m | 0.82 | — | bun 0.35 | `casual` `overalls` `shirt` `shortsTee` `suit` `swim` `pyjamas` `towel` `military` |
+| `dado` | boy | 1.38 m | 0.58 | — | buzz | `casual` `swim` `pyjamas` `shortsTee` `suit` `shirt` `overalls` `towel` `military` |
 | `zeca` | boy | 1.34 m | 0.5 | — | short | `casual` `swim` `pyjamas` `shortsTee` `suit` `shirt` `overalls` `towel` `military` |
+| `tom` | boy | 1.22 m | 0.42 | — | crop | `casual` `swim` `pyjamas` `suit` `shirt` `overalls` `towel` `military` |
+| `ravi` | boy | 1.18 m | 0.46 | — | crop | `casual` `swim` `pyjamas` `suit` `shirt` `overalls` `towel` `military` |
+| `sol` | woman | 1.74 m | 0.38 | default | afro | `casual` `work` `overalls` `swim` `shortsTee` `dress` `shirt` `pyjamas` `nightie` `underwear` `towel` `tubeDress` `shortsTop` `military` |
+| `lena` | woman | 1.71 m | 0.14 | 0.18 | long 0.82 | `casual` `nightie` `underwear` `work` `shortsTee` `dress` `shirt` `swimsuit` `overalls` `pyjamas` `towel` `tubeDress` `shortsTop` `military` |
+| `nina` | woman | 1.7 m | 0.5 | default | braid 0.75 | `casual` `work` `swim` `dress` `shirt` `overalls` `pyjamas` `nightie` `underwear` `towel` `tubeDress` `shortsTop` `military` |
+| `ana` | woman | 1.68 m | 0.45 | default | long 0.62 | `casual` `dress` `swim` `work` `shirt` `overalls` `pyjamas` `nightie` `underwear` `towel` `tubeDress` `shortsTop` `military` |
+| `carmen` | woman | 1.67 m | 0.52 | 0.92 | wavy 0.6 | `casual` `nightie` `underwear` `swim` `shortsTee` `suit` `dress` `shirt` `overalls` `pyjamas` `towel` `tubeDress` `shortsTop` `military` |
+| `bia` | woman | 1.64 m | 0.86 | 0.72 | bun 0.35 | `casual` `nightie` `underwear` `dress` `shortsTee` `suit` `shirt` `swimsuit` `overalls` `pyjamas` `towel` `tubeDress` `shortsTop` `military` |
+| `elza` | woman | 1.63 m | 0.6 | default | bun 0.3 | `casual` `dress` `pyjamas` `shortsTee` `suit` `shirt` `swimsuit` `overalls` `nightie` `underwear` `towel` `tubeDress` `shortsTop` `military` |
+| `mira` | woman | 1.59 m | 0.7 | default | bob 0.3 | `casual` `dress` `swim` `pyjamas` `shortsTee` `suit` `shirt` `overalls` `nightie` `underwear` `towel` `tubeDress` `shortsTop` `military` |
+| `pip` | girl | 1.31 m | 0.44 | default | long 0.7 | `casual` `dress` `swim` `shortsTee` `suit` `shirt` `overalls` `pyjamas` `nightie` `towel` `tubeDress` `shortsTop` `military` |
+| `lia` | girl | 1.27 m | 0.46 | default | braid 0.6 | `casual` `dress` `swim` `suit` `shirt` `overalls` `pyjamas` `nightie` `towel` `tubeDress` `shortsTop` `military` |
+| `duda` | girl | 1.26 m | 0.36 | 0.06 | pigtails 0.5 | `casual` `nightie` `swim` `shortsTee` `suit` `dress` `shirt` `overalls` `pyjamas` `towel` `tubeDress` `shortsTop` `military` |
+| `bel` | girl | 1.14 m | 0.52 | default | bob 0.3 | `casual` `dress` `swim` `shortsTee` `suit` `shirt` `overalls` `pyjamas` `nightie` `towel` `tubeDress` `shortsTop` `military` |
+| `noa` | girl | 1.06 m | 0.5 | default | pigtails 0.5 | `casual` `dress` `swim` `suit` `shirt` `overalls` `pyjamas` `nightie` `towel` `tubeDress` `shortsTop` `military` |
 
 ### Outfits
 
@@ -1447,7 +1515,6 @@ Each list is the placement ids a story can `remove`, `tint` or sit an actor on. 
 |---|---|---|---|---|
 | `armWrestle` | group | overlay | `reps` × 3.2s | `reps` `cast` `a`+`b` |
 | `benchPress` | solo | posture | `reps` × 2.4s | `on` (needs a `lie` anchor) `reps` |
-| `birthPosition` | solo | posture | 0.8s | `on` (needs a `lie` anchor) |
 | `cameraFollow` | solo | cameraFollow | 0s | `target` `for` |
 | `cameraTo` | solo | camera | 2s | `at` `look` `fov` |
 | `carryDish` | solo | overlay | `reps` × 2s | `reps` |
@@ -1461,7 +1528,6 @@ Each list is the placement ids a story can `remove`, `tint` or sit an actor on. 
 | `drop` | solo | hold | 0.5s | — |
 | `eatMeal` | solo | overlay | `reps` × 3.2s | `reps` |
 | `hold` | solo | hold | 0.5s | `prop` `hand` |
-| `hulaKneeling` | solo | overlay | `reps` × 1.2s | `reps` |
 | `hulaStanding` | solo | overlay | `reps` × 1.2s | `reps` |
 | `idle` | solo | posture | 0.4s | — |
 | `jog` | solo | overlay | `reps` × 0.62s | `reps` |
@@ -1508,36 +1574,43 @@ Each list is the placement ids a story can `remove`, `tint` or sit an actor on. 
 | `wave` | solo | overlay | 2.2s | `side` |
 | `writeNotebook` | solo | posture | `reps` × 0.65s | `on` (needs a `seat` anchor) `reps` |
 
+### Positions
+
+A position is one still pose: a base plus const joint/root offsets, with no timeline. Static-story pages name these instead of actions.
+
+| id | pose | joints | root | sits/lies on |
+|---|---|---|---|---|
+| `benchPress` | `lieUp` | 13 | 0 | lie |
+| `crouch` | `crouch` | 0 | 0 | — |
+| `cycle` | `sit` | 11 | 0 | seat |
+| `idle` | `stand` | 0 | 0 | — |
+| `kneel` | `kneel` | 0 | 0 | — |
+| `lie` | `lieUp` | 0 | 0 | lie |
+| `ready` | `stand` | 13 | 1 | — |
+| `rideHorse` | `sit` | 10 | 1 | seat |
+| `row` | `sit` | 9 | 0 | seat |
+| `sit` | `sit` | 0 | 0 | seat |
+| `stand` | `stand` | 0 | 0 | — |
+| `tread` | `stand` | 8 | 1 | — |
+| `typeLaptop` | `sit` | 19 | 0 | seat |
+| `writeNotebook` | `sit` | 19 | 0 | seat |
+
 ### Stories
 
 | id | set | cast | entries |
 |---|---|---|---|
-| `abandoned-night` | `abandoned` | `vic` `sol` `dado` | 14 |
-| `bedroom-sleeping` | `bedroom` | `vic` | 5 |
-| `bedroom-talk` | `bedroom` | `leo` `mira` | 13 |
-| `camp-asleep` | `camp` | `tom` `zeca` `noa` `bel` | 9 |
-| `camp-night` | `camp` | `kai` `nina` `dado` | 14 |
-| `carmen-blender` | `studio` | `kit` | 43 |
-| `classroom-lesson` | `classroom` | `tom` `noa` `dado` `pip` `zeca` `lia` `ravi` `bel` `elza` | 24 |
-| `forest-walk` | `forest` | `ana` `tom` `noa` | 14 |
-| `gym-session` | `gym` | `sol` `kai` `nina` `rui` `beto` | 15 |
-| `kitchen-family-dinner` | `kitchen` | `rui` `carmen` `lia` `tom` | 88 |
-| `lia-blender` | `studio` | `kit` | 43 |
-| `living-room-evening` | `living-room` | `elza` `pip` `beto` | 16 |
-| `living-room-game` | `living-room` | `tom` `dado` | 13 |
-| `office-interview` | `office` | `ana` `mira` `nina` `rui` | 19 |
-| `office-walkthrough` | `office` | `vic` `mira` `dado` `pip` `ana` `leo` `elza` `kai` `nina` `sol` | 29 |
-| `playground` | `backyard` | `ana` `leo` `tom` `noa` `pip` | 18 |
-| `pool-afternoon` | `backyard` | `ana` `leo` `tom` | 17 |
 | `pool-ball` | `backyard` | `tom` `noa` `zeca` `bel` | 32 |
-| `rig-check` | `studio` | `kit` | 43 |
 | `roll-call` | `studio` | `beto` `kai` `leo` `rui` `vic` `ana` `bia` `carmen` `elza` `lena` `mira` `nina` `sol` `dado` `ravi` `tom` `zeca` `bel` `duda` `lia` `noa` `pip` | 47 |
-| `rui-blender` | `studio` | `kit` | 43 |
-| `site-morning` | `construction` | `rui` `sol` `beto` | 13 |
-| `street-evening` | `street` | `vic` `mira` `noa` | 13 |
 | `tom-blender` | `studio` | `kit` | 43 |
 | `volley-match` | `volley-court` | `tom` `noa` `zeca` `bel` `ravi` `lia` | 30 |
-| `warehouse-search` | `warehouse` | `vic` `sol` `beto` | 19 |
+
+### Static stories
+
+Each page has its own set, camera, sky and placements. Hidden pages stay in the editor and are skipped in the book.
+
+| id | pages | sets |
+|---|---|---|
+| `volley-three` | 2 | `volley-court` `volley-court` |
 
 <!-- catalogue:end -->
 
@@ -1604,9 +1677,9 @@ and procedural motion fields. Optional `offset` adjusts the geometry's grip
 origin. Object tracks use the same deterministic sampler in preview and playback.
 
 The leisure/rooms expansion includes the requested six objects plus supporting
-items, nine actions and seven sets. `rideHorse` can use a horse or mechanical
+items, eight shipped actions and seven sets. `rideHorse` can use a horse or mechanical
 bull's `seat` anchor; without an anchor it supplies its own horse.
-`birthPosition` uses a bed's `lie` anchor. The arm-wrestling formation is
+The arm-wrestling formation is
 calibrated for Rui and Carmen; use the participant editor to adjust the poses
 when casting characters with substantially different heights.
 

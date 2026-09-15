@@ -9,20 +9,34 @@ import { prepareCharacterModel } from '../cast/skinned.js';
 // whose id is `ana` and every official story that casts Ana now casts yours,
 // without editing a single story.
 
-const KINDS = ['outfit', 'character', 'prop', 'set', 'action', 'story'];
+const KINDS = ['outfit', 'character', 'prop', 'set', 'action', 'position', 'story', 'staticStory'];
 
 // Spelled out rather than derived: "story" pluralises to "stories", and a
 // naive `kind + "s"` quietly looks for data/storys/ and finds nothing.
 const FOLDER = {
   outfit: 'outfits', character: 'characters', prop: 'props', set: 'sets',
-  action: 'actions', story: 'stories',
+  action: 'actions', position: 'positions', story: 'stories', staticStory: 'static-stories',
 };
 
 // Two orderings that are not preferences but requirements: a character names
 // its outfits, and a story names its actions, and each is checked against the
 // library rather than against a list in the code. So outfits come first, the
 // things that name them second, and stories last.
-const LOAD_ORDER = [['outfit'], ['character', 'prop', 'set', 'action'], ['story']];
+const LOAD_ORDER = [['outfit'], ['character', 'prop', 'set', 'action', 'position'], ['story', 'staticStory']];
+
+/** Men and boys first, then women and girls; tallest to shortest within each. */
+const MALE_BASES = new Set(['man', 'boy']);
+function compareCharacters(a, b) {
+  const da = a.doc;
+  const db = b.doc;
+  const maleA = MALE_BASES.has(da.base) ? 0 : 1;
+  const maleB = MALE_BASES.has(db.base) ? 0 : 1;
+  if (maleA !== maleB) return maleA - maleB;
+  const ha = da.height ?? 0;
+  const hb = db.height ?? 0;
+  if (hb !== ha) return hb - ha;
+  return String(da.id).localeCompare(String(db.id));
+}
 
 const DATA = new URL('../../data/', import.meta.url);
 
@@ -107,7 +121,7 @@ export class Registry {
       // Shipped content goes through the same validator as an import. If a
       // hand-edited official file drifts from the schema, it should say so
       // here rather than fail obscurely three layers down.
-      const { ok, doc, errors } = validate(raw, { actions: this.actionMap() });
+      const { ok, doc, errors } = validate(raw, { actions: this.actionMap(), positions: this.positionMap() });
       if (!ok) {
         this.problems.push(`data/${FOLDER[kind]}/${file}: ${errors[0].path} ${errors[0].message}`);
         return;
@@ -147,6 +161,16 @@ export class Registry {
     return out;
   }
 
+  positionMap() {
+    const out = new Map(this.official.get('position') ?? []);
+    for (const [id, doc] of this.user.get('position') ?? []) out.set(id, doc);
+    return out;
+  }
+
+  libraryOptions() {
+    return { actions: this.actionMap(), positions: this.positionMap() };
+  }
+
   action(id) {
     return this.get('action', id);
   }
@@ -171,6 +195,7 @@ export class Registry {
     for (const [id, doc] of user) {
       out.push({ doc, source: 'user', overridden: official.has(id) });
     }
+    if (kind === 'character') return out.sort(compareCharacters);
     return out.sort((a, b) => a.doc.id.localeCompare(b.doc.id));
   }
 

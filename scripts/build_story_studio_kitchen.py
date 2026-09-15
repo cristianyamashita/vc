@@ -6,11 +6,16 @@ import math
 from pathlib import Path
 
 DATA = Path(__file__).resolve().parents[1] / 'page/game/story-studio/data'
+APP = DATA.parent
+LOCAL_STORIES = APP / '_local' / 'stories'
 created = {'props': [], 'actions': [], 'sets': [], 'stories': []}
 
 def name(en, pt, ja): return dict(en=en, pt=pt, ja=ja)
 def write(folder, doc):
-    (DATA / folder / f"{doc['id']}.json").write_text(json.dumps(doc, ensure_ascii=False, indent=2) + '\n')
+    # Stories stay out of the shipped library for now — they live under _local.
+    root = LOCAL_STORIES if folder == 'stories' else (DATA / folder)
+    root.mkdir(parents=True, exist_ok=True)
+    (root / f"{doc['id']}.json").write_text(json.dumps(doc, ensure_ascii=False, indent=2) + '\n')
     created[folder].append(f"{doc['id']}.json")
 def part(w,h,d,x,y,z,color,shape='box',**kw):
     return dict(w=w,h=h,d=d,x=x,y=y,z=z,color=color,shape=shape,n=3,grain=0,**kw)
@@ -254,7 +259,10 @@ timeline.sort(key=lambda item:item['t'])
 write('stories',dict(kind='story',version=1,id='kitchen-family-dinner',name=name('Dinner made together','Jantar feito em conjunto','みんなで作る夕ごはん'),set='kitchen',camera=dict(at=[5.5,4.2,6.5],look=[-.4,.9,-.4],fov=48),setEdits=edits,cast=cast,timeline=timeline,embeds=[]))
 index=json.loads((DATA/'index.json').read_text())
 for folder,files in created.items():
+    if folder == 'stories':
+        continue
     for file in files:
         if file not in index[folder]:index[folder].append(file)
 (DATA/'index.json').write_text(json.dumps(index,ensure_ascii=False,indent=2)+'\n')
 print(', '.join(f'{len(v)} {k}' for k,v in created.items()))
+print(f'stories written under {LOCAL_STORIES} (not indexed)')

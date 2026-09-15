@@ -62,6 +62,28 @@ export function bundleFor(story, registry) {
     if (doc) wanted.set(`${kind}:${id}`, doc);
   };
 
+  if (story.kind === 'staticStory') {
+    for (const page of story.pages || []) {
+      add('set', page.set);
+      const setDoc = registry.get('set', page.set);
+      for (const pl of setDoc?.props || []) add('prop', pl.prop);
+      for (const c of page.cast || []) {
+        add('character', c.character);
+        add('position', c.position);
+        const doc = registry.get('character', c.character);
+        for (const w of doc?.wardrobe || []) {
+          if (typeof w.outfit === 'string') add('outfit', w.outfit);
+        }
+      }
+      for (const pr of page.props || []) add('prop', pr.prop);
+    }
+    return {
+      kind: 'bundle',
+      version: 1,
+      documents: [...wanted.values(), story],
+    };
+  }
+
   add('set', story.set);
   for (const c of story.cast) {
     add('character', c.character);
@@ -97,7 +119,7 @@ export function bundleFor(story, registry) {
  * Reads text into documents, without saving anything.
  * @returns {{ ok, documents: Array, errors: Array }}
  */
-export function readText(source, actions) {
+export function readText(source, actionsOrOptions) {
   if (typeof source !== 'string') {
     return { ok: false, documents: [], errors: [{ path: '', message: 'expected text' }] };
   }
@@ -108,28 +130,38 @@ export function readText(source, actions) {
       errors: [{ path: '', message: `file is ${(source.length / 1048576).toFixed(1)} MB; the limit is 4 MB` }],
     };
   }
-  const res = parseDocument(source, { actions });
+  const options = actionsOrOptions instanceof Map || !actionsOrOptions
+    ? { actions: actionsOrOptions || new Map() }
+    : actionsOrOptions;
+  const res = parseDocument(source, options);
   if (!res.ok) return { ok: false, documents: [], errors: res.errors };
   if (res.doc.kind === 'bundle') return { ok: true, documents: res.doc.documents, errors: [] };
   return { ok: true, documents: [res.doc], errors: [] };
 }
 
-export async function readFile(file, actions) {
+export async function readFile(file, actionsOrOptions) {
   if (file.size > MAX_IMPORT_BYTES) {
     return { ok: false, documents: [], errors: [{ path: '', message: 'file is larger than 4 MB' }] };
   }
-  return readText(await file.text(), actions);
+  return readText(await file.text(), actionsOrOptions);
 }
 
 /** Saves documents into the visitor's library. */
-export async function saveAll(documents, actions) {
+export async function saveAll(documents, actionsOrOptions) {
   const saved = [];
-  // Actions first, so a story saved in the same breath can be checked
-  // against the ones arriving with it.
-  const known = new Map(actions || []);
-  for (const doc of documents) if (doc.kind === 'action') known.set(doc.id, doc);
+  const options = actionsOrOptions instanceof Map || !actionsOrOptions
+    ? { actions: actionsOrOptions || new Map() }
+    : actionsOrOptions;
+  // Actions and positions first, so a story saved in the same breath can be
+  // checked against the ones arriving with it.
+  const known = new Map(options.actions || []);
+  const positions = new Map(options.positions || []);
   for (const doc of documents) {
-    const res = validate(doc, { actions: known });
+    if (doc.kind === 'action') known.set(doc.id, doc);
+    if (doc.kind === 'position') positions.set(doc.id, doc);
+  }
+  for (const doc of documents) {
+    const res = validate(doc, { actions: known, positions });
     if (!res.ok) continue;
     await putDocument(res.doc);
     saved.push(res.doc);

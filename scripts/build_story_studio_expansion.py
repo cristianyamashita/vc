@@ -1,11 +1,18 @@
 """Rebuild the leisure / rooms library. Plain JSON, no runtime dependencies."""
 import json, math, random
 from pathlib import Path
-D=Path(__file__).resolve().parents[1]/'page/game/story-studio/data'
+APP=Path(__file__).resolve().parents[1]/'page/game/story-studio'
+D=APP/'data'
+LOCAL=APP/'_local'
 added={k:[] for k in ['props','actions','sets','stories']}
+LOCAL_ACTIONS={'birthPosition'}
 def N(en,pt,ja):return dict(en=en,pt=pt,ja=ja)
 def put(folder,doc):
-    (D/folder/(doc['id']+'.json')).write_text(json.dumps(doc,ensure_ascii=False,indent=2)+'\n');added[folder].append(doc['id']+'.json')
+    root = LOCAL/folder if folder=='actions' and doc['id'] in LOCAL_ACTIONS else D/folder
+    root.mkdir(parents=True, exist_ok=True)
+    (root/(doc['id']+'.json')).write_text(json.dumps(doc,ensure_ascii=False,indent=2)+'\n')
+    if not (folder=='actions' and doc['id'] in LOCAL_ACTIONS):
+        added[folder].append(doc['id']+'.json')
 def B(w,h,d,x=0,y=0,z=0,c='#a7c6bd',shape='box',**kw):return dict(w=w,h=h,d=d,x=x,y=y,z=z,color=c,shape=shape,n=3,**kw)
 def prop(id,n,parts,foot,anchors=None,**kw):put('props',dict(kind='prop',version=1,id=id,name=N(*n),source=dict(type='boxes',boxes=parts),footprint=foot,anchors=anchors or {},**kw))
 ring=[]
@@ -73,7 +80,7 @@ prop('tent-interior',('Tent interior','Interior de barraca','テントの内側'
 def C(j,axis='z',offset=0,amp=0,wave='const',**kw):return dict(joint=j,axis=axis,offset=offset,amp=amp,wave=wave,**kw)
 def act(id,n,pose,joints,**kw):
     doc=dict(kind='action',version=1,id=id,name=N(*n),category='solo',type='overlay',pose=pose,duration=4,breathe=.2,joints=joints);doc.update(kw);put('actions',doc);return doc
-for id,n,pose,waist in [('hulaStanding',('Hula hoop standing','Dançar bambolê em pé','立ってフラフープ'),'stand',.11),('hulaKneeling',('Hula hoop kneeling','Dançar bambolê ajoelhado','膝立ちでフラフープ'),'kneel',.085)]:
+for id,n,pose,waist in [('hulaStanding',('Hula hoop standing','Dançar bambolê em pé','立ってフラフープ'),'stand',.11)]:
     act(id,n,pose,[C('hips',amp=waist,wave='sin'),C('chest',amp=-waist*.8,wave='sin'),C('lArm','x',-.70),C('rArm','x',.70),C('lFore',offset=.8),C('rFore',offset=.8)],reps=True,period=1.2,defaultReps=6,root=[dict(field='shift',amp=.045,wave='sin')],props=[dict(id='hoop',prop='hula-hoop',joint='hips',bodyScale=True,at=[0,.12,0],spin=1.5,spinAxis='y',motion=[dict(field='x',amp=.045,wave='sin'),dict(field='z',amp=.045,wave='cos')])])
 act('rollDice',('Roll dice','Jogar dados','サイコロを振る'),'kneel',[C('rArm',offset=.35,amp=.65,wave='rise'),C('rFore',offset=1.0,amp=-.65,wave='rise'),C('head',offset=-.2)],duration=2.6,props=[dict(id='dice',prop='dice-six',space='ground',at=[.32,.005,-.07],motion=[dict(field='x',amp=.55,wave='ramp'),dict(field='y',amp=.18,wave='rise',from_=0)])])
 # Explicit finite arc: the dice settle instead of orbiting forever.

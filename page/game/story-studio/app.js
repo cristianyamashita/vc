@@ -6,14 +6,17 @@ import { available as storageAvailable } from './js/library/store.js';
 import { readText, readFile, saveAll, removeDocument, importGlb, bundleFor, copyOf, toJson, download } from './js/library/io.js';
 import { exportDocumentGlb } from './js/library/glb.js';
 import { Playback } from './js/render/playback.js';
+import { Still, visiblePages } from './js/render/still.js';
 import { Viewer } from './js/ui/viewer.js';
 import { Transport } from './js/ui/transport.js';
 import { LibraryView } from './js/ui/library.js';
 import { Editor } from './js/ui/editor.js';
 import { SetEditor } from './js/ui/setedit.js';
 import { StoryEditor } from './js/ui/storyedit.js';
+import { StaticStoryEditor } from './js/ui/staticedit.js';
 import { OutfitEditor } from './js/ui/outfitedit.js';
 import { ActionEditor } from './js/ui/actionedit.js';
+import { PositionEditor } from './js/ui/positionedit.js';
 import { PropEditor } from './js/ui/propedit.js';
 import { CHARACTER_MODELS } from './js/cast/models.js';
 import { characterParts } from './js/cast/build.js';
@@ -41,7 +44,13 @@ let storyEditor = null;
 let outfitEditor = null;
 let propEditor = null;
 let actionEditor = null;
+let staticEditor = null;
+let positionEditor = null;
+let bookStill = null;
+let bookDoc = null;
+let bookIndex = 0;
 let currentView = 'library';
+const opts = () => registry.libraryOptions();
 // What is on screen, so the Edit button in the player and the preview has
 // something to open. Watching and editing are the same loop — you play a
 // story, see the thing that is wrong, and want the JSON right there — so the
@@ -71,7 +80,7 @@ function bootProgress(value) {
 
 function show(view) {
   currentView = view;
-  for (const name of ['library', 'player', 'preview', 'setedit', 'storyedit', 'fitedit', 'propedit', 'actionedit']) {
+  for (const name of ['library', 'player', 'preview', 'setedit', 'storyedit', 'fitedit', 'propedit', 'actionedit', 'book', 'staticedit', 'positionedit']) {
     $(`#view-${name}`).hidden = name !== view;
   }
   $('#ss-back').hidden = view === 'library';
@@ -88,13 +97,22 @@ function show(view) {
   else propEditor?.stop();
   if (view === 'actionedit') actionEditor?.start();
   else actionEditor?.stop();
+  if (view === 'staticedit') staticEditor?.start();
+  else staticEditor?.stop();
+  if (view === 'positionedit') positionEditor?.start();
+  else positionEditor?.stop();
+  if (view === 'book') startBookLoop();
+  else stopBookLoop();
   if (view !== 'library') resize();
 }
 
-function backToLibrary() {
+async function backToLibrary() {
   if (currentView === 'actionedit' && actionEditor?.dirty && !confirm(t('aeDiscard'))) return;
+  if (currentView === 'positionedit' && positionEditor?.dirty && !confirm(t('posDiscard'))) return;
+  if (currentView === 'staticedit') await staticEditor?.flushSave();
   clearNotice();
   currentDoc = null;
+  bookDoc = null;
   playback?.pause();
   show('library');
   libraryView.render();
@@ -130,6 +148,66 @@ async function openStory(doc) {
   playback.play();
   transport.sync();
   return res;
+}
+
+// ------------------------------------------------------------------- book
+
+let bookRaf = 0;
+
+function startBookLoop() {
+  if (bookRaf) return;
+  const tick = () => {
+    if (currentView !== 'book') { bookRaf = 0; return; }
+    bookStill?.render();
+    bookRaf = requestAnimationFrame(tick);
+  };
+  bookRaf = requestAnimationFrame(tick);
+}
+
+function stopBookLoop() {
+  cancelAnimationFrame(bookRaf);
+  bookRaf = 0;
+}
+
+async function openStaticStory(doc, pageId) {
+  clearNotice();
+  currentDoc = doc;
+  bookDoc = doc;
+  const pages = visiblePages(doc);
+  const fromId = pageId ? pages.findIndex((p) => p.id === pageId) : 0;
+  bookIndex = fromId >= 0 ? fromId : 0;
+  $('#ss-book-title').textContent = localised(doc.name, doc.id);
+  show('book');
+  await showBookPage();
+}
+
+async function showBookPage() {
+  if (!bookDoc || !bookStill) return;
+  const pages = visiblePages(bookDoc);
+  $('#ss-book-prev').disabled = bookIndex <= 0 || !pages.length;
+  $('#ss-book-next').disabled = bookIndex >= pages.length - 1 || !pages.length;
+  if (!pages.length) {
+    $('#ss-book-index').textContent = t('empty');
+    bookStill.clear();
+    bookStill.render();
+    return;
+  }
+  bookIndex = Math.max(0, Math.min(bookIndex, pages.length - 1));
+  const page = pages[bookIndex];
+  const res = await bookStill.load(page, registry);
+  $('#ss-book-index').textContent = t('bookPage', { n: bookIndex + 1, total: pages.length });
+  if (!res.ok) notice(`${t('problems')}: ${res.errors.map((e) => `${e.path} ${e.message}`).join('; ')}`, 'bad');
+  else if (bookStill.missing.length) notice(t('missingProps', { list: bookStill.missing.join(', ') }), 'warn');
+  else clearNotice();
+  resize();
+}
+
+function turnBook(dir) {
+  const pages = visiblePages(bookDoc);
+  const next = bookIndex + dir;
+  if (next < 0 || next >= pages.length) return;
+  bookIndex = next;
+  showBookPage();
 }
 
 // ---------------------------------------------------------------- preview
@@ -177,6 +255,16 @@ async function openPreview(doc) {
     if (!res.ok) notice(`${t('problems')}: ${res.errors.map((e) => `${e.path} ${e.message}`).join('; ')}`, 'bad');
     transport.sync();
     playback.play();
+  } else if (doc.kind === 'position') {
+    clearPickers();
+    const charId = registry.character(doc.previewCast?.solo) ? doc.previewCast.solo
+      : (registry.character('rui') ? 'rui' : registry.list('character')[0]?.doc.id);
+    const character = charId && registry.character(charId);
+    if (!character) {
+      notice(t('notFound'), 'warn');
+      return;
+    }
+    viewer.showPosition(doc, character);
   } else if (doc.kind === 'outfit') {
     // An outfit is previewed the only way it can be seen: on somebody. The
     // stand-in is built here rather than kept as a document, because a body
@@ -411,7 +499,7 @@ async function acceptDocuments(result) {
     status.textContent = result.errors.map((e) => (e.path ? `${e.path}: ${e.message}` : e.message)).join('\n');
     return false;
   }
-  const saved = await saveAll(result.documents, registry.actionMap());
+  const saved = await saveAll(result.documents, opts());
   await registry.loadUser();
   libraryView.render();
   status.className = 'ss-editor-status is-ok';
@@ -469,6 +557,55 @@ async function openStoryEditor(doc) {
   resize();
 }
 
+async function openStaticEditor(doc, pageId) {
+  clearNotice();
+  currentDoc = doc;
+  show('staticedit');
+  await staticEditor.load(doc, pageId);
+  resize();
+}
+
+async function openPositionEditor(doc) {
+  clearNotice();
+  currentDoc = doc;
+  show('positionedit');
+  window.scrollTo({ top: 0 });
+  await positionEditor.load(doc);
+  resize();
+}
+
+function onNewStaticStory() {
+  openStaticEditor({
+    kind: 'staticStory',
+    version: 1,
+    id: `static-${Date.now().toString(36)}`,
+    name: { en: 'New static story', pt: 'Nova história estática', ja: '新しい静止物語' },
+    pages: [{
+      id: 'p1',
+      hidden: false,
+      set: 'studio',
+      sky: 'day',
+      light: { intensity: 1 },
+      camera: { at: [8, 4, 8], yaw: -45, pitch: -18, fov: 50 },
+      cast: [],
+      props: [],
+      lamps: [],
+    }],
+  });
+}
+
+function onNewPosition() {
+  openPositionEditor({
+    kind: 'position',
+    version: 1,
+    id: `position-${Date.now().toString(36)}`,
+    name: { en: 'New position', pt: 'Nova posição', ja: '新しいポーズ' },
+    pose: 'stand',
+    joints: [],
+    root: [],
+  });
+}
+
 // ----------------------------------------------------------------- editor
 
 function openEditor(doc) {
@@ -488,7 +625,7 @@ function openEditor(doc) {
  *  is also where the new id is visible. */
 async function duplicate(doc) {
   const copy = copyOf(doc, registry);
-  const saved = await saveAll([copy], registry.actionMap());
+  const saved = await saveAll([copy], opts());
   if (!saved.length) {
     notice(t('storageOff'), 'warn');
     return;
@@ -500,11 +637,12 @@ async function duplicate(doc) {
 }
 
 async function applyEdited(doc) {
-  await saveAll([doc], registry.actionMap());
+  await saveAll([doc], opts());
   await registry.loadUser();
   libraryView.render();
   $('#dlg-editor').close();
   if (doc.kind === 'story') return openStory(doc);
+  if (doc.kind === 'staticStory') return openStaticStory(doc);
   await openPreview(doc);
   return { ok: true, errors: [] };
 }
@@ -516,7 +654,11 @@ function resize() {
     : currentView === 'setedit' ? '#ss-edit-stage'
       : currentView === 'storyedit' ? '#ss-story-stage'
         : currentView === 'fitedit' ? '#ss-fit-stage'
-          : currentView === 'propedit' ? '#ss-prop-stage' : currentView === 'actionedit' ? '#ss-action-stage' : '#ss-preview-wrap';
+          : currentView === 'propedit' ? '#ss-prop-stage'
+            : currentView === 'actionedit' ? '#ss-action-stage'
+              : currentView === 'staticedit' ? '#ss-static-stage'
+                : currentView === 'positionedit' ? '#ss-position-stage'
+                  : currentView === 'book' ? '#ss-book-stage' : '#ss-preview-wrap';
   const stage = $(id);
   if (!stage) return;
   const rect = stage.getBoundingClientRect();
@@ -526,6 +668,9 @@ function resize() {
   else if (currentView === 'fitedit') outfitEditor?.resize(rect.width, rect.height);
   else if (currentView === 'propedit') propEditor?.resize(rect.width, rect.height);
   else if (currentView === 'actionedit') actionEditor?.resize(rect.width, rect.height);
+  else if (currentView === 'staticedit') staticEditor?.resize(rect.width, rect.height);
+  else if (currentView === 'positionedit') positionEditor?.resize(rect.width, rect.height);
+  else if (currentView === 'book') bookStill?.resize(rect.width, rect.height);
   else viewer?.resize(rect.width, rect.height);
 }
 
@@ -548,6 +693,9 @@ async function main() {
     transport?.sync();
     propEditor?.refreshLanguage();
     actionEditor?.translate();
+    positionEditor?.translate();
+    staticEditor?.refreshLanguage();
+    if (currentView === 'book') showBookPage();
   });
   $('#themeBtn').addEventListener('click', () => {
     toggleTheme();
@@ -562,11 +710,16 @@ async function main() {
   playback = new Playback($('#ss-canvas'), $('#ss-stage-wrap'));
   viewer = new Viewer($('#ss-preview-canvas'));
   transport = new Transport($('#ss-transport'), playback);
-  editor = new Editor($('#dlg-editor'), { onApply: applyEdited, actions: () => registry.actionMap() });
+  editor = new Editor($('#dlg-editor'), {
+    onApply: applyEdited,
+    actions: () => registry.actionMap(),
+    positions: () => registry.positionMap(),
+  });
+  bookStill = new Still($('#ss-book-canvas'), $('#ss-book-labels'));
   setEditor = new SetEditor($('#view-setedit'), {
     registry,
     onSave: async (doc) => {
-      const saved = await saveAll([doc], registry.actionMap());
+      const saved = await saveAll([doc], opts());
       if (!saved.length) {
         notice(t('storageOff'), 'warn');
         return;
@@ -584,7 +737,7 @@ async function main() {
   storyEditor = new StoryEditor($('#view-storyedit'), {
     registry,
     onSave: async (doc) => {
-      const saved = await saveAll([doc], registry.actionMap());
+      const saved = await saveAll([doc], opts());
       if (!saved.length) {
         notice(t('storageOff'), 'warn');
         return;
@@ -604,7 +757,7 @@ async function main() {
 
   outfitEditor = new OutfitEditor($('#view-fitedit'), {
     onSave: async (doc) => {
-      const saved = await saveAll([doc], registry.actionMap());
+      const saved = await saveAll([doc], opts());
       if (!saved.length) {
         notice(t('storageOff'), 'warn');
         return;
@@ -631,7 +784,7 @@ async function main() {
       }
     },
     onSave: async (doc) => {
-      const saved = await saveAll([doc], registry.actionMap());
+      const saved = await saveAll([doc], opts());
       if (!saved.length) { notice(t('storageOff'), 'warn'); return; }
       await registry.loadUser();
       backToLibrary();
@@ -646,7 +799,7 @@ async function main() {
   actionEditor = new ActionEditor($('#view-actionedit'), {
     registry,
     onSave: async (doc) => {
-      const saved = await saveAll([doc], registry.actionMap());
+      const saved = await saveAll([doc], opts());
       if (!saved.length) { notice(t('storageOff'), 'warn'); return; }
       await registry.loadUser();
       actionEditor.dirty = false;
@@ -656,12 +809,45 @@ async function main() {
     onCancel: backToLibrary,
   });
 
+  positionEditor = new PositionEditor($('#view-positionedit'), {
+    registry,
+    onSave: async (doc) => {
+      const saved = await saveAll([doc], opts());
+      if (!saved.length) { notice(t('storageOff'), 'warn'); return; }
+      await registry.loadUser();
+      positionEditor.dirty = false;
+      backToLibrary();
+      notice(t('posSaved', { id: doc.id }));
+    },
+    onCancel: backToLibrary,
+  });
+
+  staticEditor = new StaticStoryEditor($('#view-staticedit'), {
+    registry,
+    partsFor: (doc) => characterParts(doc, doc.defaultOutfit).parts,
+    onSave: async (doc) => {
+      const saved = await saveAll([doc], opts());
+      if (!saved.length) {
+        notice(t('storageOff'), 'warn');
+        return;
+      }
+      currentDoc = saved[0];
+      registry.user.get(saved[0].kind)?.set(saved[0].id, saved[0]);
+    },
+  });
+
   libraryView = new LibraryView($('#view-library'), {
     registry,
-    onOpen: (doc) => (doc.kind === 'story' ? openStory(doc) : openPreview(doc)),
+    onOpen: (doc) => (doc.kind === 'story' ? openStory(doc) : doc.kind === 'staticStory' ? openStaticStory(doc) : openPreview(doc)),
     onEdit: openEditor,
-    onVisualEdit: (doc) => (doc.kind === 'action' ? openActionEditor(doc) : doc.kind === 'outfit' ? openOutfitEditor(doc) : doc.kind === 'prop' ? openPropEditor(doc) : openSetEditor(doc)),
-    onStoryEdit: openStoryEditor,
+    onVisualEdit: (doc) => {
+      if (doc.kind === 'action') return openActionEditor(doc);
+      if (doc.kind === 'position') return openPositionEditor(doc);
+      if (doc.kind === 'outfit') return openOutfitEditor(doc);
+      if (doc.kind === 'prop') return openPropEditor(doc);
+      return openSetEditor(doc);
+    },
+    onStoryEdit: (doc) => (doc.kind === 'staticStory' ? openStaticEditor(doc) : openStoryEditor(doc)),
     onDuplicate: duplicate,
     onExport: (doc) => download(`${doc.kind}-${doc.id}.json`, toJson(doc)),
     onExportGlb: async (doc) => {
@@ -680,11 +866,13 @@ async function main() {
       await registry.loadUser();
       libraryView.render();
     },
+    onNewStaticStory,
+    onNewPosition,
     onNewAction: () => openActionEditor({ kind: 'action', version: 1, id: `action-${Date.now().toString(36)}`, name: { en: 'New movement', pt: 'Novo movimento', ja: '新しい動き' }, category: 'solo', type: 'overlay', pose: 'stand', duration: 4, joints: [], root: [], props: [] }),
     onNewProp: async () => {
       const id = `object-${Date.now().toString(36)}`;
       const doc = { kind: 'prop', version: 1, id, name: { en: 'New object', pt: 'Novo objeto', ja: '新しい物体' }, source: { type: 'boxes', boxes: [{ w: 1, h: 1, d: 1, x: 0, y: .5, z: 0, color: '#4fd1c5' }] }, footprint: [1, 1] };
-      const saved = await saveAll([doc], registry.actionMap());
+      const saved = await saveAll([doc], opts());
       await registry.loadUser(); libraryView.render(); openPropEditor(saved[0] || doc);
     },
   });
@@ -692,13 +880,19 @@ async function main() {
   $('#ss-back').addEventListener('click', backToLibrary);
   $('#ss-player-edit').addEventListener('click', () => openEditor(currentDoc));
   $('#ss-preview-edit').addEventListener('click', () => openEditor(currentDoc));
+  $('#ss-book-edit').addEventListener('click', () => {
+    const page = visiblePages(bookDoc)[bookIndex];
+    openStaticEditor(currentDoc, page?.id);
+  });
+  $('#ss-book-prev').addEventListener('click', () => turnBook(-1));
+  $('#ss-book-next').addEventListener('click', () => turnBook(1));
   $('#ss-import').addEventListener('click', openImport);
   $('#ss-import-do').addEventListener('click', async () => {
-    await acceptDocuments(readText($('#ss-import-text').value, registry.actionMap()));
+    await acceptDocuments(readText($('#ss-import-text').value, opts()));
   });
   $('#ss-import-file').addEventListener('change', async (e) => {
     const file = e.target.files?.[0];
-    if (file) await acceptDocuments(await readFile(file, registry.actionMap()));
+    if (file) await acceptDocuments(await readFile(file, opts()));
     e.target.value = '';
   });
   $('#ss-import-glb').addEventListener('change', async (e) => {
@@ -734,19 +928,29 @@ async function main() {
       }
       return;
     }
-    await acceptDocuments(await readFile(file, registry.actionMap()));
+    await acceptDocuments(await readFile(file, opts()));
   });
 
   addEventListener('beforeunload', (e) => {
-    if (currentView === 'actionedit' && actionEditor?.dirty) { e.preventDefault(); e.returnValue = ''; }
+    if ((currentView === 'actionedit' && actionEditor?.dirty) || (currentView === 'positionedit' && positionEditor?.dirty)) {
+      e.preventDefault();
+      e.returnValue = '';
+    }
   });
   addEventListener('resize', resize);
   addEventListener('keydown', (e) => {
     if (e.target.matches('input, textarea, select')) return;
-    if (e.key === 'Escape' && currentView !== 'library') backToLibrary();
+    if (e.key === 'Escape' && currentView !== 'library') {
+      if (currentView === 'staticedit' && staticEditor?.poseMode) return;
+      backToLibrary();
+    }
     if (e.key === ' ' && currentView === 'player') {
       e.preventDefault();
       transport.toggle();
+    }
+    if (currentView === 'book' && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+      e.preventDefault();
+      turnBook(e.key === 'ArrowLeft' ? -1 : 1);
     }
   });
 

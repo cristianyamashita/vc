@@ -227,7 +227,29 @@ main { flex: 1 1 auto; display: flex; min-height: 0; overflow: hidden; }
   box-shadow: var(--shadow);
 }
 
-.ss-stage canvas { display: block; width: 100%; height: 100%; }
+.ss-stage > canvas { display: block; width: 100%; height: 100%; }
+
+.ss-cam-rig {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  width: 148px;
+  height: 148px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--panel) 88%, transparent);
+  box-shadow: var(--shadow);
+  z-index: 4;
+  overflow: hidden;
+  pointer-events: auto;
+}
+.ss-cam-rig[hidden] { display: none !important; }
+.ss-cam-rig canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
 
 /* CSS2DRenderer draws into this layer; it must not eat clicks meant for the
    canvas underneath, and it must not add its own scrollbars. */
@@ -714,9 +736,67 @@ main { flex: 1 1 auto; display: flex; min-height: 0; overflow: hidden; }
 #view-actionedit > output { font-size: 13px; color: var(--ink-dim); white-space: pre-wrap; }
 #view-actionedit > output:empty { display: none; }
 @media (max-width: 1050px) { .ss-ae-body { flex: 0 0 auto; grid-template-columns: 190px minmax(0,1fr); grid-template-rows: 380px auto; } .ss-ae-inspector { grid-column: 1 / -1; max-height: 310px; } .ss-ae-settings > div { grid-template-columns: repeat(2,minmax(0,1fr)); } }
-@media (max-width: 680px) { .ss-ae-body { grid-template-columns: 1fr; grid-template-rows: auto 330px auto; } .ss-ae-panel { max-height: 240px; } #ss-action-stage { min-height: 0; } #view-actionedit .ss-edit-tools { margin-left: 0; } .ss-ae-settings > div { grid-template-columns: 1fr; } }
+@media (max-width: 680px) { .ss-ae-body { grid-template-columns: 1fr; grid-template-rows: auto 330px auto; } .ss-ae-panel { max-height: 240px; } #ss-action-stage, #ss-position-stage { min-height: 0; } #view-actionedit .ss-edit-tools, #view-positionedit .ss-edit-tools { margin-left: 0; } .ss-ae-settings > div { grid-template-columns: 1fr; } }
 
 #view-actionedit button:not(.ss-ae-key) { border: 1px solid var(--line); border-radius: 8px; padding: 7px 11px; background: var(--panel-2); color: var(--ink); cursor: pointer; }
 #view-actionedit button.ss-primary, #view-actionedit button.is-active:not(.ss-ae-key) { background: var(--accent); color: var(--accent-ink); }
 #view-actionedit button:hover { border-color: var(--accent); }
 #view-actionedit input:not([type=checkbox]):not([type=range]) { border: 1px solid var(--line); border-radius: 7px; padding: 7px; background: var(--panel-2); color: var(--ink); }
+
+#view-positionedit { display: flex; flex-direction: column; gap: 12px; overflow: auto; }
+#view-positionedit[hidden] { display: none; }
+#ss-position-stage { position: relative; min-height: 0; height: 100%; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+#ss-position-canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+#view-positionedit .ss-ae-body { display: grid; grid-template-columns: 225px minmax(0, 1fr) 245px; gap: 12px; flex: 1 1 auto; min-height: 260px; }
+#view-positionedit button:not(.ss-ae-key) { border: 1px solid var(--line); border-radius: 8px; padding: 7px 11px; background: var(--panel-2); color: var(--ink); cursor: pointer; }
+#view-positionedit button.ss-primary, #view-positionedit button.is-active { background: var(--accent); color: var(--accent-ink); }
+#view-positionedit input:not([type=checkbox]):not([type=range]) { border: 1px solid var(--line); border-radius: 7px; padding: 7px; background: var(--panel-2); color: var(--ink); }
+
+.ss-pages { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 8px 10px; flex-shrink: 0; }
+.ss-pages-head { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.ss-pages-head button { padding: 4px 10px; font-size: 12px; }
+.ss-page-strip { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; }
+.ss-page-card {
+  flex: 0 0 88px;
+  height: 72px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--panel-2);
+  color: var(--ink);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  cursor: pointer;
+}
+.ss-page-card strong { font-size: 16px; }
+.ss-page-card span { font-size: 10px; color: var(--ink-dim); max-width: 80px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ss-page-card.is-active { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
+.ss-page-card.is-active span { color: var(--accent-ink); opacity: 0.85; }
+.ss-page-card.is-hidden { opacity: 0.45; }
+
+#ss-static-props .ss-prop-row select,
+#ss-static-props select,
+#ss-static-props textarea {
+  width: 100%;
+  box-sizing: border-box;
+  font: inherit;
+  font-size: 12px;
+  padding: 4px 6px;
+  background: var(--panel-2);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+}
+#ss-static-props textarea { resize: vertical; min-height: 46px; }
+#ss-static-props .ss-button { margin-top: 8px; }
+
+.ss-book-nav { display: flex; align-items: center; justify-content: center; gap: 14px; }
+.ss-book-index { font-variant-numeric: tabular-nums; min-width: 8em; text-align: center; }
+#ss-book-stage { position: relative; flex: 1; min-height: 0; }
+#ss-static-canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+#ss-book-canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+#view-positionedit h2 { margin: 0; font-size: 19px; }
+#view-positionedit .ss-edit-tools { display: flex; flex-wrap: wrap; gap: 6px; margin-left: auto; }
+

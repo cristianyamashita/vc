@@ -5,6 +5,7 @@ import { boxMesh } from '../stage/boxes.js';
 import { loadGltfFile, loadGltfBlob, instance } from '../stage/gltf.js';
 import { applyPose } from '../anim/blend.js';
 import { POSES } from '../anim/poses.js';
+import { applyPosition } from '../anim/position.js';
 
 // The little turntable in the library. A character or an object you cannot
 // look at is just an id in a list, so this is what makes the library
@@ -42,6 +43,11 @@ export class Viewer {
     if (this.subject.userData.model) applyPose(this.subject, POSES.stand);
     this.stage.content.add(this.subject);
     this.frame(doc.height || 1.7);
+  }
+
+  showPosition(position, characterDoc) {
+    this.showCharacter(characterDoc, characterDoc.defaultOutfit);
+    if (this.subject) applyPosition(this.subject, position);
   }
 
   compareModel(useBlender) {

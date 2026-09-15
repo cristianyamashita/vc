@@ -1,4 +1,4 @@
-// Validation for the seven document kinds. Anything that arrives here may have
+// Validation for the document kinds. Anything that arrives here may have
 // been pasted in by a visitor, so this is a trust boundary, not a formality:
 // nothing is ever eval'd, unknown fields are dropped rather than carried, and
 // every number is clamped. A set with fifty thousand props or a story that
@@ -18,7 +18,7 @@ import { CHARACTER_MODELS } from '../cast/models.js';
 
 export const FORMAT_VERSION = 1;
 
-export const KINDS = ['character', 'prop', 'set', 'story', 'action', 'outfit', 'bundle'];
+export const KINDS = ['character', 'prop', 'set', 'story', 'action', 'outfit', 'bundle', 'position', 'staticStory'];
 
 export const LIMITS = {
   idLength: 64,
@@ -43,6 +43,8 @@ export const LIMITS = {
   sprayCells: 6000,
   channels: 200,
   roles: 8,
+  pages: 80,
+  lamps: 24,
 };
 
 const ACTION_TYPES = ['posture', 'overlay', 'move', 'turn', 'speech', 'wait', 'hold', 'camera', 'cameraFollow', 'stage'];
@@ -502,6 +504,176 @@ function motion(ctx, path, src) {
   return out;
 }
 
+/** A single still pose: a base plus const joint/root offsets, no time. */
+function position(ctx, doc) {
+  const out = {
+    kind: 'position',
+    version: FORMAT_VERSION,
+    id: id(ctx, 'id', doc.id),
+    name: name(ctx, 'name', doc.name, doc.id || 'Position'),
+    pose: 'stand',
+    joints: [],
+    root: [],
+  };
+  if (doc.pose !== undefined) {
+    if (POSE_NAMES.includes(doc.pose)) out.pose = doc.pose;
+    else ctx.fail('pose', `unknown pose ${JSON.stringify(doc.pose)}; expected ${POSE_NAMES.join(', ')}`);
+  }
+  for (const [i, c] of array(ctx, 'joints', doc.joints, LIMITS.channels).entries()) {
+    const path = `joints[${i}]`;
+    if (!isObj(c)) { ctx.fail(path, 'expected an object'); continue; }
+    if (!JOINT_NAMES.includes(c.joint)) {
+      ctx.fail(`${path}.joint`, `unknown joint ${JSON.stringify(c.joint)}`);
+      continue;
+    }
+    if (!AXES.includes(c.axis)) {
+      ctx.fail(`${path}.axis`, 'expected "x", "y" or "z"');
+      continue;
+    }
+    const offset = num(ctx, `${path}.offset`, c.offset, -50, 50, 0);
+    if (Math.abs(offset) > 1e-8) out.joints.push({ joint: c.joint, axis: c.axis, offset });
+  }
+  for (const [i, c] of array(ctx, 'root', doc.root, LIMITS.channels).entries()) {
+    const path = `root[${i}]`;
+    if (!isObj(c)) { ctx.fail(path, 'expected an object'); continue; }
+    if (!ROOT_FIELDS.includes(c.field)) {
+      ctx.fail(`${path}.field`, `unknown field ${JSON.stringify(c.field)}`);
+      continue;
+    }
+    const offset = num(ctx, `${path}.offset`, c.offset, -50, 50, 0);
+    if (Math.abs(offset) > 1e-8) out.root.push({ field: c.field, offset });
+  }
+  if (doc.anchor !== undefined) out.anchor = id(ctx, 'anchor', doc.anchor);
+  if (doc.seatLift === 'set' || doc.seatLift === 'add') out.seatLift = doc.seatLift;
+  if (isObj(doc.previewCast) && doc.previewCast.solo !== undefined) {
+    out.previewCast = { solo: id(ctx, 'previewCast.solo', doc.previewCast.solo) };
+  }
+  return out;
+}
+
+function staticPage(ctx, path, page, knownPositions, i) {
+  if (!isObj(page)) {
+    ctx.fail(path, 'expected an object');
+    return null;
+  }
+  const cam = isObj(page.camera) ? page.camera : {};
+  const light = isObj(page.light) ? page.light : {};
+  const out = {
+    id: id(ctx, `${path}.id`, page.id) || `p${i + 1}`,
+    hidden: !!page.hidden,
+    set: id(ctx, `${path}.set`, page.set),
+    sky: SKIES.includes(page.sky) ? page.sky : 'day',
+    light: { intensity: num(ctx, `${path}.light.intensity`, light.intensity, 0, 4, 1) },
+    camera: {
+      at: vec3(ctx, `${path}.camera.at`, cam.at, [8, 4, 8]),
+      yaw: num(ctx, `${path}.camera.yaw`, cam.yaw, -3600, 3600, -45),
+      pitch: num(ctx, `${path}.camera.pitch`, cam.pitch, -89, 89, -18),
+      fov: num(ctx, `${path}.camera.fov`, cam.fov, 15, 110, 50),
+    },
+    cast: [],
+    props: [],
+    lamps: [],
+  };
+  if (page.sky !== undefined && !SKIES.includes(page.sky)) {
+    ctx.fail(`${path}.sky`, `unknown sky ${JSON.stringify(page.sky)}; expected ${SKIES.join(', ')}`);
+  }
+  const actors = new Set();
+  for (const [j, c] of array(ctx, `${path}.cast`, page.cast, LIMITS.cast).entries()) {
+    const p = `${path}.cast[${j}]`;
+    if (!isObj(c)) { ctx.fail(p, 'expected an object'); continue; }
+    const actorId = id(ctx, `${p}.id`, c.id) || `actor${j}`;
+    if (actors.has(actorId)) ctx.fail(`${p}.id`, `duplicate actor id ${JSON.stringify(actorId)}`);
+    actors.add(actorId);
+    const posId = c.position === undefined ? 'stand' : id(ctx, `${p}.position`, c.position);
+    if (knownPositions && posId && !knownPositions.has(posId)) {
+      ctx.fail(`${p}.position`, `unknown position ${JSON.stringify(posId)}`);
+    }
+    const entry = {
+      id: actorId,
+      character: id(ctx, `${p}.character`, c.character),
+      outfit: c.outfit === undefined ? undefined : String(c.outfit).slice(0, LIMITS.idLength),
+      position: posId || 'stand',
+      at: vec3(ctx, `${p}.at`, c.at),
+      yaw: num(ctx, `${p}.yaw`, c.yaw, -3600, 3600, 0),
+      pitch: num(ctx, `${p}.pitch`, c.pitch, -3600, 3600, 0),
+      roll: num(ctx, `${p}.roll`, c.roll, -3600, 3600, 0),
+      joints: [],
+    };
+    if (c.text !== undefined) entry.text = text(ctx, `${p}.text`, c.text);
+    if (c.balloon === 'say' || c.balloon === 'think') entry.balloon = c.balloon;
+    else if (entry.text) entry.balloon = 'say';
+    for (const [k, ch] of array(ctx, `${p}.joints`, c.joints, LIMITS.channels).entries()) {
+      const jp = `${p}.joints[${k}]`;
+      if (!isObj(ch)) { ctx.fail(jp, 'expected an object'); continue; }
+      if (!JOINT_NAMES.includes(ch.joint)) {
+        ctx.fail(`${jp}.joint`, `unknown joint ${JSON.stringify(ch.joint)}`);
+        continue;
+      }
+      if (!AXES.includes(ch.axis)) {
+        ctx.fail(`${jp}.axis`, 'expected "x", "y" or "z"');
+        continue;
+      }
+      const offset = num(ctx, `${jp}.offset`, ch.offset, -50, 50, 0);
+      if (Math.abs(offset) > 1e-8) entry.joints.push({ joint: ch.joint, axis: ch.axis, offset });
+    }
+    out.cast.push(entry);
+  }
+  const props = new Set();
+  for (const [j, pr] of array(ctx, `${path}.props`, page.props, LIMITS.setEdits).entries()) {
+    const p = `${path}.props[${j}]`;
+    if (!isObj(pr)) { ctx.fail(p, 'expected an object'); continue; }
+    const pid = id(ctx, `${p}.id`, pr.id) || `prop${j}`;
+    if (props.has(pid)) ctx.fail(`${p}.id`, `duplicate prop id ${JSON.stringify(pid)}`);
+    props.add(pid);
+    out.props.push({
+      id: pid,
+      prop: id(ctx, `${p}.prop`, pr.prop),
+      at: vec3(ctx, `${p}.at`, pr.at),
+      yaw: num(ctx, `${p}.yaw`, pr.yaw, -3600, 3600, 0),
+      pitch: num(ctx, `${p}.pitch`, pr.pitch, -3600, 3600, 0),
+      roll: num(ctx, `${p}.roll`, pr.roll, -3600, 3600, 0),
+      scale: placementScale(ctx, `${p}.scale`, pr.scale),
+    });
+  }
+  const lamps = new Set();
+  for (const [j, lamp] of array(ctx, `${path}.lamps`, page.lamps, LIMITS.lamps).entries()) {
+    const p = `${path}.lamps[${j}]`;
+    if (!isObj(lamp)) { ctx.fail(p, 'expected an object'); continue; }
+    const lid = id(ctx, `${p}.id`, lamp.id) || `lamp${j}`;
+    if (lamps.has(lid)) ctx.fail(`${p}.id`, `duplicate lamp id ${JSON.stringify(lid)}`);
+    lamps.add(lid);
+    out.lamps.push({
+      id: lid,
+      at: vec3(ctx, `${p}.at`, lamp.at, [0, 2, 0]),
+      color: color(ctx, `${p}.color`, lamp.color, '#ffd9a0'),
+      intensity: num(ctx, `${p}.intensity`, lamp.intensity, 0, 40, 2),
+      distance: num(ctx, `${p}.distance`, lamp.distance, 0.2, 200, 8),
+    });
+  }
+  return out;
+}
+
+function staticStory(ctx, doc, options) {
+  const knownPositions = options?.positions ?? null;
+  const out = {
+    kind: 'staticStory',
+    version: FORMAT_VERSION,
+    id: id(ctx, 'id', doc.id),
+    name: name(ctx, 'name', doc.name, doc.id || 'Static story'),
+    pages: [],
+  };
+  const ids = new Set();
+  for (const [i, page] of array(ctx, 'pages', doc.pages, LIMITS.pages).entries()) {
+    const parsed = staticPage(ctx, `pages[${i}]`, page, knownPositions, i);
+    if (!parsed) continue;
+    if (ids.has(parsed.id)) ctx.fail(`pages[${i}].id`, `duplicate page id ${JSON.stringify(parsed.id)}`);
+    ids.add(parsed.id);
+    out.pages.push(parsed);
+  }
+  if (!out.pages.length) ctx.fail('pages', 'a static story needs at least one page');
+  return out;
+}
+
 function action(ctx, doc) {
   const out = {
     kind: 'action',
@@ -761,7 +933,8 @@ const STAGE_TYPES = new Set(['camera', 'cameraFollow', 'stage']);
  *   library to check against. Without one the format is still checked and an
  *   unknown action is caught later, when the story is compiled.
  */
-function story(ctx, doc, known) {
+function story(ctx, doc, options) {
+  const known = options?.actions ?? null;
   const cam = isObj(doc.camera) ? doc.camera : {};
   const out = {
     kind: 'story',
@@ -1064,18 +1237,23 @@ function checkTimingCycles(ctx, timeline) {
   }
 }
 
-function bundle(ctx, doc, known) {
+function bundle(ctx, doc, options) {
   const out = { kind: 'bundle', version: FORMAT_VERSION, documents: [] };
-  // Actions first: a story later in the same bundle may name one of them.
-  const local = new Map(known || []);
+  // Actions and positions first: a story later in the same bundle may name them.
+  const local = new Map(options?.actions || []);
+  const positions = new Map(options?.positions || []);
   for (const sub of Array.isArray(doc.documents) ? doc.documents : []) {
-    if (isObj(sub) && sub.kind === 'action') {
+    if (!isObj(sub)) continue;
+    if (sub.kind === 'action') {
       const res = validate(sub);
       if (res.ok) local.set(res.doc.id, res.doc);
+    } else if (sub.kind === 'position') {
+      const res = validate(sub);
+      if (res.ok) positions.set(res.doc.id, res.doc);
     }
   }
   for (const [i, sub] of array(ctx, 'documents', doc.documents, LIMITS.bundleDocs).entries()) {
-    const res = validate(sub, { actions: local });
+    const res = validate(sub, { actions: local, positions });
     if (!res.ok) {
       for (const err of res.errors) ctx.fail(`documents[${i}].${err.path}`, err.message);
     } else if (res.doc.kind === 'bundle') {
@@ -1196,7 +1374,7 @@ function outfit(ctx, doc) {
   return out;
 }
 
-const VALIDATORS = { character, prop, set: setDoc, story, action, outfit, bundle };
+const VALIDATORS = { character, prop, set: setDoc, story, action, outfit, bundle, position, staticStory };
 
 /**
  * @returns {{ ok: boolean, doc: object|null, errors: Array<{path, message}> }}
@@ -1217,7 +1395,7 @@ export function validate(input, options) {
   if (input.version !== undefined && Number(input.version) > FORMAT_VERSION) {
     ctx.fail('version', `document is version ${input.version}, this app reads up to ${FORMAT_VERSION}`);
   }
-  const doc = VALIDATORS[kind](ctx, input, options?.actions ?? null);
+  const doc = VALIDATORS[kind](ctx, input, options || {});
   return { ok: ctx.errors.length === 0, doc: ctx.errors.length ? null : doc, errors: ctx.errors };
 }
 
