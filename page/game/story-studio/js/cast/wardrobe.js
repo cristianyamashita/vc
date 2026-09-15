@@ -1,4 +1,4 @@
-import { shadeHex, toHex, cellIndex, PAINT_N } from '../render/geometry.js';
+import { shadeHex, toHex, cellIndex, paintGridOf, PAINT_N } from '../render/geometry.js';
 
 // The clothing vocabulary, and the book of outfits the app has loaded.
 //
@@ -131,9 +131,10 @@ export function resolvePaint(outfit, paintId) {
 const CELLS = new WeakMap();
 
 /**
- * `{ "topChest|4|2,3": "#3a4030" }` -> Map(pid -> Map(cellIndex -> colour)),
- * which is the shape `buildGeometry` reads. A malformed key is dropped rather
- * than thrown on: one bad cell in an imported outfit should cost that cell.
+ * `{ "topChest|4|2,3": "#3a4030" }` -> Map(pid -> { grid, cells }), which is
+ * what a garment box is built from: the cells it wears and the grid they are
+ * addressed on. A malformed key is dropped rather than thrown on: one bad
+ * cell in an imported outfit should cost that cell.
  */
 export function sprayCells(paint) {
   if (!paint?.spray) return null;
@@ -148,23 +149,83 @@ export function sprayCells(paint) {
     const gx = Number(key.slice(bar2 + 1, comma));
     const gy = Number(key.slice(comma + 1));
     if (!(face >= 0 && face < 6)) continue;
-    if (!(gx >= 0 && gx < PAINT_N) || !(gy >= 0 && gy < PAINT_N)) continue;
     const pid = key.slice(0, bar);
-    let cells = byPid.get(pid);
-    if (!cells) {
-      cells = new Map();
-      byPid.set(pid, cells);
+    const grid = sprayGrid(paint, pid);
+    if (!(gx >= 0 && gx < grid) || !(gy >= 0 && gy < grid)) continue;
+    let entry = byPid.get(pid);
+    if (!entry) {
+      entry = { grid, cells: new Map() };
+      byPid.set(pid, entry);
     }
-    cells.set(cellIndex(face, gx, gy), toHex(value, 0x808080));
+    entry.cells.set(cellIndex(face, gx, gy, grid), toHex(value, 0x808080));
   }
   const out = byPid.size ? byPid : null;
   CELLS.set(paint, out);
   return out;
 }
 
+/**
+ * The grid one garment's cells are addressed on.
+ *
+ * It is per garment box, not per outfit, because that is what makes a fine
+ * grid affordable: painting a badge on a pocket refines the pocket, and the
+ * trousers, the boots and the rest of the shirt stay on the cells — and at
+ * the subdivision — they were already drawn with. A paint that names no grid
+ * at all was sprayed before the grid was refined, and is read on the old one.
+ */
+export function sprayGrid(paint, pid) {
+  const per = pid !== undefined ? paint?.grids?.[pid] : undefined;
+  return paintGridOf(per === undefined ? paint?.grid : per);
+}
+
 /** Address of one sprayable cell: a garment box's pid, a face, a grid cell. */
 export function sprayKey(pid, face, gx, gy) {
   return `${pid}|${face}|${gx},${gy}`;
+}
+
+/**
+ * Rewrites one garment's cells onto the current, finest grid, in place.
+ *
+ * The brush works on one grid, so the garment under it is brought up to that
+ * grid before the first new cell lands: each old cell becomes the block of
+ * new cells covering exactly the same patch of cloth, which is why a grid
+ * must divide the current one. Nothing else in the app does this — cloth
+ * that is only being worn stays on the grid it was painted on, and stays
+ * cheap to draw.
+ */
+export function upscaleSpray(paint, pid) {
+  if (!paint) return paint;
+  const grid = sprayGrid(paint, pid);
+  if (!paint.grids) paint.grids = {};
+  if (grid === PAINT_N) {
+    paint.grids[pid] = PAINT_N;
+    return paint;
+  }
+  const step = PAINT_N / grid;
+  const out = {};
+  for (const [key, value] of Object.entries(paint.spray || {})) {
+    const bar = key.indexOf('|');
+    const bar2 = key.indexOf('|', bar + 1);
+    const comma = key.indexOf(',', bar2 + 1);
+    if (bar < 1 || bar2 < 0 || comma < 0) continue;
+    const owner = key.slice(0, bar);
+    if (owner !== pid) {
+      out[key] = value;
+      continue;
+    }
+    const face = Number(key.slice(bar + 1, bar2));
+    const gx = Number(key.slice(bar2 + 1, comma));
+    const gy = Number(key.slice(comma + 1));
+    if (!(face >= 0 && face < 6) || !(gx >= 0 && gx < grid) || !(gy >= 0 && gy < grid)) continue;
+    for (let dy = 0; dy < step; dy++) {
+      for (let dx = 0; dx < step; dx++) {
+        out[sprayKey(pid, face, gx * step + dx, gy * step + dy)] = value;
+      }
+    }
+  }
+  if (paint.spray || Object.keys(out).length) paint.spray = out;
+  paint.grids[pid] = PAINT_N;
+  return paint;
 }
 
 // ---------------------------------------------------------------- palette

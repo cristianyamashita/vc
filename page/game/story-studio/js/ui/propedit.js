@@ -2,7 +2,9 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { TransformControls } from 'three/addons/controls/TransformControls.js';
 import { Stage } from '../render/stage.js';
-import { buildGeometry, toHex, PAINT_N, FACE_BASIS, cellIndex, cellPoint } from '../render/geometry.js';
+import {
+  buildGeometry, toHex, PAINT_N, FACE_BASIS, cellIndex, cellPoint, upscaleBoxPaint,
+} from '../render/geometry.js';
 import { buildCharacter } from '../cast/build.js';
 import { localised, t } from '../i18n.js';
 import { getPreference, putPreference } from '../library/store.js';
@@ -130,6 +132,10 @@ export class PropEditor {
     const part = this.editablePart(); if (!part) return;
     const center = this.nearestPaintCell(point, part); if (!center) return;
     if (!part.paint || typeof part.paint !== 'object' || part.paint instanceof Map) part.paint = {};
+    // The brush works on one grid, so a part painted on a coarser one is
+    // brought up to it before the first new cell lands: every old cell
+    // becomes the block of fine cells covering the same patch of surface.
+    upscaleBoxPaint(part);
     const ink = this.root.querySelector('#ss-prop-ink').value;
     const cells = [];
     if (this.brush <= 1) {

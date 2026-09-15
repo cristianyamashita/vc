@@ -61,6 +61,7 @@ export class StaticStoryEditor {
     this.statusEl = root.querySelector('#ss-static-status');
     this.stripEl = root.querySelector('#ss-static-strip');
     this.titleEl = root.querySelector('#ss-static-title');
+    this.nameEl = root.querySelector('#ss-static-name');
 
     this.still = new Still(this.canvas, root.querySelector('#ss-static-labels'));
     this.orbit = new OrbitControls(this.still.stage.camera, this.canvas);
@@ -165,6 +166,15 @@ export class StaticStoryEditor {
   }
 
   bind() {
+    this.nameEl.addEventListener('input', () => {
+      // One field, every language: a story renamed here is renamed once. A
+      // document that wants three names still says so in JSON. The name is
+      // saved like any other edit, on the same autosave as the rest.
+      const s = this.nameEl.value;
+      this.doc.name = { en: s, pt: s, ja: s };
+      this.titleEl.textContent = s || this.doc.id;
+      this.touch();
+    });
     this.root.querySelector('#ss-static-move').addEventListener('click', () => this.setMode('translate'));
     this.root.querySelector('#ss-static-rotate').addEventListener('click', () => this.setMode('rotate'));
     this.root.querySelector('#ss-static-scale').addEventListener('click', () => this.setMode('scale'));
@@ -266,6 +276,7 @@ export class StaticStoryEditor {
     this._orbitKey = null;
     this.restoreFreeLookFlag();
     this.titleEl.textContent = localised(this.doc.name, this.doc.id);
+    this.nameEl.value = localised(this.doc.name, this.doc.id);
     this.renderPalette();
     await this.reloadPage();
     this.renderStrip();
@@ -1465,6 +1476,10 @@ export class StaticStoryEditor {
   refreshLanguage() {
     if (!this.doc) return;
     this.titleEl.textContent = localised(this.doc.name, this.doc.id);
+    // Never over the top of somebody who is typing their new name.
+    if (document.activeElement !== this.nameEl) {
+      this.nameEl.value = localised(this.doc.name, this.doc.id);
+    }
     this.renderPalette();
     this.renderList();
     this.renderStrip();

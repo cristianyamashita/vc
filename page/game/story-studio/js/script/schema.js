@@ -11,6 +11,7 @@
 
 import { HAIR_STYLE_KEYS } from '../cast/hair.js';
 import { outfitIds, LEGS, TOPS, SLEEVES, FEET, CUT_FLAGS, SWELL_RANGE } from '../cast/wardrobe.js';
+import { paintGridOf } from '../render/geometry.js';
 import { WAVE_NAMES, ROOT_FIELDS, AXES } from '../anim/channels.js';
 import { JOINT_NAMES } from '../cast/rig.js';
 import { POSE_NAMES } from '../anim/poses.js';
@@ -38,9 +39,11 @@ export const LIMITS = {
   repeat: 200,
   bundleDocs: 200,
   paints: 16,
-  // A whole garment is about 4 000 cells at the paint grid, so this is "you
-  // may cover every inch of it" and not an arbitrary ceiling.
-  sprayCells: 6000,
+  // A whole garment covered cell by cell at the finest grid is about 100 000
+  // cells, so this is "you may cover every inch of it" and not an arbitrary
+  // ceiling. Paint sprayed on a coarser grid is stored on that grid, so an
+  // outfit only approaches this if somebody really did paint it that finely.
+  sprayCells: 120000,
   channels: 200,
   roles: 8,
   pages: 80,
@@ -319,14 +322,15 @@ function boxAxis(ctx, path, v, shape) {
   return ctx.fail(path, `expected "x", "y" or "z", got ${JSON.stringify(v)}`) ?? undefined;
 }
 
-function boxPaint(ctx, path, value) {
+function boxPaint(ctx, path, value, grid) {
   if (value === undefined) return undefined;
   if (!isObj(value)) return ctx.fail(path, 'expected an object of painted surface cells') ?? undefined;
+  const faceCells = grid * grid;
   const out = {};
   for (const [key, ink] of Object.entries(value)) {
     const index = Number(key);
-    if (!Number.isInteger(index) || index < 0 || index >= 6 * 6 * 6) {
-      ctx.fail(`${path}.${key}`, 'expected a surface cell index between 0 and 215');
+    if (!Number.isInteger(index) || index < 0 || index >= 6 * faceCells) {
+      ctx.fail(`${path}.${key}`, `expected a surface cell index between 0 and ${6 * faceCells - 1}`);
       continue;
     }
     out[String(index)] = color(ctx, `${path}.${key}`, ink, '#808080');
@@ -342,6 +346,9 @@ function boxList(ctx, path, list) {
       ctx.fail(p, 'expected a box object');
       continue;
     }
+    // The grid this part's cells are addressed on, kept as it was painted.
+    const grid = paintGridOf(b.paintGrid);
+    const paint = boxPaint(ctx, `${p}.paint`, b.paint, grid);
     out.push({
       w: num(ctx, `${p}.w`, b.w, 0.001, 200, 0.2),
       h: num(ctx, `${p}.h`, b.h, 0.001, 200, 0.2),
@@ -360,7 +367,8 @@ function boxList(ctx, path, list) {
       grain: num(ctx, `${p}.grain`, b.grain, 0, 1, undefined),
       flat: !!b.flat,
       detail: !!b.detail,
-      paint: boxPaint(ctx, `${p}.paint`, b.paint),
+      paint,
+      paintGrid: paint ? grid : undefined,
     });
   }
   return out;
@@ -1270,8 +1278,12 @@ function bundle(ctx, doc, options) {
 // ------------------------------------------------------------------ outfit
 
 /** One sprayable cell: a garment box's pid, a face 0..5, and a cell on the
- *  6x6 grid that face is divided into. */
-const SPRAY_KEY = /^[A-Za-z0-9_]{1,24}\|[0-5]\|[0-5],[0-5]$/;
+ *  grid that face is divided into. The two numbers are range-checked against
+ *  the paint's own grid, which may be the legacy one. */
+const SPRAY_KEY = /^([A-Za-z0-9_]{1,24})\|([0-5])\|(\d{1,2}),(\d{1,2})$/;
+
+/** A garment box's id, as a spray address names it. */
+const PID_RE = /^[A-Za-z0-9_]{1,24}$/;
 
 function cut(ctx, path, v) {
   const src = isObj(v) ? v : {};
@@ -1312,10 +1324,30 @@ function paints(ctx, doc) {
       name: name(ctx, `${path}.name`, p.name, pid),
       color: color(ctx, `${path}.color`, p.color, '#2a5caa'),
     };
+    // The grid this paint was sprayed on, kept as it was painted rather than
+    // rewritten as a mass of fine cells: `grid` for the paint, and `grids`
+    // for the garments refined since, one at a time, by painting on them.
+    const grid = paintGridOf(p.grid);
+    const perPid = {};
+    if (isObj(p.grids)) {
+      for (const [gid, value] of Object.entries(p.grids)) {
+        if (!PID_RE.test(gid)) {
+          ctx.fail(`${path}.grids`, `${JSON.stringify(gid)} is not a garment id`);
+          break;
+        }
+        perPid[gid] = paintGridOf(value);
+      }
+    }
+    const gridOf = (owner) => (perPid[owner] === undefined ? grid : perPid[owner]);
     if (isObj(p.spray)) {
       const spray = {};
+      const used = new Set();
       for (const [key, value] of Object.entries(p.spray)) {
-        if (!SPRAY_KEY.test(key)) {
+        const parts = SPRAY_KEY.exec(key);
+        const own = parts ? gridOf(parts[1]) : 0;
+        const gx = parts ? Number(parts[3]) : -1;
+        const gy = parts ? Number(parts[4]) : -1;
+        if (!parts || gx >= own || gy >= own) {
           ctx.fail(`${path}.spray`, `${JSON.stringify(key)} is not a cell address (pid|face|gx,gy)`);
           break;
         }
@@ -1323,9 +1355,18 @@ function paints(ctx, doc) {
           ctx.fail(`${path}.spray`, `an outfit may carry ${LIMITS.sprayCells} sprayed cells at most`);
           break;
         }
+        used.add(parts[1]);
         spray[key] = color(ctx, `${path}.spray[${key}]`, value, '#808080');
       }
-      if (Object.keys(spray).length) entry.spray = spray;
+      if (Object.keys(spray).length) {
+        entry.spray = spray;
+        entry.grid = grid;
+        // Only the garments that actually carry cells: a grid for cloth with
+        // nothing on it is a fact about nothing.
+        const kept = {};
+        for (const owner of used) if (perPid[owner] !== undefined) kept[owner] = perPid[owner];
+        if (Object.keys(kept).length) entry.grids = kept;
+      }
     }
     out.push(entry);
   }

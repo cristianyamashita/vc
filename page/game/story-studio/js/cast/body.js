@@ -82,7 +82,8 @@ export const DEFAULT_BUST = { man: 0, woman: 0.45, boy: 0, girl: 0.12 };
  *   outfit  outfit id, or a cut written out longhand
  *   color   main garment colour
  *   fit     { swell } how far the cloth stands off the body, in metres
- *   paint   Map of garment pid -> Map(cellIndex -> colour), the sprayed cells
+ *   paint   Map of garment pid -> { grid, cells }, the sprayed cells of that
+ *           garment and the grid they are addressed on
  *   look    { skin, hair, eyeScale, noseScale, beard }
  * @returns {{ parts: Array, joints: Object, height: number }}
  */
@@ -173,8 +174,13 @@ export function buildBody(spec) {
         b.h += swell * 2;
         b.d += swell * 2;
       }
-      const cells = paint?.get(b.pid);
-      if (cells) b.paint = cells;
+      // The cells this garment wears, and the grid they are addressed on: a
+      // box is subdivided to its own grid, not to the finest one going.
+      const sprayed = paint?.get(b.pid);
+      if (sprayed) {
+        b.paint = sprayed.cells;
+        b.paintGrid = sprayed.grid;
+      }
     }
     parts.push(b);
     return b;

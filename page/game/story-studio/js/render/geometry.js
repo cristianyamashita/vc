@@ -31,13 +31,94 @@ for (const f of FACES) {
 }
 
 /** Spray resolution: each face of a painted box is a PAINT_N x PAINT_N grid,
- *  and a cell is the "pixel" the spray brush colours. A box pays for that
+ *  and a cell is the "pixel" the spray brush colours. A face pays for that
  *  subdivision only once something on it is actually painted. */
-export const PAINT_N = 6;
+export const PAINT_N = 36;
+
+/** The grid paint was authored on before it was refined, and the grid a
+ *  document that does not name one is read on. */
+export const PAINT_N_LEGACY = 6;
+
+/**
+ * The grid a stored cell map is addressed on.
+ *
+ * Paint is not rewritten when the grid is refined: a box keeps the grid it
+ * was painted on, and is subdivided to that. An outfit sprayed when a cell
+ * was a sixth of a face still costs — and looks like — a sixth of a face,
+ * and only what somebody paints now pays for the finer cells.
+ *
+ * A grid has to divide the current one, so refining it never splits a cell
+ * across two of today's.
+ */
+export function paintGridOf(value) {
+  return Number.isInteger(value) && value >= 1 && value <= PAINT_N && PAINT_N % value === 0
+    ? value : PAINT_N_LEGACY;
+}
+
+/**
+ * Rewrites a box's cells onto the current, finest grid, in place.
+ *
+ * Only an editor does this, and only to what somebody is about to paint on:
+ * a box that is merely being drawn keeps its own grid, and with it the
+ * cheaper subdivision that grid buys.
+ */
+export function upscaleBoxPaint(b) {
+  const grid = paintGridOf(b.paintGrid);
+  if (grid === PAINT_N || !b.paint) {
+    b.paintGrid = PAINT_N;
+    return b;
+  }
+  const step = PAINT_N / grid;
+  const faceCells = grid * grid;
+  const out = {};
+  for (const [key, ink] of Object.entries(b.paint)) {
+    const index = Number(key);
+    if (!Number.isInteger(index) || index < 0 || index >= 6 * faceCells) continue;
+    const face = Math.floor(index / faceCells);
+    const gx = index % grid;
+    const gy = Math.floor(index / grid) % grid;
+    for (let dy = 0; dy < step; dy++) {
+      for (let dx = 0; dx < step; dx++) {
+        out[String(cellIndex(face, gx * step + dx, gy * step + dy))] = ink;
+      }
+    }
+  }
+  b.paint = out;
+  b.paintGrid = PAINT_N;
+  return b;
+}
 
 /** Index of one paint cell inside a box's own cell map. */
-export function cellIndex(face, gx, gy) {
-  return (face * PAINT_N + gy) * PAINT_N + gx;
+export function cellIndex(face, gx, gy, grid = PAINT_N) {
+  return (face * grid + gy) * grid + gx;
+}
+
+/**
+ * Which of the six faces carry sprayed cells, one bit per face.
+ *
+ * Only a painted face has to be subdivided to the paint grid. That is what
+ * pays for a fine grid: a shirt sprayed down its front no longer subdivides
+ * its back, its underside and the two ends as well.
+ */
+function paintedFaces(paint, grid) {
+  const faceCells = grid * grid;
+  let mask = 0;
+  const keys = paint instanceof Map ? paint.keys() : Object.keys(paint);
+  for (const key of keys) {
+    const face = Math.floor(Number(key) / faceCells);
+    if (face >= 0 && face < 6) mask |= 1 << face;
+  }
+  return mask;
+}
+
+/** The painted-face mask a box is built with. A round part is subdivided the
+ *  same on every face: neighbouring faces share their edge vertices, and two
+ *  different steps along one edge would crack the seam open. */
+function paintMask(b) {
+  if (!b.paint) return 0;
+  const mask = paintedFaces(b.paint, paintGridOf(b.paintGrid));
+  if (mask && b.shape && b.shape !== 'box') return 0b111111;
+  return mask;
 }
 
 /** The six face frames, so an editor can place a cell's centre in model space
@@ -167,7 +248,7 @@ function roundPoint(shape, axis, dx, dy, dz, fn, roundness, out) {
   out.nz = nrm[2];
 }
 
-function subdivOf(b, advanced) {
+function subdivOf(b, advanced, facePainted, grid) {
   // A round part IS its subdivision: collapsing it to one quad per face would
   // not make it cheaper to look at, it would make it a cube. The cheap tier
   // is for shedding decoration, not for changing what a thing is, so a round
@@ -175,11 +256,11 @@ function subdivOf(b, advanced) {
   // The floor is 3, not 1: a part that says "cylinder" must never come out
   // a square prism because somebody wrote `n: 1`.
   if (b.shape && b.shape !== 'box') {
-    return advanced ? Math.max(b.paint ? PAINT_N : 3, b.n || 4) : 3;
+    return advanced ? Math.max(facePainted ? grid : 3, b.n || 4) : 3;
   }
   // A painted surface must keep its cells even in the simple detail tier;
   // otherwise the texture vanishes as soon as the viewer chooses Simple.
-  if (b.paint) return Math.max(PAINT_N, b.n || 1);
+  if (facePainted) return Math.max(grid, b.n || 1);
   if (!advanced) return 1;
   // A painted box always renders at the paint grid, or the cells it carries
   // would have nowhere to land.
@@ -225,11 +306,15 @@ function taperScale(b, y) {
 export function buildGeometry(parts, full = false) {
   const advanced = full || detailed;
   const boxes = advanced ? parts : parts.filter((b) => !b.detail);
+  const masks = boxes.map(paintMask);
+  const grids = boxes.map((b) => paintGridOf(b.paintGrid));
   let quads = 0;
-  for (const b of boxes) {
-    const n = subdivOf(b, advanced);
-    quads += 6 * n * n;
-  }
+  boxes.forEach((b, i) => {
+    for (let f = 0; f < 6; f++) {
+      const n = subdivOf(b, advanced, !!(masks[i] & (1 << f)), grids[i]);
+      quads += n * n;
+    }
+  });
 
   const pos = new Float32Array(quads * 4 * 3);
   const nor = new Float32Array(quads * 4 * 3);
@@ -252,7 +337,6 @@ export function buildGeometry(parts, full = false) {
     const w = b.w;
     const h = b.h;
     const d = b.d;
-    const n = subdivOf(b, advanced);
     const grain = advanced ? (b.grain ?? 0.055) : 0;
     const rot = !!(b.rx || b.ry || b.rz);
     if (rot) {
@@ -268,11 +352,15 @@ export function buildGeometry(parts, full = false) {
     const shape = b.shape && b.shape !== 'box' ? b.shape : null;
     const axis = AXIS_INDEX[b.axis] ?? 1;
     // Paint is authored on a PAINT_N grid; a box drawn at a finer or coarser
-    // subdivision maps its cells onto that grid rather than losing them.
-    const paint = advanced && b.paint ? b.paint : null;
+    // subdivision maps its cells onto that grid rather than losing them. It
+    // survives the simple tier: the subdivision is kept for it there, so
+    // dropping the colours would pay for the cells and then not show them.
+    const paint = b.paint || null;
+    const grid = grids[bi];
 
     for (let f = 0; f < 6; f++) {
       const F = FACES[f];
+      const n = subdivOf(b, advanced, !!(masks[bi] & (1 << f)), grid);
       // A round part carries real normals, so the baked per-face shading
       // would only paint cube facets back onto it.
       const shade = b.flat || shape ? 1 : F.s;
@@ -299,8 +387,8 @@ export function buildGeometry(parts, full = false) {
           let bl = cb;
           if (paint) {
             const key = cellIndex(f,
-              Math.min(PAINT_N - 1, Math.floor((gx / n) * PAINT_N)),
-              Math.min(PAINT_N - 1, Math.floor((gy / n) * PAINT_N)));
+              Math.min(grid - 1, Math.floor((gx / n) * grid)),
+              Math.min(grid - 1, Math.floor((gy / n) * grid)), grid);
             const hit = paint instanceof Map ? paint.get(key) : paint[key];
             if (hit !== undefined) {
               SRGB.setHex(toHex(hit, 0xa0a0a0), THREE.SRGBColorSpace);
@@ -397,10 +485,10 @@ const _round = { px: 0, py: 0, pz: 0, nx: 0, ny: 0, nz: 0 };
  * @param {THREE.Vector3} p   receives the cell centre
  * @param {THREE.Vector3} nv  receives the outward normal
  */
-export function cellPoint(b, face, gx, gy, p, nv) {
+export function cellPoint(b, face, gx, gy, p, nv, grid = PAINT_N) {
   const F = FACES[face];
-  const ta = (gx + 0.5) / PAINT_N - 0.5;
-  const tb = (gy + 0.5) / PAINT_N - 0.5;
+  const ta = (gx + 0.5) / grid - 0.5;
+  const tb = (gy + 0.5) / grid - 0.5;
   const dx = F.o[0] + F.u[0] * ta + F.v[0] * tb;
   const dy = F.o[1] + F.u[1] * ta + F.v[1] * tb;
   const dz = F.o[2] + F.u[2] * ta + F.v[2] * tb;

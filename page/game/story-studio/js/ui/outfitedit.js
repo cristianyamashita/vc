@@ -3,7 +3,8 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { Stage } from '../render/stage.js';
 import { buildBody, BODY_PLANS, DEFAULT_HEIGHT } from '../cast/body.js';
 import {
-  LEGS, TOPS, SLEEVES, FEET, CUT_FLAGS, SWELL_RANGE, sprayCells, sprayKey,
+  LEGS, TOPS, SLEEVES, FEET, CUT_FLAGS, SWELL_RANGE, sprayCells, sprayKey, sprayGrid,
+  upscaleSpray,
 } from '../cast/wardrobe.js';
 import {
   buildGeometry, BOX_MATERIAL, PAINT_N, FACE_BASIS, cellPoint, toHex,
@@ -25,10 +26,18 @@ import { t, localised } from '../i18n.js';
 
 const TOOLS = ['move', 'spray', 'erase', 'pick'];
 const BRUSH_MAX = 8;
-/** A dot at 1, and a patch about a hand wide at 8. Measured on a 1.76 m
- *  figure, the frame every other measurement in the app is stated on. */
+/** A single cell at 1 — under a centimetre of cloth on the paint grid — and a
+ *  patch about a hand wide at 8. Measured on a 1.76 m figure, the frame every
+ *  other measurement in the app is stated on. */
 function brushRadius(dots) {
-  return 0.018 + (dots - 2) * 0.022;
+  return 0.008 + (dots - 2) * 0.024;
+}
+
+/** The draft's cells, read fresh. `sprayCells` keeps its answer alongside the
+ *  paint it was given, and the paint being edited changes under the brush, so
+ *  the editor hands it a new wrapper rather than the object it is mutating. */
+function cellsOf(paint) {
+  return sprayCells({ spray: paint.spray, grid: paint.grid, grids: paint.grids });
 }
 
 /** The body the draft is tried on. A real character would drag its own
@@ -229,6 +238,8 @@ export class OutfitEditor {
       const paint = this.paint();
       if (!paint.spray || !Object.keys(paint.spray).length) return;
       delete paint.spray;
+      delete paint.grid;
+      delete paint.grids;
       touched();
       this.syncSpray();
     });
@@ -391,7 +402,7 @@ export class OutfitEditor {
       outfit: this.doc.cut,
       color: paint.color,
       fit: this.doc.fit,
-      paint: sprayCells({ spray: paint.spray }),
+      paint: cellsOf(paint),
       look: MANNEQUIN.look,
     });
     this.parts = body.parts;
@@ -505,10 +516,28 @@ export class OutfitEditor {
     return best;
   }
 
+  /**
+   * Brings one garment up to the brush's grid, if it is not there already.
+   *
+   * The brush addresses the finest grid. Cloth painted on a coarser one is
+   * rewritten onto the fine grid the moment a stroke lands on that garment,
+   * and only that garment: spraying a badge on a pocket must not make the
+   * trousers and the boots pay for cells nobody asked for.
+   */
+  makeFine(paint, pid, erase) {
+    if (sprayGrid(paint, pid) === PAINT_N) return true;
+    // Erasing from cloth that carries nothing is not a reason to refine it.
+    if (erase && !Object.keys(paint.spray || {}).some((k) => k.startsWith(`${pid}|`))) return false;
+    upscaleSpray(paint, pid);
+    return true;
+  }
+
   writeCell(i, erase, ink) {
     const table = this.cells;
     const paint = this.paint();
-    const key = sprayKey(table.pids[table.box[i]], table.face[i], table.gx[i], table.gy[i]);
+    const pid = table.pids[table.box[i]];
+    if (!this.makeFine(paint, pid, erase)) return false;
+    const key = sprayKey(pid, table.face[i], table.gx[i], table.gy[i]);
     if (erase) {
       if (!paint.spray || paint.spray[key] === undefined) return false;
       delete paint.spray[key];
@@ -529,7 +558,12 @@ export class OutfitEditor {
       const i = this.nearestCell(point);
       if (i < 0) return;
       const table = this.cells;
-      const key = sprayKey(table.pids[table.box[i]], table.face[i], table.gx[i], table.gy[i]);
+      const pid = table.pids[table.box[i]];
+      // The cursor is on a fine cell; the colour under it may have been
+      // sprayed on a coarser one, so the address is taken back to that grid.
+      const step = PAINT_N / sprayGrid(this.paint(), pid);
+      const key = sprayKey(pid, table.face[i],
+        Math.floor(table.gx[i] / step), Math.floor(table.gy[i] / step));
       const had = this.paint().spray?.[key];
       this.els.ink.value = hex6(had !== undefined ? had : table.colors[table.box[i]]);
       return;
@@ -569,12 +603,30 @@ export class OutfitEditor {
    * geometry is rebuilt; the cell table is not.
    */
   repaint() {
-    const cells = sprayCells({ spray: this.paint().spray });
+    // One rebuild per frame, not one per pointer event. A refined garment is
+    // a few tens of thousands of vertices, and a dragged stroke can report
+    // faster than that can be rebuilt; without this the strokes queue up and
+    // the brush lags behind the cursor.
+    if (this.repaintQueued) return;
+    this.repaintQueued = true;
+    requestAnimationFrame(() => {
+      this.repaintQueued = false;
+      if (this.mesh) this.repaintNow();
+    });
+  }
+
+  repaintNow() {
+    const cells = cellsOf(this.paint());
     for (const b of this.parts) {
       if (!b.pid) continue;
-      const map = cells?.get(b.pid);
-      if (map) b.paint = map;
-      else delete b.paint;
+      const sprayed = cells?.get(b.pid);
+      if (sprayed) {
+        b.paint = sprayed.cells;
+        b.paintGrid = sprayed.grid;
+      } else {
+        delete b.paint;
+        delete b.paintGrid;
+      }
     }
     this.mesh.geometry.dispose();
     this.mesh.geometry = buildGeometry(this.parts, true);
