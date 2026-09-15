@@ -4,8 +4,8 @@ import { TransformControls } from 'three/addons/controls/TransformControls.js';
 import { Still } from '../render/still.js';
 import { thumbnail } from './thumbs.js';
 import { JOINT_NAMES, jointParent } from '../cast/rig.js';
-import { poseFromPosition, readRigPose, lookFromCamera } from '../anim/position.js';
-import { scaleTriple } from '../stage/build.js';
+import { poseFromPosition, readRigPose } from '../anim/position.js';
+import { scaleTriple, clampToGround } from '../stage/build.js';
 import { localised, t } from '../i18n.js';
 import { validate } from '../script/schema.js';
 import { SKY_NAMES } from '../render/stage.js';
@@ -233,6 +233,26 @@ export class StaticStoryEditor {
     return this.doc?.pages[this.pageIndex] || null;
   }
 
+  setDoc() {
+    const id = this.page()?.set;
+    return id ? this.registry.get('set', id) : null;
+  }
+
+  /** Clamp a placement to the current set ground (mutates and returns `at`). */
+  clampAt(at) {
+    return clampToGround(at, this.setDoc());
+  }
+
+  clampPage(page = this.page()) {
+    if (!page) return;
+    const set = this.registry.get('set', page.set);
+    if (!set) return;
+    clampToGround(page.camera?.at, set);
+    for (const c of page.cast || []) clampToGround(c.at, set);
+    for (const p of page.props || []) clampToGround(p.at, set);
+    for (const l of page.lamps || []) clampToGround(l.at, set);
+  }
+
   async load(doc, pageId) {
     this.doc = copy(doc);
     if (!this.doc.pages?.length) {
@@ -293,11 +313,23 @@ export class StaticStoryEditor {
   }
 
   frameOrbit() {
-    const page = this.page();
-    if (!page) return;
-    const look = lookFromCamera(page.camera);
-    this.orbit.target.set(look[0], look[1], look[2]);
-    this.still.stage.camera.position.set(page.camera.at[0] + 4, page.camera.at[1] + 2, page.camera.at[2] + 4);
+    const at = this.page()?.camera?.at;
+    if (!at) return;
+    this.orbit.target.set(at[0], at[1], at[2]);
+    this.still.stage.camera.position.set(at[0] + 4, at[1] + 2, at[2] + 4);
+    this.orbit.update();
+  }
+
+  /** Keep free-look orbit pivot on the story camera (not in pose mode). */
+  syncOrbitToCamera() {
+    if (!this.freeLook || this.poseMode) return;
+    const at = this.page()?.camera?.at;
+    if (!at) return;
+    const ox = this.still.stage.camera.position.x - this.orbit.target.x;
+    const oy = this.still.stage.camera.position.y - this.orbit.target.y;
+    const oz = this.still.stage.camera.position.z - this.orbit.target.z;
+    this.orbit.target.set(at[0], at[1], at[2]);
+    this.still.stage.camera.position.set(at[0] + ox, at[1] + oy, at[2] + oz);
     this.orbit.update();
   }
 
@@ -306,6 +338,7 @@ export class StaticStoryEditor {
     if (!cam) return;
     this.camHelper.position.set(cam.at[0], cam.at[1], cam.at[2]);
     this.camHelper.rotation.set((cam.pitch || 0) * DEG, (cam.yaw || 0) * DEG, 0, 'YXZ');
+    this.syncOrbitToCamera();
     this.syncRigPose(false);
   }
 
@@ -347,12 +380,18 @@ export class StaticStoryEditor {
     try {
       const store = this.readViewStore();
       store.freeLook = this.freeLook;
-      if (this.freeLook && this._orbitKey) {
-        store.pages = store.pages || {};
-        store.pages[this._orbitKey] = {
-          pos: this.still.stage.camera.position.toArray(),
-          target: this.orbit.target.toArray(),
-        };
+      if (this.freeLook && this._orbitKey && !this.poseMode) {
+        const at = this.page()?.camera?.at;
+        if (at) {
+          store.pages = store.pages || {};
+          store.pages[this._orbitKey] = {
+            offset: [
+              this.still.stage.camera.position.x - at[0],
+              this.still.stage.camera.position.y - at[1],
+              this.still.stage.camera.position.z - at[2],
+            ],
+          };
+        }
       }
       localStorage.setItem(VIEW_STORE, JSON.stringify(store));
     } catch { /* private mode / quota */ }
@@ -365,10 +404,20 @@ export class StaticStoryEditor {
   }
 
   applyStoredOrbit() {
+    const at = this.page()?.camera?.at;
+    if (!at) return false;
     const saved = this.readViewStore().pages?.[this.viewKey()];
-    if (!saved?.pos || !saved?.target) return false;
-    this.still.stage.camera.position.fromArray(saved.pos);
-    this.orbit.target.fromArray(saved.target);
+    let offset = saved?.offset;
+    if (!offset && saved?.pos && saved?.target) {
+      offset = [
+        saved.pos[0] - saved.target[0],
+        saved.pos[1] - saved.target[1],
+        saved.pos[2] - saved.target[2],
+      ];
+    }
+    if (!offset) return false;
+    this.orbit.target.set(at[0], at[1], at[2]);
+    this.still.stage.camera.position.set(at[0] + offset[0], at[1] + offset[1], at[2] + offset[2]);
     this.orbit.update();
     return true;
   }
@@ -433,6 +482,7 @@ export class StaticStoryEditor {
         snapTo(this.rigStart.at[1] + p.y, 0.01),
         snapTo(this.rigStart.at[2] + p.z, 0.01),
       ];
+      this.clampAt(cam.at);
     }
     this.camHelper.position.set(cam.at[0], cam.at[1], cam.at[2]);
     this.camHelper.rotation.set((cam.pitch || 0) * DEG, (cam.yaw || 0) * DEG, 0, 'YXZ');
@@ -602,17 +652,20 @@ export class StaticStoryEditor {
     const p = this.proxy.position;
     if (this.selected.kind === 'camera') {
       const cam = this.page().camera;
-      cam.at = [snapTo(p.x, 0.01), snapTo(p.y, 0.01), snapTo(p.z, 0.01)];
+      cam.at = this.clampAt([snapTo(p.x, 0.01), snapTo(p.y, 0.01), snapTo(p.z, 0.01)]);
       cam.yaw = snapTo(degrees(this.proxy.rotation.y), 1);
       cam.pitch = Math.max(-89, Math.min(89, snapTo(degrees(this.proxy.rotation.x), 1)));
+      this.proxy.position.set(cam.at[0], cam.at[1], cam.at[2]);
       this.layoutCameraHelper();
       if (!this.freeLook) this.still.aimPage();
     } else if (this.selected.kind === 'lamp') {
-      entry.at = [snapTo(p.x, 0.01), snapTo(p.y, 0.01), snapTo(p.z, 0.01)];
+      entry.at = this.clampAt([snapTo(p.x, 0.01), snapTo(p.y, 0.01), snapTo(p.z, 0.01)]);
+      this.proxy.position.set(entry.at[0], entry.at[1], entry.at[2]);
       this.layoutLamps();
       this.still.refreshActors();
     } else {
-      entry.at = [snapTo(p.x, 0.01), snapTo(p.y, 0.01), snapTo(p.z, 0.01)];
+      entry.at = this.clampAt([snapTo(p.x, 0.01), snapTo(p.y, 0.01), snapTo(p.z, 0.01)]);
+      this.proxy.position.set(entry.at[0], entry.at[1], entry.at[2]);
       entry.roll = snapTo(degrees(this.proxy.rotation.x), 1);
       entry.yaw = snapTo(degrees(this.proxy.rotation.y), 1);
       entry.pitch = snapTo(degrees(this.proxy.rotation.z), 1);
@@ -641,7 +694,7 @@ export class StaticStoryEditor {
     this.ray.setFromCamera(this.pointer, this.still.stage.camera);
     const point = new THREE.Vector3();
     if (!this.ray.ray.intersectPlane(this.ground, point)) return null;
-    return [snapTo(point.x, 0.05), 0, snapTo(point.z, 0.05)];
+    return this.clampAt([snapTo(point.x, 0.05), 0, snapTo(point.z, 0.05)]);
   }
 
   addCharacter(characterId, at) {
@@ -653,7 +706,7 @@ export class StaticStoryEditor {
     while (page.cast.some((c) => c.id === id)) id = `${characterId}-${n++}`;
     const entry = {
       id, character: characterId, outfit: doc.defaultOutfit, position: 'stand',
-      at, yaw: 0, pitch: 0, roll: 0, joints: [],
+      at: this.clampAt([...(at || [0, 0, 0])]), yaw: 0, pitch: 0, roll: 0, joints: [],
     };
     page.cast.push(entry);
     this.touch();
@@ -666,7 +719,10 @@ export class StaticStoryEditor {
     let id = propId;
     let n = 2;
     while (page.props.some((p) => p.id === id)) id = `${propId}-${n++}`;
-    page.props.push({ id, prop: propId, at, yaw: 0, pitch: 0, roll: 0, scale: [1, 1, 1] });
+    page.props.push({
+      id, prop: propId, at: this.clampAt([...(at || [0, 0, 0])]),
+      yaw: 0, pitch: 0, roll: 0, scale: [1, 1, 1],
+    });
     this.touch();
     this.reloadPage().then(() => this.select({ kind: 'prop', id }));
   }
@@ -678,11 +734,11 @@ export class StaticStoryEditor {
     let id = 'lamp';
     let n = 2;
     while (page.lamps.some((l) => l.id === id)) id = `lamp-${n++}`;
-    const point = at || [
+    const point = this.clampAt(at ? [...at] : [
       snapTo(this.orbit.target.x, 0.05),
       snapTo(Math.max(0.4, this.orbit.target.y), 0.05),
       snapTo(this.orbit.target.z, 0.05),
-    ];
+    ]);
     page.lamps.push({
       id,
       at: point,
@@ -882,6 +938,7 @@ export class StaticStoryEditor {
       const cur = this.page();
       if (!cur) return;
       cur.set = v;
+      this.clampPage(cur);
       this.touch();
       this.reloadPage();
     }));
@@ -916,9 +973,12 @@ export class StaticStoryEditor {
         const cam = this.targetEntry();
         if (!cam) return;
         cam.at[i] = v;
+        this.clampAt(cam.at);
         this.layoutCameraHelper();
         if (!this.freeLook) this.still.aimPage();
         this.touch();
+        this.renderProps();
+        this.attachGizmo();
       });
       this.field(t('editYaw'), this.numberEl(entry.yaw, 1, (v) => {
         const cam = this.targetEntry();
@@ -952,10 +1012,12 @@ export class StaticStoryEditor {
         const lamp = this.targetEntry();
         if (!lamp) return;
         lamp.at[i] = v;
+        this.clampAt(lamp.at);
         this.layoutLamps();
         this.still.refreshActors();
         this.attachGizmo();
         this.touch();
+        this.renderProps();
       });
       this.field(t('propColor'), this.colorEl(entry.color || '#ffd9a0', (v) => {
         const lamp = this.targetEntry();
@@ -989,9 +1051,11 @@ export class StaticStoryEditor {
         const prop = this.targetEntry();
         if (!prop) return;
         prop.at[i] = v;
+        this.clampAt(prop.at);
         this.still.refreshActors();
         this.attachGizmo();
         this.touch();
+        this.renderProps();
       });
       this.field(t('editYaw'), this.numberEl(entry.yaw, 1, (v) => {
         const prop = this.targetEntry();
@@ -1054,9 +1118,11 @@ export class StaticStoryEditor {
       const cast = this.targetEntry();
       if (!cast) return;
       cast.at[i] = v;
+      this.clampAt(cast.at);
       this.still.refreshActors();
       this.attachGizmo();
       this.touch();
+      this.renderProps();
     });
     this.field(t('editYaw'), this.numberEl(entry.yaw, 1, (v) => {
       const cast = this.targetEntry();
@@ -1335,7 +1401,8 @@ export class StaticStoryEditor {
     this.orbit.enabled = this.freeLook;
     this.camHelper.visible = this.freeLook;
     this.layoutLamps();
-    if (!this.freeLook) this.still.aimPage();
+    if (this.freeLook) this.syncOrbitToCamera();
+    else this.still.aimPage();
     this.syncCamRig();
     this.attachGizmo();
     this.renderProps();

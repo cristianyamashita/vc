@@ -16,6 +16,53 @@ export const TABS = [
   { kind: 'action', labelKey: 'actions' },
 ];
 
+/** Tabs that put user edits first, then A–Z, and expose a search field. */
+const RANKED_TABS = new Set(['prop', 'set', 'outfit', 'position', 'action']);
+
+/** Stable URL hashes so a reload reopens the same library tab. */
+const TAB_HASH = {
+  staticStory: 'static-stories',
+  story: 'stories',
+  character: 'characters',
+  prop: 'props',
+  set: 'sets',
+  outfit: 'outfits',
+  position: 'positions',
+  action: 'actions',
+};
+const HASH_TAB = Object.fromEntries(Object.entries(TAB_HASH).map(([kind, hash]) => [hash, kind]));
+
+function tabFromHash(hash = location.hash) {
+  const slug = String(hash || '').replace(/^#/, '').trim().toLowerCase();
+  return HASH_TAB[slug] || null;
+}
+
+function writeTabHash(kind) {
+  const slug = TAB_HASH[kind];
+  if (!slug) return;
+  const next = `#${slug}`;
+  if (location.hash === next) return;
+  history.replaceState(null, '', `${location.pathname}${location.search}${next}`);
+}
+
+function entryLabel(doc) {
+  return localised(doc.name, doc.id);
+}
+
+function compareRanked(a, b) {
+  if (a.source !== b.source) return a.source === 'user' ? -1 : 1;
+  const byName = entryLabel(a.doc).localeCompare(entryLabel(b.doc), undefined, { sensitivity: 'base' });
+  if (byName) return byName;
+  return String(a.doc.id).localeCompare(String(b.doc.id));
+}
+
+function matchesFilter(entry, query) {
+  if (!query) return true;
+  const name = entryLabel(entry.doc).toLowerCase();
+  const id = String(entry.doc.id).toLowerCase();
+  return name.includes(query) || id.includes(query);
+}
+
 function summarise(doc) {
   if (doc.kind === 'staticStory') {
     return `${doc.pages.length} ${t('pagesLabel').toLowerCase()} · ${doc.pages[0]?.set || '—'}`;
@@ -64,16 +111,40 @@ export class LibraryView {
     this.root = root;
     this.registry = registry;
     this.handlers = { onOpen, onExport, onExportGlb, onExportBundle, onEdit, onVisualEdit, onStoryEdit, onDuplicate, onDelete, onNewProp, onNewAction, onNewStaticStory, onNewPosition };
-    this.tab = 'staticStory';
+    this.tab = tabFromHash() || 'staticStory';
+    this.filter = '';
     this.tabsEl = root.querySelector('.ss-tabs');
+    this.filterEl = root.querySelector('.ss-lib-filter');
+    this.filterWrap = root.querySelector('.ss-lib-toolbar');
     this.listEl = root.querySelector('.ss-list');
 
     this.tabsEl.addEventListener('click', (e) => {
       const button = e.target.closest('button[data-kind]');
       if (!button) return;
-      this.tab = button.dataset.kind;
-      this.render();
+      this.selectTab(button.dataset.kind);
     });
+    this.filterEl?.addEventListener('input', () => {
+      this.filter = this.filterEl.value.trim().toLowerCase();
+      this.renderList();
+    });
+    addEventListener('hashchange', () => {
+      const kind = tabFromHash();
+      if (!kind || kind === this.tab) return;
+      this.selectTab(kind, { writeHash: false });
+    });
+  }
+
+  selectTab(kind, { writeHash = true } = {}) {
+    if (!TAB_HASH[kind]) return;
+    if (kind === this.tab) {
+      if (writeHash) writeTabHash(kind);
+      return;
+    }
+    this.tab = kind;
+    this.filter = '';
+    if (this.filterEl) this.filterEl.value = '';
+    if (writeHash) writeTabHash(kind);
+    this.render();
   }
 
   render() {
@@ -100,12 +171,31 @@ export class LibraryView {
       const b = document.createElement('button'); b.className = 'ss-new-inline'; b.textContent = `＋ ${t('aeNew')}`; b.onclick = this.handlers.onNewAction; this.tabsEl.appendChild(b);
     }
 
+    const ranked = RANKED_TABS.has(this.tab);
+    if (this.filterWrap) this.filterWrap.hidden = !ranked;
+    if (this.filterEl) {
+      this.filterEl.placeholder = t('libraryFilter');
+      this.filterEl.setAttribute('aria-label', t('libraryFilter'));
+      if (!ranked) {
+        this.filter = '';
+        this.filterEl.value = '';
+      }
+    }
+
+    writeTabHash(this.tab);
+    this.renderList();
+  }
+
+  renderList() {
     this.listEl.innerHTML = '';
-    const entries = this.registry.list(this.tab);
+    let entries = this.registry.list(this.tab);
+    if (RANKED_TABS.has(this.tab)) {
+      entries = [...entries].sort(compareRanked).filter((e) => matchesFilter(e, this.filter));
+    }
     if (!entries.length) {
       const empty = document.createElement('p');
       empty.className = 'ss-empty';
-      empty.textContent = t('empty');
+      empty.textContent = this.filter ? t('libraryFilterEmpty') : t('empty');
       this.listEl.appendChild(empty);
       return;
     }
@@ -119,7 +209,7 @@ export class LibraryView {
     const head = document.createElement('div');
     head.className = 'ss-card-head';
     const name = document.createElement('h3');
-    name.textContent = localised(doc.name, doc.id);
+    name.textContent = entryLabel(doc);
     head.appendChild(name);
     const badge = document.createElement('span');
     badge.className = `ss-badge is-${source}`;

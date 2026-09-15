@@ -18,6 +18,19 @@ export function scaleTriple(scale) {
   return [s, s, s];
 }
 
+/** Keep a world point on the set ground footprint (XZ) and within height [-1, 15]. */
+export function clampToGround(at, setDoc) {
+  if (!at) return at;
+  if (setDoc?.ground?.size) {
+    const hx = Math.max(0, (Number(setDoc.ground.size[0]) || 0) / 2);
+    const hz = Math.max(0, (Number(setDoc.ground.size[1]) || 0) / 2);
+    at[0] = Math.max(-hx, Math.min(hx, Number(at[0]) || 0));
+    at[2] = Math.max(-hz, Math.min(hz, Number(at[2]) || 0));
+  }
+  at[1] = Math.max(-1, Math.min(15, Number(at[1]) || 0));
+  return at;
+}
+
 export async function propObject(doc, blobs) {
   if (!doc?.source) return null;
   if (doc.source.type === 'boxes') return boxMesh(doc);
