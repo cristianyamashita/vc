@@ -197,6 +197,17 @@
       .question-form .option-row .option-fields { flex: 1; display: flex; flex-direction: column; gap: 0.25rem; }
       .question-form .option-row .option-correct { margin-top: 0.25rem; }
       .question-form .add-option-btn { align-self: flex-start; }
+      .difficulty-control { display: flex; align-items: center; gap: 0.75rem; max-width: 24rem; }
+      .difficulty-control .form-range { flex: 1; margin: 0; }
+      .difficulty-value {
+        min-width: 2rem;
+        padding: 0.2rem 0.55rem;
+        border-radius: 999px;
+        background: var(--accent-color);
+        color: #fff;
+        font-weight: 700;
+        text-align: center;
+      }
       .save-status { font-size: 0.75rem; opacity: 0.6; }
       .save-status.saving { color: #ffc107; }
       .save-status.saved { color: #28a745; }
@@ -430,6 +441,7 @@
           questionTypeText: 'Text response',
           textAnswerLinesHint: 'Model answer (number of lines = space for student)',
           questionId: 'Question ID',
+          questionDifficulty: 'Difficulty level',
           questionReady: 'Question ready',
           questionDisabled: 'Disabled',
           questionText: 'Question',
@@ -500,6 +512,7 @@
           questionTypeText: 'Resposta em texto',
           textAnswerLinesHint: 'Resposta modelo (a quantidade de linhas = espaço para o aluno)',
           questionId: 'ID da pergunta',
+          questionDifficulty: 'Nível de dificuldade',
           questionReady: 'Pergunta pronta',
           questionDisabled: 'Desabilitada',
           questionText: 'Pergunta',
@@ -570,6 +583,7 @@
           questionTypeText: 'テキスト回答',
           textAnswerLinesHint: '模範解答（行数＝生徒用の解答欄の行数）',
           questionId: '質問ID',
+          questionDifficulty: '難易度',
           questionReady: '準備完了',
           questionDisabled: '無効',
           questionText: '質問',
@@ -802,6 +816,11 @@
       const exportTemplateModal = new bootstrap.Modal(document.getElementById('export-template-modal'));
       const exportTemplateTextarea = document.getElementById('export-template-textarea');
 
+      function getQuestionLevel(question) {
+        const rawLevel = question?.level ?? question?.difficulty;
+        return Math.min(5, Math.max(1, Number.parseInt(rawLevel, 10) || 1));
+      }
+
       // ========== Render ==========
       function renderProjects() {
         projectsList.innerHTML = '';
@@ -897,7 +916,7 @@
           if (q.id === state.selectedQuestionId) li.classList.add('selected');
           const ready = q.isReady !== false;
           const disabled = q.disabled === true;
-          const displayId = q.questionId || q.id || '?';
+          const displayId = `${q.questionId || q.id || '?'} (${getQuestionLevel(q)})`;
           const dotClass = disabled ? 'disabled' : (ready ? 'ready' : 'draft');
           const dotTitle = disabled ? t('questionDisabled') : (ready ? t('questionReady') : 'Draft');
           li.innerHTML = `
@@ -1036,6 +1055,7 @@
 
       function renderQuestionForm(question) {
         const qType = question.questionType === 'text' ? 'text' : 'multiple_choice';
+        const difficulty = getQuestionLevel(question);
         const opts = question.options && question.options.length >= 2 ? question.options : [
           { text: '', translation: '', correct: false, noTranslation: false },
           { text: '', translation: '', correct: false, noTranslation: false }
@@ -1051,6 +1071,13 @@
           <div class="form-group">
             <label>${t('questionId')}</label>
             <input type="text" class="form-control" id="q-id" value="${escapeHtml(question.questionId || '')}" placeholder="YYYYMMDD-HHmmss" />
+          </div>
+          <div class="form-group">
+            <label for="q-difficulty">${t('questionDifficulty')}</label>
+            <div class="difficulty-control">
+              <input type="range" class="form-range" id="q-difficulty" min="1" max="5" step="1" value="${difficulty}" />
+              <output class="difficulty-value" id="q-difficulty-value" for="q-difficulty">${difficulty}</output>
+            </div>
           </div>
           <div class="form-group d-flex gap-3 flex-wrap align-items-center">
             <div class="form-check">
@@ -1151,6 +1178,9 @@
         });
 
         const typeSelect = document.getElementById('q-type');
+        const difficultyInput = document.getElementById('q-difficulty');
+        const difficultyValue = document.getElementById('q-difficulty-value');
+        difficultyInput.addEventListener('input', () => { difficultyValue.textContent = difficultyInput.value; });
         const multipleBlock = document.getElementById('question-type-multiple');
         const singleCheckBlock = document.getElementById('question-type-single-check');
         const textBlock = document.getElementById('question-type-text');
@@ -1291,6 +1321,7 @@
         return {
           questionType,
           questionId: document.getElementById('q-id')?.value?.trim() || '',
+          level: Math.min(5, Math.max(1, Number.parseInt(document.getElementById('q-difficulty')?.value, 10) || 1)),
           isReady: document.getElementById('q-ready')?.checked !== false,
           disabled: document.getElementById('q-disabled')?.checked === true,
           questionText: document.getElementById('q-text')?.value ?? '',
@@ -1310,6 +1341,7 @@
         if (!question) return;
         const data = getQuestionFormData();
         Object.assign(question, data);
+        delete question.difficulty;
         saveStatus.textContent = t('saving');
         saveStatus.className = 'save-status saving';
         dbPut('questions', question).then(() => {
@@ -1523,6 +1555,7 @@
           testId: state.selectedTestId,
           sectionId: state.selectedSectionId,
           questionId: generateQuestionId(),
+          level: 1,
           questionType: 'multiple_choice',
           questionText: '',
           questionTranslation: '',
@@ -1642,8 +1675,15 @@
       // ========== Export / Import ==========
       function exportTestJson(test) {
         const sections = state.sections.filter(s => s.testId === test.id).sort((a, b) => (a.sectionId || '').localeCompare(b.sectionId || '', undefined, { numeric: true }));
-        const questions = state.questions.filter(q => q.testId === test.id).sort((a, b) => (a.questionId || '').localeCompare(b.questionId || ''));
-        const payload = { version: 2, test: { ...test }, sections, questions };
+        const questions = state.questions
+          .filter(q => q.testId === test.id)
+          .sort((a, b) => (a.questionId || '').localeCompare(b.questionId || ''))
+          .map(q => {
+            const exportedQuestion = { ...q, level: getQuestionLevel(q) };
+            delete exportedQuestion.difficulty;
+            return exportedQuestion;
+          });
+        const payload = { version: 3, test: { ...test }, sections, questions };
         const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
         const a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
@@ -1682,7 +1722,8 @@
               oldToNewSectionId[oldId] = sec.id;
             }
             for (const q of importedQuestions) {
-              const newQ = { ...q, id: generateId(), testId: importedTest.id };
+              const newQ = { ...q, id: generateId(), testId: importedTest.id, level: getQuestionLevel(q) };
+              delete newQ.difficulty;
               if (q.sectionId && oldToNewSectionId[q.sectionId]) newQ.sectionId = oldToNewSectionId[q.sectionId];
               else newQ.sectionId = null;
               newQ.order = state.questions.filter(x => x.testId === importedTest.id).length;
