@@ -307,7 +307,7 @@
         <div class="column-header">
           <div class="column-title">
             <i class="fas fa-layer-group"></i>
-            <span class="column-title-text"><span id="sections-total-prefix">(0) </span><span data-i18n="sections">Sections</span></span>
+            <span class="column-title-text"><span id="sections-total-prefix">(0 / 0 / 0 / 0) </span><span data-i18n="sections">Sections</span></span>
           </div>
           <button class="collapse-btn" data-target="sections-column" title="Toggle"><i class="fas fa-chevron-left"></i></button>
         </div>
@@ -442,6 +442,7 @@
           textAnswerLinesHint: 'Model answer (number of lines = space for student)',
           questionId: 'Question ID',
           questionDifficulty: 'Difficulty level',
+          questionChosen: 'Chosen',
           questionReady: 'Question ready',
           questionDisabled: 'Disabled',
           questionText: 'Question',
@@ -513,6 +514,7 @@
           textAnswerLinesHint: 'Resposta modelo (a quantidade de linhas = espaço para o aluno)',
           questionId: 'ID da pergunta',
           questionDifficulty: 'Nível de dificuldade',
+          questionChosen: 'Escolhido',
           questionReady: 'Pergunta pronta',
           questionDisabled: 'Desabilitada',
           questionText: 'Pergunta',
@@ -584,6 +586,7 @@
           textAnswerLinesHint: '模範解答（行数＝生徒用の解答欄の行数）',
           questionId: '質問ID',
           questionDifficulty: '難易度',
+          questionChosen: '選択済み',
           questionReady: '準備完了',
           questionDisabled: '無効',
           questionText: '質問',
@@ -874,11 +877,12 @@
         const testQuestions = state.selectedTestId
           ? state.questions.filter(q => q.testId === state.selectedTestId)
           : [];
+        const chosen = testQuestions.filter(q => q.isChosen === true).length;
         const ready = testQuestions.filter(q => q.isReady !== false).length;
         const nonDisabled = testQuestions.filter(q => !q.disabled).length;
         const total = testQuestions.length;
         const prefixEl = document.getElementById('sections-total-prefix');
-        if (prefixEl) prefixEl.textContent = '(' + ready + ' / ' + nonDisabled + ' / ' + total + ') ';
+        if (prefixEl) prefixEl.textContent = '(' + chosen + ' / ' + ready + ' / ' + nonDisabled + ' / ' + total + ') ';
         sectionsList.innerHTML = '';
         const filtered = state.sections.filter(s => s.testId === state.selectedTestId);
         const sorted = filtered.sort((a, b) => (a.sectionId || '').localeCompare(b.sectionId || '', undefined, { numeric: true }) || (a.order - b.order));
@@ -1080,6 +1084,10 @@
             </div>
           </div>
           <div class="form-group d-flex gap-3 flex-wrap align-items-center">
+            <div class="form-check">
+              <input type="checkbox" class="form-check-input" id="q-chosen" ${question.isChosen === true ? 'checked' : ''} />
+              <label class="form-check-label" for="q-chosen">${t('questionChosen')}</label>
+            </div>
             <div class="form-check">
               <input type="checkbox" class="form-check-input" id="q-ready" ${question.isReady !== false ? 'checked' : ''} />
               <label class="form-check-label" for="q-ready">${t('questionReady')}</label>
@@ -1322,6 +1330,7 @@
           questionType,
           questionId: document.getElementById('q-id')?.value?.trim() || '',
           level: Math.min(5, Math.max(1, Number.parseInt(document.getElementById('q-difficulty')?.value, 10) || 1)),
+          isChosen: document.getElementById('q-chosen')?.checked === true,
           isReady: document.getElementById('q-ready')?.checked !== false,
           disabled: document.getElementById('q-disabled')?.checked === true,
           questionText: document.getElementById('q-text')?.value ?? '',
@@ -1564,6 +1573,7 @@
           textAnswerContent: '',
           internalComment: '',
           externalComment: '',
+          isChosen: false,
           isReady: false,
           disabled: false,
           order: questionsInSection.length,
@@ -1679,7 +1689,7 @@
           .filter(q => q.testId === test.id)
           .sort((a, b) => (a.questionId || '').localeCompare(b.questionId || ''))
           .map(q => {
-            const exportedQuestion = { ...q, level: getQuestionLevel(q) };
+            const exportedQuestion = { ...q, level: getQuestionLevel(q), isChosen: q.isChosen === true };
             delete exportedQuestion.difficulty;
             return exportedQuestion;
           });
@@ -1722,7 +1732,7 @@
               oldToNewSectionId[oldId] = sec.id;
             }
             for (const q of importedQuestions) {
-              const newQ = { ...q, id: generateId(), testId: importedTest.id, level: getQuestionLevel(q) };
+              const newQ = { ...q, id: generateId(), testId: importedTest.id, level: getQuestionLevel(q), isChosen: q.isChosen === true };
               delete newQ.difficulty;
               if (q.sectionId && oldToNewSectionId[q.sectionId]) newQ.sectionId = oldToNewSectionId[q.sectionId];
               else newQ.sectionId = null;
