@@ -465,14 +465,24 @@ document.getElementById('shop-list').addEventListener('click', (e) => {
   buyFromShopRow(row);
 });
 
-canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+let rightTapPending = false;
+let lastRightMouseDown = -Infinity;
+canvas.addEventListener('contextmenu', (e) => {
+  e.preventDefault();
+  // macOS two-finger taps can dispatch contextmenu without a right mousedown.
+  if (isPlaying() && performance.now() - lastRightMouseDown > 400) rightTapPending = true;
+});
 canvas.addEventListener('mousedown', (e) => {
   if (e.button === 0) mouse.left = true;
   if (e.button === 1) {
     e.preventDefault();
     mouse.middle = true;
   }
-  if (e.button === 2) mouse.right = true;
+  if (e.button === 2) {
+    lastRightMouseDown = performance.now();
+    mouse.right = true;
+    rightTapPending = true;
+  }
   if (e.button === 3) {
     e.preventDefault();
     mouse.back = true;
@@ -512,6 +522,8 @@ document.addEventListener('pointerlockchange', () => {
   mouse.forward = false;
   mouse.back = false;
   mouse.middle = false;
+  mouse.right = false;
+  rightTapPending = false;
   if (awaitingLock) {
     awaitingLock = false;
     return;
@@ -626,13 +638,25 @@ offhandSlotEl.addEventListener('click', (e) => {
   refreshHud();
 });
 
+let lastRightSlot = null;
+let lastRightSlotMouseDown = -Infinity;
 invEl.addEventListener('mousedown', (e) => {
   const slot = e.target.closest('.slot');
   if (!slot) return;
   e.preventDefault();
+  if (e.button === 2) {
+    lastRightSlot = slot;
+    lastRightSlotMouseDown = performance.now();
+  }
   handleSlotClick(slot, e.button === 2);
 });
-invEl.addEventListener('contextmenu', (e) => e.preventDefault());
+invEl.addEventListener('contextmenu', (e) => {
+  e.preventDefault();
+  const slot = e.target.closest('.slot');
+  if (slot && (slot !== lastRightSlot || performance.now() - lastRightSlotMouseDown > 400)) {
+    handleSlotClick(slot, true);
+  }
+});
 
 function resize() {
   const w = Math.max(1, innerWidth);
@@ -1698,7 +1722,7 @@ function tick(dt) {
   const sneak = keys.ShiftLeft || keys.ShiftRight;
   const selFood = foodInfo(inv.selectedStack());
   const offFood = foodInfo(inv.offhand);
-  if (mouse.right) {
+  if (mouse.right || rightTapPending) {
     if (isDoorId(hit?.id) && !sneak) {
       if (placeCool <= 0) {
         placeCool = 0.18;
@@ -1792,6 +1816,7 @@ function tick(dt) {
     }
   }
 
+  rightTapPending = false;
   const rugId = world.get(Math.floor(player.pos.x), Math.floor(player.pos.y + 0.05), Math.floor(player.pos.z));
   const onRug = isRug(rugId);
   const still = player.onGround && !walking && Math.hypot(player.vel.x, player.vel.z) < 0.35;
