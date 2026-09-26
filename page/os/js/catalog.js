@@ -1556,6 +1556,30 @@ window.OSCatalog = (function () {
     }
   },
   {
+    "id": "utils-time_sum",
+    "href": "utils/time_sum.html",
+    "icon": "../assets/icons/svg/utils-time_sum.svg",
+    "kind": "site",
+    "uninstallable": true,
+    "defaultInstalled": false,
+    "channel": "stable",
+    "tag": {
+      "en": "Utility",
+      "pt": "Utilitário",
+      "ja": "ユーティリティ"
+    },
+    "name": {
+      "en": "Time Sum",
+      "pt": "Somador de Tempo",
+      "ja": "時間合計"
+    },
+    "desc": {
+      "en": "Add up durations typed freely in MM:SS or HH:MM:SS, one per line. Shows a running total per line, auto-formats entries to HH:MM:SS, and supports subtraction.",
+      "pt": "Some durações digitadas livremente em MM:SS ou HH:MM:SS, uma por linha. Mostra o total acumulado por linha, formata automaticamente para HH:MM:SS e permite subtração.",
+      "ja": "MM:SS または HH:MM:SS 形式で1行ずつ自由に入力した時間を合計します。行ごとの累計表示、HH:MM:SS への自動整形、減算に対応。"
+    }
+  },
+  {
     "id": "utils-band_calc",
     "href": "utils/band_calc.html",
     "icon": "../assets/icons/svg/utils-band_calc.svg",

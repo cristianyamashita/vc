@@ -571,6 +571,14 @@ ICONS: dict[str, list[Shape]] = {
         l(22, 16, 25, 14, sw=1.6),
         p([(15, 16), (18, 14), (18, 18)]),
     ],
+    "utils-time_sum": [
+        c(14, 15, 8, fill=None, stroke=WHITE, sw=2.2),
+        l(14, 15, 14, 10, sw=1.8),
+        l(14, 15, 18, 17, sw=1.8),
+        r(18, 18, 10, 10, rad=2.5, fill=DARK),
+        r(22, 19.5, 2, 7, rad=0.8),
+        r(19.5, 22, 7, 2, rad=0.8),
+    ],
     "utils-band_calc": [
         r(6, 13, 20, 6, rad=3),
         r(11, 13, 2, 6, fill=DARK),
