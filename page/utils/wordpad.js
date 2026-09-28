@@ -5,7 +5,11 @@ const i18n = {
     find: 'Find', replace: 'Replace', matchCase: 'Match case', wholeWord: 'Whole word', replaceAll: 'Replace All', next: 'Next',
     aboutText: 'Single-file rich text editor. Imports .txt/.html and .docx (via Mammoth) with limitations. Exports .txt/.html/.docx. Autosaves to localStorage. Paste images supported. Keyboard shortcuts and accessibility included. Known limitations: HTML-based formatting; .docx import/export may alter layout/formatting.',
     exportHint: 'DOCX export uses client-side conversion and may not preserve complex formatting.',
-    theme: 'Theme'
+    theme: 'Theme',
+    helpDocsTitle: 'Documents', helpShortcutsTitle: 'Keyboard shortcuts',
+    helpDocs: 'Each tab in the status bar is a document; + creates a new one. Documents are saved in this browser.',
+    helpFileButtons: 'Top bar: New, Open, Save, Save As, Import, Export and Find/Replace. The second bar formats the text.',
+    helpFormat: 'Bold, italic, underline', helpUndoRedo: 'Undo / redo', helpKey: 'Open this help (outside the editor)'
   },
   pt: {
     new: 'Novo', open: 'Abrir', save: 'Salvar', saveAs: 'Salvar como', import: 'Importar', export: 'Exportar', help: 'Ajuda', findReplace: 'Localizar/Substituir',
@@ -13,7 +17,11 @@ const i18n = {
     find: 'Localizar', replace: 'Substituir', matchCase: 'Diferenciar maiúsc./minúsc.', wholeWord: 'Palavra inteira', replaceAll: 'Substituir tudo', next: 'Próximo',
     aboutText: 'Editor de rich text em arquivo único. Importa .txt/.html e .docx (via Mammoth) com limitações. Exporta .txt/.html/.docx. Salva automaticamente no localStorage. Suporta colar imagens. Inclui atalhos e acessibilidade. Limitações: formatação baseada em HTML; importação/exportação .docx pode alterar layout/estilos.',
     exportHint: 'A exportação DOCX usa conversão no cliente e pode não preservar formatações complexas.',
-    theme: 'Tema'
+    theme: 'Tema',
+    helpDocsTitle: 'Documentos', helpShortcutsTitle: 'Atalhos de teclado',
+    helpDocs: 'Cada aba na barra de status é um documento; + cria um novo. Os documentos ficam salvos neste navegador.',
+    helpFileButtons: 'Barra superior: Novo, Abrir, Salvar, Salvar como, Importar, Exportar e Localizar/Substituir. A segunda barra formata o texto.',
+    helpFormat: 'Negrito, itálico, sublinhado', helpUndoRedo: 'Desfazer / refazer', helpKey: 'Abrir esta ajuda (fora do editor)'
   },
   ja: {
     new: '新規', open: '開く', save: '保存', saveAs: '名前を付けて保存', import: 'インポート', export: 'エクスポート', help: 'ヘルプ', findReplace: '検索/置換',
@@ -21,7 +29,11 @@ const i18n = {
     find: '検索', replace: '置換', matchCase: '大文字/小文字を区別', wholeWord: '完全一致', replaceAll: 'すべて置換', next: '次へ',
     aboutText: '単一ファイルのリッチテキストエディタ。.txt/.html と .docx (Mammoth 経由) をインポート可能。ただし制限あり。.txt/.html/.docx をエクスポート。localStorage に自動保存。画像の貼り付け対応。ショートカットとアクセシビリティ対応。制限: HTML ベースの書式、.docx の入出力でレイアウトや書式が変わる可能性あり。',
     exportHint: 'DOCX エクスポートはクライアント側変換のため、複雑な書式は保持されない場合があります。',
-    theme: 'テーマ'
+    theme: 'テーマ',
+    helpDocsTitle: 'ドキュメント', helpShortcutsTitle: 'キーボードショートカット',
+    helpDocs: 'ステータスバーの各タブが1つのドキュメントです。+ で新規作成します。ドキュメントはこのブラウザに保存されます。',
+    helpFileButtons: '上部バー：新規・開く・保存・名前を付けて保存・インポート・エクスポート・検索/置換。2段目のバーで文字を書式設定します。',
+    helpFormat: '太字・斜体・下線', helpUndoRedo: '元に戻す / やり直し', helpKey: 'このヘルプを開く（エディタ外で）'
   }
 };
 
@@ -37,10 +49,11 @@ const recentList = $('#recentList');
 const exportModal = $('#exportModal');
 const findModal = $('#findModal');
 const aboutText = $('#aboutText');
-const toolbar = document.querySelector('.toolbar');
+const toolbars = $$('.toolbar');
+const helpModal = $('#helpModal');
 
 let currentLanguage = localStorage.getItem('app_lang') || 'pt';
-$('#lang').value = currentLanguage;
+$('#lang-switcher').value = currentLanguage;
 
 function applyI18n() {
   const dict = i18n[currentLanguage] || i18n.en;
@@ -50,10 +63,14 @@ function applyI18n() {
   });
   aboutText.textContent = dict.aboutText;
   document.title = `WordPad - ${dict.about}`;
+  [['#btnHelp', 'help'], ['#theme-switcher', 'theme'], ['#btnHelpX', 'close']].forEach(([sel, key]) => {
+    const el = $(sel);
+    if (el && dict[key]) { el.title = sel === '#btnHelp' ? `${dict[key]} (?)` : dict[key]; el.setAttribute('aria-label', dict[key]); }
+  });
   titleInput.placeholder = dict.new + ' ' + 'Document';
 }
 
-$('#lang').addEventListener('change', (e) => {
+$('#lang-switcher').addEventListener('change', (e) => {
   currentLanguage = e.target.value;
   localStorage.setItem('app_lang', currentLanguage);
   applyI18n();
@@ -395,7 +412,7 @@ function exportDocx() {
 function safeFileName(name) { return name.replace(/[^\w\-\s]+/g, '').trim() || 'document'; }
 
 // Formatting
-toolbar.addEventListener('mousedown', () => saveSelection());
+toolbars.forEach(bar => bar.addEventListener('mousedown', () => saveSelection()));
 
 $$('.group [data-cmd]').forEach(btn => {
   btn.addEventListener('click', () => {
@@ -595,6 +612,23 @@ function replaceAll() {
   findAllMatches();
 }
 
+// Help dialog
+function openHelp() {
+  if (!helpModal.open) helpModal.showModal();
+}
+$('#btnHelp').addEventListener('click', openHelp);
+$('#btnHelpClose').addEventListener('click', () => helpModal.close());
+$('#btnHelpX').addEventListener('click', () => helpModal.close());
+helpModal.addEventListener('click', (e) => { if (e.target === helpModal) helpModal.close(); });
+document.addEventListener('keydown', (e) => {
+  if (e.key !== '?' || e.ctrlKey || e.metaKey || e.altKey) return;
+  const active = document.activeElement;
+  if (active && (/INPUT|TEXTAREA|SELECT/.test(active.tagName) || active.isContentEditable)) return;
+  if (document.querySelector('dialog[open]')) return;
+  e.preventDefault();
+  openHelp();
+});
+
 // Keyboard shortcuts
 document.addEventListener('keydown', (e) => {
   const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
@@ -633,7 +667,7 @@ function applyTheme(theme) {
 }
 const initialTheme = localStorage.getItem(THEME_KEY) || 'dark';
 applyTheme(initialTheme);
-document.getElementById('btnTheme').addEventListener('click', () => {
+document.getElementById('theme-switcher').addEventListener('click', () => {
   const next = (localStorage.getItem(THEME_KEY) || 'dark') === 'dark' ? 'light' : 'dark';
   applyTheme(next);
 });

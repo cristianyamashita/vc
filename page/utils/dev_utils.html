@@ -1,134 +1,294 @@
 <!doctype html>
-<html lang="pt-BR">
+<html lang="en" data-theme="dark">
 <head>
-    <link rel="icon" href="../assets/icons/ico/utils-dev_utils.ico" type="image/x-icon">
-
+  <link rel="icon" href="../assets/icons/ico/utils-dev_utils.ico" type="image/x-icon">
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Dev Utils</title>
+  <script>
+    try { document.documentElement.dataset.theme = localStorage.getItem('app_theme') === 'light' ? 'light' : 'dark'; } catch (_) {}
+  </script>
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
-  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+  <link rel="stylesheet" href="../assets/fontawesome/css/all.min.css">
   <!-- MD5 via crypto-js -->
   <script src="https://cdn.jsdelivr.net/npm/crypto-js@4.2.0/crypto-js.min.js"></script>
   <!-- CSV via Papa Parse -->
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
   <!-- YAML via js-yaml -->
   <script src="https://cdn.jsdelivr.net/npm/js-yaml@4.1.0/dist/js-yaml.min.js"></script>
-  <!-- XML via fast-xml-parser v4 -->
+  <!-- XML via fast-xml-parser -->
   <script src="https://cdn.jsdelivr.net/npm/fast-xml-parser@5.2.5/lib/fxp.min.js"></script>
+  <!-- Faker (@faker-js/faker) is imported lazily from esm.sh when the Fake data tab first opens -->
   <style>
-    /* Color tokens */
-    :root{
-      --bg:#0b0e14; --fg:#e6e6e6; --muted:#9aa4b2; --card:#101521; --border:#1e2636;
-      --accent:#2c5894; --accent-2: color-mix(in oklch, var(--accent), white 15%);
-      --ok:#10b981; --warn:#f59e0b; --err:#ef4444;
-      --ring: color-mix(in oklch, var(--accent), white 35%);
-      --shadow: 0 10px 25px -12px rgba(0,0,0,.35);
-      --radius:.8rem;
-      --surface-1: color-mix(in oklch, var(--card), black 6%);
-      --surface-2: color-mix(in oklch, var(--card), black 12%);
+    :root {
+      --bg: #111615; --panel: #1a2120; --panel-2: #212a29; --border: #2e3a38;
+      --text: #e8efee; --muted: #8a9a97; --accent: #1fb5a0; --accent-strong: #008f7d;
+      --accent-soft: rgba(31, 181, 160, .12); --warn: #e0a84a; --neg: #e07a6a; --ok: #3fb950;
+      --mono: ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
+      --add: #4fd18b; --addbg: #123526; --del: #ff7185; --delbg: #3b1d25; --change: #69a9ff;
+      --mark: #66551f; --violet: #b99cff; --cyan: #69d8d0;
     }
-    [data-theme="light"]{
-      --bg:#f7fafc; --fg:#0f172a; --muted:#475569; --card:#ffffff; --border:#e5e7eb;
-      --accent:#418ffd; --accent-2: color-mix(in oklch, var(--accent), black 5%);
-      --ok:#16a34a; --warn:#d97706; --err:#dc2626;
-      --ring: color-mix(in oklch, var(--accent), white 30%);
-      --shadow: 0 10px 25px -14px rgba(2,6,23,.25);
-      --surface-1: color-mix(in oklch, var(--card), black 2%);
-      --surface-2: color-mix(in oklch, var(--card), black 6%);
+    html[data-theme="light"] {
+      --bg: #f3f6f5; --panel: #ffffff; --panel-2: #f5f8f7; --border: #d7e0de;
+      --text: #172120; --muted: #62716e; --accent: #008f7d; --accent-strong: #006056;
+      --accent-soft: rgba(0, 143, 125, .09); --warn: #a86a08; --neg: #c0392b; --ok: #1a7f37;
+      --add: #087c48; --addbg: #e4f8ed; --del: #c52f4a; --delbg: #ffe8ec; --change: #176dca;
+      --mark: #fff0a9; --violet: #704aca; --cyan: #087f79;
     }
+    * { box-sizing: border-box; }
+    html { color-scheme: dark; }
+    html[data-theme="light"] { color-scheme: light; }
+    html, body { height: 100%; margin: 0; }
+    body { background: var(--bg); color: var(--text); font: 14px/1.4 system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif; overflow: hidden; }
+    button, input, select, textarea { font: inherit; color: inherit; }
+    .app { display: grid; grid-template-rows: auto 1fr; height: 100%; }
+    [hidden] { display: none !important; }
+    :focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
-    *{box-sizing:border-box}
-    html,body{height:100%}
-    body{
-      margin:0; background:var(--bg); color:var(--fg);
-      font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial;
-      transition: background .25s ease, color .25s ease;
-    }
-
-    /* Header - translucent bar */
-    header{
-      position:sticky; top:0; z-index:5;
-      background: color-mix(in oklch, var(--card), transparent 20%);
-      -webkit-backdrop-filter: saturate(160%) blur(8px);
-      backdrop-filter: saturate(160%) blur(8px);
-      border-bottom:1px solid var(--border);
-      display:flex; align-items:center; gap:.75rem; padding:.6rem 1rem;
-    }
-    header h1{font-size:16px;margin:0;font-weight:700;letter-spacing:.1px}
-    .spacer{flex:1}
-
-    /* Buttons */
-    .btn{
-      appearance:none; border:1px solid var(--border); background:var(--surface-1); color:var(--fg);
-      padding:.5rem .8rem; border-radius:calc(var(--radius) - .2rem); cursor:pointer;
-      transition: border-color .2s ease, background .2s ease, transform .05s ease, box-shadow .2s ease;
-      display:inline-flex; align-items:center; gap:.45rem; font-weight:600;
-    }
-    .btn:hover{border-color: color-mix(in oklch, var(--border), var(--fg) 20%); background:var(--surface-2)}
-    .btn:active{transform: translateY(1px)}
-    .btn:focus-visible{outline:2px solid var(--ring); outline-offset:2px}
-    .btn.primary{
-      background: linear-gradient(180deg, var(--accent-2), var(--accent));
-      border-color: color-mix(in oklch, var(--accent), black 10%);
-      color:#fff; box-shadow: var(--shadow);
-    }
-    .btn.primary:hover{filter:saturate(1.05) brightness(1.02)}
-    .btn.ghost{border-color:transparent; background:transparent}
-    .btn.ok{background:linear-gradient(180deg, color-mix(in oklch, var(--ok), white 12%), var(--ok)); color:#fff; border-color:transparent}
-    .btn.warn{background:linear-gradient(180deg, color-mix(in oklch, var(--warn), white 10%), var(--warn)); color:#fff; border-color:transparent}
-    .btn.err{background:linear-gradient(180deg, color-mix(in oklch, var(--err), white 10%), var(--err)); color:#fff; border-color:transparent}
-
-    main{max-width:1100px;margin:1rem auto;padding:0 1rem}
-
-    /* Tabs - modern pills */
-    .tabs{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center}
-    .tab{
-      padding:.45rem .9rem; border:1px solid var(--border); border-radius:999px; cursor:pointer;
-      background:var(--surface-1); color: color-mix(in oklch, var(--fg), var(--muted) 20%);
-      transition: background .2s ease, color .2s ease, border-color .2s ease;
-      box-shadow: none;
-    }
-    .tab:hover{background:var(--surface-2); border-color: color-mix(in oklch, var(--border), var(--fg) 20%)}
-    .tab.active{
-      background: linear-gradient(180deg, var(--accent-2), var(--accent)); color:#fff; border-color: transparent;
-      box-shadow: var(--shadow);
-    }
+    /* Top bar */
+    .topbar { position: relative; z-index: 10; display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 8px 0 12px; background: var(--panel); border-bottom: 1px solid var(--border); min-width: 0; }
+    .brand { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 15px; white-space: nowrap; flex: none; }
+    .brand img { width: 18px; height: 18px; }
+    .topbar.nobrand .brand span { display: none; }
+    .cat-wrap { position: relative; flex: none; }
+    .cat-btn { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 9px; border: 1px solid var(--border); border-radius: 6px; background: var(--panel-2); font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+    .cat-btn:hover, .cat-btn[aria-expanded="true"] { border-color: var(--accent); color: var(--accent); }
+    .cat-btn .fa-caret-down { font-size: 11px; opacity: .7; }
+    .menu { position: absolute; top: 36px; left: 0; z-index: 30; display: grid; grid-template-columns: repeat(4, minmax(128px, auto)); gap: 6px; padding: 8px; border: 1px solid var(--border); border-radius: 10px; background: var(--panel); box-shadow: 0 12px 32px rgb(0 0 0 / 30%); }
+    .menu .grp-h { display: flex; align-items: center; gap: 6px; padding: 4px 8px 6px; font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+    .menu .item { display: block; width: 100%; padding: 5px 8px; border: 0; border-radius: 6px; background: none; font-size: 13px; text-align: left; white-space: nowrap; cursor: pointer; }
+    .menu .item:hover { background: var(--accent-soft); color: var(--accent); }
+    .menu .item[aria-current="true"] { background: var(--accent-strong); color: #fff; }
+    .tabs { display: flex; gap: 2px; flex: 1; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+    .tabs::-webkit-scrollbar { display: none; }
+    .tab { display: inline-flex; align-items: center; height: 30px; padding: 0 10px; border: 0; border-radius: 6px; background: none; color: var(--muted); font-size: 13px; white-space: nowrap; cursor: pointer; flex: none; }
+    .tab:hover { background: var(--panel-2); color: var(--text); }
+    .tab[aria-selected="true"] { background: var(--accent-strong); color: #fff; }
+    .topbar.tight .tab { padding: 0 7px; font-size: 12.5px; }
+    .tools { display: flex; align-items: center; gap: 6px; margin-left: auto; flex: none; }
+    .icon-btn { display: grid; place-items: center; width: 30px; height: 30px; padding: 0; border: 1px solid var(--border); border-radius: 6px; background: var(--panel-2); cursor: pointer; }
+    .icon-btn:hover { border-color: var(--accent); color: var(--accent); }
+    select { height: 30px; border: 1px solid var(--border); border-radius: 6px; background: var(--panel-2); padding: 0 6px; font-size: 13px; }
 
     /* Panels */
-    .panel{
-      border:1px solid var(--border); border-radius:var(--radius); background:var(--card);
-      padding:1rem; margin-top:.6rem; box-shadow: var(--shadow);
-    }
-    .row{display:flex;gap:1rem;flex-wrap:wrap}
-    .col{flex:1 1 420px; min-width:290px}
-    label{display:block;margin:.2rem 0 .3rem .1rem;color:var(--muted);font-size:.85rem}
+    main { min-height: 0; overflow: hidden; }
+    .panel { height: 100%; overflow: auto; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+    .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; flex: none; }
+    .spacer { flex: 1; }
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 30px; padding: 0 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--panel-2); font-size: 13px; white-space: nowrap; cursor: pointer; }
+    .btn:hover:not(:disabled) { border-color: var(--accent); }
+    .btn:disabled { opacity: .45; cursor: default; }
+    .btn.primary { background: var(--accent-strong); border-color: var(--accent-strong); color: #fff; }
+    .btn.primary:hover { filter: brightness(1.08); }
+    .btn.danger:hover:not(:disabled) { border-color: var(--neg); color: var(--neg); }
+    .btn.sm { height: 24px; padding: 0 8px; font-size: 12px; }
+    .btn.on { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+    .muted { color: var(--muted); }
+    .small { font-size: 12px; }
+    .lbl { font-size: 12px; color: var(--muted); white-space: nowrap; }
+    input[type="text"], input[type="password"], input[type="number"] { height: 30px; min-width: 0; padding: 0 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--panel-2); }
+    input[type="file"] { font-size: 12px; max-width: 230px; }
+    input:focus, textarea:focus, select:focus { outline: none; border-color: var(--accent); }
+    .chip { display: inline-flex; align-items: center; gap: 5px; height: 30px; padding: 0 9px; border: 1px solid var(--border); border-radius: 999px; background: var(--panel-2); font-size: 12.5px; cursor: pointer; white-space: nowrap; }
+    .chip input { accent-color: var(--accent-strong); margin: 0; }
+    label.field { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
+    label.field > input, label.field > select { color: var(--text); width: 100%; }
+    .io { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; flex: 1; min-height: 140px; }
+    .io.fixed { flex: none; min-height: 0; }
+    .pane { display: flex; flex-direction: column; gap: 4px; min-height: 0; min-width: 0; }
+    .pane-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 18px; }
+    .ta { flex: 1; min-height: 0; width: 100%; resize: none; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--panel); font: 13px/1.5 var(--mono); }
+    .ta.short { flex: none; height: 62px; }
+    .ta[readonly] { background: var(--panel-2); }
+    .sect { display: flex; flex-direction: column; gap: 6px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--panel); min-width: 0; }
+    .sect .ta { background: var(--panel-2); }
+    .io.fixed > .sect > .ta.short { flex: 1; height: auto; min-height: 62px; }
+    .fields { display: flex; flex-direction: column; gap: 8px; }
+    .box { display: flex; flex-direction: column; min-height: 0; min-width: 0; border: 1px solid var(--border); border-radius: 10px; background: var(--panel); overflow: hidden; }
+    .box.grow { flex: 1; }
+    .box-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; height: 32px; padding: 0 10px; border-bottom: 1px solid var(--border); flex: none; }
+    .box-head h2 { margin: 0; font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .box-body { padding: 10px; display: flex; flex-direction: column; gap: 8px; min-height: 0; }
+    textarea.bare { flex: 1; min-height: 0; width: 100%; border: 0; outline: 0; resize: none; padding: 8px 10px; background: transparent; font: 13px/1.55 var(--mono); }
+    .scroll { flex: 1; min-height: 0; overflow: auto; }
+    .empty { padding: 24px 12px; text-align: center; color: var(--muted); }
+    .ok-text { color: var(--ok); }
+    .err-text { color: var(--neg); }
+    .warn-text { color: var(--warn); }
 
-    textarea, input[type="text"], select{
-      width:100%; padding:.65rem .75rem; border-radius:calc(var(--radius) - .2rem);
-      border:1px solid var(--border); background:var(--surface-1); color:var(--fg);
-      transition: border-color .2s ease, background .2s ease, box-shadow .2s ease;
-      min-height:150px;
-    }
-    input[type="text"], select{min-height:unset}
-    textarea[readonly]{opacity:.95}
-    textarea:focus, input[type="text"]:focus, select:focus{outline:none; border-color: var(--ring); box-shadow:0 0 0 3px color-mix(in oklch, var(--ring), transparent 70%)}
+    /* Regex */
+    .rx { flex: 1; min-height: 0; display: grid; grid-template-columns: 176px minmax(0, 1.15fr) minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); gap: 10px; }
+    .rx-side { grid-row: 1 / 3; overflow: auto; padding: 8px; gap: 4px; }
+    .side-title { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); padding: 2px 4px; }
+    .side-title + .rx-list { margin-bottom: 8px; }
+    .rx-list { display: grid; gap: 2px; }
+    .rx-item-wrap { position: relative; }
+    .rx-item { display: block; width: 100%; padding: 6px 8px; border: 1px solid transparent; border-radius: 8px; background: none; text-align: left; cursor: pointer; }
+    .rx-item:hover { border-color: var(--border); background: var(--panel-2); }
+    .rx-item strong { display: block; font-size: 12px; font-weight: 600; }
+    .rx-item code { display: block; color: var(--accent); font: 11px var(--mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .rx-item-wrap .rx-item { padding-right: 24px; }
+    .rx-del { position: absolute; top: 5px; right: 4px; width: 20px; height: 20px; padding: 0; border: 0; border-radius: 5px; background: none; color: var(--muted); cursor: pointer; }
+    .rx-del:hover { color: var(--neg); background: var(--panel); }
+    .rx-top { grid-column: 2 / 4; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+    .pattern-row { flex: 1; min-width: 240px; display: grid; grid-template-columns: auto 1fr auto; align-items: center; height: 32px; border: 1px solid var(--border); border-radius: 8px; background: var(--panel); overflow: hidden; }
+    .pattern-row:focus-within { border-color: var(--accent); }
+    .slash { padding: 0 8px; color: var(--violet); font: bold 17px var(--mono); }
+    .pattern-row input { min-width: 0; height: 30px; border: 0; outline: 0; background: transparent; padding: 0 2px; font: 14px var(--mono); }
+    .flags { display: flex; align-items: center; height: 100%; }
+    .flag-btn { height: 100%; border: 0; border-left: 1px solid var(--border); background: transparent; padding: 0 7px; color: var(--muted); font: bold 12px var(--mono); cursor: pointer; }
+    .flag-btn.active { color: var(--accent); background: var(--accent-soft); }
+    .rx-stats { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 12px; color: var(--muted); min-height: 16px; }
+    .rx-stats b { color: var(--text); }
+    .rx-stats .err-text { font-family: var(--mono); }
+    .rx-col { display: flex; flex-direction: column; gap: 10px; min-height: 0; min-width: 0; }
+    .rx-hl { flex: 1; min-height: 0; overflow: auto; padding: 8px 10px; white-space: pre-wrap; overflow-wrap: anywhere; font: 13px/1.6 var(--mono); }
+    .rx-hl mark { background: var(--mark); color: var(--text); border-bottom: 2px solid var(--accent); border-radius: 2px; }
+    .rx-match { padding: 7px 10px; border-bottom: 1px solid var(--border); }
+    .rx-match:last-child { border-bottom: 0; }
+    .rx-match .mh { display: flex; justify-content: space-between; gap: 8px; }
+    .rx-match strong { color: var(--accent); font: 12px var(--mono); overflow-wrap: anywhere; }
+    .rx-match small { color: var(--muted); white-space: nowrap; }
+    .rx-group { margin-top: 3px; display: grid; grid-template-columns: auto 1fr; gap: 7px; font: 11px var(--mono); }
+    .rx-group span:first-child { color: var(--violet); }
+    .rx-group span:last-child { overflow-wrap: anywhere; }
+    .rx-explain { max-height: 104px; overflow: auto; padding: 8px; display: flex; flex-wrap: wrap; gap: 5px; align-content: flex-start; }
+    .token { border: 1px solid var(--border); background: var(--panel-2); border-radius: 7px; padding: 3px 7px; }
+    .token code { display: block; color: var(--cyan); font: 12px var(--mono); }
+    .token span { color: var(--muted); font-size: 10px; }
+    .rx-replace { padding: 8px; display: flex; flex-direction: column; gap: 6px; }
+    .rx-replace input { width: 100%; font-family: var(--mono); }
+    .rx-out { height: 64px; overflow: auto; padding: 6px 8px; background: var(--panel-2); border-radius: 6px; white-space: pre-wrap; overflow-wrap: anywhere; font: 12px var(--mono); }
 
-    .controls{display:flex;gap:.5rem;flex-wrap:wrap;margin:.6rem 0}
-    .subtle{color:var(--muted);font-size:.85rem}
-    .chip{display:inline-flex;align-items:center;gap:.4rem;border:1px solid var(--border);padding:.3rem .6rem;border-radius:999px;background:var(--surface-1)}
-    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1rem}
-    .kbd{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono",monospace;border:1px solid var(--border);padding:.05rem .35rem;border-radius:.35rem;background:var(--surface-2)}
-    .note{padding:.7rem .85rem;border-left:3px solid var(--warn);background:var(--surface-2);border-radius:.4rem}
-    .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace}
-    .hidden{display:none}
-    .switch{display:inline-flex;align-items:center;gap:.4rem}
-    .switch input{accent-color:var(--accent)}
-    .footer{margin:2rem 0;color:var(--muted);font-size:.9rem}
+    /* Diff */
+    .df-editors { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; flex: none; height: 158px; }
+    .df-editors .box-head strong { display: flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 600; }
+    .dot { width: 9px; height: 9px; border-radius: 50%; }
+    .dot.del { background: var(--del); }
+    .dot.add { background: var(--add); }
+    .df-editors textarea.bare { tab-size: 2; }
+    .df-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; flex: none; }
+    .metric { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; padding: 6px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--panel); }
+    .metric span { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; }
+    .metric strong { font-size: 18px; }
+    .metric.add strong { color: var(--add); }
+    .metric.del strong { color: var(--del); }
+    .metric.change strong { color: var(--change); }
+    .diff-table { border-collapse: separate; border-spacing: 0; width: 100%; table-layout: fixed; font: 12px/1.5 var(--mono); }
+    .diff-table col.num { width: 44px; }
+    .diff-table th { position: sticky; top: 0; z-index: 2; background: var(--panel-2); padding: 5px 8px; text-align: left; color: var(--muted); font: 11px system-ui, sans-serif; border-bottom: 1px solid var(--border); }
+    .diff-table td { border-bottom: 1px solid color-mix(in srgb, var(--border) 70%, transparent); vertical-align: top; }
+    .diff-table .ln { padding: 3px 6px; color: var(--muted); text-align: right; user-select: none; background: color-mix(in srgb, var(--panel-2) 70%, transparent); border-right: 1px solid var(--border); }
+    .diff-table .code { padding: 3px 8px; white-space: pre-wrap; overflow-wrap: anywhere; border-right: 1px solid var(--border); }
+    tr.equal .code { color: color-mix(in srgb, var(--text) 82%, var(--muted)); }
+    tr.add .right-code, tr.change .right-code { background: var(--addbg); }
+    tr.del .left-code, tr.change .left-code { background: var(--delbg); }
+    tr.add .right-ln { color: var(--add); }
+    tr.del .left-ln { color: var(--del); }
+    tr.change .ln { color: var(--change); }
+    mark.ins, mark.del { padding: 0; border-radius: 2px; color: inherit; }
+    mark.ins { background: color-mix(in srgb, var(--add) 38%, transparent); }
+    mark.del { background: color-mix(in srgb, var(--del) 38%, transparent); }
+    tr.gap td { padding: 3px; text-align: center; color: var(--muted); background: var(--panel-2); }
 
-    @media (prefers-reduced-motion: reduce){
-      *{transition:none!important}
+    /* Fake data */
+    .fk-fields { display: flex; flex-wrap: wrap; gap: 6px; }
+    .fk-out pre { margin: 0; padding: 10px; white-space: pre; font: 12px/1.5 var(--mono); }
+    .fk-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .fk-table th, .fk-table td { border: 1px solid var(--border); padding: 5px 8px; text-align: left; }
+    .fk-table th { position: sticky; top: 0; background: var(--panel-2); }
+    .seg { display: inline-flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+    .seg button { height: 28px; padding: 0 10px; border: 0; border-left: 1px solid var(--border); background: var(--panel-2); font-size: 12.5px; cursor: pointer; }
+    .seg button:first-child { border-left: 0; }
+    .seg button[aria-pressed="true"] { background: var(--accent-strong); color: #fff; }
+
+    /* Morse */
+    .status-msg { font-size: 12px; color: var(--muted); min-height: 16px; }
+    .status-msg.ok { color: var(--ok); }
+    .status-msg.warn { color: var(--warn); }
+    .chart-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 5px; }
+    .chart-item { background: var(--panel-2); border: 1px solid var(--border); border-radius: 6px; padding: 4px; text-align: center; font: 12px var(--mono); }
+    .chart-item .ch { display: block; font-weight: 700; color: var(--accent); }
+    .chart-item .code { color: var(--muted); letter-spacing: .05em; }
+
+    /* Char art */
+    .ca { flex: 1; min-height: 0; display: grid; grid-template-columns: 290px minmax(0, 1fr); gap: 10px; }
+    .ca .box-body { overflow: auto; }
+    .ca textarea.ta { flex: none; height: 96px; }
+    .grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+    .ca-out { flex: 1; min-height: 0; overflow: auto; }
+    .ca-out pre { min-width: max-content; min-height: 100%; margin: 0; padding: 14px; white-space: pre; tab-size: 2;
+      background: linear-gradient(color-mix(in srgb, var(--text) 4%, transparent) 1px, transparent 1px), linear-gradient(90deg, color-mix(in srgb, var(--text) 4%, transparent) 1px, transparent 1px), var(--panel);
+      background-size: 18px 18px; font: 15px/1.08 var(--mono); }
+
+    /* Password */
+    .pw { width: 100%; max-width: 640px; margin: 0 auto; display: flex; flex-direction: column; gap: 10px; }
+    .pw-len { display: flex; align-items: center; gap: 10px; }
+    .pw-len input[type="range"] { flex: 1; accent-color: var(--accent-strong); }
+    .pw-len b { min-width: 28px; text-align: right; font-variant-numeric: tabular-nums; }
+    .pw-out { display: flex; gap: 6px; }
+    .pw-out input { flex: 1; height: 36px; font: 15px var(--mono); }
+    .pw-out .icon-btn { width: 36px; height: 36px; }
+    .meter { height: 8px; border-radius: 99px; background: var(--panel-2); border: 1px solid var(--border); overflow: hidden; flex: 1; }
+    .meter > div { height: 100%; width: 0; transition: width .3s ease; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; color: #fff; white-space: nowrap; }
+    .s-weak { background: #dc3545; }
+    .s-medium { background: #d99a06; }
+    .s-strong { background: #28a745; }
+    .s-vstrong { background: #17a2b8; }
+
+    /* Help */
+    dialog { width: min(680px, calc(100vw - 32px)); max-height: calc(100vh - 32px); padding: 0; border: 1px solid var(--border); border-radius: 10px; background: var(--panel); color: var(--text); }
+    dialog[open] { display: flex; flex-direction: column; }
+    dialog::backdrop { background: rgb(0 0 0 / 45%); }
+    .dlg-head { display: flex; align-items: center; justify-content: space-between; padding: 8px 10px 8px 14px; border-bottom: 1px solid var(--border); font-weight: 600; flex: none; }
+    .dlg-body { padding: 10px 14px 12px; overflow: auto; min-height: 0; }
+    .dlg-body h3 { margin: 12px 0 6px; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+    .dlg-body h3:first-of-type { margin-top: 8px; }
+    .dlg-body p { margin: 0 0 6px; }
+    .dlg-body ul { margin: 0; padding-left: 16px; }
+    .dlg-body li { margin: 2px 0; font-size: 13px; }
+    .dlg-body li.active { color: var(--text); }
+    .dlg-body li.active .goto { color: var(--accent); }
+    .dlg-body code, .dlg-body kbd { font-family: var(--mono); font-size: 12px; background: var(--accent-soft); color: var(--accent); padding: 0 4px; border-radius: 4px; }
+    .dlg-body .mono { font-family: var(--mono); }
+    .help-cats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 16px; }
+    .help-cats .hc { padding: 6px 8px; border: 1px solid var(--border); border-radius: 8px; }
+    .help-cats .hc-h { display: flex; align-items: center; gap: 6px; font-weight: 600; font-size: 13px; margin-bottom: 2px; }
+    .help-cats .hc.active { border-color: var(--accent); background: var(--accent-soft); }
+    .goto { padding: 0; border: 0; background: none; font-weight: 700; cursor: pointer; }
+    .goto:hover { text-decoration: underline; }
+    .this-tab { padding: 8px 10px; border-left: 3px solid var(--accent); background: var(--accent-soft); border-radius: 6px; }
+    .cheat { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 5px; margin-top: 6px; }
+    .cheat div { padding: 4px 6px; border-radius: 6px; background: var(--panel-2); color: var(--muted); font-size: 11px; }
+    .cheat code { background: none; padding: 0; color: var(--cyan); }
+    .dlg-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 14px; border-top: 1px solid var(--border); flex: none; }
+
+    .toast { position: fixed; left: 50%; bottom: 16px; z-index: 50; transform: translate(-50%, 20px); padding: 6px 12px; border-radius: 6px; background: var(--accent-strong); color: #fff; font-size: 13px; opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; }
+    .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+    @media (max-width: 900px) {
+      .rx { grid-template-columns: 150px minmax(0, 1fr) minmax(0, 1fr); }
     }
+    @media (max-width: 720px) {
+      body { overflow: auto; }
+      .panel { height: auto; min-height: 100%; }
+      .io, .df-editors, .ca, .grid2 { grid-template-columns: 1fr; }
+      .io { min-height: 0; }
+      .io .ta { min-height: 140px; }
+      .df-editors { height: auto; }
+      .df-editors textarea.bare { min-height: 140px; }
+      .df-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .rx { grid-template-columns: 1fr; grid-template-rows: none; }
+      .rx-side { grid-row: auto; max-height: 180px; }
+      .rx-top { grid-column: auto; }
+      .rx-col .box.grow { min-height: 200px; }
+      .ca-out { min-height: 260px; }
+      .menu { grid-template-columns: repeat(2, minmax(120px, auto)); }
+      .help-cats, .cheat { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .topbar .brand span { display: none; }
+    }
+    @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
   </style>
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-NWZDZ906DJ"></script>
   <script>
@@ -139,77 +299,116 @@
   </script>
 </head>
 <body>
-  <header>
-    <h1 id="appTitle">Conversor Web</h1>
-    <div class="spacer"></div>
-    <select id="langSelect" style="border:1px solid var(--border);background:transparent;color:var(--fg);padding:.15rem .3rem;font-size:.92em;border-radius:.4rem;cursor:pointer;min-width:unset;max-width:90px">
-      <option value="en">English</option>
-      <option value="pt">Português</option>
-      <option value="ja">日本語</option>
-    </select>
-    <button class="btn ghost" id="themeToggle" title="Alternar tema">Tema</button>
-    <button class="btn ghost" id="clearAll" title="Limpar tudo">Limpar</button>
-    <span id="shortcutHint" class="subtle">Atalho: <span class="kbd">Ctrl/Cmd</span>+<span class="kbd">Enter</span> executa</span>
-  </header>
+  <div class="app">
+    <header class="topbar" id="topbar">
+      <div class="brand"><img src="../assets/icons/svg/utils-dev_utils.svg" alt=""><span data-i18n="appTitle">Dev Utils</span></div>
+      <div class="cat-wrap">
+        <button class="cat-btn" id="cat-btn" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="cat-menu">
+          <i id="cat-icon" class="fa-solid fa-code" aria-hidden="true"></i><span id="cat-label"></span><i class="fa-solid fa-caret-down" aria-hidden="true"></i>
+        </button>
+        <div class="menu" id="cat-menu" role="menu" hidden></div>
+      </div>
+      <nav class="tabs" id="tabs" role="tablist"></nav>
+      <div class="tools">
+        <button class="icon-btn" id="help-btn" type="button" data-i18n-title="help"><i class="fa-solid fa-circle-question"></i></button>
+        <select id="lang-switcher" aria-label="Language">
+          <option value="en">EN</option>
+          <option value="pt">PT</option>
+          <option value="ja">JA</option>
+        </select>
+        <button class="icon-btn" id="theme-switcher" type="button" data-i18n-title="theme"><i class="fa-solid fa-sun"></i></button>
+      </div>
+    </header>
+    <main id="panels"></main>
+  </div>
 
-  <main>
-    <nav class="tabs" id="tabs"></nav>
-    <section id="panels"></section>
-
-    <div id="footerTip" class="footer">Dica: nada é enviado a servidores. MD5 é inadequado para segurança; use SHA‑256/HMAC para integridade/autenticação.</div>
-  </main>
+  <dialog id="help">
+    <div class="dlg-head"><span id="help-title"></span><button class="icon-btn" id="help-close" type="button" data-i18n-title="close"><i class="fa-solid fa-xmark"></i></button></div>
+    <div class="dlg-body" id="help-body"></div>
+    <div class="dlg-foot">
+      <span class="small muted" data-i18n="footerTip"></span>
+      <button class="btn sm danger" id="clear-all" type="button"><i class="fa-solid fa-trash-can"></i><span data-i18n="clearAllBtn"></span></button>
+    </div>
+  </dialog>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script>
 (() => {
-  // --- Estado e utilidades ---
-  const $ = (sel, el=document) => el.querySelector(sel);
-  const $$ = (sel, el=document) => [...el.querySelectorAll(sel)];
+  // --- State and utilities ---
+  const $ = (sel, el = document) => el.querySelector(sel);
+  const $$ = (sel, el = document) => [...el.querySelectorAll(sel)];
   const enc = new TextEncoder();
   const dec = new TextDecoder();
   const SKEY = 'conv.tabs.v01';
   const LKEY = 'app_lang';
-
+  const THKEY = 'app_theme';
+  const store = {
+    get(k) { try { return localStorage.getItem(k); } catch (_) { return null; } },
+    set(k, v) { try { localStorage.setItem(k, v); } catch (_) {} },
+    del(k) { try { localStorage.removeItem(k); } catch (_) {} },
+  };
   const state = {
     activeTab: 'base64',
-    theme: localStorage.getItem('app_theme') || 'dark',
-    lang: localStorage.getItem(LKEY) || 'en',
+    theme: store.get(THKEY) === 'light' ? 'light' : 'dark',
+    lang: store.get(LKEY) || 'en',
   };
-  document.body.dataset.theme = state.theme;
+  if (!['en', 'pt', 'ja'].includes(state.lang)) state.lang = 'en';
 
-  const setTheme = t => { state.theme = t; document.body.dataset.theme = t; localStorage.setItem('app_theme', t); };
+  // Per-tab text persistence (conv.text.<id>) — the original 11 converter tabs
+  const textStore = {
+    load: (k) => store.get(`conv.text.${k}`) || '',
+    save: (k, v) => store.set(`conv.text.${k}`, v ?? ''),
+  };
 
   // --- i18n ---
   const I18N = {
     en: {
-      appTitle: 'Web Converter',
-      docTitle: 'Web Converter — Base64, URL, MD5, SHA, HTML, JSON, CSV, YAML, XML (Client-side)',
-      tagline: 'Base64 · URL · MD5 · SHA · HTML · JSON · CSV · YAML · XML — 100% client-side',
-      themeBtn: 'Theme',
-      clearAllBtn: 'Clear',
-      shortcut: 'Shortcut',
-      runs: 'runs',
-      footerTip: 'Tip: nothing is sent to servers.',
+      appTitle: 'Dev Utils', help: 'Help', theme: 'Toggle theme', close: 'Close', tools: 'Tools',
+      footerTip: 'Nothing is sent to servers.',
       copied: 'Copied.',
       confirmClearAll: 'Clear all fields and pairs?',
+      clearAllBtn: 'Clear saved text',
       errorPrefix: 'Error: ',
       selectFile: 'Select a file.',
       pasteBase64: 'Paste a Base64.',
       provideKey: 'Provide a key.',
+      helpIntro: 'Converters, hashes, data formats and text tools in one page. Everything runs in your browser; only the Fake data tab downloads its library from a CDN the first time it opens.',
+      helpThisTab: 'This tab', helpTabs: 'All tools', helpShortcuts: 'Shortcuts',
+      shortcutRun: 'runs the main action', shortcutHelp: 'opens this help', shortcutTabs: 'switch tabs when a tab has focus',
 
+      cat_encode: 'Encode', cat_crypto: 'Crypto', cat_data: 'Data', cat_text: 'Text',
       tab_base64: 'Base64', tab_url: 'URL', tab_md5: 'MD5', tab_sha: 'SHA/HMAC', tab_html: 'HTML/Unicode', tab_json: 'JSON',
       tab_csv: 'CSV', tab_yaml: 'YAML', tab_xml: 'XML', tab_http_digest: 'HTTP Digest', tab_unicode: 'Unicode',
+      tab_regex: 'Regex', tab_diff: 'Diff', tab_fakedata: 'Fake data', tab_morse: 'Morse', tab_charart: 'Char art', tab_password: 'Password',
+
+      d_base64: 'Encode and decode UTF‑8 text as Base64; turn files into data URLs and Base64 back into a file download.',
+      d_url: 'encodeURI, encodeURIComponent and form encoding, plus a key/value query builder.',
+      d_html: 'Encode and decode HTML entities, apply Unicode normalization (NFC/NFD/NFKC/NFKD) and remove accents.',
+      d_unicode: 'Convert between \\uXXXX escape sequences and real characters.',
+      d_md5: 'MD5 hash of text as hex and Base64 (legacy use only).',
+      d_sha: 'SHA‑256/384/512 digests and HMAC of text, and SHA of files.',
+      d_http_digest: 'HA1 and HA1b hashes for HTTP Digest authentication.',
+      d_password: 'Random passwords or “hacker” variations of a word, with a strength estimate.',
+      d_json: 'Pretty-print, compact and validate JSON.',
+      d_csv: 'Convert CSV to JSON and back.',
+      d_yaml: 'Convert YAML to JSON and back.',
+      d_xml: 'Convert XML to JSON and back.',
+      d_fakedata: 'Generate fake people data in many locales and export it as a table, SQL, JSON, XML or CSV.',
+      d_regex: 'Test regular expressions live with highlighting, groups, a token explanation and find & replace.',
+      d_diff: 'Compare two texts side by side with word-level highlights and copy a patch.',
+      d_charart: 'Turn words into big block or outline letters drawn with characters.',
+      d_morse: 'Convert text to Morse code and back, and play it as audio.',
 
       httpDigestTitle: 'HA1/HA1b Generator (HTTP Digest Auth)',
-      username: 'Username',
-      realm: 'Realm',
-      password: 'Password',
+      digestNote: 'HA1 = MD5(user:realm:password) · HA1b = MD5(user@realm:realm:password).',
+      username: 'Username', realm: 'Realm', password: 'Password',
 
       input: 'Input', output: 'Output', inputText: 'Input (text)',
       typeTextHere: 'Type your text here...', copyOut: 'Copy output', clear: 'Clear', swap: 'Swap', download: 'Download',
       fileNamePlaceholder: 'file-name.bin',
 
       b64Encode: 'Encode → Base64', b64Decode: 'Decode ← Base64',
-      b64Note: 'For UTF‑8 we use TextEncoder/TextDecoder. For binaries use the "File" section below.',
+      b64Note: 'For UTF‑8 we use TextEncoder/TextDecoder. For binaries use the file section below the text boxes.',
       fileToBase64: 'File → Base64', generateBase64: 'Generate Base64', copyBase64: 'Copy Base64',
       base64ToDownload: 'Base64 → File download', pasteBase64Here: 'Paste a Base64 here (data URL or raw)',
 
@@ -219,11 +418,13 @@
       urlNote2: '<b>encodeURIComponent</b> → use for URL part (query param, path segment).',
       urlNote3: '<b>x-www-form-urlencoded</b> → uses <span class="mono">URLSearchParams</span> with spaces replaced by <span class="mono">+</span>.',
       kvToForm: 'Key/Value → x-www-form-urlencoded', key: 'key', value: 'value', addPair: 'Add pair', generateQuery: 'Build query', clearPairs: 'Clear pairs',
+      kvPlaceholder: 'Added pairs (JSON)',
 
       md5Placeholder: 'Text for MD5 hash...', generateMD5: 'Generate MD5', md5Note: 'MD5 is insecure for cryptographic use. Use only for legacy verification.',
 
       shaPlaceholder: 'Text for SHA/HMAC...', algorithm: 'Algorithm', hmac: 'HMAC', hmacKeyPlaceholder: 'HMAC key (UTF‑8)', shaGenerate: 'Generate',
       fileToSHA: 'File → SHA', hashFile: 'Hash file', copyHash: 'Copy hash', formatHexBase64: 'Format: hex and Base64',
+      shaNote: 'The HMAC key is read as UTF‑8; file hashing uses the selected algorithm.',
 
       htmlPlaceholder: 'Text for Entities/Unicode...', encodeEntities: 'Encode Entities', decodeEntities: 'Decode Entities',
       normalization: 'Normalization', apply: 'Apply', removeAccents: 'Remove accents',
@@ -233,44 +434,61 @@
       jsonNote: 'Pretty applies 2-space indentation; Compact removes spaces. In case of error, the message is shown.',
       jsonValidOK: 'OK: valid JSON',
 
-      csvInput: 'Input (CSV or JSON)', csvToJson: 'CSV → JSON', jsonToCsv: 'JSON → CSV', headerRow: 'Header row', csvNote: 'Uses Papa Parse for CSV.',
+      csvInput: 'Input (CSV or JSON)', csvPH: 'CSV or JSON...', csvToJson: 'CSV → JSON', jsonToCsv: 'JSON → CSV', headerRow: 'Header row', csvNote: 'Uses Papa Parse for CSV.',
+      yamlInput: 'Input (YAML or JSON)', yamlPH: 'YAML or JSON...', yamlToJson: 'YAML → JSON', jsonToYaml: 'JSON → YAML', yamlNote: 'Uses js-yaml for YAML.',
+      xmlInput: 'Input (XML or JSON)', xmlPH: 'XML or JSON...', xmlToJson: 'XML → JSON', jsonToXml: 'JSON → XML', xmlNote: 'Uses fast-xml-parser for XML.',
 
-      yamlInput: 'Input (YAML or JSON)', yamlToJson: 'YAML → JSON', jsonToYaml: 'JSON → YAML', yamlNote: 'Uses js-yaml for YAML.',
-
-      xmlInput: 'Input (XML or JSON)', xmlToJson: 'XML → JSON', jsonToXml: 'JSON → XML', xmlNote: 'Uses fast-xml-parser for XML.',
-      
-      unicodeInput: 'Input (Unicode or Text)', unicodeToText: 'Unicode → Text', textToUnicode: 'Text → Unicode',
+      unicodeInput: 'Input (Unicode or Text)', unicodePH: 'Unicode escape sequences (\\u30c6\\u30b9\\u30c8) or text...',
+      unicodeToText: 'Unicode → Text', textToUnicode: 'Text → Unicode',
       unicodeNote: 'Converts between Unicode escape sequences (\\uXXXX) and actual Unicode characters.',
     },
     pt: {
-      appTitle: 'Conversor Web',
-      docTitle: 'Conversor Web — Base64, URL, MD5, SHA, HTML, JSON, CSV, YAML, XML (Client-side)',
-      tagline: 'Base64 · URL · MD5 · SHA · HTML · JSON · CSV · YAML · XML — 100% client-side',
-      themeBtn: 'Tema',
-      clearAllBtn: 'Limpar',
-      shortcut: 'Atalho',
-      runs: 'executa',
-      footerTip: 'Dica: nada é enviado a servidores.',
+      appTitle: 'Utilitários Dev', help: 'Ajuda', theme: 'Alternar tema', close: 'Fechar', tools: 'Ferramentas',
+      footerTip: 'Nada é enviado a servidores.',
       copied: 'Copiado.',
       confirmClearAll: 'Limpar todos os campos e pares?',
+      clearAllBtn: 'Limpar texto salvo',
       errorPrefix: 'Erro: ',
       selectFile: 'Selecione um arquivo.',
       pasteBase64: 'Cole um Base64.',
+      provideKey: 'Informe uma chave.',
+      helpIntro: 'Conversores, hashes, formatos de dados e ferramentas de texto numa só página. Tudo roda no navegador; só a aba Dados falsos baixa a biblioteca de um CDN na primeira vez que abre.',
+      helpThisTab: 'Esta aba', helpTabs: 'Todas as ferramentas', helpShortcuts: 'Atalhos',
+      shortcutRun: 'executa a ação principal', shortcutHelp: 'abre esta ajuda', shortcutTabs: 'trocam de aba quando uma aba está em foco',
 
+      cat_encode: 'Codificar', cat_crypto: 'Cripto', cat_data: 'Dados', cat_text: 'Texto',
       tab_base64: 'Base64', tab_url: 'URL', tab_md5: 'MD5', tab_sha: 'SHA/HMAC', tab_html: 'HTML/Unicode', tab_json: 'JSON',
       tab_csv: 'CSV', tab_yaml: 'YAML', tab_xml: 'XML', tab_http_digest: 'HTTP Digest', tab_unicode: 'Unicode',
+      tab_regex: 'Regex', tab_diff: 'Diff', tab_fakedata: 'Dados falsos', tab_morse: 'Morse', tab_charart: 'Char-art', tab_password: 'Senha',
+
+      d_base64: 'Codifica e decodifica texto UTF‑8 em Base64; transforma arquivos em data URLs e Base64 de volta em download.',
+      d_url: 'encodeURI, encodeURIComponent e codificação de formulário, além de um montador de query chave/valor.',
+      d_html: 'Codifica e decodifica entidades HTML, aplica normalização Unicode (NFC/NFD/NFKC/NFKD) e remove acentos.',
+      d_unicode: 'Converte entre sequências de escape \\uXXXX e caracteres reais.',
+      d_md5: 'Hash MD5 de texto em hex e Base64 (apenas uso legado).',
+      d_sha: 'Digests SHA‑256/384/512 e HMAC de texto, e SHA de arquivos.',
+      d_http_digest: 'Hashes HA1 e HA1b para autenticação HTTP Digest.',
+      d_password: 'Senhas aleatórias ou variações “hacker” de uma palavra, com estimativa de força.',
+      d_json: 'Formata, compacta e valida JSON.',
+      d_csv: 'Converte CSV em JSON e vice-versa.',
+      d_yaml: 'Converte YAML em JSON e vice-versa.',
+      d_xml: 'Converte XML em JSON e vice-versa.',
+      d_fakedata: 'Gera dados falsos de pessoas em várias localidades e exporta como tabela, SQL, JSON, XML ou CSV.',
+      d_regex: 'Testa expressões regulares ao vivo com destaque, grupos, explicação dos tokens e localizar e substituir.',
+      d_diff: 'Compara dois textos lado a lado com destaque por palavra e copia um patch.',
+      d_charart: 'Transforma palavras em letras grandes (bloco ou contorno) desenhadas com caracteres.',
+      d_morse: 'Converte texto em código Morse e vice-versa, e toca como áudio.',
 
       httpDigestTitle: 'Gerador HA1/HA1b (HTTP Digest Auth)',
-      username: 'Usuário',
-      realm: 'Realm',
-      password: 'Senha',
+      digestNote: 'HA1 = MD5(usuário:realm:senha) · HA1b = MD5(usuário@realm:realm:senha).',
+      username: 'Usuário', realm: 'Realm', password: 'Senha',
 
       input: 'Entrada', output: 'Saída', inputText: 'Entrada (texto)',
       typeTextHere: 'Digite seu texto aqui...', copyOut: 'Copiar saída', clear: 'Limpar', swap: 'Inverter', download: 'Baixar',
       fileNamePlaceholder: 'nome-do-arquivo.bin',
 
       b64Encode: 'Encode → Base64', b64Decode: 'Decode ← Base64',
-      b64Note: 'Para UTF‑8, usamos TextEncoder/TextDecoder. Para binários use a aba "Arquivo" abaixo.',
+      b64Note: 'Para UTF‑8, usamos TextEncoder/TextDecoder. Para binários use a seção de arquivo abaixo das caixas de texto.',
       fileToBase64: 'Arquivo → Base64', generateBase64: 'Gerar Base64', copyBase64: 'Copiar Base64',
       base64ToDownload: 'Base64 → Download de arquivo', pasteBase64Here: 'Cole aqui um Base64 (data URL ou puro)',
 
@@ -280,11 +498,13 @@
       urlNote2: '<b>encodeURIComponent</b> → use para parte da URL (query param, path segment).',
       urlNote3: '<b>x-www-form-urlencoded</b> → usa <span class="mono">URLSearchParams</span> com substituição de espaço por <span class="mono">+</span>.',
       kvToForm: 'Key/Value → x-www-form-urlencoded', key: 'chave', value: 'valor', addPair: 'Adicionar par', generateQuery: 'Gerar query', clearPairs: 'Limpar pares',
+      kvPlaceholder: 'Pares adicionados (JSON)',
 
       md5Placeholder: 'Texto para hash MD5...', generateMD5: 'Gerar MD5', md5Note: 'MD5 é inseguro para uso criptográfico. Utilize apenas para verificação legada.',
 
       shaPlaceholder: 'Texto para SHA/HMAC...', algorithm: 'Algoritmo', hmac: 'HMAC', hmacKeyPlaceholder: 'Chave HMAC (UTF-8)', shaGenerate: 'Gerar',
       fileToSHA: 'Arquivo → SHA', hashFile: 'Hash do arquivo', copyHash: 'Copiar hash', formatHexBase64: 'Formato: hex e Base64',
+      shaNote: 'A chave HMAC é lida como UTF‑8; o hash de arquivo usa o algoritmo selecionado.',
 
       htmlPlaceholder: 'Texto para Entities/Unicode...', encodeEntities: 'Encode Entities', decodeEntities: 'Decode Entities',
       normalization: 'Normalização', apply: 'Aplicar', removeAccents: 'Remover acentos',
@@ -294,59 +514,77 @@
       jsonNote: 'Pretty aplica indentação de 2 espaços; Compact remove espaços. Em caso de erro, a mensagem é mostrada.',
       jsonValidOK: 'OK: JSON válido',
 
-      csvInput: 'Entrada (CSV ou JSON)', csvToJson: 'CSV → JSON', jsonToCsv: 'JSON → CSV', headerRow: 'Linha de cabeçalho', csvNote: 'Usa Papa Parse para CSV.',
+      csvInput: 'Entrada (CSV ou JSON)', csvPH: 'CSV ou JSON...', csvToJson: 'CSV → JSON', jsonToCsv: 'JSON → CSV', headerRow: 'Linha de cabeçalho', csvNote: 'Usa Papa Parse para CSV.',
+      yamlInput: 'Entrada (YAML ou JSON)', yamlPH: 'YAML ou JSON...', yamlToJson: 'YAML → JSON', jsonToYaml: 'JSON → YAML', yamlNote: 'Usa js-yaml para YAML.',
+      xmlInput: 'Entrada (XML ou JSON)', xmlPH: 'XML ou JSON...', xmlToJson: 'XML → JSON', jsonToXml: 'JSON → XML', xmlNote: 'Usa fast-xml-parser para XML.',
 
-      yamlInput: 'Entrada (YAML ou JSON)', yamlToJson: 'YAML → JSON', jsonToYaml: 'JSON → YAML', yamlNote: 'Usa js-yaml para YAML.',
-
-      xmlInput: 'Entrada (XML ou JSON)', xmlToJson: 'XML → JSON', jsonToXml: 'JSON → XML', xmlNote: 'Usa fast-xml-parser para XML.',
-      
-      unicodeInput: 'Entrada (Unicode ou Texto)', unicodeToText: 'Unicode → Texto', textToUnicode: 'Texto → Unicode',
+      unicodeInput: 'Entrada (Unicode ou Texto)', unicodePH: 'Sequências de escape Unicode (\\u30c6\\u30b9\\u30c8) ou texto...',
+      unicodeToText: 'Unicode → Texto', textToUnicode: 'Texto → Unicode',
       unicodeNote: 'Converte entre sequências de escape Unicode (\\uXXXX) e caracteres Unicode reais.',
     },
     ja: {
-      appTitle: 'Webコンバーター',
-      docTitle: 'Webコンバーター — Base64, URL, MD5, SHA, HTML, JSON, CSV, YAML, XML (クライアントサイド)',
-      tagline: 'Base64 · URL · MD5 · SHA · HTML · JSON · CSV · YAML · XML — すべてクライアント側',
-      themeBtn: 'テーマ',
-      clearAllBtn: '全消去',
-      shortcut: 'ショートカット',
-      runs: '実行',
-      footerTip: 'ヒント: データはサーバーへ送信されません。',
+      appTitle: '開発ユーティリティ', help: 'ヘルプ', theme: 'テーマ切替', close: '閉じる', tools: 'ツール',
+      footerTip: 'データはサーバーへ送信されません。',
       copied: 'コピーしました。',
       confirmClearAll: 'すべてのフィールドとペアをクリアしますか？',
+      clearAllBtn: '保存したテキストをクリア',
       errorPrefix: 'エラー: ',
       selectFile: 'ファイルを選択してください。',
       pasteBase64: 'Base64を貼り付けてください。',
       provideKey: 'キーを入力してください。',
+      helpIntro: '変換・ハッシュ・データ形式・テキストツールをひとつのページにまとめました。処理はすべてブラウザ内で行われます。「偽データ」タブだけは初回表示時にCDNからライブラリを読み込みます。',
+      helpThisTab: 'このタブ', helpTabs: 'すべてのツール', helpShortcuts: 'ショートカット',
+      shortcutRun: 'メイン操作を実行', shortcutHelp: 'このヘルプを開く', shortcutTabs: 'タブにフォーカスがあるときタブを切替',
 
+      cat_encode: 'エンコード', cat_crypto: '暗号', cat_data: 'データ', cat_text: 'テキスト',
       tab_base64: 'Base64', tab_url: 'URL', tab_md5: 'MD5', tab_sha: 'SHA/HMAC', tab_html: 'HTML/Unicode', tab_json: 'JSON',
       tab_csv: 'CSV', tab_yaml: 'YAML', tab_xml: 'XML', tab_http_digest: 'HTTPダイジェスト', tab_unicode: 'Unicode',
+      tab_regex: '正規表現', tab_diff: '差分', tab_fakedata: '偽データ', tab_morse: 'モールス', tab_charart: 'チャーアート', tab_password: 'パスワード',
+
+      d_base64: 'UTF‑8テキストをBase64でエンコード/デコード。ファイルをdata URLに、Base64をファイルに戻してダウンロード。',
+      d_url: 'encodeURI・encodeURIComponent・フォームエンコードと、キー/値からのクエリ生成。',
+      d_html: 'HTMLエンティティのエンコード/デコード、Unicode正規化（NFC/NFD/NFKC/NFKD）、アクセント除去。',
+      d_unicode: '\\uXXXX エスケープと実際の文字を相互変換。',
+      d_md5: 'テキストのMD5ハッシュ（hex と Base64、レガシー用途のみ）。',
+      d_sha: 'テキストのSHA‑256/384/512ダイジェストとHMAC、ファイルのSHA。',
+      d_http_digest: 'HTTP Digest認証用のHA1/HA1bハッシュ。',
+      d_password: 'ランダムなパスワード、または単語の「ハッカー」風アレンジ。強度の目安付き。',
+      d_json: 'JSONの整形・圧縮・検証。',
+      d_csv: 'CSVとJSONを相互変換。',
+      d_yaml: 'YAMLとJSONを相互変換。',
+      d_xml: 'XMLとJSONを相互変換。',
+      d_fakedata: '多数のロケールで人物の偽データを生成し、表・SQL・JSON・XML・CSVで出力。',
+      d_regex: '正規表現をライブでテスト。ハイライト、グループ、トークンの説明、検索と置換。',
+      d_diff: '2つのテキストを左右に並べて比較し、単語単位で強調。パッチをコピー。',
+      d_charart: '単語を文字で描いた大きなブロック/アウトライン文字に変換。',
+      d_morse: 'テキストとモールス符号を相互変換し、音声で再生。',
 
       httpDigestTitle: 'HA1/HA1bジェネレーター (HTTP Digest Auth)',
-      username: 'ユーザー名',
-      realm: 'レルム',
-      password: 'パスワード',
+      digestNote: 'HA1 = MD5(ユーザー名:レルム:パスワード) · HA1b = MD5(ユーザー名@レルム:レルム:パスワード)。',
+      username: 'ユーザー名', realm: 'レルム', password: 'パスワード',
 
       input: '入力', output: '出力', inputText: '入力（テキスト）',
       typeTextHere: 'ここにテキストを入力...', copyOut: '出力をコピー', clear: 'クリア', swap: '入れ替え', download: 'ダウンロード',
       fileNamePlaceholder: 'ファイル名.bin',
 
       b64Encode: 'エンコード → Base64', b64Decode: 'デコード ← Base64',
-      b64Note: 'UTF‑8にはTextEncoder/TextDecoderを使用。バイナリは下の「ファイル」を使用してください。',
+      b64Note: 'UTF‑8にはTextEncoder/TextDecoderを使用。バイナリはテキスト欄の下のファイル欄を使用してください。',
       fileToBase64: 'ファイル → Base64', generateBase64: 'Base64生成', copyBase64: 'Base64をコピー',
       base64ToDownload: 'Base64 → ファイルダウンロード', pasteBase64Here: 'Base64（data URL または生）を貼り付け',
 
       urlInputPH: 'テキストまたはURLコンポーネント...', encode: 'エンコード', decode: 'デコード',
-      encodeURI: 'encodeURI', encodeURIComponent: 'encodeURIComponent', xWwwFormUrlencoded: 'application/x-www-form-urlencoded',
+      encodeURI: 'encodeURI', encodeURIComponent: 'encodeURIComponent', xWwwFormUrlencoded: 'x-www-form-urlencoded',
       urlNote1: '<b>encodeURI</b> → URL全体に使用。<span class="mono">:/?#&=</span> を保持。',
       urlNote2: '<b>encodeURIComponent</b> → URLの一部（クエリ、パス）に使用。',
       urlNote3: '<b>x-www-form-urlencoded</b> → <span class="mono">URLSearchParams</span> を使用し、空白は <span class="mono">+</span> に。',
       kvToForm: 'Key/Value → x-www-form-urlencoded', key: 'キー', value: '値', addPair: 'ペアを追加', generateQuery: 'クエリ生成', clearPairs: 'ペアをクリア',
+      kvPlaceholder: '追加したペア（JSON）',
 
       md5Placeholder: 'MD5ハッシュ用テキスト...', generateMD5: 'MD5生成', md5Note: 'MD5は暗号用途に不適切。レガシー検証のみで使用。',
 
       shaPlaceholder: 'SHA/HMAC用テキスト...', algorithm: 'アルゴリズム', hmac: 'HMAC', hmacKeyPlaceholder: 'HMACキー（UTF‑8）', shaGenerate: '生成',
       fileToSHA: 'ファイル → SHA', hashFile: 'ファイルをハッシュ', copyHash: 'ハッシュをコピー', formatHexBase64: '形式: hex と Base64',
+      shaNote: 'HMACキーはUTF‑8として扱います。ファイルのハッシュは選択したアルゴリズムを使用します。',
 
       htmlPlaceholder: 'Entities/Unicode 用テキスト...', encodeEntities: 'Entities エンコード', decodeEntities: 'Entities デコード',
       normalization: '正規化', apply: '適用', removeAccents: 'アクセント除去',
@@ -356,535 +594,405 @@
       jsonNote: '整形は2スペースのインデント。圧縮は空白を除去。エラー時はメッセージを表示。',
       jsonValidOK: 'OK: 有効なJSON',
 
-      csvInput: '入力（CSVまたはJSON）', csvToJson: 'CSV → JSON', jsonToCsv: 'JSON → CSV', headerRow: 'ヘッダー行', csvNote: 'CSV は Papa Parse を使用。',
+      csvInput: '入力（CSVまたはJSON）', csvPH: 'CSV または JSON...', csvToJson: 'CSV → JSON', jsonToCsv: 'JSON → CSV', headerRow: 'ヘッダー行', csvNote: 'CSV は Papa Parse を使用。',
+      yamlInput: '入力（YAMLまたはJSON）', yamlPH: 'YAML または JSON...', yamlToJson: 'YAML → JSON', jsonToYaml: 'JSON → YAML', yamlNote: 'YAML は js-yaml を使用。',
+      xmlInput: '入力（XMLまたはJSON）', xmlPH: 'XML または JSON...', xmlToJson: 'XML → JSON', jsonToXml: 'JSON → XML', xmlNote: 'XML は fast-xml-parser を使用。',
 
-      yamlInput: '入力（YAMLまたはJSON）', yamlToJson: 'YAML → JSON', jsonToYaml: 'JSON → YAML', yamlNote: 'YAML は js-yaml を使用。',
-
-      xmlInput: '入力（XMLまたはJSON）', xmlToJson: 'XML → JSON', jsonToXml: 'JSON → XML', xmlNote: 'XML は fast-xml-parser を使用。',
-      
-      unicodeInput: '入力（Unicodeまたはテキスト）', unicodeToText: 'Unicode → テキスト', textToUnicode: 'テキスト → Unicode',
+      unicodeInput: '入力（Unicodeまたはテキスト）', unicodePH: 'Unicodeエスケープ（\\u30c6\\u30b9\\u30c8）またはテキスト...',
+      unicodeToText: 'Unicode → テキスト', textToUnicode: 'テキスト → Unicode',
       unicodeNote: 'Unicodeエスケープシーケンス（\\uXXXX）と実際のUnicode文字の間で変換。',
     },
   };
-  function t(key){
-    return (I18N[state.lang] && I18N[state.lang][key]) || I18N.en[key] || key;
-  }
-  function translateHeader(){
-    const titleEl = document.getElementById('appTitle');
-    const tagEl = document.getElementById('tagline');
-    const themeBtn = document.getElementById('themeToggle');
-    const clearBtn = document.getElementById('clearAll');
-    const shortcut = document.getElementById('shortcutHint');
-    if(titleEl) titleEl.textContent = t('appTitle');
-    if(tagEl) tagEl.innerHTML = t('tagline');
-    if(themeBtn) themeBtn.textContent = t('themeBtn');
-    if(clearBtn) clearBtn.textContent = t('clearAllBtn');
-    if(shortcut) shortcut.innerHTML = `${t('shortcut')}: <span class="kbd">Ctrl/Cmd</span>+<span class="kbd">Enter</span> ${t('runs')}`;
-    document.title = t('docTitle');
-    const footer = document.getElementById('footerTip');
-    if(footer) footer.innerHTML = t('footerTip');
-    const langSel = document.getElementById('langSelect');
-    if(langSel) langSel.value = state.lang;
-    document.documentElement.lang = state.lang === 'pt' ? 'pt-BR' : (state.lang === 'ja' ? 'ja' : 'en');
+
+  // Translations carried over from the merged pages, namespaced by prefix
+  function addI18n(prefix, dict) {
+    for (const lang of Object.keys(I18N)) {
+      for (const [k, v] of Object.entries(dict[lang] || {})) I18N[lang][prefix + k] = v;
+    }
   }
 
-  // Persistência leve de texto por aba
-  const textStore = {
-    load: (k) => localStorage.getItem(`conv.text.${k}`) || '',
-    save: (k, v) => localStorage.setItem(`conv.text.${k}`, v ?? '')
-  };
+  // Regex Playground
+  addI18n('rx_', {
+    en: {copy:'Copy regex',save:'Save',examples:'Examples',saved:'Saved patterns',matches:'matches',valid:'Valid expression',testText:'Test text',clear:'Clear',highlight:'Highlighted result',matchDetails:'Match details',explanation:'Pattern explanation',replace:'Find & replace',replacement:'Replacement, e.g. $1 or $<name>',copyResult:'Copy result',noMatch:'No matches yet.',index:'Match {n}',group:'Group {n}',named:'Named: {n}',copied:'Copied.',savedOk:'Pattern saved.',removed:'Pattern removed.',invalid:'Invalid expression',start:'Start of input',end:'End of input',digit:'Digit',word:'Word character',space:'Whitespace',any:'Any character',oneMore:'One or more',zeroMore:'Zero or more',optional:'Optional',class:'Character class',capture:'Capturing group',noncapture:'Non-capturing group',namedGroup:'Named group',lookahead:'Lookahead',negativeLookahead:'Negative lookahead',alternation:'Alternation',repeat:'Repetition',literal:'Literal text',boundary:'Word boundary',escape:'Escaped character',
+      pattern:'Pattern {n}', remove:'Remove', cheat:'Cheat sheet',
+      tip:'Click an example or a saved pattern to load it; × (or a double click) removes a saved pattern — up to 12 are kept. Flags: g global, i ignore case, m multiline, s dotAll, u Unicode. Use $1, $& or $<name> in the replacement.'},
+    pt: {copy:'Copiar regex',save:'Salvar',examples:'Exemplos',saved:'Padrões salvos',matches:'resultados',valid:'Expressão válida',testText:'Texto de teste',clear:'Limpar',highlight:'Resultado destacado',matchDetails:'Detalhes dos resultados',explanation:'Explicação do padrão',replace:'Localizar e substituir',replacement:'Substituição, ex.: $1 ou $<nome>',copyResult:'Copiar resultado',noMatch:'Nenhum resultado ainda.',index:'Resultado {n}',group:'Grupo {n}',named:'Nomeado: {n}',copied:'Copiado.',savedOk:'Padrão salvo.',removed:'Padrão removido.',invalid:'Expressão inválida',start:'Início da entrada',end:'Fim da entrada',digit:'Dígito',word:'Caractere de palavra',space:'Espaço em branco',any:'Qualquer caractere',oneMore:'Um ou mais',zeroMore:'Zero ou mais',optional:'Opcional',class:'Classe de caracteres',capture:'Grupo de captura',noncapture:'Grupo sem captura',namedGroup:'Grupo nomeado',lookahead:'Lookahead positivo',negativeLookahead:'Lookahead negativo',alternation:'Alternativa',repeat:'Repetição',literal:'Texto literal',boundary:'Limite de palavra',escape:'Caractere escapado',
+      pattern:'Padrão {n}', remove:'Remover', cheat:'Referência rápida',
+      tip:'Clique em um exemplo ou padrão salvo para carregá-lo; × (ou um duplo clique) remove um padrão salvo — até 12 são mantidos. Flags: g global, i ignora maiúsculas, m multilinha, s dotAll, u Unicode. Use $1, $& ou $<nome> na substituição.'},
+    ja: {copy:'正規表現をコピー',save:'保存',examples:'サンプル',saved:'保存済みパターン',matches:'件一致',valid:'有効な正規表現',testText:'テスト文字列',clear:'クリア',highlight:'ハイライト結果',matchDetails:'一致の詳細',explanation:'パターンの説明',replace:'検索と置換',replacement:'置換文字列（例: $1、$<name>）',copyResult:'結果をコピー',noMatch:'まだ一致がありません。',index:'一致 {n}',group:'グループ {n}',named:'名前付き: {n}',copied:'コピーしました。',savedOk:'パターンを保存しました。',removed:'パターンを削除しました。',invalid:'無効な正規表現',start:'入力の先頭',end:'入力の末尾',digit:'数字',word:'単語文字',space:'空白文字',any:'任意の文字',oneMore:'1回以上',zeroMore:'0回以上',optional:'0回または1回',class:'文字クラス',capture:'キャプチャグループ',noncapture:'非キャプチャグループ',namedGroup:'名前付きグループ',lookahead:'肯定先読み',negativeLookahead:'否定先読み',alternation:'選択',repeat:'繰り返し',literal:'リテラル文字',boundary:'単語境界',escape:'エスケープ文字',
+      pattern:'パターン {n}', remove:'削除', cheat:'チートシート',
+      tip:'サンプルや保存済みパターンをクリックすると読み込みます。×（またはダブルクリック）で保存済みパターンを削除（最大12件保存）。フラグ: g 全体、i 大文字小文字無視、m 複数行、s dotAll、u Unicode。置換では $1、$&、$<name> を使えます。'},
+  });
+
+  // Text Diff Studio
+  addI18n('df_', {
+    en: {sample:'Sample',swap:'Swap',copyPatch:'Copy patch',ignoreSpace:'Ignore whitespace',ignoreCase:'Ignore case',showAll:'Show unchanged lines',clear:'Clear',original:'Original',revised:'Revised',leftHint:'Paste the original text…',rightHint:'Paste the revised text…',added:'Added',removed:'Removed',changed:'Changed',similarity:'Similarity',comparison:'Side-by-side comparison',empty:'Enter text above to see the differences.',lines:'{n} lines',identical:'Texts are identical',differences:'{n} differences',copied:'Patch copied.',copyFailed:'Could not copy.',tooLarge:'Large input: showing a simplified comparison.',
+      tip:'Texts are compared line by line, then word by word inside changed lines. Unchanged lines far from a change are collapsed (•••) unless “Show unchanged lines” is on. Copy patch copies a unified-style patch of the whole text.'},
+    pt: {sample:'Exemplo',swap:'Trocar',copyPatch:'Copiar patch',ignoreSpace:'Ignorar espaços',ignoreCase:'Ignorar maiúsculas',showAll:'Mostrar linhas sem alteração',clear:'Limpar',original:'Original',revised:'Revisado',leftHint:'Cole o texto original…',rightHint:'Cole o texto revisado…',added:'Adicionadas',removed:'Removidas',changed:'Alteradas',similarity:'Similaridade',comparison:'Comparação lado a lado',empty:'Digite ou cole textos acima para ver as diferenças.',lines:'{n} linhas',identical:'Os textos são idênticos',differences:'{n} diferenças',copied:'Patch copiado.',copyFailed:'Não foi possível copiar.',tooLarge:'Texto grande: exibindo uma comparação simplificada.',
+      tip:'Os textos são comparados linha a linha e, nas linhas alteradas, palavra a palavra. Linhas sem alteração longe das mudanças ficam recolhidas (•••), a menos que “Mostrar linhas sem alteração” esteja ativo. Copiar patch copia um patch no estilo unified do texto inteiro.'},
+    ja: {sample:'サンプル',swap:'入れ替え',copyPatch:'パッチをコピー',ignoreSpace:'空白を無視',ignoreCase:'大文字小文字を無視',showAll:'変更のない行も表示',clear:'クリア',original:'変更前',revised:'変更後',leftHint:'元のテキストを貼り付け…',rightHint:'変更後のテキストを貼り付け…',added:'追加',removed:'削除',changed:'変更',similarity:'類似度',comparison:'左右比較',empty:'上にテキストを入力すると差分が表示されます。',lines:'{n}行',identical:'テキストは同一です',differences:'差分 {n}件',copied:'パッチをコピーしました。',copyFailed:'コピーできませんでした。',tooLarge:'長い入力のため簡易比較を表示しています。',
+      tip:'行単位で比較し、変更された行の中は単語単位で比較します。「変更のない行も表示」がオフのとき、変更から離れた行は（•••）に折りたたまれます。「パッチをコピー」はテキスト全体のunified形式パッチをコピーします。'},
+  });
+
+  // Fake Data Generator
+  addI18n('fk_', {
+    en: {dataLocale:'Data Locale',quantity:'Quantity',dataFields:'Data Fields',generate:'Generate',outputFormat:'Output Format:',copy:'Copy',copied:'Copied!',
+      noFields:'Please select at least one data field.',loading:'Loading Faker…',loadFail:'Could not load Faker: ',empty:'Click Generate to create data.',
+      tip:'The Faker library (@faker-js/faker) is downloaded from esm.sh the first time this tab opens. Choose a locale, the fields and a quantity (1–1000), then pick an output format: HTML table, SQL, JSON, XML or CSV.'},
+    pt: {dataLocale:'Localidade dos Dados',quantity:'Quantidade',dataFields:'Campos de Dados',generate:'Gerar',outputFormat:'Formato de Saída:',copy:'Copiar',copied:'Copiado!',
+      noFields:'Selecione pelo menos um campo de dados.',loading:'Carregando Faker…',loadFail:'Não foi possível carregar o Faker: ',empty:'Clique em Gerar para criar dados.',
+      tip:'A biblioteca Faker (@faker-js/faker) é baixada do esm.sh na primeira vez que esta aba abre. Escolha a localidade, os campos e a quantidade (1–1000) e depois o formato de saída: tabela HTML, SQL, JSON, XML ou CSV.'},
+    ja: {dataLocale:'データのロケール',quantity:'数量',dataFields:'データフィールド',generate:'生成',outputFormat:'出力形式:',copy:'コピー',copied:'コピーしました！',
+      noFields:'少なくとも1つのデータフィールドを選択してください。',loading:'Fakerを読み込み中…',loadFail:'Fakerを読み込めませんでした: ',empty:'「生成」をクリックしてデータを作成します。',
+      tip:'Fakerライブラリ（@faker-js/faker）はこのタブを初めて開いたときにesm.shから読み込まれます。ロケール、フィールド、数量（1〜1000）を選び、出力形式（HTML表・SQL・JSON・XML・CSV）を選択します。'},
+  });
+
+  // Morse Code
+  addI18n('mo_', {
+    en: {textLabel:'Text',morseLabel:'Morse',textPlaceholder:'Type text here...',morsePlaceholder:'Type Morse here... (· −  /)',
+      textHint:'Letters, numbers and common punctuation. Accented letters are normalized when possible.',
+      morseHint:'Separate letters with spaces and words with two spaces or /. Dots: . or · — Dashes: - or − or _',
+      toMorse:'To Morse',toText:'To Text',copyText:'Copy text',copyMorse:'Copy Morse',play:'Play',stop:'Stop',clear:'Clear',swap:'Swap',chartTitle:'Reference chart',
+      copied:'Copied!',copyFail:'Could not copy.',unknownChars:'Some characters could not be converted and were skipped.',unknownCodes:'Some Morse codes could not be decoded and were marked with ?.',empty:'Nothing to convert.',playing:'Playing…',
+      shortcut:'Ctrl/Cmd+Enter in the Text box converts to Morse; in the Morse box it converts to text.'},
+    pt: {textLabel:'Texto',morseLabel:'Morse',textPlaceholder:'Digite o texto aqui...',morsePlaceholder:'Digite o Morse aqui... (· −  /)',
+      textHint:'Letras, números e pontuação comum. Acentos são normalizados quando possível.',
+      morseHint:'Separe letras com espaços e palavras com dois espaços ou /. Pontos: . ou · — Traços: - ou − ou _',
+      toMorse:'Para Morse',toText:'Para Texto',copyText:'Copiar texto',copyMorse:'Copiar Morse',play:'Tocar',stop:'Parar',clear:'Limpar',swap:'Trocar',chartTitle:'Tabela de referência',
+      copied:'Copiado!',copyFail:'Não foi possível copiar.',unknownChars:'Alguns caracteres não puderam ser convertidos e foram ignorados.',unknownCodes:'Alguns códigos Morse não puderam ser decodificados e foram marcados com ?.',empty:'Nada para converter.',playing:'Reproduzindo…',
+      shortcut:'Ctrl/Cmd+Enter na caixa Texto converte para Morse; na caixa Morse converte para texto.'},
+    ja: {textLabel:'テキスト',morseLabel:'モールス',textPlaceholder:'ここにテキストを入力...',morsePlaceholder:'ここにモールスを入力... (· −  /)',
+      textHint:'英数字と一般的な記号に対応。アクセント付き文字は可能な限り正規化します。',
+      morseHint:'文字はスペース、単語は2つのスペースまたは / で区切ってください。点: . または · — 線: - または − または _',
+      toMorse:'モールスへ',toText:'テキストへ',copyText:'テキストをコピー',copyMorse:'モールスをコピー',play:'再生',stop:'停止',clear:'クリア',swap:'入れ替え',chartTitle:'対照表',
+      copied:'コピーしました！',copyFail:'コピーできませんでした。',unknownChars:'変換できない文字があり、スキップされました。',unknownCodes:'解読できないモールスがあり、? で示しました。',empty:'変換するものがありません。',playing:'再生中…',
+      shortcut:'テキスト欄で Ctrl/Cmd+Enter を押すとモールスに、モールス欄ではテキストに変換します。'},
+  });
+
+  // Char-Art Creator
+  addI18n('ca_', {
+    en: {inputTitle:'Text',liveHint:'Live preview',wordLabel:'Word or phrase',wordPlaceholder:'Type something here',fillLabel:'Fill character',spaceLabel:'Spacing',caseLabel:'Case',caseUpper:'Uppercase',caseKeep:'Keep input',caseLower:'Lowercase',styleLabel:'Style',styleBlock:'Block',styleOutline:'Outline',copy:'Copy',download:'Download',clear:'Clear',outputTitle:'ASCII output',copied:'Copied to clipboard.',empty:'Type a word to generate char-art.',downloaded:'Downloaded as char-art.txt.',size:'{cols} columns x {rows} rows',
+      tip:'Letters A–Z, digits and ! ? . - _ / : have glyphs; other characters are drawn inside a box. Outline hollows out the inner cells. Line breaks start a new row of letters (up to 180 characters).'},
+    pt: {inputTitle:'Texto',liveHint:'Prévia ao vivo',wordLabel:'Palavra ou frase',wordPlaceholder:'Digite algo aqui',fillLabel:'Caractere de preenchimento',spaceLabel:'Espaçamento',caseLabel:'Caixa',caseUpper:'Maiúsculas',caseKeep:'Manter texto',caseLower:'Minúsculas',styleLabel:'Estilo',styleBlock:'Bloco',styleOutline:'Contorno',copy:'Copiar',download:'Baixar',clear:'Limpar',outputTitle:'Saída ASCII',copied:'Copiado para a área de transferência.',empty:'Digite uma palavra para gerar char-art.',downloaded:'Baixado como char-art.txt.',size:'{cols} colunas x {rows} linhas',
+      tip:'Letras A–Z, dígitos e ! ? . - _ / : têm glifos; outros caracteres são desenhados dentro de uma caixa. Contorno esvazia as células internas. Quebras de linha começam uma nova linha de letras (até 180 caracteres).'},
+    ja: {inputTitle:'テキスト',liveHint:'ライブプレビュー',wordLabel:'単語またはフレーズ',wordPlaceholder:'ここに入力',fillLabel:'塗りつぶし文字',spaceLabel:'間隔',caseLabel:'大文字/小文字',caseUpper:'大文字',caseKeep:'入力を維持',caseLower:'小文字',styleLabel:'スタイル',styleBlock:'ブロック',styleOutline:'アウトライン',copy:'コピー',download:'ダウンロード',clear:'クリア',outputTitle:'ASCII出力',copied:'クリップボードにコピーしました。',empty:'単語を入力するとチャーアートを生成します。',downloaded:'char-art.txtとして保存しました。',size:'{cols}列 x {rows}行',
+      tip:'A〜Z、数字、! ? . - _ / : にはグリフがあり、それ以外の文字は枠の中に描かれます。アウトラインは内側を空けます。改行で次の行の文字になります（最大180文字）。'},
+  });
+
+  // Password Generator
+  addI18n('pw_', {
+    en: {randomTab:'Random',hackerTab:'Hacker Mode',lengthLabel:'Password Length:',uppercaseLabel:'Uppercase',lowercaseLabel:'Lowercase',numbersLabel:'Numbers',symbolsLabel:'Symbols',generateButton:'Generate Password',hackerInputLabel:'Enter a word:',hackerPH:'e.g., password',generatedPasswordLabel:'Generated Password:',outPH:'Generated password will appear here...',copy:'Copy',copiedFeedback:'Copied to clipboard!',strengthLabel:'Password Strength:',crackTimeEstimate:'Estimated time to crack: ',
+      editHint:'You can edit the generated password to customize it further; the strength updates as you type.',alert_no_character_type:'Please select at least one character type.',alert_no_word:'Please enter a word.',
+      weak:'Weak',medium:'Medium',strong:'Strong',vstrong:'Very Strong',instant:'Instant',u_seconds:'seconds',u_minutes:'minutes',u_hours:'hours',u_days:'days',u_years:'years',
+      tip:'Random mode uses the browser’s cryptographic random generator. Hacker mode swaps some letters for look-alike symbols (a→@/4, e→3, i→1/!, o→0, s→$/5, t→7, b→8, g→9) and randomizes the case. The crack time assumes one billion guesses per second.'},
+    pt: {randomTab:'Aleatório',hackerTab:'Modo Hacker',lengthLabel:'Comprimento da Senha:',uppercaseLabel:'Maiúsculas',lowercaseLabel:'Minúsculas',numbersLabel:'Números',symbolsLabel:'Símbolos',generateButton:'Gerar Senha',hackerInputLabel:'Digite uma palavra:',hackerPH:'ex.: senha',generatedPasswordLabel:'Senha Gerada:',outPH:'A senha gerada aparecerá aqui...',copy:'Copiar',copiedFeedback:'Copiado para a área de transferência!',strengthLabel:'Força da Senha:',crackTimeEstimate:'Tempo estimado para quebrar: ',
+      editHint:'Você pode editar a senha gerada para personalizá-la ainda mais; a força é atualizada enquanto você digita.',alert_no_character_type:'Por favor, selecione pelo menos um tipo de caractere.',alert_no_word:'Por favor, insira uma palavra.',
+      weak:'Fraca',medium:'Média',strong:'Forte',vstrong:'Muito Forte',instant:'Instantâneo',u_seconds:'segundos',u_minutes:'minutos',u_hours:'horas',u_days:'dias',u_years:'anos',
+      tip:'O modo Aleatório usa o gerador criptográfico do navegador. O modo Hacker troca algumas letras por símbolos parecidos (a→@/4, e→3, i→1/!, o→0, s→$/5, t→7, b→8, g→9) e alterna maiúsculas e minúsculas. O tempo estimado considera um bilhão de tentativas por segundo.'},
+    ja: {randomTab:'ランダム',hackerTab:'ハッカーモード',lengthLabel:'パスワードの長さ:',uppercaseLabel:'大文字',lowercaseLabel:'小文字',numbersLabel:'数字',symbolsLabel:'記号',generateButton:'パスワードを生成',hackerInputLabel:'単語を入力してください:',hackerPH:'例: password',generatedPasswordLabel:'生成されたパスワード:',outPH:'生成されたパスワードがここに表示されます...',copy:'コピー',copiedFeedback:'クリップボードにコピーしました！',strengthLabel:'パスワード強度:',crackTimeEstimate:'クラック推定時間: ',
+      editHint:'生成されたパスワードは編集してさらにカスタマイズできます。入力に合わせて強度が更新されます。',alert_no_character_type:'少なくとも1つの文字タイプを選択してください。',alert_no_word:'単語を入力してください。',
+      weak:'弱い',medium:'普通',strong:'強い',vstrong:'非常に強い',instant:'即時',u_seconds:'秒',u_minutes:'分',u_hours:'時間',u_days:'日',u_years:'年',
+      tip:'ランダムモードはブラウザの暗号学的乱数を使用します。ハッカーモードは一部の文字を似た記号（a→@/4, e→3, i→1/!, o→0, s→$/5, t→7, b→8, g→9）に置き換え、大文字小文字をランダムにします。クラック時間は毎秒10億回の試行を想定しています。'},
+  });
+
+  function t(key, vars) {
+    let s = (I18N[state.lang] && I18N[state.lang][key] !== undefined) ? I18N[state.lang][key] : (I18N.en[key] !== undefined ? I18N.en[key] : key);
+    if (vars) for (const [a, b] of Object.entries(vars)) s = s.split('{' + a + '}').join(String(b));
+    return s;
+  }
+  function applyI18n(root = document) {
+    $$('[data-i18n]', root).forEach((el) => { el.textContent = t(el.dataset.i18n); });
+    $$('[data-i18n-ph]', root).forEach((el) => { el.placeholder = t(el.dataset.i18nPh); });
+    $$('[data-i18n-title]', root).forEach((el) => { el.title = t(el.dataset.i18nTitle); el.setAttribute('aria-label', t(el.dataset.i18nTitle)); });
+  }
+  const els = (root) => { const E = {}; $$('[data-el]', root).forEach((el) => { E[el.dataset.el] = el; }); return E; };
+  const esc = (s) => String(s ?? '').replace(/[&<>'"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[c]));
 
   // Base64 seguro UTF-8
-  function utf8ToBase64(str){
+  function utf8ToBase64(str) {
     const bytes = enc.encode(str);
     let binary = '';
-    bytes.forEach(b => binary += String.fromCharCode(b));
+    bytes.forEach((b) => binary += String.fromCharCode(b));
     return btoa(binary);
   }
-  function base64ToUtf8(b64){
+  function base64ToUtf8(b64) {
     const bin = atob(b64);
-    const bytes = new Uint8Array([...bin].map(ch => ch.charCodeAt(0)));
+    const bytes = new Uint8Array([...bin].map((ch) => ch.charCodeAt(0)));
     return dec.decode(bytes);
   }
-
-  // Bytes helpers
-  function bytesToHex(bytes){
-    return [...bytes].map(b => b.toString(16).padStart(2,'0')).join('');
+  function bytesToHex(bytes) { return [...bytes].map((b) => b.toString(16).padStart(2, '0')).join(''); }
+  function bytesToBase64(bytes) { let bin = ''; bytes.forEach((b) => bin += String.fromCharCode(b)); return btoa(bin); }
+  async function shaDigest(algo, dataBytes) { return new Uint8Array(await crypto.subtle.digest(algo, dataBytes)); }
+  async function hmacSign(algo, keyBytes, dataBytes) {
+    const key = await crypto.subtle.importKey('raw', keyBytes, { name: 'HMAC', hash: { name: algo } }, false, ['sign']);
+    return new Uint8Array(await crypto.subtle.sign('HMAC', key, dataBytes));
   }
-  function bytesToBase64(bytes){
-    let bin = '';
-    bytes.forEach(b => bin += String.fromCharCode(b));
-    return btoa(bin);
-  }
-  async function shaDigest(algo, dataBytes){
-    const buf = await crypto.subtle.digest(algo, dataBytes);
-    return new Uint8Array(buf);
-  }
-  async function hmacSign(algo, keyBytes, dataBytes){
-    const key = await crypto.subtle.importKey('raw', keyBytes, { name:'HMAC', hash:{ name: algo } }, false, ['sign']);
-    const sig = await crypto.subtle.sign('HMAC', key, dataBytes);
-    return new Uint8Array(sig);
-  }
-
-  // HTML entities and normalization helpers
-  function htmlEncode(str){
-    const div = document.createElement('div');
-    div.textContent = str;
-    return div.innerHTML;
-  }
-  function htmlDecode(str){
-    const div = document.createElement('div');
-    div.innerHTML = str;
-    return div.textContent || '';
-  }
-  function removeDiacritics(str){
-    return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-  }
+  function htmlEncode(str) { const div = document.createElement('div'); div.textContent = str; return div.innerHTML; }
+  function htmlDecode(str) { const div = document.createElement('div'); div.innerHTML = str; return div.textContent || ''; }
+  function removeDiacritics(str) { return str.normalize('NFD').replace(/[̀-ͯ]/g, ''); }
 
   // Resolve fast-xml-parser global (robust against different UMD names)
-  function resolveFXPGlobal(){
-    const candidates = [
-      window.fxp, window.FXP, window.fastXmlParser, window.FastXMLParser,
-      window['fast-xml-parser'], window.fastxmlparser, window.FastXmlParser
-    ].filter(Boolean);
-    for(const cand of candidates){
-      if(cand && typeof cand.XMLParser === 'function' && typeof cand.XMLBuilder === 'function'){
-        return cand;
-      }
+  function resolveFXPGlobal() {
+    const candidates = [window.fxp, window.FXP, window.fastXmlParser, window.FastXMLParser, window['fast-xml-parser'], window.fastxmlparser, window.FastXmlParser].filter(Boolean);
+    for (const cand of candidates) {
+      if (cand && typeof cand.XMLParser === 'function' && typeof cand.XMLBuilder === 'function') return cand;
     }
-    if(typeof window.XMLParser === 'function' && typeof window.XMLBuilder === 'function'){
-      return { XMLParser: window.XMLParser, XMLBuilder: window.XMLBuilder };
-    }
-    // Last resort: scan globals (best-effort)
-    for(const key in window){
-      try{
+    if (typeof window.XMLParser === 'function' && typeof window.XMLBuilder === 'function') return { XMLParser: window.XMLParser, XMLBuilder: window.XMLBuilder };
+    for (const key in window) {
+      try {
         const obj = window[key];
-        if(obj && typeof obj === 'object' && typeof obj.XMLParser === 'function' && typeof obj.XMLBuilder === 'function'){
-          return obj;
-        }
-      }catch(_){/* ignore */}
+        if (obj && typeof obj === 'object' && typeof obj.XMLParser === 'function' && typeof obj.XMLBuilder === 'function') return obj;
+      } catch (_) { /* ignore */ }
     }
     return null;
   }
 
-  // Clipboard helpers
-  async function copy(text){
-    try{ await navigator.clipboard.writeText(text); toast(t('copied')); }
-    catch(e){ console.warn(e); alert(t('errorPrefix') + e.message); }
+  // Clipboard + toast
+  function toast(msg) {
+    const el = $('#toast');
+    el.textContent = msg;
+    el.classList.add('show');
+    clearTimeout(toast.timer);
+    toast.timer = setTimeout(() => el.classList.remove('show'), 1800);
   }
-  function toast(msg){
-    // simples: console + título (não usar Notification API aqui)
-    console.log(msg);
-  }
-
-  // Tabs
-  const TABS = [
-    { id:'base64', render: renderBase64 },
-    { id:'url',    render: renderURL    },
-    { id:'md5',    render: renderMD5    },
-    { id:'http_digest', render: renderHTTPDigest },
-    { id:'sha',    render: renderSHA    },
-    { id:'html',   render: renderHTML   },
-    { id:'json',   render: renderJSON   },
-    { id:'csv',    render: renderCSV    },
-    { id:'yaml',   render: renderYAML   },
-    { id:'xml',    render: renderXML    },
-    { id:'unicode', render: renderUnicode },
-  ];
-  function getTabLabel(id){ return t(`tab_${id}`); }
-  function getTabFromHash(){
-    const h = (location.hash||'').replace(/^#/, '').trim();
-    if(!h) return null;
-    const id = h.split(/[&?=]/)[0];
-    const exists = TABS.some(tb => tb.id === id);
-    return exists ? id : null;
+  async function copy(text, okMsg) {
+    try { await navigator.clipboard.writeText(text); toast(okMsg || t('copied')); }
+    catch (e) { console.warn(e); alert(t('errorPrefix') + e.message); }
   }
 
-  function initTabs(){
-    const tabsEl = $('#tabs');
-    const panelsEl = $('#panels');
-    tabsEl.innerHTML = TABS.map(t => `<button class="tab${t.id===state.activeTab?' active':''}" data-tab="${t.id}">${getTabLabel(t.id)}</button>`).join('');
-    panelsEl.innerHTML = '';
-    TABS.forEach(t => {
-      const panel = document.createElement('div');
-      panel.className = 'panel' + (t.id===state.activeTab? '': ' hidden');
-      panel.dataset.panel = t.id;
-      panelsEl.appendChild(panel);
-      t.render(panel);
-      const ta = panel.querySelector('textarea[name="in"]');
-      if(ta){ ta.value = textStore.load(t.id); ta.addEventListener('input', () => textStore.save(t.id, ta.value)); }
-    });
-    tabsEl.addEventListener('click', (e) => {
-      const b = e.target.closest('[data-tab]');
-      if(!b) return;
-      state.activeTab = b.dataset.tab;
-      $$('.tab', tabsEl).forEach(x => x.classList.toggle('active', x===b));
-      $$('.panel', panelsEl).forEach(p => p.classList.toggle('hidden', p.dataset.panel !== state.activeTab));
-      localStorage.setItem(SKEY, state.activeTab);
-      location.hash = '#' + state.activeTab;
-    });
+  // Reusable input/output layout for the converter tabs
+  function ioBlock(inLabel, inPH, extra = '') {
+    return `
+      <div class="io">
+        <div class="pane"><div class="pane-head"><label class="lbl" data-i18n="${inLabel}"></label></div><textarea class="ta" name="in" spellcheck="false" ${inPH}></textarea></div>
+        <div class="pane"><div class="pane-head"><label class="lbl" data-i18n="output"></label>${extra}</div><textarea class="ta" name="out" readonly spellcheck="false"></textarea></div>
+      </div>`;
   }
+  const commonBtns = (swap) => `<span class="spacer"></span>${swap ? '<button class="btn" data-action="swap" data-i18n="swap"></button>' : ''}<button class="btn" data-action="copy-out" data-i18n="copyOut"></button><button class="btn" data-action="clear" data-i18n="clear"></button>`;
 
-  // Renderers
-  function renderBase64(root){
+  // ------------------------------------------------------------------
+  // Original converter tabs
+  // ------------------------------------------------------------------
+  function renderBase64(root) {
     root.innerHTML = `
-      <div class="row">
-        <div class="col">
-          <label>${t('inputText')}</label>
-          <textarea name="in" placeholder="${t('typeTextHere')}"></textarea>
-          <div class="controls">
-            <button class="btn primary" data-action="b64-enc">${t('b64Encode')}</button>
-            <button class="btn" data-action="b64-dec">${t('b64Decode')}</button>
-            <button class="btn" data-action="swap">${t('swap')}</button>
-            <button class="btn" data-action="copy-out">${t('copyOut')}</button>
-            <button class="btn" data-action="clear">${t('clear')}</button>
-          </div>
-          <div class="note subtle">${t('b64Note')}</div>
-        </div>
-        <div class="col">
-          <label>${t('output')}</label>
-          <textarea name="out" readonly></textarea>
-        </div>
+      <div class="toolbar">
+        <button class="btn primary" data-action="b64-enc" data-run data-i18n="b64Encode"></button>
+        <button class="btn" data-action="b64-dec" data-i18n="b64Decode"></button>
+        ${commonBtns(true)}
       </div>
-      <hr style="border: none; border-top: 1px solid var(--border); margin: 1rem 0;" />
-      <div class="grid">
-        <div>
-          <label>${t('fileToBase64')}</label>
-          <input type="file" id="fileIn" />
-          <div class="controls">
-            <button class="btn" data-action="file-enc">${t('generateBase64')}</button>
-            <button class="btn" data-action="copy-fileb64">${t('copyBase64')}</button>
+      ${ioBlock('inputText', 'data-i18n-ph="typeTextHere"')}
+      <div class="io fixed">
+        <div class="sect">
+          <div class="toolbar">
+            <span class="lbl" data-i18n="fileToBase64"></span>
+            <input type="file" id="fileIn" />
+            <span class="spacer"></span>
+            <button class="btn sm" data-action="file-enc" data-i18n="generateBase64"></button>
+            <button class="btn sm" data-action="copy-fileb64" data-i18n="copyBase64"></button>
           </div>
-          <textarea name="fileb64" placeholder="Base64..." readonly></textarea>
+          <textarea class="ta short" name="fileb64" placeholder="Base64..." readonly></textarea>
         </div>
-        <div>
-          <label>${t('base64ToDownload')}</label>
-          <textarea name="fileb64in" placeholder="${t('pasteBase64Here')}"></textarea>
-          <div class="controls">
-            <input type="text" id="dlName" placeholder="${t('fileNamePlaceholder')}" />
-            <button class="btn ok" data-action="b64-download">${t('download')}</button>
+        <div class="sect">
+          <div class="toolbar">
+            <span class="lbl" data-i18n="base64ToDownload"></span>
+            <span class="spacer"></span>
+            <input type="text" id="dlName" data-i18n-ph="fileNamePlaceholder" style="width:140px;height:24px" />
+            <button class="btn sm" data-action="b64-download" data-i18n="download"></button>
           </div>
+          <textarea class="ta short" name="fileb64in" data-i18n-ph="pasteBase64Here" spellcheck="false"></textarea>
         </div>
-      </div>
-    `;
-
+      </div>`;
     const elIn = $('textarea[name="in"]', root);
     const elOut = $('textarea[name="out"]', root);
     const fileIn = $('#fileIn', root);
     const fileOut = $('textarea[name="fileb64"]', root);
     const fileB64In = $('textarea[name="fileb64in"]', root);
     const dlName = $('#dlName', root);
-
-    root.addEventListener('click', async (e)=>{
-      const a = e.target.closest('[data-action]'); if(!a) return;
+    root.addEventListener('click', async (e) => {
+      const a = e.target.closest('[data-action]'); if (!a) return;
       const act = a.dataset.action;
-      try{
-        if(act==='b64-enc'){
-          elOut.value = utf8ToBase64(elIn.value);
-        } else if(act==='b64-dec'){
-          elOut.value = base64ToUtf8(elIn.value.trim());
-        } else if(act==='swap'){
-          [elIn.value, elOut.value] = [elOut.value, elIn.value];
-          textStore.save('base64', elIn.value);
-        } else if(act==='copy-out'){
-          copy(elOut.value);
-        } else if(act==='clear'){
-          elIn.value = ''; elOut.value = ''; textStore.save('base64', '');
-        } else if(act==='file-enc'){
-          if(!fileIn.files || !fileIn.files[0]) return alert(t('selectFile'));
+      try {
+        if (act === 'b64-enc') elOut.value = utf8ToBase64(elIn.value);
+        else if (act === 'b64-dec') elOut.value = base64ToUtf8(elIn.value.trim());
+        else if (act === 'swap') { [elIn.value, elOut.value] = [elOut.value, elIn.value]; textStore.save('base64', elIn.value); }
+        else if (act === 'copy-out') copy(elOut.value);
+        else if (act === 'clear') { elIn.value = ''; elOut.value = ''; textStore.save('base64', ''); }
+        else if (act === 'file-enc') {
+          if (!fileIn.files || !fileIn.files[0]) return alert(t('selectFile'));
           const file = fileIn.files[0];
           const reader = new FileReader();
           reader.onload = () => {
-            const b64 = btoa(new Uint8Array(reader.result).reduce((s,b)=>s+String.fromCharCode(b),''));
-            fileOut.value = `data:${file.type||'application/octet-stream'};base64,${b64}`;
+            const b64 = btoa(new Uint8Array(reader.result).reduce((s, b) => s + String.fromCharCode(b), ''));
+            fileOut.value = `data:${file.type || 'application/octet-stream'};base64,${b64}`;
           };
           reader.readAsArrayBuffer(file);
-        } else if(act==='copy-fileb64'){
-          copy(fileOut.value);
-        } else if(act==='b64-download'){
+        } else if (act === 'copy-fileb64') copy(fileOut.value);
+        else if (act === 'b64-download') {
           let b64 = fileB64In.value.trim();
-          if(!b64) return alert(t('pasteBase64'));
+          if (!b64) return alert(t('pasteBase64'));
           const match = b64.match(/^data:([^;]+);base64,(.+)$/);
           let mime = 'application/octet-stream';
-          if(match){ mime = match[1]; b64 = match[2]; }
+          if (match) { mime = match[1]; b64 = match[2]; }
           const bin = atob(b64);
-          const bytes = new Uint8Array([...bin].map(c=>c.charCodeAt(0)));
-          const blob = new Blob([bytes], {type: mime});
-          const url = URL.createObjectURL(blob);
+          const bytes = new Uint8Array([...bin].map((c) => c.charCodeAt(0)));
+          const url = URL.createObjectURL(new Blob([bytes], { type: mime }));
           const aEl = document.createElement('a');
-          aEl.href = url; aEl.download = dlName.value || 'arquivo.bin';
+          aEl.href = url; aEl.download = dlName.value || 'file.bin';
           document.body.appendChild(aEl); aEl.click(); aEl.remove();
-          setTimeout(()=>URL.revokeObjectURL(url), 1000);
+          setTimeout(() => URL.revokeObjectURL(url), 1000);
         }
-      }catch(err){ alert(t('errorPrefix') + err.message); }
+      } catch (err) { alert(t('errorPrefix') + err.message); }
     });
   }
 
-  function renderURL(root){
+  function renderURL(root) {
     root.innerHTML = `
-      <div class="row">
-        <div class="col">
-          <label>${t('input')}</label>
-          <textarea name="in" placeholder="${t('urlInputPH')}"></textarea>
-          <div class="controls">
-            <div class="chip"><input type="radio" name="umode" value="uri" id="m1" checked><label for="m1">${t('encodeURI')}</label></div>
-            <div class="chip"><input type="radio" name="umode" value="ucomp" id="m2"><label for="m2">${t('encodeURIComponent')}</label></div>
-            <div class="chip"><input type="radio" name="umode" value="form" id="m3"><label for="m3">${t('xWwwFormUrlencoded')}</label></div>
-          </div>
-          <div class="controls">
-            <button class="btn primary" data-action="u-enc">${t('encode')}</button>
-            <button class="btn" data-action="u-dec">${t('decode')}</button>
-            <button class="btn" data-action="copy-out">${t('copyOut')}</button>
-            <button class="btn" data-action="clear">${t('clear')}</button>
-          </div>
-          <div class="note subtle">
-            ${t('urlNote1')}<br>
-            ${t('urlNote2')}<br>
-            ${t('urlNote3')}
-          </div>
-        </div>
-        <div class="col">
-          <label>${t('output')}</label>
-          <textarea name="out" readonly></textarea>
-        </div>
+      <div class="toolbar">
+        <button class="btn primary" data-action="u-enc" data-run data-i18n="encode"></button>
+        <button class="btn" data-action="u-dec" data-i18n="decode"></button>
+        <label class="chip"><input type="radio" name="umode" value="uri" checked><span data-i18n="encodeURI"></span></label>
+        <label class="chip"><input type="radio" name="umode" value="ucomp"><span data-i18n="encodeURIComponent"></span></label>
+        <label class="chip"><input type="radio" name="umode" value="form"><span data-i18n="xWwwFormUrlencoded"></span></label>
+        ${commonBtns(false)}
       </div>
-      <div class="grid" style="margin-top:1rem">
-        <div>
-          <label>${t('kvToForm')}</label>
-          <div class="controls">
-            <input type="text" id="k" placeholder="${t('key')}" style="min-height:unset;">
-            <input type="text" id="v" placeholder="${t('value')}" style="min-height:unset;">
-            <button class="btn" data-action="kv-add">${t('addPair')}</button>
-          </div>
-          <textarea name="kv" placeholder="Pares adicionados (JSON)" readonly></textarea>
-          <div class="controls">
-            <button class="btn" data-action="kv-build">${t('generateQuery')}</button>
-            <button class="btn" data-action="kv-clear">${t('clearPairs')}</button>
-          </div>
+      ${ioBlock('input', 'data-i18n-ph="urlInputPH"')}
+      <div class="sect" style="flex:none">
+        <div class="toolbar">
+          <span class="lbl" data-i18n="kvToForm"></span>
+          <input type="text" id="k" data-i18n-ph="key" style="width:130px">
+          <input type="text" id="v" data-i18n-ph="value" style="width:170px">
+          <button class="btn" data-action="kv-add" data-i18n="addPair"></button>
+          <span class="spacer"></span>
+          <button class="btn" data-action="kv-build" data-i18n="generateQuery"></button>
+          <button class="btn" data-action="kv-clear" data-i18n="clearPairs"></button>
         </div>
-      </div>
-    `;
-
+        <textarea class="ta short" name="kv" data-i18n-ph="kvPlaceholder" readonly></textarea>
+      </div>`;
     const elIn = $('textarea[name="in"]', root);
     const elOut = $('textarea[name="out"]', root);
     const elKV = $('textarea[name="kv"]', root);
     const mode = () => root.querySelector('input[name="umode"]:checked').value;
-
     let kv = [];
-    function syncKV(){ elKV.value = JSON.stringify(kv, null, 2); }
-
-    root.addEventListener('click', (e)=>{
-      const a = e.target.closest('[data-action]'); if(!a) return;
-      const act = a.dataset.action; try{
-        if(act==='u-enc'){
+    function syncKV() { elKV.value = JSON.stringify(kv, null, 2); }
+    root.addEventListener('click', (e) => {
+      const a = e.target.closest('[data-action]'); if (!a) return;
+      const act = a.dataset.action;
+      try {
+        if (act === 'u-enc') {
           const val = elIn.value;
-          if(mode()==='uri') elOut.value = encodeURI(val);
-          else if(mode()==='ucomp') elOut.value = encodeURIComponent(val);
-          else {
-            const p = new URLSearchParams(); p.append('q', val);
-            elOut.value = p.toString(); // q=... (com + para espaços)
-          }
-        } else if(act==='u-dec'){
+          if (mode() === 'uri') elOut.value = encodeURI(val);
+          else if (mode() === 'ucomp') elOut.value = encodeURIComponent(val);
+          else { const p = new URLSearchParams(); p.append('q', val); elOut.value = p.toString(); }
+        } else if (act === 'u-dec') {
           const val = elIn.value.trim();
-          if(mode()==='uri') elOut.value = decodeURI(val);
-          else if(mode()==='ucomp') elOut.value = decodeURIComponent(val);
+          if (mode() === 'uri') elOut.value = decodeURI(val);
+          else if (mode() === 'ucomp') elOut.value = decodeURIComponent(val);
           else {
-            // Tenta decodificar x-www-form-urlencoded
             const qs = val.startsWith('?') ? val.slice(1) : val;
             const p = new URLSearchParams(qs);
-            // Se houver apenas 'q', devolve q; senão, lista JSON
-            if(p.has('q') && [...p.keys()].length===1) elOut.value = p.get('q');
+            if (p.has('q') && [...p.keys()].length === 1) elOut.value = p.get('q');
             else {
-              const all = {}; for(const [k,v] of p) { if(all[k]===undefined) all[k]=v; else if(Array.isArray(all[k])) all[k].push(v); else all[k] = [all[k], v]; }
+              const all = {};
+              for (const [k, v] of p) { if (all[k] === undefined) all[k] = v; else if (Array.isArray(all[k])) all[k].push(v); else all[k] = [all[k], v]; }
               elOut.value = JSON.stringify(all, null, 2);
             }
           }
-        } else if(act==='copy-out'){
-          copy(elOut.value);
-        } else if(act==='clear'){
-          elIn.value = ''; elOut.value = ''; textStore.save('url', '');
-        } else if(act==='kv-add'){
-          const k = $('#k', root).value; const v = $('#v', root).value; if(!k) return alert(t('provideKey'));
-          kv.push([k,v]); syncKV();
-        } else if(act==='kv-clear'){
-          kv = []; syncKV();
-        } else if(act==='kv-build'){
-          const p = new URLSearchParams(kv);
-          elOut.value = p.toString();
-        }
-      }catch(err){ alert(t('errorPrefix') + err.message); }
+        } else if (act === 'copy-out') copy(elOut.value);
+        else if (act === 'clear') { elIn.value = ''; elOut.value = ''; textStore.save('url', ''); }
+        else if (act === 'kv-add') {
+          const k = $('#k', root).value; const v = $('#v', root).value;
+          if (!k) return alert(t('provideKey'));
+          kv.push([k, v]); syncKV();
+        } else if (act === 'kv-clear') { kv = []; syncKV(); }
+        else if (act === 'kv-build') elOut.value = new URLSearchParams(kv).toString();
+      } catch (err) { alert(t('errorPrefix') + err.message); }
     });
   }
 
-  function renderMD5(root){
+  function renderMD5(root) {
     root.innerHTML = `
-      <div class="row">
-        <div class="col">
-          <label>${t('input')}</label>
-          <textarea name="in" placeholder="${t('md5Placeholder')}"></textarea>
-          <div class="controls">
-            <button class="btn primary" data-action="md5">${t('generateMD5')}</button>
-            <button class="btn" data-action="copy-out">${t('copyOut')}</button>
-            <button class="btn" data-action="clear">${t('clear')}</button>
-          </div>
-          <div class="note subtle">${t('md5Note')}</div>
-        </div>
-        <div class="col">
-          <label>${t('output')}</label>
-          <textarea name="out" readonly></textarea>
-          <div class="controls">
-            <span class="subtle">${t('formatHexBase64')}</span>
-          </div>
-        </div>
+      <div class="toolbar">
+        <button class="btn primary" data-action="md5" data-run data-i18n="generateMD5"></button>
+        ${commonBtns(false)}
       </div>
-    `;
-
+      ${ioBlock('input', 'data-i18n-ph="md5Placeholder"', '<span class="small muted" data-i18n="formatHexBase64"></span>')}`;
     const elIn = $('textarea[name="in"]', root);
     const elOut = $('textarea[name="out"]', root);
-    root.addEventListener('click', (e)=>{
-      const a = e.target.closest('[data-action]'); if(!a) return;
+    root.addEventListener('click', (e) => {
+      const a = e.target.closest('[data-action]'); if (!a) return;
       const act = a.dataset.action;
-      try{
-        if(act==='md5'){
-          const wordArray = CryptoJS.enc.Utf8.parse(elIn.value);
-          const hash = CryptoJS.MD5(wordArray);
-          const hex = hash.toString(CryptoJS.enc.Hex);
-          const b64 = hash.toString(CryptoJS.enc.Base64);
-          elOut.value = `hex: ${hex}\nbase64: ${b64}`;
-        } else if(act==='copy-out'){
-          copy(elOut.value);
-        } else if(act==='clear'){
-          elIn.value = ''; elOut.value = ''; textStore.save('md5', '');
-        }
-      }catch(err){ alert(t('errorPrefix') + err.message); }
+      try {
+        if (act === 'md5') {
+          const hash = CryptoJS.MD5(CryptoJS.enc.Utf8.parse(elIn.value));
+          elOut.value = `hex: ${hash.toString(CryptoJS.enc.Hex)}\nbase64: ${hash.toString(CryptoJS.enc.Base64)}`;
+        } else if (act === 'copy-out') copy(elOut.value);
+        else if (act === 'clear') { elIn.value = ''; elOut.value = ''; textStore.save('md5', ''); }
+      } catch (err) { alert(t('errorPrefix') + err.message); }
     });
   }
 
-  function renderHTTPDigest(root){
+  function renderHTTPDigest(root) {
     root.innerHTML = `
-      <h3>${t('httpDigestTitle')}</h3>
-      <div class="row">
-        <div class="col">
-          <label for="http-user">${t('username')}</label>
-          <input type="text" id="http-user" name="user" style="min-height:unset">
-          <label for="http-realm" style="margin-top:1rem">${t('realm')}</label>
-          <input type="text" id="http-realm" name="realm" style="min-height:unset">
-          <label for="http-pass" style="margin-top:1rem">${t('password')}</label>
-          <input type="password" id="http-pass" name="pass" style="min-height:unset">
-          <div class="controls">
-            <button class="btn primary" data-action="gen">${t('shaGenerate')}</button>
-            <button class="btn" data-action="copy-out">${t('copyOut')}</button>
-            <button class="btn" data-action="clear">${t('clear')}</button>
-          </div>
-        </div>
-        <div class="col">
-          <label>${t('output')}</label>
-          <textarea name="out" readonly></textarea>
-        </div>
+      <div class="toolbar">
+        <button class="btn primary" data-action="gen" data-run data-i18n="shaGenerate"></button>
+        <span class="lbl" data-i18n="httpDigestTitle"></span>
+        ${commonBtns(false)}
       </div>
-    `;
-
+      <div class="io">
+        <div class="pane fields">
+          <label class="field"><span data-i18n="username"></span><input type="text" id="http-user" autocomplete="off"></label>
+          <label class="field"><span data-i18n="realm"></span><input type="text" id="http-realm" autocomplete="off"></label>
+          <label class="field"><span data-i18n="password"></span><input type="password" id="http-pass" autocomplete="off"></label>
+        </div>
+        <div class="pane"><div class="pane-head"><label class="lbl" data-i18n="output"></label></div><textarea class="ta" name="out" readonly></textarea></div>
+      </div>`;
     const elUser = $('#http-user', root);
     const elRealm = $('#http-realm', root);
     const elPass = $('#http-pass', root);
     const elOut = $('textarea[name="out"]', root);
-
-    // Load persisted data
     const saved = textStore.load('http_digest');
     if (saved) {
-      try {
-        const data = JSON.parse(saved);
-        elUser.value = data.user || '';
-        elRealm.value = data.realm || '';
-        elPass.value = data.pass || '';
-      } catch(e) { /* ignore malformed data */ }
+      try { const data = JSON.parse(saved); elUser.value = data.user || ''; elRealm.value = data.realm || ''; elPass.value = data.pass || ''; }
+      catch (e) { /* ignore malformed data */ }
     }
-
-    // Persist data on input
-    const persist = () => {
-      const data = { user: elUser.value, realm: elRealm.value, pass: elPass.value };
-      textStore.save('http_digest', JSON.stringify(data));
-    };
-    elUser.addEventListener('input', persist);
-    elRealm.addEventListener('input', persist);
-    elPass.addEventListener('input', persist);
-
-    root.addEventListener('click', (e)=>{
-      const a = e.target.closest('[data-action]'); if(!a) return;
+    const persist = () => textStore.save('http_digest', JSON.stringify({ user: elUser.value, realm: elRealm.value, pass: elPass.value }));
+    [elUser, elRealm, elPass].forEach((el) => el.addEventListener('input', persist));
+    root.addEventListener('click', (e) => {
+      const a = e.target.closest('[data-action]'); if (!a) return;
       const act = a.dataset.action;
-      try{
-        if(act==='gen'){
-          const user = elUser.value;
-          const realm = elRealm.value;
-          const pass = elPass.value;
-
-          const ha1Str = `${user}:${realm}:${pass}`;
-          const ha1bStr = `${user}@${realm}:${realm}:${pass}`;
-
-          const ha1 = CryptoJS.MD5(CryptoJS.enc.Utf8.parse(ha1Str)).toString(CryptoJS.enc.Hex);
-          const ha1b = CryptoJS.MD5(CryptoJS.enc.Utf8.parse(ha1bStr)).toString(CryptoJS.enc.Hex);
-
+      try {
+        if (act === 'gen') {
+          const user = elUser.value, realm = elRealm.value, pass = elPass.value;
+          const ha1 = CryptoJS.MD5(CryptoJS.enc.Utf8.parse(`${user}:${realm}:${pass}`)).toString(CryptoJS.enc.Hex);
+          const ha1b = CryptoJS.MD5(CryptoJS.enc.Utf8.parse(`${user}@${realm}:${realm}:${pass}`)).toString(CryptoJS.enc.Hex);
           elOut.value = `HA1: ${ha1}\nHA1b: ${ha1b}`;
-        } else if(act==='copy-out'){
-          copy(elOut.value);
-        } else if(act==='clear'){
-          elUser.value = '';
-          elRealm.value = '';
-          elPass.value = '';
-          elOut.value = '';
-          persist();
-        }
-      }catch(err){ alert(t('errorPrefix') + err.message); }
+        } else if (act === 'copy-out') copy(elOut.value);
+        else if (act === 'clear') { elUser.value = ''; elRealm.value = ''; elPass.value = ''; elOut.value = ''; persist(); }
+      } catch (err) { alert(t('errorPrefix') + err.message); }
     });
   }
 
-  function renderSHA(root){
+  function renderSHA(root) {
     root.innerHTML = `
-      <div class="row">
-        <div class="col">
-          <label>${t('input')}</label>
-          <textarea name="in" placeholder="${t('shaPlaceholder')}"></textarea>
-          <div class="controls">
-            <div class="chip">
-              <label for="shaAlgo" class="subtle">${t('algorithm')}</label>
-              <select id="shaAlgo" style="min-height:unset;background:transparent;color:var(--fg);border:1px solid var(--border);border-radius:.4rem;padding:.25rem .4rem">
-                <option value="SHA-256" selected>SHA-256</option>
-                <option value="SHA-384">SHA-384</option>
-                <option value="SHA-512">SHA-512</option>
-              </select>
-            </div>
-            <div class="chip switch">
-              <input type="checkbox" id="useHmac">
-              <label for="useHmac">${t('hmac')}</label>
-            </div>
-            <input type="text" id="hmacKey" placeholder="${t('hmacKeyPlaceholder')}" style="min-height:unset;flex:1" disabled>
-          </div>
-          <div class="controls">
-            <button class="btn primary" data-action="sha-go">${t('shaGenerate')}</button>
-            <button class="btn" data-action="copy-out">${t('copyOut')}</button>
-            <button class="btn" data-action="clear">${t('clear')}</button>
-          </div>
-        </div>
-        <div class="col">
-          <label>${t('output')}</label>
-          <textarea name="out" readonly></textarea>
-          <div class="controls"><span class="subtle">${t('formatHexBase64')}</span></div>
-        </div>
+      <div class="toolbar">
+        <button class="btn primary" data-action="sha-go" data-run data-i18n="shaGenerate"></button>
+        <span class="lbl" data-i18n="algorithm"></span>
+        <select id="shaAlgo"><option value="SHA-256" selected>SHA-256</option><option value="SHA-384">SHA-384</option><option value="SHA-512">SHA-512</option></select>
+        <label class="chip"><input type="checkbox" id="useHmac"><span data-i18n="hmac"></span></label>
+        <input type="text" id="hmacKey" data-i18n-ph="hmacKeyPlaceholder" style="width:180px" disabled>
+        ${commonBtns(false)}
       </div>
-      <hr style="border: none; border-top: 1px solid var(--border); margin: 1rem 0;" />
-      <div class="grid">
-        <div>
-          <label>${t('fileToSHA')}</label>
+      ${ioBlock('input', 'data-i18n-ph="shaPlaceholder"', '<span class="small muted" data-i18n="formatHexBase64"></span>')}
+      <div class="sect" style="flex:none">
+        <div class="toolbar">
+          <span class="lbl" data-i18n="fileToSHA"></span>
           <input type="file" id="shaFileIn" />
-          <div class="controls">
-            <button class="btn" data-action="sha-file">${t('hashFile')}</button>
-            <button class="btn" data-action="copy-filehash">${t('copyHash')}</button>
-          </div>
-          <textarea name="filehash" placeholder="hex / Base64" readonly></textarea>
+          <span class="spacer"></span>
+          <button class="btn sm" data-action="sha-file" data-i18n="hashFile"></button>
+          <button class="btn sm" data-action="copy-filehash" data-i18n="copyHash"></button>
         </div>
-      </div>
-    `;
-
+        <textarea class="ta short" name="filehash" placeholder="hex / Base64" readonly style="height:52px"></textarea>
+      </div>`;
     const elIn = $('textarea[name="in"]', root);
     const elOut = $('textarea[name="out"]', root);
     const algoSel = $('#shaAlgo', root);
@@ -892,410 +1000,1288 @@
     const hmacKey = $('#hmacKey', root);
     const fileIn = $('#shaFileIn', root);
     const fileHash = $('textarea[name="filehash"]', root);
-
-    useHmac.addEventListener('change', ()=>{
-      hmacKey.disabled = !useHmac.checked;
-    });
-
-    root.addEventListener('click', async (e)=>{
-      const a = e.target.closest('[data-action]'); if(!a) return;
+    useHmac.addEventListener('change', () => { hmacKey.disabled = !useHmac.checked; });
+    root.addEventListener('click', async (e) => {
+      const a = e.target.closest('[data-action]'); if (!a) return;
       const act = a.dataset.action;
-      try{
-        if(act==='sha-go'){
+      try {
+        if (act === 'sha-go') {
           const algo = algoSel.value;
           const data = enc.encode(elIn.value);
-          let outBytes;
-          if(useHmac.checked){
-            const keyBytes = enc.encode(hmacKey.value || '');
-            outBytes = await hmacSign(algo, keyBytes, data);
-          } else {
-            outBytes = await shaDigest(algo, data);
-          }
-          const hex = bytesToHex(outBytes);
-          const b64 = bytesToBase64(outBytes);
-          elOut.value = `hex: ${hex}\nbase64: ${b64}`;
-        } else if(act==='copy-out'){
-          copy(elOut.value);
-        } else if(act==='clear'){
-          elIn.value = ''; elOut.value = ''; textStore.save('sha','');
-        } else if(act==='sha-file'){
-          if(!fileIn.files || !fileIn.files[0]) return alert(t('selectFile'));
-          const file = fileIn.files[0];
-          const algo = algoSel.value;
-          const buf = await file.arrayBuffer();
-          const outBytes = await shaDigest(algo, new Uint8Array(buf));
-          const hex = bytesToHex(outBytes);
-          const b64 = bytesToBase64(outBytes);
-          fileHash.value = `hex: ${hex}\nbase64: ${b64}`;
-        } else if(act==='copy-filehash'){
-          copy(fileHash.value);
-        }
-      }catch(err){ alert(t('errorPrefix') + err.message); }
+          const outBytes = useHmac.checked ? await hmacSign(algo, enc.encode(hmacKey.value || ''), data) : await shaDigest(algo, data);
+          elOut.value = `hex: ${bytesToHex(outBytes)}\nbase64: ${bytesToBase64(outBytes)}`;
+        } else if (act === 'copy-out') copy(elOut.value);
+        else if (act === 'clear') { elIn.value = ''; elOut.value = ''; textStore.save('sha', ''); }
+        else if (act === 'sha-file') {
+          if (!fileIn.files || !fileIn.files[0]) return alert(t('selectFile'));
+          const buf = await fileIn.files[0].arrayBuffer();
+          const outBytes = await shaDigest(algoSel.value, new Uint8Array(buf));
+          fileHash.value = `hex: ${bytesToHex(outBytes)}\nbase64: ${bytesToBase64(outBytes)}`;
+        } else if (act === 'copy-filehash') copy(fileHash.value);
+      } catch (err) { alert(t('errorPrefix') + err.message); }
     });
   }
 
-  function renderHTML(root){
+  function renderHTML(root) {
     root.innerHTML = `
-      <div class="row">
-        <div class="col">
-          <label>${t('input')}</label>
-          <textarea name="in" placeholder="${t('htmlPlaceholder')}"></textarea>
-          <div class="controls">
-            <button class="btn" data-action="ent-enc">${t('encodeEntities')}</button>
-            <button class="btn" data-action="ent-dec">${t('decodeEntities')}</button>
-            <button class="btn" data-action="swap">${t('swap')}</button>
-            <button class="btn" data-action="copy-out">${t('copyOut')}</button>
-            <button class="btn" data-action="clear">${t('clear')}</button>
-          </div>
-          <div class="controls">
-            <div class="chip"><label class="subtle" for="normSel">${t('normalization')}</label></div>
-            <select id="normSel" style="min-height:unset;background:transparent;color:var(--fg);border:1px solid var(--border);border-radius:.4rem;padding:.25rem .4rem">
-              <option value="NFC" selected>NFC</option>
-              <option value="NFD">NFD</option>
-              <option value="NFKC">NFKC</option>
-              <option value="NFKD">NFKD</option>
-            </select>
-            <button class="btn" data-action="norm-apply">${t('apply')}</button>
-            <button class="btn" data-action="strip">${t('removeAccents')}</button>
-          </div>
-        </div>
-        <div class="col">
-          <label>${t('output')}</label>
-          <textarea name="out" readonly></textarea>
-        </div>
+      <div class="toolbar">
+        <button class="btn primary" data-action="ent-enc" data-run data-i18n="encodeEntities"></button>
+        <button class="btn" data-action="ent-dec" data-i18n="decodeEntities"></button>
+        <span class="lbl" data-i18n="normalization" style="margin-left:6px"></span>
+        <select id="normSel"><option value="NFC" selected>NFC</option><option value="NFD">NFD</option><option value="NFKC">NFKC</option><option value="NFKD">NFKD</option></select>
+        <button class="btn" data-action="norm-apply" data-i18n="apply"></button>
+        <button class="btn" data-action="strip" data-i18n="removeAccents"></button>
+        ${commonBtns(true)}
       </div>
-      <div class="note subtle">${t('entitiesNote')}</div>
-    `;
-
+      ${ioBlock('input', 'data-i18n-ph="htmlPlaceholder"')}`;
     const elIn = $('textarea[name="in"]', root);
     const elOut = $('textarea[name="out"]', root);
     const normSel = $('#normSel', root);
-
-    root.addEventListener('click', (e)=>{
-      const a = e.target.closest('[data-action]'); if(!a) return;
+    root.addEventListener('click', (e) => {
+      const a = e.target.closest('[data-action]'); if (!a) return;
       const act = a.dataset.action;
-      try{
-        if(act==='ent-enc'){
-          elOut.value = htmlEncode(elIn.value);
-        } else if(act==='ent-dec'){
-          elOut.value = htmlDecode(elIn.value);
-        } else if(act==='norm-apply'){
-          const form = normSel.value;
-          elOut.value = (elIn.value || '').normalize(form);
-        } else if(act==='strip'){
-          elOut.value = removeDiacritics(elIn.value || '');
-        } else if(act==='swap'){
-          [elIn.value, elOut.value] = [elOut.value, elIn.value];
-          textStore.save('html', elIn.value);
-        } else if(act==='copy-out'){
-          copy(elOut.value);
-        } else if(act==='clear'){
-          elIn.value = ''; elOut.value = ''; textStore.save('html','');
-        }
-      }catch(err){ alert(t('errorPrefix') + err.message); }
+      try {
+        if (act === 'ent-enc') elOut.value = htmlEncode(elIn.value);
+        else if (act === 'ent-dec') elOut.value = htmlDecode(elIn.value);
+        else if (act === 'norm-apply') elOut.value = (elIn.value || '').normalize(normSel.value);
+        else if (act === 'strip') elOut.value = removeDiacritics(elIn.value || '');
+        else if (act === 'swap') { [elIn.value, elOut.value] = [elOut.value, elIn.value]; textStore.save('html', elIn.value); }
+        else if (act === 'copy-out') copy(elOut.value);
+        else if (act === 'clear') { elIn.value = ''; elOut.value = ''; textStore.save('html', ''); }
+      } catch (err) { alert(t('errorPrefix') + err.message); }
     });
   }
 
-  function renderJSON(root){
+  function renderJSON(root) {
     root.innerHTML = `
-      <div class="row">
-        <div class="col">
-          <label>${t('jsonInput')}</label>
-          <textarea name="in" placeholder='JSON...'></textarea>
-          <div class="controls">
-            <button class="btn primary" data-action="json-pretty">${t('jsonPretty')}</button>
-            <button class="btn" data-action="json-compact">${t('jsonCompact')}</button>
-            <button class="btn" data-action="json-validate">${t('jsonValidate')}</button>
-            <button class="btn" data-action="copy-out">${t('copyOut')}</button>
-            <button class="btn" data-action="clear">${t('clear')}</button>
-          </div>
-          <div class="note subtle">${t('jsonNote')}</div>
-        </div>
-        <div class="col">
-          <label>${t('output')}</label>
-          <textarea name="out" readonly></textarea>
-        </div>
+      <div class="toolbar">
+        <button class="btn primary" data-action="json-pretty" data-run data-i18n="jsonPretty"></button>
+        <button class="btn" data-action="json-compact" data-i18n="jsonCompact"></button>
+        <button class="btn" data-action="json-validate" data-i18n="jsonValidate"></button>
+        ${commonBtns(false)}
       </div>
-    `;
-
+      ${ioBlock('jsonInput', 'placeholder="JSON..."')}`;
     const elIn = $('textarea[name="in"]', root);
     const elOut = $('textarea[name="out"]', root);
-
-    root.addEventListener('click', (e)=>{
-      const a = e.target.closest('[data-action]'); if(!a) return;
+    root.addEventListener('click', (e) => {
+      const a = e.target.closest('[data-action]'); if (!a) return;
       const act = a.dataset.action;
-      try{
-        if(act==='json-pretty'){
-          const obj = JSON.parse(elIn.value);
-          elOut.value = JSON.stringify(obj, null, 2);
-        } else if(act==='json-compact'){
-          const obj = JSON.parse(elIn.value);
-          elOut.value = JSON.stringify(obj);
-        } else if(act==='json-validate'){
-          try{
-            JSON.parse(elIn.value);
-            elOut.value = t('jsonValidOK');
-          } catch(err){
-            elOut.value = t('errorPrefix') + err.message;
-          }
-        } else if(act==='copy-out'){
-          copy(elOut.value);
-        } else if(act==='clear'){
-          elIn.value=''; elOut.value=''; textStore.save('json','');
-        }
-      }catch(err){ alert(t('errorPrefix') + err.message); }
+      try {
+        if (act === 'json-pretty') elOut.value = JSON.stringify(JSON.parse(elIn.value), null, 2);
+        else if (act === 'json-compact') elOut.value = JSON.stringify(JSON.parse(elIn.value));
+        else if (act === 'json-validate') {
+          try { JSON.parse(elIn.value); elOut.value = t('jsonValidOK'); }
+          catch (err) { elOut.value = t('errorPrefix') + err.message; }
+        } else if (act === 'copy-out') copy(elOut.value);
+        else if (act === 'clear') { elIn.value = ''; elOut.value = ''; textStore.save('json', ''); }
+      } catch (err) { alert(t('errorPrefix') + err.message); }
     });
   }
 
-  function renderCSV(root){
+  function renderCSV(root) {
     root.innerHTML = `
-      <div class="row">
-        <div class="col">
-          <label>${t('csvInput')}</label>
-          <textarea name="in" placeholder="CSV or JSON..."></textarea>
-          <div class="controls">
-            <div class="chip switch"><input type="checkbox" id="csvHeader" checked><label for="csvHeader">${t('headerRow')}</label></div>
-          </div>
-          <div class="controls">
-            <button class="btn primary" data-action="csv-to-json">${t('csvToJson')}</button>
-            <button class="btn" data-action="json-to-csv">${t('jsonToCsv')}</button>
-            <button class="btn" data-action="copy-out">${t('copyOut')}</button>
-            <button class="btn" data-action="clear">${t('clear')}</button>
-          </div>
-          <div class="note subtle">${t('csvNote')}</div>
-        </div>
-        <div class="col">
-          <label>${t('output')}</label>
-          <textarea name="out" readonly></textarea>
-        </div>
+      <div class="toolbar">
+        <button class="btn primary" data-action="csv-to-json" data-run data-i18n="csvToJson"></button>
+        <button class="btn" data-action="json-to-csv" data-i18n="jsonToCsv"></button>
+        <label class="chip"><input type="checkbox" id="csvHeader" checked><span data-i18n="headerRow"></span></label>
+        ${commonBtns(false)}
       </div>
-    `;
+      ${ioBlock('csvInput', 'data-i18n-ph="csvPH"')}`;
     const elIn = $('textarea[name="in"]', root);
     const elOut = $('textarea[name="out"]', root);
     const headerCk = $('#csvHeader', root);
-    root.addEventListener('click', (e)=>{
-      const a = e.target.closest('[data-action]'); if(!a) return;
+    root.addEventListener('click', (e) => {
+      const a = e.target.closest('[data-action]'); if (!a) return;
       const act = a.dataset.action;
-      try{
-        if(act==='csv-to-json'){
+      try {
+        if (act === 'csv-to-json') {
           const res = Papa.parse(elIn.value, { header: headerCk.checked, skipEmptyLines: 'greedy' });
           elOut.value = JSON.stringify(res.data, null, 2);
-        } else if(act==='json-to-csv'){
+        } else if (act === 'json-to-csv') {
           const obj = JSON.parse(elIn.value);
-          const data = Array.isArray(obj) ? obj : [obj];
-          elOut.value = Papa.unparse(data);
-        } else if(act==='copy-out'){
-          copy(elOut.value);
-        } else if(act==='clear'){
-          elIn.value=''; elOut.value=''; textStore.save('csv','');
-        }
-      }catch(err){ alert(t('errorPrefix') + err.message); }
+          elOut.value = Papa.unparse(Array.isArray(obj) ? obj : [obj]);
+        } else if (act === 'copy-out') copy(elOut.value);
+        else if (act === 'clear') { elIn.value = ''; elOut.value = ''; textStore.save('csv', ''); }
+      } catch (err) { alert(t('errorPrefix') + err.message); }
     });
   }
 
-  function renderYAML(root){
+  function renderYAML(root) {
     root.innerHTML = `
-      <div class="row">
-        <div class="col">
-          <label>${t('yamlInput')}</label>
-          <textarea name="in" placeholder="YAML or JSON..."></textarea>
-          <div class="controls">
-            <button class="btn primary" data-action="yaml-to-json">${t('yamlToJson')}</button>
-            <button class="btn" data-action="json-to-yaml">${t('jsonToYaml')}</button>
-            <button class="btn" data-action="copy-out">${t('copyOut')}</button>
-            <button class="btn" data-action="clear">${t('clear')}</button>
-          </div>
-          <div class="note subtle">${t('yamlNote')}</div>
-        </div>
-        <div class="col">
-          <label>${t('output')}</label>
-          <textarea name="out" readonly></textarea>
-        </div>
+      <div class="toolbar">
+        <button class="btn primary" data-action="yaml-to-json" data-run data-i18n="yamlToJson"></button>
+        <button class="btn" data-action="json-to-yaml" data-i18n="jsonToYaml"></button>
+        ${commonBtns(false)}
       </div>
-    `;
+      ${ioBlock('yamlInput', 'data-i18n-ph="yamlPH"')}`;
     const elIn = $('textarea[name="in"]', root);
     const elOut = $('textarea[name="out"]', root);
-    root.addEventListener('click', (e)=>{
-      const a = e.target.closest('[data-action]'); if(!a) return;
+    root.addEventListener('click', (e) => {
+      const a = e.target.closest('[data-action]'); if (!a) return;
       const act = a.dataset.action;
-      try{
-        if(act==='yaml-to-json'){
-          const obj = jsyaml.load(elIn.value);
-          elOut.value = JSON.stringify(obj, null, 2);
-        } else if(act==='json-to-yaml'){
-          const obj = JSON.parse(elIn.value);
-          elOut.value = jsyaml.dump(obj, { lineWidth: 120 });
-        } else if(act==='copy-out'){
-          copy(elOut.value);
-        } else if(act==='clear'){
-          elIn.value=''; elOut.value=''; textStore.save('yaml','');
-        }
-      }catch(err){ alert(t('errorPrefix') + err.message); }
+      try {
+        if (act === 'yaml-to-json') elOut.value = JSON.stringify(jsyaml.load(elIn.value), null, 2);
+        else if (act === 'json-to-yaml') elOut.value = jsyaml.dump(JSON.parse(elIn.value), { lineWidth: 120 });
+        else if (act === 'copy-out') copy(elOut.value);
+        else if (act === 'clear') { elIn.value = ''; elOut.value = ''; textStore.save('yaml', ''); }
+      } catch (err) { alert(t('errorPrefix') + err.message); }
     });
   }
 
-  function renderXML(root){
+  function renderXML(root) {
     root.innerHTML = `
-      <div class="row">
-        <div class="col">
-          <label>${t('xmlInput')}</label>
-          <textarea name="in" placeholder="XML or JSON..."></textarea>
-          <div class="controls">
-            <button class="btn primary" data-action="xml-to-json">${t('xmlToJson')}</button>
-            <button class="btn" data-action="json-to-xml">${t('jsonToXml')}</button>
-            <button class="btn" data-action="copy-out">${t('copyOut')}</button>
-            <button class="btn" data-action="clear">${t('clear')}</button>
-          </div>
-          <div class="note subtle">${t('xmlNote')}</div>
-        </div>
-        <div class="col">
-          <label>${t('output')}</label>
-          <textarea name="out" readonly></textarea>
-        </div>
+      <div class="toolbar">
+        <button class="btn primary" data-action="xml-to-json" data-run data-i18n="xmlToJson"></button>
+        <button class="btn" data-action="json-to-xml" data-i18n="jsonToXml"></button>
+        ${commonBtns(false)}
       </div>
-    `;
+      ${ioBlock('xmlInput', 'data-i18n-ph="xmlPH"')}`;
     const elIn = $('textarea[name="in"]', root);
     const elOut = $('textarea[name="out"]', root);
     const fxp = resolveFXPGlobal();
     const parseOpts = { ignoreAttributes: false, attributeNamePrefix: '@_', allowBooleanAttributes: true };
     const buildOpts = { ignoreAttributes: false, attributeNamePrefix: '@_', format: true, suppressBooleanAttributes: false };
-    root.addEventListener('click', (e)=>{
-      const a = e.target.closest('[data-action]'); if(!a) return;
+    root.addEventListener('click', (e) => {
+      const a = e.target.closest('[data-action]'); if (!a) return;
       const act = a.dataset.action;
-      try{
-        if(!fxp){ throw new Error('fast-xml-parser global not found'); }
-        if(act==='xml-to-json'){
-          const parser = new fxp.XMLParser(parseOpts);
-          const obj = parser.parse(elIn.value);
-          elOut.value = JSON.stringify(obj, null, 2);
-        } else if(act==='json-to-xml'){
-          const builder = new fxp.XMLBuilder(buildOpts);
-          const obj = JSON.parse(elIn.value);
-          elOut.value = builder.build(obj);
-        } else if(act==='copy-out'){
-          copy(elOut.value);
-        } else if(act==='clear'){
-          elIn.value=''; elOut.value=''; textStore.save('xml','');
-        }
-      }catch(err){ alert(t('errorPrefix') + err.message); }
+      try {
+        if (act === 'copy-out') return copy(elOut.value);
+        if (act === 'clear') { elIn.value = ''; elOut.value = ''; textStore.save('xml', ''); return; }
+        if (!fxp) throw new Error('fast-xml-parser global not found');
+        if (act === 'xml-to-json') elOut.value = JSON.stringify(new fxp.XMLParser(parseOpts).parse(elIn.value), null, 2);
+        else if (act === 'json-to-xml') elOut.value = new fxp.XMLBuilder(buildOpts).build(JSON.parse(elIn.value));
+      } catch (err) { alert(t('errorPrefix') + err.message); }
     });
   }
 
-  function renderUnicode(root){
+  function renderUnicode(root) {
     root.innerHTML = `
-      <div class="row">
-        <div class="col">
-          <label>${t('unicodeInput')}</label>
-          <textarea name="in" placeholder="Unicode escape sequences (\\u30c6\\u30b9\\u30c8) or text..."></textarea>
-          <div class="controls">
-            <button class="btn primary" data-action="unicode-to-text">${t('unicodeToText')}</button>
-            <button class="btn" data-action="text-to-unicode">${t('textToUnicode')}</button>
-            <button class="btn" data-action="swap">${t('swap')}</button>
-            <button class="btn" data-action="copy-out">${t('copyOut')}</button>
-            <button class="btn" data-action="clear">${t('clear')}</button>
-          </div>
-          <div class="note subtle">${t('unicodeNote')}</div>
-        </div>
-        <div class="col">
-          <label>${t('output')}</label>
-          <textarea name="out" readonly></textarea>
-        </div>
+      <div class="toolbar">
+        <button class="btn primary" data-action="unicode-to-text" data-run data-i18n="unicodeToText"></button>
+        <button class="btn" data-action="text-to-unicode" data-i18n="textToUnicode"></button>
+        ${commonBtns(true)}
       </div>
-    `;
-    
+      ${ioBlock('unicodeInput', 'data-i18n-ph="unicodePH"')}`;
     const elIn = $('textarea[name="in"]', root);
     const elOut = $('textarea[name="out"]', root);
-    
-    root.addEventListener('click', (e)=>{
-      const a = e.target.closest('[data-action]'); if(!a) return;
+    root.addEventListener('click', (e) => {
+      const a = e.target.closest('[data-action]'); if (!a) return;
       const act = a.dataset.action;
-      try{
-        if(act==='unicode-to-text'){
-          // Convert Unicode escape sequences to actual characters
-          const unicodeStr = elIn.value;
-          const text = unicodeStr.replace(/\\u([0-9a-fA-F]{4})/g, (match, hex) => {
-            return String.fromCharCode(parseInt(hex, 16));
-          });
-          elOut.value = text;
-        } else if(act==='text-to-unicode'){
-          // Convert text to Unicode escape sequences
-          const text = elIn.value;
-          const unicodeStr = text.replace(/./g, (char) => {
-            const code = char.charCodeAt(0);
-            if(code > 127) {
-              return '\\u' + code.toString(16).padStart(4, '0');
-            }
-            return char;
-          });
-          elOut.value = unicodeStr;
-        } else if(act==='swap'){
-          [elIn.value, elOut.value] = [elOut.value, elIn.value];
-          textStore.save('unicode', elIn.value);
-        } else if(act==='copy-out'){
-          copy(elOut.value);
-        } else if(act==='clear'){
-          elIn.value = ''; elOut.value = ''; textStore.save('unicode', '');
-        }
-      }catch(err){ alert(t('errorPrefix') + err.message); }
+      try {
+        if (act === 'unicode-to-text') elOut.value = elIn.value.replace(/\\u([0-9a-fA-F]{4})/g, (m, hex) => String.fromCharCode(parseInt(hex, 16)));
+        else if (act === 'text-to-unicode') elOut.value = elIn.value.replace(/./g, (ch) => { const code = ch.charCodeAt(0); return code > 127 ? '\\u' + code.toString(16).padStart(4, '0') : ch; });
+        else if (act === 'swap') { [elIn.value, elOut.value] = [elOut.value, elIn.value]; textStore.save('unicode', elIn.value); }
+        else if (act === 'copy-out') copy(elOut.value);
+        else if (act === 'clear') { elIn.value = ''; elOut.value = ''; textStore.save('unicode', ''); }
+      } catch (err) { alert(t('errorPrefix') + err.message); }
     });
   }
 
-  // Header actions
-  $('#themeToggle').addEventListener('click', ()=> setTheme(state.theme==='dark'?'light':'dark'));
-  $('#langSelect').addEventListener('change', (e)=>{
-    const val = e.target.value;
-    state.lang = (val==='pt'||val==='ja')? val : 'en';
-    localStorage.setItem(LKEY, state.lang);
-    translateHeader();
-    initTabs();
-  });
-  $('#clearAll').addEventListener('click', ()=>{
-    if(confirm(t('confirmClearAll'))){
-      $$('#panels textarea').forEach(t=> t.readOnly? t.value=t.value : t.value='');
-      localStorage.removeItem('conv.text.base64');
-      localStorage.removeItem('conv.text.url');
-      localStorage.removeItem('conv.text.md5');
-      localStorage.removeItem('conv.text.http_digest');
-      localStorage.removeItem('conv.text.sha');
-      localStorage.removeItem('conv.text.html');
-      localStorage.removeItem('conv.text.json');
-      localStorage.removeItem('conv.text.csv');
-      localStorage.removeItem('conv.text.yaml');
-      localStorage.removeItem('conv.text.xml');
-      localStorage.removeItem('conv.text.unicode');
+  // ------------------------------------------------------------------
+  // Regex Playground (from regex_playground.html; saved patterns in "regex-saved")
+  // ------------------------------------------------------------------
+  const RX_KEY = 'regex-saved';
+  const RX_EX = [
+    {name:['Email','E-mail','メール'],p:'[\\w.-]+@[\\w.-]+\\.\\w{2,}',f:'gi',text:'ana@example.com, hello.tokyo@example.jp'},
+    {name:['URL','URL','URL'],p:'https?:\\/\\/[^\\s]+',f:'gi',text:'Docs: https://example.com/docs?q=regex'},
+    {name:['Date','Data','日付'],p:'\\b(\\d{4})-(\\d{2})-(\\d{2})\\b',f:'g',text:'Published 2026-08-20; revised 2026-09-01.'},
+    {name:['Japanese text','Texto japonês','日本語'],p:'[\\p{Script=Hiragana}\\p{Script=Katakana}\\p{Script=Han}]+',f:'gu',text:'Tokyo 東京 — こんにちは — regex'},
+    {name:['Hex color','Cor hexadecimal','16進カラー'],p:'#(?:[0-9a-f]{3}|[0-9a-f]{6})\\b',f:'gi',text:'#fff #70e1c1 rgb(0,0,0)'},
+    {name:['Repeated word','Palavra repetida','重複単語'],p:'\\b(\\w+)\\s+\\1\\b',f:'gi',text:'This is is a repeated repeated word.'},
+  ];
+  function rxTokenize(p) {
+    const out = [];
+    for (let i = 0; i < p.length;) {
+      let raw = p[i], key = 'literal';
+      if (raw === '\\' && i + 1 < p.length) { raw = p.slice(i, i + 2); key = ({ d: 'digit', w: 'word', s: 'space', b: 'boundary' }[p[i + 1]] || 'escape'); i += 2; }
+      else if (raw === '[') { let j = i + 1, escaped = false; for (; j < p.length; j++) { if (!escaped && p[j] === ']') { j++; break; } escaped = !escaped && p[j] === '\\'; } raw = p.slice(i, j); key = 'class'; i = j; }
+      else if (p.startsWith('(?<', i)) { const j = p.indexOf('>', i); raw = j > -1 ? p.slice(i, j + 1) : '(?<'; key = 'namedGroup'; i += raw.length; }
+      else if (p.startsWith('(?:', i)) { raw = '(?:'; key = 'noncapture'; i += 3; }
+      else if (p.startsWith('(?!', i)) { raw = '(?!'; key = 'negativeLookahead'; i += 3; }
+      else if (p.startsWith('(?=', i)) { raw = '(?='; key = 'lookahead'; i += 3; }
+      else if (raw === '(') { key = 'capture'; i++; }
+      else if (raw === '^') { key = 'start'; i++; }
+      else if (raw === '$') { key = 'end'; i++; }
+      else if (raw === '.') { key = 'any'; i++; }
+      else if (raw === '+') { key = 'oneMore'; i++; }
+      else if (raw === '*') { key = 'zeroMore'; i++; }
+      else if (raw === '?') { key = 'optional'; i++; }
+      else if (raw === '|') { key = 'alternation'; i++; }
+      else if (raw === '{') { const j = p.indexOf('}', i); raw = j > -1 ? p.slice(i, j + 1) : '{'; key = 'repeat'; i += raw.length; }
+      else { i++; }
+      out.push({ raw, key });
     }
-  });
+    return out;
+  }
+  const rxLoadSaved = () => { try { return JSON.parse(store.get(RX_KEY) || '[]'); } catch (_) { return []; } };
 
-  // Global: executar com Ctrl/Cmd+Enter
-  document.addEventListener('keydown', (e)=>{
-    if((e.ctrlKey||e.metaKey) && e.key==='Enter'){
-      const active = $(`.panel[data-panel="${state.activeTab}"]`);
-      if(!active) return;
-      const primary = active.querySelector('.btn.primary');
-      if(primary) primary.click();
+  function renderRegex(root) {
+    root.innerHTML = `
+      <div class="rx">
+        <aside class="rx-side box">
+          <div class="side-title" data-i18n="rx_examples"></div>
+          <div class="rx-list" data-el="examples"></div>
+          <div class="side-title" data-i18n="rx_saved"></div>
+          <div class="rx-list" data-el="saved"></div>
+        </aside>
+        <div class="rx-top">
+          <div class="toolbar">
+            <div class="pattern-row">
+              <span class="slash">/</span>
+              <input data-el="pattern" spellcheck="false" autocomplete="off" aria-label="Regular expression">
+              <div class="flags" data-el="flags">${'gimsu'.split('').map((f) => `<button type="button" class="flag-btn${'giu'.includes(f) ? ' active' : ''}" data-flag="${f}">${f}</button>`).join('')}<span class="slash">/</span></div>
+            </div>
+            <button class="btn" type="button" data-el="copy"><i class="fa-regular fa-copy"></i><span data-i18n="rx_copy"></span></button>
+            <button class="btn" type="button" data-el="save"><i class="fa-regular fa-heart"></i><span data-i18n="rx_save"></span></button>
+          </div>
+          <div class="rx-stats">
+            <span><b data-el="count">0</b> <span data-i18n="rx_matches"></span></span>
+            <span><b data-el="time">0.0</b> ms</span>
+            <span class="ok-text" data-el="valid" data-i18n="rx_valid"></span>
+            <span class="err-text" data-el="error" hidden></span>
+          </div>
+        </div>
+        <div class="rx-col">
+          <section class="box grow"><div class="box-head"><h2 data-i18n="rx_testText"></h2><button class="btn sm" type="button" data-el="clear" data-i18n="rx_clear"></button></div><textarea class="bare" data-el="test" spellcheck="false"></textarea></section>
+          <section class="box grow"><div class="box-head"><h2 data-i18n="rx_highlight"></h2></div><div class="rx-hl" data-el="highlight"></div></section>
+        </div>
+        <div class="rx-col">
+          <section class="box grow"><div class="box-head"><h2 data-i18n="rx_matchDetails"></h2><span class="small muted" data-el="detail"></span></div><div class="scroll" data-el="matches"></div></section>
+          <section class="box"><div class="box-head"><h2 data-i18n="rx_explanation"></h2></div><div class="rx-explain" data-el="explanation"></div></section>
+          <section class="box"><div class="box-head"><h2 data-i18n="rx_replace"></h2><button class="btn sm primary" type="button" data-el="copyResult" data-i18n="rx_copyResult"></button></div>
+            <div class="rx-replace"><input type="text" data-el="replacement" data-i18n-ph="rx_replacement" spellcheck="false"><div class="rx-out" data-el="replaceOut"></div></div></section>
+        </div>
+      </div>`;
+    const E = els(root);
+    const rt = (k, v) => t('rx_' + k, v);
+    E.pattern.value = '(?<user>[\\w.-]+)@(?<domain>[\\w.-]+\\.\\w{2,})';
+    E.test.value = 'Contact ana@example.com or suporte@meu-site.com.br.\nFor Japan, try hello.tokyo@example.jp.';
+    E.replacement.value = '$&';
+    let timer;
+    const flags = () => $$('.flag-btn.active', E.flags).map((x) => x.dataset.flag).join('');
+
+    function run() {
+      const pattern = E.pattern.value, text = E.test.value, fs = flags(), start = performance.now();
+      let re, matches = [];
+      try {
+        re = new RegExp(pattern, fs);
+        if (fs.includes('g')) { let m; while ((m = re.exec(text)) && matches.length < 1000) { matches.push(m); if (m[0] === '') re.lastIndex++; } }
+        else { const m = re.exec(text); if (m) matches = [m]; }
+        E.error.hidden = true; E.valid.hidden = false;
+      } catch (e) {
+        E.error.textContent = e.message; E.error.hidden = false; E.valid.hidden = true;
+        E.count.textContent = '0'; E.time.textContent = (performance.now() - start).toFixed(2);
+        E.highlight.textContent = text;
+        E.matches.innerHTML = `<div class="empty">${esc(rt('invalid'))}</div>`;
+        E.replaceOut.textContent = text;
+        explain();
+        return;
+      }
+      E.time.textContent = (performance.now() - start).toFixed(2);
+      E.count.textContent = matches.length;
+      E.detail.textContent = matches.length;
+      renderHighlight(text, matches);
+      renderMatches(matches);
+      try { E.replaceOut.textContent = text.replace(re, E.replacement.value); } catch (_) { E.replaceOut.textContent = text; }
+      explain();
     }
-  });
-
-  // Inicialização
-  const hashTab = getTabFromHash();
-  state.activeTab = hashTab || localStorage.getItem(SKEY) || 'base64';
-  translateHeader();
-  initTabs();
-  if(!location.hash){
-    if(history.replaceState){ history.replaceState(null, '', '#' + state.activeTab); }
-    else location.hash = '#' + state.activeTab;
+    function renderHighlight(text, matches) {
+      const box = E.highlight; box.textContent = '';
+      let at = 0;
+      matches.forEach((m) => {
+        box.append(document.createTextNode(text.slice(at, m.index)));
+        const mark = document.createElement('mark'); mark.textContent = m[0] || '​'; box.append(mark);
+        at = m.index + m[0].length;
+      });
+      box.append(document.createTextNode(text.slice(at)));
+    }
+    function renderMatches(matches) {
+      if (!matches.length) { E.matches.innerHTML = `<div class="empty">${esc(rt('noMatch'))}</div>`; return; }
+      E.matches.innerHTML = matches.map((m, i) => {
+        const numeric = m.slice(1).map((v, j) => `<div class="rx-group"><span>${esc(rt('group', { n: j + 1 }))}</span><span>${esc(v ?? 'undefined')}</span></div>`).join('');
+        const named = m.groups ? Object.entries(m.groups).map(([k, v]) => `<div class="rx-group"><span>${esc(rt('named', { n: k }))}</span><span>${esc(v ?? 'undefined')}</span></div>`).join('') : '';
+        return `<article class="rx-match"><div class="mh"><strong>${esc(rt('index', { n: i + 1 }))}: “${esc(m[0])}”</strong><small>${m.index}–${m.index + m[0].length}</small></div>${numeric}${named}</article>`;
+      }).join('');
+    }
+    function explain() {
+      E.explanation.innerHTML = rxTokenize(E.pattern.value).map((x) => `<div class="token"><code>${esc(x.raw)}</code><span>${esc(rt(x.key))}</span></div>`).join('');
+    }
+    function renderLists() {
+      const li = state.lang === 'pt' ? 1 : state.lang === 'ja' ? 2 : 0;
+      E.examples.innerHTML = RX_EX.map((x, i) => `<button type="button" class="rx-item" data-example="${i}"><strong>${esc(x.name[li])}</strong><code>/${esc(x.p)}/${x.f}</code></button>`).join('');
+      const saved = rxLoadSaved();
+      E.saved.innerHTML = saved.length
+        ? saved.map((x, i) => `<div class="rx-item-wrap"><button type="button" class="rx-item" data-saved="${i}"><strong>${esc(x.name || rt('pattern', { n: i + 1 }))}</strong><code>/${esc(x.p)}/${esc(x.f)}</code></button><button type="button" class="rx-del" data-del="${i}" title="${esc(rt('remove'))}" aria-label="${esc(rt('remove'))}">×</button></div>`).join('')
+        : '<div class="small muted" style="padding:2px 6px">—</div>';
+    }
+    function loadPattern(x) {
+      if (!x) return;
+      E.pattern.value = x.p;
+      $$('.flag-btn', E.flags).forEach((b) => b.classList.toggle('active', (x.f || '').includes(b.dataset.flag)));
+      if (x.text) E.test.value = x.text;
+      run();
+    }
+    function removeSaved(i) {
+      const a = rxLoadSaved(); a.splice(i, 1);
+      store.set(RX_KEY, JSON.stringify(a)); renderLists(); toast(rt('removed'));
+    }
+    function save() {
+      const p = E.pattern.value; if (!p) return;
+      const a = rxLoadSaved();
+      if (!a.some((x) => x.p === p && x.f === flags())) a.unshift({ name: p.slice(0, 26), p, f: flags() });
+      store.set(RX_KEY, JSON.stringify(a.slice(0, 12)));
+      renderLists(); toast(rt('savedOk'));
+    }
+    const schedule = () => { clearTimeout(timer); timer = setTimeout(run, 100); };
+    E.pattern.addEventListener('input', schedule);
+    E.test.addEventListener('input', schedule);
+    E.replacement.addEventListener('input', schedule);
+    E.flags.addEventListener('click', (e) => { const b = e.target.closest('[data-flag]'); if (b) { b.classList.toggle('active'); run(); } });
+    E.examples.addEventListener('click', (e) => { const b = e.target.closest('[data-example]'); if (b) loadPattern(RX_EX[+b.dataset.example]); });
+    E.saved.addEventListener('click', (e) => {
+      const d = e.target.closest('[data-del]'); if (d) return removeSaved(+d.dataset.del);
+      const b = e.target.closest('[data-saved]'); if (b) loadPattern(rxLoadSaved()[+b.dataset.saved]);
+    });
+    E.saved.addEventListener('dblclick', (e) => { const b = e.target.closest('[data-saved]'); if (b) removeSaved(+b.dataset.saved); });
+    E.clear.addEventListener('click', () => { E.test.value = ''; run(); });
+    E.save.addEventListener('click', save);
+    E.copy.addEventListener('click', () => copy('/' + E.pattern.value + '/' + flags(), rt('copied')));
+    E.copyResult.addEventListener('click', () => copy(E.replaceOut.textContent, rt('copied')));
+    renderLists();
+    run();
+    return { onLang() { renderLists(); run(); } };
   }
 
-  window.addEventListener('hashchange', ()=>{
-    const id = getTabFromHash();
-    if(!id || id === state.activeTab) return;
-    const tabsEl = $('#tabs');
-    const panelsEl = $('#panels');
+  // ------------------------------------------------------------------
+  // Text Diff Studio (from text_diff_studio.html)
+  // ------------------------------------------------------------------
+  function renderDiff(root) {
+    root.innerHTML = `
+      <div class="toolbar">
+        <label class="chip"><input type="checkbox" data-el="ignoreSpace"><span data-i18n="df_ignoreSpace"></span></label>
+        <label class="chip"><input type="checkbox" data-el="ignoreCase"><span data-i18n="df_ignoreCase"></span></label>
+        <label class="chip"><input type="checkbox" data-el="showAll"><span data-i18n="df_showAll"></span></label>
+        <span class="spacer"></span>
+        <button class="btn" type="button" data-el="sample" data-i18n="df_sample"></button>
+        <button class="btn" type="button" data-el="swap"><i class="fa-solid fa-arrow-right-arrow-left"></i><span data-i18n="df_swap"></span></button>
+        <button class="btn" type="button" data-el="patch"><i class="fa-regular fa-copy"></i><span data-i18n="df_copyPatch"></span></button>
+        <button class="btn" type="button" data-el="clear" data-i18n="df_clear"></button>
+      </div>
+      <div class="df-editors">
+        <section class="box"><div class="box-head"><strong><span class="dot del"></span><span data-i18n="df_original"></span></strong><span class="small muted" data-el="leftCount">0</span></div><textarea class="bare" data-el="left" spellcheck="false" data-i18n-ph="df_leftHint"></textarea></section>
+        <section class="box"><div class="box-head"><strong><span class="dot add"></span><span data-i18n="df_revised"></span></strong><span class="small muted" data-el="rightCount">0</span></div><textarea class="bare" data-el="right" spellcheck="false" data-i18n-ph="df_rightHint"></textarea></section>
+      </div>
+      <div class="df-summary">
+        <div class="metric add"><span data-i18n="df_added"></span><strong data-el="added">0</strong></div>
+        <div class="metric del"><span data-i18n="df_removed"></span><strong data-el="removed">0</strong></div>
+        <div class="metric change"><span data-i18n="df_changed"></span><strong data-el="changed">0</strong></div>
+        <div class="metric"><span data-i18n="df_similarity"></span><strong data-el="similarity">100%</strong></div>
+      </div>
+      <section class="box grow">
+        <div class="box-head"><h2 data-i18n="df_comparison"></h2><span class="small muted" data-el="status"></span></div>
+        <div class="empty" data-el="empty" data-i18n="df_empty"></div>
+        <div class="scroll" data-el="scroll" hidden>
+          <table class="diff-table"><colgroup><col class="num"><col><col class="num"><col></colgroup>
+            <thead><tr><th>#</th><th data-i18n="df_original"></th><th>#</th><th data-i18n="df_revised"></th></tr></thead>
+            <tbody data-el="body"></tbody></table>
+        </div>
+      </section>`;
+    const E = els(root);
+    const dt = (k, v) => t('df_' + k, v);
+    let latest = [];
+    const escD = (s) => String(s ?? '').replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+    function norm(s) { if (E.ignoreSpace.checked) s = s.replace(/\s+/g, ' ').trim(); if (E.ignoreCase.checked) s = s.toLocaleLowerCase(state.lang); return s; }
+    function myers(a, b) {
+      if (a.length + b.length > 7000) return simpleDiff(a, b);
+      const n = a.length, m = b.length, max = n + m, v = new Map([[1, 0]]), trace = [];
+      for (let d = 0; d <= max; d++) {
+        trace.push(new Map(v));
+        for (let k = -d; k <= d; k += 2) {
+          let x;
+          if (k === -d || (k !== d && (v.get(k - 1) ?? -Infinity) < (v.get(k + 1) ?? -Infinity))) x = v.get(k + 1) ?? 0; else x = (v.get(k - 1) ?? 0) + 1;
+          let y = x - k;
+          while (x < n && y < m && norm(a[x]) === norm(b[y])) { x++; y++; }
+          v.set(k, x);
+          if (x >= n && y >= m) return backtrack(trace, a, b);
+        }
+      }
+      return [];
+    }
+    function backtrack(trace, a, b) {
+      let x = a.length, y = b.length; const out = [];
+      for (let d = trace.length - 1; d >= 0; d--) {
+        const v = trace[d], k = x - y;
+        const prevK = k === -d || (k !== d && (v.get(k - 1) ?? -Infinity) < (v.get(k + 1) ?? -Infinity)) ? k + 1 : k - 1;
+        const prevX = v.get(prevK) ?? 0, prevY = prevX - prevK;
+        while (x > prevX && y > prevY) { out.push({ type: 'equal', left: a[x - 1], right: b[y - 1] }); x--; y--; }
+        if (d === 0) break;
+        if (x === prevX) { out.push({ type: 'add', right: b[y - 1] }); y--; } else { out.push({ type: 'del', left: a[x - 1] }); x--; }
+      }
+      return out.reverse();
+    }
+    function simpleDiff(a, b) {
+      const out = [], n = Math.max(a.length, b.length);
+      for (let i = 0; i < n; i++) {
+        if (i < a.length && i < b.length && norm(a[i]) === norm(b[i])) out.push({ type: 'equal', left: a[i], right: b[i] });
+        else { if (i < a.length) out.push({ type: 'del', left: a[i] }); if (i < b.length) out.push({ type: 'add', right: b[i] }); }
+      }
+      return out;
+    }
+    function align(ops) {
+      const rows = [];
+      for (let i = 0; i < ops.length;) {
+        if (ops[i].type === 'equal') { rows.push(ops[i++]); continue; }
+        const del = [], add = [];
+        while (i < ops.length && ops[i].type !== 'equal') { (ops[i].type === 'del' ? del : add).push(ops[i]); i++; }
+        for (let j = 0; j < Math.max(del.length, add.length); j++) rows.push(del[j] && add[j] ? { type: 'change', left: del[j].left, right: add[j].right } : del[j] || add[j]);
+      }
+      let l = 0, r = 0;
+      return rows.map((x) => ({ ...x, leftNo: x.left !== undefined ? ++l : null, rightNo: x.right !== undefined ? ++r : null }));
+    }
+    function tokenDiff(a, b) {
+      const A = a.split(/(\s+|\b)/), B = b.split(/(\s+|\b)/), n = A.length, m = B.length;
+      if (n * m > 30000) return [escD(a), escD(b)];
+      const dp = Array.from({ length: n + 1 }, () => new Uint16Array(m + 1));
+      for (let i = n - 1; i >= 0; i--) for (let j = m - 1; j >= 0; j--) dp[i][j] = A[i] === B[j] ? dp[i + 1][j + 1] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1]);
+      let i = 0, j = 0, la = '', rb = '';
+      while (i < n || j < m) {
+        if (i < n && j < m && A[i] === B[j]) { la += escD(A[i]); rb += escD(B[j]); i++; j++; }
+        else if (j < m && (i === n || dp[i][j + 1] >= dp[i + 1][j])) rb += '<mark class="ins">' + escD(B[j++]) + '</mark>';
+        else la += '<mark class="del">' + escD(A[i++]) + '</mark>';
+      }
+      return [la, rb];
+    }
+    function setMetrics(a, d, c, s) { E.added.textContent = a; E.removed.textContent = d; E.changed.textContent = c; E.similarity.textContent = s + '%'; }
+    function compare() {
+      const left = E.left.value.split('\n'), right = E.right.value.split('\n'), has = E.left.value || E.right.value;
+      E.leftCount.textContent = dt('lines', { n: E.left.value ? left.length : 0 });
+      E.rightCount.textContent = dt('lines', { n: E.right.value ? right.length : 0 });
+      E.empty.hidden = !!has; E.scroll.hidden = !has;
+      if (!has) { latest = []; setMetrics(0, 0, 0, 100); E.status.textContent = ''; return; }
+      latest = align(myers(left, right));
+      const stats = { add: 0, del: 0, change: 0 };
+      latest.forEach((x) => { if (x.type !== 'equal') stats[x.type]++; });
+      const equal = latest.filter((x) => x.type === 'equal').length;
+      setMetrics(stats.add, stats.del, stats.change, Math.round(equal / Math.max(left.length, right.length, 1) * 100));
+      const total = stats.add + stats.del + stats.change;
+      E.status.textContent = (left.length + right.length > 7000 ? dt('tooLarge') + ' ' : '') + (total ? dt('differences', { n: total }) : dt('identical'));
+      renderRows();
+    }
+    function renderRows() {
+      const show = E.showAll.checked, context = 3, rows = [];
+      latest.forEach((x, i) => {
+        if (!show && x.type === 'equal') {
+          const near = latest.slice(Math.max(0, i - context), i + context + 1).some((y) => y.type !== 'equal');
+          if (!near) { if (!rows.length || rows.at(-1) !== 'gap') rows.push('gap'); return; }
+        }
+        rows.push(x);
+      });
+      E.body.innerHTML = rows.map((x) => {
+        if (x === 'gap') return '<tr class="gap"><td colspan="4">•••</td></tr>';
+        let l = x.left == null ? '' : escD(x.left), r = x.right == null ? '' : escD(x.right);
+        if (x.type === 'change') [l, r] = tokenDiff(x.left, x.right);
+        return `<tr class="${x.type}"><td class="ln left-ln">${x.leftNo ?? ''}</td><td class="code left-code">${l}</td><td class="ln right-ln">${x.rightNo ?? ''}</td><td class="code right-code">${r}</td></tr>`;
+      }).join('');
+    }
+    function makePatch() {
+      const a = E.left.value.split('\n'), b = E.right.value.split('\n');
+      const out = ['--- original', '+++ revised', '@@ -1,' + a.length + ' +1,' + b.length + ' @@'];
+      for (const x of myers(a, b)) { if (x.type === 'equal') out.push(' ' + x.left); else if (x.type === 'del') out.push('-' + x.left); else out.push('+' + x.right); }
+      return out.join('\n');
+    }
+    async function copyPatch() { try { await navigator.clipboard.writeText(makePatch()); toast(dt('copied')); } catch (_) { toast(dt('copyFailed')); } }
+    function sample() {
+      const a = `function greet(name) {\n  const message = "Hello, " + name;\n  console.log(message);\n  return true;\n}\n\ngreet("Tokyo");`;
+      const b = `function greet(name, language = "en") {\n  const greeting = language === "ja" ? "こんにちは" : "Hello";\n  const message = \`${'${greeting}'}, ${'${name}'}!\`;\n  console.log(message);\n  return message;\n}\n\ngreet("Tokyo", "ja");`;
+      E.left.value = a; E.right.value = b; compare();
+    }
+    let timer;
+    [E.left, E.right].forEach((el) => el.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(compare, 180); }));
+    E.ignoreSpace.addEventListener('change', compare);
+    E.ignoreCase.addEventListener('change', compare);
+    E.showAll.addEventListener('change', renderRows);
+    E.sample.addEventListener('click', sample);
+    E.clear.addEventListener('click', () => { E.left.value = E.right.value = ''; compare(); });
+    E.swap.addEventListener('click', () => { const x = E.left.value; E.left.value = E.right.value; E.right.value = x; compare(); });
+    E.patch.addEventListener('click', copyPatch);
+    compare();
+    return { onLang: compare };
+  }
+
+  // ------------------------------------------------------------------
+  // Fake Data Generator (from fake_data_generator.html; Faker is lazy-loaded)
+  // ------------------------------------------------------------------
+  const FAKER_URL = 'https://esm.sh/@faker-js/faker';
+  const FAKER_PERSON_METHODS = ['fullName', 'firstName', 'lastName', 'middleName', 'prefix', 'suffix', 'sex', 'bio', 'jobTitle', 'jobDescriptor', 'jobArea', 'jobType', 'zodiacSign'];
+  let fakerPromise = null;
+  const loadFaker = () => (fakerPromise ||= import(FAKER_URL).catch((e) => { fakerPromise = null; throw e; }));
+
+  function renderFakeData(root) {
+    root.innerHTML = `
+      <div class="toolbar">
+        <span class="lbl" data-i18n="fk_dataLocale"></span>
+        <select data-el="locale" style="width:230px" disabled></select>
+        <span class="lbl" data-i18n="fk_quantity"></span>
+        <input type="number" data-el="qty" value="10" min="1" max="1000" style="width:80px">
+        <button class="btn primary" type="button" data-el="generate" data-run disabled><i class="fa-solid fa-wand-magic-sparkles"></i><span data-i18n="fk_generate"></span></button>
+        <span class="small" data-el="status"></span>
+      </div>
+      <div class="sect" style="flex:none">
+        <span class="lbl" data-i18n="fk_dataFields"></span>
+        <div class="fk-fields" data-el="fields"></div>
+      </div>
+      <section class="box grow">
+        <div class="box-head">
+          <div class="toolbar"><span class="lbl" data-i18n="fk_outputFormat"></span>
+            <div class="seg" data-el="formats">${['html', 'sql', 'json', 'xml', 'csv'].map((f) => `<button type="button" data-format="${f}" aria-pressed="${f === 'html'}">${f.toUpperCase()}</button>`).join('')}</div>
+          </div>
+          <button class="btn sm" type="button" data-el="copy"><i class="fa-regular fa-copy"></i><span data-i18n="fk_copy"></span></button>
+        </div>
+        <div class="scroll fk-out">
+          <div class="empty" data-el="empty" data-i18n="fk_empty"></div>
+          <pre data-el="text" hidden></pre>
+          <div data-el="html" hidden></div>
+        </div>
+      </section>`;
+    const E = els(root);
+    let F = null, generatedData = [], currentFormat = 'html';
+    E.fields.innerHTML = FAKER_PERSON_METHODS.map((m) => `<label class="chip"><input type="checkbox" value="${m}"${['fullName', 'jobTitle'].includes(m) ? ' checked' : ''}><span>${m}</span></label>`).join('');
+
+    const escapeHtml = (str) => typeof str !== 'string' ? str : str.replace(/[&<>"']/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+    function toHTML(data) {
+      if (!data.length) return '';
+      const headers = Object.keys(data[0]);
+      return `<table class="fk-table"><thead><tr>${headers.map((h) => `<th>${h}</th>`).join('')}</tr></thead><tbody>${data.map((row) => `<tr>${headers.map((h) => `<td>${escapeHtml(row[h])}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+    }
+    function toSQL(data) {
+      if (!data.length) return '';
+      const headers = Object.keys(data[0]), tableName = 'generated_data';
+      const createTable = `CREATE TABLE ${tableName} (\n${headers.map((h) => `  ${h} VARCHAR(255)`).join(',\n')}\n);\n\n`;
+      const inserts = data.map((row) => `INSERT INTO ${tableName} (${headers.join(', ')}) VALUES (${headers.map((h) => `'${(row[h] || '').toString().replace(/'/g, "''")}'`).join(', ')});`).join('\n');
+      return createTable + inserts;
+    }
+    const toJSON = (data) => JSON.stringify(data, null, 2);
+    function toXML(data) {
+      let xml = '<?xml version="1.0" encoding="UTF-8"?>\n<records>\n';
+      data.forEach((record) => {
+        xml += '  <record>\n';
+        Object.keys(record).forEach((key) => { xml += `    <${key}>${escapeHtml(record[key])}</${key}>\n`; });
+        xml += '  </record>\n';
+      });
+      return xml + '</records>';
+    }
+    function toCSV(data) {
+      if (!data.length) return '';
+      const headers = Object.keys(data[0]);
+      return `${headers.join(',')}\n${data.map((row) => headers.map((h) => `"${(row[h] || '').toString().replace(/"/g, '""')}"`).join(',')).join('\n')}`;
+    }
+    function renderOutput(format) {
+      currentFormat = format;
+      $$('[data-format]', E.formats).forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.format === format)));
+      if (!generatedData.length) return;
+      E.empty.hidden = true; E.text.hidden = true; E.html.hidden = true;
+      if (format === 'html') { E.html.innerHTML = toHTML(generatedData); E.html.hidden = false; return; }
+      E.text.textContent = { sql: toSQL, json: toJSON, xml: toXML, csv: toCSV }[format](generatedData);
+      E.text.hidden = false;
+    }
+    function generateData() {
+      if (!F) return;
+      const locale = E.locale.value;
+      const quantity = Math.min(1000, Math.max(1, parseInt(E.qty.value, 10) || 1));
+      const activeFaker = F.allFakers[locale];
+      if (!activeFaker) { console.error('Selected Faker locale not found:', locale); return; }
+      const selectedFields = $$('input:checked', E.fields).map((cb) => cb.value);
+      if (!selectedFields.length) { alert(t('fk_noFields')); return; }
+      generatedData = [];
+      for (let i = 0; i < quantity; i++) {
+        const record = {};
+        selectedFields.forEach((field) => {
+          if (activeFaker.person[field]) {
+            try { record[field] = activeFaker.person[field](); }
+            catch (e) { console.warn(`Could not generate data for field '${field}' in locale '${locale}'.`, e); record[field] = 'N/A'; }
+          }
+        });
+        generatedData.push(record);
+      }
+      renderOutput(currentFormat);
+    }
+    function copyOutput() {
+      const content = currentFormat === 'html' ? E.html.innerHTML : E.text.textContent;
+      if (!generatedData.length) return;
+      copy(content, t('fk_copied'));
+    }
+    function init(mod) {
+      F = mod;
+      const locales = Object.keys(F.allLocales).sort();
+      E.locale.innerHTML = locales.map((l) => {
+        const title = F.allLocales[l] && F.allLocales[l].metadata && F.allLocales[l].metadata.title;
+        return `<option value="${esc(l)}">${esc(l)}${title ? ` (${esc(title)})` : ''}</option>`;
+      }).join('');
+      E.locale.value = locales.includes('en') ? 'en' : locales[0];
+      E.locale.disabled = false; E.generate.disabled = false;
+      E.status.textContent = ''; E.status.className = 'small';
+    }
+    function load() {
+      E.status.textContent = t('fk_loading'); E.status.className = 'small muted';
+      loadFaker().then(init).catch((e) => {
+        console.warn(e);
+        E.status.textContent = t('fk_loadFail') + e.message; E.status.className = 'small err-text';
+      });
+    }
+    E.generate.addEventListener('click', generateData);
+    E.copy.addEventListener('click', copyOutput);
+    E.formats.addEventListener('click', (e) => { const b = e.target.closest('[data-format]'); if (b) renderOutput(b.dataset.format); });
+    load();
+    return { onLang() { if (!F && fakerPromise) E.status.textContent = t('fk_loading'); } };
+  }
+
+  // ------------------------------------------------------------------
+  // Morse Code (from morse_code.html)
+  // ------------------------------------------------------------------
+  const MORSE = {
+    A: '.-', B: '-...', C: '-.-.', D: '-..', E: '.', F: '..-.', G: '--.', H: '....', I: '..', J: '.---', K: '-.-', L: '.-..',
+    M: '--', N: '-.', O: '---', P: '.--.', Q: '--.-', R: '.-.', S: '...', T: '-', U: '..-', V: '...-', W: '.--', X: '-..-',
+    Y: '-.--', Z: '--..',
+    '0': '-----', '1': '.----', '2': '..---', '3': '...--', '4': '....-', '5': '.....', '6': '-....', '7': '--...', '8': '---..', '9': '----.',
+    '.': '.-.-.-', ',': '--..--', '?': '..--..', "'": '.----.', '!': '-.-.--', '/': '-..-.', '(': '-.--.', ')': '-.--.-',
+    '&': '.-...', ':': '---...', ';': '-.-.-.', '=': '-...-', '+': '.-.-.', '-': '-....-', '_': '..--.-', '"': '.-..-.',
+    '$': '...-..-', '@': '.--.-.', ' ': '/',
+  };
+  const REVERSE = {};
+  Object.keys(MORSE).forEach((ch) => { if (ch !== ' ') REVERSE[MORSE[ch]] = ch; });
+  function normalizeChar(ch) {
+    try { return ch.normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase(); } catch (_) { return ch.toUpperCase(); }
+  }
+  function textToMorse(text) {
+    const skipped = [];
+    const words = text.trim().split(/\s+/).filter(Boolean);
+    const encoded = words.map((word) => Array.from(word).map((ch) => {
+      const n = normalizeChar(ch);
+      if (MORSE[n]) return MORSE[n];
+      skipped.push(ch);
+      return null;
+    }).filter(Boolean).join(' ')).filter(Boolean).join('  ');
+    return { result: encoded, skipped };
+  }
+  function normalizeMorseToken(token) {
+    return token.replace(/[·•]/g, '.').replace(/[−—_]/g, '-').replace(/\s+/g, '').trim();
+  }
+  function morseToText(morse) {
+    const unknown = [];
+    const cleaned = morse.trim().replace(/\|/g, '/');
+    if (!cleaned) return { result: '', unknown };
+    const words = cleaned.split(/\s*\/\s*|\s{2,}/);
+    const decoded = words.map((word) => word.trim().split(/\s+/).filter(Boolean).map((tok) => {
+      const code = normalizeMorseToken(tok);
+      if (!code) return '';
+      if (REVERSE[code]) return REVERSE[code];
+      unknown.push(tok);
+      return '?';
+    }).join('')).join(' ');
+    return { result: decoded, unknown };
+  }
+  function morseChartHTML() {
+    const entries = Object.keys(MORSE).filter((ch) => ch !== ' ').sort((a, b) => {
+      const rank = (c) => (/[A-Z]/.test(c) ? 0 : /[0-9]/.test(c) ? 1 : 2);
+      const ra = rank(a), rb = rank(b);
+      return ra !== rb ? ra - rb : a.localeCompare(b);
+    });
+    return `<div class="chart-grid">${entries.map((ch) => `<div class="chart-item"><span class="ch">${esc(ch)}</span><span class="code">${MORSE[ch].replace(/\./g, '·').replace(/-/g, '−')}</span></div>`).join('')}</div>`;
+  }
+
+  function renderMorse(root) {
+    root.innerHTML = `
+      <div class="toolbar">
+        <button class="btn primary" type="button" data-el="toMorse"><i class="fa-solid fa-arrow-right"></i><span data-i18n="mo_toMorse"></span></button>
+        <button class="btn" type="button" data-el="swapBtn" data-i18n-title="mo_swap"><i class="fa-solid fa-arrow-right-arrow-left"></i></button>
+        <button class="btn primary" type="button" data-el="toText"><i class="fa-solid fa-arrow-left"></i><span data-i18n="mo_toText"></span></button>
+        <span class="status-msg" data-el="status" style="margin-left:6px"></span>
+        <span class="spacer"></span>
+        <button class="btn" type="button" data-el="play"><i class="fa-solid fa-volume-high"></i><span data-i18n="mo_play"></span></button>
+        <button class="btn" type="button" data-el="stop"><i class="fa-solid fa-stop"></i><span data-i18n="mo_stop"></span></button>
+        <button class="btn" type="button" data-el="clear"><i class="fa-solid fa-eraser"></i><span data-i18n="mo_clear"></span></button>
+      </div>
+      <div class="io">
+        <div class="pane"><div class="pane-head"><label class="lbl" data-i18n="mo_textLabel"></label><button class="btn sm" type="button" data-el="copyText"><i class="fa-regular fa-copy"></i><span data-i18n="mo_copyText"></span></button></div>
+          <textarea class="ta" data-el="text" spellcheck="false" data-i18n-ph="mo_textPlaceholder"></textarea></div>
+        <div class="pane"><div class="pane-head"><label class="lbl" data-i18n="mo_morseLabel"></label><button class="btn sm" type="button" data-el="copyMorse"><i class="fa-regular fa-copy"></i><span data-i18n="mo_copyMorse"></span></button></div>
+          <textarea class="ta" data-el="morse" spellcheck="false" data-i18n-ph="mo_morsePlaceholder" style="letter-spacing:.04em"></textarea></div>
+      </div>`;
+    const E = els(root);
+    const mt = (k) => t('mo_' + k);
+    let audioCtx = null, playToken = 0;
+    function setStatus(msg, kind) { E.status.textContent = msg || ''; E.status.className = 'status-msg' + (kind ? ' ' + kind : ''); }
+    function convertToMorse() {
+      const src = E.text.value;
+      if (!src.trim()) return setStatus(mt('empty'), 'warn');
+      const { result, skipped } = textToMorse(src);
+      E.morse.value = result;
+      setStatus(skipped.length ? mt('unknownChars') : '', skipped.length ? 'warn' : '');
+    }
+    function convertToText() {
+      const src = E.morse.value;
+      if (!src.trim()) return setStatus(mt('empty'), 'warn');
+      const { result, unknown } = morseToText(src);
+      E.text.value = result;
+      setStatus(unknown.length ? mt('unknownCodes') : '', unknown.length ? 'warn' : '');
+    }
+    async function copyValue(value) {
+      if (!value) return setStatus(mt('empty'), 'warn');
+      try { await navigator.clipboard.writeText(value); setStatus(mt('copied'), 'ok'); }
+      catch (_) { setStatus(mt('copyFail'), 'warn'); }
+    }
+    function stopAudio() {
+      playToken += 1;
+      if (audioCtx && audioCtx.state !== 'closed') { try { audioCtx.close(); } catch (_) {} }
+      audioCtx = null;
+    }
+    const sleep = (ms, token) => new Promise((resolve) => setTimeout(() => resolve(token === playToken), ms));
+    async function playMorse() {
+      let code = E.morse.value.trim();
+      if (!code) { code = textToMorse(E.text.value).result; if (code) E.morse.value = code; }
+      if (!code) return setStatus(mt('empty'), 'warn');
+      stopAudio();
+      const token = ++playToken;
+      setStatus(mt('playing'), 'ok');
+      const unit = 80;
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      async function beep(duration) {
+        if (token !== playToken || !audioCtx) return false;
+        const osc = audioCtx.createOscillator(), gain = audioCtx.createGain();
+        osc.type = 'sine'; osc.frequency.value = 600; gain.gain.value = 0.08;
+        osc.connect(gain); gain.connect(audioCtx.destination); osc.start();
+        const ok = await sleep(duration, token);
+        try { osc.stop(); } catch (_) {}
+        return ok;
+      }
+      const tokens = code.replace(/\|/g, '/').trim().split(/\s+/).filter(Boolean);
+      for (let i = 0; i < tokens.length; i++) {
+        const tok = tokens[i];
+        if (tok === '/') { if (!(await sleep(unit * 7, token))) return; continue; }
+        const symbols = normalizeMorseToken(tok);
+        for (let j = 0; j < symbols.length; j++) {
+          const s = symbols[j];
+          if (s === '.') { if (!(await beep(unit))) return; }
+          else if (s === '-') { if (!(await beep(unit * 3))) return; }
+          if (j < symbols.length - 1) { if (!(await sleep(unit, token))) return; }
+        }
+        if (i < tokens.length - 1 && tokens[i + 1] !== '/') { if (!(await sleep(unit * 3, token))) return; }
+      }
+      if (token === playToken) { setStatus('', ''); stopAudio(); }
+    }
+    E.toMorse.addEventListener('click', convertToMorse);
+    E.toText.addEventListener('click', convertToText);
+    E.swapBtn.addEventListener('click', () => { const a = E.text.value; E.text.value = E.morse.value; E.morse.value = a; setStatus('', ''); });
+    E.copyText.addEventListener('click', () => copyValue(E.text.value));
+    E.copyMorse.addEventListener('click', () => copyValue(E.morse.value));
+    E.play.addEventListener('click', playMorse);
+    E.stop.addEventListener('click', () => { stopAudio(); setStatus('', ''); });
+    E.clear.addEventListener('click', () => { stopAudio(); E.text.value = ''; E.morse.value = ''; setStatus('', ''); });
+    E.text.addEventListener('keydown', (e) => { if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); convertToMorse(); } });
+    E.morse.addEventListener('keydown', (e) => { if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); convertToText(); } });
+    return { onLang() { setStatus('', ''); } };
+  }
+
+  // ------------------------------------------------------------------
+  // Char-Art Creator (from char_art_creator.html)
+  // ------------------------------------------------------------------
+  const CA_FONT = {
+    A: ['01110','10001','10001','11111','10001','10001','10001'], B: ['11110','10001','10001','11110','10001','10001','11110'],
+    C: ['01111','10000','10000','10000','10000','10000','01111'], D: ['11110','10001','10001','10001','10001','10001','11110'],
+    E: ['11111','10000','10000','11110','10000','10000','11111'], F: ['11111','10000','10000','11110','10000','10000','10000'],
+    G: ['01111','10000','10000','10011','10001','10001','01110'], H: ['10001','10001','10001','11111','10001','10001','10001'],
+    I: ['11111','00100','00100','00100','00100','00100','11111'], J: ['00111','00010','00010','00010','10010','10010','01100'],
+    K: ['10001','10010','10100','11000','10100','10010','10001'], L: ['10000','10000','10000','10000','10000','10000','11111'],
+    M: ['10001','11011','10101','10101','10001','10001','10001'], N: ['10001','11001','10101','10011','10001','10001','10001'],
+    O: ['01110','10001','10001','10001','10001','10001','01110'], P: ['11110','10001','10001','11110','10000','10000','10000'],
+    Q: ['01110','10001','10001','10001','10101','10010','01101'], R: ['11110','10001','10001','11110','10100','10010','10001'],
+    S: ['01111','10000','10000','01110','00001','00001','11110'], T: ['11111','00100','00100','00100','00100','00100','00100'],
+    U: ['10001','10001','10001','10001','10001','10001','01110'], V: ['10001','10001','10001','10001','10001','01010','00100'],
+    W: ['10001','10001','10001','10101','10101','10101','01010'], X: ['10001','10001','01010','00100','01010','10001','10001'],
+    Y: ['10001','10001','01010','00100','00100','00100','00100'], Z: ['11111','00001','00010','00100','01000','10000','11111'],
+    0: ['01110','10001','10011','10101','11001','10001','01110'], 1: ['00100','01100','00100','00100','00100','00100','01110'],
+    2: ['01110','10001','00001','00010','00100','01000','11111'], 3: ['11110','00001','00001','01110','00001','00001','11110'],
+    4: ['10010','10010','10010','11111','00010','00010','00010'], 5: ['11111','10000','10000','11110','00001','00001','11110'],
+    6: ['01110','10000','10000','11110','10001','10001','01110'], 7: ['11111','00001','00010','00100','01000','01000','01000'],
+    8: ['01110','10001','10001','01110','10001','10001','01110'], 9: ['01110','10001','10001','01111','00001','00001','01110'],
+    '!': ['00100','00100','00100','00100','00100','00000','00100'], '?': ['01110','10001','00001','00010','00100','00000','00100'],
+    '.': ['00000','00000','00000','00000','00000','01100','01100'], '-': ['00000','00000','00000','11111','00000','00000','00000'],
+    '_': ['00000','00000','00000','00000','00000','00000','11111'], '/': ['00001','00010','00010','00100','01000','01000','10000'],
+    ':': ['00000','01100','01100','00000','01100','01100','00000'], ' ': ['000','000','000','000','000','000','000'],
+  };
+  const caFallbackGlyph = (char) => {
+    const safe = char === ' ' ? ' ' : char;
+    return ['11111','10001','10001','10001','10001','10001','11111'].map((row, index) => {
+      if (index === 3 && safe !== ' ') return '10' + safe + '01'.slice(String(safe).length);
+      return row;
+    });
+  };
+
+  function renderCharArt(root) {
+    root.innerHTML = `
+      <div class="ca">
+        <section class="box">
+          <div class="box-head"><h2 data-i18n="ca_inputTitle"></h2><span class="small muted" data-i18n="ca_liveHint"></span></div>
+          <div class="box-body">
+            <label class="field"><span data-i18n="ca_wordLabel"></span><textarea class="ta" data-el="text" maxlength="180" spellcheck="false" data-i18n-ph="ca_wordPlaceholder">CODEX</textarea></label>
+            <div class="grid2">
+              <label class="field"><span data-i18n="ca_fillLabel"></span><input type="text" data-el="fill" maxlength="2" value="#"></label>
+              <label class="field"><span data-i18n="ca_spaceLabel"></span><select data-el="spacing"><option value="1">1</option><option value="2" selected>2</option><option value="3">3</option><option value="4">4</option></select></label>
+              <label class="field"><span data-i18n="ca_caseLabel"></span><select data-el="caseMode"><option value="upper" data-i18n="ca_caseUpper"></option><option value="keep" data-i18n="ca_caseKeep"></option><option value="lower" data-i18n="ca_caseLower"></option></select></label>
+              <label class="field"><span data-i18n="ca_styleLabel"></span><select data-el="style"><option value="block" data-i18n="ca_styleBlock"></option><option value="outline" data-i18n="ca_styleOutline"></option></select></label>
+            </div>
+            <div class="toolbar">
+              <button class="btn primary" type="button" data-el="copy"><i class="fa-regular fa-copy"></i><span data-i18n="ca_copy"></span></button>
+              <button class="btn" type="button" data-el="download"><i class="fa-solid fa-download"></i><span data-i18n="ca_download"></span></button>
+              <button class="btn" type="button" data-el="clear"><i class="fa-solid fa-eraser"></i><span data-i18n="ca_clear"></span></button>
+            </div>
+            <div class="status-msg" data-el="status" aria-live="polite"></div>
+          </div>
+        </section>
+        <section class="box">
+          <div class="box-head"><h2 data-i18n="ca_outputTitle"></h2><span class="small muted" data-el="size"></span></div>
+          <div class="ca-out"><pre data-el="output"></pre></div>
+        </section>
+      </div>`;
+    const E = els(root);
+    function normalizeInput(value) {
+      if (E.caseMode.value === 'upper') return value.toUpperCase();
+      if (E.caseMode.value === 'lower') return value.toLowerCase();
+      return value;
+    }
+    function makeArt() {
+      const fill = E.fill.value.trim() || '#';
+      const gap = ' '.repeat(Number(E.spacing.value));
+      const lines = normalizeInput(E.text.value || '').split('\n');
+      const renderedLines = [];
+      lines.forEach((line, lineIndex) => {
+        const rows = Array.from({ length: 7 }, () => '');
+        const chars = [...line];
+        chars.forEach((char, charIndex) => {
+          const glyph = CA_FONT[char.toUpperCase()] || caFallbackGlyph(char);
+          glyph.forEach((row, rowIndex) => {
+            const converted = row.replace(/[01]/g, (bit, column) => {
+              if (bit === '0') return ' ';
+              if (E.style.value === 'block') return fill;
+              const up = glyph[rowIndex - 1]?.[column] === '1';
+              const down = glyph[rowIndex + 1]?.[column] === '1';
+              const left = row[column - 1] === '1';
+              const right = row[column + 1] === '1';
+              return up && down && left && right ? ' ' : fill;
+            });
+            rows[rowIndex] += converted + (charIndex < line.length - 1 ? gap : '');
+          });
+        });
+        renderedLines.push(...rows);
+        if (lineIndex < lines.length - 1) renderedLines.push('');
+      });
+      return renderedLines.join('\n').replace(/\s+$/gm, '');
+    }
+    function render() {
+      const art = makeArt();
+      E.output.textContent = art || t('ca_empty');
+      const rows = art ? art.split('\n') : [];
+      const cols = rows.reduce((max, row) => Math.max(max, row.length), 0);
+      E.size.textContent = art ? t('ca_size', { cols, rows: rows.length }) : '';
+    }
+    function setStatus(key) {
+      E.status.textContent = t('ca_' + key);
+      clearTimeout(setStatus.timer);
+      setStatus.timer = setTimeout(() => { E.status.textContent = ''; }, 2400);
+    }
+    async function copyArt() {
+      const art = makeArt();
+      if (!art) return setStatus('empty');
+      try { await navigator.clipboard.writeText(art); setStatus('copied'); } catch (e) { alert(t('errorPrefix') + e.message); }
+    }
+    function downloadArt() {
+      const art = makeArt();
+      if (!art) return setStatus('empty');
+      const url = URL.createObjectURL(new Blob([art], { type: 'text/plain;charset=utf-8' }));
+      const link = document.createElement('a');
+      link.href = url; link.download = 'char-art.txt'; link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      setStatus('downloaded');
+    }
+    ['input', 'change'].forEach((ev) => [E.text, E.fill, E.spacing, E.caseMode, E.style].forEach((el) => el.addEventListener(ev, render)));
+    E.copy.addEventListener('click', copyArt);
+    E.download.addEventListener('click', downloadArt);
+    E.clear.addEventListener('click', () => { E.text.value = ''; render(); });
+    applyI18n(root);
+    render();
+    return { onLang: render };
+  }
+
+  // ------------------------------------------------------------------
+  // Password Generator (from password_generator.html)
+  // ------------------------------------------------------------------
+  function randInt(max) {
+    // Unbiased integer in [0, max) from the crypto RNG
+    const limit = Math.floor(0x100000000 / max) * max;
+    const buf = new Uint32Array(1);
+    do { crypto.getRandomValues(buf); } while (buf[0] >= limit);
+    return buf[0] % max;
+  }
+  const randFloat = () => { const buf = new Uint32Array(1); crypto.getRandomValues(buf); return buf[0] / 0x100000000; };
+  function generateRandomPassword(length, useUpper, useLower, useNumbers, useSymbols) {
+    let charset = '';
+    if (useUpper) charset += 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    if (useLower) charset += 'abcdefghijklmnopqrstuvwxyz';
+    if (useNumbers) charset += '0123456789';
+    if (useSymbols) charset += '!@#$%^&*()_+~`|}{[]:;?><,./-=';
+    if (!charset) return '';
+    let password = '';
+    for (let i = 0; i < length; i++) password += charset.charAt(randInt(charset.length));
+    return password;
+  }
+  function generateHackerPassword(word) {
+    const transformations = { a: ['@', '4'], e: ['3'], i: ['1', '!'], o: ['0'], s: ['$', '5'], t: ['7'], b: ['8'], g: ['9'] };
+    let result = '';
+    for (const char of word) {
+      const lowerChar = char.toLowerCase();
+      if (transformations[lowerChar] && randFloat() > 0.5) {
+        const options = transformations[lowerChar];
+        result += options[randInt(options.length)];
+      } else {
+        result += randFloat() > 0.5 ? char.toUpperCase() : char.toLowerCase();
+      }
+    }
+    return result;
+  }
+  function calculatePasswordStrength(password) {
+    let score = 0, charset = 0;
+    if (/[a-z]/.test(password)) { score += 1; charset += 26; }
+    if (/[A-Z]/.test(password)) { score += 1; charset += 26; }
+    if (/[0-9]/.test(password)) { score += 1; charset += 10; }
+    if (/[^a-zA-Z0-9]/.test(password)) { score += 1; charset += 32; }
+    score += Math.min(Math.floor(password.length / 8), 3);
+    const seconds = Math.pow(charset, password.length) / 1000000000; // 1 billion attempts per second
+    let crack;
+    if (seconds < 1) crack = null;
+    else if (seconds < 60) crack = { n: Math.ceil(seconds), u: 'seconds' };
+    else if (seconds < 3600) crack = { n: Math.ceil(seconds / 60), u: 'minutes' };
+    else if (seconds < 86400) crack = { n: Math.ceil(seconds / 3600), u: 'hours' };
+    else if (seconds < 31536000) crack = { n: Math.ceil(seconds / 86400), u: 'days' };
+    else crack = { n: Math.ceil(seconds / 31536000), u: 'years' };
+    const level = score <= 2 ? 'weak' : score <= 4 ? 'medium' : score <= 6 ? 'strong' : 'vstrong';
+    return { level, crack, percentage: Math.min((score / 7) * 100, 100) };
+  }
+
+  function renderPassword(root) {
+    root.innerHTML = `
+      <div class="pw">
+        <div class="seg" data-el="modes" style="align-self:flex-start">
+          <button type="button" data-mode="random" aria-pressed="true" data-i18n="pw_randomTab"></button>
+          <button type="button" data-mode="hacker" aria-pressed="false" data-i18n="pw_hackerTab"></button>
+        </div>
+        <div class="sect" data-el="random">
+          <div class="pw-len"><span class="lbl" data-i18n="pw_lengthLabel"></span><input type="range" min="4" max="64" value="12" data-el="length"><b data-el="lengthValue">12</b></div>
+          <div class="toolbar">
+            <label class="chip"><input type="checkbox" data-el="upper" checked><span data-i18n="pw_uppercaseLabel"></span></label>
+            <label class="chip"><input type="checkbox" data-el="lower" checked><span data-i18n="pw_lowercaseLabel"></span></label>
+            <label class="chip"><input type="checkbox" data-el="numbers" checked><span data-i18n="pw_numbersLabel"></span></label>
+            <label class="chip"><input type="checkbox" data-el="symbols" checked><span data-i18n="pw_symbolsLabel"></span></label>
+          </div>
+          <div class="toolbar"><button class="btn primary" type="button" data-el="genRandom" data-run><i class="fa-solid fa-shuffle"></i><span data-i18n="pw_generateButton"></span></button></div>
+        </div>
+        <div class="sect" data-el="hacker" hidden>
+          <label class="field"><span data-i18n="pw_hackerInputLabel"></span><input type="text" data-el="word" data-i18n-ph="pw_hackerPH" autocomplete="off" spellcheck="false"></label>
+          <div class="toolbar"><button class="btn primary" type="button" data-el="genHacker" data-run><i class="fa-solid fa-shuffle"></i><span data-i18n="pw_generateButton"></span></button></div>
+        </div>
+        <div class="sect">
+          <span class="lbl" data-i18n="pw_generatedPasswordLabel"></span>
+          <div class="pw-out">
+            <input type="text" data-el="output" data-i18n-ph="pw_outPH" autocomplete="off" spellcheck="false">
+            <button class="icon-btn" type="button" data-el="copy" data-i18n-title="pw_copy"><i class="fa-regular fa-copy"></i></button>
+          </div>
+          <div data-el="estimator" hidden>
+            <div class="toolbar" style="margin-top:4px"><span class="lbl" data-i18n="pw_strengthLabel"></span><div class="meter"><div data-el="bar"></div></div><span class="badge" data-el="badge"></span></div>
+            <div class="small muted" data-el="crack" style="margin-top:6px"></div>
+          </div>
+        </div>
+      </div>`;
+    const E = els(root);
+    function setMode(mode) {
+      $$('[data-mode]', E.modes).forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.mode === mode)));
+      E.random.hidden = mode !== 'random';
+      E.hacker.hidden = mode !== 'hacker';
+    }
+    function updateStrengthIndicator(password) {
+      if (!password) { E.estimator.hidden = true; return; }
+      const s = calculatePasswordStrength(password);
+      E.estimator.hidden = false;
+      E.bar.style.width = `${s.percentage}%`;
+      E.bar.className = 's-' + s.level;
+      E.badge.textContent = t('pw_' + s.level);
+      E.badge.className = 'badge s-' + s.level;
+      const loc = { en: 'en-US', pt: 'pt-BR', ja: 'ja-JP' }[state.lang];
+      const time = !s.crack ? t('pw_instant')
+        : `${Number.isFinite(s.crack.n) ? s.crack.n.toLocaleString(loc) : '∞'} ${t('pw_u_' + s.crack.u)}`;
+      E.crack.textContent = t('pw_crackTimeEstimate') + time;
+    }
+    E.modes.addEventListener('click', (e) => { const b = e.target.closest('[data-mode]'); if (b) setMode(b.dataset.mode); });
+    E.length.addEventListener('input', () => { E.lengthValue.textContent = E.length.value; });
+    E.genRandom.addEventListener('click', () => {
+      const useUpper = E.upper.checked, useLower = E.lower.checked, useNumbers = E.numbers.checked, useSymbols = E.symbols.checked;
+      if (!useUpper && !useLower && !useNumbers && !useSymbols) { alert(t('pw_alert_no_character_type')); return; }
+      E.output.value = generateRandomPassword(parseInt(E.length.value, 10), useUpper, useLower, useNumbers, useSymbols);
+      updateStrengthIndicator(E.output.value);
+    });
+    E.genHacker.addEventListener('click', () => {
+      const word = E.word.value;
+      if (word.trim() === '') { alert(t('pw_alert_no_word')); return; }
+      E.output.value = generateHackerPassword(word);
+      updateStrengthIndicator(E.output.value);
+    });
+    E.word.addEventListener('keydown', (e) => { if (e.key === 'Enter') E.genHacker.click(); });
+    E.copy.addEventListener('click', () => { if (E.output.value) copy(E.output.value, t('pw_copiedFeedback')); });
+    E.output.addEventListener('input', () => updateStrengthIndicator(E.output.value));
+    return { onLang() { updateStrengthIndicator(E.output.value); } };
+  }
+
+  // ------------------------------------------------------------------
+  // Tabs, categories, language, theme, help
+  // ------------------------------------------------------------------
+  const CATS = [
+    { id: 'encode', icon: 'fa-solid fa-code', tabs: ['base64', 'url', 'html', 'unicode'] },
+    { id: 'crypto', icon: 'fa-solid fa-key', tabs: ['md5', 'sha', 'http_digest', 'password'] },
+    { id: 'data', icon: 'fa-solid fa-table', tabs: ['json', 'csv', 'yaml', 'xml', 'fakedata'] },
+    { id: 'text', icon: 'fa-solid fa-font', tabs: ['regex', 'diff', 'charart', 'morse'] },
+  ];
+  const TABS = [
+    { id: 'base64', render: renderBase64 },
+    { id: 'url', render: renderURL },
+    { id: 'md5', render: renderMD5 },
+    { id: 'http_digest', render: renderHTTPDigest },
+    { id: 'sha', render: renderSHA },
+    { id: 'html', render: renderHTML },
+    { id: 'json', render: renderJSON },
+    { id: 'csv', render: renderCSV },
+    { id: 'yaml', render: renderYAML },
+    { id: 'xml', render: renderXML },
+    { id: 'unicode', render: renderUnicode },
+    { id: 'regex', render: renderRegex },
+    { id: 'diff', render: renderDiff },
+    { id: 'fakedata', render: renderFakeData },
+    { id: 'morse', render: renderMorse },
+    { id: 'charart', render: renderCharArt },
+    { id: 'password', render: renderPassword },
+  ];
+  const LEGACY_TABS = TABS.slice(0, 11).map((x) => x.id);
+  const TAB_IDS = TABS.map((x) => x.id);
+  const ORDER = CATS.flatMap((c) => c.tabs); // visual order, used by arrow keys
+  const catOf = (id) => CATS.find((c) => c.tabs.includes(id)) || CATS[0];
+  const TIPS = {
+    base64: ['b64Note'], url: ['urlNote1', 'urlNote2', 'urlNote3'], html: ['entitiesNote'], unicode: ['unicodeNote'],
+    md5: ['md5Note', 'formatHexBase64'], sha: ['shaNote', 'formatHexBase64'], http_digest: ['httpDigestTitle', 'digestNote'], password: ['pw_tip', 'pw_editHint'],
+    json: ['jsonNote'], csv: ['csvNote'], yaml: ['yamlNote'], xml: ['xmlNote'], fakedata: ['fk_tip'],
+    regex: ['rx_tip'], diff: ['df_tip'], charart: ['ca_tip'], morse: ['mo_textHint', 'mo_morseHint', 'mo_shortcut'],
+  };
+  const rendered = {};
+  const hooks = {};
+
+  function getTabFromHash() {
+    const h = (location.hash || '').replace(/^#/, '').trim();
+    if (!h) return null;
+    const id = h.split(/[&?=]/)[0];
+    return TAB_IDS.includes(id) ? id : null;
+  }
+
+  function buildPanels() {
+    const main = $('#panels');
+    TABS.forEach((tab) => {
+      const panel = document.createElement('section');
+      panel.className = 'panel';
+      panel.dataset.panel = tab.id;
+      panel.setAttribute('role', 'tabpanel');
+      panel.hidden = true;
+      main.appendChild(panel);
+    });
+  }
+  function ensureRendered(id) {
+    if (rendered[id]) return;
+    const tab = TABS.find((x) => x.id === id);
+    const panel = $(`.panel[data-panel="${id}"]`);
+    const hook = tab.render(panel);
+    applyI18n(panel);
+    if (hook) hooks[id] = hook;
+    if (LEGACY_TABS.includes(id)) {
+      const ta = panel.querySelector('textarea[name="in"]');
+      if (ta) { ta.value = textStore.load(id); ta.addEventListener('input', () => textStore.save(id, ta.value)); }
+    }
+    rendered[id] = true;
+  }
+
+  function renderTabs() {
+    const cat = catOf(state.activeTab);
+    const nav = $('#tabs');
+    nav.innerHTML = cat.tabs.map((id) => `<button class="tab" type="button" role="tab" data-tab="${id}" aria-selected="${id === state.activeTab}" tabindex="${id === state.activeTab ? 0 : -1}">${esc(t('tab_' + id))}</button>`).join('');
+    $('#cat-label').textContent = t('cat_' + cat.id);
+    $('#cat-icon').className = cat.icon;
+    $('#cat-btn').title = t('tools');
+    fitTabs();
+  }
+  function renderMenu() {
+    $('#cat-menu').innerHTML = CATS.map((c) => `
+      <div role="group" aria-label="${esc(t('cat_' + c.id))}">
+        <div class="grp-h"><i class="${c.icon}" aria-hidden="true"></i>${esc(t('cat_' + c.id))}</div>
+        ${c.tabs.map((id) => `<button class="item" type="button" role="menuitem" data-goto="${id}" aria-current="${id === state.activeTab}">${esc(t('tab_' + id))}</button>`).join('')}
+      </div>`).join('');
+  }
+  function fitTabs() {
+    const bar = $('#topbar'), nav = $('#tabs');
+    bar.classList.remove('tight', 'nobrand');
+    if (nav.scrollWidth > nav.clientWidth + 1) bar.classList.add('tight');
+    if (nav.scrollWidth > nav.clientWidth + 1) bar.classList.add('nobrand');
+  }
+
+  function select(id, fromHash) {
+    if (!TAB_IDS.includes(id)) id = 'base64';
     state.activeTab = id;
-    $$('.tab', tabsEl).forEach(x => x.classList.toggle('active', x.dataset.tab === id));
-    $$('.panel', panelsEl).forEach(p => p.classList.toggle('hidden', p.dataset.panel !== id));
-    localStorage.setItem(SKEY, id);
+    ensureRendered(id);
+    $$('#panels > .panel').forEach((p) => { p.hidden = p.dataset.panel !== id; });
+    store.set(SKEY, id);
+    if (!fromHash && location.hash.slice(1) !== id) history.replaceState(null, '', '#' + id);
+    document.title = `${t('tab_' + id)} · ${t('appTitle')}`;
+    renderTabs();
+    renderMenu();
+    renderHelp();
+  }
+
+  function applyLang() {
+    document.documentElement.lang = state.lang === 'pt' ? 'pt-BR' : state.lang;
+    applyI18n(document);
+    $('#lang-switcher').value = state.lang;
+    Object.values(hooks).forEach((h) => h.onLang && h.onLang());
+    select(state.activeTab, true);
+  }
+  function applyTheme() {
+    document.documentElement.dataset.theme = state.theme;
+    $('#theme-switcher i').className = state.theme === 'dark' ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
+  }
+
+  function renderHelp() {
+    const id = state.activeTab;
+    $('#help-title').textContent = `${t('appTitle')} — ${t('help')}`;
+    const tips = (TIPS[id] || []).map((k) => `<p>${t(k)}</p>`).join('');
+    let extra = '';
+    if (id === 'morse') extra = `<h3>${esc(t('mo_chartTitle'))}</h3>${morseChartHTML()}`;
+    if (id === 'regex') {
+      const cheat = [['\\d', 'digit'], ['\\w', 'word'], ['\\s', 'space'], ['.', 'any'], ['+', 'oneMore'], ['*', 'zeroMore']];
+      extra = `<h3>${esc(t('rx_cheat'))}</h3><div class="cheat">${cheat.map(([c, k]) => `<div><code>${esc(c)}</code> ${esc(t('rx_' + k))}</div>`).join('')}</div>`;
+    }
+    const cats = CATS.map((c) => `
+      <div class="hc${c.tabs.includes(id) ? ' active' : ''}">
+        <div class="hc-h"><i class="${c.icon}" aria-hidden="true"></i>${esc(t('cat_' + c.id))}</div>
+        <ul>${c.tabs.map((tid) => `<li class="${tid === id ? 'active' : ''}"><button type="button" class="goto" data-goto="${tid}">${esc(t('tab_' + tid))}</button> — ${esc(t('d_' + tid))}</li>`).join('')}</ul>
+      </div>`).join('');
+    $('#help-body').innerHTML = `
+      <p>${esc(t('helpIntro'))}</p>
+      <h3>${esc(t('helpThisTab'))}: ${esc(t('tab_' + id))}</h3>
+      <div class="this-tab"><p><b>${esc(t('d_' + id))}</b></p>${tips}</div>
+      ${extra}
+      <h3>${esc(t('helpTabs'))}</h3>
+      <div class="help-cats">${cats}</div>
+      <h3>${esc(t('helpShortcuts'))}</h3>
+      <p><kbd>Ctrl/Cmd</kbd>+<kbd>Enter</kbd> ${esc(t('shortcutRun'))} · <kbd>?</kbd> ${esc(t('shortcutHelp'))} · <kbd>←</kbd> <kbd>→</kbd> ${esc(t('shortcutTabs'))}</p>`;
+  }
+
+  // Category menu
+  const catBtn = $('#cat-btn'), catMenu = $('#cat-menu');
+  function toggleMenu(open) {
+    const show = open ?? catMenu.hidden;
+    catMenu.hidden = !show;
+    catBtn.setAttribute('aria-expanded', String(show));
+    if (show) { const cur = $('.item[aria-current="true"]', catMenu); if (cur) cur.focus(); }
+  }
+  catBtn.addEventListener('click', () => toggleMenu());
+  catMenu.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-goto]'); if (!b) return;
+    toggleMenu(false); select(b.dataset.goto); catBtn.focus();
   });
+  document.addEventListener('click', (e) => { if (!catMenu.hidden && !e.target.closest('.cat-wrap')) toggleMenu(false); });
+  catMenu.addEventListener('keydown', (e) => {
+    const items = $$('.item', catMenu), i = items.indexOf(document.activeElement);
+    if (e.key === 'Escape') { toggleMenu(false); catBtn.focus(); }
+    else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      items[(i + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length].focus();
+    }
+  });
+
+  // Tabs strip
+  $('#tabs').addEventListener('click', (e) => { const b = e.target.closest('[data-tab]'); if (b) select(b.dataset.tab); });
+  $('#tabs').addEventListener('keydown', (e) => {
+    if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+    const i = ORDER.indexOf(state.activeTab);
+    const next = ORDER[(i + (e.key === 'ArrowRight' ? 1 : -1) + ORDER.length) % ORDER.length];
+    select(next);
+    const btn = $(`.tab[data-tab="${next}"]`); if (btn) btn.focus();
+  });
+  new ResizeObserver(fitTabs).observe($('#topbar'));
+  if (document.fonts) document.fonts.ready.then(fitTabs);
+
+  // Language / theme
+  $('#lang-switcher').addEventListener('change', (e) => {
+    const val = e.target.value;
+    state.lang = (val === 'pt' || val === 'ja') ? val : 'en';
+    store.set(LKEY, state.lang);
+    applyLang();
+  });
+  $('#theme-switcher').addEventListener('click', () => {
+    state.theme = state.theme === 'dark' ? 'light' : 'dark';
+    store.set(THKEY, state.theme);
+    applyTheme();
+  });
+
+  // Help dialog
+  const help = $('#help');
+  const openHelp = () => { if (!help.open) { toggleMenu(false); renderHelp(); help.showModal(); } };
+  $('#help-btn').addEventListener('click', openHelp);
+  $('#help-close').addEventListener('click', () => help.close());
+  help.addEventListener('click', (e) => {
+    if (e.target === help) return help.close();
+    const b = e.target.closest('#help-body [data-goto]');
+    if (b) { select(b.dataset.goto); help.close(); }
+  });
+  $('#clear-all').addEventListener('click', () => {
+    if (!confirm(t('confirmClearAll'))) return;
+    LEGACY_TABS.forEach((id) => {
+      const panel = $(`.panel[data-panel="${id}"]`);
+      $$('textarea', panel).forEach((ta) => { if (!ta.readOnly) ta.value = ''; });
+      $$('input[type="text"], input[type="password"]', panel).forEach((inp) => { inp.value = ''; });
+      store.del(`conv.text.${id}`);
+    });
+    help.close();
+  });
+
+  // Keyboard: ? opens help; Ctrl/Cmd+Enter runs the main action of the active tab
+  document.addEventListener('keydown', (e) => {
+    if (e.defaultPrevented) return;
+    const tag = document.activeElement ? document.activeElement.tagName : '';
+    if (e.key === '?' && !help.open && !/INPUT|TEXTAREA|SELECT/.test(tag) && !(document.activeElement && document.activeElement.isContentEditable)) {
+      e.preventDefault(); openHelp(); return;
+    }
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && !help.open) {
+      const panel = $(`.panel[data-panel="${state.activeTab}"]`);
+      const run = panel && $$('[data-run]', panel).find((b) => b.offsetParent !== null && !b.disabled);
+      if (run) { e.preventDefault(); run.click(); }
+    }
+  });
+
+  window.addEventListener('hashchange', () => {
+    const id = getTabFromHash();
+    if (id && id !== state.activeTab) select(id, true);
+  });
+
+  // Init
+  buildPanels();
+  const hashTab = getTabFromHash();
+  const saved = store.get(SKEY);
+  state.activeTab = hashTab || (TAB_IDS.includes(saved) ? saved : 'base64');
+  applyTheme();
+  applyLang();
+  if (!location.hash || !hashTab) history.replaceState(null, '', '#' + state.activeTab);
 })();
 </script>
 </body>

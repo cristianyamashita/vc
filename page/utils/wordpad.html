@@ -25,49 +25,72 @@
     html, body { height: 100%; }
     body {
       margin: 0;
+      overflow: hidden;
+      font-size: 14px;
       font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica Neue, Arial, "Apple Color Emoji", "Segoe UI Emoji";
       color: var(--text);
       background: var(--bg);
     }
 
-    .app { display: grid; grid-template-rows: auto 1fr auto; height: 100%; width: 100%; }
+    .app { display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto; height: 100%; width: 100%; min-height: 0; }
 
-    .toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 8px 12px; background: var(--panel); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 20; }
-    .toolbar .group { display: inline-flex; align-items: center; gap: 6px; padding: 6px; background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px; }
+    .toolbar { display: flex; gap: 6px; align-items: center; padding: 0 8px 0 12px; background: var(--panel); border-bottom: 1px solid var(--border); position: relative; z-index: 20; min-width: 0; }
+    .topbar { height: 44px; }
+    .formatbar { height: 38px; padding: 0 8px; overflow-x: auto; scrollbar-width: thin; }
+    .brand { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 15px; white-space: nowrap; }
+    .brand img { width: 18px; height: 18px; }
+    .toolbar .group { display: inline-flex; align-items: center; gap: 2px; flex: 0 0 auto; }
+    .formatbar .group + .group { border-left: 1px solid var(--border); padding-left: 6px; margin-left: 2px; }
+    .topbar .btn span[data-i18n] { display: none; }
     .spacer { flex: 1; }
-    .btn, .select, .input, .color { height: 34px; background: #0e1420; color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 0 10px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; user-select: none; }
+    .btn, .select, .input, .color { height: 30px; background: #0e1420; color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 0 8px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; user-select: none; font-size: 13px; }
+    .toolbar .btn { min-width: 30px; justify-content: center; }
+    .formatbar .btn { height: 28px; min-width: 28px; padding: 0 6px; border-color: transparent; background: transparent; }
+    .formatbar .btn:hover { border-color: var(--border); }
+    .formatbar .select, .formatbar .color { height: 28px; }
     .btn[aria-pressed="true"] { outline: 2px solid var(--accent); }
     .btn:hover { background: #0b101a; }
     .btn i { font-size: 14px; }
     .input { cursor: text; background: #0c111b; }
     .input[type="text"] { width: 220px; }
+    #docTitle { width: 180px; min-width: 90px; flex: 0 1 180px; }
     .select { background: #0c111b; }
-    .color { padding: 0 4px; width: 44px; }
+    .color { padding: 0 4px; width: 40px; }
 
-    .editor-wrap { display: grid; grid-template-columns: minmax(0, 1fr); padding: 16px; height: 100%; }
-    #editor { background: #0e1420; border: 1px solid var(--border); border-radius: 10px; padding: 24px; min-height: calc(100vh - 160px); line-height: 1.6; outline: none; overflow: auto; }
+    .editor-wrap { display: grid; grid-template-columns: minmax(0, 1fr); padding: 10px; height: 100%; min-height: 0; }
+    #editor { background: #0e1420; border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; height: 100%; min-height: 0; line-height: 1.6; outline: none; overflow: auto; }
     #editor:focus { box-shadow: 0 0 0 2px rgba(74,163,255,0.35); }
     #editor p { margin: 0 0 10px; }
 
-    .statusbar { display: flex; gap: 12px; align-items: center; padding: 6px 12px; font-size: 12px; color: var(--muted); background: var(--panel); border-top: 1px solid var(--border); }
+    .statusbar { display: flex; gap: 12px; align-items: center; padding: 4px 12px; font-size: 12px; color: var(--muted); background: var(--panel); border-top: 1px solid var(--border); }
     .tabbar { display: flex; align-items: center; gap: 6px; overflow-x: auto; max-width: 60vw; padding: 2px 0; }
     .tab { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border: 1px solid var(--border); border-radius: 999px; background: var(--panel-2); color: var(--text); cursor: pointer; white-space: nowrap; font-size: 12px; }
     .tab.active { outline: 2px solid var(--accent); }
     .tab .name { max-width: 160px; overflow: hidden; text-overflow: ellipsis; }
     .tab.add { background: transparent; border-style: dashed; }
 
-    dialog.modal { border: 1px solid var(--border); border-radius: 10px; background: var(--panel); color: var(--text); padding: 0; max-width: 720px; width: 92vw; }
-    .modal header, .modal footer { padding: 12px 14px; border-bottom: 1px solid var(--border); }
+    dialog.modal { border: 1px solid var(--border); border-radius: 10px; background: var(--panel); color: var(--text); padding: 0; max-width: 720px; width: calc(100vw - 32px); max-height: calc(100vh - 32px); }
+    dialog.modal::backdrop { background: rgb(0 0 0 / 45%); }
+    .modal .modal-head, .modal footer { padding: 8px 14px; border-bottom: 1px solid var(--border); }
+    .modal .modal-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
     .modal footer { border-top: 1px solid var(--border); border-bottom: none; display: flex; gap: 8px; justify-content: flex-end; }
-    .modal .content { padding: 14px; max-height: 65vh; overflow: auto; }
+    .modal .content { padding: 12px 14px; max-height: calc(100vh - 150px); overflow: auto; }
+    #helpModal { max-width: 580px; }
+    #helpModal .content { font-size: 13px; line-height: 1.5; }
+    #helpModal h3 { margin: 12px 0 6px; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+    #helpModal p { margin: 0 0 8px; }
+    #helpModal ul { margin: 0; padding-left: 18px; }
+    #helpModal li { margin: 3px 0; }
+    @media (max-width: 720px) {
+      .brand span { display: none; }
+      #docTitle { width: 120px; }
+    }
     .list { display: grid; gap: 8px; }
     .row { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; padding: 10px; background: #0e1420; border: 1px solid var(--border); border-radius: 8px; }
     .row .name { font-weight: 600; }
     .row .meta { color: var(--muted); font-size: 12px; }
     .kbd { background: #0e1420; border: 1px solid var(--border); border-radius: 4px; padding: 2px 6px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 12px; }
     .hint { color: var(--muted); }
-    details.help { margin: 10px 0; }
-    details.help summary { cursor: pointer; }
 
     html[data-theme="light"] {
       --bg: #f7f8fb; --panel: #ffffff; --panel-2: #f0f3f9; --text: #0e1320; --muted: #5a6475; --accent: #0b66ff; --border: #d8dee9; --danger: #c62828; --ok: #2e7d32; --yellow: #b8860b;
@@ -92,9 +115,10 @@
 </head>
 <body>
   <div class="app">
-    <div class="toolbar" role="toolbar" aria-label="Editor toolbar">
+    <div class="toolbar topbar" role="toolbar" aria-label="File">
+      <div class="brand"><img src="../assets/icons/svg/utils-wordpad.svg" alt=""><span>WordPad</span></div>
+      <input id="docTitle" class="input" type="text" aria-label="Document name" />
       <div class="group" aria-label="File">
-        <input id="docTitle" class="input" type="text" aria-label="Document name" />
         <button id="btnNew" class="btn" title="New (Ctrl/Cmd+N)"><i class="fas fa-file"></i><span data-i18n="new"></span></button>
         <button id="btnOpen" class="btn" title="Open (Ctrl/Cmd+O)"><i class="fas fa-folder-open"></i><span data-i18n="open"></span></button>
         <button id="btnSave" class="btn" title="Save (Ctrl/Cmd+S)"><i class="fas fa-save"></i><span data-i18n="save"></span></button>
@@ -102,8 +126,23 @@
         <input id="fileInput" type="file" hidden accept=".txt,.docx,.html,.htm" />
         <button id="btnImport" class="btn" title="Import (.txt, .docx, .html)"><i class="fas fa-file-import"></i><span data-i18n="import"></span></button>
         <button id="btnExport" class="btn" title="Export (.txt, .docx, .html)"><i class="fas fa-file-export"></i><span data-i18n="export"></span></button>
+        <button id="btnFind" class="btn" title="Find/Replace (Ctrl/Cmd+F)"><i class="fas fa-search"></i><span data-i18n="findReplace"></span></button>
       </div>
 
+      <div class="spacer"></div>
+
+      <div class="group" aria-label="Language and help">
+        <button id="btnHelp" class="btn" title="Help (?)" aria-label="Help"><i class="fas fa-question-circle"></i><span data-i18n="help"></span></button>
+        <select id="lang-switcher" class="select" aria-label="Language">
+          <option value="en">EN</option>
+          <option value="pt">PT</option>
+          <option value="ja">JA</option>
+        </select>
+        <button id="theme-switcher" class="btn" title="Theme" aria-label="Theme"><i id="themeIcon" class="fas"></i><span data-i18n="theme"></span></button>
+      </div>
+    </div>
+
+    <div class="toolbar formatbar" role="toolbar" aria-label="Editor toolbar">
       <div class="group" aria-label="Formatting">
         <button class="btn" data-cmd="bold" title="Bold (Ctrl/Cmd+B)" aria-pressed="false"><i class="fas fa-bold"></i></button>
         <button class="btn" data-cmd="italic" title="Italic (Ctrl/Cmd+I)" aria-pressed="false"><i class="fas fa-italic"></i></button>
@@ -135,41 +174,47 @@
       <div class="group" aria-label="Editing">
         <button id="btnUndo" class="btn" title="Undo (Ctrl/Cmd+Z)"><i class="fas fa-undo"></i></button>
         <button id="btnRedo" class="btn" title="Redo (Ctrl/Cmd+Y)"><i class="fas fa-redo"></i></button>
-        <button id="btnFind" class="btn" title="Find/Replace (Ctrl/Cmd+F)"><i class="fas fa-search"></i><span data-i18n="findReplace"></span></button>
-      </div>
-
-      <div class="spacer"></div>
-
-      <div class="group" aria-label="Language and help">
-        <button id="btnTheme" class="btn" title="Theme"><i id="themeIcon" class="fas"></i><span data-i18n="theme"></span></button>
-        <select id="lang" class="select" aria-label="Language">
-          <option value="en">EN</option>
-          <option value="pt">PT</option>
-          <option value="ja">日本語</option>
-        </select>
-        <button id="btnHelp" class="btn" title="Help"><i class="fas fa-question-circle"></i><span data-i18n="help"></span></button>
       </div>
     </div>
 
     <div class="editor-wrap">
       <div id="editor" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Document editor"></div>
-      <details class="help" style="display: none;">
-        <summary><strong data-i18n="about"></strong></summary>
-        <div class="hint" id="aboutText"></div>
-      </details>
     </div>
 
     <div class="statusbar">
       <div class="tabbar" id="tabbar"></div>
       <div id="statusDoc"></div>
       <div id="statusSaved"></div>
-      <div class="spacer"></div>
-      <div class="hint"><span data-i18n="shortcuts"></span> <span class="kbd">Ctrl/Cmd+B</span>, <span class="kbd">I</span>, <span class="kbd">U</span>, <span class="kbd">S</span>, <span class="kbd">F</span>, <span class="kbd">O</span></div>
     </div>
   </div>
 
+  <dialog id="helpModal" class="modal" aria-labelledby="helpTitle">
+    <div class="modal-head"><strong id="helpTitle" data-i18n="help"></strong><button class="btn" id="btnHelpX" aria-label="Close"><i class="fas fa-times"></i></button></div>
+    <div class="content">
+      <p id="aboutText"></p>
+      <h3 data-i18n="helpDocsTitle"></h3>
+      <ul>
+        <li data-i18n="helpDocs"></li>
+        <li data-i18n="helpFileButtons"></li>
+      </ul>
+      <h3 data-i18n="helpShortcutsTitle"></h3>
+      <ul>
+        <li><span class="kbd">Ctrl/Cmd+B</span> <span class="kbd">I</span> <span class="kbd">U</span> · <span data-i18n="helpFormat"></span></li>
+        <li><span class="kbd">Ctrl/Cmd+S</span> · <span data-i18n="save"></span></li>
+        <li><span class="kbd">Ctrl/Cmd+O</span> · <span data-i18n="open"></span></li>
+        <li><span class="kbd">Ctrl/Cmd+N</span> · <span data-i18n="new"></span></li>
+        <li><span class="kbd">Ctrl/Cmd+F</span> · <span data-i18n="findReplace"></span></li>
+        <li><span class="kbd">Ctrl/Cmd+Z</span> / <span class="kbd">Ctrl/Cmd+Y</span> · <span data-i18n="helpUndoRedo"></span></li>
+        <li><span class="kbd">?</span> · <span data-i18n="helpKey"></span></li>
+      </ul>
+    </div>
+    <footer>
+      <button class="btn" id="btnHelpClose"><span data-i18n="close"></span></button>
+    </footer>
+  </dialog>
+
   <dialog id="openModal" class="modal" aria-label="Open recent">
-    <header><strong data-i18n="openRecent"></strong></header>
+    <div class="modal-head"><strong data-i18n="openRecent"></strong></div>
     <div class="content">
       <div class="list" id="recentList"></div>
     </div>
@@ -179,7 +224,7 @@
   </dialog>
 
   <dialog id="exportModal" class="modal" aria-label="Export">
-    <header><strong data-i18n="export"></strong></header>
+    <div class="modal-head"><strong data-i18n="export"></strong></div>
     <div class="content">
       <div class="list">
         <button class="btn" id="exportTxt">TXT</button>
@@ -194,7 +239,7 @@
   </dialog>
 
   <dialog id="findModal" class="modal" aria-label="Find and replace">
-    <header><strong data-i18n="findReplace"></strong></header>
+    <div class="modal-head"><strong data-i18n="findReplace"></strong></div>
     <div class="content">
       <div style="display:grid;grid-template-columns:120px 1fr auto;gap:10px;align-items:center;">
         <label for="findInput" data-i18n="find"></label>

@@ -3,20 +3,20 @@ window.OSFileApps = (function () {
     { appId: "notepad", exts: ["txt", "log", "ini", "text"], defaultFor: ["txt", "log", "ini", "text"] },
     { appId: "app-studio", exts: ["html", "htm", "css", "js", "json"] },
     { appId: "utils-wordpad", exts: ["txt", "html", "htm"], defaultFor: ["html", "htm"] },
-    { appId: "utils-markdown", exts: ["md", "markdown"], defaultFor: ["md", "markdown"] },
+    { appId: "utils-docs", exts: ["md", "markdown"], defaultFor: ["md", "markdown"] },
     { appId: "utils-obsidian", exts: ["md", "markdown"] },
     { appId: "utils-data_explorer", exts: ["json", "csv", "tsv"], defaultFor: ["json", "tsv"] },
     { appId: "sheets", exts: ["vcsh", "xlsx", "xls", "csv", "json"], defaultFor: ["vcsh", "xlsx", "xls", "csv"] },
     { appId: "paint", exts: ["png", "jpg", "jpeg", "gif", "webp", "bmp"] },
     { appId: "preview", exts: ["png", "jpg", "jpeg", "gif", "webp", "bmp", "svg", "avif", "ico", "pdf"] },
+    // Tab hubs: the hub sends the file to its file tab (Pro editor, Main board, PDF toolbox, Markdown).
     {
-      appId: "utils-ps2",
+      appId: "utils-photo_editor",
       exts: ["png", "jpg", "jpeg", "gif", "webp", "bmp", "avif", "ico", "svg"],
       defaultFor: ["png", "jpg", "jpeg", "gif", "webp", "bmp", "avif", "ico"],
     },
-    { appId: "utils-ps1", exts: ["png", "jpg", "jpeg", "gif", "webp", "bmp", "avif", "ico", "svg"] },
-    { appId: "utils-whiteboard", exts: ["png", "jpg", "jpeg", "gif", "webp", "bmp", "avif", "ico", "svg"] },
-    { appId: "utils-pdf_toolbox", exts: ["pdf"], defaultFor: ["pdf"] },
+    { appId: "utils-whiteboards", exts: ["png", "jpg", "jpeg", "gif", "webp", "bmp", "avif", "ico", "svg"] },
+    { appId: "utils-pdf_image_tools", exts: ["pdf"], defaultFor: ["pdf"] },
     { appId: "utils-vector_editor", exts: ["svg"], defaultFor: ["svg"] },
   ];
 

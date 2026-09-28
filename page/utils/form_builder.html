@@ -63,7 +63,7 @@
 
     html,
     body {
-      min-height: 100%;
+      height: 100%;
       margin: 0;
       font-family: 'Noto Sans JP', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       background:
@@ -76,6 +76,8 @@
     body {
       display: flex;
       flex-direction: column;
+      overflow: hidden;
+      font-size: 14px;
     }
 
     button,
@@ -90,7 +92,7 @@
     select,
     textarea,
     [contenteditable='true'] {
-      border-radius: 10px;
+      border-radius: 6px;
       border: 1px solid var(--border);
       background: var(--input);
       color: var(--text);
@@ -101,8 +103,8 @@
     select:focus-visible,
     textarea:focus-visible,
     [contenteditable='true']:focus-visible {
-      outline: 3px solid color-mix(in srgb, var(--accent) 48%, transparent);
-      outline-offset: 2px;
+      outline: 2px solid color-mix(in srgb, var(--accent) 60%, transparent);
+      outline-offset: 1px;
     }
 
     a {
@@ -110,14 +112,15 @@
     }
 
     .topbar {
-      position: sticky;
-      top: 0;
+      position: relative;
       z-index: 20;
+      flex: 0 0 auto;
+      height: 44px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 14px;
-      padding: 14px 18px;
+      gap: 8px;
+      padding: 0 8px 0 12px;
       background: color-mix(in srgb, var(--panel) 84%, transparent);
       border-bottom: 1px solid var(--border);
       backdrop-filter: blur(18px);
@@ -127,55 +130,53 @@
     .brand {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 8px;
       min-width: 0;
+      white-space: nowrap;
     }
 
-    .brand-mark {
-      width: 44px;
-      height: 44px;
-      display: grid;
-      place-items: center;
-      border-radius: 14px;
-      background:
-        linear-gradient(135deg, rgba(62, 208, 165, 0.22), rgba(241, 196, 83, 0.12)),
-        var(--panel-strong);
-      border: 1px solid var(--border);
-      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
-      color: var(--accent);
+    .brand img {
+      width: 18px;
+      height: 18px;
     }
 
-    .brand-text {
-      min-width: 0;
-    }
-
-    .brand-text h1 {
+    .brand h1 {
       margin: 0;
-      font-size: clamp(20px, 3vw, 26px);
-      line-height: 1.05;
-    }
-
-    .brand-text p {
-      margin: 4px 0 0;
-      color: var(--muted);
-      font-size: 13px;
+      font-size: 15px;
+      line-height: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .topbar-actions {
       display: flex;
       align-items: center;
       justify-content: flex-end;
-      gap: 10px;
-      flex-wrap: wrap;
+      gap: 6px;
+      min-width: 0;
+    }
+
+    .topbar .icon-btn {
+      width: 30px;
+      height: 30px;
+      min-height: 30px;
+    }
+
+    #lang-switcher {
+      width: auto;
+      min-height: 30px;
+      height: 30px;
+      padding: 0 6px;
+      font-size: 13px;
     }
 
     .segmented,
     .toolbar-group {
       display: inline-flex;
       align-items: center;
-      gap: 6px;
-      padding: 4px;
-      border-radius: 999px;
+      gap: 2px;
+      padding: 2px;
+      border-radius: 8px;
       border: 1px solid var(--border);
       background: var(--chip);
     }
@@ -197,9 +198,10 @@
     .icon-btn,
     .ghost-btn,
     .danger-btn {
-      min-height: 38px;
-      padding: 8px 12px;
-      border-radius: 999px;
+      min-height: 30px;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 13px;
       background: transparent;
       color: var(--muted);
       border: 1px solid transparent;
@@ -219,8 +221,13 @@
     .ghost-btn:hover,
     .danger-btn:hover,
     .primary-btn:hover {
-      transform: translateY(-1px);
-      filter: brightness(1.02);
+      filter: brightness(1.04);
+    }
+
+    .topbar .segmented button,
+    .topbar .toolbar-btn {
+      min-height: 24px;
+      padding: 2px 10px;
     }
 
     .toolbar-btn:not(.active):hover,
@@ -233,9 +240,10 @@
     }
 
     .primary-btn {
-      min-height: 40px;
-      padding: 9px 14px;
-      border-radius: 12px;
+      min-height: 30px;
+      padding: 4px 12px;
+      border-radius: 6px;
+      font-size: 13px;
       background: linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 68%, white));
       color: #0b1713;
       font-weight: 800;
@@ -246,22 +254,22 @@
       border: 1px solid var(--border);
       color: var(--text);
       background: var(--chip);
-      border-radius: 12px;
+      border-radius: 6px;
     }
 
     .danger-btn {
       border: 1px solid color-mix(in srgb, var(--danger) 34%, var(--border));
       color: var(--danger);
       background: color-mix(in srgb, var(--danger) 10%, transparent);
-      border-radius: 12px;
+      border-radius: 6px;
     }
 
     .icon-btn {
-      width: 40px;
+      width: 30px;
       padding: 0;
       display: grid;
       place-items: center;
-      border-radius: 12px;
+      border-radius: 6px;
       border: 1px solid var(--border);
       background: var(--chip);
     }
@@ -270,22 +278,23 @@
     .control-input,
     .control-textarea {
       width: 100%;
-      min-height: 40px;
-      padding: 10px 12px;
+      min-height: 32px;
+      padding: 5px 8px;
+      font-size: 13px;
       box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
     }
 
     .control-textarea {
-      min-height: 88px;
+      min-height: 64px;
       resize: vertical;
     }
 
     .shell {
       flex: 1;
       display: grid;
-      grid-template-columns: 300px minmax(0, 1fr);
-      gap: 18px;
-      padding: 18px;
+      grid-template-columns: 240px minmax(0, 1fr);
+      gap: 10px;
+      padding: 10px;
       min-height: 0;
     }
 
@@ -298,7 +307,7 @@
     .stats-card,
     .empty-card {
       border: 1px solid var(--border);
-      border-radius: 20px;
+      border-radius: 10px;
       background: color-mix(in srgb, var(--panel) 90%, transparent);
       box-shadow: var(--soft-shadow);
       backdrop-filter: blur(14px);
@@ -318,8 +327,8 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 12px;
-      padding: 16px 18px;
+      gap: 10px;
+      padding: 8px 12px;
       border-bottom: 1px solid var(--border);
     }
 
@@ -328,13 +337,13 @@
     .canvas-header h2,
     .record-panel-header h3 {
       margin: 0;
-      font-size: 16px;
+      font-size: 14px;
     }
 
     .sidebar-tools {
-      padding: 14px 16px 10px;
+      padding: 8px 10px;
       display: grid;
-      gap: 10px;
+      gap: 8px;
       border-bottom: 1px solid var(--border);
     }
 
@@ -356,7 +365,7 @@
     }
 
     .forms-scroll {
-      padding: 10px 10px 14px;
+      padding: 8px;
       flex: 1;
     }
 
@@ -366,12 +375,12 @@
     .relation-item,
     .stats-item {
       border: 1px solid transparent;
-      border-radius: 16px;
+      border-radius: 8px;
       background: transparent;
-      padding: 12px 12px;
-      margin-bottom: 8px;
+      padding: 7px 10px;
+      margin-bottom: 4px;
       cursor: pointer;
-      transition: background 0.16s ease, border-color 0.16s ease, transform 0.16s ease;
+      transition: background 0.16s ease, border-color 0.16s ease;
     }
 
     .form-item:hover,
@@ -380,7 +389,6 @@
     .relation-item:hover {
       background: color-mix(in srgb, var(--accent) 8%, var(--chip));
       border-color: var(--border);
-      transform: translateY(-1px);
     }
 
     .form-item.active,
@@ -444,8 +452,8 @@
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      min-height: 28px;
-      padding: 4px 10px;
+      min-height: 22px;
+      padding: 2px 8px;
       border-radius: 999px;
       border: 1px solid var(--border);
       background: var(--chip);
@@ -462,10 +470,11 @@
     .type-chip.log { color: #8cc8ff; }
 
     .sidebar-footer {
-      padding: 14px 16px 16px;
+      padding: 8px 10px;
       border-top: 1px solid var(--border);
       display: grid;
-      gap: 10px;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
       background: color-mix(in srgb, var(--panel-strong) 76%, transparent);
     }
 
@@ -488,17 +497,11 @@
       min-width: 0;
     }
 
-    .canvas-header-copy p {
-      margin: 5px 0 0;
-      color: var(--muted);
-      font-size: 12px;
-    }
-
     .canvas-body {
       flex: 1;
       min-height: 0;
       overflow: auto;
-      padding: 18px;
+      padding: 10px;
     }
 
     .builder-layout {
@@ -510,14 +513,15 @@
       flex: 1 1 62%;
       min-width: 0;
       display: grid;
-      gap: 16px;
+      gap: 10px;
+      align-content: start;
     }
 
     .builder-side {
       flex: 0 1 38%;
-      min-width: min(360px, 100%);
+      min-width: min(300px, 100%);
       display: grid;
-      gap: 16px;
+      gap: 10px;
       align-content: start;
     }
 
@@ -536,11 +540,16 @@
     .record-card-body,
     .stats-body,
     .empty-body {
-      padding: 16px 18px 18px;
+      padding: 10px 12px 12px;
+    }
+
+    .card-body {
+      display: grid;
+      gap: 10px;
     }
 
     .empty-card {
-      min-height: 420px;
+      min-height: 260px;
       display: grid;
       place-items: center;
       background:
@@ -555,26 +564,26 @@
     }
 
     .empty-icon {
-      width: 78px;
-      height: 78px;
-      margin: 0 auto 18px;
+      width: 48px;
+      height: 48px;
+      margin: 0 auto 10px;
       display: grid;
       place-items: center;
-      border-radius: 22px;
+      border-radius: 12px;
       border: 1px solid var(--border);
       background: color-mix(in srgb, var(--accent) 12%, var(--chip));
       color: var(--accent);
-      font-size: 28px;
+      font-size: 20px;
     }
 
     .empty-body h3 {
-      margin: 0 0 8px;
-      font-size: clamp(22px, 3vw, 30px);
+      margin: 0 0 6px;
+      font-size: 15px;
     }
 
     .empty-copy {
-      font-size: 14px;
-      margin-bottom: 18px;
+      font-size: 13px;
+      margin-bottom: 12px;
     }
 
     .property-grid {
@@ -587,13 +596,13 @@
     .preview-form,
     .record-form {
       display: grid;
-      gap: 14px;
+      gap: 10px;
     }
 
     .property-card {
       border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 14px;
+      border-radius: 8px;
+      padding: 10px;
       background: color-mix(in srgb, var(--panel-alt) 74%, transparent);
     }
 
@@ -606,16 +615,16 @@
     }
 
     .helper-card {
-      padding: 14px;
+      padding: 10px;
       border: 1px dashed color-mix(in srgb, var(--accent) 32%, var(--border));
-      border-radius: 16px;
+      border-radius: 8px;
       background: color-mix(in srgb, var(--accent) 8%, transparent);
     }
 
     .label {
       display: block;
-      margin: 0 0 6px;
-      font-size: 12px;
+      margin: 0 0 4px;
+      font-size: 11px;
       font-weight: 700;
       color: var(--muted);
       letter-spacing: 0.04em;
@@ -625,7 +634,7 @@
     .field-grid-2,
     .field-grid-3 {
       display: grid;
-      gap: 12px;
+      gap: 10px;
     }
 
     .field-grid-2 {
@@ -640,10 +649,10 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 12px;
-      padding: 10px 12px;
+      gap: 10px;
+      padding: 5px 10px;
       border: 1px solid var(--border);
-      border-radius: 12px;
+      border-radius: 6px;
       background: color-mix(in srgb, var(--panel-alt) 80%, transparent);
     }
 
@@ -665,7 +674,7 @@
     .field-item {
       background: color-mix(in srgb, var(--panel-alt) 64%, transparent);
       border-color: var(--border);
-      padding: 12px 14px;
+      padding: 7px 10px;
     }
 
     .field-handle {
@@ -696,10 +705,10 @@
     .preview-field,
     .record-field {
       display: grid;
-      gap: 8px;
-      padding: 14px;
+      gap: 6px;
+      padding: 10px;
       border: 1px solid var(--border);
-      border-radius: 16px;
+      border-radius: 8px;
       background: color-mix(in srgb, var(--panel-alt) 72%, transparent);
     }
 
@@ -727,9 +736,9 @@
     .record-textarea,
     .record-richtext {
       width: 100%;
-      min-height: 42px;
-      padding: 10px 12px;
-      border-radius: 12px;
+      min-height: 32px;
+      padding: 5px 8px;
+      border-radius: 6px;
       border: 1px solid var(--border);
       background: color-mix(in srgb, var(--input) 90%, transparent);
       color: var(--text);
@@ -739,7 +748,7 @@
     .record-textarea,
     .record-richtext,
     .rich-preview {
-      min-height: 96px;
+      min-height: 64px;
       resize: vertical;
     }
 
@@ -765,10 +774,10 @@
     .choice-item {
       display: flex;
       align-items: center;
-      gap: 10px;
-      padding: 10px 12px;
+      gap: 8px;
+      padding: 5px 10px;
       border: 1px solid var(--border);
-      border-radius: 12px;
+      border-radius: 6px;
       background: color-mix(in srgb, var(--panel-alt) 78%, transparent);
     }
 
@@ -777,12 +786,14 @@
     }
 
     .table-card {
-      min-height: 420px;
+      height: 100%;
+      min-height: 240px;
       display: flex;
       flex-direction: column;
     }
 
     .table-body {
+      flex: 1;
       min-height: 0;
       overflow: auto;
       padding: 0;
@@ -805,7 +816,7 @@
 
     th,
     td {
-      padding: 12px 14px;
+      padding: 7px 10px;
       text-align: left;
       border-bottom: 1px solid var(--border);
       vertical-align: top;
@@ -828,32 +839,46 @@
 
     .record-shell {
       display: grid;
-      grid-template-columns: 280px minmax(0, 1fr);
-      gap: 16px;
+      grid-template-columns: 220px minmax(0, 1fr);
+      gap: 10px;
       align-items: start;
     }
 
     .record-nav,
     .record-card {
-      min-height: 480px;
+      min-height: 0;
     }
 
     .record-nav {
+      max-height: 100%;
+      display: flex;
+      flex-direction: column;
       border: 1px solid var(--border);
-      border-radius: 20px;
+      border-radius: 10px;
       background: color-mix(in srgb, var(--panel-alt) 80%, transparent);
       overflow: hidden;
     }
 
     .record-nav-header {
-      padding: 14px 16px;
+      padding: 8px 10px;
       border-bottom: 1px solid var(--border);
       display: grid;
-      gap: 10px;
+      grid-template-columns: 1fr auto;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .record-nav-header h3 {
+      margin: 0;
+      font-size: 14px;
+    }
+
+    .record-nav-header input {
+      grid-column: 1 / -1;
     }
 
     .record-nav-list {
-      padding: 12px;
+      padding: 8px;
     }
 
     .record-nav-item.empty-row,
@@ -913,8 +938,9 @@
 
     dialog {
       width: min(520px, calc(100vw - 24px));
+      max-height: calc(100vh - 32px);
       border: 1px solid var(--border);
-      border-radius: 22px;
+      border-radius: 10px;
       padding: 0;
       background: color-mix(in srgb, var(--panel-strong) 96%, transparent);
       color: var(--text);
@@ -927,9 +953,63 @@
     }
 
     .dialog-body {
-      padding: 18px;
+      padding: 14px;
       display: grid;
-      gap: 14px;
+      gap: 10px;
+    }
+
+    .dialog-body h3 {
+      margin: 0;
+      font-size: 15px;
+    }
+
+    #help-dialog {
+      width: min(600px, calc(100vw - 32px));
+    }
+
+    .dlg-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 10px 8px 14px;
+      border-bottom: 1px solid var(--border);
+      font-weight: 700;
+    }
+
+    .dlg-body {
+      padding: 12px 14px 16px;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .dlg-body h3 {
+      margin: 12px 0 6px;
+      font-size: 12px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .04em;
+    }
+
+    .dlg-body p {
+      margin: 0 0 8px;
+    }
+
+    .dlg-body ul {
+      margin: 0;
+      padding-left: 18px;
+    }
+
+    .dlg-body li {
+      margin: 3px 0;
+    }
+
+    .dlg-body code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12px;
+      padding: 0 4px;
+      border-radius: 4px;
+      background: var(--chip);
+      color: var(--accent);
     }
 
     .dialog-actions {
@@ -949,8 +1029,6 @@
     }
 
     @media (max-width: 1180px) {
-      .shell,
-      .record-shell,
       .builder-layout {
         grid-template-columns: 1fr;
       }
@@ -964,34 +1042,87 @@
       }
     }
 
-    @media (max-width: 920px) {
-      .shell {
+    .stats-card .card-header {
+      padding: 6px 10px;
+    }
+
+    .stats-card .card-header h3 {
+      font-size: 12px;
+    }
+
+    .stats-card .stats-body {
+      padding: 6px;
+    }
+
+    .stats-list {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4px;
+    }
+
+    .stats-list .stats-item {
+      margin: 0;
+      padding: 3px 6px;
+      cursor: default;
+      border-color: var(--border);
+    }
+
+    .stats-item-main {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 4px;
+    }
+
+    .stats-item .form-name {
+      font-size: 11px;
+      font-weight: 600;
+      min-width: 0;
+    }
+
+    .stats-item .badge {
+      min-height: 18px;
+      padding: 0 6px;
+    }
+
+    @media (max-width: 600px) {
+      .brand h1 {
+        display: none;
+      }
+    }
+
+    @media (max-width: 720px) {
+      .shell,
+      .record-shell {
         grid-template-columns: 1fr;
       }
 
+      .shell {
+        overflow: auto;
+      }
+
       .sidebar {
-        max-height: none;
+        max-height: 260px;
+      }
+
+      .canvas {
+        min-height: 420px;
       }
 
       .field-grid-2,
       .field-grid-3 {
         grid-template-columns: 1fr;
       }
-    }
-
-    @media (max-width: 760px) {
-      .topbar,
-      .shell,
-      .canvas-body {
-        padding: 12px;
-      }
 
       .topbar {
-        align-items: stretch;
-        flex-direction: column;
+        height: auto;
+        min-height: 44px;
+        flex-wrap: wrap;
+        padding: 6px 8px;
       }
 
       .topbar-actions {
+        flex-wrap: wrap;
         justify-content: flex-start;
       }
 
@@ -1022,11 +1153,8 @@
 <body>
   <header class="topbar">
     <div class="brand">
-      <div class="brand-mark"><i class="fas fa-database"></i></div>
-      <div class="brand-text">
-        <h1 data-i18n="appTitle">Form Builder DB</h1>
-        <p data-i18n="appSubtitle">Design local forms, store records in IndexedDB, and switch between schema, table, and record views.</p>
-      </div>
+      <img src="../assets/icons/svg/utils-form_builder.svg" alt="" />
+      <h1 data-i18n="appTitle">Form Builder DB</h1>
     </div>
     <div class="topbar-actions">
       <div class="segmented" aria-label="Mode selector">
@@ -1041,12 +1169,13 @@
         <button id="export-app-btn" class="toolbar-btn" type="button" data-i18n="exportJson">Export</button>
         <button id="import-app-btn" class="toolbar-btn" type="button" data-i18n="importJson">Import</button>
       </div>
-      <select id="lang-switcher" class="control-select" style="width:auto; min-width:110px;">
-        <option value="en">English</option>
-        <option value="pt">Português</option>
-        <option value="ja">日本語</option>
+      <button id="help-btn" class="icon-btn" type="button" data-i18n-title="help" title="Help" aria-label="Help"><i class="fas fa-circle-question"></i></button>
+      <select id="lang-switcher" class="control-select" aria-label="Language">
+        <option value="en">EN</option>
+        <option value="pt">PT</option>
+        <option value="ja">JA</option>
       </select>
-      <button id="theme-toggle-btn" class="icon-btn" type="button" title="Toggle theme" aria-label="Toggle theme"><i class="fas fa-moon"></i></button>
+      <button id="theme-switcher" class="icon-btn" type="button" title="Toggle theme" aria-label="Toggle theme"><i class="fas fa-moon"></i></button>
       <input id="import-file-input" type="file" accept="application/json" class="hidden" />
     </div>
   </header>
@@ -1054,10 +1183,7 @@
   <div class="shell">
     <aside class="sidebar">
       <div class="sidebar-header">
-        <div>
-          <h2 data-i18n="formsTitle">Forms</h2>
-          <div class="hint" data-i18n="formsSubtitle">Choose a local schema to edit or use as a table.</div>
-        </div>
+        <h2 data-i18n="formsTitle">Forms</h2>
         <button id="create-form-btn" class="icon-btn" type="button" title="Create form" aria-label="Create form"><i class="fas fa-plus"></i></button>
       </div>
       <div class="sidebar-tools">
@@ -1084,7 +1210,6 @@
       <div class="canvas-header">
         <div class="canvas-header-copy">
           <h2 id="canvas-title" data-i18n="noFormSelectedTitle">Create a form to start</h2>
-          <p id="canvas-subtitle" data-i18n="noFormSelectedSubtitle">Use the builder to define fields and relations, then switch to data mode for CRUD.</p>
         </div>
         <div class="chip-row" id="canvas-meta-row"></div>
       </div>
@@ -1095,10 +1220,7 @@
   <dialog id="form-dialog">
     <form method="dialog" id="form-dialog-form">
       <div class="dialog-body">
-        <div>
-          <h3 id="form-dialog-title" data-i18n="createForm">Create form</h3>
-          <div class="hint" data-i18n="createFormHint">Choose the schema type and start modeling your local data.</div>
-        </div>
+        <h3 id="form-dialog-title" data-i18n="createForm">Create form</h3>
         <div>
           <label class="label" for="dialog-form-name" data-i18n="formName">Form name</label>
           <input id="dialog-form-name" class="control-input" required />
@@ -1123,6 +1245,14 @@
         </div>
       </div>
     </form>
+  </dialog>
+
+  <dialog id="help-dialog" aria-labelledby="help-dialog-title">
+    <div class="dlg-head">
+      <span id="help-dialog-title" data-i18n="help">Help</span>
+      <button id="help-close-btn" class="icon-btn" type="button" data-i18n-title="close" title="Close" aria-label="Close"><i class="fas fa-xmark"></i></button>
+    </div>
+    <div class="dlg-body" id="help-body"></div>
   </dialog>
 
   <script>
@@ -1275,7 +1405,12 @@
         relationCreatedLookup: 'Lookup relations are configured on the field itself.',
         removeAttachment: 'Remove existing file',
         relationFieldHint: 'Lookup targets drive select options in record mode.',
-        exportIncludesAll: 'Export includes forms, schema, records, relations, and attachments metadata.'
+        exportIncludesAll: 'Export includes forms, schema, records, relations, and attachments metadata.',
+        help: 'Help',
+        close: 'Close',
+        helpFormTypes: 'Form types',
+        helpShortcuts: 'Shortcuts',
+        helpShortcutKey: 'Press ? to open this help (outside text fields).'
       },
       pt: {
         appTitle: 'Form Builder DB',
@@ -1420,7 +1555,12 @@
         relationCreatedLookup: 'Relações lookup são configuradas no próprio campo.',
         removeAttachment: 'Remover arquivo existente',
         relationFieldHint: 'O alvo do lookup define as opções no modo de registro.',
-        exportIncludesAll: 'A exportação inclui forms, schema, registros, relações e metadados de anexos.'
+        exportIncludesAll: 'A exportação inclui forms, schema, registros, relações e metadados de anexos.',
+        help: 'Ajuda',
+        close: 'Fechar',
+        helpFormTypes: 'Tipos de form',
+        helpShortcuts: 'Atalhos',
+        helpShortcutKey: 'Pressione ? para abrir esta ajuda (fora de campos de texto).'
       },
       ja: {
         appTitle: 'Form Builder DB',
@@ -1565,7 +1705,12 @@
         relationCreatedLookup: 'lookup relation は field 自体で設定します。',
         removeAttachment: '既存ファイルを削除',
         relationFieldHint: 'lookup の参照先がレコード入力時の候補を決めます。',
-        exportIncludesAll: 'エクスポートには forms、schema、records、relations、attachment metadata が含まれます。'
+        exportIncludesAll: 'エクスポートには forms、schema、records、relations、attachment metadata が含まれます。',
+        help: 'ヘルプ',
+        close: '閉じる',
+        helpFormTypes: 'フォームの種類',
+        helpShortcuts: 'ショートカット',
+        helpShortcutKey: '? キーでこのヘルプを開きます（テキスト入力中を除く）。'
       }
     };
 
@@ -2531,16 +2676,13 @@
     function renderHeader() {
       const form = getSelectedForm();
       const title = document.getElementById('canvas-title');
-      const subtitle = document.getElementById('canvas-subtitle');
       const metaRow = document.getElementById('canvas-meta-row');
       if (!form) {
         title.textContent = state.currentMode === 'builder' ? t('noFormSelectedTitle') : t('recordsTitle');
-        subtitle.textContent = state.currentMode === 'builder' ? t('noFormSelectedSubtitle') : t('noSelectionData');
         metaRow.innerHTML = '';
         return;
       }
       title.textContent = state.currentMode === 'builder' ? t('modeBuilderTitle') : t('modeDataTitle');
-      subtitle.textContent = state.currentMode === 'builder' ? t('modeBuilderSubtitle') : t('modeDataSubtitle');
       const fields = getFieldsByFormId(form.id);
       const records = getRecordsByFormId(form.id);
       metaRow.innerHTML = `
@@ -2645,7 +2787,7 @@
               <div class="card-header">
                 <div>
                   <h3>${escapeHtml(t('formDetails'))}</h3>
-                  <div class="section-copy">${escapeHtml(form.description || t(`${form.type}DefaultHint`) || '')}</div>
+                  ${form.description ? `<div class="section-copy">${escapeHtml(form.description)}</div>` : ''}
                 </div>
                 <span class="save-status ${escapeHtml(state.saveStatus.className || '')}">${escapeHtml(state.saveStatus.message || t('savePreview'))}</span>
               </div>
@@ -2684,7 +2826,6 @@
               <div class="card-header">
                 <div>
                   <h3>${escapeHtml(t('schemaFields'))}</h3>
-                  <div class="section-copy">${escapeHtml(t('schemaFieldsHint'))}</div>
                 </div>
                 <div class="helper-row">
                   <select id="field-type-picker" class="control-select" style="min-width: 160px; width: auto;">
@@ -2726,13 +2867,12 @@
               <div class="card-header">
                 <div>
                   <h3>${escapeHtml(t('fieldProperties'))}</h3>
-                  <div class="section-copy">${escapeHtml(t('fieldPropertiesHint'))}</div>
                 </div>
                 ${selectedField ? `<div class="inline-actions"><button id="duplicate-field-btn" class="ghost-btn" type="button">${escapeHtml(t('duplicateField'))}</button><button id="delete-field-btn" class="danger-btn" type="button">${escapeHtml(t('deleteField'))}</button></div>` : ''}
               </div>
               <div class="card-body" id="field-properties-container">
                 ${selectedField ? renderFieldPropertiesMarkup(selectedField) : `
-                  <section class="empty-card" style="min-height: 260px;">
+                  <section class="empty-card" style="min-height: 160px;">
                     <div class="empty-body">
                       <div class="empty-icon"><i class="fas fa-sliders"></i></div>
                       <h3>${escapeHtml(t('builderEmptyTitle'))}</h3>
@@ -2747,14 +2887,13 @@
               <div class="card-header">
                 <div>
                   <h3>${escapeHtml(t('relationTools'))}</h3>
-                  <div class="section-copy">${escapeHtml(t('relationToolsHint'))}</div>
                 </div>
               </div>
               <div class="card-body">
                 <div class="helper-card">
                   <h4>${escapeHtml(t('createJunction'))}</h4>
-                  <div class="help-copy">${escapeHtml(canCreateJunction ? t('relationToolsHint') : t('noTargetForms'))}</div>
-                  <div class="helper-row" style="margin-top: 12px;">
+                  ${canCreateJunction ? '' : `<div class="help-copy">${escapeHtml(t('noTargetForms'))}</div>`}
+                  <div class="helper-row">
                     <select id="junction-target-select" class="control-select" ${canCreateJunction ? '' : 'disabled'}>
                       <option value="">${escapeHtml(t('junctionTarget'))}</option>
                       ${state.forms.filter((item) => item.id !== form.id).map((item) => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.name)}</option>`).join('')}
@@ -2762,7 +2901,7 @@
                     <button id="create-junction-btn" class="primary-btn" type="button" ${canCreateJunction ? '' : 'disabled'}>${escapeHtml(t('createJunction'))}</button>
                   </div>
                 </div>
-                <ul class="relations-list" id="relations-list" style="margin-top: 14px;">
+                <ul class="relations-list" id="relations-list">
                   ${renderRelationsMarkup()}
                 </ul>
               </div>
@@ -2772,7 +2911,6 @@
               <div class="card-header">
                 <div>
                   <h3>${escapeHtml(t('previewTitle'))}</h3>
-                  <div class="section-copy">${escapeHtml(t('previewHint'))}</div>
                 </div>
               </div>
               <div class="preview-body">
@@ -2863,7 +3001,6 @@
               <label class="label" for="field-formula-input">${escapeHtml(t('formula'))}</label>
               <textarea id="field-formula-input" class="control-textarea mono">${escapeHtml(field.formula || '')}</textarea>
               <div class="hint">${escapeHtml(t('formulaHint'))}</div>
-              <div class="hint">${escapeHtml(t('formulaReadonly'))}</div>
             </div>
           ` : ''}
           ${showAccept ? `
@@ -3059,7 +3196,7 @@
                   </table>
                 </div>
               ` : `
-                <div class="empty-body" style="padding-top: 36px;">
+                <div class="empty-body" style="margin: 0 auto; padding-top: 24px;">
                   <div class="empty-icon"><i class="fas fa-table"></i></div>
                   <h3>${escapeHtml(t('emptyRecords'))}</h3>
                   <p class="empty-copy">${escapeHtml(t('emptyRecordsHint'))}</p>
@@ -3369,13 +3506,39 @@
       document.querySelectorAll('[data-i18n-placeholder]').forEach((node) => {
         node.placeholder = t(node.dataset.i18nPlaceholder);
       });
+      document.querySelectorAll('[data-i18n-title]').forEach((node) => {
+        node.title = t(node.dataset.i18nTitle);
+        node.setAttribute('aria-label', t(node.dataset.i18nTitle));
+      });
       document.getElementById('lang-switcher').value = state.currentLang;
       document.title = t('appTitle');
+      renderHelp();
+    }
+
+    function renderHelp() {
+      const list = (keys) => `<ul>${keys.map((key) => `<li>${escapeHtml(t(key))}</li>`).join('')}</ul>`;
+      const typeList = FORM_TYPES.map((type) => `<li><b>${escapeHtml(getFormTypeLabel(type))}</b>: ${escapeHtml(t(`${type}DefaultHint`))}</li>`).join('');
+      document.getElementById('help-body').innerHTML = `
+        <p>${escapeHtml(t('appSubtitle'))}</p>
+        <p>${escapeHtml(t('noFormSelectedSubtitle'))}</p>
+        <h3>${escapeHtml(t('formsTitle'))}</h3>
+        ${list(['formsSubtitle', 'createFormHint', 'exportIncludesAll'])}
+        <h3>${escapeHtml(t('builderMode'))}</h3>
+        ${list(['modeBuilderSubtitle', 'schemaFieldsHint', 'fieldPropertiesHint', 'relationToolsHint', 'relationFieldHint', 'previewHint'])}
+        <h3>${escapeHtml(t('formula'))}</h3>
+        ${list(['formulaHint', 'formulaReadonly'])}
+        <h3>${escapeHtml(t('dataMode'))}</h3>
+        ${list(['modeDataSubtitle', 'emptyRecordsHint'])}
+        <h3>${escapeHtml(t('helpFormTypes'))}</h3>
+        <ul>${typeList}</ul>
+        <h3>${escapeHtml(t('helpShortcuts'))}</h3>
+        ${list(['helpShortcutKey'])}
+      `;
     }
 
     function applyTheme() {
       document.documentElement.setAttribute('data-theme', state.currentTheme);
-      const button = document.getElementById('theme-toggle-btn');
+      const button = document.getElementById('theme-switcher');
       const isLight = state.currentTheme === 'light';
       button.innerHTML = `<i class="fas ${isLight ? 'fa-sun' : 'fa-moon'}"></i>`;
       button.title = isLight ? t('themeLight') : t('themeDark');
@@ -3425,7 +3588,7 @@
         await saveSetting('lang', state.currentLang);
         render();
       });
-      document.getElementById('theme-toggle-btn').addEventListener('click', async () => {
+      document.getElementById('theme-switcher').addEventListener('click', async () => {
         state.currentTheme = state.currentTheme === 'light' ? 'dark' : 'light';
         localStorage.setItem('app_theme', state.currentTheme);
         await saveSetting('theme', state.currentTheme);
@@ -3445,6 +3608,20 @@
         document.getElementById('form-dialog').close();
       });
       document.getElementById('form-dialog-cancel').addEventListener('click', () => document.getElementById('form-dialog').close());
+      const helpDialog = document.getElementById('help-dialog');
+      document.getElementById('help-btn').addEventListener('click', () => helpDialog.showModal());
+      document.getElementById('help-close-btn').addEventListener('click', () => helpDialog.close());
+      helpDialog.addEventListener('click', (event) => {
+        if (event.target === helpDialog) helpDialog.close();
+      });
+      document.addEventListener('keydown', (event) => {
+        const active = document.activeElement;
+        const typing = active && (/INPUT|TEXTAREA|SELECT/.test(active.tagName) || active.isContentEditable);
+        if (event.key === '?' && !typing && !helpDialog.open && !document.querySelector('dialog[open]')) {
+          event.preventDefault();
+          helpDialog.showModal();
+        }
+      });
       document.getElementById('forms-list').addEventListener('click', async (event) => {
         const item = event.target.closest('[data-form-id]');
         if (!item) {

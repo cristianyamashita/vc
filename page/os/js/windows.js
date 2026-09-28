@@ -637,11 +637,36 @@ window.OSWindows = (function () {
     send();
   }
 
+  // Point a page window at "#hash" (for example a hub tab). A page that is
+  // already loaded gets a hashchange; a new one loads with the hash.
+  function applyHash(win, hash, fresh) {
+    if (!hash) return;
+    const iframe = win.el.querySelector("iframe");
+    if (!iframe) return;
+    if (!fresh) {
+      try {
+        iframe.contentWindow.location.hash = hash;
+        return;
+      } catch (_err) {}
+    }
+    const base = (iframe.getAttribute("src") || "").split("#")[0];
+    if (base) iframe.src = base + "#" + hash;
+  }
+
   function open(id, opts) {
     opts = opts || {};
+    // Old ids of merged pages (recent files, shortcuts) open the page that absorbed them.
+    if (window.OSCatalog.resolveId && id) {
+      const base = appIdOf(id);
+      const next = window.OSCatalog.resolveId(base);
+      if (next !== base) id = next + String(id).slice(base.length);
+    }
     const appId = appIdOf(id);
     const app = window.OSCatalog.byId(appId);
     if (!app) return null;
+    if (app.settingsPane && window.OSSettings && window.OSSettings.openPane) {
+      return window.OSSettings.openPane(app.settingsPane);
+    }
     if (app.kind !== "native" && window.OS && !window.OS.isInstalled(appId)) return null;
 
     const multi = isMulti(app);
@@ -664,6 +689,7 @@ window.OSWindows = (function () {
       const existing = latestOf(app.id);
       if (existing && !opts.forceNew) {
         if (opts.path) existing.path = opts.path;
+        applyHash(existing, opts.hash, false);
         existing.minimized = false;
         applyRect(existing);
         setFocused(existing.id);
@@ -687,6 +713,7 @@ window.OSWindows = (function () {
         if (window.OSFileExplorer) window.OSFileExplorer.navigate(win.id, opts.path);
       }
       if (opts.fileId) notifyFileOpen(win, opts.fileId);
+      applyHash(win, opts.hash, false);
       win.minimized = false;
       applyRect(win);
       setFocused(id);
@@ -717,6 +744,7 @@ window.OSWindows = (function () {
     bindWindow(win);
     applyRect(win);
     if (app.kind === "native" && !app.href) mountNative(win);
+    applyHash(win, opts.hash, true);
     if (opts.fileId) notifyFileOpen(win, opts.fileId);
     setFocused(winId);
     persist();

@@ -84,6 +84,9 @@ window.OSSettings = (function () {
     if (currentPane === "offline") {
       return offlineHtml();
     }
+    if (currentPane === "backup") {
+      return `<iframe class="settings-frame" id="os-backup-frame" src="../utils/backup.html" title="${escapeHtml(t("backup"))}"></iframe>`;
+    }
     return preferencesHtml();
   }
 
@@ -143,7 +146,7 @@ window.OSSettings = (function () {
       <p class="muted">${escapeHtml(navigator.userAgent || "")}</p>
       <h3>${escapeHtml(t("storage"))}</h3>
       <p id="os-storage-line" class="muted">${escapeHtml(t("registryLoading"))}</p>
-      <p><a class="settings-link" href="../utils/backup.html" target="_blank" rel="noopener">${escapeHtml(t("registryBackupLink"))}</a></p>
+      <p><button type="button" class="settings-link" data-pane="backup">${escapeHtml(t("registryBackupLink"))}</button></p>
       <h3>${escapeHtml(t("shortcuts"))}</h3>
       <div class="shortcut-list">
         ${shortcutRow("Ctrl+Esc", t("shortcutStart"))}
@@ -490,9 +493,9 @@ window.OSSettings = (function () {
                 ${desc ? `<p class="install-desc">${escapeHtml(desc)}</p>` : ""}
                 <span>${escapeHtml(installed ? t("installed") : t("notInstalled"))}</span>
               </div>
-              <button type="button" data-install-id="${app.id}" class="${installed ? "btn-uninstall" : "btn-install"}">
+              ${app.uninstallable === false ? "" : `<button type="button" data-install-id="${app.id}" class="${installed ? "btn-uninstall" : "btn-install"}">
                 ${escapeHtml(installed ? t("uninstall") : t("install"))}
-              </button>
+              </button>`}
             </div>`;
           })
           .join("");
@@ -539,9 +542,10 @@ window.OSSettings = (function () {
           <button type="button" data-pane="install" class="${currentPane === "install" ? "active" : ""}">${escapeHtml(t("installApps"))}</button>
           <button type="button" data-pane="offline" class="${currentPane === "offline" ? "active" : ""}">${escapeHtml(t("offline"))}</button>
           <button type="button" data-pane="registry" class="${currentPane === "registry" ? "active" : ""}">${escapeHtml(t("registry"))}</button>
+          <button type="button" data-pane="backup" class="${currentPane === "backup" ? "active" : ""}">${escapeHtml(t("backup"))}</button>
           <button type="button" data-pane="more" class="${currentPane === "more" ? "active" : ""}">${escapeHtml(t("more"))}</button>
         </nav>
-        <div class="settings-panel">${paneHtml()}</div>
+        <div class="settings-panel${currentPane === "backup" ? " settings-panel-frame" : ""}">${paneHtml()}</div>
       </div>
     `;
     bind(root);
@@ -552,6 +556,10 @@ window.OSSettings = (function () {
       if (registryRoot) window.OSRegistry.mount(registryRoot);
     }
     if (currentPane === "more") fillStorage(root);
+    if (currentPane === "backup" && window.OSEmbed) {
+      const frame = root.querySelector("#os-backup-frame");
+      if (frame) window.OSEmbed.attach(frame);
+    }
     if (currentPane === "offline") bindOffline(root);
     else if (offlineUnsub) {
       offlineUnsub();
@@ -587,6 +595,15 @@ window.OSSettings = (function () {
       }
     }
     paint(root);
+  }
+
+  // Open Settings on a given pane (used by apps that live inside Settings).
+  function openPane(pane) {
+    currentPane = pane;
+    const win = window.OSWindows.open("settings");
+    const root = settingsRoot();
+    if (root) mount(root);
+    return win;
   }
 
   function remountOpen() {
@@ -1247,5 +1264,5 @@ window.OSSettings = (function () {
     }
   }
 
-  return { mount, remountOpen, currentPane: () => currentPane };
+  return { mount, remountOpen, openPane, currentPane: () => currentPane };
 })();

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark" data-side="open">
+<html lang="en" data-theme="dark">
 <head>
   <link rel="icon" href="../assets/icons/ico/utils-terminal.ico" type="image/x-icon">
   <meta charset="UTF-8">
@@ -55,20 +55,43 @@
     }
     button, textarea, select, input { font: inherit; color: inherit; }
     button { cursor: pointer; }
-    .shell {
+    .app {
       height: 100%;
       min-height: 0;
       display: grid;
-      grid-template-columns: minmax(0, 1fr) 280px;
-      transition: grid-template-columns .22s cubic-bezier(.22, 1, .36, 1);
+      grid-template-rows: auto minmax(0, 1fr);
     }
-    html[data-side="closed"] .shell { grid-template-columns: minmax(0, 1fr) 0; }
+    .topbar {
+      height: 44px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0 8px 0 12px;
+      border-bottom: 1px solid var(--line);
+      background: color-mix(in srgb, var(--bg) 55%, var(--panel));
+      min-width: 0;
+    }
+    .brand { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 15px; white-space: nowrap; min-width: 0; }
+    .brand img { width: 18px; height: 18px; }
+    .tools { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+    .icon-btn, .tool-select {
+      height: 30px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: var(--panel);
+      color: var(--ink);
+      font-size: 13px;
+    }
+    .icon-btn { width: 30px; padding: 0; display: grid; place-items: center; font-weight: 700; }
+    .icon-btn:hover, .icon-btn:focus-visible { border-color: var(--accent); color: var(--accent); outline: 0; }
+    .tool-select { padding: 0 4px; }
+    .icon-btn svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
     .term-wrap { position: relative; min-width: 0; min-height: 0; height: 100%; overflow: hidden; }
     .term {
       height: 100%;
       min-height: 0;
       overflow: auto;
-      padding: 16px 18px 28px;
+      padding: 12px 14px 24px;
       font: 13.5px/1.5 "IBM Plex Mono", ui-monospace, monospace;
       background: var(--panel);
       cursor: text;
@@ -96,72 +119,37 @@
       overflow: hidden;
     }
     .hint { color: var(--muted); pointer-events: none; }
-    .side {
-      min-width: 0;
-      border-left: 1px solid var(--line);
-      background: color-mix(in srgb, var(--bg) 55%, var(--panel));
-      overflow: hidden;
-    }
-    html[data-side="closed"] .side {
-      background: transparent;
-      border-left-color: transparent;
-    }
-    .side-body {
-      width: 280px;
-      height: 100%;
-      overflow: auto;
-      padding: 16px;
-    }
-    .side-toggle {
-      position: absolute;
-      top: 8px;
-      right: 4px;
-      z-index: 3;
-      width: 18px;
-      height: 26px;
+    dialog.help {
+      width: min(680px, calc(100vw - 32px));
+      max-height: calc(100vh - 32px);
       padding: 0;
-      border: 0;
-      border-radius: 6px;
-      background: transparent;
-      color: var(--muted);
-      opacity: .4;
-      display: grid;
-      place-items: center;
-      transition: opacity .15s ease, color .15s ease, background .15s ease;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: var(--panel);
+      color: var(--ink);
+      box-shadow: var(--shadow);
     }
-    html[data-side="closed"] .side-toggle { right: 6px; opacity: .55; }
-    .side-toggle:hover,
-    .side-toggle:focus-visible {
-      opacity: 1;
-      color: var(--accent);
-      background: color-mix(in srgb, var(--panel) 82%, transparent);
-      outline: 0;
-    }
-    .side-toggle svg {
-      width: 11px;
-      height: 11px;
-      fill: none;
-      stroke: currentColor;
-      stroke-width: 1.55;
-      stroke-linecap: round;
-      stroke-linejoin: round;
-      transition: transform .22s cubic-bezier(.22, 1, .36, 1);
-    }
-    html[data-side="closed"] .side-toggle svg { transform: rotate(180deg); }
-    .side h2 {
-      margin: 0 0 10px;
-      font-size: 11px;
-      letter-spacing: .12em;
+    dialog.help::backdrop { background: rgb(0 0 0 / 45%); }
+    .dlg-head { display: flex; align-items: center; justify-content: space-between; padding: 8px 10px 8px 14px; border-bottom: 1px solid var(--line); font-weight: 700; }
+    .dlg-body { padding: 12px 14px 16px; font-size: 13px; }
+    .dlg-body p { margin: 0 0 10px; color: var(--muted); }
+    .dlg-body h2 {
+      margin: 12px 0 6px;
+      font-size: 12px;
+      letter-spacing: .06em;
       text-transform: uppercase;
       color: var(--muted);
     }
-    .cheat { display: grid; gap: 6px; margin-bottom: 18px; }
-    .cheat button {
+    .dlg-cols { display: grid; grid-template-columns: 1.3fr 1fr; gap: 14px; }
+    @media (max-width: 560px) { .dlg-cols { grid-template-columns: 1fr; } }
+    .cheat { display: grid; gap: 2px; }
+    .cheat button, .cheat > div {
       text-align: left;
       border: 1px solid transparent;
       background: transparent;
-      border-radius: 8px;
-      padding: 7px 8px;
+      border-radius: 6px;
+      padding: 3px 8px;
+      line-height: 1.35;
     }
     .cheat button:hover { border-color: var(--line); background: var(--panel); }
     .cheat code { color: var(--accent); display: block; font-size: 12px; }
@@ -234,24 +222,7 @@
       padding: 10px 14px; border-radius: 9px;
       box-shadow: var(--shadow); display: none; z-index: 9;
     }
-    @media (max-width: 860px) {
-      .shell { grid-template-columns: minmax(0, 1fr) 0; }
-      html[data-side="open"] .shell { grid-template-columns: minmax(0, 1fr) min(280px, 78vw); }
-      .side-toggle { opacity: .55; }
-    }
-    @media (prefers-reduced-motion: reduce) {
-      .shell, .side-toggle svg { transition: none; }
-    }
   </style>
-  <script>
-    (function () {
-      try {
-        const saved = localStorage.getItem("term-side");
-        if (saved === "open" || saved === "closed") document.documentElement.dataset.side = saved;
-        else if (window.matchMedia("(max-width: 860px)").matches) document.documentElement.dataset.side = "closed";
-      } catch (_err) {}
-    })();
-  </script>
   <script src="../os/js/state.js"></script>
   <script src="../os/js/fs.js"></script>
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-NWZDZ906DJ"></script>
@@ -263,7 +234,20 @@
   </script>
 </head>
 <body>
-  <div class="shell">
+  <div class="app">
+    <header class="topbar">
+      <div class="brand"><img src="../assets/icons/svg/utils-terminal.svg" alt=""><span data-i18n="title">Terminal</span></div>
+      <div class="tools">
+        <button type="button" class="icon-btn" id="clear-btn" data-i18n-title="tipClear"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 4h10M6 4V2.8h4V4M4.5 4l.6 9h5.8l.6-9"/></svg></button>
+        <button type="button" class="icon-btn" id="help-btn" data-i18n-title="help">?</button>
+        <select id="lang-switcher" class="tool-select" aria-label="Language">
+          <option value="en">EN</option>
+          <option value="pt">PT</option>
+          <option value="ja">JA</option>
+        </select>
+        <button type="button" class="icon-btn" id="theme-switcher" data-i18n-title="theme">◐</button>
+      </div>
+    </header>
     <div class="term-wrap">
       <div class="term" id="term">
         <div id="out"></div>
@@ -287,32 +271,40 @@
         <div id="pager-body" class="pager-body"></div>
         <div id="pager-status" class="status"></div>
       </div>
-      <button type="button" class="side-toggle" id="side-toggle" aria-controls="side-body" aria-expanded="true">
-        <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M4.25 2.2 8.05 6 4.25 9.8"/></svg>
-      </button>
     </div>
-    <aside class="side" id="side">
-      <div class="side-body" id="side-body">
-        <h2 data-i18n="cheatTitle">Common commands</h2>
-        <div class="cheat" id="cheat"></div>
-        <h2 data-i18n="tipsTitle">Tips</h2>
-        <div class="cheat">
-          <div><code>Tab</code><span data-i18n="tipTab">Complete commands and paths</span></div>
-          <div><code>↑ ↓</code><span data-i18n="tipHist">Command history</span></div>
-          <div><code>cmd | cmd</code><span data-i18n="tipPipe">Pipes and &gt; &gt;&gt; redirects</span></div>
-          <div><code>⌘K K</code><span data-i18n="tipClear">Clear the screen</span></div>
-          <div><code>/bin</code><span data-i18n="tipBin">Scripts there run by name</span></div>
+  </div>
+  <dialog class="help" id="help-dialog" aria-labelledby="help-title">
+    <div class="dlg-head"><span id="help-title" data-i18n="help">Help</span><button type="button" class="icon-btn" id="help-close" data-i18n-title="close">✕</button></div>
+    <div class="dlg-body">
+      <p id="help-intro"></p>
+      <div class="dlg-cols">
+        <div>
+          <h2 data-i18n="cheatTitle">Common commands</h2>
+          <div class="cheat" id="cheat"></div>
+        </div>
+        <div>
+          <h2 data-i18n="tipsTitle">Tips</h2>
+          <div class="cheat">
+            <div><code>Tab</code><span data-i18n="tipTab">Complete commands and paths</span></div>
+            <div><code>↑ ↓</code><span data-i18n="tipHist">Command history</span></div>
+            <div><code>cmd | cmd</code><span data-i18n="tipPipe">Pipes and &gt; &gt;&gt; redirects</span></div>
+            <div><code>⌘K K · Ctrl+L</code><span data-i18n="tipClear">Clear the screen</span></div>
+            <div><code>vim</code><span data-i18n="tipVim">i insert, Esc, :wq save and quit</span></div>
+            <div><code>/bin</code><span data-i18n="tipBin">Scripts there run by name</span></div>
+            <div><code>?</code><span data-i18n="tipHelp">Open this help (outside the prompt)</span></div>
+          </div>
         </div>
       </div>
-    </aside>
-  </div>
+    </div>
+  </dialog>
   <div class="toast" id="toast"></div>
 <script>
 const $ = (s) => document.querySelector(s);
 const I = {
   en: {
     cheatTitle: "Common commands", tipsTitle: "Tips",
-    sideHide: "Hide help", sideShow: "Show help",
+    title: "Terminal", help: "Help", close: "Close", theme: "Toggle theme",
+    tipHelp: "Open this help (outside the prompt)",
     tipTab: "Complete commands and paths", tipHist: "Command history",
     tipPipe: "Pipes and > >> redirects", tipVim: "i insert, Esc, :wq save and quit",
     tipClear: "Clear the screen", tipBin: "Scripts there run by name",
@@ -326,7 +318,8 @@ const I = {
   },
   pt: {
     cheatTitle: "Comandos comuns", tipsTitle: "Dicas",
-    sideHide: "Ocultar ajuda", sideShow: "Mostrar ajuda",
+    title: "Terminal", help: "Ajuda", close: "Fechar", theme: "Alternar tema",
+    tipHelp: "Abre esta ajuda (fora do prompt)",
     tipTab: "Completar comandos e caminhos", tipHist: "Histórico de comandos",
     tipPipe: "Pipes e redirecionamentos > >>", tipVim: "i inserir, Esc, :wq salvar e sair",
     tipClear: "Limpa a tela", tipBin: "Scripts lá rodam pelo nome",
@@ -340,7 +333,8 @@ const I = {
   },
   ja: {
     cheatTitle: "よく使うコマンド", tipsTitle: "ヒント",
-    sideHide: "ヘルプを隠す", sideShow: "ヘルプを表示",
+    title: "ターミナル", help: "ヘルプ", close: "閉じる", theme: "テーマ切替",
+    tipHelp: "このヘルプを開く（プロンプト外で）",
     tipTab: "コマンドとパスを補完", tipHist: "コマンド履歴",
     tipPipe: "パイプと > >> リダイレクト", tipVim: "i 挿入、Esc、:wq 保存して終了",
     tipClear: "画面を消去", tipBin: "そこにあるスクリプトは名前だけで実行",
@@ -2727,19 +2721,12 @@ async function complete() {
   autosize();
 }
 
-function applySide() {
-  const btn = $("#side-toggle");
-  const closed = document.documentElement.dataset.side === "closed";
-  const label = t(closed ? "sideShow" : "sideHide");
-  btn.setAttribute("aria-expanded", closed ? "false" : "true");
-  btn.setAttribute("aria-label", label);
-  btn.title = label;
-}
-
 function applyChrome() {
   document.documentElement.lang = lang;
   $$i18n();
-  applySide();
+  const ls = $("#lang-switcher");
+  if (ls) ls.value = lang;
+  $("#help-intro").textContent = t("welcome").replace(/`/g, "");
   $("#cheat").innerHTML = CHEATS
     .filter(([code]) => isOsHosted() || !String(code).startsWith("open "))
     .map(([code, names]) => `<button data-cmd="${code}"><code>${code}</code><span>${li(names)}</span></button>`).join("");
@@ -2748,6 +2735,10 @@ function applyChrome() {
 }
 function $$i18n() {
   document.querySelectorAll("[data-i18n]").forEach((el) => { el.textContent = t(el.dataset.i18n); });
+  document.querySelectorAll("[data-i18n-title]").forEach((el) => {
+    el.title = t(el.dataset.i18nTitle);
+    el.setAttribute("aria-label", t(el.dataset.i18nTitle));
+  });
 }
 
 async function boot() {
@@ -2839,16 +2830,32 @@ $("#term").addEventListener("click", (e) => {
 $("#cheat").addEventListener("click", (e) => {
   const b = e.target.closest("[data-cmd]");
   if (!b) return;
+  $("#help-dialog").close();
   $("#cmd").value = b.dataset.cmd;
+  autosize();
   $("#cmd").focus();
 });
-$("#side-toggle").addEventListener("click", (e) => {
-  e.preventDefault();
-  const next = document.documentElement.dataset.side === "closed" ? "open" : "closed";
-  document.documentElement.dataset.side = next;
-  try { localStorage.setItem("term-side", next); } catch (_err) {}
-  applySide();
+const helpDialog = $("#help-dialog");
+$("#help-btn").addEventListener("click", () => helpDialog.showModal());
+$("#help-close").addEventListener("click", () => helpDialog.close());
+helpDialog.addEventListener("click", (e) => { if (e.target === helpDialog) helpDialog.close(); });
+helpDialog.addEventListener("close", () => {
+  if (!vim && !$("#nano").classList.contains("open") && !$("#pager").classList.contains("open")) $("#cmd").focus();
+});
+$("#clear-btn").addEventListener("click", () => {
+  $("#out").innerHTML = "";
   $("#cmd").focus();
+});
+$("#lang-switcher").addEventListener("change", (e) => {
+  if (!I[e.target.value]) return;
+  lang = e.target.value;
+  try { localStorage.setItem("term-lang", lang); } catch (_err) {}
+  applyChrome();
+});
+$("#theme-switcher").addEventListener("click", () => {
+  const next = document.documentElement.dataset.theme === "light" ? "dark" : "light";
+  document.documentElement.dataset.theme = next;
+  try { localStorage.setItem("term-theme", next); } catch (_err) {}
 });
 function hasTermSelection() {
   const sel = window.getSelection();
@@ -2907,6 +2914,14 @@ document.addEventListener("keydown", (e) => {
 }, true);
 
 document.addEventListener("keydown", (e) => {
+  if (helpDialog.open) return;
+  const active = document.activeElement;
+  const typing = active && (/INPUT|TEXTAREA|SELECT/.test(active.tagName) || active.isContentEditable);
+  if (e.key === "?" && !typing && !vim && !$("#nano").classList.contains("open") && !$("#pager").classList.contains("open")) {
+    e.preventDefault();
+    helpDialog.showModal();
+    return;
+  }
   handleCopyOrIntr(e);
   if (vim) { vimHandle(e); return; }
   if ($("#pager").classList.contains("open")) {

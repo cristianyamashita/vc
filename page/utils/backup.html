@@ -31,18 +31,75 @@
         --warning-color: #ffc107;
       }
 
+      html, body { height: 100%; }
       body {
         background-color: var(--bg-color);
         color: var(--text-color);
-        display: flex;
-        flex-direction: column;
-        min-height: 100vh;
         margin: 0;
+        overflow: hidden;
+        font-size: 14px;
       }
 
-      .container-fluid { padding-top: 20px; padding-bottom: 20px; flex: 1; }
+      .app { height: 100%; display: grid; grid-template-rows: auto 1fr; min-height: 0; }
 
-      .card { background-color: var(--card-bg-color); border-color: var(--border-color); }
+      .topbar {
+        height: 44px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 0 8px 0 12px;
+        background-color: var(--card-bg-color);
+        border-bottom: 1px solid var(--border-color);
+        min-width: 0;
+      }
+      .brand { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 600; white-space: nowrap; min-width: 0; }
+      .brand img { width: 18px; height: 18px; }
+      .brand span { overflow: hidden; text-overflow: ellipsis; }
+      .topbar .tools { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+      .icon-btn { width: 30px; height: 30px; padding: 0; display: inline-grid; place-items: center; }
+      #lang-switcher { width: auto; height: 30px; padding-top: 0; padding-bottom: 0; font-size: 13px; }
+
+      .main {
+        min-height: 0;
+        overflow: auto;
+        padding: 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        width: 100%;
+        max-width: 1100px;
+        margin: 0 auto;
+      }
+      .actions-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+      .action-card .card-body { padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+      .card-title { font-size: 14px; font-weight: 600; margin: 0; display: flex; align-items: center; gap: 8px; }
+      .card-title i { color: var(--accent-color); }
+      .action-card .btn { align-self: flex-start; }
+      .log-card { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 160px; }
+      .log-card .card-header { padding: 6px 12px; font-size: 13px; }
+      #log-container .text-muted { color: #8a8a8a !important; }
+      @media (max-width: 720px) {
+        .actions-grid { grid-template-columns: 1fr; }
+      }
+
+      dialog.help {
+        width: min(560px, calc(100vw - 32px));
+        max-height: calc(100vh - 32px);
+        padding: 0;
+        border: 1px solid var(--border-color);
+        border-radius: 10px;
+        background: var(--card-bg-color);
+        color: var(--text-color);
+      }
+      dialog.help::backdrop { background: rgb(0 0 0 / 45%); }
+      .dlg-head { display: flex; align-items: center; justify-content: space-between; padding: 8px 10px 8px 14px; border-bottom: 1px solid var(--border-color); font-weight: 600; }
+      .dlg-body { padding: 12px 14px 16px; font-size: 13px; }
+      .dlg-body h3 { margin: 12px 0 6px; font-size: 12px; color: #999; text-transform: uppercase; letter-spacing: .04em; }
+      .dlg-body p { margin: 0 0 8px; }
+      .dlg-body ul { margin: 0; padding-left: 18px; }
+      .dlg-body li { margin: 3px 0; }
+
+      .card { background-color: var(--card-bg-color); border-color: var(--border-color); color: var(--text-color); }
       .card-header { border-bottom-color: var(--border-color); }
 
       .navbar-brand, .form-label { color: var(--text-color); }
@@ -90,7 +147,8 @@
       }
 
       #log-container {
-        max-height: 300px;
+        flex: 1;
+        min-height: 0;
         overflow-y: auto;
         font-size: 0.82rem;
       }
@@ -104,7 +162,8 @@
       .drop-zone {
         border: 2px dashed var(--border-color);
         border-radius: 0.5rem;
-        padding: 2rem;
+        padding: 12px;
+        font-size: 13px;
         text-align: center;
         transition: border-color 0.2s, background-color 0.2s;
         cursor: pointer;
@@ -128,93 +187,100 @@
     </script>
   </head>
   <body>
-    <nav class="navbar navbar-expand-lg" style="background-color: var(--card-bg-color); border-bottom: 1px solid var(--border-color)">
-      <div class="container-fluid">
-        <a class="navbar-brand" href="#" data-i18n="title">Backup &amp; Restore</a>
-        <div class="d-flex ms-auto gap-2 align-items-center">
-          <select id="lang-switcher" class="form-select form-select-sm" style="width: auto;">
-            <option value="en">English</option>
-            <option value="pt">Português</option>
-            <option value="ja">日本語</option>
+    <div class="app">
+      <header class="topbar">
+        <div class="brand"><img src="../assets/icons/svg/utils-backup.svg" alt="" /><span data-i18n="title">Backup &amp; Restore</span></div>
+        <div class="tools">
+          <button id="help-btn" class="btn btn-sm btn-outline-secondary icon-btn" type="button" data-i18n-title="helpBtn" title="Help">
+            <i class="fas fa-circle-question"></i>
+          </button>
+          <select id="lang-switcher" class="form-select form-select-sm" aria-label="Language">
+            <option value="en">EN</option>
+            <option value="pt">PT</option>
+            <option value="ja">JA</option>
           </select>
-          <button id="theme-switcher" class="btn btn-sm btn-outline-secondary" type="button" data-i18n-title="themeBtn" title="Toggle theme">
+          <button id="theme-switcher" class="btn btn-sm btn-outline-secondary icon-btn" type="button" data-i18n-title="themeBtn" title="Toggle theme">
             <i class="fas fa-moon"></i>
           </button>
         </div>
-      </div>
-    </nav>
+      </header>
 
-    <div class="container-fluid">
-      <div class="row justify-content-center">
-        <div class="col-xl-10 col-lg-12">
-
-          <p class="help-text mb-4" data-i18n="subtitle">Export all localStorage and IndexedDB data as a single JSON file. Restore from a previous backup to migrate between browsers.</p>
-
-          <!-- Export / Import cards -->
-          <div class="row g-4 mb-4">
-            <!-- Export -->
-            <div class="col-md-6">
-              <div class="card action-card h-100">
-                <div class="card-body text-center py-4">
-                  <div class="section-icon mb-3"><i class="fas fa-cloud-arrow-down"></i></div>
-                  <h5 class="card-title" data-i18n="exportTitle">Export Backup</h5>
-                  <p class="help-text" data-i18n="exportDesc">Download all stored data (localStorage + IndexedDB) as a JSON file.</p>
-                  <div id="export-stats" class="mb-3"></div>
-                  <button id="btn-export" class="btn btn-primary px-4">
-                    <i class="fas fa-download me-1"></i> <span data-i18n="exportBtn">Export</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-            <!-- Import -->
-            <div class="col-md-6">
-              <div class="card action-card h-100">
-                <div class="card-body text-center py-4">
-                  <div class="section-icon mb-3"><i class="fas fa-cloud-arrow-up"></i></div>
-                  <h5 class="card-title" data-i18n="importTitle">Restore Backup</h5>
-                  <p class="help-text" data-i18n="importDesc">Load a previously exported JSON backup file to restore all data.</p>
-                  <div id="drop-zone" class="drop-zone mb-3">
-                    <i class="fas fa-file-import fa-2x mb-2" style="color: var(--accent-color);"></i>
-                    <div data-i18n="dropHint">Drop JSON file here or click to browse</div>
-                    <input type="file" id="file-input" accept=".json" class="hidden" />
-                  </div>
-                  <div id="import-file-info" class="help-text mb-2 hidden"></div>
-                  <div class="d-flex justify-content-center gap-2">
-                    <button id="btn-import-merge" class="btn btn-success px-3 hidden">
-                      <i class="fas fa-code-merge me-1"></i> <span data-i18n="importMergeBtn">Merge</span>
-                    </button>
-                    <button id="btn-import-replace" class="btn btn-danger px-3 hidden">
-                      <i class="fas fa-rotate me-1"></i> <span data-i18n="importReplaceBtn">Replace All</span>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Progress -->
-          <div id="progress-section" class="mb-3 hidden">
-            <div class="progress">
-              <div id="progress-bar" class="progress-bar bg-primary" role="progressbar" style="width: 0%"></div>
-            </div>
-          </div>
-
-          <!-- Log -->
-          <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center">
-              <strong data-i18n="logTitle">Activity Log</strong>
-              <button id="btn-clear-log" class="btn btn-sm btn-outline-secondary" data-i18n-title="clearLogBtn" title="Clear log">
-                <i class="fas fa-eraser"></i>
+      <main class="main">
+        <!-- Export / Import cards -->
+        <div class="actions-grid">
+          <!-- Export -->
+          <div class="card action-card">
+            <div class="card-body">
+              <h5 class="card-title"><i class="fas fa-cloud-arrow-down"></i><span data-i18n="exportTitle">Export Backup</span></h5>
+              <div id="export-stats"></div>
+              <button id="btn-export" class="btn btn-sm btn-primary px-3">
+                <i class="fas fa-download me-1"></i> <span data-i18n="exportBtn">Export</span>
               </button>
             </div>
-            <div class="card-body p-2" id="log-container">
-              <div class="text-muted text-center py-3" data-i18n="logEmpty">No activity yet</div>
+          </div>
+          <!-- Import -->
+          <div class="card action-card">
+            <div class="card-body">
+              <h5 class="card-title"><i class="fas fa-cloud-arrow-up"></i><span data-i18n="importTitle">Restore Backup</span></h5>
+              <div id="drop-zone" class="drop-zone">
+                <i class="fas fa-file-import me-1" style="color: var(--accent-color);"></i>
+                <span data-i18n="dropHint">Drop JSON file here or click to browse</span>
+                <input type="file" id="file-input" accept=".json" class="hidden" />
+              </div>
+              <div id="import-file-info" class="help-text hidden"></div>
+              <div class="d-flex gap-2">
+                <button id="btn-import-merge" class="btn btn-sm btn-success px-3 hidden">
+                  <i class="fas fa-code-merge me-1"></i> <span data-i18n="importMergeBtn">Merge</span>
+                </button>
+                <button id="btn-import-replace" class="btn btn-sm btn-danger px-3 hidden">
+                  <i class="fas fa-rotate me-1"></i> <span data-i18n="importReplaceBtn">Replace All</span>
+                </button>
+              </div>
             </div>
           </div>
-
         </div>
-      </div>
+
+        <!-- Progress -->
+        <div id="progress-section" class="hidden">
+          <div class="progress">
+            <div id="progress-bar" class="progress-bar bg-primary" role="progressbar" style="width: 0%"></div>
+          </div>
+        </div>
+
+        <!-- Log -->
+        <div class="card log-card">
+          <div class="card-header d-flex justify-content-between align-items-center">
+            <strong data-i18n="logTitle">Activity Log</strong>
+            <button id="btn-clear-log" class="btn btn-sm btn-outline-secondary" data-i18n-title="clearLogBtn" title="Clear log">
+              <i class="fas fa-eraser"></i>
+            </button>
+          </div>
+          <div class="card-body p-2" id="log-container">
+            <div class="text-muted text-center py-3" data-i18n="logEmpty">No activity yet</div>
+          </div>
+        </div>
+      </main>
     </div>
+
+    <dialog class="help" id="help-dialog" aria-labelledby="help-title">
+      <div class="dlg-head">
+        <span id="help-title" data-i18n="helpBtn">Help</span>
+        <button id="help-close" class="btn btn-sm btn-outline-secondary icon-btn" type="button" data-i18n-title="closeBtn" title="Close"><i class="fas fa-xmark"></i></button>
+      </div>
+      <div class="dlg-body">
+        <p data-i18n="subtitle">Export all localStorage and IndexedDB data as a single JSON file. Restore from a previous backup to migrate between browsers.</p>
+        <h3 data-i18n="exportTitle">Export Backup</h3>
+        <p data-i18n="exportDesc">Download all stored data (localStorage + IndexedDB) as a JSON file.</p>
+        <h3 data-i18n="importTitle">Restore Backup</h3>
+        <p data-i18n="importDesc">Load a previously exported JSON backup file to restore all data.</p>
+        <ul>
+          <li data-i18n="helpMerge">Merge: writes the backup over the current data and keeps keys that are not in the file.</li>
+          <li data-i18n="helpReplace">Replace All: clears all existing data first, then restores the backup.</li>
+        </ul>
+        <h3 data-i18n="helpShortcuts">Shortcuts</h3>
+        <ul><li data-i18n="helpKey">Press ? to open this help.</li></ul>
+      </div>
+    </dialog>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
@@ -258,6 +324,12 @@
         noIdb: "No IndexedDB databases found.",
         scanning: "Scanning storage...",
         fileInfo: "File: {name} — {lsKeys} localStorage keys, {idbDbs} IndexedDB databases.",
+        helpBtn: "Help",
+        closeBtn: "Close",
+        helpMerge: "Merge: writes the backup over the current data and keeps keys that are not in the file.",
+        helpReplace: "Replace All: clears all existing data first, then restores the backup.",
+        helpShortcuts: "Shortcuts",
+        helpKey: "Press ? to open this help.",
       },
       pt: {
         title: "Backup & Restauração",
@@ -295,6 +367,12 @@
         noIdb: "Nenhum banco IndexedDB encontrado.",
         scanning: "Escaneando armazenamento...",
         fileInfo: "Arquivo: {name} — {lsKeys} chaves localStorage, {idbDbs} bancos IndexedDB.",
+        helpBtn: "Ajuda",
+        closeBtn: "Fechar",
+        helpMerge: "Mesclar: grava o backup sobre os dados atuais e mantém as chaves que não estão no arquivo.",
+        helpReplace: "Substituir Tudo: apaga todos os dados existentes antes e depois restaura o backup.",
+        helpShortcuts: "Atalhos",
+        helpKey: "Pressione ? para abrir esta ajuda.",
       },
       ja: {
         title: "バックアップと復元",
@@ -332,6 +410,12 @@
         noIdb: "IndexedDBデータベースが見つかりません。",
         scanning: "ストレージをスキャン中...",
         fileInfo: "ファイル: {name} — {lsKeys} localStorageキー, {idbDbs} IndexedDBデータベース。",
+        helpBtn: "ヘルプ",
+        closeBtn: "閉じる",
+        helpMerge: "マージ：現在のデータにバックアップを上書きし、ファイルにないキーは残します。",
+        helpReplace: "すべて置換：既存のデータをすべて削除してからバックアップを復元します。",
+        helpShortcuts: "ショートカット",
+        helpKey: "? キーでこのヘルプを開きます。",
       }
     };
 
@@ -1087,6 +1171,20 @@
       document.getElementById('btn-clear-log').addEventListener('click', () => {
         logContainer.innerHTML = `<div class="text-muted text-center py-3" data-i18n="logEmpty">${t('logEmpty')}</div>`;
         logHasEntries = false;
+      });
+
+      // Help dialog
+      const helpDialog = document.getElementById('help-dialog');
+      document.getElementById('help-btn').addEventListener('click', () => helpDialog.showModal());
+      document.getElementById('help-close').addEventListener('click', () => helpDialog.close());
+      helpDialog.addEventListener('click', (e) => { if (e.target === helpDialog) helpDialog.close(); });
+      document.addEventListener('keydown', (e) => {
+        const a = document.activeElement;
+        const typing = a && (/INPUT|TEXTAREA|SELECT/.test(a.tagName) || a.isContentEditable);
+        if (e.key === '?' && !typing && !helpDialog.open) {
+          e.preventDefault();
+          helpDialog.showModal();
+        }
       });
 
       // Show stats

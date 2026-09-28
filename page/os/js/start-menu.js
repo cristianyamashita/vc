@@ -94,6 +94,20 @@ window.OSStart = (function () {
       grouped.has(key)
     );
 
+    // Recommended apps show even when not installed; opening one installs it.
+    const recommended = (window.OSCatalog.START_RECOMMENDED || [])
+      .map((item) => ({ item, app: window.OSCatalog.byId(item.id) }))
+      .filter(({ app }) => app && matchesQuery(app, lang, q));
+    const recHtml = recommended
+      .map(
+        ({ item, app }) => `
+        <button type="button" class="start-fav" data-app-id="${app.id}" data-hash="${escapeHtml(item.hash || "")}" data-recommended="1">
+          <img src="${app.icon}" alt="">
+          <span>${escapeHtml(window.OSCatalog.displayName(app, lang))}</span>
+        </button>`
+      )
+      .join("");
+
     let favHtml = favorites
       .map(
         (app) => `
@@ -125,7 +139,7 @@ window.OSStart = (function () {
       .join("");
     if (!appsHtml && !q) appsHtml = `<p class="start-empty">${escapeHtml(t("emptyApps"))}</p>`;
 
-    const noResults = q && !favorites.length && !groupKeys.length && !fileHits.length;
+    const noResults = q && !recommended.length && !favorites.length && !groupKeys.length && !fileHits.length;
     const username = window.OS.state.username || "User";
     let bodyHtml;
     if (noResults) {
@@ -149,7 +163,10 @@ window.OSStart = (function () {
             .join("") +
           `</div>`;
       }
-      bodyHtml = `${favTitle}${favBlock}${filesHtml}${appsTitle}${appsHtml}`;
+      const recBlock = recommended.length
+        ? `<h3 class="start-section-title">${escapeHtml(t("recommended"))}</h3><div class="start-favorites">${recHtml}</div>`
+        : "";
+      bodyHtml = `${recBlock}${favTitle}${favBlock}${filesHtml}${appsTitle}${appsHtml}`;
     }
     menu.innerHTML = `
       <div class="start-search-wrap">
@@ -179,10 +196,11 @@ window.OSStart = (function () {
       .replace(/"/g, "&quot;");
   }
 
-  function openApp(id) {
+  function openApp(id, opts) {
     closeMenu();
     closeContext();
-    window.OSWindows.open(id);
+    if (opts && opts.install && window.OS.ensureInstalled) window.OS.ensureInstalled(id);
+    window.OSWindows.open(id, opts && opts.hash ? { hash: opts.hash } : undefined);
   }
 
   function placeContext(x, y) {
@@ -328,7 +346,7 @@ window.OSStart = (function () {
       }
       const btn = e.target.closest("[data-app-id]");
       if (!btn) return;
-      openApp(btn.dataset.appId);
+      openApp(btn.dataset.appId, { hash: btn.dataset.hash || "", install: btn.dataset.recommended === "1" });
     });
     menu.addEventListener("input", (e) => {
       const input = e.target.closest(".start-search");

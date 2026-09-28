@@ -45,9 +45,10 @@
     }
 
     * { box-sizing: border-box; }
-    html, body { min-height: 100%; }
+    html, body { height: 100%; }
     body {
       margin: 0;
+      overflow: hidden;
       color: var(--ink);
       font: 14px/1.5 "Noto Sans JP", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       background:
@@ -57,7 +58,7 @@
       background-attachment: fixed;
     }
 
-    button, input {
+    button, input, select {
       font: inherit;
     }
 
@@ -68,17 +69,11 @@
     }
 
     .app {
-      width: min(1440px, 100%);
-      min-height: 100vh;
-      margin: 0 auto;
-      padding: 16px;
+      height: 100%;
       display: grid;
-      grid-template-rows: auto auto 1fr;
-      gap: 16px;
+      grid-template-rows: auto minmax(0, 1fr);
     }
 
-    .topbar,
-    .hero,
     .gallery-shell {
       border: 1px solid var(--border);
       border-radius: var(--radius);
@@ -88,27 +83,35 @@
     }
 
     .topbar {
+      height: 44px;
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      padding: 12px;
-    }
-
-    .hero {
-      display: grid;
-      gap: 16px;
-      padding: 18px;
-      background:
-        linear-gradient(135deg, color-mix(in srgb, var(--accent) 16%, transparent), transparent 45%),
-        linear-gradient(315deg, color-mix(in srgb, var(--danger) 12%, transparent), transparent 48%),
-        var(--panel);
+      gap: 8px;
+      padding: 0 8px 0 12px;
+      border-bottom: 1px solid var(--border);
+      background: var(--panel-strong);
+      min-width: 0;
     }
 
     .brand {
-      display: grid;
-      gap: 4px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
       min-width: 0;
+      font-size: 15px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .brand img {
+      width: 18px;
+      height: 18px;
+      flex: none;
+    }
+
+    .brand span {
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     h1,
@@ -117,12 +120,6 @@
       margin: 0;
     }
 
-    h1 {
-      font-size: clamp(28px, 5vw, 52px);
-      line-height: 0.98;
-    }
-
-    .subtitle,
     .status,
     .helper,
     .empty-note,
@@ -131,16 +128,9 @@
       color: var(--muted);
     }
 
-    .subtitle {
-      max-width: 860px;
-      font-size: 15px;
-    }
-
-    .toolbar,
     .top-actions,
     .modal-actions,
-    .modal-toolbar,
-    .lang-selector {
+    .modal-toolbar {
       display: flex;
       align-items: center;
       gap: 8px;
@@ -149,12 +139,40 @@
 
     .top-actions {
       justify-content: flex-end;
+      flex-wrap: nowrap;
+      gap: 6px;
+      margin-left: auto;
+      flex: none;
+    }
+
+    .lang-switcher {
+      height: 30px;
+      padding: 0 6px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--panel-strong);
+      color: var(--ink);
+      font-size: 13px;
+      cursor: pointer;
+    }
+
+    .top-actions .btn {
+      min-height: 30px;
+      padding: 4px 12px;
+      font-size: 13px;
+    }
+
+    .top-actions .btn.icon {
+      width: 30px;
+      min-width: 30px;
+      padding: 0;
+      font-size: 15px;
     }
 
     .btn,
     .chip,
     .number-input {
-      min-height: 40px;
+      min-height: 32px;
       border-radius: var(--radius);
       border: 1px solid var(--border);
     }
@@ -164,7 +182,7 @@
       align-items: center;
       justify-content: center;
       gap: 8px;
-      padding: 8px 14px;
+      padding: 4px 12px;
       cursor: pointer;
       color: var(--ink);
       background: var(--panel-strong);
@@ -191,7 +209,7 @@
     }
 
     .btn.icon {
-      min-width: 40px;
+      min-width: 32px;
       padding: 0;
       font-size: 16px;
     }
@@ -200,52 +218,17 @@
       display: inline-flex;
       align-items: center;
       gap: 8px;
-      padding: 8px 12px;
+      padding: 4px 10px;
       background: color-mix(in srgb, var(--panel-strong) 82%, transparent);
       color: var(--ink);
       font-weight: 700;
     }
 
     .number-input {
-      width: 104px;
-      padding: 0 12px;
+      width: 96px;
+      padding: 0 10px;
       color: var(--ink);
       background: var(--panel-strong);
-    }
-
-    .lang-selector {
-      padding: 4px;
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      background: var(--panel-strong);
-    }
-
-    .lang-selector button {
-      min-width: 40px;
-      min-height: 30px;
-      border: 1px solid transparent;
-      border-radius: 6px;
-      background: transparent;
-      color: var(--muted);
-      cursor: pointer;
-      font-size: 12px;
-      font-weight: 900;
-    }
-
-    .lang-selector button.active {
-      color: #ffffff;
-      background: var(--accent-strong);
-    }
-
-    .hero-grid {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
-      gap: 16px;
-      align-items: start;
-    }
-
-    .toolbar {
-      justify-content: space-between;
     }
 
     .helper {
@@ -254,9 +237,13 @@
     }
 
     .gallery-shell {
+      margin: 12px;
+      min-height: 0;
+      overflow: auto;
       display: grid;
-      gap: 14px;
-      padding: 16px;
+      grid-template-rows: auto 1fr;
+      gap: 10px;
+      padding: 12px;
       align-content: start;
     }
 
@@ -265,25 +252,30 @@
       align-items: center;
       justify-content: space-between;
       gap: 12px;
-      flex-wrap: wrap;
+      min-width: 0;
     }
 
     .status {
-      min-height: 21px;
+      min-width: 0;
+      font-size: 12px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
     .gallery {
       --column-count: 1;
       display: grid;
       grid-template-columns: repeat(var(--column-count), minmax(0, 1fr));
-      gap: 14px;
+      gap: 12px;
       align-items: start;
+      align-self: start;
     }
 
     .gallery-column {
       display: grid;
       align-content: start;
-      gap: 14px;
+      gap: 12px;
     }
 
     .gallery.hidden,
@@ -319,8 +311,8 @@
 
     .card-body {
       display: grid;
-      gap: 8px;
-      padding: 12px;
+      gap: 6px;
+      padding: 8px 10px;
     }
 
     .card-title {
@@ -354,28 +346,29 @@
     .empty-state {
       display: grid;
       place-items: center;
-      min-height: 52vh;
-      padding: 28px;
+      min-height: 0;
+      padding: 12px;
       text-align: center;
     }
 
     .empty-card {
-      max-width: 560px;
+      max-width: 520px;
       display: grid;
-      gap: 14px;
-      padding: 28px;
+      justify-items: center;
+      gap: 12px;
+      padding: 20px;
       border: 1px dashed color-mix(in srgb, var(--accent) 34%, var(--border));
       border-radius: calc(var(--radius) + 4px);
       background: color-mix(in srgb, var(--panel-strong) 82%, transparent);
     }
 
     .empty-card h2 {
-      font-size: clamp(24px, 4vw, 34px);
-      line-height: 1.05;
+      font-size: 16px;
+      line-height: 1.2;
     }
 
     .empty-note {
-      font-size: 15px;
+      font-size: 13px;
     }
 
     .modal {
@@ -393,8 +386,8 @@
       min-height: 0;
       display: grid;
       grid-template-rows: auto 1fr auto;
-      gap: 12px;
-      padding: 14px;
+      gap: 10px;
+      padding: 12px;
     }
 
     .modal-toolbar,
@@ -431,7 +424,7 @@
 
     .modal-stage img {
       max-width: 100%;
-      max-height: calc(100vh - 220px);
+      max-height: calc(100vh - 130px);
       object-fit: contain;
       display: block;
     }
@@ -458,67 +451,82 @@
       border: 0;
     }
 
-    @media (max-width: 860px) {
-      .app {
-        padding: 10px;
-        gap: 10px;
-      }
+    dialog {
+      width: min(560px, calc(100vw - 32px));
+      max-height: calc(100vh - 32px);
+      padding: 0;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--bg);
+      color: var(--ink);
+      box-shadow: var(--shadow);
+    }
 
-      .topbar,
-      .hero,
+    dialog::backdrop {
+      background: rgb(0 0 0 / 45%);
+    }
+
+    .dlg-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 8px 8px 8px 14px;
+      border-bottom: 1px solid var(--border);
+      font-weight: 800;
+    }
+
+    .dlg-body {
+      padding: 12px 14px 14px;
+      overflow: auto;
+    }
+
+    .dlg-body p {
+      margin: 0 0 8px;
+    }
+
+    .dlg-body h3 {
+      margin: 10px 0 6px;
+      font-size: 12px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .dlg-body ul {
+      margin: 0;
+      padding-left: 18px;
+    }
+
+    .dlg-body li {
+      margin: 4px 0;
+    }
+
+    @media (max-width: 900px) {
+      .brand span {
+        display: none;
+      }
+    }
+
+    @media (max-width: 720px) {
       .gallery-shell {
-        padding: 12px;
+        margin: 8px;
+        padding: 10px;
       }
 
-      .topbar,
-      .hero-grid,
-      .toolbar,
       .status-row,
       .modal-footer,
       .modal-toolbar {
-        grid-template-columns: 1fr;
-        justify-content: stretch;
-      }
-
-      .topbar,
-      .toolbar,
-      .status-row,
-      .modal-footer,
-      .modal-toolbar,
-      .top-actions,
-      .modal-actions {
         flex-direction: column;
         align-items: stretch;
       }
 
-      .modal-actions {
+      .modal-footer .modal-actions {
         margin-left: 0;
       }
 
-      .btn,
-      .chip,
-      .number-input {
-        width: 100%;
-      }
-
-      .lang-selector {
-        justify-content: stretch;
-      }
-
-      .lang-selector button {
-        flex: 1 1 0;
-      }
-
-      .gallery {
-        gap: 10px;
-      }
-
-      .gallery-column {
-        gap: 10px;
-      }
-
       .modal-stage img {
-        max-height: calc(100vh - 280px);
+        max-height: calc(100vh - 220px);
       }
     }
   </style>
@@ -533,46 +541,24 @@
 <body>
   <div class="app">
     <header class="topbar">
-      <div class="brand">
-        <strong data-i18n="shortTitle">Gallery</strong>
-        <div class="status" id="status" data-i18n="statusReady">Ready to add images.</div>
-      </div>
+      <div class="brand"><img src="../assets/icons/svg/utils-gallery.svg" alt=""><span data-i18n="title">Image Gallery</span></div>
       <div class="top-actions">
-        <div class="lang-selector" aria-label="Language selector">
-          <button type="button" data-lang="en">EN</button>
-          <button type="button" data-lang="pt">PT</button>
-          <button type="button" data-lang="ja">JA</button>
-        </div>
-        <button type="button" class="btn icon" id="themeBtn" title="Theme" aria-label="Theme">◐</button>
-      </div>
-    </header>
-
-    <section class="hero">
-      <div class="hero-grid">
-        <div class="brand">
-          <h1 data-i18n="title">Image Gallery</h1>
-          <p class="subtitle" data-i18n="subtitle">Add images, keep them in IndexedDB, open them fullscreen, remove them, and control which ones stay on top with a numeric value.</p>
-        </div>
-        <div class="toolbar">
-          <button type="button" class="btn primary" id="addBtn" data-i18n="addImages">Add images</button>
-          <label class="chip" for="fileInput">
-            <span data-i18n="multipleHint">Multiple files supported</span>
-          </label>
-        </div>
-      </div>
-      <div class="toolbar">
-        <div class="chip">
-          <span data-i18n="sortLabel">Order</span>
-          <strong id="orderSummary" data-i18n="sortSummary">Higher value stays above.</strong>
-        </div>
-        <div class="helper" data-i18n="helperText">New images get the current highest value plus one.</div>
+        <button type="button" class="btn primary" id="addBtn" data-i18n="addImages">Add images</button>
+        <button type="button" class="btn icon" id="help-btn" title="Help" aria-label="Help">?</button>
+        <select id="lang-switcher" class="lang-switcher" aria-label="Language">
+          <option value="en">EN</option>
+          <option value="pt">PT</option>
+          <option value="ja">JA</option>
+        </select>
+        <button type="button" class="btn icon" id="theme-switcher" title="Theme" aria-label="Theme">◐</button>
       </div>
       <input id="fileInput" class="sr-only" type="file" accept="image/*" multiple />
-    </section>
+    </header>
 
     <section class="gallery-shell">
       <div class="status-row">
         <div class="helper" id="countLabel" data-i18n="countEmpty">No saved images yet.</div>
+        <div class="status" id="status" data-i18n="statusReady">Ready to add images.</div>
       </div>
       <div class="empty-state" id="emptyState">
         <div class="empty-card">
@@ -584,6 +570,21 @@
       <div class="gallery hidden" id="gallery"></div>
     </section>
   </div>
+
+  <dialog id="help">
+    <div class="dlg-head"><span data-i18n="helpTitle">Image Gallery help</span><button type="button" class="btn icon" id="help-close" aria-label="Close">✕</button></div>
+    <div class="dlg-body">
+      <p data-i18n="subtitle">Add images, keep them in IndexedDB, open them fullscreen, remove them, and control which ones stay on top with a numeric value.</p>
+      <h3 data-i18n="helpHowTitle">How it works</h3>
+      <ul>
+        <li data-i18n="multipleHint">Multiple files supported</li>
+        <li><strong data-i18n="sortLabel">Order</strong>: <span data-i18n="sortSummary">Higher value stays above.</span></li>
+        <li data-i18n="helperText">New images get the current highest value plus one.</li>
+        <li data-i18n="helpOpenTip">Click an image to open it fullscreen, change its value or remove it.</li>
+        <li data-i18n="helpKeys">Press ? to open this help.</li>
+      </ul>
+    </div>
+  </dialog>
 
   <div class="modal hidden" id="modal" aria-hidden="true">
     <div class="modal-panel">
@@ -656,7 +657,12 @@
         modalMeta: 'Value {value} • {size}',
         themeDark: 'Dark theme',
         themeLight: 'Light theme',
-        close: 'Close'
+        close: 'Close',
+        help: 'Help',
+        helpTitle: 'Image Gallery help',
+        helpHowTitle: 'How it works',
+        helpOpenTip: 'Click an image to open it fullscreen, change its value or remove it. Enter saves the value and Esc closes the viewer.',
+        helpKeys: 'Press ? to open this help.'
       },
       pt: {
         shortTitle: 'Galeria',
@@ -690,7 +696,12 @@
         modalMeta: 'Valor {value} • {size}',
         themeDark: 'Tema escuro',
         themeLight: 'Tema claro',
-        close: 'Fechar'
+        close: 'Fechar',
+        help: 'Ajuda',
+        helpTitle: 'Ajuda da Galeria de Imagens',
+        helpHowTitle: 'Como funciona',
+        helpOpenTip: 'Clique numa imagem para abri-la em tela cheia, mudar seu valor ou removê-la. Enter salva o valor e Esc fecha a visualização.',
+        helpKeys: 'Pressione ? para abrir esta ajuda.'
       },
       ja: {
         shortTitle: 'ギャラリー',
@@ -724,7 +735,12 @@
         modalMeta: '値 {value} • {size}',
         themeDark: 'ダークテーマ',
         themeLight: 'ライトテーマ',
-        close: '閉じる'
+        close: '閉じる',
+        help: 'ヘルプ',
+        helpTitle: '画像ギャラリーのヘルプ',
+        helpHowTitle: '使い方',
+        helpOpenTip: '画像をクリックすると全画面で開き、値の変更や削除ができます。Enter で値を保存し、Esc で閉じます。',
+        helpKeys: '? キーでこのヘルプを開きます。'
       }
     };
 
@@ -744,7 +760,11 @@
     const galleryEl = document.getElementById('gallery');
     const emptyStateEl = document.getElementById('emptyState');
     const fileInputEl = document.getElementById('fileInput');
-    const themeBtnEl = document.getElementById('themeBtn');
+    const themeBtnEl = document.getElementById('theme-switcher');
+    const langSwitcherEl = document.getElementById('lang-switcher');
+    const helpDialogEl = document.getElementById('help');
+    const helpBtnEl = document.getElementById('help-btn');
+    const helpCloseEl = document.getElementById('help-close');
     const modalEl = document.getElementById('modal');
     const modalImgEl = document.getElementById('modalImg');
     const modalNameEl = document.getElementById('modalName');
@@ -824,9 +844,12 @@
           element.textContent = t(key);
         }
       });
-      document.querySelectorAll('[data-lang]').forEach((button) => {
-        button.classList.toggle('active', button.getAttribute('data-lang') === state.lang);
-      });
+      langSwitcherEl.value = state.lang;
+      helpBtnEl.title = t('help');
+      helpBtnEl.setAttribute('aria-label', t('help'));
+      helpCloseEl.setAttribute('aria-label', t('close'));
+      themeBtnEl.title = state.theme === 'dark' ? t('themeLight') : t('themeDark');
+      themeBtnEl.setAttribute('aria-label', themeBtnEl.title);
       closeModalBtnEl.title = t('close');
       closeModalBtnEl.setAttribute('aria-label', t('close'));
       renderCount();
@@ -894,7 +917,7 @@
 
     function getColumnCount() {
       const width = galleryEl.clientWidth || galleryEl.parentElement?.clientWidth || window.innerWidth;
-      const gap = window.innerWidth <= 860 ? 10 : 14;
+      const gap = 12;
       const tileWidth = parseFloat(getComputedStyle(root).getPropertyValue('--tile')) || 260;
       return Math.max(1, Math.floor((width + gap) / (tileWidth + gap)));
     }
@@ -1187,11 +1210,17 @@
       applyTheme();
     });
 
-    document.querySelectorAll('[data-lang]').forEach((button) => {
-      button.addEventListener('click', () => {
-        state.lang = button.getAttribute('data-lang');
-        applyLanguage();
-      });
+    langSwitcherEl.addEventListener('change', () => {
+      state.lang = translations[langSwitcherEl.value] ? langSwitcherEl.value : 'en';
+      applyLanguage();
+    });
+
+    helpBtnEl.addEventListener('click', () => helpDialogEl.showModal());
+    helpCloseEl.addEventListener('click', () => helpDialogEl.close());
+    helpDialogEl.addEventListener('click', (event) => {
+      if (event.target === helpDialogEl) {
+        helpDialogEl.close();
+      }
     });
 
     closeModalBtnEl.addEventListener('click', closeModal);
@@ -1214,6 +1243,15 @@
     document.addEventListener('keydown', (event) => {
       if (event.key === 'Escape' && !modalEl.classList.contains('hidden')) {
         closeModal();
+        return;
+      }
+      if (event.key === '?' && !helpDialogEl.open && !event.ctrlKey && !event.metaKey && !event.altKey) {
+        const active = document.activeElement;
+        if (active && (/^(INPUT|TEXTAREA|SELECT)$/.test(active.tagName) || active.isContentEditable)) {
+          return;
+        }
+        event.preventDefault();
+        helpDialogEl.showModal();
       }
     });
 

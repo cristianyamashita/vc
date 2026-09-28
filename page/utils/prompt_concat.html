@@ -25,24 +25,229 @@
         --accent-color: #0d6efd;
       }
 
+      html,
+      body {
+        height: 100%;
+      }
+
       body {
         background-color: var(--bg-color);
         color: var(--text-color);
+        margin: 0;
+        overflow: hidden;
+        font-size: 14px;
+      }
+
+      .app {
+        height: 100%;
+        display: grid;
+        grid-template-rows: auto 1fr;
+        min-height: 0;
+      }
+
+      .topbar {
+        height: 44px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 0 8px 0 12px;
+        background-color: var(--card-bg-color);
+        border-bottom: 1px solid var(--border-color);
+        min-width: 0;
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 15px;
+        font-weight: 600;
+        white-space: nowrap;
+      }
+
+      .brand img {
+        width: 18px;
+        height: 18px;
+      }
+
+      .topbar .tools {
+        margin-left: auto;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        min-width: 0;
+      }
+
+      .topbar .btn,
+      .topbar .form-select {
+        height: 30px;
+        font-size: 13px;
+        padding-top: 0;
+        padding-bottom: 0;
+      }
+
+      .icon-btn {
+        width: 30px;
+        padding: 0 !important;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      #storage-select {
+        width: auto;
+        max-width: 190px;
+        min-width: 110px;
+      }
+
+      #lang-switcher {
+        width: auto;
+      }
+
+      .tool-sep {
+        width: 1px;
+        height: 20px;
+        background: var(--border-color);
+      }
+
+      .main {
+        min-height: 0;
+        overflow: auto;
+        padding: 12px;
         display: flex;
         flex-direction: column;
-        min-height: 100vh;
+        gap: 10px;
+      }
+
+      .field-label {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        margin-bottom: 4px;
+        font-size: 13px;
+        font-weight: 600;
+      }
+
+      .field-label .form-label {
         margin: 0;
       }
 
-      .container-fluid {
-        padding-top: 20px;
-        padding-bottom: 20px;
+      .input-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 6px;
+      }
+
+      .search-row {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+      }
+
+      .search-row .form-control {
+        max-width: 280px;
+        height: 30px;
+        font-size: 13px;
+      }
+
+      .vars-grid {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 8px;
+      }
+
+      .vars-grid .form-label {
+        margin-bottom: 2px;
+        font-size: 13px;
+        font-weight: 600;
+      }
+
+      .vars-grid textarea {
+        font-size: 13px;
+      }
+
+      .result-block {
+        flex: 1 1 auto;
+        min-height: 120px;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .result-block textarea {
         flex: 1;
+        min-height: 90px;
+        resize: none;
+        font-size: 13px;
+      }
+
+      #input-template {
+        font-size: 13px;
+      }
+
+      @media (max-width: 720px) {
+        .vars-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+
+      dialog.help {
+        width: min(600px, calc(100vw - 32px));
+        max-height: calc(100vh - 32px);
+        padding: 0;
+        border: 1px solid var(--border-color);
+        border-radius: 10px;
+        background: var(--card-bg-color);
+        color: var(--text-color);
+      }
+
+      dialog.help::backdrop {
+        background: rgb(0 0 0 / 45%);
+      }
+
+      .dlg-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 8px 10px 8px 14px;
+        border-bottom: 1px solid var(--border-color);
+        font-weight: 600;
+      }
+
+      .dlg-body {
+        padding: 12px 14px 16px;
+        font-size: 13px;
+      }
+
+      .dlg-body h3 {
+        margin: 12px 0 6px;
+        font-size: 12px;
+        color: #999;
+        text-transform: uppercase;
+        letter-spacing: .04em;
+      }
+
+      .dlg-body p {
+        margin: 0 0 8px;
+      }
+
+      .dlg-body ul {
+        margin: 0;
+        padding-left: 18px;
+      }
+
+      .dlg-body li {
+        margin: 3px 0;
       }
 
       .card {
         background-color: var(--card-bg-color);
         border-color: var(--border-color);
+        color: var(--text-color);
+      }
+
+      .text-muted {
+        color: #8a8a8a !important;
       }
 
       .card-header {
@@ -76,7 +281,7 @@
 
       .help-text {
         color: #aaa;
-        font-size: 0.9rem;
+        font-size: 12px;
       }
 
       textarea.form-control {
@@ -96,151 +301,167 @@
     </script>
   </head>
   <body>
-    <nav class="navbar navbar-expand-lg" style="background-color: var(--card-bg-color); border-bottom: 1px solid var(--border-color)">
-      <div class="container-fluid">
-        <a class="navbar-brand" href="#" data-i18n="title">Prompt Concat</a>
-        <div class="d-flex ms-auto gap-2 align-items-center">
-          <select id="lang-switcher" class="form-select form-select-sm" style="width: auto;">
-            <option value="en">English</option>
-            <option value="pt">Português</option>
-            <option value="ja">日本語</option>
+    <div class="app">
+      <header class="topbar">
+        <div class="brand"><img src="../assets/icons/svg/utils-prompt_concat.svg" alt="" /><span data-i18n="title">Prompt Concat</span></div>
+        <div class="tools">
+          <select id="storage-select" class="form-select form-select-sm" aria-label="Storage" style="background-color: var(--card-bg-color); color: var(--text-color); border-color: var(--border-color);">
           </select>
-          <select id="storage-select" class="form-select form-select-sm" style="background-color: var(--card-bg-color); color: var(--text-color); border-color: var(--border-color); min-width: 150px;">
-          </select>
-          <button id="copy-result-btn" class="btn btn-sm btn-outline-secondary" type="button" data-i18n-title="copyResultBtn" title="Copy result">
+          <button id="copy-result-btn" class="btn btn-sm btn-outline-secondary icon-btn" type="button" data-i18n-title="copyResultBtn" title="Copy result">
             <i class="fas fa-copy"></i>
           </button>
-          <button id="history-btn" class="btn btn-sm btn-outline-secondary" type="button" data-i18n-title="historyBtn" title="History">
+          <button id="history-btn" class="btn btn-sm btn-outline-secondary icon-btn" type="button" data-i18n-title="historyBtn" title="History">
             <i class="fas fa-history"></i>
           </button>
-          <button id="permanent-vars-btn" class="btn btn-sm btn-outline-secondary" type="button" data-i18n-title="permanentVarsBtn" title="Permanent Variables">
+          <button id="permanent-vars-btn" class="btn btn-sm btn-outline-secondary icon-btn" type="button" data-i18n-title="permanentVarsBtn" title="Permanent Variables">
             <i class="fas fa-bookmark"></i>
           </button>
-          <button id="clear-btn" class="btn btn-sm btn-outline-secondary" type="button" data-i18n-title="clearBtn" title="Clear">
+          <button id="clear-btn" class="btn btn-sm btn-outline-secondary icon-btn" type="button" data-i18n-title="clearBtn" title="Clear">
             <i class="fas fa-eraser"></i>
           </button>
-          <button id="theme-switcher" class="btn btn-sm btn-outline-secondary" type="button" data-i18n-title="themeBtn" title="Toggle theme">
+          <span class="tool-sep" aria-hidden="true"></span>
+          <button id="help-btn" class="btn btn-sm btn-outline-secondary icon-btn" type="button" data-i18n-title="helpBtn" title="Help">
+            <i class="fas fa-circle-question"></i>
+          </button>
+          <select id="lang-switcher" class="form-select form-select-sm" aria-label="Language">
+            <option value="en">EN</option>
+            <option value="pt">PT</option>
+            <option value="ja">JA</option>
+          </select>
+          <button id="theme-switcher" class="btn btn-sm btn-outline-secondary icon-btn" type="button" data-i18n-title="themeBtn" title="Toggle theme">
             <i class="fas fa-moon"></i>
           </button>
         </div>
-      </div>
-    </nav>
+      </header>
 
-    <div class="container-fluid">
-      <div class="row justify-content-center">
-        <div class="col-xl-10 col-lg-11">
-          <div class="card">
-            <div class="card-header d-flex align-items-center justify-content-between">
-              <h4 class="mb-0" data-i18n="title">Prompt Concat</h4>
-              <div class="help-text" id="storage-scope"></div>
+      <main class="main">
+        <div class="input-row">
+          <div class="field-label">
+            <label for="input-template" class="form-label" data-i18n="inputLabel">Input</label>
+            <div class="help-text" id="storage-scope"></div>
+          </div>
+          <textarea id="input-template" class="form-control mono" rows="3" data-i18n-placeholder="inputPlaceholder" placeholder="The {V1} is {V2} and has size {V3}, color {V4}, this is my {V1}"></textarea>
+          <div class="search-row">
+            <input type="text" id="search-input" class="form-control mono" data-i18n-placeholder="searchPlaceholder" placeholder="Buscar no Input e V1–V5...">
+            <button type="button" id="search-btn" class="btn btn-sm btn-outline-primary">
+              <i class="fas fa-search"></i> <span data-i18n="searchBtn">Buscar</span>
+            </button>
+          </div>
+          <div id="search-results" class="p-2 rounded" style="display: none; background-color: var(--border-color); max-height: 220px; overflow-y: auto;"></div>
+        </div>
+
+        <div class="vars-grid">
+          <div>
+            <label for="v1" class="form-label">V1</label>
+            <textarea id="v1" class="form-control mono" rows="4" data-i18n-placeholder="v1Placeholder" placeholder="car&#10;bicycle&#10;boat"></textarea>
+            <div class="btn-group mt-1 w-100" role="group">
+              <button class="btn btn-sm btn-outline-secondary" type="button" data-shuffle="v1" data-i18n-title="shuffleBtn" title="Shuffle lines">
+                <i class="fas fa-random"></i>
+              </button>
+              <button class="btn btn-sm btn-outline-secondary" type="button" data-sort-asc="v1" data-i18n-title="sortAscBtn" title="Sort A-Z">
+                <i class="fas fa-sort-alpha-down"></i>
+              </button>
+              <button class="btn btn-sm btn-outline-secondary" type="button" data-sort-desc="v1" data-i18n-title="sortDescBtn" title="Sort Z-A">
+                <i class="fas fa-sort-alpha-down-alt"></i>
+              </button>
             </div>
-            <div class="card-body">
-              <div class="mb-3">
-                <label for="input-template" class="form-label" data-i18n="inputLabel">Input</label>
-                <textarea id="input-template" class="form-control mono" rows="4" data-i18n-placeholder="inputPlaceholder" placeholder="The {V1} is {V2} and has size {V3}, color {V4}, this is my {V1}"></textarea>
-                <div class="help-text mt-1" data-i18n="placeholderHelp">Use placeholders: {V1}, {V2}, {V3}, {V4}, {V5}. # = comment. [[a, b, c]] = random pick per line (Input & V1–V5, max 100 items).</div>
-                <div class="mt-2 d-flex gap-2 align-items-center flex-wrap">
-                  <input type="text" id="search-input" class="form-control mono" style="max-width: 280px;" data-i18n-placeholder="searchPlaceholder" placeholder="Buscar no Input e V1–V5...">
-                  <button type="button" id="search-btn" class="btn btn-sm btn-outline-primary" data-i18n="searchBtn">
-                    <i class="fas fa-search"></i> <span data-i18n="searchBtn">Buscar</span>
-                  </button>
-                </div>
-                <div id="search-results" class="mt-2 p-2 rounded" style="display: none; background-color: var(--border-color); max-height: 320px; overflow-y: auto;"></div>
-                <div class="help-text mt-1" data-i18n="conditionalHelp">Conditional: IF({V1}==1,"value") | Operators: ==, !=, &lt;, &gt;, &lt;=, &gt;=, contains, &amp;&amp;, ||</div>
-              </div>
-
-              <div class="row g-3 row-cols-1 row-cols-md-2 row-cols-lg-5">
-                <div class="col">
-                  <label for="v1" class="form-label">V1</label>
-                  <textarea id="v1" class="form-control mono" rows="5" data-i18n-placeholder="v1Placeholder" placeholder="car&#10;bicycle&#10;boat"></textarea>
-                  <div class="btn-group mt-1 w-100" role="group">
-                    <button class="btn btn-sm btn-outline-secondary" type="button" data-shuffle="v1" data-i18n-title="shuffleBtn" title="Shuffle lines">
-                      <i class="fas fa-random"></i>
-                    </button>
-                    <button class="btn btn-sm btn-outline-secondary" type="button" data-sort-asc="v1" data-i18n-title="sortAscBtn" title="Sort A-Z">
-                      <i class="fas fa-sort-alpha-down"></i>
-                    </button>
-                    <button class="btn btn-sm btn-outline-secondary" type="button" data-sort-desc="v1" data-i18n-title="sortDescBtn" title="Sort Z-A">
-                      <i class="fas fa-sort-alpha-down-alt"></i>
-                    </button>
-                  </div>
-                </div>
-                <div class="col">
-                  <label for="v2" class="form-label">V2</label>
-                  <textarea id="v2" class="form-control mono" rows="5" data-i18n-placeholder="v2Placeholder" placeholder="modern&#10;old&#10;vintage"></textarea>
-                  <div class="btn-group mt-1 w-100" role="group">
-                    <button class="btn btn-sm btn-outline-secondary" type="button" data-shuffle="v2" data-i18n-title="shuffleBtn" title="Shuffle lines">
-                      <i class="fas fa-random"></i>
-                    </button>
-                    <button class="btn btn-sm btn-outline-secondary" type="button" data-sort-asc="v2" data-i18n-title="sortAscBtn" title="Sort A-Z">
-                      <i class="fas fa-sort-alpha-down"></i>
-                    </button>
-                    <button class="btn btn-sm btn-outline-secondary" type="button" data-sort-desc="v2" data-i18n-title="sortDescBtn" title="Sort Z-A">
-                      <i class="fas fa-sort-alpha-down-alt"></i>
-                    </button>
-                  </div>
-                </div>
-                <div class="col">
-                  <label for="v3" class="form-label">V3</label>
-                  <textarea id="v3" class="form-control mono" rows="5" data-i18n-placeholder="v3Placeholder" placeholder="large&#10;small"></textarea>
-                  <div class="btn-group mt-1 w-100" role="group">
-                    <button class="btn btn-sm btn-outline-secondary" type="button" data-shuffle="v3" data-i18n-title="shuffleBtn" title="Shuffle lines">
-                      <i class="fas fa-random"></i>
-                    </button>
-                    <button class="btn btn-sm btn-outline-secondary" type="button" data-sort-asc="v3" data-i18n-title="sortAscBtn" title="Sort A-Z">
-                      <i class="fas fa-sort-alpha-down"></i>
-                    </button>
-                    <button class="btn btn-sm btn-outline-secondary" type="button" data-sort-desc="v3" data-i18n-title="sortDescBtn" title="Sort Z-A">
-                      <i class="fas fa-sort-alpha-down-alt"></i>
-                    </button>
-                  </div>
-                </div>
-                <div class="col">
-                  <label for="v4" class="form-label">V4</label>
-                  <textarea id="v4" class="form-control mono" rows="5" data-i18n-placeholder="v4Placeholder" placeholder="yellow&#10;red"></textarea>
-                  <div class="btn-group mt-1 w-100" role="group">
-                    <button class="btn btn-sm btn-outline-secondary" type="button" data-shuffle="v4" data-i18n-title="shuffleBtn" title="Shuffle lines">
-                      <i class="fas fa-random"></i>
-                    </button>
-                    <button class="btn btn-sm btn-outline-secondary" type="button" data-sort-asc="v4" data-i18n-title="sortAscBtn" title="Sort A-Z">
-                      <i class="fas fa-sort-alpha-down"></i>
-                    </button>
-                    <button class="btn btn-sm btn-outline-secondary" type="button" data-sort-desc="v4" data-i18n-title="sortDescBtn" title="Sort Z-A">
-                      <i class="fas fa-sort-alpha-down-alt"></i>
-                    </button>
-                  </div>
-                </div>
-                <div class="col">
-                  <label for="v5" class="form-label">V5</label>
-                  <textarea id="v5" class="form-control mono" rows="5" placeholder=""></textarea>
-                  <div class="btn-group mt-1 w-100" role="group">
-                    <button class="btn btn-sm btn-outline-secondary" type="button" data-shuffle="v5" data-i18n-title="shuffleBtn" title="Shuffle lines">
-                      <i class="fas fa-random"></i>
-                    </button>
-                    <button class="btn btn-sm btn-outline-secondary" type="button" data-sort-asc="v5" data-i18n-title="sortAscBtn" title="Sort A-Z">
-                      <i class="fas fa-sort-alpha-down"></i>
-                    </button>
-                    <button class="btn btn-sm btn-outline-secondary" type="button" data-sort-desc="v5" data-i18n-title="sortDescBtn" title="Sort Z-A">
-                      <i class="fas fa-sort-alpha-down-alt"></i>
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <hr class="my-4" />
-
-              <div class="mb-2 d-flex align-items-center justify-content-between gap-2">
-                <label for="result" class="form-label mb-0" data-i18n="resultLabel">Result</label>
-                <div class="help-text">
-                  <span id="result-count">0</span> <span data-i18n="linesText">lines</span>
-                </div>
-              </div>
-              <textarea id="result" class="form-control mono" rows="10" readonly></textarea>
+          </div>
+          <div>
+            <label for="v2" class="form-label">V2</label>
+            <textarea id="v2" class="form-control mono" rows="4" data-i18n-placeholder="v2Placeholder" placeholder="modern&#10;old&#10;vintage"></textarea>
+            <div class="btn-group mt-1 w-100" role="group">
+              <button class="btn btn-sm btn-outline-secondary" type="button" data-shuffle="v2" data-i18n-title="shuffleBtn" title="Shuffle lines">
+                <i class="fas fa-random"></i>
+              </button>
+              <button class="btn btn-sm btn-outline-secondary" type="button" data-sort-asc="v2" data-i18n-title="sortAscBtn" title="Sort A-Z">
+                <i class="fas fa-sort-alpha-down"></i>
+              </button>
+              <button class="btn btn-sm btn-outline-secondary" type="button" data-sort-desc="v2" data-i18n-title="sortDescBtn" title="Sort Z-A">
+                <i class="fas fa-sort-alpha-down-alt"></i>
+              </button>
+            </div>
+          </div>
+          <div>
+            <label for="v3" class="form-label">V3</label>
+            <textarea id="v3" class="form-control mono" rows="4" data-i18n-placeholder="v3Placeholder" placeholder="large&#10;small"></textarea>
+            <div class="btn-group mt-1 w-100" role="group">
+              <button class="btn btn-sm btn-outline-secondary" type="button" data-shuffle="v3" data-i18n-title="shuffleBtn" title="Shuffle lines">
+                <i class="fas fa-random"></i>
+              </button>
+              <button class="btn btn-sm btn-outline-secondary" type="button" data-sort-asc="v3" data-i18n-title="sortAscBtn" title="Sort A-Z">
+                <i class="fas fa-sort-alpha-down"></i>
+              </button>
+              <button class="btn btn-sm btn-outline-secondary" type="button" data-sort-desc="v3" data-i18n-title="sortDescBtn" title="Sort Z-A">
+                <i class="fas fa-sort-alpha-down-alt"></i>
+              </button>
+            </div>
+          </div>
+          <div>
+            <label for="v4" class="form-label">V4</label>
+            <textarea id="v4" class="form-control mono" rows="4" data-i18n-placeholder="v4Placeholder" placeholder="yellow&#10;red"></textarea>
+            <div class="btn-group mt-1 w-100" role="group">
+              <button class="btn btn-sm btn-outline-secondary" type="button" data-shuffle="v4" data-i18n-title="shuffleBtn" title="Shuffle lines">
+                <i class="fas fa-random"></i>
+              </button>
+              <button class="btn btn-sm btn-outline-secondary" type="button" data-sort-asc="v4" data-i18n-title="sortAscBtn" title="Sort A-Z">
+                <i class="fas fa-sort-alpha-down"></i>
+              </button>
+              <button class="btn btn-sm btn-outline-secondary" type="button" data-sort-desc="v4" data-i18n-title="sortDescBtn" title="Sort Z-A">
+                <i class="fas fa-sort-alpha-down-alt"></i>
+              </button>
+            </div>
+          </div>
+          <div>
+            <label for="v5" class="form-label">V5</label>
+            <textarea id="v5" class="form-control mono" rows="4" placeholder=""></textarea>
+            <div class="btn-group mt-1 w-100" role="group">
+              <button class="btn btn-sm btn-outline-secondary" type="button" data-shuffle="v5" data-i18n-title="shuffleBtn" title="Shuffle lines">
+                <i class="fas fa-random"></i>
+              </button>
+              <button class="btn btn-sm btn-outline-secondary" type="button" data-sort-asc="v5" data-i18n-title="sortAscBtn" title="Sort A-Z">
+                <i class="fas fa-sort-alpha-down"></i>
+              </button>
+              <button class="btn btn-sm btn-outline-secondary" type="button" data-sort-desc="v5" data-i18n-title="sortDescBtn" title="Sort Z-A">
+                <i class="fas fa-sort-alpha-down-alt"></i>
+              </button>
             </div>
           </div>
         </div>
-      </div>
+
+        <div class="result-block">
+          <div class="field-label">
+            <label for="result" class="form-label" data-i18n="resultLabel">Result</label>
+            <div class="help-text">
+              <span id="result-count">0</span> <span data-i18n="linesText">lines</span>
+            </div>
+          </div>
+          <textarea id="result" class="form-control mono" rows="6" readonly></textarea>
+        </div>
+      </main>
     </div>
+
+    <dialog class="help" id="help-dialog" aria-labelledby="help-title">
+      <div class="dlg-head">
+        <span id="help-title" data-i18n="helpBtn">Help</span>
+        <button id="help-close" class="btn btn-sm btn-outline-secondary icon-btn" type="button" data-i18n-title="closeBtn" title="Close"><i class="fas fa-xmark"></i></button>
+      </div>
+      <div class="dlg-body">
+        <p data-i18n="helpIntro">Write a template in Input using {V1}–{V5}. Each line of V1–V5 is one value, and Result lists one prompt for every combination.</p>
+        <h3 data-i18n="helpSyntaxTitle">Syntax</h3>
+        <ul>
+          <li class="mono" data-i18n="placeholderHelp">Use placeholders: {V1}, {V2}, {V3}, {V4}, {V5}. # = comment. [[a, b, c]] = random pick per line (Input &amp; V1–V5, max 100 items).</li>
+          <li class="mono" data-i18n="conditionalHelp">Conditional: IF({V1}==1,"value") | Operators: ==, !=, &lt;, &gt;, &lt;=, &gt;=, contains, &amp;&amp;, ||</li>
+        </ul>
+        <h3 data-i18n="helpToolsTitle">Tools</h3>
+        <ul>
+          <li data-i18n="helpStorage">The list in the top bar switches between storages (saved in the URL #hash). Manage lets you load, rename or delete storages and history entries.</li>
+          <li data-i18n="helpCopy">Copy result copies all lines and saves a history snapshot.</li>
+          <li data-i18n="helpPermanent">Permanent Variables define {{ID}} values shared by every storage.</li>
+          <li data-i18n="helpSearch">Search looks for text in Input and V1–V5 of every storage.</li>
+          <li data-i18n="helpKey">Press ? to open this help (outside text fields).</li>
+        </ul>
+      </div>
+    </dialog>
 
     <!-- History Modal -->
     <div class="modal fade" id="history-modal" tabindex="-1">
@@ -324,7 +545,17 @@
           permanentVarsAdd: "Add",
           permanentVarsSave: "Save",
           permanentVarsId: "ID",
-          permanentVarsValue: "Value"
+          permanentVarsValue: "Value",
+          helpBtn: "Help",
+          closeBtn: "Close",
+          helpIntro: "Write a template in Input using {V1}–{V5}. Each line of V1–V5 is one value, and Result lists one prompt for every combination.",
+          helpSyntaxTitle: "Syntax",
+          helpToolsTitle: "Tools",
+          helpStorage: "The list in the top bar switches between storages (saved in the URL #hash). Manage lets you load, rename or delete storages and history entries.",
+          helpCopy: "Copy result copies all lines and saves a history snapshot.",
+          helpPermanent: "Permanent Variables define {{ID}} values shared by every storage.",
+          helpSearch: "Search looks for text in Input and V1–V5 of every storage.",
+          helpKey: "Press ? to open this help (outside text fields)."
         },
         pt: {
           title: "Prompt Concat",
@@ -367,7 +598,17 @@
           permanentVarsAdd: "Adicionar",
           permanentVarsSave: "Salvar",
           permanentVarsId: "ID",
-          permanentVarsValue: "Valor"
+          permanentVarsValue: "Valor",
+          helpBtn: "Ajuda",
+          closeBtn: "Fechar",
+          helpIntro: "Escreva um modelo no Input usando {V1}–{V5}. Cada linha de V1–V5 é um valor, e o Resultado lista um prompt para cada combinação.",
+          helpSyntaxTitle: "Sintaxe",
+          helpToolsTitle: "Ferramentas",
+          helpStorage: "A lista na barra superior alterna entre storages (salvos no #hash da URL). Gerenciar permite carregar, renomear ou excluir storages e entradas do histórico.",
+          helpCopy: "Copiar resultado copia todas as linhas e salva um registro no histórico.",
+          helpPermanent: "Variáveis Permanentes definem valores {{ID}} compartilhados por todos os storages.",
+          helpSearch: "A busca procura texto no Input e em V1–V5 de todos os storages.",
+          helpKey: "Pressione ? para abrir esta ajuda (fora de campos de texto)."
         },
         ja: {
           title: "プロンプト連結",
@@ -410,7 +651,17 @@
           permanentVarsAdd: "追加",
           permanentVarsSave: "保存",
           permanentVarsId: "ID",
-          permanentVarsValue: "値"
+          permanentVarsValue: "値",
+          helpBtn: "ヘルプ",
+          closeBtn: "閉じる",
+          helpIntro: "Input に {V1}–{V5} を使ったテンプレートを書きます。V1–V5 の各行が1つの値になり、結果にはすべての組み合わせのプロンプトが並びます。",
+          helpSyntaxTitle: "構文",
+          helpToolsTitle: "ツール",
+          helpStorage: "上部バーのリストでストレージを切り替えます（URL の #hash に保存）。管理ではストレージと履歴の読み込み・名前変更・削除ができます。",
+          helpCopy: "結果をコピーすると全行をコピーし、履歴に保存します。",
+          helpPermanent: "永続変数は全ストレージ共通の {{ID}} の値を定義します。",
+          helpSearch: "検索はすべてのストレージの Input と V1–V5 からテキストを探します。",
+          helpKey: "? キーでこのヘルプを開きます（テキスト入力中を除く）。"
         }
       };
 
@@ -1353,6 +1604,21 @@
               sortLinesDesc(targetEl);
             }
           });
+        });
+
+        const helpDialog = document.getElementById('help-dialog');
+        document.getElementById('help-btn').addEventListener('click', () => helpDialog.showModal());
+        document.getElementById('help-close').addEventListener('click', () => helpDialog.close());
+        helpDialog.addEventListener('click', (e) => {
+          if (e.target === helpDialog) helpDialog.close();
+        });
+        document.addEventListener('keydown', (e) => {
+          const active = document.activeElement;
+          const typing = active && (/INPUT|TEXTAREA|SELECT/.test(active.tagName) || active.isContentEditable);
+          if (e.key === '?' && !typing && !helpDialog.open && !document.querySelector('.modal.show')) {
+            e.preventDefault();
+            helpDialog.showModal();
+          }
         });
 
         storageSelectEl.addEventListener('change', () => {

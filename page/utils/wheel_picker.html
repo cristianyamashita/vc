@@ -48,18 +48,18 @@
     }
 
     html, body {
-      min-height: 100%;
+      height: 100%;
     }
 
     body {
       margin: 0;
-      font-family: 'Noto Sans JP', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      overflow: hidden;
+      font: 14px/1.4 'Noto Sans JP', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       color: var(--ink);
       background:
         radial-gradient(circle at top left, rgba(95, 179, 255, 0.22), transparent 30%),
         radial-gradient(circle at bottom right, rgba(255, 164, 93, 0.16), transparent 28%),
         linear-gradient(180deg, var(--bg-1), var(--bg-2));
-      padding: 18px;
     }
 
     button,
@@ -74,84 +74,70 @@
     textarea:focus-visible,
     input:focus-visible,
     a:focus-visible {
-      outline: 3px solid color-mix(in srgb, var(--accent) 55%, transparent);
-      outline-offset: 3px;
+      outline: 2px solid color-mix(in srgb, var(--accent) 65%, transparent);
+      outline-offset: 2px;
     }
 
     .app-shell {
-      width: min(1600px, 100%);
-      margin: 0 auto;
+      height: 100%;
       display: grid;
-      gap: 18px;
+      grid-template-rows: auto minmax(0, 1fr);
     }
 
     .top-bar {
+      height: 44px;
       display: flex;
-      justify-content: space-between;
       align-items: center;
-      gap: 16px;
-      padding: 16px 18px;
-      border: 1px solid var(--border);
-      border-radius: 24px;
-      background: var(--panel);
+      gap: 8px;
+      padding: 0 8px 0 12px;
+      border-bottom: 1px solid var(--border);
+      background: var(--panel-strong);
       backdrop-filter: blur(14px);
-      box-shadow: var(--shadow);
+      min-width: 0;
     }
 
-    .title-wrap {
+    .brand {
       display: flex;
-      flex-direction: column;
-      gap: 6px;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+      font-size: 15px;
+      font-weight: 700;
+      white-space: nowrap;
     }
 
-    h1 {
-      margin: 0;
-      font-size: clamp(28px, 4vw, 48px);
-      line-height: 0.98;
-      letter-spacing: -0.03em;
+    .brand img {
+      width: 18px;
+      height: 18px;
+      flex: none;
     }
 
-    .subline {
-      color: var(--muted);
-      font-size: 14px;
+    .brand span {
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .toolbar {
       display: flex;
-      flex-wrap: wrap;
-      justify-content: flex-end;
-      gap: 10px;
-      align-items: center;
-    }
-
-    .lang-selector {
-      display: inline-flex;
       gap: 6px;
-      padding: 4px;
-      background: var(--panel-strong);
-      border: 1px solid var(--border);
-      border-radius: 999px;
+      align-items: center;
+      margin-left: auto;
+      flex: none;
     }
 
-    .lang-selector a {
-      text-decoration: none;
-      color: var(--muted);
-      padding: 6px 12px;
-      border-radius: 999px;
-      font-size: 12px;
-      font-weight: 700;
-      border: 1px solid transparent;
-    }
-
-    .lang-selector a.active {
-      color: white;
-      background: var(--accent-strong);
+    .toolbar select {
+      width: auto;
+      height: 30px;
+      padding: 0 6px;
+      border-radius: 8px;
+      font-size: 13px;
+      cursor: pointer;
     }
 
     .icon-btn,
     .primary-btn,
     .ghost-btn {
-      border-radius: 14px;
+      border-radius: 8px;
       border: 1px solid var(--border);
       cursor: pointer;
       transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
@@ -160,20 +146,25 @@
     .icon-btn:hover,
     .primary-btn:hover,
     .ghost-btn:hover {
-      transform: translateY(-1px);
       border-color: color-mix(in srgb, var(--accent) 50%, var(--border));
     }
 
     .icon-btn {
-      min-width: 44px;
-      min-height: 44px;
+      width: 30px;
+      height: 30px;
+      padding: 0;
+      display: inline-grid;
+      place-items: center;
       color: var(--ink);
-      background: var(--panel-strong);
+      background: var(--input-bg);
+      font-weight: 700;
     }
 
     .primary-btn,
     .ghost-btn {
-      padding: 12px 18px;
+      min-height: 30px;
+      padding: 4px 12px;
+      font-size: 13px;
       font-weight: 700;
     }
 
@@ -183,38 +174,46 @@
       border-color: transparent;
     }
 
+    .primary-btn:disabled {
+      opacity: 0.6;
+      cursor: default;
+    }
+
     .ghost-btn {
       color: var(--ink);
-      background: var(--panel-strong);
+      background: var(--input-bg);
     }
 
     .main-layout {
       display: grid;
-      grid-template-columns: minmax(0, 1.65fr) minmax(320px, 430px);
-      gap: 18px;
-      align-items: stretch;
+      grid-template-columns: minmax(0, 1fr) minmax(260px, 320px);
+      grid-template-rows: minmax(0, 1fr);
+      gap: 12px;
+      padding: 12px;
+      min-height: 0;
     }
 
     .wheel-panel,
     .controls-panel {
       border: 1px solid var(--border);
-      border-radius: 28px;
+      border-radius: 12px;
       background: var(--panel);
       box-shadow: var(--shadow);
       backdrop-filter: blur(14px);
+      min-height: 0;
     }
 
     .wheel-panel {
-      min-height: min(82vh, 980px);
+      container-type: size;
       display: grid;
       place-items: center;
-      padding: 20px;
+      padding: 12px;
       overflow: hidden;
       position: relative;
     }
 
     .wheel-stage {
-      width: min(100%, 1100px);
+      width: min(100cqw, 108cqh);
       aspect-ratio: 1.08 / 1;
       position: relative;
       display: grid;
@@ -222,7 +221,7 @@
     }
 
     .wheel-canvas-wrap {
-      width: min(92vh, 100%, 980px);
+      width: 90%;
       aspect-ratio: 1 / 1;
       position: relative;
       filter: var(--wheel-shadow);
@@ -238,12 +237,12 @@
 
     .pointer-wrap {
       position: absolute;
-      right: max(8px, 1.2%);
+      right: 0;
       top: 50%;
       transform: translateY(-50%);
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 8px;
       z-index: 3;
       pointer-events: none;
     }
@@ -251,59 +250,60 @@
     .pointer {
       width: 0;
       height: 0;
-      border-top: 20px solid transparent;
-      border-bottom: 20px solid transparent;
-      border-right: 34px solid var(--pointer);
+      border-top: 16px solid transparent;
+      border-bottom: 16px solid transparent;
+      border-right: 28px solid var(--pointer);
       filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.26));
     }
 
     .selection-badge {
-      max-width: min(34vw, 280px);
-      padding: 10px 14px;
-      border-radius: 16px;
+      max-width: min(30cqw, 240px);
+      padding: 6px 10px;
+      border-radius: 10px;
       border: 1px solid var(--border);
       background: var(--panel-strong);
       color: var(--ink);
-      font-size: clamp(14px, 1.9vw, 18px);
+      font-size: 15px;
       font-weight: 700;
       text-align: left;
       box-shadow: 0 12px 28px rgba(0, 0, 0, 0.18);
       opacity: 0.96;
+      overflow-wrap: anywhere;
     }
 
     .wheel-footer {
       position: absolute;
-      left: 22px;
-      right: 22px;
-      bottom: 18px;
+      left: 12px;
+      right: 12px;
+      bottom: 12px;
       display: flex;
       justify-content: space-between;
-      gap: 14px;
+      gap: 12px;
       align-items: end;
       pointer-events: none;
     }
 
     .status-card,
     .storage-card {
-      padding: 10px 14px;
-      border-radius: 18px;
+      padding: 6px 10px;
+      border-radius: 10px;
       border: 1px solid var(--border);
       background: color-mix(in srgb, var(--panel-strong) 92%, transparent);
-      max-width: min(46%, 480px);
+      max-width: min(40%, 360px);
     }
 
     .status-label,
     .storage-label {
       color: var(--muted);
-      font-size: 12px;
+      font-size: 11px;
       text-transform: uppercase;
-      letter-spacing: 0.08em;
-      margin-bottom: 4px;
+      letter-spacing: 0.06em;
+      margin-bottom: 2px;
     }
 
     .status-text,
     .storage-value {
-      font-size: clamp(15px, 1.8vw, 19px);
+      font-size: 14px;
       font-weight: 700;
       word-break: break-word;
     }
@@ -311,50 +311,51 @@
     .controls-panel {
       display: grid;
       align-content: start;
-      gap: 14px;
-      padding: 18px;
+      gap: 10px;
+      padding: 10px;
+      overflow: auto;
     }
 
     .section-card {
       border: 1px solid var(--border);
-      border-radius: 22px;
+      border-radius: 10px;
       background: var(--panel-strong);
-      padding: 16px;
+      padding: 10px 12px;
       display: grid;
-      gap: 12px;
+      gap: 8px;
     }
 
     .section-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      gap: 12px;
+      gap: 8px;
     }
 
     .section-title {
-      font-size: 18px;
+      font-size: 14px;
       font-weight: 800;
     }
 
     .section-help {
       color: var(--muted);
-      font-size: 13px;
-      line-height: 1.5;
+      font-size: 12px;
+      line-height: 1.4;
     }
 
     .control-grid {
       display: grid;
-      gap: 12px;
+      gap: 8px;
     }
 
     .field-grid {
       display: grid;
-      gap: 8px;
+      gap: 4px;
     }
 
     .field-grid label {
       font-weight: 700;
-      font-size: 13px;
+      font-size: 11px;
       color: var(--muted);
       text-transform: uppercase;
       letter-spacing: 0.06em;
@@ -364,43 +365,44 @@
     select,
     input[type='text'] {
       width: 100%;
-      border-radius: 16px;
+      border-radius: 8px;
       border: 1px solid var(--border);
       background: var(--input-bg);
       color: var(--ink);
-      padding: 12px 14px;
+      padding: 6px 10px;
+    }
+
+    select {
+      height: 32px;
+      padding: 0 8px;
     }
 
     textarea {
-      min-height: 230px;
+      min-height: 150px;
       resize: vertical;
-      line-height: 1.5;
+      line-height: 1.45;
     }
 
     .inline-actions {
       display: flex;
       flex-wrap: wrap;
-      gap: 10px;
+      gap: 8px;
     }
 
     .result-line {
-      font-size: clamp(18px, 2.2vw, 24px);
+      font-size: 17px;
       font-weight: 800;
-    }
-
-    .result-meta {
-      color: var(--muted);
-      font-size: 13px;
+      overflow-wrap: anywhere;
     }
 
     .items-preview {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
-      gap: 8px;
+      grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+      gap: 6px;
     }
 
     .preview-chip {
-      padding: 9px 10px;
+      padding: 4px 8px;
       border-radius: 999px;
       border: 1px solid var(--border);
       font-size: 12px;
@@ -416,84 +418,115 @@
 
     .warn-text {
       color: var(--danger);
-      font-size: 13px;
-      min-height: 1.2em;
+      font-size: 12px;
     }
 
     .ok-text {
       color: var(--success);
-      font-size: 13px;
-      min-height: 1.2em;
+      font-size: 12px;
     }
 
-    @media (max-width: 1200px) {
+    .warn-text:empty,
+    .ok-text:empty {
+      display: none;
+    }
+
+    dialog {
+      width: min(560px, calc(100vw - 32px));
+      max-height: calc(100vh - 32px);
+      padding: 0;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--panel-strong);
+      color: var(--ink);
+      box-shadow: var(--shadow);
+    }
+
+    html[data-theme='dark'] dialog {
+      background: #0c1624;
+    }
+
+    html[data-theme='light'] dialog {
+      background: #ffffff;
+    }
+
+    dialog::backdrop {
+      background: rgb(0 0 0 / 45%);
+    }
+
+    .dlg-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 8px 8px 8px 14px;
+      border-bottom: 1px solid var(--border);
+      font-weight: 700;
+    }
+
+    .dlg-body {
+      padding: 12px 14px 14px;
+      overflow: auto;
+    }
+
+    .dlg-body p {
+      margin: 0 0 8px;
+    }
+
+    .dlg-body h3 {
+      margin: 10px 0 6px;
+      font-size: 12px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .dlg-body ul {
+      margin: 0;
+      padding-left: 18px;
+    }
+
+    .dlg-body li {
+      margin: 4px 0;
+    }
+
+    @media (max-width: 900px) {
+      .brand span {
+        display: none;
+      }
+    }
+
+    @media (max-width: 720px) {
+      body {
+        overflow: auto;
+      }
+
+      .app-shell {
+        height: auto;
+        min-height: 100%;
+      }
+
       .main-layout {
         grid-template-columns: 1fr;
+        grid-template-rows: auto auto;
       }
 
       .wheel-panel {
-        min-height: auto;
+        height: min(96vw, 560px);
       }
 
-      .wheel-stage {
-        aspect-ratio: auto;
-        width: 100%;
-        min-height: 68vh;
-      }
-
-      .pointer-wrap {
-        right: 4px;
-      }
-    }
-
-    @media (max-width: 820px) {
-      body {
-        padding: 12px;
-      }
-
-      .top-bar {
-        border-radius: 22px;
-        padding: 14px;
-        align-items: start;
-        flex-direction: column;
-      }
-
-      .toolbar {
-        width: 100%;
-        justify-content: space-between;
-      }
-
-      .wheel-canvas-wrap {
-        width: min(100%, 92vw);
-      }
-
-      .pointer-wrap {
-        right: -2px;
-        gap: 8px;
-      }
-
-      .pointer {
-        border-top-width: 14px;
-        border-bottom-width: 14px;
-        border-right-width: 24px;
+      .controls-panel {
+        overflow: visible;
       }
 
       .selection-badge {
-        max-width: 42vw;
         font-size: 13px;
-        padding: 8px 10px;
-      }
-
-      .wheel-footer {
-        position: static;
-        margin-top: 14px;
-        flex-direction: column;
-        align-items: stretch;
+        padding: 5px 8px;
       }
 
       .status-card,
       .storage-card {
-        max-width: none;
+        max-width: 48%;
       }
     }
   </style>
@@ -508,17 +541,16 @@
 <body>
   <div class="app-shell">
     <header class="top-bar">
-      <div class="title-wrap">
-        <h1 data-i18n="title">Wheel Picker</h1>
-        <div class="subline" data-i18n="subtitle">Spin a large wheel and save different lists by URL hash.</div>
-      </div>
+      <div class="brand"><img src="../assets/icons/svg/utils-wheel_picker.svg" alt=""><span data-i18n="title">Wheel Picker</span></div>
       <div class="toolbar">
-        <div class="lang-selector">
-          <a href="#" data-lang="en" class="active">EN</a>
-          <a href="#" data-lang="pt">PT</a>
-          <a href="#" data-lang="ja">JA</a>
-        </div>
-        <button id="theme-toggle-btn" class="icon-btn" type="button" aria-label="Toggle theme">◑</button>
+        <button id="spin-button" class="primary-btn" type="button" data-i18n="spin">Spin</button>
+        <button id="help-btn" class="icon-btn" type="button" aria-label="Help" title="Help">?</button>
+        <select id="lang-switcher" aria-label="Language">
+          <option value="en">EN</option>
+          <option value="pt">PT</option>
+          <option value="ja">JA</option>
+        </select>
+        <button id="theme-switcher" class="icon-btn" type="button" aria-label="Toggle theme" title="Toggle theme">◑</button>
       </div>
     </header>
 
@@ -548,16 +580,12 @@
 
       <aside class="controls-panel">
         <section class="section-card">
-          <div class="section-header">
-            <div class="section-title" data-i18n="spinSection">Spin</div>
-            <button id="spin-button" class="primary-btn" type="button" data-i18n="spin">Spin</button>
-          </div>
+          <div class="section-title" data-i18n="spinSection">Spin</div>
+          <div class="result-line"><span data-i18n="selectedLabel">Selected:</span> <span id="result-value">Yes</span></div>
           <div class="inline-actions">
             <button id="edit-toggle-button" class="ghost-btn" type="button" data-i18n="editItems">Edit items</button>
             <button id="reset-button" class="ghost-btn" type="button" data-i18n="resetDefaults">Reset defaults</button>
           </div>
-          <div class="result-line"><span data-i18n="selectedLabel">Selected:</span> <span id="result-value">Yes</span></div>
-          <div id="result-meta" class="result-meta" data-i18n="resultHint">The arrow on the right marks the selected item.</div>
         </section>
 
         <section class="section-card">
@@ -574,7 +602,6 @@
                 <option value="custom" data-i18n="themeCustom">Custom from item prefix</option>
               </select>
             </div>
-            <div class="section-help" data-i18n="colorThemeHelp">In custom mode, write items like #c1c1ca:My label or tomato:My label.</div>
           </div>
         </section>
 
@@ -601,6 +628,23 @@ Maybe</textarea>
       </aside>
     </main>
   </div>
+
+  <dialog id="help">
+    <div class="dlg-head"><span data-i18n="helpTitle">Wheel Picker help</span><button id="help-close" class="icon-btn" type="button" aria-label="Close">✕</button></div>
+    <div class="dlg-body">
+      <p data-i18n="subtitle">Spin a large wheel and save different lists by URL hash.</p>
+      <h3 data-i18n="helpHowTitle">How it works</h3>
+      <ul>
+        <li data-i18n="helpSpinTip">Press Spin to turn the wheel.</li>
+        <li data-i18n="resultHint">The arrow on the right marks the selected item.</li>
+        <li data-i18n="helpEditTip">Use Edit items to change the list.</li>
+        <li data-i18n="editorHelp">One item per line. Minimum 2, maximum 60.</li>
+        <li data-i18n="colorThemeHelp">In custom mode, write items like #c1c1ca:My label or tomato:My label.</li>
+        <li id="result-meta" data-i18n="hashPrefixHint">Change the URL hash to save another wheel.</li>
+        <li data-i18n="helpKeys">Press ? to open this help.</li>
+      </ul>
+    </div>
+  </dialog>
 
   <script>
     const DEFAULT_ITEMS = ['Yes', 'No', 'Maybe'];
@@ -653,7 +697,15 @@ Maybe</textarea>
         resetConfirm: 'Replace the current list with the default items?',
         hashPrefixHint: 'Change the URL hash to save another wheel.',
         noItemsFallback: 'Need at least 2 items.',
-        spinDisabled: 'Apply a valid list before spinning.'
+        spinDisabled: 'Apply a valid list before spinning.',
+        help: 'Help',
+        close: 'Close',
+        theme: 'Toggle theme',
+        helpTitle: 'Wheel Picker help',
+        helpHowTitle: 'How it works',
+        helpSpinTip: 'Press Spin in the top bar to turn the wheel. The result also appears in the Spin panel and the status card.',
+        helpEditTip: 'Use Edit items to change the list and Apply to save it. Reset defaults restores Yes / No / Maybe.',
+        helpKeys: 'Press ? to open this help.'
       },
       pt: {
         title: 'Roleta de Sorteio',
@@ -694,7 +746,15 @@ Maybe</textarea>
         resetConfirm: 'Substituir a lista atual pelos itens padrão?',
         hashPrefixHint: 'Mude o hash da URL para salvar outra roleta.',
         noItemsFallback: 'Você precisa de pelo menos 2 itens.',
-        spinDisabled: 'Aplique uma lista válida antes de girar.'
+        spinDisabled: 'Aplique uma lista válida antes de girar.',
+        help: 'Ajuda',
+        close: 'Fechar',
+        theme: 'Alternar tema',
+        helpTitle: 'Ajuda da Roleta de Sorteio',
+        helpHowTitle: 'Como funciona',
+        helpSpinTip: 'Clique em Girar na barra superior para girar a roleta. O resultado também aparece no painel Sorteio e no cartão de status.',
+        helpEditTip: 'Use Editar itens para mudar a lista e Aplicar para salvá-la. Restaurar padrão volta para Yes / No / Maybe.',
+        helpKeys: 'Pressione ? para abrir esta ajuda.'
       },
       ja: {
         title: '抽選ルーレット',
@@ -735,7 +795,15 @@ Maybe</textarea>
         resetConfirm: '現在のリストを初期項目に戻しますか？',
         hashPrefixHint: '別のルーレットを保存するには URL ハッシュを変更してください。',
         noItemsFallback: '少なくとも2項目必要です。',
-        spinDisabled: '回す前に有効なリストを適用してください。'
+        spinDisabled: '回す前に有効なリストを適用してください。',
+        help: 'ヘルプ',
+        close: '閉じる',
+        theme: 'テーマ切替',
+        helpTitle: '抽選ルーレットのヘルプ',
+        helpHowTitle: '使い方',
+        helpSpinTip: '上部バーの「回す」でルーレットを回します。結果は抽選パネルと状態カードにも表示されます。',
+        helpEditTip: '「項目を編集」でリストを変更し、「適用」で保存します。「初期値に戻す」で Yes / No / Maybe に戻ります。',
+        helpKeys: '? キーでこのヘルプを開きます。'
       }
     };
 
@@ -757,7 +825,10 @@ Maybe</textarea>
     const saveItemsButton = document.getElementById('save-items-button');
     const resetButton = document.getElementById('reset-button');
     const editorCard = document.getElementById('editor-card');
-    const themeToggleButton = document.getElementById('theme-toggle-btn');
+    const themeToggleButton = document.getElementById('theme-switcher');
+    const langSwitcher = document.getElementById('lang-switcher');
+    const helpDialog = document.getElementById('help');
+    const helpButton = document.getElementById('help-btn');
 
     let currentLanguage = localStorage.getItem('app_lang') || 'en';
     let currentTheme = localStorage.getItem('app_theme') || 'dark';
@@ -789,9 +860,12 @@ Maybe</textarea>
           element.textContent = lang[key];
         }
       });
-      document.querySelectorAll('.lang-selector a').forEach((anchor) => {
-        anchor.classList.toggle('active', anchor.dataset.lang === currentLanguage);
-      });
+      langSwitcher.value = currentLanguage;
+      helpButton.title = lang.help;
+      helpButton.setAttribute('aria-label', lang.help);
+      themeToggleButton.title = lang.theme;
+      themeToggleButton.setAttribute('aria-label', lang.theme);
+      document.getElementById('help-close').setAttribute('aria-label', lang.close);
       editToggleButton.textContent = editorCard.classList.contains('hidden') ? lang.editItems : lang.closeEditor;
       document.title = `${lang.title} - ${getPrefix()}`;
       resultMeta.textContent = lang.hashPrefixHint;
@@ -1266,10 +1340,9 @@ Maybe</textarea>
       statusText.textContent = getLang().resetDone;
     }
 
-    function handleLanguageClick(event) {
-      event.preventDefault();
-      const lang = event.target.getAttribute('data-lang');
-      if (!lang) {
+    function handleLanguageChange() {
+      const lang = langSwitcher.value;
+      if (!translations[lang]) {
         return;
       }
       currentLanguage = lang;
@@ -1318,7 +1391,25 @@ Maybe</textarea>
       resultMeta.textContent = getLang().hashPrefixHint;
     }
 
-    document.querySelector('.lang-selector').addEventListener('click', handleLanguageClick);
+    langSwitcher.addEventListener('change', handleLanguageChange);
+    helpButton.addEventListener('click', () => helpDialog.showModal());
+    document.getElementById('help-close').addEventListener('click', () => helpDialog.close());
+    helpDialog.addEventListener('click', (event) => {
+      if (event.target === helpDialog) {
+        helpDialog.close();
+      }
+    });
+    document.addEventListener('keydown', (event) => {
+      if (event.key !== '?' || helpDialog.open || event.ctrlKey || event.metaKey || event.altKey) {
+        return;
+      }
+      const active = document.activeElement;
+      if (active && (/^(INPUT|TEXTAREA|SELECT)$/.test(active.tagName) || active.isContentEditable)) {
+        return;
+      }
+      event.preventDefault();
+      helpDialog.showModal();
+    });
     themeToggleButton.addEventListener('click', () => {
       applyTheme(currentTheme === 'dark' ? 'light' : 'dark');
       drawWheel();

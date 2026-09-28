@@ -29,19 +29,145 @@
       --muted-color: #6c757d;
     }
 
+    html,
+    body {
+      height: 100%;
+    }
+
     body {
       background-color: var(--bg-color);
       color: var(--text-color);
-      display: flex;
-      flex-direction: column;
-      min-height: 100vh;
       margin: 0;
+      overflow: hidden;
+      font-size: 14px;
     }
 
-    .container-fluid {
-      padding-top: 20px;
-      padding-bottom: 20px;
-      flex: 1;
+    .app {
+      height: 100%;
+      display: grid;
+      grid-template-rows: auto 1fr;
+      min-height: 0;
+    }
+
+    .topbar {
+      height: 44px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0 8px 0 12px;
+      background-color: var(--card-bg-color);
+      border-bottom: 1px solid var(--border-color);
+      min-width: 0;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 15px;
+      font-weight: 600;
+      white-space: nowrap;
+      min-width: 0;
+    }
+
+    .brand img {
+      width: 18px;
+      height: 18px;
+    }
+
+    .brand span {
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .topbar .tools {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .topbar .btn {
+      height: 30px;
+      display: inline-flex;
+      align-items: center;
+      padding-top: 0;
+      padding-bottom: 0;
+      font-size: 13px;
+    }
+
+    .icon-btn {
+      width: 30px;
+      justify-content: center;
+      padding: 0 !important;
+    }
+
+    #lang-switcher {
+      width: auto;
+      height: 30px;
+      padding-top: 0;
+      padding-bottom: 0;
+      font-size: 13px;
+    }
+
+    .main {
+      min-height: 0;
+      overflow: auto;
+      padding: 12px;
+    }
+
+    .main-inner {
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    dialog.help {
+      width: min(560px, calc(100vw - 32px));
+      max-height: calc(100vh - 32px);
+      padding: 0;
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      background: var(--card-bg-color);
+      color: var(--text-color);
+    }
+
+    dialog.help::backdrop {
+      background: rgb(0 0 0 / 45%);
+    }
+
+    .dlg-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 10px 8px 14px;
+      border-bottom: 1px solid var(--border-color);
+      font-weight: 600;
+    }
+
+    .dlg-body {
+      padding: 12px 14px 16px;
+      font-size: 13px;
+    }
+
+    .dlg-body h3 {
+      margin: 12px 0 6px;
+      font-size: 12px;
+      color: var(--muted-color);
+      text-transform: uppercase;
+      letter-spacing: .04em;
+    }
+
+    .dlg-body p {
+      margin: 0 0 8px;
+    }
+
+    .dlg-body ul {
+      margin: 0;
+      padding-left: 18px;
+    }
+
+    .dlg-body li {
+      margin: 3px 0;
     }
 
     .navbar-brand,
@@ -118,7 +244,7 @@
     .metric {
       border: 1px solid var(--border-color);
       border-radius: 0.5rem;
-      padding: 0.62rem 0.72rem;
+      padding: 6px 10px;
       height: 100%;
       background: rgba(13, 110, 253, 0.06);
     }
@@ -152,7 +278,7 @@
       border: 1px dashed var(--border-color);
       border-radius: 0.5rem;
       color: var(--muted-color);
-      padding: 2rem;
+      padding: 14px;
       text-align: center;
     }
 
@@ -171,8 +297,12 @@
       flex-wrap: wrap;
     }
 
+    .service-card {
+      color: var(--text-color);
+    }
+
     .service-card .card-body {
-      padding: 0.85rem 1rem;
+      padding: 10px 12px;
     }
 
     .service-card .card-title {
@@ -181,17 +311,12 @@
     }
 
     #services-list {
-      gap: 0.8rem !important;
+      gap: 10px !important;
     }
 
-    @media (max-width: 576px) {
-      .toolbar {
-        align-items: stretch;
-        flex-direction: column;
-      }
-
-      #new-service {
-        width: 100%;
+    @media (max-width: 560px) {
+      .new-label {
+        display: none;
       }
     }
   </style>
@@ -204,40 +329,56 @@
   </script>
 </head>
 <body>
-  <nav class="navbar navbar-expand-lg" style="background-color: var(--card-bg-color); border-bottom: 1px solid var(--border-color);">
-    <div class="container-fluid">
-      <a class="navbar-brand" href="#" data-i18n="title">Credit Usage Planner</a>
-      <div class="d-flex ms-auto gap-2 align-items-center">
-        <select id="lang-switcher" class="form-select form-select-sm" style="width: auto;">
-          <option value="en">English</option>
-          <option value="pt">Português</option>
-          <option value="ja">日本語</option>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand"><img src="../assets/icons/svg/utils-credit_planner.svg" alt=""><span data-i18n="title">Credit Usage Planner</span></div>
+      <div class="tools">
+        <button type="button" id="new-service" class="btn btn-primary btn-sm">
+          <i class="fas fa-plus"></i><span class="new-label ms-1" data-i18n="newBtn">New</span>
+        </button>
+        <button id="help-btn" class="btn btn-sm btn-outline-secondary icon-btn" type="button" data-i18n-title="helpBtn" title="Help">
+          <i class="fas fa-circle-question"></i>
+        </button>
+        <select id="lang-switcher" class="form-select form-select-sm" aria-label="Language">
+          <option value="en">EN</option>
+          <option value="pt">PT</option>
+          <option value="ja">JA</option>
         </select>
-        <button id="theme-switcher" class="btn btn-sm btn-outline-secondary" type="button" data-i18n-title="themeBtn" title="Toggle theme">
+        <button id="theme-switcher" class="btn btn-sm btn-outline-secondary icon-btn" type="button" data-i18n-title="themeBtn" title="Toggle theme">
           <i class="fas fa-moon"></i>
         </button>
       </div>
-    </div>
-  </nav>
+    </header>
 
-  <div class="container-fluid">
-    <div class="row justify-content-center">
-      <div class="col-xl-10 col-lg-11">
-        <div class="toolbar">
-          <p class="help-text mb-0" data-i18n="subtitle">Track services with monthly credits and see how many credits to use per day before the period ends.</p>
-          <button type="button" id="new-service" class="btn btn-primary">
-            <i class="fas fa-plus me-1"></i><span data-i18n="newBtn">New</span>
-          </button>
-        </div>
-
+    <main class="main">
+      <div class="main-inner">
         <div id="services-list" class="d-grid gap-3"></div>
         <div id="empty-state" class="empty-state d-none">
-          <i class="fas fa-chart-line fa-2x mb-3"></i>
+          <i class="fas fa-chart-line fa-lg mb-2"></i>
           <div data-i18n="emptyState">No services yet.</div>
         </div>
       </div>
-    </div>
+    </main>
   </div>
+
+  <dialog class="help" id="help-dialog" aria-labelledby="help-title">
+    <div class="dlg-head">
+      <span id="help-title" data-i18n="helpBtn">Help</span>
+      <button id="help-close" class="btn btn-sm btn-outline-secondary icon-btn" type="button" data-i18n-title="closeBtn" title="Close"><i class="fas fa-xmark"></i></button>
+    </div>
+    <div class="dlg-body">
+      <p data-i18n="subtitle">Track services with monthly credits and see how many credits to use per day before the period ends.</p>
+      <h3 data-i18n="helpHowTitle">How it works</h3>
+      <ul>
+        <li data-i18n="helpNew">Use New to add a service with its monthly credits, current balance and period end date.</li>
+        <li data-i18n="helpPerDay">Credits per day = current credits ÷ days left in the period.</li>
+        <li data-i18n="helpPercent">Choose % to enter the balance as a percentage of the monthly credits.</li>
+        <li data-i18n="helpStale">The last update turns red when the balance was not updated today; edit the card to refresh it.</li>
+        <li data-i18n="helpStorage">Data is stored locally in this browser (IndexedDB).</li>
+        <li data-i18n="helpKey">Press ? to open this help.</li>
+      </ul>
+    </div>
+  </dialog>
 
   <div class="modal fade" id="service-modal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered">
@@ -320,7 +461,16 @@
         updateWarning: "Last update: {date}",
         updateFresh: "Last update: {date}",
         percentOfMonthly: "{percent}% of 100%",
-        monthlyMissing: "Set monthly credits to use percentage mode."
+        monthlyMissing: "Set monthly credits to use percentage mode.",
+        helpBtn: "Help",
+        closeBtn: "Close",
+        helpHowTitle: "How it works",
+        helpNew: "Use New to add a service with its monthly credits, current balance and period end date.",
+        helpPerDay: "Credits per day = current credits ÷ days left in the period.",
+        helpPercent: "Choose % to enter the balance as a percentage of the monthly credits.",
+        helpStale: "The last update turns red when the balance was not updated today; edit the card to refresh it.",
+        helpStorage: "Data is stored locally in this browser (IndexedDB).",
+        helpKey: "Press ? to open this help."
       },
       pt: {
         title: "Planejador de Uso de Créditos",
@@ -354,7 +504,16 @@
         updateWarning: "Última atualização: {date}",
         updateFresh: "Última atualização: {date}",
         percentOfMonthly: "{percent}% de 100%",
-        monthlyMissing: "Informe os créditos mensais para usar porcentagem."
+        monthlyMissing: "Informe os créditos mensais para usar porcentagem.",
+        helpBtn: "Ajuda",
+        closeBtn: "Fechar",
+        helpHowTitle: "Como funciona",
+        helpNew: "Use Novo para adicionar um serviço com os créditos mensais, o saldo atual e a data de fim do período.",
+        helpPerDay: "Créditos por dia = créditos atuais ÷ dias restantes no período.",
+        helpPercent: "Escolha % para informar o saldo como porcentagem dos créditos mensais.",
+        helpStale: "A última atualização fica vermelha quando o saldo não foi atualizado hoje; edite o cartão para atualizar.",
+        helpStorage: "Os dados ficam salvos localmente neste navegador (IndexedDB).",
+        helpKey: "Pressione ? para abrir esta ajuda."
       },
       ja: {
         title: "クレジット使用プランナー",
@@ -388,7 +547,16 @@
         updateWarning: "最終更新: {date}",
         updateFresh: "最終更新: {date}",
         percentOfMonthly: "100% の {percent}%",
-        monthlyMissing: "パーセントを使うには月間クレジットを入力してください。"
+        monthlyMissing: "パーセントを使うには月間クレジットを入力してください。",
+        helpBtn: "ヘルプ",
+        closeBtn: "閉じる",
+        helpHowTitle: "使い方",
+        helpNew: "新規で、月間クレジット・現在の残高・期間終了日を持つサービスを追加します。",
+        helpPerDay: "1日あたりの使用量 = 現在のクレジット ÷ 期間の残り日数。",
+        helpPercent: "% を選ぶと、残高を月間クレジットに対する割合で入力できます。",
+        helpStale: "今日残高を更新していないと最終更新が赤くなります。カードを編集して更新してください。",
+        helpStorage: "データはこのブラウザ内（IndexedDB）に保存されます。",
+        helpKey: "? キーでこのヘルプを開きます。"
       }
     };
 
@@ -559,7 +727,7 @@
         card.className = `card service-card ${isOverdue ? 'overdue' : ''}`;
         card.innerHTML = `
           <div class="card-body">
-            <div class="d-flex justify-content-between gap-3 flex-wrap mb-3">
+            <div class="d-flex justify-content-between gap-2 flex-wrap mb-2">
               <div>
                 <h5 class="card-title mb-1">${escapeHtml(service.name)}</h5>
                 <div class="help-text">${t('periodEnd')}: ${formatDate(service.periodEnd)}${isOverdue ? ` · ${t('overdue')}` : ''}</div>
@@ -573,13 +741,13 @@
                 </button>
               </div>
             </div>
-            <div class="row g-3">
+            <div class="row g-2">
               <div class="col-md-4">
                 <div class="metric">
                   <div class="metric-label">${t('currentCredits')}</div>
                   <div class="metric-value">${formatNumber(currentDisplay)}${unitDisplay}</div>
                   <div class="help-text">${currentDetail}</div>
-                  <div class="${updateClass} small mt-2">${updateText}</div>
+                  <div class="${updateClass} small mt-1">${updateText}</div>
                 </div>
               </div>
               <div class="col-md-4">
@@ -663,6 +831,21 @@
       $('lang-switcher').value = currentLang;
       applyTheme(currentTheme);
       applyI18n();
+
+      const helpDialog = $('help-dialog');
+      $('help-btn').addEventListener('click', () => helpDialog.showModal());
+      $('help-close').addEventListener('click', () => helpDialog.close());
+      helpDialog.addEventListener('click', (event) => {
+        if (event.target === helpDialog) helpDialog.close();
+      });
+      document.addEventListener('keydown', (event) => {
+        const active = document.activeElement;
+        const typing = active && (/INPUT|TEXTAREA|SELECT/.test(active.tagName) || active.isContentEditable);
+        if (event.key === '?' && !typing && !helpDialog.open && !document.querySelector('.modal.show')) {
+          event.preventDefault();
+          helpDialog.showModal();
+        }
+      });
 
       db = await openDatabase();
       await loadServices();

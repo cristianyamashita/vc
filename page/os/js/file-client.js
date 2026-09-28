@@ -1,8 +1,17 @@
 window.OSFileClient = (function () {
   function host() {
-    try {
-      if (window.parent && window.parent !== window && window.parent.OSFS) return window.parent;
-    } catch (_err) {}
+    // Walk up the frame chain: a page may sit inside a tab hub, which is itself
+    // inside a desktop window.
+    let w = window;
+    for (let depth = 0; depth < 4; depth++) {
+      try {
+        if (!w.parent || w.parent === w) break;
+        w = w.parent;
+        if (w.OSFS) return w;
+      } catch (_err) {
+        break;
+      }
+    }
     return null;
   }
 
@@ -46,7 +55,9 @@ window.OSFileClient = (function () {
         h.OSWindows.list().find(function (w) {
           const iframe = w.el && w.el.querySelector("iframe");
           try {
-            return iframe && iframe.contentWindow === window;
+            if (!iframe) return false;
+            // The page may be nested one level deeper, inside a tab hub.
+            return iframe.contentWindow === window || iframe.contentWindow === window.parent;
           } catch (_err) {
             return false;
           }

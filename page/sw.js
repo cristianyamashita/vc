@@ -167,6 +167,15 @@ self.addEventListener("message", (event) => {
   }
 });
 
+const OWN_CODE_EXT = /\.(html?|js|mjs|css|json|webmanifest)$/i;
+
+function isOwnCode(url) {
+  if (url.origin !== self.location.origin) return false;
+  if (!url.href.startsWith(pageBase().href)) return false;
+  const path = url.pathname;
+  return path.endsWith("/") || OWN_CODE_EXT.test(path);
+}
+
 function isNavigate(request) {
   if (request.mode === "navigate") return true;
   const accept = request.headers.get("accept") || "";
@@ -189,6 +198,30 @@ self.addEventListener("fetch", (event) => {
     (async () => {
       const name = await resolveCacheName();
       const cache = await caches.open(name);
+      // The site's own pages and code change with every update: go to the network
+      // first so the desktop never runs an old catalog next to new pages, and use
+      // the cache only when offline. Libraries, images and models stay cache-first.
+      if (isOwnCode(url)) {
+        try {
+          const res = await fetch(request, { cache: "no-cache" });
+          if (res && res.ok) {
+            try {
+              await cache.put(request, res.clone());
+            } catch (_err) {}
+            return res;
+          }
+          const hit = await cache.match(request, { ignoreSearch: true });
+          return hit || res;
+        } catch (_err) {
+          const hit = await cache.match(request, { ignoreSearch: true });
+          if (hit) return hit;
+          if (isNavigate(request)) {
+            const fallback = await cache.match(new URL(FALLBACK, pageBase()));
+            if (fallback) return fallback;
+          }
+          return new Response("Offline", { status: 503, statusText: "Offline", headers: { "Content-Type": "text/plain" } });
+        }
+      }
       const cached = await cache.match(request, { ignoreSearch: true });
       const networkPromise = fetch(request)
         .then(async (res) => {

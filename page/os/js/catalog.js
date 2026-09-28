@@ -547,75 +547,27 @@ window.OSCatalog = (function () {
     "multiInstance": true
   },
   {
-    "id": "utils-text_diff_studio",
-    "href": "utils/text_diff_studio.html",
-    "icon": "../assets/icons/svg/utils-text_diff_studio.svg",
+    "id": "utils-pdf_image_tools",
+    "href": "utils/pdf_image_tools.html",
+    "icon": "../assets/icons/svg/utils-pdf_image_tools.svg",
     "kind": "site",
     "uninstallable": true,
     "defaultInstalled": true,
     "channel": "stable",
     "tag": {
-      "en": "Developer",
-      "pt": "Desenvolvimento",
-      "ja": "開発"
+      "en": "Files",
+      "pt": "Arquivos",
+      "ja": "ファイル"
     },
     "name": {
-      "en": "Text Diff Studio",
-      "pt": "Text Diff Studio",
-      "ja": "Text Diff Studio"
+      "en": "PDF & Image Tools",
+      "pt": "Ferramentas de PDF e Imagem",
+      "ja": "PDF・画像ツール"
     },
     "desc": {
-      "en": "Side-by-side line and word comparison with context folding, similarity metrics, and unified patch copy.",
-      "pt": "Comparação lado a lado por linhas e palavras, contexto recolhível, similaridade e cópia de patch unificado.",
-      "ja": "行と単語の左右比較、変更のない部分の折りたたみ、類似度、統一パッチのコピーに対応。"
-    }
-  },
-  {
-    "id": "utils-regex_playground",
-    "href": "utils/regex_playground.html",
-    "icon": "../assets/icons/svg/utils-regex_playground.svg",
-    "kind": "site",
-    "uninstallable": true,
-    "defaultInstalled": true,
-    "channel": "stable",
-    "tag": {
-      "en": "Developer",
-      "pt": "Desenvolvimento",
-      "ja": "開発"
-    },
-    "name": {
-      "en": "Regex Playground",
-      "pt": "Regex Playground",
-      "ja": "Regex Playground"
-    },
-    "desc": {
-      "en": "Build and test regular expressions with live highlights, match groups, replacement preview, explanations, and examples.",
-      "pt": "Crie e teste expressões regulares com destaques, grupos, prévia de substituição, explicações e exemplos.",
-      "ja": "正規表現をライブでテストし、一致箇所、グループ、置換結果、パターンの説明、例を確認できます。"
-    }
-  },
-  {
-    "id": "utils-pdf_toolbox",
-    "href": "utils/pdf_toolbox.html",
-    "icon": "../assets/icons/svg/utils-pdf_toolbox.svg",
-    "kind": "site",
-    "uninstallable": true,
-    "defaultInstalled": true,
-    "channel": "stable",
-    "tag": {
-      "en": "PDF",
-      "pt": "PDF",
-      "ja": "PDF"
-    },
-    "name": {
-      "en": "Paperforge PDF Toolbox",
-      "pt": "Paperforge PDF Toolbox",
-      "ja": "Paperforge PDFツールボックス"
-    },
-    "desc": {
-      "en": "Merge, split, reorder, rotate, remove, and extract PDF pages locally with draggable page previews.",
-      "pt": "Junte, divida, reordene, gire, remova e extraia páginas de PDF localmente com prévias arrastáveis.",
-      "ja": "PDFページをローカルで結合、分割、並べ替え、回転、削除、抽出。ドラッグ可能なプレビュー付き。"
+      "en": "Merge, split, rotate and extract PDF pages, turn images into one PDF, and batch-convert images to WebP. Everything runs in the browser.",
+      "pt": "Junta, divide, gira e extrai páginas de PDF, transforma imagens num único PDF e converte imagens em lote para WebP. Tudo roda no navegador.",
+      "ja": "PDF ページの結合・分割・回転・抽出、画像を 1 つの PDF にまとめる機能、画像の WebP 一括変換。すべてブラウザ内で動きます。"
     }
   },
   {
@@ -667,17 +619,17 @@ window.OSCatalog = (function () {
     }
   },
   {
-    "id": "utils-whiteboard",
-    "href": "utils/whiteboard.html",
-    "icon": "../assets/icons/svg/utils-whiteboard.svg",
+    "id": "utils-whiteboards",
+    "href": "utils/whiteboards.html",
+    "icon": "../assets/icons/svg/utils-whiteboards.svg",
     "kind": "site",
     "uninstallable": true,
     "defaultInstalled": true,
     "channel": "stable",
     "tag": {
-      "en": "Canvas",
-      "pt": "Canvas",
-      "ja": "キャンバス"
+      "en": "Drawing",
+      "pt": "Desenho",
+      "ja": "描画"
     },
     "name": {
       "en": "Whiteboard",
@@ -685,33 +637,33 @@ window.OSCatalog = (function () {
       "ja": "ホワイトボード"
     },
     "desc": {
-      "en": "Full-screen multilingual whiteboard with tools, pan/zoom, tabs, and persistence. Created by multiple AI models.",
-      "pt": "Quadro branco multilíngue em tela cheia com ferramentas, pan/zoom, abas e persistência. Criado por vários modelos de IA.",
-      "ja": "ツール、パン/ズーム、タブ、永続性を備えたフルスクリーン多言語ホワイトボード。複数のAIモデルによって作成。"
+      "en": "Whiteboard with board tabs, shapes, text, images and autosave, plus two alternative builds made with Gemini and GPT.",
+      "pt": "Quadro branco com abas, formas, texto, imagens e salvamento automático, e duas versões alternativas feitas com Gemini e GPT.",
+      "ja": "ボードタブ・図形・テキスト・画像・自動保存に対応したホワイトボードと、Gemini と GPT で作った別版 2 つ。"
     }
   },
   {
-    "id": "utils-ps2",
-    "href": "utils/ps2.html",
-    "icon": "../assets/icons/svg/utils-ps2.svg",
+    "id": "utils-photo_editor",
+    "href": "utils/photo_editor.html",
+    "icon": "../assets/icons/svg/utils-photo_editor.svg",
     "kind": "site",
     "uninstallable": true,
     "defaultInstalled": true,
     "channel": "stable",
     "tag": {
-      "en": "Editor",
-      "pt": "Editor",
-      "ja": "エディタ"
+      "en": "Image",
+      "pt": "Imagem",
+      "ja": "画像"
     },
     "name": {
-      "en": "Mini-Photoshop 2",
-      "pt": "Mini-Photoshop 2",
-      "ja": "ミニフォトショップ2"
+      "en": "Photo Editor",
+      "pt": "Editor de Fotos",
+      "ja": "フォトエディタ"
     },
     "desc": {
-      "en": "Expanded UI: menus, advanced color picker, selections, export/import project, zoom/pan and more.",
-      "pt": "UI expandida: menus, seletor de cores avançado, seleções, exportar/importar projeto, zoom/pan e mais.",
-      "ja": "拡張UI：メニュー、高度なカラーピッカー、選択、プロジェクトのエクスポート/インポート、ズーム/パンなど。"
+      "en": "Layered image editors: Pro with selections, filters, history and file saving, and the lighter Classic version.",
+      "pt": "Editores de imagem com camadas: Pro, com seleções, filtros, histórico e salvamento de arquivos, e a versão Clássica, mais leve.",
+      "ja": "レイヤー対応の画像エディタ。選択・フィルター・履歴・ファイル保存を備えた Pro と、軽量な Classic。"
     }
   },
   {
@@ -763,27 +715,27 @@ window.OSCatalog = (function () {
     }
   },
   {
-    "id": "utils-sprint",
-    "href": "utils/sprint.html",
-    "icon": "../assets/icons/svg/utils-sprint.svg",
+    "id": "utils-pixel_studio",
+    "href": "utils/pixel_studio.html",
+    "icon": "../assets/icons/svg/utils-pixel_studio.svg",
     "kind": "site",
     "uninstallable": true,
     "defaultInstalled": false,
     "channel": "stable",
     "tag": {
-      "en": "Animation",
-      "pt": "Animação",
-      "ja": "アニメーション"
+      "en": "Image",
+      "pt": "Imagem",
+      "ja": "画像"
     },
     "name": {
-      "en": "Pixel Sprint Editor",
-      "pt": "Editor de Pixel Sprint",
-      "ja": "ピクセルスプリントエディタ"
+      "en": "Pixel Studio",
+      "pt": "Estúdio Pixel",
+      "ja": "ピクセルスタジオ"
     },
     "desc": {
-      "en": "Layered pixel editor for animation sprints: opacity, duplicate, selection/move, playback, import and export ZIP.",
-      "pt": "Editor de pixel em camadas para sprints de animação: opacidade, duplicar, seleção/mover, reprodução, importar e exportar ZIP.",
-      "ja": "アニメーションスプリント用のレイヤー付きピクセルエディタ：不透明度、複製、選択/移動、再生、インポート、ZIPエクスポート。"
+      "en": "Pixel art editors: Sprint with layers and frame animation, plus the Modern and Vintage editors.",
+      "pt": "Editores de pixel art: Sprint, com camadas e animação por quadros, e os editores Moderno e Retrô.",
+      "ja": "ピクセルアートエディタ。レイヤーとフレームアニメーションの Sprint、モダン版とレトロ版。"
     }
   },
   {
@@ -805,9 +757,9 @@ window.OSCatalog = (function () {
       "ja": "開発者向けユーティリティ"
     },
     "desc": {
-      "en": "Client-side converters: Base64, URL, MD5/SHA/HMAC, HTML/Unicode, JSON, CSV, YAML, XML. Multilingual UI and themes.",
-      "pt": "Conversores do lado do cliente: Base64, URL, MD5/SHA/HMAC, HTML/Unicode, JSON, CSV, YAML, XML. UI multilíngue e temas.",
-      "ja": "クライアントサイドコンバーター：Base64、URL、MD5/SHA/HMAC、HTML/Unicode、JSON、CSV、YAML、XML。多言語UIとテーマ。"
+      "en": "Developer tools in one page: Base64, URL, MD5/SHA/HMAC, HTML/Unicode, JSON, CSV, YAML and XML converters, plus regex tester, text diff, fake data, Morse code, character art and password generator.",
+      "pt": "Ferramentas de desenvolvimento numa só página: conversores Base64, URL, MD5/SHA/HMAC, HTML/Unicode, JSON, CSV, YAML e XML, além de testador de regex, diff de texto, dados falsos, código Morse, arte com caracteres e gerador de senhas.",
+      "ja": "開発者向けツールを 1 ページに：Base64・URL・MD5/SHA/HMAC・HTML/Unicode・JSON・CSV・YAML・XML の変換に加え、正規表現テスター、テキスト差分、ダミーデータ、モールス信号、文字アート、パスワード生成。"
     }
   },
   {
@@ -883,81 +835,9 @@ window.OSCatalog = (function () {
     }
   },
   {
-    "id": "utils-image_to_webp",
-    "href": "utils/image_to_webp.html",
-    "icon": "../assets/icons/svg/utils-image_to_webp.svg",
-    "kind": "site",
-    "uninstallable": true,
-    "defaultInstalled": true,
-    "channel": "stable",
-    "tag": {
-      "en": "Images",
-      "pt": "Imagens",
-      "ja": "画像"
-    },
-    "name": {
-      "en": "Image to WebP Converter",
-      "pt": "Conversor de Imagem para WebP",
-      "ja": "画像から WebP 変換"
-    },
-    "desc": {
-      "en": "Choose or drag local images, convert them to WebP in the browser, preview multiple results at once, and download each converted file individually.",
-      "pt": "Escolha ou arraste imagens locais, converta para WebP no navegador, visualize vários resultados ao mesmo tempo e baixe cada arquivo convertido separadamente.",
-      "ja": "ローカル画像を選択またはドラッグしてブラウザー内で WebP に変換し、複数結果を同時にプレビューして各変換ファイルを個別にダウンロードできます。"
-    }
-  },
-  {
-    "id": "utils-images_to_pdf",
-    "href": "utils/images_to_pdf.html",
-    "icon": "../assets/icons/svg/utils-images_to_pdf.svg",
-    "kind": "site",
-    "uninstallable": true,
-    "defaultInstalled": true,
-    "channel": "stable",
-    "tag": {
-      "en": "Images",
-      "pt": "Imagens",
-      "ja": "画像"
-    },
-    "name": {
-      "en": "Images to PDF",
-      "pt": "Imagens para PDF",
-      "ja": "画像から PDF"
-    },
-    "desc": {
-      "en": "Drag and drop or select multiple images, reorder them freely, then merge into a single PDF — all in the browser, no upload required.",
-      "pt": "Arraste ou selecione várias imagens, reordene-as livremente e junte tudo em um único PDF — tudo no navegador, sem enviar para servidor.",
-      "ja": "複数の画像をドラッグ＆ドロップまたは選択し、自由に並び替えて1つのPDFに統合 — アップロード不要、すべてブラウザー内で完結。"
-    }
-  },
-  {
-    "id": "utils-age_calculator",
-    "href": "utils/age_calculator.html",
-    "icon": "../assets/icons/svg/utils-age_calculator.svg",
-    "kind": "site",
-    "uninstallable": true,
-    "defaultInstalled": false,
-    "channel": "stable",
-    "tag": {
-      "en": "Utility",
-      "pt": "Utilitário",
-      "ja": "ユーティリティ"
-    },
-    "name": {
-      "en": "Age Calculator",
-      "pt": "Calculadora de Idade",
-      "ja": "年齢計算機"
-    },
-    "desc": {
-      "en": "Enter a date of birth and instantly see the age in years, months and days, plus totals in months, weeks and days. Multilingual UI (EN/PT/JA) and light/dark theme.",
-      "pt": "Insira uma data de nascimento e veja instantaneamente a idade em anos, meses e dias, além dos totais em meses, semanas e dias. Interface multilíngue (EN/PT/JA) e tema claro/escuro.",
-      "ja": "生年月日を入力すると年・月・日で年齢が即座に表示されます。合計月数・週数・日数も確認できます。多言語UI（EN/PT/JA）とライト/ダークテーマ対応。"
-    }
-  },
-  {
-    "id": "utils-morse_code",
-    "href": "utils/morse_code.html",
-    "icon": "../assets/icons/svg/utils-morse_code.svg",
+    "id": "utils-time_tools",
+    "href": "utils/time_tools.html",
+    "icon": "../assets/icons/svg/utils-time_tools.svg",
     "kind": "site",
     "uninstallable": true,
     "defaultInstalled": true,
@@ -968,14 +848,14 @@ window.OSCatalog = (function () {
       "ja": "ユーティリティ"
     },
     "name": {
-      "en": "Morse Code",
-      "pt": "Código Morse",
-      "ja": "モールス符号"
+      "en": "Time Tools",
+      "pt": "Ferramentas de Tempo",
+      "ja": "時間ツール"
     },
     "desc": {
-      "en": "Convert text to Morse code and Morse code back to text. Includes a reference chart, copy buttons, optional audio playback, multilingual UI (EN/PT/JA), and light/dark themes.",
-      "pt": "Converte texto para código Morse e Morse de volta para texto. Inclui tabela de referência, botões de copiar, reprodução de áudio opcional, interface multilíngue (EN/PT/JA) e temas claro/escuro.",
-      "ja": "テキストをモールス符号に変換し、モールスからテキストへ戻します。対照表、コピー、音声再生、多言語UI（EN/PT/JA）、ライト/ダークテーマ対応。"
+      "en": "Stopwatch, countdown, clock, unit timing, time difference, time sum, age, world clocks and forex sessions, as tabs in one page. Timers keep running across tabs.",
+      "pt": "Cronômetro, contagem regressiva, relógio, tempo por unidade, diferença e soma de tempos, idade, relógios mundiais e sessões forex, em abas numa só página. Os cronômetros continuam rodando entre as abas.",
+      "ja": "ストップウォッチ、カウントダウン、時計、単位ごとの時間、時間差、時間合計、年齢、世界時計、FX 取引時間を 1 ページのタブにまとめました。タブを切り替えてもタイマーは動き続けます。"
     }
   },
   {
@@ -984,7 +864,7 @@ window.OSCatalog = (function () {
     "icon": "../assets/icons/svg/utils-checklist.svg",
     "kind": "site",
     "uninstallable": true,
-    "defaultInstalled": false,
+    "defaultInstalled": true,
     "channel": "stable",
     "tag": {
       "en": "Productivity",
@@ -997,9 +877,9 @@ window.OSCatalog = (function () {
       "ja": "チェックリストマネージャー"
     },
     "desc": {
-      "en": "Create reusable checklist templates (daily, monthly, or activity), run them as timestamped instances, track item completion with optional per-item notes, and browse the full run history. IndexedDB storage, multilingual UI (EN/PT/JA), and light/dark themes.",
-      "pt": "Crie templates de checklist reutilizáveis (diário, mensal ou atividade), execute-os como instâncias com registro de data, acompanhe a conclusão com notas opcionais por item e navegue pelo histórico completo. Armazenamento IndexedDB, interface multilíngue (EN/PT/JA) e temas claro/escuro.",
-      "ja": "日次・月次・アクティビティ用チェックリストテンプレートを作成し、タイムスタンプ付きで実行。アイテムごとのオプションメモ付きで進捗を管理し、実行履歴を一覧表示。IndexedDBストレージ、多言語UI（EN/PT/JA）、ライト/ダークテーマ対応。"
+      "en": "Reusable checklist templates (daily, monthly or activity) run as timestamped instances with per-item notes and history, plus a quick to-do list. Saved in the browser.",
+      "pt": "Modelos de checklist reutilizáveis (diários, mensais ou por atividade) executados com data e hora, notas por item e histórico, além de uma lista rápida de tarefas. Salvo no navegador.",
+      "ja": "日次・月次・作業別の再利用できるチェックリストテンプレートを、タイムスタンプ付きで実行し、項目メモと履歴を残せます。クイック ToDo リスト付き。ブラウザに保存します。"
     }
   },
   {
@@ -1024,54 +904,6 @@ window.OSCatalog = (function () {
       "en": "Upload images into an IndexedDB-backed gallery, open them fullscreen, remove them, and control their order with a numeric value.",
       "pt": "Envie imagens para uma galeria com IndexedDB, abra em tela cheia, remova e controle a ordem com um valor numérico.",
       "ja": "画像を IndexedDB 保存のギャラリーに追加し、全画面表示、削除、数値による表示順の調整ができます。"
-    }
-  },
-  {
-    "id": "utils-char_art_creator",
-    "href": "utils/char_art_creator.html",
-    "icon": "../assets/icons/svg/utils-char_art_creator.svg",
-    "kind": "site",
-    "uninstallable": true,
-    "defaultInstalled": false,
-    "channel": "stable",
-    "tag": {
-      "en": "Text Art",
-      "pt": "Arte em Texto",
-      "ja": "テキストアート"
-    },
-    "name": {
-      "en": "Char-Art Creator",
-      "pt": "Criador de Char-Art",
-      "ja": "チャーアート作成"
-    },
-    "desc": {
-      "en": "Type a word or phrase and turn it into blocky char-art/ascii-art. Includes custom fill characters, spacing, outline mode, copy/download, multilingual UI, and light/dark themes.",
-      "pt": "Digite uma palavra ou frase e transforme em char-art/ascii-art em blocos. Inclui caractere personalizado, espaçamento, modo contorno, copiar/baixar, UI multilíngue e temas claro/escuro.",
-      "ja": "単語やフレーズを入力して、ブロック風のチャーアート/ASCIIアートに変換します。塗りつぶし文字、間隔、アウトライン、コピー/ダウンロード、多言語UI、ライト/ダークテーマに対応。"
-    }
-  },
-  {
-    "id": "utils-fake_data_generator",
-    "href": "utils/fake_data_generator.html",
-    "icon": "../assets/icons/svg/utils-fake_data_generator.svg",
-    "kind": "site",
-    "uninstallable": true,
-    "defaultInstalled": false,
-    "channel": "stable",
-    "tag": {
-      "en": "Utility",
-      "pt": "Utilitário",
-      "ja": "ユーティリティ"
-    },
-    "name": {
-      "en": "Fake Data Generator",
-      "pt": "Gerador de Dados Falsos",
-      "ja": "偽データジェネレーター"
-    },
-    "desc": {
-      "en": "Generate mock data for testing and development. Choose from various data types, locales, and output formats like JSON, CSV, SQL, and more.",
-      "pt": "Gere dados de simulação para testes e desenvolvimento. Escolha entre vários tipos de dados, localidades e formatos de saída como JSON, CSV, SQL e mais.",
-      "ja": "テストと開発用のモックデータを生成します。さまざまなデータ型、ロケール、およびJSON、CSV、SQLなどの出力形式から選択します。"
     }
   },
   {
@@ -1123,9 +955,9 @@ window.OSCatalog = (function () {
     }
   },
   {
-    "id": "utils-calculator",
-    "href": "utils/calculator.html",
-    "icon": "../assets/icons/svg/utils-calculator.svg",
+    "id": "utils-calculators",
+    "href": "utils/calculators.html",
+    "icon": "../assets/icons/svg/utils-calculators.svg",
     "kind": "site",
     "uninstallable": true,
     "defaultInstalled": true,
@@ -1136,62 +968,14 @@ window.OSCatalog = (function () {
       "ja": "ユーティリティ"
     },
     "name": {
-      "en": "Calculator",
-      "pt": "Calculadora",
-      "ja": "電卓"
+      "en": "Calculators",
+      "pt": "Calculadoras",
+      "ja": "計算機"
     },
     "desc": {
-      "en": "A 3-in-1 calculator with simple, sum, and expression modes. Features a modern UI with theme and language support.",
-      "pt": "Uma calculadora 3-em-1 com modos simples, de soma e de expressão. Apresenta uma UI moderna com suporte a temas e idiomas.",
-      "ja": "シンプル、合計、式の3つのモードを備えた3-in-1の電卓。テーマと言語をサポートするモダンなUIが特徴です。"
-    }
-  },
-  {
-    "id": "utils-timer",
-    "href": "utils/timer.html",
-    "icon": "../assets/icons/svg/utils-timer.svg",
-    "kind": "site",
-    "uninstallable": true,
-    "defaultInstalled": true,
-    "channel": "stable",
-    "tag": {
-      "en": "Utility",
-      "pt": "Utilitário",
-      "ja": "ユーティリティ"
-    },
-    "name": {
-      "en": "Clock & Timer",
-      "pt": "Relógio & Cronômetro",
-      "ja": "時計とタイマー"
-    },
-    "desc": {
-      "en": "A multi-function tool with a stopwatch, countdown timer, and a live clock. Supports multiple languages and light/dark themes.",
-      "pt": "Uma ferramenta multifuncional com cronômetro, temporizador de contagem regressiva e um relógio ao vivo. Suporta vários idiomas e temas claro/escuro.",
-      "ja": "ストップウォッチ、カウントダウンタイマー、ライブクロックを備えた多機能ツール。多言語とライト/ダークテーマをサポートします。"
-    }
-  },
-  {
-    "id": "utils-todo",
-    "href": "utils/todo.html",
-    "icon": "../assets/icons/svg/utils-todo.svg",
-    "kind": "site",
-    "uninstallable": true,
-    "defaultInstalled": true,
-    "channel": "stable",
-    "tag": {
-      "en": "Productivity",
-      "pt": "Produtividade",
-      "ja": "生産性"
-    },
-    "name": {
-      "en": "To-Do List",
-      "pt": "Lista de Tarefas",
-      "ja": "To-Doリスト"
-    },
-    "desc": {
-      "en": "Simple and elegant to-do list with task management, completion tracking, and multilingual UI support (EN/PT/JA).",
-      "pt": "Lista de tarefas simples e elegante com gerenciamento de tarefas, rastreamento de conclusão e suporte a UI multilíngue (EN/PT/JA).",
-      "ja": "タスク管理、完了追跡、多言語UIサポート（EN/PT/JA）を備えたシンプルでエレガントなTo-Doリスト。"
+      "en": "Simple, sum and expression calculators, a bandwidth calculator (MB/s and Mbps) and a bitwise converter with decimal, binary and hex, as tabs in one page.",
+      "pt": "Calculadoras simples, de soma e de expressões, calculadora de banda (MB/s e Mbps) e conversor bit a bit com decimal, binário e hexadecimal, em abas numa só página.",
+      "ja": "シンプル・合計・数式の計算機、帯域計算機（MB/s と Mbps）、10 進・2 進・16 進のビット変換を 1 ページのタブにまとめました。"
     }
   },
   {
@@ -1219,9 +1003,9 @@ window.OSCatalog = (function () {
     }
   },
   {
-    "id": "utils-notebook",
-    "href": "utils/notebook.html",
-    "icon": "../assets/icons/svg/utils-notebook.svg",
+    "id": "utils-docs",
+    "href": "utils/docs.html",
+    "icon": "../assets/icons/svg/utils-docs.svg",
     "kind": "site",
     "uninstallable": true,
     "defaultInstalled": true,
@@ -1232,38 +1016,14 @@ window.OSCatalog = (function () {
       "ja": "生産性"
     },
     "name": {
-      "en": "Notebook",
-      "pt": "Caderno",
-      "ja": "ノートブック"
+      "en": "Docs",
+      "pt": "Documentos",
+      "ja": "ドキュメント"
     },
     "desc": {
-      "en": "Hierarchical notebook with Project, Book, and Sheet organization. Features collapsible navigation, content search, IndexedDB persistence, and multilingual UI (EN/PT/JA).",
-      "pt": "Caderno hierárquico com organização em Projeto, Livro e Folha. Navegação colapsável, busca de conteúdo, persistência IndexedDB e UI multilíngue (EN/PT/JA).",
-      "ja": "プロジェクト、ブック、シートの階層構造を持つノートブック。折りたたみ可能なナビゲーション、コンテンツ検索、IndexedDB永続化、多言語UI（EN/PT/JA）を搭載。"
-    }
-  },
-  {
-    "id": "utils-markdown",
-    "href": "utils/markdown.html",
-    "icon": "../assets/icons/svg/utils-markdown.svg",
-    "kind": "site",
-    "uninstallable": true,
-    "defaultInstalled": true,
-    "channel": "stable",
-    "tag": {
-      "en": "Editor",
-      "pt": "Editor",
-      "ja": "エディタ"
-    },
-    "name": {
-      "en": "Markdown Editor",
-      "pt": "Editor Markdown",
-      "ja": "Markdown エディタ"
-    },
-    "desc": {
-      "en": "Hierarchical Markdown editor with Project, Book, and Document organization. Includes Edit, View, and split Edit/View modes, live preview, search, IndexedDB autosave, themes, and multilingual UI (EN/PT/JA).",
-      "pt": "Editor Markdown hierárquico com organização em Projeto, Livro e Documento. Inclui modos Editar, Ver e Editar/Ver dividido, prévia ao vivo, busca, autosave em IndexedDB, temas e UI multilíngue (EN/PT/JA).",
-      "ja": "プロジェクト、ブック、ドキュメント構造のMarkdownエディタ。編集、表示、分割の編集/表示モード、ライブプレビュー、検索、IndexedDB自動保存、テーマ、多言語UI（EN/PT/JA）を搭載。"
+      "en": "Markdown editor with preview and a plain-text notebook, both organized in projects, books and pages and saved in the browser.",
+      "pt": "Editor Markdown com pré-visualização e um caderno de texto simples, ambos organizados em projetos, livros e páginas e salvos no navegador.",
+      "ja": "プレビュー付きの Markdown エディタとプレーンテキストのノート。どちらもプロジェクト・ブック・ページで整理し、ブラウザに保存します。"
     },
     "multiInstance": true
   },
@@ -1313,6 +1073,30 @@ window.OSCatalog = (function () {
       "en": "Create multiple-choice questions with Project, Test, and Question hierarchy. Export/import JSON, export rendered TXT/HTML with or without answers, bilingual options, editable export CSS. IndexedDB storage, search (test/project/all).",
       "pt": "Crie perguntas de múltipla escolha com hierarquia Projeto, Teste e Pergunta. Exportar/importar JSON, exportar TXT/HTML renderizado com ou sem respostas, opções bilíngues, CSS de exportação editável. Armazenamento IndexedDB, busca (teste/projeto/tudo).",
       "ja": "プロジェクト・テスト・質問の階層で多肢選択問題を作成。JSONのエクスポート/インポート、回答あり/なしのTXT/HTML出力、二言語対応、出力用CSS編集可能。IndexedDB保存、検索（テスト/プロジェクト/全体）。"
+    }
+  },
+  {
+    "id": "utils-mouse_tester",
+    "href": "utils/mouse_tester.html",
+    "icon": "../assets/icons/svg/utils-mouse_tester.svg",
+    "kind": "site",
+    "uninstallable": true,
+    "defaultInstalled": false,
+    "channel": "stable",
+    "tag": {
+      "en": "Hardware",
+      "pt": "Hardware",
+      "ja": "ハードウェア"
+    },
+    "name": {
+      "en": "Mouse Tester",
+      "pt": "Testador de Mouse",
+      "ja": "マウステスター"
+    },
+    "desc": {
+      "en": "Test every mouse button live, including left, middle, right, Button 3 (Back), Button 4 (Forward), and scroll-wheel movement. Events are counted and logged instantly.",
+      "pt": "Teste todos os botões do mouse ao vivo: esquerdo, meio, direito, Botão 3 (Voltar), Botão 4 (Avançar) e a roda de rolagem. Os eventos são contados e registrados na hora.",
+      "ja": "左・中央・右ボタン、ボタン3（戻る）、ボタン4（進む）、スクロールホイールをリアルタイムでテストします。イベントはすぐにカウント・記録されます。"
     }
   },
   {
@@ -1388,102 +1172,6 @@ window.OSCatalog = (function () {
     }
   },
   {
-    "id": "utils-password_generator",
-    "href": "utils/password_generator.html",
-    "icon": "../assets/icons/svg/utils-password_generator.svg",
-    "kind": "site",
-    "uninstallable": true,
-    "defaultInstalled": true,
-    "channel": "stable",
-    "tag": {
-      "en": "Security",
-      "pt": "Segurança",
-      "ja": "セキュリティ"
-    },
-    "name": {
-      "en": "Password Generator",
-      "pt": "Gerador de Senhas",
-      "ja": "パスワード生成ツール"
-    },
-    "desc": {
-      "en": "Generate strong, random passwords with customizable options, or create \"hacker-style\" passwords from a word. Supports multiple languages and themes.",
-      "pt": "Gere senhas fortes e aleatórias com opções personalizáveis ou crie senhas no \"estilo hacker\" a partir de uma palavra. Suporta vários idiomas e temas.",
-      "ja": "カスタマイズ可能なオプションで強力なランダムパスワードを生成するか、単語から「ハッカースタイル」のパスワードを作成します。多言語とテーマをサポートします。"
-    }
-  },
-  {
-    "id": "utils-forex_times",
-    "href": "utils/forex_times.html",
-    "icon": "../assets/icons/svg/utils-forex_times.svg",
-    "kind": "site",
-    "uninstallable": true,
-    "defaultInstalled": false,
-    "channel": "stable",
-    "tag": {
-      "en": "Finance",
-      "pt": "Finanças",
-      "ja": "金融"
-    },
-    "name": {
-      "en": "Forex Times",
-      "pt": "Horários Forex",
-      "ja": "フォレックス時間"
-    },
-    "desc": {
-      "en": "Real-time Forex market times display with Tokyo, London, and New York markets. Shows local time, server time, and hours to open/close for each market. Features multilingual UI (EN/PT/JA) and theme support.",
-      "pt": "Exibição em tempo real dos horários dos mercados Forex de Tóquio, Londres e Nova York. Mostra hora local, hora do servidor e horas para abrir/fechar cada mercado. Apresenta interface multilíngue (EN/PT/JA) e suporte a temas.",
-      "ja": "東京、ロンドン、ニューヨーク市場のリアルタイムフォレックス市場時間表示。各市場の現地時間、サーバー時間、開場/閉場までの時間を表示。多言語UI（EN/PT/JA）とテーマサポートを特徴とします。"
-    }
-  },
-  {
-    "id": "utils-world_clocks",
-    "href": "utils/world_clocks.html",
-    "icon": "../assets/icons/svg/utils-world_clocks.svg",
-    "kind": "site",
-    "uninstallable": true,
-    "defaultInstalled": false,
-    "channel": "stable",
-    "tag": {
-      "en": "Utility",
-      "pt": "Utilitário",
-      "ja": "ユーティリティ"
-    },
-    "name": {
-      "en": "World Clocks",
-      "pt": "Relógios Mundiais",
-      "ja": "世界時計"
-    },
-    "desc": {
-      "en": "Display multiple world clocks with timezone search, autocomplete, and real-time updates. Features multilingual UI (EN/PT/JA), theme support, and persistent clock configurations.",
-      "pt": "Exiba múltiplos relógios mundiais com pesquisa de fuso horário, preenchimento automático e atualizações em tempo real. Apresenta interface multilíngue (EN/PT/JA), suporte a temas e configurações persistentes de relógio.",
-      "ja": "タイムゾーン検索、オートコンプリート、リアルタイム更新を備えた複数の世界時計を表示。多言語UI（EN/PT/JA）、テーマサポート、永続的な時計設定を特徴とします。"
-    }
-  },
-  {
-    "id": "utils-bitwise_converter",
-    "href": "utils/bitwise_converter.html",
-    "icon": "../assets/icons/svg/utils-bitwise_converter.svg",
-    "kind": "site",
-    "uninstallable": true,
-    "defaultInstalled": true,
-    "channel": "stable",
-    "tag": {
-      "en": "Utility",
-      "pt": "Utilitário",
-      "ja": "ユーティリティ"
-    },
-    "name": {
-      "en": "Bitwise Converter",
-      "pt": "Conversor Bitwise",
-      "ja": "ビット演算コンバーター"
-    },
-    "desc": {
-      "en": "Interactive bitwise operations converter with decimal, binary, and hexadecimal representations. Features checkboxes for bit manipulation, multilingual UI (EN/PT/JA), and theme support.",
-      "pt": "Conversor interativo de operações bitwise com representações decimal, binária e hexadecimal. Apresenta caixas de seleção para manipulação de bits, interface multilíngue (EN/PT/JA) e suporte a temas.",
-      "ja": "10進数、2進数、16進数の表現を持つインタラクティブなビット演算コンバーター。ビット操作用のチェックボックス、多言語UI（EN/PT/JA）、テーマサポートを特徴とします。"
-    }
-  },
-  {
     "id": "utils-prompt_concat",
     "href": "utils/prompt_concat.html",
     "icon": "../assets/icons/svg/utils-prompt_concat.svg",
@@ -1532,78 +1220,6 @@ window.OSCatalog = (function () {
     }
   },
   {
-    "id": "utils-time_diff",
-    "href": "utils/time_diff.html",
-    "icon": "../assets/icons/svg/utils-time_diff.svg",
-    "kind": "site",
-    "uninstallable": true,
-    "defaultInstalled": false,
-    "channel": "stable",
-    "tag": {
-      "en": "Utility",
-      "pt": "Utilitário",
-      "ja": "ユーティリティ"
-    },
-    "name": {
-      "en": "Time Difference Calculator",
-      "pt": "Calculadora de Diferença de Tempo",
-      "ja": "時間差計算機"
-    },
-    "desc": {
-      "en": "Calculate time differences between two dates with results in hours and minutes, total minutes, and total seconds. Features multilingual UI (EN/PT/JA) and theme support.",
-      "pt": "Calcule diferenças de tempo entre duas datas com resultados em horas e minutos, total de minutos e total de segundos. Apresenta interface multilíngue (EN/PT/JA) e suporte a temas.",
-      "ja": "2つの日付間の時間差を計算し、時間と分、合計分、合計秒で結果を表示します。多言語UI（EN/PT/JA）とテーマサポートを特徴とします。"
-    }
-  },
-  {
-    "id": "utils-time_sum",
-    "href": "utils/time_sum.html",
-    "icon": "../assets/icons/svg/utils-time_sum.svg",
-    "kind": "site",
-    "uninstallable": true,
-    "defaultInstalled": false,
-    "channel": "stable",
-    "tag": {
-      "en": "Utility",
-      "pt": "Utilitário",
-      "ja": "ユーティリティ"
-    },
-    "name": {
-      "en": "Time Sum",
-      "pt": "Somador de Tempo",
-      "ja": "時間合計"
-    },
-    "desc": {
-      "en": "Add up durations typed freely in MM:SS or HH:MM:SS, one per line. Shows a running total per line, auto-formats entries to HH:MM:SS, and supports subtraction.",
-      "pt": "Some durações digitadas livremente em MM:SS ou HH:MM:SS, uma por linha. Mostra o total acumulado por linha, formata automaticamente para HH:MM:SS e permite subtração.",
-      "ja": "MM:SS または HH:MM:SS 形式で1行ずつ自由に入力した時間を合計します。行ごとの累計表示、HH:MM:SS への自動整形、減算に対応。"
-    }
-  },
-  {
-    "id": "utils-band_calc",
-    "href": "utils/band_calc.html",
-    "icon": "../assets/icons/svg/utils-band_calc.svg",
-    "kind": "site",
-    "uninstallable": true,
-    "defaultInstalled": false,
-    "channel": "stable",
-    "tag": {
-      "en": "Utility",
-      "pt": "Utilitário",
-      "ja": "ユーティリティ"
-    },
-    "name": {
-      "en": "Bandwidth Calculator",
-      "pt": "Calculadora de Banda",
-      "ja": "帯域幅計算機"
-    },
-    "desc": {
-      "en": "Calculate data transfer rates in MB/s and Mbps based on size and time.",
-      "pt": "Calcule as taxas de transferência de dados em MB/s e Mbps com base no tamanho e no tempo.",
-      "ja": "サイズと時間に基づいて、MB/s および Mbps のデータ転送速度を計算します。"
-    }
-  },
-  {
     "id": "utils-paste_canvas",
     "href": "utils/paste_canvas.html",
     "icon": "../assets/icons/svg/utils-paste_canvas.svg",
@@ -1632,7 +1248,7 @@ window.OSCatalog = (function () {
     "href": "utils/backup.html",
     "icon": "../assets/icons/svg/utils-backup.svg",
     "kind": "site",
-    "uninstallable": true,
+    "uninstallable": false,
     "defaultInstalled": true,
     "channel": "stable",
     "tag": {
@@ -1649,30 +1265,31 @@ window.OSCatalog = (function () {
       "en": "Export all localStorage and IndexedDB data as a single JSON backup file. Restore from a backup to migrate data between browsers or devices. Supports merge and full replace modes. Handles binary data (Blobs, ArrayBuffers).",
       "pt": "Exporte todos os dados do localStorage e IndexedDB como um único arquivo JSON de backup. Restaure a partir de um backup para migrar dados entre navegadores ou dispositivos. Suporta modos de mesclagem e substituição total. Trata dados binários (Blobs, ArrayBuffers).",
       "ja": "localStorageとIndexedDBの全データを1つのJSONバックアップファイルとしてエクスポート。バックアップから復元してブラウザやデバイス間でデータを移行。マージと完全置換モードに対応。バイナリデータ（Blob、ArrayBuffer）も処理可能。"
-    }
+    },
+    "settingsPane": "backup"
   },
   {
-    "id": "game-story-studio",
-    "href": "game/story-studio/index.html",
-    "icon": "../assets/icons/svg/game-story-studio.svg",
+    "id": "game-range-club",
+    "href": "game/range-club/index.html",
+    "icon": "../assets/icons/svg/game-range-club.svg",
     "kind": "site",
     "uninstallable": true,
     "defaultInstalled": false,
     "channel": "stable",
     "tag": {
-      "en": "3D Storyteller",
-      "pt": "3Dストーリー",
-      "ja": "Contador 3D"
+      "en": "3D Shooting Range",
+      "pt": "Stand de tiro 3D",
+      "ja": "3D射撃場"
     },
     "name": {
-      "en": "Story Studio",
-      "pt": "Story Studio",
-      "ja": "Story Studio"
+      "en": "Range Club",
+      "pt": "Range Club",
+      "ja": "Range Club"
     },
     "desc": {
-      "en": "Watch short 3D films, then take them apart: characters, objects, sets and the story itself are all editable JSON you can export, change and import back.",
-      "pt": "短い3D映画を観て、そのまま分解できます。登場人物も物体も舞台も物語そのものも、書き出して直して読み込み直せるJSONです。",
-      "ja": "Assista a pequenos filmes 3D e depois desmonte-os: personagens, objetos, cenários e a própria história são JSON editável que você exporta, altera e importa de volta."
+      "en": "A detailed 3D shooting range with woodland, outdoor and indoor environments, five weapons, custom photo targets, wind and weapon sway. Play freely or earn credits in a 12-stage tournament.",
+      "pt": "Stand 3D detalhado com bosque, campo aberto e ambiente interno, cinco armas, alvos com suas fotos, vento e balanço. Jogue livremente ou ganhe créditos em um torneio de 12 etapas.",
+      "ja": "森林・草原・屋内の3D射撃場。5種類の武器、写真付き標的、風と揺れを再現。自由に遊ぶか、全12ステージの大会でクレジットを獲得できます。"
     }
   },
   {
@@ -1697,6 +1314,30 @@ window.OSCatalog = (function () {
       "en": "First-person 3D sandbox: punch trees, craft tools, mine stone and ore, place blocks, and explore a voxel world with visible arms.",
       "pt": "Sandbox 3D em primeira pessoa: quebre árvores, crie ferramentas, mine pedra e minério, coloque blocos e explore um mundo voxel com os braços visíveis.",
       "ja": "一人称の3Dサンドボックス。木を切り、道具を作り、石と鉱石を掘り、ブロックを置いて、腕の見えるボクセル世界を探検します。"
+    }
+  },
+  {
+    "id": "game-sculpt-lab",
+    "href": "game/sculpt-lab/index.html",
+    "icon": "../assets/icons/svg/game-sculpt-lab.svg",
+    "kind": "site",
+    "uninstallable": true,
+    "defaultInstalled": false,
+    "channel": "stable",
+    "tag": {
+      "en": "3D Sculpting",
+      "pt": "Escultura 3D",
+      "ja": "3Dスカルプト"
+    },
+    "name": {
+      "en": "Orbit Sculpt Lab",
+      "pt": "Orbit Sculpt Lab",
+      "ja": "Orbit Sculpt Lab"
+    },
+    "desc": {
+      "en": "Sculpt and paint a sphere or box in Three.js with Clay, Inflate, Grab, Smooth, and Paint tools. Save projects in IndexedDB, import/export JSON, or export the colored mesh as GLB.",
+      "pt": "Escale e pinte uma esfera ou caixa em Three.js com ferramentas Clay, Inflar, Puxar, Suavizar e Pintar. Salve projetos no IndexedDB, importe/exporte JSON ou exporte a malha colorida como GLB.",
+      "ja": "Three.jsで球体やボックスを造形・ペイントできます。Clay、膨張、引っ張り、スムーズ、ペイントを搭載し、IndexedDBへの保存、JSON入出力、色付きGLB出力に対応。"
     }
   },
   {
@@ -2780,51 +2421,27 @@ window.OSCatalog = (function () {
     }
   },
   {
-    "id": "misc-spin2",
-    "href": "misc/spin2.html",
-    "icon": "../assets/icons/svg/misc-spin2.svg",
+    "id": "misc-spin_lab",
+    "href": "misc/spin_lab.html",
+    "icon": "../assets/icons/svg/misc-spin_lab.svg",
     "kind": "site",
     "uninstallable": true,
     "defaultInstalled": true,
     "channel": "stable",
     "tag": {
-      "en": "Sandbox",
-      "pt": "Sandbox",
-      "ja": "サンドボックス"
+      "en": "Physics",
+      "pt": "Física",
+      "ja": "物理"
     },
     "name": {
-      "en": "Hexagon Spin — p5.js",
-      "pt": "Giro de Hexágono — p5.js",
-      "ja": "六角形スピン — p5.js"
+      "en": "Spin Lab",
+      "pt": "Laboratório Giratório",
+      "ja": "スピンラボ"
     },
     "desc": {
-      "en": "p5.js multi-ball sandbox with collisions, rotating walls, trails and extensive controls.",
-      "pt": "Sandbox multi-bola em p5.js com colisões, paredes giratórias, rastros e controles extensivos.",
-      "ja": "衝突、回転壁、軌跡、豊富なコントロールを備えたp5.jsマルチボールサンドボックス。"
-    }
-  },
-  {
-    "id": "misc-spin3",
-    "href": "misc/spin3.html",
-    "icon": "../assets/icons/svg/misc-spin3.svg",
-    "kind": "site",
-    "uninstallable": true,
-    "defaultInstalled": true,
-    "channel": "stable",
-    "tag": {
-      "en": "Sandbox",
-      "pt": "Sandbox",
-      "ja": "サンドボックス"
-    },
-    "name": {
-      "en": "Spinning Hexagon Physics",
-      "pt": "Física de Hexágono Giratório",
-      "ja": "回転六角形物理"
-    },
-    "desc": {
-      "en": "Alternate physics sketch with numerous UI sliders (balls, gravity, trails, blur) and pause/reset.",
-      "pt": "Esboço de física alternativo com vários controles deslizantes de UI (bolas, gravidade, rastros, desfoque) e pausa/reset.",
-      "ja": "多数のUIスライダー（ボール、重力、軌跡、ぼかし）と一時停止/リセットを備えた代替物理スケッチ。"
+      "en": "Balls bouncing inside a spinning hexagon in three versions: one ball, a many-ball sandbox, and a tuner with sliders for every parameter.",
+      "pt": "Bolas quicando dentro de um hexágono giratório, em três versões: uma bola, uma sandbox com várias bolas e um ajuste com controles para cada parâmetro.",
+      "ja": "回転する六角形の中で跳ねるボールを 3 つの版で。ボール 1 個、たくさんのボールのサンドボックス、全パラメータを調整できる版。"
     }
   },
   {
@@ -2852,123 +2469,51 @@ window.OSCatalog = (function () {
     }
   },
   {
-    "id": "misc-nebula",
-    "href": "misc/nebula.html",
-    "icon": "../assets/icons/svg/misc-nebula.svg",
+    "id": "misc-nebula_lab",
+    "href": "misc/nebula_lab.html",
+    "icon": "../assets/icons/svg/misc-nebula_lab.svg",
     "kind": "site",
     "uninstallable": true,
     "defaultInstalled": true,
     "channel": "stable",
     "tag": {
-      "en": "Physics",
-      "pt": "Física",
-      "ja": "物理"
+      "en": "Simulation",
+      "pt": "Simulação",
+      "ja": "シミュレーション"
     },
     "name": {
-      "en": "Nebula / Stars",
-      "pt": "Nebulosa / Estrelas",
-      "ja": "星雲・恒星"
+      "en": "Nebula Lab",
+      "pt": "Laboratório Nebulosa",
+      "ja": "ネビュララボ"
     },
     "desc": {
-      "en": "Gravity + links between nearby stars, with controls and interaction. Multilingual (EN/PT/JA).",
-      "pt": "Gravidade + links entre estrelas próximas, com controles e interação. Multilíngue (EN/PT/JA).",
-      "ja": "重力＋近くの星同士をリンク。操作・インタラクション付き。多言語（EN/PT/JA）。"
+      "en": "Gravity and star-link playgrounds: Nebula 2 with physics, visual and tool panels, and the original Nebula.",
+      "pt": "Simulações de gravidade e ligações entre estrelas: Nebula 2, com painéis de física, visual e ferramentas, e a Nebula original.",
+      "ja": "重力と星のリンクで遊ぶシミュレーション。物理・表示・ツールのパネルがある Nebula 2 と、元の Nebula。"
     }
   },
   {
-    "id": "misc-nebula2",
-    "href": "misc/nebula2.html",
-    "icon": "../assets/icons/svg/misc-nebula2.svg",
+    "id": "misc-vision_labs",
+    "href": "misc/vision_labs.html",
+    "icon": "../assets/icons/svg/misc-vision_labs.svg",
     "kind": "site",
     "uninstallable": true,
     "defaultInstalled": true,
     "channel": "stable",
     "tag": {
-      "en": "Physics",
-      "pt": "Física",
-      "ja": "物理"
+      "en": "Webcam",
+      "pt": "Webcam",
+      "ja": "ウェブカメラ"
     },
     "name": {
-      "en": "Nebula 2.0",
-      "pt": "Nebula 2.0",
-      "ja": "星雲 2.0"
+      "en": "Vision Labs",
+      "pt": "Laboratórios de Visão",
+      "ja": "ビジョンラボ"
     },
     "desc": {
-      "en": "Advanced gravity playground: 6 themes, 7 formations, 6 tool modes, star merging, supernovae, black hole, boundary options, and screenshot. Multilingual (EN/PT/JA).",
-      "pt": "Simulador de gravidade avançado: 6 temas, 7 formações, 6 modos de ferramenta, fusão estelar, supernovas, buraco negro, modos de borda e screenshot. Multilíngue (EN/PT/JA).",
-      "ja": "高度な重力シミュレーター：6テーマ、7フォーメーション、6ツールモード、星の合体、超新星、ブラックホール、境界設定、スクリーンショット対応。多言語（EN/PT/JA）。"
-    }
-  },
-  {
-    "id": "misc-vision_motion_lab",
-    "href": "misc/vision_motion_lab.html",
-    "icon": "../assets/icons/svg/misc-vision_motion_lab.svg",
-    "kind": "site",
-    "uninstallable": true,
-    "defaultInstalled": true,
-    "channel": "stable",
-    "tag": {
-      "en": "Vision",
-      "pt": "Visão",
-      "ja": "ビジョン"
-    },
-    "name": {
-      "en": "Vision Motion Lab",
-      "pt": "Vision Motion Lab",
-      "ja": "Vision Motion Lab"
-    },
-    "desc": {
-      "en": "Real-time MediaPipe webcam lab with hand, pose, face, combined, and presentation-control modes. Multilingual UI in EN/PT/JA.",
-      "pt": "Laboratório de webcam em tempo real com MediaPipe para mão, pose, rosto, modo combinado e controle de apresentação. UI multilíngue em EN/PT/JA.",
-      "ja": "手・姿勢・顔・複合・プレゼン操作モードを備えた、MediaPipe ウェブカメラのリアルタイム実験ページ。UI は EN/PT/JA 対応。"
-    }
-  },
-  {
-    "id": "misc-eye_gaze_control",
-    "href": "misc/eye_gaze_control.html",
-    "icon": "../assets/icons/svg/misc-eye_gaze_control.svg",
-    "kind": "site",
-    "uninstallable": true,
-    "defaultInstalled": false,
-    "channel": "stable",
-    "tag": {
-      "en": "Vision",
-      "pt": "Visão",
-      "ja": "ビジョン"
-    },
-    "name": {
-      "en": "Eye Gaze Control",
-      "pt": "Controle por Olhar",
-      "ja": "視線コントロール"
-    },
-    "desc": {
-      "en": "Head pose + iris tracking to control a cursor, a dwell-based numeric keypad, a laser-eye effect, and a gaze-following orb. Multilingual EN/PT/JA.",
-      "pt": "Pose da cabeça + rastreamento de íris para cursor, teclado numérico por tempo de olhar, efeito de laser nos olhos e orbe que segue o olhar. EN/PT/JA.",
-      "ja": "頭部姿勢と瞳孔追跡でカーソル操作・視線テンキー・レーザーアイ・視線オーブを実現。EN/PT/JA 対応。"
-    }
-  },
-  {
-    "id": "misc-plasma_ball_lab",
-    "href": "misc/plasma_ball_lab.html",
-    "icon": "../assets/icons/svg/misc-plasma_ball_lab.svg",
-    "kind": "site",
-    "uninstallable": true,
-    "defaultInstalled": true,
-    "channel": "stable",
-    "tag": {
-      "en": "Vision",
-      "pt": "Visão",
-      "ja": "ビジョン"
-    },
-    "name": {
-      "en": "Plasma Ball Lab",
-      "pt": "Plasma Ball Lab",
-      "ja": "Plasma Ball Lab"
-    },
-    "desc": {
-      "en": "Camera-driven plasma globe simulation reacting to hand proximity, with configurable colors, glow, and two-hand interaction.",
-      "pt": "Simulação de globo de plasma guiada pela câmera e reagindo à proximidade da mão, com cores, glow e interação com duas mãos configuráveis.",
-      "ja": "手の近さに反応するカメラ駆動のプラズマ球シミュレーション。色、グロー、両手インタラクションを調整できます。"
+      "en": "Webcam experiments with hand, face and pose tracking: motion lab with a gesture presentation mode, eye-gaze cursor and keypad, and a hand-driven plasma globe.",
+      "pt": "Experimentos com webcam e rastreamento de mãos, rosto e corpo: laboratório de movimento com modo de apresentação por gestos, cursor e teclado pelo olhar, e um globo de plasma guiado pela mão.",
+      "ja": "手・顔・姿勢の追跡を使ったウェブカメラ実験。ジェスチャーでのプレゼンモード付きモーションラボ、視線カーソルとキーパッド、手で操るプラズマボール。"
     }
   },
   {
@@ -3020,102 +2565,6 @@ window.OSCatalog = (function () {
     }
   },
   {
-    "id": "utils-whiteboard_google",
-    "href": "utils/whiteboard_google.html",
-    "icon": "../assets/icons/svg/utils-whiteboard_google.svg",
-    "kind": "site",
-    "uninstallable": true,
-    "defaultInstalled": false,
-    "channel": "beta",
-    "tag": {
-      "en": "Canvas",
-      "pt": "Canvas",
-      "ja": "キャンバス"
-    },
-    "name": {
-      "en": "Whiteboard (Gemini, alt)",
-      "pt": "Quadro Branco (Gemini, alt)",
-      "ja": "ホワイトボード (Gemini, alt)"
-    },
-    "desc": {
-      "en": "Alternate single-file whiteboard variant. Created by Gemini.",
-      "pt": "Variante alternativa de quadro branco em arquivo único. Criado por Gemini.",
-      "ja": "代替の単一ファイルホワイトボードバリアント。Geminiによって作成。"
-    }
-  },
-  {
-    "id": "utils-whiteboard_gpt",
-    "href": "utils/whiteboard_gpt.html",
-    "icon": "../assets/icons/svg/utils-whiteboard_gpt.svg",
-    "kind": "site",
-    "uninstallable": true,
-    "defaultInstalled": false,
-    "channel": "beta",
-    "tag": {
-      "en": "Canvas",
-      "pt": "Canvas",
-      "ja": "キャンバス"
-    },
-    "name": {
-      "en": "Whiteboard (GPT-5)",
-      "pt": "Quadro Branco (GPT-5)",
-      "ja": "ホワイトボード (GPT-5)"
-    },
-    "desc": {
-      "en": "Single-file whiteboard with polished UI/UX, selection, stamps and paste. Created by GPT-5.",
-      "pt": "Quadro branco em arquivo único com UI/UX polido, seleção, carimbos e colar. Criado por GPT-5.",
-      "ja": "洗練されたUI/UX、選択、スタンプ、貼り付け機能を備えた単一ファイルホワイトボード。GPT-5によって作成。"
-    }
-  },
-  {
-    "id": "utils-pixel1",
-    "href": "utils/pixel1.html",
-    "icon": "../assets/icons/svg/utils-pixel1.svg",
-    "kind": "site",
-    "uninstallable": true,
-    "defaultInstalled": false,
-    "channel": "beta",
-    "tag": {
-      "en": "Canvas",
-      "pt": "Canvas",
-      "ja": "キャンバス"
-    },
-    "name": {
-      "en": "Pixel Art Editor (Vintage)",
-      "pt": "Editor de Pixel Art (Vintage)",
-      "ja": "ピクセルアートエディタ（ヴィンテージ）"
-    },
-    "desc": {
-      "en": "Retro-styled pixel editor with palette, grid size control and PNG export. Multilingual UI.",
-      "pt": "Editor de pixel estilo retrô com paleta, controle de tamanho de grade e exportação de PNG. UI multilíngue.",
-      "ja": "パレット、グリッドサイズ制御、PNGエクスポートを備えたレトロスタイルのピクセルエディタ。多言語UI。"
-    }
-  },
-  {
-    "id": "utils-pixel2",
-    "href": "utils/pixel2.html",
-    "icon": "../assets/icons/svg/utils-pixel2.svg",
-    "kind": "site",
-    "uninstallable": true,
-    "defaultInstalled": false,
-    "channel": "beta",
-    "tag": {
-      "en": "Canvas",
-      "pt": "Canvas",
-      "ja": "キャンバス"
-    },
-    "name": {
-      "en": "Pixel Art Editor (Modern)",
-      "pt": "Editor de Pixel Art (Moderno)",
-      "ja": "ピクセルアートエディタ（モダン）"
-    },
-    "desc": {
-      "en": "Modern pixel editor with brush/eraser/select, image import with palette match, and PNG export.",
-      "pt": "Editor de pixel moderno com pincel/borracha/seleção, importação de imagem com correspondência de paleta e exportação de PNG.",
-      "ja": "ブラシ/消しゴム/選択、パレット一致による画像インポート、PNGエクスポートを備えたモダンピクセルエディタ。"
-    }
-  },
-  {
     "id": "utils-video_trimmer",
     "href": "utils/video_trimmer.html",
     "icon": "../assets/icons/svg/utils-video_trimmer.svg",
@@ -3140,27 +2589,27 @@ window.OSCatalog = (function () {
     }
   },
   {
-    "id": "utils-code_flow",
-    "href": "utils/code_flow.html",
-    "icon": "../assets/icons/svg/utils-code_flow.svg",
+    "id": "utils-code_lab",
+    "href": "utils/code_lab.html",
+    "icon": "../assets/icons/svg/utils-code_lab.svg",
     "kind": "site",
     "uninstallable": true,
     "defaultInstalled": false,
     "channel": "beta",
     "tag": {
-      "en": "Development",
-      "pt": "Desenvolvimento",
-      "ja": "開発"
+      "en": "Developer",
+      "pt": "Desenvolvedor",
+      "ja": "開発者"
     },
     "name": {
-      "en": "Code Flowchart Generator",
-      "pt": "Gerador de Fluxograma de Código",
-      "ja": "コードフローチャートジェネレーター"
+      "en": "Code Lab",
+      "pt": "Laboratório de Código",
+      "ja": "コードラボ"
     },
     "desc": {
-      "en": "Convert JavaScript code to visual flowcharts using Monaco editor and Mermaid. Supports if/else, loops, function calls, and console.log. Features multilingual UI and localStorage persistence.",
-      "pt": "Use o Monaco Editor e o Mermaid para converter código JavaScript em fluxogramas visuais. Suporta if/else, loops, chamadas de função e console.log. Apresenta interface multilíngue e persistência no localStorage.",
-      "ja": "MonacoエディタとMermaidを使用してJavaScriptコードを視覚的なフローチャートに変換します。if/else、ループ、関数呼び出し、およびconsole.logをサポート。多言語UIとlocalStorageの永続性を特徴とします。"
+      "en": "Run JavaScript offline in a sandbox with canvas and console, or turn JavaScript into a Mermaid flowchart.",
+      "pt": "Executa JavaScript offline numa sandbox com canvas e console, ou transforma JavaScript num fluxograma Mermaid.",
+      "ja": "キャンバスとコンソール付きのサンドボックスで JavaScript をオフライン実行したり、Mermaid のフローチャートに変換したりします。"
     }
   },
   {
@@ -3260,30 +2709,6 @@ window.OSCatalog = (function () {
     }
   },
   {
-    "id": "misc-spin1",
-    "href": "misc/spin1.html",
-    "icon": "../assets/icons/svg/misc-spin1.svg",
-    "kind": "site",
-    "uninstallable": true,
-    "defaultInstalled": false,
-    "channel": "beta",
-    "tag": {
-      "en": "Physics",
-      "pt": "Física",
-      "ja": "物理"
-    },
-    "name": {
-      "en": "Ball in Rotating Hexagon",
-      "pt": "Bola em Hexágono Giratório",
-      "ja": "回転する六角形の中のボール"
-    },
-    "desc": {
-      "en": "Single-ball physics demo inside a spinning hexagon. Tweak spin, elasticity, friction, gravity and size.",
-      "pt": "Demonstração de física de uma única bola dentro de um hexágono giratório. Ajuste o giro, elasticidade, atrito, gravidade e tamanho.",
-      "ja": "回転する六角形の中の単一ボール物理デモ。スピン、弾性、摩擦、重力、サイズを調整。"
-    }
-  },
-  {
     "id": "game-ufo-tank-shooter-3d",
     "href": "game/ufo-tank-shooter-3d.html",
     "icon": "../assets/icons/svg/game-ufo-tank-shooter-3d.svg",
@@ -3357,54 +2782,6 @@ window.OSCatalog = (function () {
     "multiInstance": true
   },
   {
-    "id": "utils-code_runner",
-    "href": "utils/code_runner.html",
-    "icon": "../assets/icons/svg/utils-code_runner.svg",
-    "kind": "site",
-    "uninstallable": true,
-    "defaultInstalled": false,
-    "channel": "alpha",
-    "tag": {
-      "en": "Development",
-      "pt": "Desenvolvimento",
-      "ja": "開発"
-    },
-    "name": {
-      "en": "JS Code Runner",
-      "pt": "JS Code Runner",
-      "ja": "JS コードランナー"
-    },
-    "desc": {
-      "en": "Run JavaScript in a sandbox iframe with canvas and captured console. Multilingual UI (EN/PT/JA), light/dark theme, and code saved in localStorage.",
-      "pt": "Execute JavaScript num sandbox (iframe) com canvas e console capturado. Interface multilíngue (EN/PT/JA), tema claro/escuro e código guardado no localStorage.",
-      "ja": "iframeサンドボックスでJavaScriptを実行（canvas・console取得）。多言語UI（EN/PT/JA）、ライト/ダークテーマ、コードはlocalStorageに保存。"
-    }
-  },
-  {
-    "id": "utils-prompt_context",
-    "href": "utils/prompt_context.html",
-    "icon": "../assets/icons/svg/utils-prompt_context.svg",
-    "kind": "site",
-    "uninstallable": true,
-    "defaultInstalled": false,
-    "channel": "alpha",
-    "tag": {
-      "en": "Productivity",
-      "pt": "Produtividade",
-      "ja": "生産性"
-    },
-    "name": {
-      "en": "Prompt Context",
-      "pt": "Prompt Contexto",
-      "ja": "プロンプトコンテキスト"
-    },
-    "desc": {
-      "en": "Split text by --- into cards, auto-attach context when terms match. Copy individual or all cards. Uses URL hash to scope IndexedDB storage.",
-      "pt": "Divide texto por --- em cards, anexa contexto automaticamente quando termos combinam. Copie individual ou todos os cards. Usa o hash da URL para separar o IndexedDB.",
-      "ja": "テキストを---で分割してカードに表示し、用語が一致するとコンテキストを自動追加。個別または一括コピー可能。URLハッシュでIndexedDBストレージを切り替え。"
-    }
-  },
-  {
     "id": "utils-mindmap",
     "href": "utils/mindmap.html",
     "icon": "../assets/icons/svg/utils-mindmap.svg",
@@ -3450,30 +2827,6 @@ window.OSCatalog = (function () {
       "en": "Presentation editor with Project, Folder, Document structure. Slides support text, images, YouTube video, shapes and lines; fullscreen presentation mode; templates and zzSlideSystem for shared templates/backgrounds.",
       "pt": "Editor de apresentações com estrutura Projeto, Pasta, Documento. Slides suportam texto, imagens, vídeo YouTube, formas e linhas; modo apresentação em tela cheia; modelos e zzSlideSystem para templates e fundos compartilhados.",
       "ja": "プロジェクト、フォルダ、ドキュメント構造のプレゼンエディタ。スライドはテキスト、画像、YouTube動画、図形・線をサポート。全画面プレゼンモード、zzSlideSystemでテンプレート・背景を共有。"
-    }
-  },
-  {
-    "id": "utils-ps1",
-    "href": "utils/ps1.html",
-    "icon": "../assets/icons/svg/utils-ps1.svg",
-    "kind": "site",
-    "uninstallable": true,
-    "defaultInstalled": false,
-    "channel": "alpha",
-    "tag": {
-      "en": "Canvas",
-      "pt": "Canvas",
-      "ja": "キャンバス"
-    },
-    "name": {
-      "en": "Mini Photoshop",
-      "pt": "Mini Photoshop",
-      "ja": "ミニフォトショップ"
-    },
-    "desc": {
-      "en": "Single-file canvas editor with layers, blend modes, filters, brush/eraser, gradient, shapes and text.",
-      "pt": "Editor de canvas em arquivo único com camadas, modos de mesclagem, filtros, pincel/borracha, gradiente, formas e texto.",
-      "ja": "レイヤー、ブレンドモード、フィルター、ブラシ/消しゴム、グラデーション、シェイプ、テキストを備えた単一ファイルキャンバスエディタ。"
     }
   },
   {
@@ -3631,8 +2984,63 @@ window.OSCatalog = (function () {
     return USER_APPS.slice();
   }
 
+  // Old ids of pages that were merged into a tabbed page.
+  const ALIASES = {
+  "utils-timer": "utils-time_tools",
+  "utils-time_diff": "utils-time_tools",
+  "utils-time_sum": "utils-time_tools",
+  "utils-age_calculator": "utils-time_tools",
+  "utils-world_clocks": "utils-time_tools",
+  "utils-forex_times": "utils-time_tools",
+  "utils-calculator": "utils-calculators",
+  "utils-band_calc": "utils-calculators",
+  "utils-bitwise_converter": "utils-calculators",
+  "utils-regex_playground": "utils-dev_utils",
+  "utils-text_diff_studio": "utils-dev_utils",
+  "utils-fake_data_generator": "utils-dev_utils",
+  "utils-morse_code": "utils-dev_utils",
+  "utils-char_art_creator": "utils-dev_utils",
+  "utils-password_generator": "utils-dev_utils",
+  "utils-prompt_context": "utils-prompt_concat",
+  "utils-markdown": "utils-docs",
+  "utils-notebook": "utils-docs",
+  "utils-image_to_webp": "utils-pdf_image_tools",
+  "utils-images_to_pdf": "utils-pdf_image_tools",
+  "utils-pdf_toolbox": "utils-pdf_image_tools",
+  "utils-code_runner": "utils-code_lab",
+  "misc-code_runner": "utils-code_lab",
+  "utils-code_flow": "utils-code_lab",
+  "utils-todo": "utils-checklist",
+  "utils-ps1": "utils-photo_editor",
+  "utils-ps2": "utils-photo_editor",
+  "utils-sprint": "utils-pixel_studio",
+  "utils-pixel1": "utils-pixel_studio",
+  "utils-pixel2": "utils-pixel_studio",
+  "utils-whiteboard": "utils-whiteboards",
+  "utils-whiteboard_google": "utils-whiteboards",
+  "utils-whiteboard_gpt": "utils-whiteboards",
+  "misc-nebula": "misc-nebula_lab",
+  "misc-nebula2": "misc-nebula_lab",
+  "misc-spin1": "misc-spin_lab",
+  "misc-spin2": "misc-spin_lab",
+  "misc-spin3": "misc-spin_lab",
+  "misc-vision_motion_lab": "misc-vision_labs",
+  "misc-eye_gaze_control": "misc-vision_labs",
+  "misc-plasma_ball_lab": "misc-vision_labs"
+};
+
+  function resolveId(id) {
+    return Object.prototype.hasOwnProperty.call(ALIASES, id) ? ALIASES[id] : id;
+  }
+
   function byId(id) {
-    return APPS.find((app) => app.id === id) || USER_APPS.find((app) => app.id === id) || null;
+    const find = (key) => APPS.find((app) => app.id === key) || USER_APPS.find((app) => app.id === key) || null;
+    return find(id) || (id !== resolveId(id) ? find(resolveId(id)) : null);
+  }
+
+  // Site apps that belong to the desktop (for example Backup, shown inside Settings).
+  function systemSiteApps() {
+    return APPS.filter((app) => app.kind === "site" && app.uninstallable === false);
   }
 
   function siteApps() {
@@ -3690,7 +3098,10 @@ window.OSCatalog = (function () {
     return "../" + href;
   }
 
-  const DEFAULT_INSTALLED = ["utils-bitwise_converter", "utils-copy_tool", "utils-dev_utils", "utils-password_generator", "utils-todo", "utils-whiteboard", "utils-prompt_concat", "game-tower-defense", "misc-vision_motion_lab", "game-tower-defense-3d", "game-vehicle-bash-arena", "game-cube-bash-arena", "game-service-tycoon", "utils-terminal", "utils-text_diff_studio", "utils-regex_playground", "utils-pdf_toolbox", "utils-css_visual_lab", "utils-ps2", "utils-vector_editor", "utils-color_picker", "utils-local_image_gallery", "utils-image_to_webp", "utils-images_to_pdf", "utils-morse_code", "utils-gallery", "utils-kanban", "utils-calculator", "utils-timer", "utils-notebook", "utils-markdown", "utils-obsidian", "utils-audio_player", "utils-fullscreen_message", "utils-wheel_picker", "utils-backup", "game-voxelcraft", "game-forex_sim", "game-river-raid", "game-tetris1", "game-vision_tetris", "game-vision_balloon_ball", "game-vision_hand_pong", "game-game1", "game-2048-shooter", "game-ten-second-stop", "game-cube", "game-checkers", "game-chess", "game-game5", "game-snake", "game-flip", "game-morris", "game-pac-man", "game-space-invaders", "game-crossword", "game-word-search", "game-tic-tac-toe", "game-missile-command", "misc-fluid_lab", "misc-webcam_music_controller", "misc-spin2", "misc-spin3", "misc-robot_face", "misc-nebula", "misc-nebula2", "misc-plasma_ball_lab", "misc-logic_circuit", "game-roulette"];
+  const DEFAULT_INSTALLED = ["utils-calculators", "utils-copy_tool", "utils-dev_utils", "utils-checklist", "utils-whiteboards", "utils-prompt_concat", "game-tower-defense", "misc-vision_labs", "game-tower-defense-3d", "game-vehicle-bash-arena", "game-cube-bash-arena", "game-service-tycoon", "utils-terminal", "utils-pdf_image_tools", "utils-css_visual_lab", "utils-photo_editor", "utils-vector_editor", "utils-color_picker", "utils-local_image_gallery", "utils-gallery", "utils-kanban", "utils-time_tools", "utils-docs", "utils-obsidian", "utils-audio_player", "utils-fullscreen_message", "utils-wheel_picker", "utils-backup", "game-voxelcraft", "game-forex_sim", "game-river-raid", "game-tetris1", "game-vision_tetris", "game-vision_balloon_ball", "game-vision_hand_pong", "game-game1", "game-2048-shooter", "game-ten-second-stop", "game-cube", "game-checkers", "game-chess", "game-game5", "game-snake", "game-flip", "game-morris", "game-pac-man", "game-space-invaders", "game-crossword", "game-word-search", "game-tic-tac-toe", "game-missile-command", "misc-fluid_lab", "misc-webcam_music_controller", "misc-spin_lab", "misc-robot_face", "misc-nebula_lab", "misc-logic_circuit", "game-roulette"];
+
+  // Start menu "Recommended" row: { id, hash } in display order.
+  const START_RECOMMENDED = [{"id": "misc-vision_labs", "hash": ""}, {"id": "misc-nebula_lab", "hash": ""}, {"id": "utils-whiteboards", "hash": "main"}, {"id": "game-voxelcraft", "hash": ""}, {"id": "game-range-club", "hash": ""}];
 
   function installPackIds(pack) {
     if (pack === "all") return stableSiteApps().map((app) => app.id);
@@ -3700,8 +3111,12 @@ window.OSCatalog = (function () {
 
   return {
     APPS,
+    ALIASES,
     DEFAULT_INSTALLED,
+    START_RECOMMENDED,
     installPackIds,
+    systemSiteApps,
+    resolveId,
     byId,
     siteApps,
     nativeApps,

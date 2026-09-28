@@ -24,7 +24,7 @@
       --success: #3ddc97;
       --danger: #ff6b81;
       --shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
-      --radius: 22px;
+      --radius: 12px;
     }
 
     html[data-theme='light'] {
@@ -50,26 +50,28 @@
       box-sizing: border-box;
     }
 
+    html,
+    body {
+      height: 100%;
+    }
+
     body {
       margin: 0;
-      min-height: 100vh;
-      font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+      overflow: hidden;
+      font: 14px/1.4 "Segoe UI", "Helvetica Neue", Arial, "Hiragino Sans", "Noto Sans JP", sans-serif;
       color: var(--text);
       background:
         radial-gradient(circle at top left, var(--bg-glow-1), transparent 28%),
         radial-gradient(circle at top right, var(--bg-glow-2), transparent 24%),
         linear-gradient(180deg, var(--bg-top) 0%, var(--bg-bottom) 100%);
-      padding: 24px;
     }
 
     .shell {
-      max-width: 1180px;
-      margin: 0 auto;
+      height: 100%;
       display: grid;
-      gap: 20px;
+      grid-template-rows: auto minmax(0, 1fr);
     }
 
-    .hero,
     .panel {
       background: var(--panel);
       border: 1px solid var(--border);
@@ -78,92 +80,115 @@
       backdrop-filter: blur(12px);
     }
 
-    .hero {
-      padding: 28px;
-      display: grid;
-      gap: 16px;
+    .topbar {
+      height: 44px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0 8px 0 12px;
+      background: var(--panel-strong);
+      border-bottom: 1px solid var(--border);
+      min-width: 0;
     }
 
-    .hero-top {
+    .brand {
       display: flex;
-      justify-content: space-between;
       align-items: center;
-      gap: 16px;
-      flex-wrap: wrap;
+      gap: 8px;
+      min-width: 0;
+      font-size: 15px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .brand img {
+      width: 18px;
+      height: 18px;
+      flex: none;
+    }
+
+    .brand span {
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .toolbar {
       display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
+      gap: 6px;
       align-items: center;
+      margin-left: auto;
+      flex: none;
     }
 
-    .eyebrow {
-      display: inline-flex;
-      width: fit-content;
-      padding: 6px 12px;
-      border-radius: 999px;
-      font-size: 12px;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      color: var(--accent);
-      background: var(--accent-soft);
-      border: 1px solid rgba(71, 193, 255, 0.24);
+    .toolbar .select {
+      width: auto;
+      height: 30px;
+      padding: 0 6px;
+      border-radius: 6px;
+      font-size: 13px;
+      cursor: pointer;
     }
 
-    h1 {
-      margin: 0;
-      font-size: clamp(28px, 5vw, 52px);
-      line-height: 0.98;
-      letter-spacing: -0.04em;
-    }
-
-    .sub {
-      margin: 0;
-      color: var(--muted);
-      max-width: 760px;
-      font-size: 16px;
+    .icon-btn {
+      width: 30px;
+      height: 30px;
+      padding: 0;
+      display: inline-grid;
+      place-items: center;
+      border-radius: 6px;
+      font-size: 14px;
     }
 
     .workspace {
       display: grid;
-      grid-template-columns: minmax(0, 1.6fr) minmax(320px, 0.95fr);
-      gap: 20px;
+      grid-template-columns: minmax(0, 1fr) minmax(260px, 300px);
+      grid-template-rows: minmax(0, 1fr);
+      gap: 12px;
+      padding: 12px;
+      min-height: 0;
+      width: 100%;
+      max-width: 1400px;
+      margin: 0 auto;
     }
 
-    .panel {
-      padding: 20px;
+    .main-panel {
+      padding: 12px;
+      min-height: 0;
+      display: grid;
+      grid-template-rows: auto minmax(120px, 1fr) auto auto;
+      gap: 10px;
     }
 
     .upload-zone {
       position: relative;
       border: 1.5px dashed rgba(148, 163, 184, 0.35);
-      border-radius: 18px;
+      border-radius: 10px;
       background: linear-gradient(180deg, rgba(18, 26, 40, 0.9), rgba(12, 18, 28, 0.95));
-      padding: 22px;
-      display: grid;
+      padding: 6px 8px 6px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
       gap: 10px;
-      place-items: center;
-      text-align: center;
-      min-height: 170px;
-      transition: border-color 0.2s ease, transform 0.2s ease, background 0.2s ease;
+      min-height: 44px;
+      transition: border-color 0.2s ease, background 0.2s ease;
       cursor: pointer;
+    }
+
+    html[data-theme='light'] .upload-zone {
+      background: rgba(255, 255, 255, 0.7);
     }
 
     .upload-zone.dragover {
       border-color: var(--accent);
       background: linear-gradient(180deg, rgba(15, 41, 63, 0.95), rgba(10, 23, 34, 0.98));
-      transform: translateY(-1px);
     }
 
     .upload-zone strong {
-      font-size: 20px;
-    }
-
-    .upload-zone span {
-      color: var(--muted);
-      max-width: 500px;
+      font-size: 14px;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
     #videoInput {
@@ -171,53 +196,46 @@
     }
 
     .video-frame {
-      margin-top: 18px;
-      border-radius: 18px;
+      border-radius: 10px;
       overflow: hidden;
       background: #030712;
       border: 1px solid var(--border);
-      min-height: 220px;
+      min-height: 0;
       display: grid;
       place-items: center;
     }
 
     video {
       width: 100%;
-      max-height: 62vh;
+      height: 100%;
+      max-height: 100%;
+      object-fit: contain;
       background: #000;
       display: none;
     }
 
     .video-empty {
-      padding: 36px 20px;
+      padding: 16px;
       color: var(--muted);
       text-align: center;
-    }
-
-    .control-grid {
-      margin-top: 18px;
-      display: grid;
-      gap: 16px;
     }
 
     .buttons {
       display: flex;
       flex-wrap: wrap;
-      gap: 10px;
+      gap: 8px;
     }
 
     button {
       border: 0;
-      border-radius: 14px;
-      padding: 12px 16px;
+      border-radius: 8px;
+      min-height: 30px;
+      padding: 4px 12px;
       font: inherit;
+      font-size: 13px;
       font-weight: 600;
       cursor: pointer;
-      transition: transform 0.16s ease, opacity 0.16s ease, background 0.16s ease;
-    }
-
-    button:hover:not(:disabled) {
-      transform: translateY(-1px);
+      transition: opacity 0.16s ease, background 0.16s ease, border-color 0.16s ease;
     }
 
     button:disabled {
@@ -236,6 +254,10 @@
       border: 1px solid rgba(148, 163, 184, 0.16);
     }
 
+    .secondary:hover:not(:disabled) {
+      border-color: var(--accent);
+    }
+
     html[data-theme='light'] .secondary,
     html[data-theme='light'] .select {
       background: #ffffff;
@@ -249,13 +271,17 @@
       border: 1px solid rgba(255, 107, 129, 0.32);
     }
 
+    html[data-theme='light'] .danger {
+      color: var(--danger);
+    }
+
     .range-card {
       background: var(--panel-strong);
       border: 1px solid var(--border);
-      border-radius: 18px;
-      padding: 18px;
+      border-radius: 10px;
+      padding: 8px 12px 10px;
       display: grid;
-      gap: 14px;
+      gap: 6px;
     }
 
     .range-head,
@@ -263,20 +289,20 @@
     .side-stats {
       display: flex;
       justify-content: space-between;
-      gap: 12px;
+      gap: 10px;
       flex-wrap: wrap;
       align-items: center;
     }
 
     .range-title {
       font-weight: 700;
-      font-size: 15px;
+      font-size: 14px;
     }
 
     .selection-badge {
-      padding: 8px 12px;
+      padding: 3px 10px;
       border-radius: 999px;
-      font-size: 13px;
+      font-size: 12px;
       color: var(--accent);
       background: var(--accent-soft);
       border: 1px solid rgba(71, 193, 255, 0.2);
@@ -284,7 +310,7 @@
 
     .timeline {
       position: relative;
-      height: 54px;
+      height: 30px;
       display: grid;
       align-items: center;
     }
@@ -352,14 +378,18 @@
     .marker-row {
       display: grid;
       grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 10px;
+      gap: 8px;
     }
 
     .marker {
-      padding: 12px;
-      border-radius: 14px;
+      padding: 4px 10px;
+      border-radius: 8px;
       background: rgba(148, 163, 184, 0.08);
       border: 1px solid rgba(148, 163, 184, 0.12);
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 8px;
     }
 
     .marker small,
@@ -367,24 +397,41 @@
     .status small {
       display: block;
       color: var(--muted);
-      margin-bottom: 6px;
-      font-size: 12px;
+      margin-bottom: 2px;
+      font-size: 11px;
       text-transform: uppercase;
       letter-spacing: 0.06em;
     }
 
+    .marker small {
+      margin-bottom: 0;
+    }
+
     .marker strong,
     .stat strong {
-      font-size: 18px;
+      font-size: 15px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .stat {
+      min-width: 0;
+    }
+
+    .stat strong {
+      display: block;
+      font-size: 13px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
     .status {
       background: linear-gradient(180deg, rgba(24, 34, 52, 0.95), rgba(18, 26, 40, 0.95));
-      border-radius: 18px;
+      border-radius: 10px;
       border: 1px solid var(--border);
-      padding: 18px;
+      padding: 10px 12px;
       display: grid;
-      gap: 12px;
+      gap: 8px;
     }
 
     html[data-theme='light'] .status,
@@ -395,12 +442,13 @@
 
     .status p {
       margin: 0;
-      line-height: 1.5;
+      font-size: 13px;
+      line-height: 1.4;
     }
 
     .progress {
       width: 100%;
-      height: 10px;
+      height: 8px;
       border-radius: 999px;
       overflow: hidden;
       background: rgba(148, 163, 184, 0.16);
@@ -414,46 +462,45 @@
     }
 
     .side-panel {
-      display: grid;
-      gap: 18px;
-      align-content: start;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      min-height: 0;
+      overflow: auto;
     }
 
     .side-card {
       background: linear-gradient(180deg, rgba(18, 26, 40, 0.96), rgba(11, 17, 25, 0.98));
-      border-radius: 18px;
+      border-radius: 10px;
       border: 1px solid var(--border);
-      padding: 18px;
+      padding: 10px 12px;
       display: grid;
-      gap: 14px;
+      gap: 8px;
     }
 
     .side-card h2 {
       margin: 0;
-      font-size: 18px;
+      font-size: 14px;
     }
 
-    .side-card p,
-    .side-card li {
-      color: var(--muted);
-      margin: 0;
-      line-height: 1.5;
-    }
-
-    .side-card ul {
-      margin: 0;
-      padding-left: 18px;
+    .side-stats {
       display: grid;
+      grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
       gap: 8px;
+    }
+
+    .log-card {
+      flex: 1 0 150px;
+      grid-template-rows: auto minmax(0, 1fr);
     }
 
     .field-stack {
       display: grid;
-      gap: 8px;
+      gap: 4px;
     }
 
     .field-stack label {
-      font-size: 12px;
+      font-size: 11px;
       text-transform: uppercase;
       letter-spacing: 0.06em;
       color: var(--muted);
@@ -461,10 +508,12 @@
 
     .select {
       width: 100%;
+      height: 32px;
       border: 1px solid rgba(148, 163, 184, 0.16);
-      border-radius: 14px;
-      padding: 12px 14px;
+      border-radius: 8px;
+      padding: 0 10px;
       font: inherit;
+      font-size: 13px;
       color: var(--text);
       background: #182234;
       outline: none;
@@ -476,8 +525,10 @@
       justify-content: center;
       width: 100%;
       text-decoration: none;
-      border-radius: 14px;
-      padding: 14px 16px;
+      border-radius: 8px;
+      min-height: 32px;
+      padding: 4px 12px;
+      font-size: 13px;
       font-weight: 700;
       color: #03111e;
       background: linear-gradient(135deg, #ffd166, #ff9f43);
@@ -486,12 +537,11 @@
     .log-panel {
       background: #09111b;
       border: 1px solid rgba(148, 163, 184, 0.14);
-      border-radius: 16px;
-      min-height: 220px;
-      max-height: 320px;
+      border-radius: 8px;
+      min-height: 80px;
       overflow: auto;
-      padding: 12px;
-      font: 12px/1.45 "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      padding: 8px 10px;
+      font: 12px/1.4 "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
     }
 
     html[data-theme='light'] .log-panel {
@@ -502,7 +552,7 @@
       white-space: pre-wrap;
       word-break: break-word;
       color: #c8d5e6;
-      padding: 4px 0;
+      padding: 3px 0;
       border-bottom: 1px solid rgba(148, 163, 184, 0.06);
     }
 
@@ -517,6 +567,11 @@
 
     .log-info {
       color: #c8d5e6;
+    }
+
+    html[data-theme='light'] .log-line,
+    html[data-theme='light'] .log-info {
+      color: #33445c;
     }
 
     .log-warn {
@@ -534,49 +589,115 @@
     .pill-row {
       display: flex;
       flex-wrap: wrap;
-      gap: 8px;
+      gap: 6px;
+      margin: 0 0 8px;
     }
 
     .pill {
-      padding: 8px 10px;
+      padding: 3px 10px;
       border-radius: 999px;
       font-size: 12px;
       color: var(--muted);
-      border: 1px solid rgba(148, 163, 184, 0.14);
+      border: 1px solid rgba(148, 163, 184, 0.2);
       background: rgba(148, 163, 184, 0.08);
     }
 
-    @media (max-width: 960px) {
+    dialog {
+      width: min(560px, calc(100vw - 32px));
+      max-height: calc(100vh - 32px);
+      padding: 0;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--panel-strong);
+      color: var(--text);
+      box-shadow: var(--shadow);
+    }
+
+    dialog::backdrop {
+      background: rgb(0 0 0 / 45%);
+    }
+
+    .dlg-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 8px 8px 8px 14px;
+      border-bottom: 1px solid var(--border);
+      font-weight: 700;
+    }
+
+    .dlg-body {
+      padding: 12px 14px 14px;
+      overflow: auto;
+    }
+
+    .dlg-body p {
+      margin: 0 0 8px;
+    }
+
+    .dlg-body h3 {
+      margin: 10px 0 6px;
+      font-size: 12px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .dlg-body ul {
+      margin: 0;
+      padding-left: 18px;
+    }
+
+    .dlg-body li {
+      margin: 4px 0;
+    }
+
+    @media (max-width: 900px) {
+      .brand span {
+        display: none;
+      }
+    }
+
+    @media (max-width: 720px) {
       body {
-        padding: 16px;
+        overflow: auto;
+      }
+
+      .shell {
+        height: auto;
+        min-height: 100%;
       }
 
       .workspace {
         grid-template-columns: 1fr;
+        grid-template-rows: auto auto;
+      }
+
+      .main-panel {
+        grid-template-rows: auto minmax(200px, auto) auto auto;
+      }
+
+      video {
+        max-height: 50vh;
+      }
+
+      .side-panel {
+        overflow: visible;
+      }
+
+      .log-card {
+        flex: none;
+      }
+
+      .log-panel {
+        height: 180px;
       }
     }
 
-    @media (max-width: 640px) {
-      .hero,
-      .panel {
-        padding: 16px;
-      }
-
+    @media (max-width: 520px) {
       .marker-row {
         grid-template-columns: 1fr;
-      }
-
-      .buttons,
-      .stats,
-      .side-stats,
-      .range-head {
-        flex-direction: column;
-        align-items: stretch;
-      }
-
-      button,
-      .download-link {
-        width: 100%;
       }
     }
   </style>
@@ -590,35 +711,24 @@
 </head>
 <body>
   <div class="shell">
-    <section class="hero">
-      <div class="hero-top">
-        <span class="eyebrow" data-i18n="eyebrow">Utils / Media</span>
-        <div class="toolbar">
-          <select id="lang-switcher" class="select" style="width: auto">
-            <option value="en">English</option>
-            <option value="pt">Português</option>
-            <option value="ja">日本語</option>
-          </select>
-          <button class="secondary" id="theme-switcher" type="button" data-i18n="themeDark">Dark</button>
-        </div>
+    <header class="topbar">
+      <div class="brand"><img src="../assets/icons/svg/utils-video_trimmer.svg" alt=""><span data-i18n="title">Video Trimmer</span></div>
+      <div class="toolbar">
+        <button class="secondary" type="button" id="chooseFileBtn" data-i18n="chooseVideo">Choose video</button>
+        <button class="secondary icon-btn" id="help-btn" type="button" title="Help" aria-label="Help">?</button>
+        <select id="lang-switcher" class="select" aria-label="Language">
+          <option value="en">EN</option>
+          <option value="pt">PT</option>
+          <option value="ja">JA</option>
+        </select>
+        <button class="secondary icon-btn" id="theme-switcher" type="button" title="Dark" aria-label="Dark">◐</button>
       </div>
-      <div>
-        <h1 data-i18n="title">Video Trimmer</h1>
-        <p class="sub" data-i18n="subtitle">Upload a video, choose the exact start and end with a double slider, preview only that section, then export the trimmed result directly in the browser.</p>
-      </div>
-      <div class="pill-row">
-        <span class="pill" data-i18n="pillDragDrop">Drag and drop</span>
-        <span class="pill" data-i18n="pillPlaySegment">Play selected segment</span>
-        <span class="pill" data-i18n="pillBrowserExport">Browser-side export</span>
-      </div>
-    </section>
+    </header>
 
     <section class="workspace">
-      <div class="panel">
+      <div class="panel main-panel">
         <label class="upload-zone" id="uploadZone" for="videoInput">
           <strong data-i18n="uploadTitle">Select or drop a video here</strong>
-          <span data-i18n="uploadHint">Supports common browser video formats like MP4, WebM and MOV. Nothing is uploaded to a server.</span>
-          <button class="secondary" type="button" id="chooseFileBtn" data-i18n="chooseVideo">Choose video</button>
         </label>
         <input id="videoInput" type="file" accept="video/*" />
 
@@ -627,7 +737,6 @@
           <video id="video" controls playsinline preload="metadata"></video>
         </div>
 
-        <div class="control-grid">
           <div class="buttons">
             <button class="secondary" id="playPauseBtn" disabled type="button" data-i18n="play">Play</button>
             <button class="secondary" id="previewBtn" disabled type="button" data-i18n="previewSelection">Preview Selection</button>
@@ -664,7 +773,6 @@
               </div>
             </div>
           </div>
-        </div>
       </div>
 
       <aside class="side-panel">
@@ -711,17 +819,7 @@
           <a id="downloadLink" class="download-link" download data-i18n="downloadExported">Download Exported Video</a>
         </div>
 
-        <div class="side-card">
-          <h2 data-i18n="howItWorks">How it works</h2>
-          <ul>
-            <li data-i18n="help1">Drop a video or choose it from your device.</li>
-            <li data-i18n="help2">Use the two handles to define the cut start and end.</li>
-            <li data-i18n="help3">Preview the selected segment before exporting.</li>
-            <li data-i18n="help4">Export first tries the browser-native path for speed, then falls back to FFmpeg only if needed.</li>
-          </ul>
-        </div>
-
-        <div class="side-card">
+        <div class="side-card log-card">
           <div class="range-head">
             <h2 data-i18n="exportLog">Export Log</h2>
             <button class="secondary" id="clearLogBtn" type="button" data-i18n="clearLog">Clear Log</button>
@@ -731,6 +829,27 @@
       </aside>
     </section>
   </div>
+
+  <dialog id="help">
+    <div class="dlg-head"><span data-i18n="helpTitle">Video Trimmer help</span><button class="secondary icon-btn" id="help-close" type="button" aria-label="Close">✕</button></div>
+    <div class="dlg-body">
+      <p data-i18n="subtitle">Upload a video, choose the exact start and end with a double slider, preview only that section, then export the trimmed result directly in the browser.</p>
+      <div class="pill-row">
+        <span class="pill" data-i18n="pillDragDrop">Drag and drop</span>
+        <span class="pill" data-i18n="pillPlaySegment">Play selected segment</span>
+        <span class="pill" data-i18n="pillBrowserExport">Browser-side export</span>
+      </div>
+      <h3 data-i18n="howItWorks">How it works</h3>
+      <ul>
+        <li data-i18n="help1">Drop a video or choose it from your device.</li>
+        <li data-i18n="help2">Use the two handles to define the cut start and end.</li>
+        <li data-i18n="help3">Preview the selected segment before exporting.</li>
+        <li data-i18n="help4">Export first tries the browser-native path for speed, then falls back to FFmpeg only if needed.</li>
+        <li data-i18n="uploadHint">Supports common browser video formats like MP4, WebM and MOV. Nothing is uploaded to a server.</li>
+        <li data-i18n="helpKeys">Press ? to open this help.</li>
+      </ul>
+    </div>
+  </dialog>
 
   <script type="module">
     import { FFmpeg } from 'https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.10/dist/esm/index.js';
@@ -752,6 +871,8 @@
     const exportBtn = document.getElementById('exportBtn');
     const langSwitcher = document.getElementById('lang-switcher');
     const themeSwitcher = document.getElementById('theme-switcher');
+    const helpDialog = document.getElementById('help');
+    const helpBtn = document.getElementById('help-btn');
     const outputFormatSelect = document.getElementById('outputFormatSelect');
     const clearLogBtn = document.getElementById('clearLogBtn');
     const downloadLink = document.getElementById('downloadLink');
@@ -773,13 +894,13 @@
     const outputFormatStorageKey = 'videoTrimmer.outputFormat';
     const i18n = {
       en: {
-        eyebrow: 'Utils / Media', title: 'Video Trimmer', subtitle: 'Upload a video, choose the exact start and end with a double slider, preview only that section, then export the trimmed result directly in the browser.', pillDragDrop: 'Drag and drop', pillPlaySegment: 'Play selected segment', pillBrowserExport: 'Browser-side export', uploadTitle: 'Select or drop a video here', uploadHint: 'Supports common browser video formats like MP4, WebM and MOV. Nothing is uploaded to a server.', chooseVideo: 'Choose video', noVideoSelected: 'No video selected yet.', play: 'Play', pause: 'Pause', previewSelection: 'Preview Selection', goToStart: 'Go to Start', goToEnd: 'Go to End', resetSelection: 'Reset Selection', trimRange: 'Trim Range', start: 'Start', current: 'Current', end: 'End', fileSection: 'File', name: 'Name', duration: 'Duration', format: 'Format', size: 'Size', status: 'Status', outputFormat: 'Output Format', formatMp4: 'MP4', formatWebm: 'WEBM', exportTrimmed: 'Export Trimmed Video', downloadExported: 'Download Exported Video', howItWorks: 'How it works', help1: 'Drop a video or choose it from your device.', help2: 'Use the two handles to define the cut start and end.', help3: 'Preview the selected segment before exporting.', help4: 'Export first tries the browser-native path for speed, then falls back to FFmpeg only if needed.', exportLog: 'Export Log', clearLog: 'Clear Log', themeDark: 'Dark', themeLight: 'Light', selectedLabel: 'Selected: {time}', readyStart: 'Load a video to start trimming.', previewFinished: 'Preview finished. Ready to export.', validVideoOnly: 'Please choose a valid video file.', ffmpegLoading: 'Loading FFmpeg engine. First load may take a few seconds.', ffmpegReady: 'FFmpeg ready.', ffmpegLoadFailed: 'FFmpeg load failed: {error}', videoLoadedAdjust: 'Video loaded. Adjust the start and end points.', videoLoadedLog: 'Video loaded: {name} ({size}, {type}).', metadataReadyLog: 'Metadata ready. Duration: {duration}.', selectionReset: 'Selection reset to full video.', previewingSegment: 'Previewing selected segment.', selectLongerSegment: 'Please select a longer segment before exporting.', exportRequestedLog: 'Export requested for range {start} to {end}.', nativeExportSelectedLog: 'Native export selected with {mimeType}.', tempPlayerSeekedLog: 'Temporary player seeked to {time}.', captureUnavailable: 'captureStream is not available in this browser.', mediaRecorderUnavailable: 'MediaRecorder is not available in this browser.', mediaRecorderFormatUnavailable: 'No supported MediaRecorder output format is available for {format}.', nativeCaptureStartedLog: 'Native capture started with {tracks} video track(s).', nativeChunkReceivedLog: 'Native chunk received: {size}.', stoppingNativeRecorderLog: 'Stopping native recorder: {reason}.', recordingSegment: 'Recording selected segment... {elapsed} / {duration}', tempPlayerPlayingLog: 'Temporary export player is playing.', nativeExportNoData: 'Native export finished without output data.', nativeExportCompletedLog: 'Native export completed: {size}.', ffmpegPreparing: 'Preparing video data for FFmpeg fallback...', ffmpegInputWrittenLog: 'Input written to FFmpeg FS as {fileName}.', ffmpegTryCopyLog: 'Trying FFmpeg stream copy to {fileName}.', ffmpegCopySuccessLog: 'FFmpeg stream copy succeeded: {size}.', ffmpegCopyFailedLog: 'FFmpeg stream copy failed: {error}', ffmpegTryingReencodeLog: 'Trying FFmpeg re-encode fallback.', ffmpegReencodeSucceededLog: 'FFmpeg re-encode succeeded: {size}.', ffmpegProgress: 'FFmpeg export progress: {progress}%', ffmpegLogPrefix: 'FFmpeg: {message}', mp4UsesFFmpeg: 'MP4 export is configured to use FFmpeg for broader compatibility.', nativeExportFailedLog: 'Native export failed: {error}', exportComplete: 'Export complete via {mode}. Use the download button to save the trimmed video.', exportFailed: 'Export failed: {error}', logCleared: 'Log cleared.', outputFormatChanged: 'Output format changed to {format}.', readyWithFormat: 'Video Trimmer ready. Output format: {format}.', stopReasonEnd: 'selected end reached', stopReasonTimeout: 'safety timeout reached', modeNative: 'native', modeFfmpegCopy: 'ffmpeg-copy', modeFfmpegEncode: 'ffmpeg-encode'
+        eyebrow: 'Utils / Media', title: 'Video Trimmer', subtitle: 'Upload a video, choose the exact start and end with a double slider, preview only that section, then export the trimmed result directly in the browser.', pillDragDrop: 'Drag and drop', pillPlaySegment: 'Play selected segment', pillBrowserExport: 'Browser-side export', uploadTitle: 'Select or drop a video here', uploadHint: 'Supports common browser video formats like MP4, WebM and MOV. Nothing is uploaded to a server.', chooseVideo: 'Choose video', noVideoSelected: 'No video selected yet.', play: 'Play', pause: 'Pause', previewSelection: 'Preview Selection', goToStart: 'Go to Start', goToEnd: 'Go to End', resetSelection: 'Reset Selection', trimRange: 'Trim Range', start: 'Start', current: 'Current', end: 'End', fileSection: 'File', name: 'Name', duration: 'Duration', format: 'Format', size: 'Size', status: 'Status', outputFormat: 'Output Format', formatMp4: 'MP4', formatWebm: 'WEBM', exportTrimmed: 'Export Trimmed Video', downloadExported: 'Download Exported Video', howItWorks: 'How it works', help1: 'Drop a video or choose it from your device.', help2: 'Use the two handles to define the cut start and end.', help3: 'Preview the selected segment before exporting.', help4: 'Export first tries the browser-native path for speed, then falls back to FFmpeg only if needed.', exportLog: 'Export Log', clearLog: 'Clear Log', themeDark: 'Dark', themeLight: 'Light', selectedLabel: 'Selected: {time}', readyStart: 'Load a video to start trimming.', previewFinished: 'Preview finished. Ready to export.', validVideoOnly: 'Please choose a valid video file.', ffmpegLoading: 'Loading FFmpeg engine. First load may take a few seconds.', ffmpegReady: 'FFmpeg ready.', ffmpegLoadFailed: 'FFmpeg load failed: {error}', videoLoadedAdjust: 'Video loaded. Adjust the start and end points.', videoLoadedLog: 'Video loaded: {name} ({size}, {type}).', metadataReadyLog: 'Metadata ready. Duration: {duration}.', selectionReset: 'Selection reset to full video.', previewingSegment: 'Previewing selected segment.', selectLongerSegment: 'Please select a longer segment before exporting.', exportRequestedLog: 'Export requested for range {start} to {end}.', nativeExportSelectedLog: 'Native export selected with {mimeType}.', tempPlayerSeekedLog: 'Temporary player seeked to {time}.', captureUnavailable: 'captureStream is not available in this browser.', mediaRecorderUnavailable: 'MediaRecorder is not available in this browser.', mediaRecorderFormatUnavailable: 'No supported MediaRecorder output format is available for {format}.', nativeCaptureStartedLog: 'Native capture started with {tracks} video track(s).', nativeChunkReceivedLog: 'Native chunk received: {size}.', stoppingNativeRecorderLog: 'Stopping native recorder: {reason}.', recordingSegment: 'Recording selected segment... {elapsed} / {duration}', tempPlayerPlayingLog: 'Temporary export player is playing.', nativeExportNoData: 'Native export finished without output data.', nativeExportCompletedLog: 'Native export completed: {size}.', ffmpegPreparing: 'Preparing video data for FFmpeg fallback...', ffmpegInputWrittenLog: 'Input written to FFmpeg FS as {fileName}.', ffmpegTryCopyLog: 'Trying FFmpeg stream copy to {fileName}.', ffmpegCopySuccessLog: 'FFmpeg stream copy succeeded: {size}.', ffmpegCopyFailedLog: 'FFmpeg stream copy failed: {error}', ffmpegTryingReencodeLog: 'Trying FFmpeg re-encode fallback.', ffmpegReencodeSucceededLog: 'FFmpeg re-encode succeeded: {size}.', ffmpegProgress: 'FFmpeg export progress: {progress}%', ffmpegLogPrefix: 'FFmpeg: {message}', mp4UsesFFmpeg: 'MP4 export is configured to use FFmpeg for broader compatibility.', nativeExportFailedLog: 'Native export failed: {error}', exportComplete: 'Export complete via {mode}. Use the download button to save the trimmed video.', exportFailed: 'Export failed: {error}', logCleared: 'Log cleared.', outputFormatChanged: 'Output format changed to {format}.', readyWithFormat: 'Video Trimmer ready. Output format: {format}.', stopReasonEnd: 'selected end reached', stopReasonTimeout: 'safety timeout reached', modeNative: 'native', modeFfmpegCopy: 'ffmpeg-copy', modeFfmpegEncode: 'ffmpeg-encode', help: 'Help', close: 'Close', helpTitle: 'Video Trimmer help', helpKeys: 'Press ? to open this help.'
       },
       pt: {
-        eyebrow: 'Utilitários / Mídia', title: 'Cortador de Vídeo', subtitle: 'Envie um vídeo, escolha o início e o fim com um slider duplo, visualize apenas esse trecho e exporte o resultado diretamente no navegador.', pillDragDrop: 'Arrastar e soltar', pillPlaySegment: 'Reproduzir trecho selecionado', pillBrowserExport: 'Exportação no navegador', uploadTitle: 'Selecione ou solte um vídeo aqui', uploadHint: 'Suporta formatos comuns do navegador como MP4, WebM e MOV. Nada é enviado para um servidor.', chooseVideo: 'Escolher vídeo', noVideoSelected: 'Nenhum vídeo selecionado ainda.', play: 'Play', pause: 'Pausar', previewSelection: 'Prévia da Seleção', goToStart: 'Ir para o Início', goToEnd: 'Ir para o Fim', resetSelection: 'Resetar Seleção', trimRange: 'Faixa de Corte', start: 'Início', current: 'Atual', end: 'Fim', fileSection: 'Arquivo', name: 'Nome', duration: 'Duração', format: 'Formato', size: 'Tamanho', status: 'Status', outputFormat: 'Formato de Saída', formatMp4: 'MP4', formatWebm: 'WEBM', exportTrimmed: 'Exportar Vídeo Cortado', downloadExported: 'Baixar Vídeo Exportado', howItWorks: 'Como funciona', help1: 'Solte um vídeo ou escolha do seu dispositivo.', help2: 'Use as duas alças para definir o início e o fim do corte.', help3: 'Visualize o trecho selecionado antes de exportar.', help4: 'A exportação tenta primeiro o caminho nativo do navegador por velocidade e só usa FFmpeg se necessário.', exportLog: 'Log de Exportação', clearLog: 'Limpar Log', themeDark: 'Escuro', themeLight: 'Claro', selectedLabel: 'Selecionado: {time}', readyStart: 'Carregue um vídeo para começar o corte.', previewFinished: 'Prévia finalizada. Pronto para exportar.', validVideoOnly: 'Escolha um arquivo de vídeo válido.', ffmpegLoading: 'Carregando o motor FFmpeg. Na primeira vez pode levar alguns segundos.', ffmpegReady: 'FFmpeg pronto.', ffmpegLoadFailed: 'Falha ao carregar FFmpeg: {error}', videoLoadedAdjust: 'Vídeo carregado. Ajuste os pontos de início e fim.', videoLoadedLog: 'Vídeo carregado: {name} ({size}, {type}).', metadataReadyLog: 'Metadados prontos. Duração: {duration}.', selectionReset: 'Seleção resetada para o vídeo inteiro.', previewingSegment: 'Visualizando o trecho selecionado.', selectLongerSegment: 'Selecione um trecho maior antes de exportar.', exportRequestedLog: 'Exportação solicitada para a faixa {start} até {end}.', nativeExportSelectedLog: 'Exportação nativa selecionada com {mimeType}.', tempPlayerSeekedLog: 'Player temporário posicionado em {time}.', captureUnavailable: 'captureStream não está disponível neste navegador.', mediaRecorderUnavailable: 'MediaRecorder não está disponível neste navegador.', mediaRecorderFormatUnavailable: 'Não há formato suportado pelo MediaRecorder para {format}.', nativeCaptureStartedLog: 'Captura nativa iniciada com {tracks} faixa(s) de vídeo.', nativeChunkReceivedLog: 'Chunk nativo recebido: {size}.', stoppingNativeRecorderLog: 'Parando gravador nativo: {reason}.', recordingSegment: 'Gravando trecho selecionado... {elapsed} / {duration}', tempPlayerPlayingLog: 'O player temporário de exportação está reproduzindo.', nativeExportNoData: 'A exportação nativa terminou sem gerar dados.', nativeExportCompletedLog: 'Exportação nativa concluída: {size}.', ffmpegPreparing: 'Preparando dados do vídeo para o fallback com FFmpeg...', ffmpegInputWrittenLog: 'Entrada gravada no sistema de arquivos do FFmpeg como {fileName}.', ffmpegTryCopyLog: 'Tentando cópia direta do FFmpeg para {fileName}.', ffmpegCopySuccessLog: 'Cópia direta do FFmpeg concluída: {size}.', ffmpegCopyFailedLog: 'Falha na cópia direta do FFmpeg: {error}', ffmpegTryingReencodeLog: 'Tentando fallback com reencode no FFmpeg.', ffmpegReencodeSucceededLog: 'Reencode do FFmpeg concluído: {size}.', ffmpegProgress: 'Progresso da exportação FFmpeg: {progress}%', ffmpegLogPrefix: 'FFmpeg: {message}', mp4UsesFFmpeg: 'A exportação em MP4 está configurada para usar FFmpeg por compatibilidade mais ampla.', nativeExportFailedLog: 'A exportação nativa falhou: {error}', exportComplete: 'Exportação concluída via {mode}. Use o botão de download para salvar o vídeo.', exportFailed: 'Falha na exportação: {error}', logCleared: 'Log limpo.', outputFormatChanged: 'Formato de saída alterado para {format}.', readyWithFormat: 'Cortador de Vídeo pronto. Formato de saída: {format}.', stopReasonEnd: 'fim selecionado alcançado', stopReasonTimeout: 'tempo limite de segurança alcançado', modeNative: 'nativo', modeFfmpegCopy: 'ffmpeg-copy', modeFfmpegEncode: 'ffmpeg-encode'
+        eyebrow: 'Utilitários / Mídia', title: 'Cortador de Vídeo', subtitle: 'Envie um vídeo, escolha o início e o fim com um slider duplo, visualize apenas esse trecho e exporte o resultado diretamente no navegador.', pillDragDrop: 'Arrastar e soltar', pillPlaySegment: 'Reproduzir trecho selecionado', pillBrowserExport: 'Exportação no navegador', uploadTitle: 'Selecione ou solte um vídeo aqui', uploadHint: 'Suporta formatos comuns do navegador como MP4, WebM e MOV. Nada é enviado para um servidor.', chooseVideo: 'Escolher vídeo', noVideoSelected: 'Nenhum vídeo selecionado ainda.', play: 'Play', pause: 'Pausar', previewSelection: 'Prévia da Seleção', goToStart: 'Ir para o Início', goToEnd: 'Ir para o Fim', resetSelection: 'Resetar Seleção', trimRange: 'Faixa de Corte', start: 'Início', current: 'Atual', end: 'Fim', fileSection: 'Arquivo', name: 'Nome', duration: 'Duração', format: 'Formato', size: 'Tamanho', status: 'Status', outputFormat: 'Formato de Saída', formatMp4: 'MP4', formatWebm: 'WEBM', exportTrimmed: 'Exportar Vídeo Cortado', downloadExported: 'Baixar Vídeo Exportado', howItWorks: 'Como funciona', help1: 'Solte um vídeo ou escolha do seu dispositivo.', help2: 'Use as duas alças para definir o início e o fim do corte.', help3: 'Visualize o trecho selecionado antes de exportar.', help4: 'A exportação tenta primeiro o caminho nativo do navegador por velocidade e só usa FFmpeg se necessário.', exportLog: 'Log de Exportação', clearLog: 'Limpar Log', themeDark: 'Escuro', themeLight: 'Claro', selectedLabel: 'Selecionado: {time}', readyStart: 'Carregue um vídeo para começar o corte.', previewFinished: 'Prévia finalizada. Pronto para exportar.', validVideoOnly: 'Escolha um arquivo de vídeo válido.', ffmpegLoading: 'Carregando o motor FFmpeg. Na primeira vez pode levar alguns segundos.', ffmpegReady: 'FFmpeg pronto.', ffmpegLoadFailed: 'Falha ao carregar FFmpeg: {error}', videoLoadedAdjust: 'Vídeo carregado. Ajuste os pontos de início e fim.', videoLoadedLog: 'Vídeo carregado: {name} ({size}, {type}).', metadataReadyLog: 'Metadados prontos. Duração: {duration}.', selectionReset: 'Seleção resetada para o vídeo inteiro.', previewingSegment: 'Visualizando o trecho selecionado.', selectLongerSegment: 'Selecione um trecho maior antes de exportar.', exportRequestedLog: 'Exportação solicitada para a faixa {start} até {end}.', nativeExportSelectedLog: 'Exportação nativa selecionada com {mimeType}.', tempPlayerSeekedLog: 'Player temporário posicionado em {time}.', captureUnavailable: 'captureStream não está disponível neste navegador.', mediaRecorderUnavailable: 'MediaRecorder não está disponível neste navegador.', mediaRecorderFormatUnavailable: 'Não há formato suportado pelo MediaRecorder para {format}.', nativeCaptureStartedLog: 'Captura nativa iniciada com {tracks} faixa(s) de vídeo.', nativeChunkReceivedLog: 'Chunk nativo recebido: {size}.', stoppingNativeRecorderLog: 'Parando gravador nativo: {reason}.', recordingSegment: 'Gravando trecho selecionado... {elapsed} / {duration}', tempPlayerPlayingLog: 'O player temporário de exportação está reproduzindo.', nativeExportNoData: 'A exportação nativa terminou sem gerar dados.', nativeExportCompletedLog: 'Exportação nativa concluída: {size}.', ffmpegPreparing: 'Preparando dados do vídeo para o fallback com FFmpeg...', ffmpegInputWrittenLog: 'Entrada gravada no sistema de arquivos do FFmpeg como {fileName}.', ffmpegTryCopyLog: 'Tentando cópia direta do FFmpeg para {fileName}.', ffmpegCopySuccessLog: 'Cópia direta do FFmpeg concluída: {size}.', ffmpegCopyFailedLog: 'Falha na cópia direta do FFmpeg: {error}', ffmpegTryingReencodeLog: 'Tentando fallback com reencode no FFmpeg.', ffmpegReencodeSucceededLog: 'Reencode do FFmpeg concluído: {size}.', ffmpegProgress: 'Progresso da exportação FFmpeg: {progress}%', ffmpegLogPrefix: 'FFmpeg: {message}', mp4UsesFFmpeg: 'A exportação em MP4 está configurada para usar FFmpeg por compatibilidade mais ampla.', nativeExportFailedLog: 'A exportação nativa falhou: {error}', exportComplete: 'Exportação concluída via {mode}. Use o botão de download para salvar o vídeo.', exportFailed: 'Falha na exportação: {error}', logCleared: 'Log limpo.', outputFormatChanged: 'Formato de saída alterado para {format}.', readyWithFormat: 'Cortador de Vídeo pronto. Formato de saída: {format}.', stopReasonEnd: 'fim selecionado alcançado', stopReasonTimeout: 'tempo limite de segurança alcançado', modeNative: 'nativo', modeFfmpegCopy: 'ffmpeg-copy', modeFfmpegEncode: 'ffmpeg-encode', help: 'Ajuda', close: 'Fechar', helpTitle: 'Ajuda do Cortador de Vídeo', helpKeys: 'Pressione ? para abrir esta ajuda.'
       },
       ja: {
-        eyebrow: 'ユーティリティ / メディア', title: '動画トリマー', subtitle: '動画をアップロードし、二重スライダーで開始と終了を選び、その区間だけをプレビューしてブラウザ上で書き出します。', pillDragDrop: 'ドラッグ＆ドロップ', pillPlaySegment: '選択区間を再生', pillBrowserExport: 'ブラウザ内で書き出し', uploadTitle: 'ここに動画を選択またはドロップ', uploadHint: 'MP4、WebM、MOV など一般的なブラウザ対応動画形式をサポートします。サーバーには送信されません。', chooseVideo: '動画を選択', noVideoSelected: 'まだ動画が選択されていません。', play: '再生', pause: '一時停止', previewSelection: '選択範囲をプレビュー', goToStart: '開始位置へ', goToEnd: '終了位置へ', resetSelection: '選択をリセット', trimRange: 'トリミング範囲', start: '開始', current: '現在', end: '終了', fileSection: 'ファイル', name: '名前', duration: '長さ', format: '形式', size: 'サイズ', status: 'ステータス', outputFormat: '出力形式', formatMp4: 'MP4', formatWebm: 'WEBM', exportTrimmed: 'トリミングした動画を書き出し', downloadExported: '書き出した動画をダウンロード', howItWorks: '使い方', help1: '動画をドロップするか、端末から選択します。', help2: '2つのハンドルで切り出しの開始と終了を指定します。', help3: '書き出し前に選択した区間をプレビューします。', help4: '書き出しはまず高速なブラウザネイティブ方式を試し、必要な場合のみ FFmpeg にフォールバックします。', exportLog: '書き出しログ', clearLog: 'ログを消去', themeDark: 'ダーク', themeLight: 'ライト', selectedLabel: '選択中: {time}', readyStart: 'トリミングを始めるには動画を読み込んでください。', previewFinished: 'プレビューが完了しました。書き出し可能です。', validVideoOnly: '有効な動画ファイルを選択してください。', ffmpegLoading: 'FFmpeg エンジンを読み込み中です。初回は数秒かかる場合があります。', ffmpegReady: 'FFmpeg の準備ができました。', ffmpegLoadFailed: 'FFmpeg の読み込みに失敗しました: {error}', videoLoadedAdjust: '動画を読み込みました。開始位置と終了位置を調整してください。', videoLoadedLog: '動画を読み込みました: {name} ({size}, {type}).', metadataReadyLog: 'メタデータを取得しました。長さ: {duration}。', selectionReset: '選択範囲を動画全体にリセットしました。', previewingSegment: '選択区間をプレビュー中です。', selectLongerSegment: '書き出し前にもう少し長い区間を選択してください。', exportRequestedLog: '{start} から {end} までの書き出しを開始しました。', nativeExportSelectedLog: '{mimeType} でネイティブ書き出しを選択しました。', tempPlayerSeekedLog: '一時プレイヤーを {time} に移動しました。', captureUnavailable: 'このブラウザでは captureStream が利用できません。', mediaRecorderUnavailable: 'このブラウザでは MediaRecorder が利用できません。', mediaRecorderFormatUnavailable: '{format} で利用可能な MediaRecorder 出力形式がありません。', nativeCaptureStartedLog: '{tracks} 本の映像トラックでネイティブキャプチャを開始しました。', nativeChunkReceivedLog: 'ネイティブチャンクを受信: {size}。', stoppingNativeRecorderLog: 'ネイティブレコーダーを停止: {reason}。', recordingSegment: '選択区間を録画中... {elapsed} / {duration}', tempPlayerPlayingLog: '一時書き出しプレイヤーが再生中です。', nativeExportNoData: 'ネイティブ書き出しがデータなしで終了しました。', nativeExportCompletedLog: 'ネイティブ書き出し完了: {size}。', ffmpegPreparing: 'FFmpeg フォールバック用に動画データを準備しています...', ffmpegInputWrittenLog: '入力を FFmpeg ファイルシステムへ {fileName} として書き込みました。', ffmpegTryCopyLog: '{fileName} への FFmpeg ストリームコピーを試しています。', ffmpegCopySuccessLog: 'FFmpeg ストリームコピー成功: {size}。', ffmpegCopyFailedLog: 'FFmpeg ストリームコピー失敗: {error}', ffmpegTryingReencodeLog: 'FFmpeg 再エンコードのフォールバックを試しています。', ffmpegReencodeSucceededLog: 'FFmpeg 再エンコード成功: {size}。', ffmpegProgress: 'FFmpeg 書き出し進捗: {progress}%', ffmpegLogPrefix: 'FFmpeg: {message}', mp4UsesFFmpeg: 'MP4 書き出しは互換性のため FFmpeg を使用する設定です。', nativeExportFailedLog: 'ネイティブ書き出しに失敗しました: {error}', exportComplete: '{mode} で書き出し完了。ダウンロードボタンで保存してください。', exportFailed: '書き出し失敗: {error}', logCleared: 'ログを消去しました。', outputFormatChanged: '出力形式を {format} に変更しました。', readyWithFormat: '動画トリマーの準備ができました。出力形式: {format}。', stopReasonEnd: '選択した終了位置に到達', stopReasonTimeout: '安全タイムアウトに到達', modeNative: 'ネイティブ', modeFfmpegCopy: 'ffmpeg-copy', modeFfmpegEncode: 'ffmpeg-encode'
+        eyebrow: 'ユーティリティ / メディア', title: '動画トリマー', subtitle: '動画をアップロードし、二重スライダーで開始と終了を選び、その区間だけをプレビューしてブラウザ上で書き出します。', pillDragDrop: 'ドラッグ＆ドロップ', pillPlaySegment: '選択区間を再生', pillBrowserExport: 'ブラウザ内で書き出し', uploadTitle: 'ここに動画を選択またはドロップ', uploadHint: 'MP4、WebM、MOV など一般的なブラウザ対応動画形式をサポートします。サーバーには送信されません。', chooseVideo: '動画を選択', noVideoSelected: 'まだ動画が選択されていません。', play: '再生', pause: '一時停止', previewSelection: '選択範囲をプレビュー', goToStart: '開始位置へ', goToEnd: '終了位置へ', resetSelection: '選択をリセット', trimRange: 'トリミング範囲', start: '開始', current: '現在', end: '終了', fileSection: 'ファイル', name: '名前', duration: '長さ', format: '形式', size: 'サイズ', status: 'ステータス', outputFormat: '出力形式', formatMp4: 'MP4', formatWebm: 'WEBM', exportTrimmed: 'トリミングした動画を書き出し', downloadExported: '書き出した動画をダウンロード', howItWorks: '使い方', help1: '動画をドロップするか、端末から選択します。', help2: '2つのハンドルで切り出しの開始と終了を指定します。', help3: '書き出し前に選択した区間をプレビューします。', help4: '書き出しはまず高速なブラウザネイティブ方式を試し、必要な場合のみ FFmpeg にフォールバックします。', exportLog: '書き出しログ', clearLog: 'ログを消去', themeDark: 'ダーク', themeLight: 'ライト', selectedLabel: '選択中: {time}', readyStart: 'トリミングを始めるには動画を読み込んでください。', previewFinished: 'プレビューが完了しました。書き出し可能です。', validVideoOnly: '有効な動画ファイルを選択してください。', ffmpegLoading: 'FFmpeg エンジンを読み込み中です。初回は数秒かかる場合があります。', ffmpegReady: 'FFmpeg の準備ができました。', ffmpegLoadFailed: 'FFmpeg の読み込みに失敗しました: {error}', videoLoadedAdjust: '動画を読み込みました。開始位置と終了位置を調整してください。', videoLoadedLog: '動画を読み込みました: {name} ({size}, {type}).', metadataReadyLog: 'メタデータを取得しました。長さ: {duration}。', selectionReset: '選択範囲を動画全体にリセットしました。', previewingSegment: '選択区間をプレビュー中です。', selectLongerSegment: '書き出し前にもう少し長い区間を選択してください。', exportRequestedLog: '{start} から {end} までの書き出しを開始しました。', nativeExportSelectedLog: '{mimeType} でネイティブ書き出しを選択しました。', tempPlayerSeekedLog: '一時プレイヤーを {time} に移動しました。', captureUnavailable: 'このブラウザでは captureStream が利用できません。', mediaRecorderUnavailable: 'このブラウザでは MediaRecorder が利用できません。', mediaRecorderFormatUnavailable: '{format} で利用可能な MediaRecorder 出力形式がありません。', nativeCaptureStartedLog: '{tracks} 本の映像トラックでネイティブキャプチャを開始しました。', nativeChunkReceivedLog: 'ネイティブチャンクを受信: {size}。', stoppingNativeRecorderLog: 'ネイティブレコーダーを停止: {reason}。', recordingSegment: '選択区間を録画中... {elapsed} / {duration}', tempPlayerPlayingLog: '一時書き出しプレイヤーが再生中です。', nativeExportNoData: 'ネイティブ書き出しがデータなしで終了しました。', nativeExportCompletedLog: 'ネイティブ書き出し完了: {size}。', ffmpegPreparing: 'FFmpeg フォールバック用に動画データを準備しています...', ffmpegInputWrittenLog: '入力を FFmpeg ファイルシステムへ {fileName} として書き込みました。', ffmpegTryCopyLog: '{fileName} への FFmpeg ストリームコピーを試しています。', ffmpegCopySuccessLog: 'FFmpeg ストリームコピー成功: {size}。', ffmpegCopyFailedLog: 'FFmpeg ストリームコピー失敗: {error}', ffmpegTryingReencodeLog: 'FFmpeg 再エンコードのフォールバックを試しています。', ffmpegReencodeSucceededLog: 'FFmpeg 再エンコード成功: {size}。', ffmpegProgress: 'FFmpeg 書き出し進捗: {progress}%', ffmpegLogPrefix: 'FFmpeg: {message}', mp4UsesFFmpeg: 'MP4 書き出しは互換性のため FFmpeg を使用する設定です。', nativeExportFailedLog: 'ネイティブ書き出しに失敗しました: {error}', exportComplete: '{mode} で書き出し完了。ダウンロードボタンで保存してください。', exportFailed: '書き出し失敗: {error}', logCleared: 'ログを消去しました。', outputFormatChanged: '出力形式を {format} に変更しました。', readyWithFormat: '動画トリマーの準備ができました。出力形式: {format}。', stopReasonEnd: '選択した終了位置に到達', stopReasonTimeout: '安全タイムアウトに到達', modeNative: 'ネイティブ', modeFfmpegCopy: 'ffmpeg-copy', modeFfmpegEncode: 'ffmpeg-encode', help: 'ヘルプ', close: '閉じる', helpTitle: '動画トリマーのヘルプ', helpKeys: '? キーでこのヘルプを開きます。'
       }
     };
 
@@ -816,7 +937,14 @@
       currentTheme = theme === 'light' ? 'light' : 'dark';
       document.documentElement.setAttribute('data-theme', currentTheme);
       localStorage.setItem('app_theme', currentTheme);
-      themeSwitcher.textContent = currentTheme === 'light' ? t('themeLight') : t('themeDark');
+      updateThemeButton();
+    }
+
+    function updateThemeButton() {
+      const label = currentTheme === 'light' ? t('themeLight') : t('themeDark');
+      themeSwitcher.textContent = currentTheme === 'light' ? '☀' : '◐';
+      themeSwitcher.title = label;
+      themeSwitcher.setAttribute('aria-label', label);
     }
 
     function applyI18n() {
@@ -826,7 +954,10 @@
         element.textContent = t(key);
       });
       document.title = t('title');
-      themeSwitcher.textContent = currentTheme === 'light' ? t('themeLight') : t('themeDark');
+      updateThemeButton();
+      helpBtn.title = t('help');
+      helpBtn.setAttribute('aria-label', t('help'));
+      document.getElementById('help-close').setAttribute('aria-label', t('close'));
       if (!currentFile) {
         statusText.textContent = t('readyStart');
       }
@@ -1354,6 +1485,18 @@
     });
     themeSwitcher.addEventListener('click', () => {
       applyTheme(currentTheme === 'dark' ? 'light' : 'dark');
+    });
+    helpBtn.addEventListener('click', () => helpDialog.showModal());
+    document.getElementById('help-close').addEventListener('click', () => helpDialog.close());
+    helpDialog.addEventListener('click', (event) => {
+      if (event.target === helpDialog) helpDialog.close();
+    });
+    document.addEventListener('keydown', (event) => {
+      if (event.key !== '?' || helpDialog.open || event.ctrlKey || event.metaKey || event.altKey) return;
+      const active = document.activeElement;
+      if (active && (/^(INPUT|TEXTAREA|SELECT)$/.test(active.tagName) || active.isContentEditable)) return;
+      event.preventDefault();
+      helpDialog.showModal();
     });
     window.addEventListener('beforeunload', () => {
       stopSegmentPlayback();

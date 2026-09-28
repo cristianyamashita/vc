@@ -40,16 +40,16 @@
     }
 
     * { box-sizing: border-box; }
-    html, body { min-height: 100%; }
+    html, body { height: 100%; }
     body {
       margin: 0;
+      overflow: hidden;
       color: var(--ink);
       font: 14px/1.5 "Noto Sans JP", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       background:
         linear-gradient(135deg, color-mix(in srgb, var(--accent) 18%, transparent), transparent 34%),
         linear-gradient(315deg, rgba(255, 107, 107, 0.16), transparent 36%),
         linear-gradient(180deg, var(--bg-1), var(--bg-2));
-      padding: 18px;
     }
 
     button, input, select { font: inherit; }
@@ -59,13 +59,13 @@
     }
 
     .app {
-      width: min(1280px, 100%);
-      margin: 0 auto;
+      height: 100%;
       display: grid;
-      gap: 18px;
+      grid-template-rows: auto 1fr;
+      min-height: 0;
     }
 
-    .topbar, .panel {
+    .panel {
       border: 1px solid var(--border);
       border-radius: var(--radius);
       background: var(--panel);
@@ -74,63 +74,51 @@
     }
 
     .topbar {
-      min-height: 78px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 14px;
-      padding: 16px 18px;
-    }
-
-    h1, h2, h3, p { margin: 0; }
-    h1 {
-      font-size: clamp(28px, 5vw, 54px);
-      line-height: 1;
-      letter-spacing: 0;
-    }
-    .subtitle { margin-top: 6px; color: var(--muted); }
-
-    .toolbar, .lang-selector {
+      height: 44px;
       display: flex;
       align-items: center;
       gap: 8px;
-      flex-wrap: wrap;
-      justify-content: flex-end;
-    }
-
-    .lang-selector {
-      padding: 4px;
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
+      padding: 0 8px 0 12px;
       background: var(--panel-strong);
+      border-bottom: 1px solid var(--border);
+      min-width: 0;
     }
 
-    .lang-selector a {
-      min-width: 38px;
-      text-align: center;
-      text-decoration: none;
-      color: var(--muted);
-      padding: 6px 9px;
+    .brand { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 15px; white-space: nowrap; min-width: 0; }
+    .brand img { width: 18px; height: 18px; flex: none; }
+    .brand span { overflow: hidden; text-overflow: ellipsis; }
+
+    h1, h2, h3, p { margin: 0; }
+
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-left: auto;
+      flex: none;
+    }
+
+    select {
+      height: 30px;
+      border: 1px solid var(--border);
       border-radius: 6px;
-      font-size: 12px;
-      font-weight: 800;
-      border: 1px solid transparent;
-    }
-
-    .lang-selector a.active {
-      color: #fff;
-      background: var(--accent-strong);
+      background: var(--panel-strong);
+      color: var(--ink);
+      padding: 0 6px;
+      font-size: 13px;
+      cursor: pointer;
     }
 
     .btn {
-      min-height: 40px;
+      min-height: 30px;
       border: 1px solid var(--border);
       border-radius: var(--radius);
       background: var(--panel-strong);
       color: var(--ink);
       cursor: pointer;
-      padding: 9px 12px;
-      font-weight: 750;
+      padding: 4px 10px;
+      font-size: 13px;
+      font-weight: 700;
       transition: transform 0.16s ease, border-color 0.16s ease, background 0.16s ease;
     }
 
@@ -146,38 +134,48 @@
     }
 
     .btn.icon-btn {
-      width: 38px;
-      min-width: 38px;
+      width: 30px;
+      min-width: 30px;
+      height: 30px;
       padding: 0;
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      min-height: 38px;
+      min-height: 30px;
     }
 
     .layout {
       display: grid;
-      grid-template-columns: minmax(320px, 0.92fr) minmax(0, 1.35fr);
-      gap: 18px;
-      align-items: start;
+      grid-template-columns: minmax(280px, 0.92fr) minmax(0, 1.35fr);
+      grid-template-rows: minmax(0, 1fr);
+      gap: 12px;
+      padding: 12px;
+      min-height: 0;
+      max-width: 1400px;
+      width: 100%;
+      margin: 0 auto;
     }
 
-    .panel { padding: 18px; }
-    .stack { display: grid; gap: 16px; }
+    .col-scroll { min-height: 0; overflow: auto; }
+    [hidden] { display: none !important; }
+
+    .panel { padding: 12px; }
+    .stack { display: grid; gap: 10px; align-content: start; }
     .section-title {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 10px;
-      margin-bottom: 12px;
+      gap: 8px;
+      margin-bottom: 8px;
     }
-    h2 { font-size: 18px; }
-    h3 { font-size: 14px; color: var(--muted); font-weight: 800; }
+    h2 { font-size: 15px; }
+    h3 { font-size: 12px; color: var(--muted); font-weight: 800; }
 
     .preview-card {
-      min-height: 420px;
+      min-height: 0;
+      height: 100%;
       display: grid;
-      grid-template-rows: minmax(230px, 1fr) auto;
+      grid-template-rows: minmax(140px, 1fr) auto;
       overflow: hidden;
       padding: 0;
     }
@@ -185,7 +183,8 @@
     .preview {
       display: grid;
       place-items: center;
-      min-height: 260px;
+      min-height: 0;
+      overflow: hidden;
       background:
         linear-gradient(45deg, rgba(255, 255, 255, 0.18) 25%, transparent 25%),
         linear-gradient(-45deg, rgba(255, 255, 255, 0.18) 25%, transparent 25%),
@@ -196,7 +195,7 @@
     }
 
     .swatch-big {
-      width: min(330px, 70vw);
+      height: min(300px, 78%);
       aspect-ratio: 1;
       border-radius: 50%;
       border: 1px solid rgba(255, 255, 255, 0.24);
@@ -206,8 +205,8 @@
 
     .readout {
       display: grid;
-      gap: 10px;
-      padding: 16px;
+      gap: 8px;
+      padding: 12px;
       background: var(--panel-strong);
       border-top: 1px solid var(--border);
     }
@@ -215,13 +214,13 @@
     .value-grid {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 10px;
+      gap: 8px;
     }
 
     .value {
       display: grid;
-      gap: 4px;
-      padding: 10px;
+      gap: 2px;
+      padding: 6px 8px;
       border: 1px solid var(--border);
       border-radius: var(--radius);
       background: var(--input-bg);
@@ -230,7 +229,7 @@
 
     .label {
       color: var(--muted);
-      font-size: 12px;
+      font-size: 11px;
       font-weight: 800;
       text-transform: uppercase;
     }
@@ -245,7 +244,7 @@
 
     label {
       display: grid;
-      gap: 7px;
+      gap: 4px;
       color: var(--muted);
       font-size: 12px;
       font-weight: 800;
@@ -254,17 +253,17 @@
 
     input[type="text"], input[type="number"] {
       width: 100%;
-      min-height: 42px;
+      min-height: 32px;
       border: 1px solid var(--border);
       border-radius: var(--radius);
       background: var(--input-bg);
       color: var(--ink);
-      padding: 9px 11px;
+      padding: 4px 10px;
     }
 
     input[type="color"] {
       width: 100%;
-      height: 72px;
+      height: 40px;
       padding: 0;
       border: 1px solid var(--border);
       border-radius: var(--radius);
@@ -275,14 +274,14 @@
     .input-row {
       display: grid;
       grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 10px;
+      gap: 8px;
     }
 
     .control {
       display: grid;
-      grid-template-columns: 36px minmax(0, 1fr) 74px;
+      grid-template-columns: 24px minmax(0, 1fr) 64px;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
     }
 
     input[type="range"] {
@@ -291,20 +290,20 @@
     }
 
     .range-value {
-      min-height: 38px;
+      min-height: 30px;
       border: 1px solid var(--border);
       border-radius: var(--radius);
       background: var(--input-bg);
       color: var(--ink);
-      padding: 8px;
+      padding: 4px;
       text-align: center;
       font-variant-numeric: tabular-nums;
     }
 
     .segmented {
       display: inline-flex;
-      gap: 4px;
-      padding: 4px;
+      gap: 2px;
+      padding: 2px;
       border: 1px solid var(--border);
       border-radius: var(--radius);
       background: var(--panel-strong);
@@ -315,8 +314,9 @@
       border-radius: 6px;
       background: transparent;
       color: var(--muted);
-      padding: 7px 10px;
+      padding: 3px 10px;
       cursor: pointer;
+      font-size: 12px;
       font-weight: 800;
     }
 
@@ -327,12 +327,14 @@
 
     .palette-grid, .harmony-grid, .history-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
-      gap: 10px;
+      grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
+      gap: 6px;
     }
 
+    .harmony-grid { grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); }
+
     .chip {
-      min-height: 48px;
+      min-height: 32px;
       border: 1px solid var(--border);
       border-radius: var(--radius);
       cursor: pointer;
@@ -340,7 +342,8 @@
     }
 
     .harmony-chip {
-      min-height: 78px;
+      min-height: 56px;
+      padding: 0;
       display: grid;
       align-content: end;
       border: 1px solid var(--border);
@@ -350,9 +353,9 @@
       background: var(--panel-strong);
     }
 
-    .harmony-color { min-height: 48px; }
+    .harmony-color { min-height: 32px; }
     .harmony-label {
-      padding: 7px;
+      padding: 4px;
       color: var(--muted);
       font-size: 11px;
       font-weight: 800;
@@ -360,9 +363,9 @@
     }
 
     .status {
-      min-height: 20px;
+      min-height: 18px;
       color: var(--muted);
-      font-size: 13px;
+      font-size: 12px;
     }
 
     .error { color: var(--danger); }
@@ -373,13 +376,27 @@
       gap: 8px;
     }
 
-    @media (max-width: 860px) {
-      body { padding: 12px; }
-      .topbar { align-items: flex-start; flex-direction: column; }
-      .toolbar { justify-content: flex-start; }
+    dialog { width: min(560px, calc(100vw - 32px)); max-height: calc(100vh - 32px); padding: 0; border: 1px solid var(--border); border-radius: 10px; background: var(--panel-strong); color: var(--ink); box-shadow: var(--shadow); }
+    dialog::backdrop { background: rgb(0 0 0 / 45%); }
+    .dlg-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 8px 8px 14px; border-bottom: 1px solid var(--border); font-weight: 700; }
+    .dlg-body { padding: 12px 14px 14px; overflow: auto; }
+    .dlg-body p { margin: 0 0 8px; }
+    .dlg-body h3 { margin: 10px 0 6px; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+    .dlg-body ul { margin: 0; padding-left: 18px; }
+    .dlg-body li { margin: 3px 0; }
+    .dlg-body kbd { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; padding: 0 5px; border: 1px solid var(--border); border-radius: 4px; }
+
+    @media (max-width: 900px) {
+      .brand span { display: none; }
+    }
+
+    @media (max-width: 720px) {
+      body { overflow: auto; }
+      .app { height: auto; min-height: 100%; }
       .layout { grid-template-columns: 1fr; }
-      .value-grid, .input-row { grid-template-columns: 1fr; }
-      .control { grid-template-columns: 28px minmax(0, 1fr) 64px; }
+      .col-scroll { overflow: visible; }
+      .preview-card { height: auto; grid-template-rows: 220px auto; }
+      .value-grid { grid-template-columns: 1fr; }
     }
   </style>
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-NWZDZ906DJ"></script>
@@ -393,17 +410,16 @@
 <body>
   <main class="app">
     <header class="topbar">
-      <div>
-        <h1 data-i18n="title">Color Picker</h1>
-        <p class="subtitle" data-i18n="subtitle">Pick, type, convert, copy, and build palettes from one color.</p>
-      </div>
+      <div class="brand"><img src="../assets/icons/svg/utils-color_picker.svg" alt=""><span data-i18n="title">Color Picker</span></div>
       <div class="toolbar">
-        <div class="lang-selector" aria-label="Language">
-          <a href="#" data-lang="en" class="active">EN</a>
-          <a href="#" data-lang="ja">JA</a>
-          <a href="#" data-lang="pt">PT</a>
-        </div>
-        <button class="btn icon-btn" id="themeBtn" type="button" title="Toggle theme" aria-label="Toggle theme"><i class="fas fa-moon"></i></button>
+        <button class="btn" type="button" id="randomBtn" data-i18n="random">Random</button>
+        <button class="btn icon-btn" id="help-btn" type="button" title="Help" aria-label="Help"><i class="fas fa-circle-question"></i></button>
+        <select id="lang-switcher" aria-label="Language">
+          <option value="en">EN</option>
+          <option value="pt">PT</option>
+          <option value="ja">JA</option>
+        </select>
+        <button class="btn icon-btn" id="theme-switcher" type="button" title="Toggle theme" aria-label="Toggle theme"><i class="fas fa-moon"></i></button>
       </div>
     </header>
 
@@ -428,11 +444,10 @@
         </div>
       </article>
 
-      <div class="stack">
+      <div class="stack col-scroll">
         <article class="panel">
           <div class="section-title">
             <h2 data-i18n="chooseTitle">Choose a color</h2>
-            <button class="btn" type="button" id="randomBtn" data-i18n="random">Random</button>
           </div>
           <div class="stack">
             <label>
@@ -497,6 +512,11 @@
     </section>
   </main>
 
+  <dialog id="help">
+    <div class="dlg-head"><span data-i18n="helpTitle">Color Picker help</span><button class="btn icon-btn" id="help-close" type="button" aria-label="Close"><i class="fas fa-xmark"></i></button></div>
+    <div class="dlg-body" id="help-body"></div>
+  </dialog>
+
   <script>
     (() => {
       const $ = (selector) => document.querySelector(selector);
@@ -531,7 +551,19 @@
           analogous2: 'Analogous',
           triadic1: 'Triadic',
           triadic2: 'Triadic',
-          shade: 'Shade'
+          shade: 'Shade',
+          help: 'Help',
+          close: 'Close',
+          helpTitle: 'Color Picker help',
+          helpHowTitle: 'How to use',
+          helpTips: [
+            'Use the native picker, type a HEX code (#38D9A9 or 38D9A9) or enter R, G and B values.',
+            'Switch the sliders between RGB and HSL to fine-tune the color.',
+            'Click any palette, harmony or history swatch to apply it.',
+            'The copy buttons put the HEX, RGB or HSL value on the clipboard. Contrast shows the text color that reads best on top.',
+            'History keeps your last 18 colors in this browser. Random picks a new color.'
+          ],
+          helpKeys: 'Press ? to open this help.'
         },
         ja: {
           title: 'カラーピッカー',
@@ -558,7 +590,19 @@
           analogous2: '類似色',
           triadic1: '三角色',
           triadic2: '三角色',
-          shade: 'シェード'
+          shade: 'シェード',
+          help: 'ヘルプ',
+          close: '閉じる',
+          helpTitle: 'カラーピッカーのヘルプ',
+          helpHowTitle: '使い方',
+          helpTips: [
+            '標準ピッカーを使うか、HEXコード（#38D9A9 または 38D9A9）や R・G・B の値を入力します。',
+            'スライダーを RGB と HSL で切り替えて色を微調整できます。',
+            'パレット・配色・履歴の色をクリックすると適用されます。',
+            'コピーボタンで HEX・RGB・HSL の値をクリップボードにコピーします。コントラストは上に重ねて読みやすい文字色です。',
+            '履歴にはこのブラウザで使った直近18色が保存されます。ランダムで新しい色を選びます。'
+          ],
+          helpKeys: '? キーでこのヘルプを開きます。'
         },
         pt: {
           title: 'Color Picker',
@@ -585,12 +629,28 @@
           analogous2: 'Análoga',
           triadic1: 'Triádica',
           triadic2: 'Triádica',
-          shade: 'Sombra'
+          shade: 'Sombra',
+          help: 'Ajuda',
+          close: 'Fechar',
+          helpTitle: 'Ajuda do Color Picker',
+          helpHowTitle: 'Como usar',
+          helpTips: [
+            'Use o seletor nativo, digite um código HEX (#38D9A9 ou 38D9A9) ou informe os valores R, G e B.',
+            'Alterne os sliders entre RGB e HSL para ajustar a cor.',
+            'Clique em qualquer cor das paletas, da harmonia ou do histórico para aplicá-la.',
+            'Os botões de copiar colocam o valor HEX, RGB ou HSL na área de transferência. Contraste mostra a cor de texto mais legível por cima.',
+            'O histórico guarda as últimas 18 cores neste navegador. Aleatória escolhe uma nova cor.'
+          ],
+          helpKeys: 'Pressione ? para abrir esta ajuda.'
         }
       };
 
       const els = {
-        themeBtn: $('#themeBtn'),
+        themeBtn: $('#theme-switcher'),
+        langSwitcher: $('#lang-switcher'),
+        help: $('#help'),
+        helpBtn: $('#help-btn'),
+        helpBody: $('#help-body'),
         colorInput: $('#colorInput'),
         hexInput: $('#hexInput'),
         rInput: $('#rInput'),
@@ -808,9 +868,15 @@
           const key = el.getAttribute('data-i18n');
           if (translations[currentLang][key]) el.textContent = translations[currentLang][key];
         });
-        $$('.lang-selector a').forEach((a) => a.classList.toggle('active', a.dataset.lang === currentLang));
-        els.themeBtn.title = translations[currentLang].theme;
-        els.themeBtn.setAttribute('aria-label', translations[currentLang].theme);
+        const tr = translations[currentLang];
+        els.langSwitcher.value = currentLang;
+        els.themeBtn.title = tr.theme;
+        els.themeBtn.setAttribute('aria-label', tr.theme);
+        els.helpBtn.title = tr.help;
+        els.helpBtn.setAttribute('aria-label', tr.help);
+        $('#help-close').setAttribute('aria-label', tr.close);
+        const esc = (text) => text.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+        els.helpBody.innerHTML = `<p>${esc(tr.subtitle)}</p><h3>${esc(tr.helpHowTitle)}</h3><ul>${tr.helpTips.map((tip) => `<li>${esc(tip)}</li>`).join('')}</ul><p style="margin-top:10px">${esc(tr.helpKeys).replace('?', '<kbd>?</kbd>')}</p>`;
         renderHarmony(rgbToHsl(color));
       }
 
@@ -839,10 +905,17 @@
         applyTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark');
       });
 
-      $('.lang-selector').addEventListener('click', (event) => {
+      els.langSwitcher.addEventListener('change', () => applyLanguage(els.langSwitcher.value));
+
+      els.helpBtn.addEventListener('click', () => els.help.showModal());
+      $('#help-close').addEventListener('click', () => els.help.close());
+      els.help.addEventListener('click', (event) => { if (event.target === els.help) els.help.close(); });
+      document.addEventListener('keydown', (event) => {
+        if (event.key !== '?' || els.help.open || event.ctrlKey || event.metaKey || event.altKey) return;
+        const el = document.activeElement;
+        if (el && (/^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName) || el.isContentEditable)) return;
         event.preventDefault();
-        const lang = event.target.dataset.lang;
-        if (lang) applyLanguage(lang);
+        els.help.showModal();
       });
 
       els.colorInput.addEventListener('input', () => setColor(parseHex(els.colorInput.value)));

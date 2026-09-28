@@ -1,0 +1,1331 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" href="../assets/icons/ico/utils-time_tools.ico" type="image/x-icon">
+  <title>Time Tools</title>
+  <link rel="stylesheet" href="../assets/fontawesome/css/all.min.css">
+  <style>
+    :root {
+      --bg: #111615; --panel: #1a2120; --panel-2: #212a29; --border: #2e3a38;
+      --text: #e8efee; --muted: #8a9a97; --accent: #1fb5a0; --accent-strong: #008f7d;
+      --accent-soft: rgba(31, 181, 160, .12); --warn: #e0a84a; --neg: #e07a6a; --ok: #3fb950;
+      --mono: ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
+    }
+    html[data-theme="light"] {
+      --bg: #f3f6f5; --panel: #ffffff; --panel-2: #f5f8f7; --border: #d7e0de;
+      --text: #172120; --muted: #62716e; --accent: #008f7d; --accent-strong: #006056;
+      --accent-soft: rgba(0, 143, 125, .09); --warn: #a86a08; --neg: #c0392b; --ok: #1a7f37;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
+    body { background: var(--bg); color: var(--text); font: 14px/1.4 system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif; overflow: hidden; }
+    button, input, select, textarea { font: inherit; color: inherit; }
+    .app { display: grid; grid-template-rows: auto 1fr; height: 100%; }
+
+    /* Top bar */
+    .topbar { display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 8px 0 12px; background: var(--panel); border-bottom: 1px solid var(--border); min-width: 0; }
+    .brand { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 15px; white-space: nowrap; }
+    .brand img { width: 18px; height: 18px; }
+    .tabs { display: flex; gap: 2px; flex: 1; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+    .tabs::-webkit-scrollbar { display: none; }
+    .tab { position: relative; display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 9px; border: 0; border-radius: 6px; background: none; color: var(--muted); font-size: 13px; white-space: nowrap; cursor: pointer; }
+    .tab:hover { background: var(--panel-2); color: var(--text); }
+    .tab[aria-selected="true"] { background: var(--accent-strong); color: #fff; }
+    .tabs.tight .tab { gap: 4px; padding: 0 6px; font-size: 12.5px; }
+    .tabs.compact .tab:not([aria-selected="true"]) span { display: none; }
+    .tab.live::after { content: ""; position: absolute; top: 4px; right: 3px; width: 6px; height: 6px; border-radius: 50%; background: var(--warn); }
+    .tools { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+    .icon-btn { display: grid; place-items: center; width: 30px; height: 30px; padding: 0; border: 1px solid var(--border); border-radius: 6px; background: var(--panel-2); cursor: pointer; }
+    .icon-btn:hover { border-color: var(--accent); color: var(--accent); }
+    select { height: 30px; border: 1px solid var(--border); border-radius: 6px; background: var(--panel-2); padding: 0 6px; font-size: 13px; }
+    :focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+    /* Panels */
+    main { min-height: 0; overflow: auto; }
+    .panel { max-width: 760px; margin: 0 auto; padding: 14px 14px 18px; display: flex; flex-direction: column; gap: 12px; }
+    .panel.wide { max-width: 1040px; }
+    .panel.fill { height: 100%; }
+    .panel[hidden] { display: none; }
+    .card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 12px; }
+    .row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+    .row.center { justify-content: center; }
+    .spacer { flex: 1; }
+    .grid { display: grid; gap: 8px; }
+    .grid.cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .grid.cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    label.field { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
+    input[type="number"], input[type="date"], input[type="time"], input[type="text"] { height: 32px; min-width: 0; padding: 0 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--panel-2); color: var(--text); }
+    input:focus, textarea:focus { outline: none; border-color: var(--accent); }
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 32px; padding: 0 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--panel-2); cursor: pointer; white-space: nowrap; }
+    .btn:hover:not(:disabled) { border-color: var(--accent); }
+    .btn:disabled { opacity: .45; cursor: default; }
+    .btn.primary { background: var(--accent-strong); border-color: var(--accent-strong); color: #fff; }
+    .btn.danger:hover:not(:disabled) { border-color: var(--neg); color: var(--neg); }
+    .btn.sm { height: 28px; padding: 0 8px; font-size: 12px; }
+    .muted { color: var(--muted); }
+    .small { font-size: 12px; }
+    .display { font-family: var(--mono); font-weight: 700; font-size: clamp(40px, 9vw, 76px); line-height: 1.1; text-align: center; letter-spacing: .02em; font-variant-numeric: tabular-nums; }
+    .display.md { font-size: clamp(32px, 6vw, 52px); }
+    .sub { text-align: center; color: var(--muted); }
+    .bar { height: 10px; border-radius: 99px; background: var(--panel-2); border: 1px solid var(--border); overflow: hidden; }
+    .bar > div { height: 100%; width: 0; background: var(--accent); transition: width .25s linear; }
+    .bar.alt > div { background: var(--warn); }
+    .kv { display: flex; justify-content: space-between; gap: 8px; }
+    .kv b { font-variant-numeric: tabular-nums; }
+
+    /* Difference */
+    .result-row { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--panel-2); }
+    .result-row .k { width: 150px; color: var(--muted); font-size: 12px; }
+    .result-row .v { flex: 1; font-weight: 600; font-variant-numeric: tabular-nums; }
+    .empty { text-align: center; color: var(--muted); padding: 16px; }
+
+    /* Sum */
+    .editor { flex: 1; min-height: 160px; display: grid; grid-template-columns: 40px 1fr 120px; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; --line-h: 24px; }
+    .editor:focus-within { border-color: var(--accent); }
+    .gutter, .running { overflow: hidden; font-family: var(--mono); font-size: 12px; line-height: var(--line-h); padding: 8px 0; background: var(--panel-2); color: var(--muted); }
+    .gutter { text-align: right; padding-right: 8px; border-right: 1px solid var(--border); user-select: none; }
+    .gutter .cur { color: var(--accent); font-weight: 700; }
+    .running { padding: 8px 10px; border-left: 1px solid var(--border); text-align: right; white-space: nowrap; }
+    .running .bad { color: var(--warn); }
+    .running .skip { opacity: .5; }
+    .running .neg b { color: var(--neg); }
+    .running > div { height: var(--line-h); }
+    .editor textarea { border: 0; resize: none; padding: 8px 10px; background: transparent; font-family: var(--mono); font-size: 13px; line-height: var(--line-h); white-space: pre; overflow: auto; outline: none; }
+    .sum-result { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+    .sum-total { font-family: var(--mono); font-size: 30px; font-weight: 700; font-variant-numeric: tabular-nums; }
+    .sum-total.neg { color: var(--neg); }
+    .stats { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; color: var(--muted); }
+    .stats b { color: var(--text); font-variant-numeric: tabular-nums; }
+    .warn { color: var(--warn); font-size: 12px; }
+    label.check { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); cursor: pointer; }
+
+    /* World clocks */
+    .clocks { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; }
+    .clock { position: relative; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--panel); }
+    .clock .city { font-weight: 600; padding-right: 22px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .clock .time { font-family: var(--mono); font-size: 30px; font-weight: 700; font-variant-numeric: tabular-nums; }
+    .clock .date, .clock .zone { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .clock .remove { position: absolute; top: 6px; right: 6px; width: 24px; height: 24px; border: 0; border-radius: 5px; background: none; color: var(--muted); cursor: pointer; }
+    .clock .remove:hover { color: var(--neg); background: var(--panel-2); }
+    .autocomplete { position: relative; flex: 1; min-width: 200px; }
+    .autocomplete input { width: 100%; }
+    .dropdown { position: absolute; left: 0; right: 0; top: 34px; z-index: 5; max-height: 240px; overflow: auto; border: 1px solid var(--border); border-radius: 6px; background: var(--panel); box-shadow: 0 8px 24px rgb(0 0 0 / 25%); }
+    .dropdown div { padding: 6px 10px; cursor: pointer; }
+    .dropdown div:hover, .dropdown div.sel { background: var(--accent-soft); color: var(--accent); }
+    .msg { font-size: 12px; min-height: 16px; }
+    .msg.error { color: var(--neg); }
+    .msg.success { color: var(--ok); }
+
+    /* Forex */
+    .markets { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+    .market { padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--panel); }
+    .market .name { display: flex; align-items: center; gap: 8px; font-weight: 600; }
+    .market .time { font-family: var(--mono); font-size: 28px; font-weight: 700; }
+    .market .status { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); }
+    .market .status b.open { color: var(--ok); }
+    .market .status b.closed { color: var(--warn); }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--warn); }
+    .dot.open { background: var(--ok); }
+    .rings { display: flex; flex-wrap: wrap; justify-content: space-around; gap: 8px; }
+    .ring { display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 12px; color: var(--muted); }
+    .ring .wrap { position: relative; width: 72px; height: 72px; }
+    .ring svg { transform: rotate(-90deg); }
+    .ring circle { fill: none; stroke-width: 6; }
+    .ring .bg { stroke: var(--panel-2); }
+    .ring .fg { stroke: var(--accent); stroke-linecap: round; }
+    .ring .txt { position: absolute; inset: 0; display: grid; place-items: center; font-family: var(--mono); font-size: 13px; font-weight: 700; color: var(--text); }
+
+    /* Help */
+    dialog { width: min(600px, calc(100vw - 32px)); max-height: calc(100vh - 32px); padding: 0; border: 1px solid var(--border); border-radius: 10px; background: var(--panel); color: var(--text); }
+    dialog::backdrop { background: rgb(0 0 0 / 45%); }
+    .dlg-head { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-bottom: 1px solid var(--border); font-weight: 600; }
+    .dlg-body { padding: 12px 14px 16px; overflow: auto; }
+    .dlg-body h3 { margin: 12px 0 6px; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+    .dlg-body p { margin: 0 0 8px; }
+    .dlg-body ul { margin: 0; padding-left: 18px; }
+    .dlg-body li { margin: 3px 0; }
+    .dlg-body li.active b { color: var(--accent); }
+    .dlg-body code { font-family: var(--mono); background: var(--accent-soft); color: var(--accent); padding: 0 4px; border-radius: 4px; }
+
+    .toast { position: fixed; left: 50%; bottom: 16px; transform: translate(-50%, 20px); padding: 6px 12px; border-radius: 6px; background: var(--accent-strong); color: #fff; font-size: 13px; opacity: 0; pointer-events: none; transition: .2s; }
+    .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+    @media (max-width: 1000px) { .brand span { display: none; } }
+    @media (max-width: 760px) {
+      .tab span { display: none; }
+      .grid.cols-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .markets { grid-template-columns: 1fr; }
+      .editor { grid-template-columns: 34px 1fr 90px; }
+      .result-row .k { width: 110px; }
+    }
+  </style>
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-NWZDZ906DJ"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-NWZDZ906DJ');
+  </script>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand"><img src="../assets/icons/svg/utils-time_tools.svg" alt=""><span data-i18n="title">Time Tools</span></div>
+      <nav class="tabs" id="tabs" role="tablist"></nav>
+      <div class="tools">
+        <button class="icon-btn" id="help-btn" type="button" data-i18n-title="help"><i class="fa-solid fa-circle-question"></i></button>
+        <select id="lang-switcher" aria-label="Language">
+          <option value="en">EN</option>
+          <option value="pt">PT</option>
+          <option value="ja">JA</option>
+        </select>
+        <button class="icon-btn" id="theme-switcher" type="button" data-i18n-title="theme"><i class="fa-solid fa-sun"></i></button>
+      </div>
+    </header>
+
+    <main>
+      <!-- Stopwatch -->
+      <section class="panel" data-panel="stopwatch" hidden>
+        <div class="card">
+          <div class="display" id="sw-display">00:00:00.000</div>
+          <div class="row center" style="margin-top:10px">
+            <button class="btn primary" id="sw-start" type="button"><i class="fa-solid fa-play"></i><span data-i18n="start">Start</span></button>
+            <button class="btn" id="sw-stop" type="button" disabled><i class="fa-solid fa-pause"></i><span data-i18n="stop">Stop</span></button>
+            <button class="btn" id="sw-lap" type="button" disabled><i class="fa-solid fa-flag"></i><span data-i18n="lap">Lap</span></button>
+            <button class="btn danger" id="sw-reset" type="button"><i class="fa-solid fa-rotate-left"></i><span data-i18n="reset">Reset</span></button>
+          </div>
+        </div>
+        <div class="card" id="sw-laps-card" hidden>
+          <div class="grid" id="sw-laps" style="max-height:220px;overflow:auto;font-family:var(--mono);font-size:13px"></div>
+        </div>
+      </section>
+
+      <!-- Countdown -->
+      <section class="panel" data-panel="countdown" hidden>
+        <div class="card">
+          <div class="display" id="cd-display">00:00:00</div>
+          <div class="bar" style="margin:10px 0"><div id="cd-bar"></div></div>
+          <div class="grid cols-4">
+            <label class="field"><span data-i18n="days">Days</span><input type="number" id="cd-days" min="0" placeholder="0"></label>
+            <label class="field"><span data-i18n="hours">Hours</span><input type="number" id="cd-hours" min="0" placeholder="0"></label>
+            <label class="field"><span data-i18n="minutes">Minutes</span><input type="number" id="cd-minutes" min="0" placeholder="0"></label>
+            <label class="field"><span data-i18n="seconds">Seconds</span><input type="number" id="cd-seconds" min="0" placeholder="0"></label>
+          </div>
+          <div class="row center" style="margin-top:10px">
+            <button class="btn primary" id="cd-start" type="button"><i class="fa-solid fa-play"></i><span data-i18n="start">Start</span></button>
+            <button class="btn" id="cd-stop" type="button" disabled><i class="fa-solid fa-pause"></i><span data-i18n="stop">Stop</span></button>
+            <button class="btn danger" id="cd-reset" type="button"><i class="fa-solid fa-rotate-left"></i><span data-i18n="reset">Reset</span></button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Clock -->
+      <section class="panel" data-panel="clock" hidden>
+        <div class="card">
+          <div class="display" id="clock-display">00:00:00</div>
+          <div class="sub" id="clock-date"></div>
+        </div>
+      </section>
+
+      <!-- Unit timing -->
+      <section class="panel" data-panel="units" hidden>
+        <div class="card">
+          <div class="grid cols-4">
+            <label class="field"><span data-i18n="unitQuantity">Number of units</span><input type="number" id="ut-quantity" min="1" step="1" placeholder="0"></label>
+            <label class="field"><span data-i18n="hours">Hours</span><input type="number" id="ut-hours" min="0" step="1" placeholder="0"></label>
+            <label class="field"><span data-i18n="minutes">Minutes</span><input type="number" id="ut-minutes" min="0" step="1" placeholder="0"></label>
+            <label class="field"><span data-i18n="seconds">Seconds</span><input type="number" id="ut-seconds" min="0" step="1" placeholder="0"></label>
+          </div>
+          <div class="sub small" style="margin-top:10px" data-i18n="totalTimeRemaining">Total time remaining</div>
+          <div class="display md" id="ut-display">00:00:00</div>
+          <div class="grid cols-2 small" style="margin:6px 0 10px">
+            <div class="kv"><span data-i18n="unitsRemaining">Units remaining</span><b id="ut-remaining">0</b></div>
+            <div class="kv"><span data-i18n="finishesAt">Finishes at</span><b id="ut-end">—</b></div>
+          </div>
+          <div class="small muted" data-i18n="unitProgress">Current unit progress</div>
+          <div class="bar" style="margin:4px 0 8px"><div id="ut-unit-bar"></div></div>
+          <div class="small muted" data-i18n="totalProgress">Total progress</div>
+          <div class="bar alt" style="margin-top:4px"><div id="ut-total-bar"></div></div>
+          <div class="row center" style="margin-top:12px">
+            <button class="btn primary" id="ut-start" type="button"><i class="fa-solid fa-play"></i><span data-i18n="start">Start</span></button>
+            <button class="btn" id="ut-stop" type="button" disabled><i class="fa-solid fa-pause"></i><span data-i18n="stop">Stop</span></button>
+            <button class="btn danger" id="ut-reset" type="button"><i class="fa-solid fa-rotate-left"></i><span data-i18n="reset">Reset</span></button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Difference -->
+      <section class="panel" data-panel="diff" hidden>
+        <div class="card">
+          <div class="grid cols-2">
+            <label class="field"><span data-i18n="from">From</span>
+              <div class="row" style="flex-wrap:nowrap"><input type="date" id="df-from-date" style="flex:1"><input type="time" id="df-from-time" step="1" style="flex:1"></div>
+            </label>
+            <label class="field"><span data-i18n="to">To</span>
+              <div class="row" style="flex-wrap:nowrap"><input type="date" id="df-to-date" style="flex:1"><input type="time" id="df-to-time" step="1" style="flex:1"></div>
+            </label>
+          </div>
+          <div class="row" style="margin-top:8px">
+            <button class="btn sm" id="df-now" type="button"><i class="fa-solid fa-clock"></i><span data-i18n="toNow">To = now</span></button>
+            <div class="spacer"></div>
+            <button class="btn sm" id="df-clear" type="button"><i class="fa-solid fa-eraser"></i><span data-i18n="reset">Reset</span></button>
+          </div>
+        </div>
+        <div class="grid" id="df-results">
+          <div class="result-row"><span class="k" data-i18n="hoursMinutes">Hours and minutes</span><span class="v" id="df-hm"></span><button class="icon-btn copy" type="button" data-copy="df-hm"><i class="fa-regular fa-copy"></i></button></div>
+          <div class="result-row"><span class="k" data-i18n="daysLabel">Days, hours, minutes</span><span class="v" id="df-dhm"></span><button class="icon-btn copy" type="button" data-copy="df-dhm"><i class="fa-regular fa-copy"></i></button></div>
+          <div class="result-row"><span class="k" data-i18n="minutes">Minutes</span><span class="v" id="df-min"></span><button class="icon-btn copy" type="button" data-copy="df-min"><i class="fa-regular fa-copy"></i></button></div>
+          <div class="result-row"><span class="k" data-i18n="seconds">Seconds</span><span class="v" id="df-sec"></span><button class="icon-btn copy" type="button" data-copy="df-sec"><i class="fa-regular fa-copy"></i></button></div>
+        </div>
+        <div class="empty" id="df-empty" data-i18n="diffEmpty" hidden>Select dates and times to see the results</div>
+      </section>
+
+      <!-- Sum -->
+      <section class="panel fill" data-panel="sum" hidden>
+        <div class="row">
+          <label class="check"><input type="checkbox" id="sm-auto" checked><span data-i18n="autoFormat">Auto-format to HH:MM:SS when leaving a line</span></label>
+          <div class="spacer"></div>
+          <button class="btn sm" id="sm-format" type="button" data-i18n="formatAll">Format all</button>
+          <button class="btn sm" id="sm-example" type="button" data-i18n="example">Example</button>
+          <button class="btn sm danger" id="sm-clear" type="button" data-i18n="clear">Clear</button>
+        </div>
+        <div class="editor">
+          <div class="gutter" id="sm-gutter"></div>
+          <textarea id="sm-input" spellcheck="false" wrap="off" autocomplete="off"></textarea>
+          <div class="running" id="sm-running"></div>
+        </div>
+        <div class="card sum-result" aria-live="polite">
+          <div>
+            <div class="small muted" data-i18n="total">Total</div>
+            <div class="sum-total" id="sm-total">00:00:00</div>
+          </div>
+          <button class="btn primary" id="sm-copy" type="button"><i class="fa-regular fa-copy"></i><span data-i18n="copyTotal">Copy total</span></button>
+          <div class="stats">
+            <span><span data-i18n="entries">Entries</span>: <b id="sm-entries">0</b></span>
+            <span><span data-i18n="average">Average</span>: <b id="sm-avg">00:00:00</b></span>
+            <span><span data-i18n="decimalHours">Decimal hours</span>: <b id="sm-hours">0</b></span>
+            <span><span data-i18n="totalMinutes">Total minutes</span>: <b id="sm-minutes">0</b></span>
+            <span><span data-i18n="totalSeconds">Total seconds</span>: <b id="sm-seconds">0</b></span>
+          </div>
+          <div class="warn" id="sm-warnings" hidden></div>
+        </div>
+      </section>
+
+      <!-- Age -->
+      <section class="panel" data-panel="age" hidden>
+        <div class="card">
+          <label class="field" style="max-width:260px"><span data-i18n="birthDate">Date of birth</span><input type="date" id="ag-birth"></label>
+        </div>
+        <div class="card" id="ag-result" hidden>
+          <div class="small muted" data-i18n="age">Age</div>
+          <div style="font-size:26px;font-weight:700" id="ag-main"></div>
+          <div class="stats" style="margin-top:6px">
+            <span><span data-i18n="totalMonths">Total months</span>: <b id="ag-months"></b></span>
+            <span><span data-i18n="totalWeeks">Total weeks</span>: <b id="ag-weeks"></b></span>
+            <span><span data-i18n="totalDays">Total days</span>: <b id="ag-days"></b></span>
+            <span><span data-i18n="nextBirthday">Next birthday</span>: <b id="ag-next"></b></span>
+          </div>
+        </div>
+        <div class="empty" id="ag-empty" data-i18n="ageEmpty">Enter your date of birth to see your age.</div>
+        <div class="empty" id="ag-error" style="color:var(--neg)" data-i18n="ageFuture" hidden>The date of birth cannot be in the future.</div>
+      </section>
+
+      <!-- World clocks -->
+      <section class="panel wide" data-panel="world" hidden>
+        <div class="row">
+          <div class="autocomplete">
+            <input type="text" id="wc-input" autocomplete="off" data-i18n-placeholder="searchZone">
+            <div class="dropdown" id="wc-dropdown" hidden></div>
+          </div>
+          <button class="btn primary" id="wc-add" type="button"><i class="fa-solid fa-plus"></i><span data-i18n="addClock">Add clock</span></button>
+        </div>
+        <div class="msg" id="wc-msg"></div>
+        <div class="clocks" id="wc-clocks"></div>
+      </section>
+
+      <!-- Forex -->
+      <section class="panel wide" data-panel="forex" hidden>
+        <div class="card row">
+          <div>
+            <div class="small muted" data-i18n="localTime">Local time</div>
+            <div style="font-family:var(--mono);font-size:30px;font-weight:700" id="fx-local">--:--</div>
+            <div class="small muted" id="fx-date"></div>
+          </div>
+          <div class="spacer"></div>
+          <div style="text-align:right">
+            <div class="small muted" data-i18n="serverTime">Server time</div>
+            <div style="font-family:var(--mono);font-size:30px;font-weight:700" id="fx-server">--:--:--</div>
+            <div class="small muted" data-i18n="serverHint">New York + 7h</div>
+          </div>
+        </div>
+        <div class="markets" id="fx-markets"></div>
+        <div class="card">
+          <div class="small muted" style="margin-bottom:6px" data-i18n="candles">Candle intervals</div>
+          <div class="rings" id="fx-rings"></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <dialog id="help">
+    <div class="dlg-head"><span id="help-title"></span><button class="icon-btn" id="help-close" type="button"><i class="fa-solid fa-xmark"></i></button></div>
+    <div class="dlg-body" id="help-body"></div>
+  </dialog>
+  <div class="toast" id="toast"></div>
+
+  <script>
+    (() => {
+      // ------------------------------------------------------------------
+      // Text
+      // ------------------------------------------------------------------
+      const I18N = {
+        en: {
+          title: 'Time Tools', help: 'Help', theme: 'Toggle theme', close: 'Close', copied: 'Copied!',
+          tab_stopwatch: 'Stopwatch', tab_countdown: 'Countdown', tab_clock: 'Clock', tab_units: 'Units',
+          tab_diff: 'Difference', tab_sum: 'Sum', tab_age: 'Age', tab_world: 'World', tab_forex: 'Forex',
+          start: 'Start', stop: 'Stop', reset: 'Reset', lap: 'Lap',
+          days: 'Days', hours: 'Hours', minutes: 'Minutes', seconds: 'Seconds',
+          countdownDone: 'Countdown finished!',
+          unitQuantity: 'Number of units', totalTimeRemaining: 'Total time remaining', unitsRemaining: 'Units remaining',
+          finishesAt: 'Finishes at', unitProgress: 'Current unit progress', totalProgress: 'Total progress',
+          from: 'From', to: 'To', toNow: 'To = now', hoursMinutes: 'Hours and minutes', daysLabel: 'Days, hours, minutes',
+          diffEmpty: 'Select dates and times to see the results.',
+          u_day: ['day', 'days'], u_hour: ['hour', 'hours'], u_minute: ['minute', 'minutes'], u_second: ['second', 'seconds'],
+          u_year: ['year', 'years'], u_month: ['month', 'months'], and: 'and',
+          autoFormat: 'Auto-format to HH:MM:SS when leaving a line', formatAll: 'Format all', example: 'Example', clear: 'Clear',
+          sumPlaceholder: 'Intro 03:25\nChapter 1  12:40\n1:02:15\n...',
+          total: 'Total', copyTotal: 'Copy total', entries: 'Entries', average: 'Average', decimalHours: 'Decimal hours',
+          totalMinutes: 'Total minutes', totalSeconds: 'Total seconds',
+          invalidLines: 'Ignored lines with invalid times (minutes/seconds must be below 60): {lines}',
+          confirmClear: 'Clear all entries?',
+          exampleText: 'Intro 03:25\nChapter 1 - 12:40\nChapter 2 - 1:02:15\n08:05\n- Break 02:00',
+          birthDate: 'Date of birth', age: 'Age', totalMonths: 'Total months', totalWeeks: 'Total weeks', totalDays: 'Total days',
+          nextBirthday: 'Next birthday', inDays: 'in {n} days', today: 'today!',
+          ageEmpty: 'Enter your date of birth to see your age.', ageFuture: 'The date of birth cannot be in the future.',
+          searchZone: 'Search a city or time zone…', addClock: 'Add clock', remove: 'Remove',
+          invalidZone: 'Pick a time zone from the list.', zoneExists: 'This time zone is already on the list.',
+          clockAdded: 'Clock added.', confirmRemove: 'Remove the clock for {city}?',
+          localTime: 'Local time', serverTime: 'Server time', serverHint: 'New York + 7h (MT4/MT5)', candles: 'Candle intervals',
+          tokyo: 'Tokyo', london: 'London', newyork: 'New York', toOpen: 'Opens in', toClose: 'Closes in',
+          open: 'Open', closed: 'Closed', hour1: '1 hour',
+          helpIntro: 'Clocks, timers and date math in one place. Timers keep running when you switch tabs; a dot marks the tabs that are running.',
+          helpTools: 'Tools',
+          d_stopwatch: 'Start, pause, record laps and reset.',
+          d_countdown: 'Count down from days, hours, minutes and seconds. An alert shows when it ends.',
+          d_clock: 'Current local time and date.',
+          d_units: 'Time a batch of equal units: set how many and how long each takes to see the remaining time, the finish time and progress.',
+          d_diff: 'Difference between two dates and times, in several formats. The last values are saved.',
+          d_sum: 'Add up durations, one per line, in <code>MM:SS</code> or <code>HH:MM:SS</code>. Text around the times is ignored. Start a line with <code>-</code> to subtract it. The right column shows the running total.',
+          d_age: 'Age in years, months and days, with totals and the next birthday. The date is saved.',
+          d_world: 'Clocks for any time zone. Search, add, and remove with the ✕. The list is saved.',
+          d_forex: 'Tokyo, London and New York session hours, the usual broker server time (New York + 7h) and the time left in each candle.',
+        },
+        pt: {
+          title: 'Ferramentas de Tempo', help: 'Ajuda', theme: 'Alternar tema', close: 'Fechar', copied: 'Copiado!',
+          tab_stopwatch: 'Cronômetro', tab_countdown: 'Contagem', tab_clock: 'Relógio', tab_units: 'Unidades',
+          tab_diff: 'Diferença', tab_sum: 'Soma', tab_age: 'Idade', tab_world: 'Mundo', tab_forex: 'Forex',
+          start: 'Iniciar', stop: 'Parar', reset: 'Zerar', lap: 'Volta',
+          days: 'Dias', hours: 'Horas', minutes: 'Minutos', seconds: 'Segundos',
+          countdownDone: 'A contagem regressiva terminou!',
+          unitQuantity: 'Quantidade de unidades', totalTimeRemaining: 'Tempo total restante', unitsRemaining: 'Unidades restantes',
+          finishesAt: 'Termina em', unitProgress: 'Progresso da unidade atual', totalProgress: 'Progresso total',
+          from: 'De', to: 'Até', toNow: 'Até = agora', hoursMinutes: 'Horas e minutos', daysLabel: 'Dias, horas, minutos',
+          diffEmpty: 'Selecione datas e horas para ver os resultados.',
+          u_day: ['dia', 'dias'], u_hour: ['hora', 'horas'], u_minute: ['minuto', 'minutos'], u_second: ['segundo', 'segundos'],
+          u_year: ['ano', 'anos'], u_month: ['mês', 'meses'], and: 'e',
+          autoFormat: 'Formatar para HH:MM:SS ao sair da linha', formatAll: 'Formatar tudo', example: 'Exemplo', clear: 'Limpar',
+          sumPlaceholder: 'Intro 03:25\nCapítulo 1  12:40\n1:02:15\n...',
+          total: 'Total', copyTotal: 'Copiar total', entries: 'Entradas', average: 'Média', decimalHours: 'Horas decimais',
+          totalMinutes: 'Total de minutos', totalSeconds: 'Total de segundos',
+          invalidLines: 'Linhas ignoradas com tempo inválido (minutos/segundos devem ser menores que 60): {lines}',
+          confirmClear: 'Limpar todas as entradas?',
+          exampleText: 'Intro 03:25\nCapítulo 1 - 12:40\nCapítulo 2 - 1:02:15\n08:05\n- Pausa 02:00',
+          birthDate: 'Data de nascimento', age: 'Idade', totalMonths: 'Total de meses', totalWeeks: 'Total de semanas', totalDays: 'Total de dias',
+          nextBirthday: 'Próximo aniversário', inDays: 'em {n} dias', today: 'hoje!',
+          ageEmpty: 'Informe sua data de nascimento para ver sua idade.', ageFuture: 'A data de nascimento não pode ser no futuro.',
+          searchZone: 'Busque uma cidade ou fuso horário…', addClock: 'Adicionar relógio', remove: 'Remover',
+          invalidZone: 'Escolha um fuso horário da lista.', zoneExists: 'Este fuso horário já está na lista.',
+          clockAdded: 'Relógio adicionado.', confirmRemove: 'Remover o relógio de {city}?',
+          localTime: 'Hora local', serverTime: 'Hora do servidor', serverHint: 'Nova York + 7h (MT4/MT5)', candles: 'Intervalos de vela',
+          tokyo: 'Tóquio', london: 'Londres', newyork: 'Nova York', toOpen: 'Abre em', toClose: 'Fecha em',
+          open: 'Aberto', closed: 'Fechado', hour1: '1 hora',
+          helpIntro: 'Relógios, cronômetros e contas com datas num só lugar. Os cronômetros continuam rodando quando você troca de aba; um ponto marca as abas em andamento.',
+          helpTools: 'Ferramentas',
+          d_stopwatch: 'Inicia, pausa, marca voltas e zera.',
+          d_countdown: 'Contagem regressiva em dias, horas, minutos e segundos. Um alerta aparece no fim.',
+          d_clock: 'Hora e data locais.',
+          d_units: 'Cronometra um lote de unidades iguais: informe quantas e quanto tempo cada uma leva para ver o tempo restante, a hora de término e o progresso.',
+          d_diff: 'Diferença entre duas datas e horas, em vários formatos. Os últimos valores ficam salvos.',
+          d_sum: 'Soma durações, uma por linha, no formato <code>MM:SS</code> ou <code>HH:MM:SS</code>. O texto ao redor dos tempos é ignorado. Comece a linha com <code>-</code> para subtrair. A coluna da direita mostra o total acumulado.',
+          d_age: 'Idade em anos, meses e dias, com totais e o próximo aniversário. A data fica salva.',
+          d_world: 'Relógios de qualquer fuso horário. Busque, adicione e remova com o ✕. A lista fica salva.',
+          d_forex: 'Horários das sessões de Tóquio, Londres e Nova York, a hora usual do servidor das corretoras (Nova York + 7h) e o tempo restante de cada vela.',
+        },
+        ja: {
+          title: '時間ツール', help: 'ヘルプ', theme: 'テーマ切替', close: '閉じる', copied: 'コピーしました！',
+          tab_stopwatch: 'ストップウォッチ', tab_countdown: 'カウントダウン', tab_clock: '時計', tab_units: '単位',
+          tab_diff: '時間差', tab_sum: '合計', tab_age: '年齢', tab_world: '世界', tab_forex: 'FX',
+          start: 'スタート', stop: 'ストップ', reset: 'リセット', lap: 'ラップ',
+          days: '日', hours: '時間', minutes: '分', seconds: '秒',
+          countdownDone: 'カウントダウンが終了しました！',
+          unitQuantity: '単位数', totalTimeRemaining: '残り合計時間', unitsRemaining: '残りの単位数',
+          finishesAt: '終了予定', unitProgress: '現在の単位の進捗', totalProgress: '全体の進捗',
+          from: '開始', to: '終了', toNow: '終了 = 現在', hoursMinutes: '時間と分', daysLabel: '日・時間・分',
+          diffEmpty: '日付と時刻を選択すると結果が表示されます。',
+          u_day: ['日', '日'], u_hour: ['時間', '時間'], u_minute: ['分', '分'], u_second: ['秒', '秒'],
+          u_year: ['年', '年'], u_month: ['ヶ月', 'ヶ月'], and: '',
+          autoFormat: '行を離れたら HH:MM:SS に自動整形', formatAll: 'すべて整形', example: 'サンプル', clear: 'クリア',
+          sumPlaceholder: 'イントロ 03:25\n第1章  12:40\n1:02:15\n...',
+          total: '合計', copyTotal: '合計をコピー', entries: 'エントリー数', average: '平均', decimalHours: '時間（小数）',
+          totalMinutes: '合計分', totalSeconds: '合計秒',
+          invalidLines: '無効な時間の行を無視しました（分・秒は60未満）：{lines}',
+          confirmClear: 'すべての入力をクリアしますか？',
+          exampleText: 'イントロ 03:25\n第1章 - 12:40\n第2章 - 1:02:15\n08:05\n- 休憩 02:00',
+          birthDate: '生年月日', age: '年齢', totalMonths: '合計月数', totalWeeks: '合計週数', totalDays: '合計日数',
+          nextBirthday: '次の誕生日', inDays: 'あと {n} 日', today: '今日！',
+          ageEmpty: '生年月日を入力すると年齢が表示されます。', ageFuture: '生年月日を未来の日付にすることはできません。',
+          searchZone: '都市またはタイムゾーンを検索…', addClock: '時計を追加', remove: '削除',
+          invalidZone: 'リストからタイムゾーンを選んでください。', zoneExists: 'このタイムゾーンは既に追加されています。',
+          clockAdded: '時計を追加しました。', confirmRemove: '{city} の時計を削除しますか？',
+          localTime: '現地時刻', serverTime: 'サーバー時間', serverHint: 'ニューヨーク + 7時間 (MT4/MT5)', candles: 'ローソク足の残り時間',
+          tokyo: '東京', london: 'ロンドン', newyork: 'ニューヨーク', toOpen: 'オープンまで', toClose: 'クローズまで',
+          open: 'オープン', closed: 'クローズ', hour1: '1時間',
+          helpIntro: '時計・タイマー・日付計算をひとまとめにしました。タブを切り替えてもタイマーは動き続け、動作中のタブには点が付きます。',
+          helpTools: 'ツール',
+          d_stopwatch: 'スタート、一時停止、ラップ記録、リセット。',
+          d_countdown: '日・時間・分・秒からカウントダウンします。終了するとアラートが出ます。',
+          d_clock: '現在の時刻と日付。',
+          d_units: '同じ作業の繰り返しを計時します。個数と 1 個あたりの時間を入れると、残り時間・終了予定・進捗が分かります。',
+          d_diff: '2 つの日時の差をいくつかの形式で表示します。最後の値は保存されます。',
+          d_sum: '1 行に 1 つ、<code>MM:SS</code> または <code>HH:MM:SS</code> の時間を合計します。前後のテキストは無視されます。行頭に <code>-</code> を付けると減算します。右の列は累計です。',
+          d_age: '年・月・日での年齢と合計、次の誕生日を表示します。日付は保存されます。',
+          d_world: '任意のタイムゾーンの時計。検索して追加し、✕ で削除します。リストは保存されます。',
+          d_forex: '東京・ロンドン・ニューヨークの取引時間、一般的なブローカーのサーバー時間（ニューヨーク + 7時間）、各ローソク足の残り時間。',
+        },
+      };
+
+      const TABS = [
+        { id: 'stopwatch', icon: 'fa-solid fa-stopwatch' },
+        { id: 'countdown', icon: 'fa-solid fa-hourglass-half' },
+        { id: 'clock', icon: 'fa-regular fa-clock' },
+        { id: 'units', icon: 'fa-solid fa-list-ol' },
+        { id: 'diff', icon: 'fa-solid fa-arrows-left-right' },
+        { id: 'sum', icon: 'fa-solid fa-plus' },
+        { id: 'age', icon: 'fa-solid fa-cake-candles' },
+        { id: 'world', icon: 'fa-solid fa-earth-americas' },
+        { id: 'forex', icon: 'fa-solid fa-chart-line' },
+      ];
+
+      const store = {
+        get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+        set(k, v) { try { localStorage.setItem(k, v); } catch {} },
+        del(k) { try { localStorage.removeItem(k); } catch {} },
+      };
+      const $ = (id) => document.getElementById(id);
+      const pad = (n, w = 2) => String(n).padStart(w, '0');
+
+      let lang = store.get('app_lang');
+      if (!I18N[lang]) lang = 'en';
+      let theme = store.get('app_theme') === 'light' ? 'light' : 'dark';
+      const t = (k) => (I18N[lang][k] !== undefined ? I18N[lang][k] : I18N.en[k]);
+      const locale = () => ({ en: 'en-US', pt: 'pt-BR', ja: 'ja-JP' }[lang]);
+      const unit = (n, key) => {
+        const [one, many] = t(key);
+        return lang === 'ja' ? `${n.toLocaleString(locale())}${one}` : `${n.toLocaleString(locale())} ${n === 1 ? one : many}`;
+      };
+
+      function toast(msg) {
+        const el = $('toast');
+        el.textContent = msg;
+        el.classList.add('show');
+        clearTimeout(toast.timer);
+        toast.timer = setTimeout(() => el.classList.remove('show'), 1400);
+      }
+
+      async function copyText(text) {
+        try { await navigator.clipboard.writeText(text); }
+        catch {
+          const ta = document.createElement('textarea');
+          ta.value = text; document.body.appendChild(ta); ta.select();
+          document.execCommand('copy'); ta.remove();
+        }
+        toast(t('copied'));
+      }
+
+      // ------------------------------------------------------------------
+      // Tabs, language, theme, help
+      // ------------------------------------------------------------------
+      const TAB_KEY = 'time_tools_tab';
+      let active = null;
+      const panelHooks = {};
+
+      function renderTabs() {
+        const nav = $('tabs');
+        nav.innerHTML = '';
+        TABS.forEach((tab) => {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'tab';
+          btn.role = 'tab';
+          btn.dataset.tab = tab.id;
+          btn.title = t('tab_' + tab.id);
+          btn.innerHTML = `<i class="${tab.icon}" aria-hidden="true"></i><span></span>`;
+          btn.querySelector('span').textContent = t('tab_' + tab.id);
+          btn.setAttribute('aria-selected', String(tab.id === active));
+          btn.addEventListener('click', () => select(tab.id));
+          nav.appendChild(btn);
+        });
+        markLive();
+      }
+
+      function select(id, fromHash) {
+        if (!TABS.some((tab) => tab.id === id)) id = TABS[0].id;
+        active = id;
+        document.querySelectorAll('[data-panel]').forEach((p) => { p.hidden = p.dataset.panel !== id; });
+        document.querySelectorAll('.tab').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.tab === id)));
+        store.set(TAB_KEY, id);
+        if (!fromHash && location.hash.slice(1) !== id) history.replaceState(null, '', '#' + id);
+        document.title = `${t('tab_' + id)} · ${t('title')}`;
+        fitTabs();
+        if (panelHooks[id]) panelHooks[id]();
+        renderHelp();
+      }
+
+      // Show every label when they fit; otherwise only the selected tab keeps its label.
+      function fitTabs() {
+        const nav = $('tabs');
+        nav.classList.remove('tight', 'compact');
+        if (nav.scrollWidth > nav.clientWidth + 1) nav.classList.add('tight');
+        if (nav.scrollWidth > nav.clientWidth + 1) nav.classList.add('compact');
+      }
+      new ResizeObserver(fitTabs).observe($('tabs'));
+      // Icon fonts load after the first layout and widen the tabs.
+      window.addEventListener('load', fitTabs);
+      if (document.fonts) document.fonts.ready.then(fitTabs);
+
+      function markLive() {
+        const live = { stopwatch: sw.running, countdown: cd.running, units: ut.running };
+        document.querySelectorAll('.tab').forEach((b) => b.classList.toggle('live', !!live[b.dataset.tab] && b.dataset.tab !== active));
+      }
+
+      function applyLang() {
+        document.documentElement.lang = lang;
+        document.querySelectorAll('[data-i18n]').forEach((el) => { el.textContent = t(el.dataset.i18n); });
+        document.querySelectorAll('[data-i18n-title]').forEach((el) => { el.title = t(el.dataset.i18nTitle); el.setAttribute('aria-label', t(el.dataset.i18nTitle)); });
+        document.querySelectorAll('[data-i18n-placeholder]').forEach((el) => { el.placeholder = t(el.dataset.i18nPlaceholder); });
+        $('sm-input').placeholder = t('sumPlaceholder');
+        $('lang-switcher').value = lang;
+        renderTabs();
+        if (active) select(active, true);
+        Object.values(langHooks).forEach((fn) => fn());
+      }
+      const langHooks = {};
+
+      function applyTheme() {
+        document.documentElement.dataset.theme = theme;
+        $('theme-switcher').querySelector('i').className = theme === 'dark' ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
+      }
+
+      function renderHelp() {
+        $('help-title').textContent = t('title');
+        const items = TABS.map((tab) => `<li class="${tab.id === active ? 'active' : ''}"><b>${t('tab_' + tab.id)}</b> — ${t('d_' + tab.id)}</li>`).join('');
+        $('help-body').innerHTML = `<p>${t('helpIntro')}</p><h3>${t('helpTools')}</h3><ul>${items}</ul>`;
+      }
+
+      $('lang-switcher').addEventListener('change', (e) => {
+        lang = I18N[e.target.value] ? e.target.value : 'en';
+        store.set('app_lang', lang);
+        applyLang();
+      });
+      $('theme-switcher').addEventListener('click', () => {
+        theme = theme === 'dark' ? 'light' : 'dark';
+        store.set('app_theme', theme);
+        applyTheme();
+      });
+      const help = $('help');
+      $('help-btn').addEventListener('click', () => help.showModal());
+      $('help-close').addEventListener('click', () => help.close());
+      help.addEventListener('click', (e) => { if (e.target === help) help.close(); });
+      document.addEventListener('keydown', (e) => {
+        if (e.key === '?' && !help.open && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)) help.showModal();
+      });
+      $('tabs').addEventListener('keydown', (e) => {
+        if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+        const i = TABS.findIndex((tab) => tab.id === active);
+        const next = TABS[(i + (e.key === 'ArrowRight' ? 1 : -1) + TABS.length) % TABS.length].id;
+        select(next);
+        document.querySelector(`.tab[data-tab="${next}"]`).focus();
+      });
+      window.addEventListener('hashchange', () => select(location.hash.slice(1), true));
+
+      // ------------------------------------------------------------------
+      // Stopwatch
+      // ------------------------------------------------------------------
+      const sw = { running: false, start: 0, elapsed: 0, timer: null, laps: [] };
+      const fmtMs = (ms) => {
+        const h = Math.floor(ms / 3600000), m = Math.floor(ms / 60000) % 60, s = Math.floor(ms / 1000) % 60;
+        return `${pad(h)}:${pad(m)}:${pad(s)}.${pad(Math.floor(ms % 1000), 3)}`;
+      };
+      function swRender() { $('sw-display').textContent = fmtMs(sw.elapsed); }
+      function swButtons() {
+        $('sw-start').disabled = sw.running;
+        $('sw-stop').disabled = !sw.running;
+        $('sw-lap').disabled = !sw.running;
+        markLive();
+      }
+      function swRenderLaps() {
+        $('sw-laps-card').hidden = !sw.laps.length;
+        $('sw-laps').innerHTML = sw.laps.map((lap, i) => {
+          const split = lap - (sw.laps[i - 1] || 0);
+          return `<div class="kv"><span>#${i + 1}</span><span>+${fmtMs(split)}</span><b>${fmtMs(lap)}</b></div>`;
+        }).reverse().join('');
+      }
+      $('sw-start').addEventListener('click', () => {
+        sw.start = Date.now() - sw.elapsed;
+        sw.running = true;
+        sw.timer = setInterval(() => { sw.elapsed = Date.now() - sw.start; if (active === 'stopwatch') swRender(); }, 31);
+        swButtons();
+      });
+      $('sw-stop').addEventListener('click', () => {
+        clearInterval(sw.timer);
+        sw.elapsed = Date.now() - sw.start;
+        sw.running = false;
+        swRender();
+        swButtons();
+      });
+      $('sw-lap').addEventListener('click', () => { sw.laps.push(Date.now() - sw.start); swRenderLaps(); });
+      $('sw-reset').addEventListener('click', () => {
+        clearInterval(sw.timer);
+        Object.assign(sw, { running: false, elapsed: 0, laps: [] });
+        swRender(); swRenderLaps(); swButtons();
+      });
+      panelHooks.stopwatch = swRender;
+
+      // ------------------------------------------------------------------
+      // Countdown
+      // ------------------------------------------------------------------
+      const cd = { running: false, total: 0, left: 0, end: 0, timer: null };
+      const fmtSec = (sec) => {
+        sec = Math.max(0, Math.ceil(sec));
+        const d = Math.floor(sec / 86400), h = Math.floor(sec % 86400 / 3600), m = Math.floor(sec % 3600 / 60), s = sec % 60;
+        return (d > 0 ? pad(d) + ':' : '') + `${pad(h)}:${pad(m)}:${pad(s)}`;
+      };
+      const cdInputs = ['cd-days', 'cd-hours', 'cd-minutes', 'cd-seconds'].map($);
+      function cdRender() {
+        $('cd-display').textContent = fmtSec(cd.left);
+        $('cd-bar').style.width = cd.total ? `${100 - (cd.left / cd.total) * 100}%` : '0%';
+      }
+      function cdButtons() {
+        $('cd-start').disabled = cd.running;
+        $('cd-stop').disabled = !cd.running;
+        cdInputs.forEach((el) => { el.disabled = cd.running; });
+        markLive();
+      }
+      function cdTick() {
+        cd.left = Math.max(0, (cd.end - Date.now()) / 1000);
+        cdRender();
+        if (cd.left <= 0) {
+          clearInterval(cd.timer);
+          cd.running = false;
+          cdButtons();
+          const title = document.title;
+          document.title = '⏰ ' + t('countdownDone');
+          setTimeout(() => { alert(t('countdownDone')); document.title = title; cdReset(); }, 30);
+        }
+      }
+      function cdReset() {
+        clearInterval(cd.timer);
+        Object.assign(cd, { running: false, total: 0, left: 0 });
+        cdInputs.forEach((el) => { el.value = ''; });
+        cdRender(); cdButtons();
+      }
+      $('cd-start').addEventListener('click', () => {
+        if (cd.left <= 0) {
+          const [d, h, m, s] = cdInputs.map((el) => parseInt(el.value, 10) || 0);
+          cd.total = d * 86400 + h * 3600 + m * 60 + s;
+          cd.left = cd.total;
+        }
+        if (cd.left <= 0) return;
+        cd.end = Date.now() + cd.left * 1000;
+        cd.running = true;
+        cd.timer = setInterval(cdTick, 250);
+        cdRender(); cdButtons();
+      });
+      $('cd-stop').addEventListener('click', () => {
+        clearInterval(cd.timer);
+        cd.left = Math.max(0, (cd.end - Date.now()) / 1000);
+        cd.running = false;
+        cdRender(); cdButtons();
+      });
+      $('cd-reset').addEventListener('click', cdReset);
+
+      // ------------------------------------------------------------------
+      // Clock
+      // ------------------------------------------------------------------
+      function clockRender() {
+        const now = new Date();
+        $('clock-display').textContent = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+        $('clock-date').textContent = now.toLocaleDateString(locale(), { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+      }
+      panelHooks.clock = clockRender;
+
+      // ------------------------------------------------------------------
+      // Unit timing
+      // ------------------------------------------------------------------
+      const ut = { running: false, total: 0, unit: 0, initial: 0, signature: '', last: 0, timer: null };
+      const fmtDateTime = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+      function utRender() {
+        $('ut-display').textContent = fmtSec(ut.total);
+        $('ut-remaining').textContent = ut.total > 0 && ut.unit > 0 ? Math.ceil(ut.total / ut.unit) : 0;
+        $('ut-end').textContent = ut.total > 0 ? fmtDateTime(new Date(Date.now() + ut.total * 1000)) : '—';
+        const totalProgress = ut.initial > 0 ? Math.min(100, Math.max(0, (ut.initial - ut.total) / ut.initial * 100)) : 0;
+        const rem = ut.unit > 0 ? ut.total % ut.unit : 0;
+        const unitProgress = ut.total > 0 && ut.unit > 0
+          ? (rem === 0 ? 0 : Math.min(100, Math.max(0, (ut.unit - rem) / ut.unit * 100)))
+          : (ut.total <= 0 && ut.initial > 0 ? 100 : 0);
+        $('ut-unit-bar').style.width = unitProgress + '%';
+        $('ut-total-bar').style.width = totalProgress + '%';
+      }
+      function utButtons() {
+        $('ut-start').disabled = ut.running;
+        $('ut-stop').disabled = !ut.running;
+        markLive();
+      }
+      $('ut-start').addEventListener('click', () => {
+        const qty = parseInt($('ut-quantity').value, 10) || 0;
+        const unitSec = (parseInt($('ut-hours').value, 10) || 0) * 3600 + (parseInt($('ut-minutes').value, 10) || 0) * 60 + (parseInt($('ut-seconds').value, 10) || 0);
+        const signature = `${qty}:${unitSec}`;
+        if (ut.total <= 0 || signature !== ut.signature) {
+          if (qty <= 0 || unitSec <= 0) return;
+          Object.assign(ut, { unit: unitSec, total: qty * unitSec, initial: qty * unitSec, signature });
+        }
+        clearInterval(ut.timer);
+        ut.last = Date.now();
+        ut.running = true;
+        utRender();
+        ut.timer = setInterval(() => {
+          const now = Date.now();
+          ut.total = Math.max(0, ut.total - (now - ut.last) / 1000);
+          ut.last = now;
+          utRender();
+          if (ut.total <= 0) { clearInterval(ut.timer); ut.running = false; utButtons(); }
+        }, 250);
+        utButtons();
+      });
+      $('ut-stop').addEventListener('click', () => {
+        if (ut.running) ut.total = Math.max(0, ut.total - (Date.now() - ut.last) / 1000);
+        clearInterval(ut.timer);
+        ut.running = false;
+        utRender(); utButtons();
+      });
+      $('ut-reset').addEventListener('click', () => {
+        clearInterval(ut.timer);
+        Object.assign(ut, { running: false, total: 0, unit: 0, initial: 0, signature: '', last: 0 });
+        ['ut-quantity', 'ut-hours', 'ut-minutes', 'ut-seconds'].forEach((id) => { $(id).value = ''; });
+        utRender(); utButtons();
+      });
+
+      // ------------------------------------------------------------------
+      // Difference (keys shared with the former time_diff.html)
+      // ------------------------------------------------------------------
+      const DF_KEYS = ['timeDiff_fromDate', 'timeDiff_fromTime', 'timeDiff_toDate', 'timeDiff_toTime'];
+      const dfInputs = ['df-from-date', 'df-from-time', 'df-to-date', 'df-to-time'].map($);
+      const dateValue = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+      const timeValue = (d) => `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+      function dfDefaults() {
+        const now = new Date();
+        const before = new Date(now.getTime() - 3600000);
+        [dateValue(before), timeValue(before), dateValue(now), timeValue(now)].forEach((v, i) => { dfInputs[i].value = v; });
+      }
+      function dfSave() { DF_KEYS.forEach((k, i) => store.set(k, dfInputs[i].value)); }
+      function dfRender() {
+        const [fd, ft, td, tt] = dfInputs.map((el) => el.value);
+        const from = new Date(`${fd}T${ft || '00:00:00'}`);
+        const to = new Date(`${td}T${tt || '00:00:00'}`);
+        const ok = fd && td && !isNaN(from) && !isNaN(to);
+        $('df-results').hidden = !ok;
+        $('df-empty').hidden = ok;
+        if (!ok) return;
+        const sign = to < from ? '-' : '';
+        const secs = Math.floor(Math.abs(to - from) / 1000);
+        const mins = Math.floor(secs / 60);
+        const hours = Math.floor(mins / 60);
+        const days = Math.floor(hours / 24);
+        const sep = lang === 'ja' ? ' ' : ' ';
+        $('df-hm').textContent = sign + unit(hours, 'u_hour') + sep + unit(mins % 60, 'u_minute');
+        $('df-dhm').textContent = sign + unit(days, 'u_day') + sep + unit(hours % 24, 'u_hour') + sep + unit(mins % 60, 'u_minute');
+        $('df-min').textContent = sign + unit(mins, 'u_minute');
+        $('df-sec').textContent = sign + unit(secs, 'u_second');
+      }
+      const saved = DF_KEYS.map((k) => store.get(k));
+      if (saved.every(Boolean)) saved.forEach((v, i) => { dfInputs[i].value = v; });
+      else dfDefaults();
+      dfInputs.forEach((el) => el.addEventListener('input', () => { dfSave(); dfRender(); }));
+      $('df-clear').addEventListener('click', () => { DF_KEYS.forEach(store.del); dfDefaults(); dfSave(); dfRender(); });
+      $('df-now').addEventListener('click', () => {
+        const now = new Date();
+        dfInputs[2].value = dateValue(now);
+        dfInputs[3].value = timeValue(now);
+        dfSave(); dfRender();
+      });
+      document.querySelectorAll('[data-copy]').forEach((btn) => btn.addEventListener('click', () => copyText($(btn.dataset.copy).textContent)));
+      langHooks.diff = dfRender;
+
+      // ------------------------------------------------------------------
+      // Sum (keys shared with the former time_sum.html)
+      // ------------------------------------------------------------------
+      const SM_TEXT = 'timeSum_text';
+      const SM_AUTO = 'timeSum_autoFormat';
+      const smInput = $('sm-input');
+      const smGutter = $('sm-gutter');
+      const smRunning = $('sm-running');
+      const smAuto = $('sm-auto');
+      const TOKEN = /(?<![\d:])(\d+):(\d{1,2})(?::(\d{1,2}))?(?![\d:])/g;
+      function fmtSigned(sec) {
+        const neg = sec < 0;
+        sec = Math.abs(Math.round(sec));
+        return (neg ? '-' : '') + `${pad(Math.floor(sec / 3600))}:${pad(Math.floor(sec % 3600 / 60))}:${pad(sec % 60)}`;
+      }
+      function parseLine(line) {
+        const trimmed = line.trim();
+        if (!trimmed) return { empty: true };
+        const sign = trimmed.startsWith('-') ? -1 : 1;
+        let seconds = 0, tokens = 0, invalid = false;
+        for (const m of line.matchAll(TOKEN)) {
+          tokens++;
+          let h = 0, mi, s;
+          if (m[3] !== undefined) { h = +m[1]; mi = +m[2]; s = +m[3]; if (mi >= 60) invalid = true; }
+          else { mi = +m[1]; s = +m[2]; }
+          if (s >= 60) invalid = true;
+          seconds += h * 3600 + mi * 60 + s;
+        }
+        return { seconds: seconds * sign, sign, tokens, invalid, empty: false };
+      }
+      function normalizeLine(line) {
+        return line.replace(TOKEN, (full, a, b, c) => {
+          if (c !== undefined) return (+b >= 60 || +c >= 60) ? full : fmtSigned(+a * 3600 + +b * 60 + +c);
+          return +b >= 60 ? full : fmtSigned(+a * 60 + +b);
+        });
+      }
+      function lineIndexAt(pos) {
+        let n = 0;
+        const v = smInput.value;
+        for (let i = 0; i < pos && i < v.length; i++) if (v.charCodeAt(i) === 10) n++;
+        return n;
+      }
+      function normalizeLineAt(idx, useEditing = true) {
+        const lines = smInput.value.split('\n');
+        if (idx < 0 || idx >= lines.length) return;
+        const before = lines[idx];
+        const after = normalizeLine(before);
+        if (after === before) return;
+        let offset = 0;
+        for (let i = 0; i < idx; i++) offset += lines[i].length + 1;
+        const { selectionStart: ss, selectionEnd: se } = smInput;
+        const lineEnd = offset + before.length;
+        const delta = after.length - before.length;
+        let ok = false;
+        if (useEditing && document.activeElement === smInput) {
+          smInput.setSelectionRange(offset, lineEnd);
+          try { ok = document.execCommand('insertText', false, after); } catch {}
+        }
+        if (!ok || smInput.value.split('\n')[idx] !== after) {
+          lines[idx] = after;
+          smInput.value = lines.join('\n');
+        }
+        const shift = (p) => (p > lineEnd ? p + delta : p <= offset ? p : Math.min(p, offset + after.length));
+        smInput.setSelectionRange(shift(ss), shift(se));
+      }
+      let smLastLine = 0, smNormalizing = false;
+      function smCheckLine() {
+        if (smNormalizing) return;
+        const cur = lineIndexAt(smInput.selectionStart);
+        if (cur !== smLastLine) {
+          const prev = smLastLine;
+          smLastLine = cur;
+          if (smAuto.checked) {
+            smNormalizing = true;
+            normalizeLineAt(prev);
+            smNormalizing = false;
+            smLastLine = lineIndexAt(smInput.selectionStart);
+          }
+        }
+        smRenderGutter();
+      }
+      let gutterCount = -1, gutterCur = -1;
+      function smRenderGutter(count) {
+        if (count === undefined) count = smInput.value.split('\n').length;
+        const cur = document.activeElement === smInput ? lineIndexAt(smInput.selectionStart) : -1;
+        if (count === gutterCount && cur === gutterCur) return;
+        gutterCount = count; gutterCur = cur;
+        let html = '';
+        for (let i = 0; i < count; i++) html += `<div${i === cur ? ' class="cur"' : ''}>${i + 1}</div>`;
+        smGutter.innerHTML = html;
+        smSync();
+      }
+      function smSync() { smGutter.scrollTop = smInput.scrollTop; smRunning.scrollTop = smInput.scrollTop; }
+      function smRender() {
+        const lines = smInput.value.split('\n');
+        let total = 0, count = 0;
+        const invalid = [], rows = [];
+        lines.forEach((line, i) => {
+          const r = parseLine(line);
+          if (r.empty) { rows.push('<div></div>'); return; }
+          if (r.invalid) { invalid.push(i + 1); rows.push('<div class="bad">⚠</div>'); return; }
+          if (!r.tokens) { rows.push('<div class="skip">—</div>'); return; }
+          total += r.seconds;
+          count++;
+          rows.push(`<div class="ok${r.sign < 0 ? ' neg' : ''}"><b>${fmtSigned(total)}</b></div>`);
+        });
+        smRunning.innerHTML = rows.join('');
+        smRenderGutter(lines.length);
+        $('sm-total').textContent = fmtSigned(total);
+        $('sm-total').classList.toggle('neg', total < 0);
+        $('sm-entries').textContent = count;
+        $('sm-avg').textContent = fmtSigned(count ? total / count : 0);
+        $('sm-hours').textContent = +(total / 3600).toFixed(4);
+        $('sm-minutes').textContent = +(total / 60).toFixed(2);
+        $('sm-seconds').textContent = total;
+        const w = $('sm-warnings');
+        w.hidden = !invalid.length;
+        if (invalid.length) w.textContent = t('invalidLines').replace('{lines}', invalid.join(', '));
+        smSync();
+        store.set(SM_TEXT, smInput.value);
+      }
+      smInput.addEventListener('input', smRender);
+      smInput.addEventListener('scroll', smSync);
+      smInput.addEventListener('keyup', smCheckLine);
+      smInput.addEventListener('mouseup', smCheckLine);
+      smInput.addEventListener('focus', () => { smLastLine = lineIndexAt(smInput.selectionStart); smRenderGutter(); });
+      document.addEventListener('selectionchange', () => { if (document.activeElement === smInput) smCheckLine(); });
+      smInput.addEventListener('blur', () => {
+        if (smAuto.checked) {
+          smNormalizing = true;
+          normalizeLineAt(smLastLine, false);
+          smNormalizing = false;
+          smRender();
+        }
+        smRenderGutter();
+      });
+      smAuto.addEventListener('change', () => store.set(SM_AUTO, smAuto.checked ? '1' : '0'));
+      $('sm-format').addEventListener('click', () => {
+        const v = smInput.value;
+        const nv = v.split('\n').map(normalizeLine).join('\n');
+        if (nv === v) return;
+        smInput.focus();
+        smInput.select();
+        let ok = false;
+        try { ok = document.execCommand('insertText', false, nv); } catch {}
+        if (!ok) smInput.value = nv;
+        smInput.setSelectionRange(0, 0);
+        smLastLine = 0;
+        smRender();
+      });
+      $('sm-example').addEventListener('click', () => {
+        smInput.value = t('exampleText');
+        smLastLine = 0;
+        smRender();
+        smInput.focus();
+        smInput.setSelectionRange(smInput.value.length, smInput.value.length);
+        smLastLine = lineIndexAt(smInput.selectionStart);
+      });
+      $('sm-clear').addEventListener('click', () => {
+        if (smInput.value.trim() && !confirm(t('confirmClear'))) return;
+        smInput.value = '';
+        smLastLine = 0;
+        smRender();
+        smInput.focus();
+      });
+      $('sm-copy').addEventListener('click', () => copyText($('sm-total').textContent));
+      smAuto.checked = store.get(SM_AUTO) !== '0';
+      smInput.value = store.get(SM_TEXT) || '';
+      langHooks.sum = smRender;
+
+      // ------------------------------------------------------------------
+      // Age (key shared with the former age_calculator.html)
+      // ------------------------------------------------------------------
+      const AG_KEY = 'agecalc_birthdate';
+      function agRender() {
+        const val = $('ag-birth').value;
+        const showing = (id) => ['ag-result', 'ag-empty', 'ag-error'].forEach((x) => { $(x).hidden = x !== id; });
+        if (!val) return showing('ag-empty');
+        const [by, bm, bd] = val.split('-').map(Number);
+        const birth = new Date(by, bm - 1, bd);
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        if (isNaN(birth) || birth > today) return showing('ag-error');
+        let years = today.getFullYear() - by, months = today.getMonth() - (bm - 1), days = today.getDate() - bd;
+        if (days < 0) { months--; days += new Date(today.getFullYear(), today.getMonth(), 0).getDate(); }
+        if (months < 0) { years--; months += 12; }
+        const totalDays = Math.round((today - birth) / 86400000);
+        const parts = [unit(years, 'u_year'), unit(months, 'u_month'), unit(days, 'u_day')];
+        $('ag-main').textContent = lang === 'ja' ? parts.join('　') : `${parts[0]}, ${parts[1]} ${t('and')} ${parts[2]}`;
+        $('ag-months').textContent = (years * 12 + months).toLocaleString(locale());
+        $('ag-weeks').textContent = Math.floor(totalDays / 7).toLocaleString(locale());
+        $('ag-days').textContent = totalDays.toLocaleString(locale());
+        let next = new Date(today.getFullYear(), bm - 1, bd);
+        if (next < today) next = new Date(today.getFullYear() + 1, bm - 1, bd);
+        const until = Math.round((next - today) / 86400000);
+        $('ag-next').textContent = until === 0 ? t('today') : t('inDays').replace('{n}', until);
+        showing('ag-result');
+      }
+      $('ag-birth').value = store.get(AG_KEY) || '';
+      $('ag-birth').addEventListener('change', () => { store.set(AG_KEY, $('ag-birth').value); agRender(); });
+      langHooks.age = agRender;
+
+      // ------------------------------------------------------------------
+      // World clocks (key shared with the former world_clocks.html)
+      // ------------------------------------------------------------------
+      const WC_KEY = 'world_clocks_config';
+      const WC_DEFAULT = [
+        { timezone: 'Asia/Tokyo', city: 'Tokyo', country: 'Japan' },
+        { timezone: 'America/New_York', city: 'New York', country: 'USA' },
+        { timezone: 'America/Sao_Paulo', city: 'São Paulo', country: 'Brazil' },
+        { timezone: 'Australia/Sydney', city: 'Sydney', country: 'Australia' },
+        { timezone: 'Europe/Rome', city: 'Milan', country: 'Italy' },
+      ];
+      const WC_NAMES = {
+        'Asia/Tokyo': ['Tokyo', 'Japan'], 'America/New_York': ['New York', 'USA'], 'America/Sao_Paulo': ['São Paulo', 'Brazil'],
+        'Australia/Sydney': ['Sydney', 'Australia'], 'Europe/Rome': ['Milan', 'Italy'], 'Europe/London': ['London', 'UK'],
+        'Europe/Paris': ['Paris', 'France'], 'Europe/Berlin': ['Berlin', 'Germany'], 'Europe/Moscow': ['Moscow', 'Russia'],
+        'Asia/Shanghai': ['Shanghai', 'China'], 'Asia/Seoul': ['Seoul', 'South Korea'], 'Asia/Singapore': ['Singapore', 'Singapore'],
+        'Asia/Dubai': ['Dubai', 'UAE'], 'America/Los_Angeles': ['Los Angeles', 'USA'], 'America/Chicago': ['Chicago', 'USA'],
+        'America/Toronto': ['Toronto', 'Canada'], 'America/Mexico_City': ['Mexico City', 'Mexico'],
+        'America/Buenos_Aires': ['Buenos Aires', 'Argentina'], 'America/Santiago': ['Santiago', 'Chile'],
+        'Africa/Cairo': ['Cairo', 'Egypt'], 'Africa/Johannesburg': ['Johannesburg', 'South Africa'], 'Pacific/Auckland': ['Auckland', 'New Zealand'],
+      };
+      let wcZones = [];
+      let wcList = [];
+      function zoneInfo(tz) {
+        const known = WC_NAMES[tz];
+        const parts = tz.split('/');
+        const city = known ? known[0] : parts[parts.length - 1].replace(/_/g, ' ');
+        const country = known ? known[1] : parts[0];
+        return { timezone: tz, city, country, label: `${city}, ${country}` };
+      }
+      async function wcLoadZones() {
+        let list = [];
+        try {
+          const res = await fetch('../assets/timezones.json');
+          if (res.ok) list = await res.json();
+        } catch {}
+        if (!list.length && Intl.supportedValuesOf) list = Intl.supportedValuesOf('timeZone');
+        if (!list.length) list = Object.keys(WC_NAMES);
+        wcZones = list.map(zoneInfo);
+      }
+      function wcSave() { store.set(WC_KEY, JSON.stringify(wcList)); }
+      function offsetLabel(tz) {
+        const now = new Date();
+        const local = new Date(now.toLocaleString('en-US'));
+        const there = new Date(now.toLocaleString('en-US', { timeZone: tz }));
+        const diff = Math.round((there - local) / 60000);
+        if (!diff) return '±0h';
+        const h = Math.trunc(diff / 60), m = Math.abs(diff % 60);
+        return (diff > 0 ? '+' : '-') + Math.abs(h) + 'h' + (m ? pad(m) : '');
+      }
+      function wcRender() {
+        const box = $('wc-clocks');
+        box.innerHTML = '';
+        wcList.forEach((z) => {
+          const card = document.createElement('div');
+          card.className = 'clock';
+          card.dataset.tz = z.timezone;
+          card.innerHTML = '<button class="remove" type="button"><i class="fa-solid fa-xmark"></i></button><div class="city"></div><div class="time">--:--</div><div class="date"></div><div class="zone"></div>';
+          card.querySelector('.city').textContent = z.city;
+          card.querySelector('.remove').title = t('remove');
+          card.querySelector('.remove').addEventListener('click', () => {
+            if (!confirm(t('confirmRemove').replace('{city}', z.city))) return;
+            wcList = wcList.filter((x) => x.timezone !== z.timezone);
+            wcSave(); wcRender();
+          });
+          box.appendChild(card);
+        });
+        wcTick();
+      }
+      function wcTick() {
+        const now = new Date();
+        document.querySelectorAll('#wc-clocks .clock').forEach((card) => {
+          const tz = card.dataset.tz;
+          try {
+            card.querySelector('.time').textContent = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: tz });
+            card.querySelector('.date').textContent = now.toLocaleDateString(locale(), { weekday: 'short', month: 'short', day: 'numeric', timeZone: tz });
+            card.querySelector('.zone').textContent = `${tz} · ${offsetLabel(tz)}`;
+          } catch {
+            card.querySelector('.time').textContent = '—';
+          }
+        });
+      }
+      function wcMessage(key, type) {
+        const el = $('wc-msg');
+        el.textContent = t(key);
+        el.className = 'msg ' + type;
+        clearTimeout(wcMessage.timer);
+        wcMessage.timer = setTimeout(() => { el.textContent = ''; }, 2500);
+      }
+      const wcInput = $('wc-input');
+      const wcDrop = $('wc-dropdown');
+      function wcShow(items) {
+        if (!items.length) { wcDrop.hidden = true; return; }
+        wcDrop.innerHTML = '';
+        items.forEach((z) => {
+          const row = document.createElement('div');
+          row.textContent = `${z.label} — ${z.timezone}`;
+          row.addEventListener('mousedown', (e) => { e.preventDefault(); wcPick(z); });
+          wcDrop.appendChild(row);
+        });
+        wcDrop.hidden = false;
+      }
+      function wcPick(z) { wcInput.value = z.label; wcInput.dataset.tz = z.timezone; wcDrop.hidden = true; }
+      function wcAdd() {
+        let tz = wcInput.dataset.tz;
+        if (!tz) {
+          const q = wcInput.value.trim().toLowerCase();
+          const hit = wcZones.find((z) => z.label.toLowerCase() === q || z.timezone.toLowerCase() === q);
+          tz = hit && hit.timezone;
+        }
+        if (!tz) return wcMessage('invalidZone', 'error');
+        if (wcList.some((z) => z.timezone === tz)) return wcMessage('zoneExists', 'error');
+        const info = wcZones.find((z) => z.timezone === tz) || zoneInfo(tz);
+        wcList.push({ timezone: tz, city: info.city, country: info.country });
+        wcSave(); wcRender();
+        wcInput.value = '';
+        delete wcInput.dataset.tz;
+        wcMessage('clockAdded', 'success');
+      }
+      wcInput.addEventListener('input', () => {
+        delete wcInput.dataset.tz;
+        const q = wcInput.value.trim().toLowerCase();
+        if (q.length < 2) { wcDrop.hidden = true; return; }
+        wcShow(wcZones.filter((z) => z.label.toLowerCase().includes(q) || z.timezone.toLowerCase().includes(q)).slice(0, 12));
+      });
+      wcInput.addEventListener('keydown', (e) => {
+        const items = [...wcDrop.children];
+        const i = items.findIndex((el) => el.classList.contains('sel'));
+        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+          e.preventDefault();
+          if (!items.length || wcDrop.hidden) return;
+          items.forEach((el) => el.classList.remove('sel'));
+          const next = e.key === 'ArrowDown' ? (i + 1) % items.length : (i - 1 + items.length) % items.length;
+          items[next].classList.add('sel');
+          items[next].scrollIntoView({ block: 'nearest' });
+        } else if (e.key === 'Enter') {
+          e.preventDefault();
+          if (i >= 0 && !wcDrop.hidden) items[i].dispatchEvent(new MouseEvent('mousedown'));
+          else wcAdd();
+        } else if (e.key === 'Escape') {
+          wcDrop.hidden = true;
+        }
+      });
+      wcInput.addEventListener('blur', () => { wcDrop.hidden = true; });
+      $('wc-add').addEventListener('click', wcAdd);
+      try { wcList = JSON.parse(store.get(WC_KEY) || 'null') || []; } catch { wcList = []; }
+      if (!Array.isArray(wcList) || !wcList.length) wcList = WC_DEFAULT.slice();
+      wcList = wcList.filter((z) => z && z.timezone);
+      langHooks.world = wcRender;
+      panelHooks.world = wcTick;
+
+      // ------------------------------------------------------------------
+      // Forex sessions (computed locally with Intl, including daylight saving)
+      // ------------------------------------------------------------------
+      const MARKETS = [
+        { id: 'tokyo', tz: 'Asia/Tokyo', open: 9, close: 18, flag: '🇯🇵' },
+        { id: 'london', tz: 'Europe/London', open: 8, close: 17, flag: '🇬🇧' },
+        { id: 'newyork', tz: 'America/New_York', open: 8, close: 17, flag: '🇺🇸' },
+      ];
+      const CANDLES = [1, 5, 15, 30, 60];
+      const RING = 2 * Math.PI * 30;
+      // Wall-clock time in a zone, as a Date whose local fields hold that zone's time.
+      function wallTime(tz, date = new Date()) {
+        const parts = Object.fromEntries(new Intl.DateTimeFormat('en-US', {
+          timeZone: tz, hour12: false, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit',
+        }).formatToParts(date).map((p) => [p.type, p.value]));
+        return new Date(+parts.year, +parts.month - 1, +parts.day, +parts.hour % 24, +parts.minute, +parts.second);
+      }
+      function nextOpen(wall, openHour) {
+        const d = new Date(wall);
+        d.setHours(openHour, 0, 0, 0);
+        if (d <= wall) d.setDate(d.getDate() + 1);
+        while (d.getDay() === 0 || d.getDay() === 6) d.setDate(d.getDate() + 1);
+        return d;
+      }
+      function hhmm(ms) {
+        const mins = Math.max(0, Math.ceil(ms / 60000));
+        return `${pad(Math.floor(mins / 60))}:${pad(mins % 60)}`;
+      }
+      function fxBuild() {
+        $('fx-markets').innerHTML = MARKETS.map((m) => `
+          <div class="market" data-market="${m.id}">
+            <div class="name"><span>${m.flag}</span><span>${t(m.id)}</span><span class="spacer"></span><span class="dot"></span></div>
+            <div class="time">--:--</div>
+            <div class="status"><span class="label"></span><b></b></div>
+            <div class="small muted">${pad(m.open)}:00–${pad(m.close)}:00</div>
+          </div>`).join('');
+        $('fx-rings').innerHTML = CANDLES.map((n) => `
+          <div class="ring" data-min="${n}">
+            <div class="wrap"><svg width="72" height="72"><circle class="bg" cx="36" cy="36" r="30"></circle><circle class="fg" cx="36" cy="36" r="30" stroke-dasharray="${RING}"></circle></svg><div class="txt">00:00</div></div>
+            <span>${n === 60 ? t('hour1') : n + ' min'}</span>
+          </div>`).join('');
+        fxTick();
+      }
+      function fxTick() {
+        const now = new Date();
+        $('fx-local').textContent = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+        $('fx-date').textContent = now.toLocaleDateString(locale(), { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+        const server = wallTime('America/New_York', now);
+        server.setHours(server.getHours() + 7);
+        $('fx-server').textContent = `${pad(server.getHours())}:${pad(server.getMinutes())}:${pad(server.getSeconds())}`;
+        MARKETS.forEach((m) => {
+          const card = document.querySelector(`[data-market="${m.id}"]`);
+          if (!card) return;
+          const wall = wallTime(m.tz, now);
+          const weekday = wall.getDay() !== 0 && wall.getDay() !== 6;
+          const h = wall.getHours();
+          const isOpen = weekday && h >= m.open && h < m.close;
+          let target;
+          if (isOpen) { target = new Date(wall); target.setHours(m.close, 0, 0, 0); }
+          else target = nextOpen(wall, m.open);
+          card.querySelector('.time').textContent = `${pad(h)}:${pad(wall.getMinutes())}`;
+          card.querySelector('.label').textContent = isOpen ? t('toClose') : t('toOpen');
+          const b = card.querySelector('.status b');
+          b.textContent = hhmm(target - wall);
+          b.className = isOpen ? 'open' : 'closed';
+          card.querySelector('.dot').classList.toggle('open', isOpen);
+          card.querySelector('.dot').title = isOpen ? t('open') : t('closed');
+        });
+        CANDLES.forEach((n) => {
+          const ring = document.querySelector(`.ring[data-min="${n}"]`);
+          if (!ring) return;
+          const into = (now.getMinutes() % n) * 60 + now.getSeconds();
+          const left = n * 60 - into;
+          ring.querySelector('.txt').textContent = `${pad(Math.floor(left / 60))}:${pad(left % 60)}`;
+          ring.querySelector('.fg').style.strokeDashoffset = String((1 - left / (n * 60)) * RING);
+        });
+      }
+      langHooks.forex = fxBuild;
+      panelHooks.forex = fxTick;
+
+      // ------------------------------------------------------------------
+      // Shared tick: only the visible live panels are redrawn
+      // ------------------------------------------------------------------
+      setInterval(() => {
+        if (active === 'clock') clockRender();
+        if (active === 'world') wcTick();
+        if (active === 'forex') fxTick();
+      }, 1000);
+
+      // ------------------------------------------------------------------
+      // Start
+      // ------------------------------------------------------------------
+      applyTheme();
+      swButtons(); cdButtons(); utButtons();
+      swRender(); cdRender(); utRender();
+      const first = location.hash.slice(1) || store.get(TAB_KEY) || 'stopwatch';
+      active = TABS.some((tab) => tab.id === first) ? first : 'stopwatch';
+      applyLang();
+      wcLoadZones().then(wcRender);
+    })();
+  </script>
+</body>
+</html>

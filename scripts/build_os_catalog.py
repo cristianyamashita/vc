@@ -85,6 +85,69 @@ DEFAULT_INSTALLED = (
     "game-roulette",
 )
 SKIP_HREFS = {"os/index.html", "os.html", "os/apps/upgrade/index.html"}
+
+# Shown at the top of the Start menu, in this order. A "#tab" opens that tab.
+START_RECOMMENDED = [
+    "misc/vision_labs.html",
+    "misc/nebula_lab.html",
+    "utils/whiteboards.html#main",
+    "game/voxelcraft/index.html",
+    "game/range-club/index.html",
+]
+
+# Site pages that are part of the desktop itself: always installed, cannot be
+# uninstalled, and open as a pane inside Settings instead of their own window.
+SYSTEM_SITE_APPS = {
+    "utils-backup": "backup",
+}
+
+# Pages that were merged into a tabbed page. The old id keeps working in saved
+# desktop state (installed, favorites, icons, windows, recent files) and in
+# OSCatalog.byId, and resolves to the page that absorbed it. An alias is only
+# emitted once its target exists in page/index.html and the old card is gone.
+APP_ALIASES = {
+    "utils-timer": "utils-time_tools",
+    "utils-time_diff": "utils-time_tools",
+    "utils-time_sum": "utils-time_tools",
+    "utils-age_calculator": "utils-time_tools",
+    "utils-world_clocks": "utils-time_tools",
+    "utils-forex_times": "utils-time_tools",
+    "utils-calculator": "utils-calculators",
+    "utils-band_calc": "utils-calculators",
+    "utils-bitwise_converter": "utils-calculators",
+    "utils-regex_playground": "utils-dev_utils",
+    "utils-text_diff_studio": "utils-dev_utils",
+    "utils-fake_data_generator": "utils-dev_utils",
+    "utils-morse_code": "utils-dev_utils",
+    "utils-char_art_creator": "utils-dev_utils",
+    "utils-password_generator": "utils-dev_utils",
+    "utils-prompt_context": "utils-prompt_concat",
+    "utils-markdown": "utils-docs",
+    "utils-notebook": "utils-docs",
+    "utils-image_to_webp": "utils-pdf_image_tools",
+    "utils-images_to_pdf": "utils-pdf_image_tools",
+    "utils-pdf_toolbox": "utils-pdf_image_tools",
+    "utils-code_runner": "utils-code_lab",
+    "misc-code_runner": "utils-code_lab",
+    "utils-code_flow": "utils-code_lab",
+    "utils-todo": "utils-checklist",
+    "utils-ps1": "utils-photo_editor",
+    "utils-ps2": "utils-photo_editor",
+    "utils-sprint": "utils-pixel_studio",
+    "utils-pixel1": "utils-pixel_studio",
+    "utils-pixel2": "utils-pixel_studio",
+    "utils-whiteboard": "utils-whiteboards",
+    "utils-whiteboard_google": "utils-whiteboards",
+    "utils-whiteboard_gpt": "utils-whiteboards",
+    "misc-nebula": "misc-nebula_lab",
+    "misc-nebula2": "misc-nebula_lab",
+    "misc-spin1": "misc-spin_lab",
+    "misc-spin2": "misc-spin_lab",
+    "misc-spin3": "misc-spin_lab",
+    "misc-vision_motion_lab": "misc-vision_labs",
+    "misc-eye_gaze_control": "misc-vision_labs",
+    "misc-plasma_ball_lab": "misc-vision_labs",
+}
 MULTI_INSTANCE = {
     "utils-wordpad",
     "utils-markdown",
@@ -606,7 +669,32 @@ def main() -> None:
         }
         if slug in MULTI_INSTANCE:
             app["multiInstance"] = True
+        if slug in SYSTEM_SITE_APPS:
+            app["uninstallable"] = False
+            app["defaultInstalled"] = True
+            app["settingsPane"] = SYSTEM_SITE_APPS[slug]
         apps.append(app)
+
+    ids = {app["id"] for app in apps}
+    aliases = {old: new for old, new in APP_ALIASES.items() if new in ids and old not in ids}
+    for app in apps:
+        if app["id"] in {aliases.get(old) for old in DEFAULT_INSTALLED}:
+            app["defaultInstalled"] = True
+        if app["id"] in {aliases.get(old) for old in MULTI_INSTANCE}:
+            app["multiInstance"] = True
+    default_installed = []
+    for slug in DEFAULT_INSTALLED:
+        slug = aliases.get(slug, slug)
+        if slug not in default_installed:
+            default_installed.append(slug)
+
+    recommended = []
+    for href in START_RECOMMENDED:
+        path, _, tab = href.partition("#")
+        slug = href_to_slug(path)
+        if slug not in ids:
+            raise SystemExit(f"START_RECOMMENDED: {href} is not a card in page/index.html")
+        recommended.append({"id": slug, "hash": tab})
 
     payload = json.dumps(apps, ensure_ascii=False, indent=2)
     native_count = sum(1 for app in apps if app["kind"] == "native")
@@ -625,8 +713,21 @@ window.OSCatalog = (function () {{
     return USER_APPS.slice();
   }}
 
+  // Old ids of pages that were merged into a tabbed page.
+  const ALIASES = {json.dumps(aliases, indent=2)};
+
+  function resolveId(id) {{
+    return Object.prototype.hasOwnProperty.call(ALIASES, id) ? ALIASES[id] : id;
+  }}
+
   function byId(id) {{
-    return APPS.find((app) => app.id === id) || USER_APPS.find((app) => app.id === id) || null;
+    const find = (key) => APPS.find((app) => app.id === key) || USER_APPS.find((app) => app.id === key) || null;
+    return find(id) || (id !== resolveId(id) ? find(resolveId(id)) : null);
+  }}
+
+  // Site apps that belong to the desktop (for example Backup, shown inside Settings).
+  function systemSiteApps() {{
+    return APPS.filter((app) => app.kind === "site" && app.uninstallable === false);
   }}
 
   function siteApps() {{
@@ -684,7 +785,10 @@ window.OSCatalog = (function () {{
     return "../" + href;
   }}
 
-  const DEFAULT_INSTALLED = {json.dumps(list(DEFAULT_INSTALLED))};
+  const DEFAULT_INSTALLED = {json.dumps(default_installed)};
+
+  // Start menu "Recommended" row: {{ id, hash }} in display order.
+  const START_RECOMMENDED = {json.dumps(recommended)};
 
   function installPackIds(pack) {{
     if (pack === "all") return stableSiteApps().map((app) => app.id);
@@ -694,8 +798,12 @@ window.OSCatalog = (function () {{
 
   return {{
     APPS,
+    ALIASES,
     DEFAULT_INSTALLED,
+    START_RECOMMENDED,
     installPackIds,
+    systemSiteApps,
+    resolveId,
     byId,
     siteApps,
     nativeApps,

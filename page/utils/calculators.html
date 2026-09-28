@@ -1,0 +1,861 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" href="../assets/icons/ico/utils-calculators.ico" type="image/x-icon">
+  <title>Calculators</title>
+  <link rel="stylesheet" href="../assets/fontawesome/css/all.min.css">
+  <style>
+    :root {
+      --bg: #111615; --panel: #1a2120; --panel-2: #212a29; --border: #2e3a38;
+      --text: #e8efee; --muted: #8a9a97; --accent: #1fb5a0; --accent-strong: #008f7d;
+      --accent-soft: rgba(31, 181, 160, .12); --warn: #e0a84a; --neg: #e07a6a; --ok: #3fb950;
+      --mono: ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
+    }
+    html[data-theme="light"] {
+      --bg: #f3f6f5; --panel: #ffffff; --panel-2: #f5f8f7; --border: #d7e0de;
+      --text: #172120; --muted: #62716e; --accent: #008f7d; --accent-strong: #006056;
+      --accent-soft: rgba(0, 143, 125, .09); --warn: #a86a08; --neg: #c0392b; --ok: #1a7f37;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
+    body { background: var(--bg); color: var(--text); font: 14px/1.4 system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif; overflow: hidden; }
+    button, input, select, textarea { font: inherit; color: inherit; }
+    .app { display: grid; grid-template-rows: auto 1fr; height: 100%; }
+
+    /* Top bar */
+    .topbar { display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 8px 0 12px; background: var(--panel); border-bottom: 1px solid var(--border); min-width: 0; }
+    .brand { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 15px; white-space: nowrap; }
+    .brand img { width: 18px; height: 18px; }
+    .tabs { display: flex; gap: 2px; flex: 1; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+    .tabs::-webkit-scrollbar { display: none; }
+    .tab { position: relative; display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 9px; border: 0; border-radius: 6px; background: none; color: var(--muted); font-size: 13px; white-space: nowrap; cursor: pointer; }
+    .tab:hover { background: var(--panel-2); color: var(--text); }
+    .tab[aria-selected="true"] { background: var(--accent-strong); color: #fff; }
+    .tabs.tight .tab { gap: 4px; padding: 0 6px; font-size: 12.5px; }
+    .tabs.compact .tab:not([aria-selected="true"]) span { display: none; }
+    .tools { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+    .icon-btn { display: grid; place-items: center; width: 30px; height: 30px; padding: 0; border: 1px solid var(--border); border-radius: 6px; background: var(--panel-2); cursor: pointer; }
+    .icon-btn:hover { border-color: var(--accent); color: var(--accent); }
+    select { height: 30px; border: 1px solid var(--border); border-radius: 6px; background: var(--panel-2); padding: 0 6px; font-size: 13px; }
+    :focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+    /* Panels */
+    main { min-height: 0; overflow: auto; }
+    .panel { max-width: 760px; margin: 0 auto; padding: 14px 14px 18px; display: flex; flex-direction: column; gap: 12px; }
+    .panel.narrow { max-width: 380px; }
+    .panel.wide { max-width: 1040px; }
+    .panel.fill { height: 100%; }
+    .panel[hidden] { display: none; }
+    .card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 12px; }
+    .row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+    .spacer { flex: 1; }
+    .grid { display: grid; gap: 8px; }
+    label.field { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
+    input[type="number"], input[type="text"] { height: 32px; min-width: 0; padding: 0 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--panel-2); color: var(--text); }
+    .field select { height: 32px; }
+    input:focus, textarea:focus, .field select:focus { outline: none; border-color: var(--accent); }
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 32px; padding: 0 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--panel-2); cursor: pointer; white-space: nowrap; }
+    .btn:hover:not(:disabled) { border-color: var(--accent); }
+    .btn.primary { background: var(--accent-strong); border-color: var(--accent-strong); color: #fff; }
+    .btn.danger:hover:not(:disabled) { border-color: var(--neg); color: var(--neg); }
+    .btn.sm { height: 28px; padding: 0 8px; font-size: 12px; }
+    .muted { color: var(--muted); }
+    .small { font-size: 12px; }
+    .mono { font-family: var(--mono); }
+    .empty { text-align: center; color: var(--muted); padding: 16px; }
+
+    /* Simple calculator */
+    .calc-display { min-height: 64px; padding: 8px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--panel-2); font-family: var(--mono); font-size: 34px; font-weight: 700; text-align: right; line-height: 1.35; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+    .calc-display.error { color: var(--neg); }
+    .keypad { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+    .keypad button { height: 52px; border: 1px solid var(--border); border-radius: 8px; background: var(--panel); font-size: 20px; font-weight: 600; cursor: pointer; transition: background .1s, border-color .1s; }
+    .keypad button:hover { border-color: var(--accent); }
+    .keypad button.op { background: var(--accent-soft); color: var(--accent); }
+    .keypad button.eq { background: var(--accent-strong); border-color: var(--accent-strong); color: #fff; }
+    .keypad button.clr:hover { border-color: var(--neg); color: var(--neg); }
+    .keypad button.pressed { border-color: var(--accent); background: var(--accent-soft); }
+    .keypad .span2 { grid-column: span 2; }
+    .keypad .span3 { grid-column: span 3; }
+
+    /* Sum */
+    .sum-input { flex: 1; min-height: 160px; width: 100%; resize: none; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--panel); font-family: var(--mono); font-size: 14px; line-height: 1.6; }
+    .big-total { font-family: var(--mono); font-size: 30px; font-weight: 700; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+
+    /* Expression */
+    .expr-input { flex: 1; height: 40px !important; font-size: 18px; font-family: var(--mono); }
+    .expr-result { min-height: 56px; font-family: var(--mono); font-size: 32px; font-weight: 700; text-align: center; overflow-wrap: anywhere; }
+    .expr-result.error { color: var(--neg); }
+
+    /* Bandwidth */
+    .bw-grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 8px 10px; }
+    .result-row { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--panel-2); }
+    .result-row .k { width: 220px; color: var(--muted); font-size: 12px; }
+    .result-row .v { flex: 1; font-family: var(--mono); font-size: 20px; font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; }
+
+    /* Bitwise */
+    .stepper { display: flex; }
+    .stepper input { width: 180px; text-align: right; border-radius: 0; font-family: var(--mono); }
+    .stepper button { width: 32px; height: 32px; border: 1px solid var(--border); background: var(--panel-2); cursor: pointer; }
+    .stepper button:first-child { border-radius: 6px 0 0 6px; border-right: 0; }
+    .stepper button:last-child { border-radius: 0 6px 6px 0; border-left: 0; }
+    .stepper button:hover { color: var(--accent); }
+    .bin-out { font-family: var(--mono); font-size: 15px; padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--panel-2); user-select: all; overflow-wrap: anywhere; }
+    .out-label { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+    .bits { display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: 4px 8px; }
+    .bit { display: flex; align-items: center; gap: 6px; height: 26px; padding: 0 6px; border-radius: 6px; cursor: pointer; font-size: 12px; min-width: 0; }
+    .bit:hover { background: var(--panel-2); }
+    .bit input { margin: 0; accent-color: var(--accent-strong); }
+    .bit .val { padding: 1px 6px; border-radius: 4px; background: var(--panel-2); border: 1px solid var(--border); font-family: var(--mono); font-size: 11.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .bit input:checked + .val { background: var(--accent-strong); border-color: var(--accent-strong); color: #fff; }
+    .bit small { color: var(--muted); white-space: nowrap; }
+
+    /* Help */
+    dialog { width: min(760px, calc(100vw - 32px)); max-height: calc(100vh - 32px); padding: 0; border: 1px solid var(--border); border-radius: 10px; background: var(--panel); color: var(--text); }
+    dialog[open] { display: flex; flex-direction: column; }
+    dialog::backdrop { background: rgb(0 0 0 / 45%); }
+    .dlg-head { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-bottom: 1px solid var(--border); font-weight: 600; }
+    .dlg-body { padding: 12px 14px 16px; overflow: auto; min-height: 0; }
+    .dlg-body h3 { margin: 12px 0 6px; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+    .dlg-body h4 { margin: 10px 0 4px; font-size: 14px; }
+    .dlg-body h5 { margin: 10px 0 4px; font-size: 13px; color: var(--muted); }
+    .dlg-body p { margin: 0 0 8px; }
+    .dlg-body ul { margin: 0; padding-left: 18px; }
+    .dlg-body li { margin: 3px 0; }
+    .dlg-body li.active b { color: var(--accent); }
+    .dlg-body code { font-family: var(--mono); background: var(--accent-soft); color: var(--accent); padding: 0 4px; border-radius: 4px; }
+    .dlg-body pre { margin: 0 0 8px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--panel-2); overflow: auto; }
+    .dlg-body pre code { background: none; color: var(--text); padding: 0; font-size: 12px; white-space: pre-wrap; overflow-wrap: anywhere; }
+    .subtabs { display: flex; gap: 2px; border-bottom: 1px solid var(--border); margin-bottom: 6px; }
+    .subtabs button { height: 28px; padding: 0 10px; border: 0; border-bottom: 2px solid transparent; background: none; color: var(--muted); cursor: pointer; font-size: 13px; }
+    .subtabs button[aria-selected="true"] { color: var(--accent); border-bottom-color: var(--accent); }
+
+    .toast { position: fixed; left: 50%; bottom: 16px; transform: translate(-50%, 20px); padding: 6px 12px; border-radius: 6px; background: var(--accent-strong); color: #fff; font-size: 13px; opacity: 0; pointer-events: none; transition: .2s; }
+    .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+    @media (max-width: 1000px) { .brand span { display: none; } }
+    @media (max-width: 760px) {
+      .tab span { display: none; }
+      .result-row .k { width: 120px; }
+      .stepper input { width: 130px; }
+    }
+    @media (max-width: 520px) {
+      .bw-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-NWZDZ906DJ"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-NWZDZ906DJ');
+  </script>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand"><img src="../assets/icons/svg/utils-calculators.svg" alt=""><span data-i18n="title">Calculators</span></div>
+      <nav class="tabs" id="tabs" role="tablist"></nav>
+      <div class="tools">
+        <button class="icon-btn" id="help-btn" type="button" data-i18n-title="help"><i class="fa-solid fa-circle-question"></i></button>
+        <select id="lang-switcher" aria-label="Language">
+          <option value="en">EN</option>
+          <option value="pt">PT</option>
+          <option value="ja">JA</option>
+        </select>
+        <button class="icon-btn" id="theme-switcher" type="button" data-i18n-title="theme"><i class="fa-solid fa-sun"></i></button>
+      </div>
+    </header>
+
+    <main>
+      <!-- Simple calculator -->
+      <section class="panel narrow" data-panel="simple" hidden>
+        <div class="calc-display" id="sc-display" aria-live="polite">0</div>
+        <div class="keypad" id="sc-keypad">
+          <button type="button" data-value="7">7</button>
+          <button type="button" data-value="8">8</button>
+          <button type="button" data-value="9">9</button>
+          <button type="button" class="op" data-value="/">/</button>
+          <button type="button" data-value="4">4</button>
+          <button type="button" data-value="5">5</button>
+          <button type="button" data-value="6">6</button>
+          <button type="button" class="op" data-value="*">*</button>
+          <button type="button" data-value="1">1</button>
+          <button type="button" data-value="2">2</button>
+          <button type="button" data-value="3">3</button>
+          <button type="button" class="op" data-value="-">-</button>
+          <button type="button" class="span2" data-value="0">0</button>
+          <button type="button" data-value=".">.</button>
+          <button type="button" class="op" data-value="+">+</button>
+          <button type="button" class="eq span3" data-value="=">=</button>
+          <button type="button" class="clr" data-value="C">C</button>
+        </div>
+      </section>
+
+      <!-- Sum -->
+      <section class="panel fill" data-panel="sum" hidden>
+        <textarea class="sum-input" id="sum-input" spellcheck="false" data-i18n-placeholder="sumPlaceholder"></textarea>
+        <div class="card row">
+          <div>
+            <div class="small muted" data-i18n="total">Total</div>
+            <div class="big-total" id="sum-total">0</div>
+          </div>
+          <div class="spacer"></div>
+          <button class="btn primary" id="sum-copy" type="button"><i class="fa-regular fa-copy"></i><span data-i18n="copy">Copy</span></button>
+          <button class="btn danger" id="sum-clear" type="button"><i class="fa-solid fa-eraser"></i><span data-i18n="clear">Clear</span></button>
+        </div>
+      </section>
+
+      <!-- Expression -->
+      <section class="panel" data-panel="expression" hidden>
+        <div class="card">
+          <div class="row" style="flex-wrap:nowrap">
+            <input type="text" class="expr-input" id="expr-input" spellcheck="false" autocomplete="off" data-i18n-placeholder="exprPlaceholder">
+            <button class="btn primary" id="expr-calc" type="button" style="height:40px"><i class="fa-solid fa-equals"></i><span data-i18n="calculate">Calculate</span></button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="expr-result" id="expr-result"></div>
+          <div class="row" style="justify-content:center">
+            <button class="btn sm" id="expr-copy" type="button" hidden><i class="fa-regular fa-copy"></i><span data-i18n="copy">Copy</span></button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Bandwidth -->
+      <section class="panel" data-panel="bandwidth" hidden>
+        <div class="card">
+          <div class="bw-grid">
+            <label class="field"><span data-i18n="dataSizeLabel">Data Size</span><input type="number" id="bw-size" min="0" step="any" placeholder="0"></label>
+            <label class="field"><span data-i18n="unitLabel">Unit</span>
+              <select id="bw-size-unit"><option value="MB">MB</option><option value="GB">GB</option><option value="TB">TB</option></select>
+            </label>
+            <label class="field"><span data-i18n="timeLabel">Time</span><input type="number" id="bw-time" min="0" step="any" placeholder="0"></label>
+            <label class="field"><span data-i18n="unitLabel">Unit</span>
+              <select id="bw-time-unit">
+                <option value="s" data-i18n="seconds">Seconds</option>
+                <option value="m" data-i18n="minutes">Minutes</option>
+                <option value="h" data-i18n="hours">Hours</option>
+              </select>
+            </label>
+          </div>
+          <div class="row" style="margin-top:8px">
+            <div class="spacer"></div>
+            <button class="btn sm danger" id="bw-clear" type="button"><i class="fa-solid fa-eraser"></i><span data-i18n="clear">Clear</span></button>
+          </div>
+        </div>
+        <div class="grid" id="bw-results" hidden>
+          <div class="result-row"><span class="k" data-i18n="transferRateMB">Transfer Rate (MegaBytes)</span><span class="v" id="bw-mb">0 MB/s</span><button class="icon-btn" type="button" data-copy="bw-mb" data-i18n-title="copy"><i class="fa-regular fa-copy"></i></button></div>
+          <div class="result-row"><span class="k" data-i18n="transferRateMbits">Transfer Rate (MegaBits)</span><span class="v" id="bw-mbits">0 Mbps</span><button class="icon-btn" type="button" data-copy="bw-mbits" data-i18n-title="copy"><i class="fa-regular fa-copy"></i></button></div>
+        </div>
+        <div class="empty" id="bw-empty" data-i18n="emptyState">Enter size and time to see the results</div>
+      </section>
+
+      <!-- Bitwise -->
+      <section class="panel wide" data-panel="bitwise" hidden>
+        <div class="card">
+          <div class="row" style="align-items:flex-end">
+            <label class="field"><span data-i18n="decimal_label">Decimal Value</span>
+              <div class="stepper">
+                <button type="button" id="bw-dec" data-i18n-title="decrement"><i class="fa-solid fa-minus"></i></button>
+                <input type="text" id="bw-decimal" inputmode="numeric" pattern="[0-9]*" placeholder="0" autocomplete="off">
+                <button type="button" id="bw-inc" data-i18n-title="increment"><i class="fa-solid fa-plus"></i></button>
+              </div>
+            </label>
+            <label class="field"><span data-i18n="bits_label">Bits</span>
+              <select id="bw-bits" data-i18n-title="select_bits_range">
+                <option value="8">8</option><option value="16">16</option><option value="32" selected>32</option><option value="64">64</option>
+              </select>
+            </label>
+            <div class="spacer"></div>
+            <button class="btn" id="bw-bit-clear" type="button"><i class="fa-solid fa-eraser"></i><span data-i18n="clear">Clear</span></button>
+            <button class="btn" id="bw-bit-all" type="button"><i class="fa-solid fa-check-double"></i><span data-i18n="select_all">Select All</span></button>
+            <button class="btn" id="bw-bit-invert" type="button"><i class="fa-solid fa-retweet"></i><span data-i18n="invert">Invert</span></button>
+          </div>
+          <div class="small muted" id="bw-range" style="margin-top:4px"></div>
+        </div>
+        <div class="card grid">
+          <div>
+            <div class="out-label" id="bw-bin-label"></div>
+            <div class="bin-out" id="bw-binary"></div>
+          </div>
+          <div class="row" style="align-items:flex-start;flex-wrap:nowrap">
+            <div style="flex:0 0 auto">
+              <div class="out-label" data-i18n="hex_label">Hexadecimal</div>
+              <div class="bin-out" id="bw-hex"></div>
+            </div>
+            <div style="flex:1;min-width:0">
+              <div class="out-label" data-i18n="active_values">Active values</div>
+              <div class="bin-out" id="bw-active" style="font-size:13px;user-select:text"></div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="small muted" id="bw-bits-hint" style="margin-bottom:6px"></div>
+          <div class="bits" id="bw-checks"></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <dialog id="help">
+    <div class="dlg-head"><span id="help-title"></span><button class="icon-btn" id="help-close" type="button" data-i18n-title="close"><i class="fa-solid fa-xmark"></i></button></div>
+    <div class="dlg-body" id="help-body"></div>
+  </dialog>
+  <div class="toast" id="toast"></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.7.0/math.js"></script>
+  <script>
+    (() => {
+      // ------------------------------------------------------------------
+      // Text
+      // ------------------------------------------------------------------
+      const I18N = {
+        en: {
+          title: 'Calculators', help: 'Help', theme: 'Toggle theme', close: 'Close', copied: 'Copied!', copy: 'Copy', clear: 'Clear', error: 'Error',
+          tab_simple: 'Simple', tab_sum: 'Sum', tab_expression: 'Expression', tab_bandwidth: 'Bandwidth', tab_bitwise: 'Bitwise',
+          // Sum / expression (from calculator.html)
+          sumPlaceholder: 'Enter one number per line...', total: 'Total',
+          exprPlaceholder: 'Enter an expression, e.g., (2 + 2) * 4', calculate: 'Calculate',
+          // Bandwidth (from band_calc.html)
+          dataSizeLabel: 'Data Size', timeLabel: 'Time', unitLabel: 'Unit', seconds: 'Seconds', minutes: 'Minutes', hours: 'Hours',
+          transferRateMB: 'Transfer Rate (MegaBytes)', transferRateMbits: 'Transfer Rate (MegaBits)',
+          emptyState: 'Enter size and time to see the results',
+          // Bitwise (from bitwise_converter.html)
+          decimal_label: 'Decimal Value', binary_label: 'Binary ({{bits}} bits)', hex_label: 'Hexadecimal', active_values: 'Active values',
+          range_hint_prefix: 'Range: 0 to', bits_label: 'Bits', select_all: 'Select All', invert: 'Invert',
+          increment: 'Increment', decrement: 'Decrement',
+          checkbox_hint_prefix: 'Toggle the checkboxes to set bits (', none: 'None', select_bits_range: 'Select bits range',
+          use_cases_title: 'Bitwise use cases',
+          mysql_title: 'MySQL Use Cases', mysql_intro: 'Bitwise operations in MySQL are commonly used to store and query flags in a single integer field.',
+          javascript_title: 'JavaScript Use Cases', javascript_intro: 'Bitwise operations in JavaScript are useful for flags and permissions management.',
+          python_title: 'Python Use Cases', python_intro: 'Bitwise operations in Python are useful for flags and permissions management.',
+          php_title: 'PHP Use Cases', php_intro: 'Bitwise operations in PHP are useful for flags and permissions management.',
+          select_bit_matching: 'SELECT with Bit Matching', check_bit_matching: 'Check Bit Matching', update_set_unset: 'Set/Unset Bits',
+          assume_flags_column: 'Assuming a table with flags column (integer)', check_bit_set: 'Check if bit {{bit}} is set',
+          set_bit: 'Set bit {{bit}} (value = {{value}})', unset_bit: 'Unset bit {{bit}} (value = {{value}})', toggle_bit: 'Toggle bit {{bit}} (value = {{value}})',
+          flags_binary_decimal: 'Binary: {{binary}} (decimal: {{decimal}})', check_bit_n: 'Check bit {{bit}}', assuming_flags: 'Assuming flags value',
+          result_after_set: 'result after set', result_after_unset: 'result after unset', result_after_toggle: 'result after toggle',
+          use_cases_hint: 'The examples use the current value of the Bitwise tab and the last bit you toggled.',
+          // Help
+          helpIntro: 'Five calculators in one page. Pick one in the tabs; the last tab is remembered and each one has its own link (for example <code>calculators.html#bitwise</code>).',
+          helpTools: 'Tools',
+          d_simple: 'Button calculator. Keyboard: digits, <code>+ - * /</code>, <code>.</code>, <code>Enter</code> or <code>=</code> to calculate, <code>Backspace</code> to delete, <code>Esc</code> or <code>C</code> to clear.',
+          d_sum: 'Adds one number per line while you type. Lines that do not start with a number count as zero.',
+          d_expression: 'Evaluates expressions with math.js: parentheses, powers (<code>2^10</code>), functions (<code>sqrt(16)</code>, <code>sin(pi/2)</code>) and units (<code>5 cm to inch</code>). Press <code>Enter</code> to calculate.',
+          d_bandwidth: 'Transfer rate in MB/s and Mbps from a data size (MB, GB, TB) and a time (seconds, minutes, hours). 1 GB = 1024 MB.',
+          d_bitwise: 'Decimal to binary and hexadecimal in 8, 16, 32 or 64 bits. Type the value, use − / +, or toggle the bit boxes. Clear, Select All and Invert change every bit.',
+        },
+        pt: {
+          title: 'Calculadoras', help: 'Ajuda', theme: 'Alternar tema', close: 'Fechar', copied: 'Copiado!', copy: 'Copiar', clear: 'Limpar', error: 'Erro',
+          tab_simple: 'Simples', tab_sum: 'Soma', tab_expression: 'Expressão', tab_bandwidth: 'Banda', tab_bitwise: 'Bitwise',
+          sumPlaceholder: 'Digite um número por linha...', total: 'Total',
+          exprPlaceholder: 'Digite uma expressão, ex: (2 + 2) * 4', calculate: 'Calcular',
+          dataSizeLabel: 'Tamanho dos Dados', timeLabel: 'Tempo', unitLabel: 'Unidade', seconds: 'Segundos', minutes: 'Minutos', hours: 'Horas',
+          transferRateMB: 'Taxa de Transferência (MegaBytes)', transferRateMbits: 'Taxa de Transferência (MegaBits)',
+          emptyState: 'Digite o tamanho e o tempo para ver os resultados',
+          decimal_label: 'Valor Decimal', binary_label: 'Binário ({{bits}} bits)', hex_label: 'Hexadecimal', active_values: 'Valores ativos',
+          range_hint_prefix: 'Intervalo: 0 até', bits_label: 'Bits', select_all: 'Selecionar tudo', invert: 'Inverter',
+          increment: 'Aumentar', decrement: 'Diminuir',
+          checkbox_hint_prefix: 'Use as caixas para marcar os bits (', none: 'Nenhum', select_bits_range: 'Selecionar intervalo de bits',
+          use_cases_title: 'Casos de uso bitwise',
+          mysql_title: 'Casos de Uso em MySQL', mysql_intro: 'Operações bitwise no MySQL são comumente usadas para armazenar e consultar flags em um único campo inteiro.',
+          javascript_title: 'Casos de Uso em JavaScript', javascript_intro: 'Operações bitwise em JavaScript são úteis para gerenciamento de flags e permissões.',
+          python_title: 'Casos de Uso em Python', python_intro: 'Operações bitwise em Python são úteis para gerenciamento de flags e permissões.',
+          php_title: 'Casos de Uso em PHP', php_intro: 'Operações bitwise em PHP são úteis para gerenciamento de flags e permissões.',
+          select_bit_matching: 'SELECT com Correspondência de Bits', check_bit_matching: 'Verificação de Bits', update_set_unset: 'Definir/Remover Bits',
+          assume_flags_column: 'Supondo uma tabela com coluna flags (inteiro)', check_bit_set: 'Verificar se o bit {{bit}} está ativo',
+          set_bit: 'Definir bit {{bit}} (valor = {{value}})', unset_bit: 'Remover bit {{bit}} (valor = {{value}})', toggle_bit: 'Alternar bit {{bit}} (valor = {{value}})',
+          flags_binary_decimal: 'Binário: {{binary}} (decimal: {{decimal}})', check_bit_n: 'Verificar bit {{bit}}', assuming_flags: 'Supondo valor de flags',
+          result_after_set: 'resultado após definir', result_after_unset: 'resultado após remover', result_after_toggle: 'resultado após alternar',
+          use_cases_hint: 'Os exemplos usam o valor atual da aba Bitwise e o último bit que você alternou.',
+          helpIntro: 'Cinco calculadoras numa só página. Escolha uma nas abas; a última aba fica salva e cada uma tem seu próprio link (por exemplo <code>calculators.html#bitwise</code>).',
+          helpTools: 'Ferramentas',
+          d_simple: 'Calculadora com botões. Teclado: dígitos, <code>+ - * /</code>, <code>.</code>, <code>Enter</code> ou <code>=</code> para calcular, <code>Backspace</code> para apagar, <code>Esc</code> ou <code>C</code> para limpar.',
+          d_sum: 'Soma um número por linha enquanto você digita. Linhas que não começam com número contam como zero.',
+          d_expression: 'Avalia expressões com math.js: parênteses, potências (<code>2^10</code>), funções (<code>sqrt(16)</code>, <code>sin(pi/2)</code>) e unidades (<code>5 cm to inch</code>). Pressione <code>Enter</code> para calcular.',
+          d_bandwidth: 'Taxa de transferência em MB/s e Mbps a partir de um tamanho (MB, GB, TB) e de um tempo (segundos, minutos, horas). 1 GB = 1024 MB.',
+          d_bitwise: 'Decimal para binário e hexadecimal em 8, 16, 32 ou 64 bits. Digite o valor, use − / + ou marque as caixas dos bits. Limpar, Selecionar tudo e Inverter mudam todos os bits.',
+        },
+        ja: {
+          title: '計算ツール', help: 'ヘルプ', theme: 'テーマを切り替え', close: '閉じる', copied: 'コピーしました！', copy: 'コピー', clear: 'クリア', error: 'エラー',
+          tab_simple: 'シンプル', tab_sum: '合計', tab_expression: '式', tab_bandwidth: '帯域幅', tab_bitwise: 'ビット演算',
+          sumPlaceholder: '1行に1つの数字を入力してください...', total: '合計',
+          exprPlaceholder: '式を入力してください、例: (2 + 2) * 4', calculate: '計算する',
+          dataSizeLabel: 'データサイズ', timeLabel: '時間', unitLabel: '単位', seconds: '秒', minutes: '分', hours: '時間',
+          transferRateMB: '転送速度 (メガバイト)', transferRateMbits: '転送速度 (メガビット)',
+          emptyState: 'サイズと時間を入力して結果を表示',
+          decimal_label: '10進数', binary_label: '2進数 ({{bits}}ビット)', hex_label: '16進数', active_values: '有効な値',
+          range_hint_prefix: '範囲: 0 〜', bits_label: 'ビット数', select_all: '全選択', invert: '反転',
+          increment: '増やす', decrement: '減らす',
+          checkbox_hint_prefix: 'チェックでビットを設定 (', none: 'なし', select_bits_range: 'ビット範囲を選択',
+          use_cases_title: 'ビット演算の使用例',
+          mysql_title: 'MySQL の使用例', mysql_intro: 'MySQL のビット演算は、単一の整数フィールドにフラグを保存・照会する際によく使われます。',
+          javascript_title: 'JavaScript の使用例', javascript_intro: 'JavaScript のビット演算は、フラグや権限の管理に便利です。',
+          python_title: 'Python の使用例', python_intro: 'Python のビット演算は、フラグや権限の管理に便利です。',
+          php_title: 'PHP の使用例', php_intro: 'PHP のビット演算は、フラグや権限の管理に便利です。',
+          select_bit_matching: 'ビット一致の SELECT', check_bit_matching: 'ビット一致の確認', update_set_unset: 'ビットの設定/解除',
+          assume_flags_column: 'flags カラム（整数）を持つテーブルを想定', check_bit_set: 'ビット {{bit}} が設定されているか確認',
+          set_bit: 'ビット {{bit}} を設定 (値 = {{value}})', unset_bit: 'ビット {{bit}} を解除 (値 = {{value}})', toggle_bit: 'ビット {{bit}} を切り替え (値 = {{value}})',
+          flags_binary_decimal: '2進数: {{binary}} (10進数: {{decimal}})', check_bit_n: 'ビット {{bit}} を確認', assuming_flags: 'flags の値を想定',
+          result_after_set: '設定後の結果', result_after_unset: '解除後の結果', result_after_toggle: '切り替え後の結果',
+          use_cases_hint: '例ではビット演算タブの現在の値と、最後に切り替えたビットを使います。',
+          helpIntro: '5 つの計算ツールをひとつのページにまとめました。タブで選びます。最後のタブは記憶され、各タブには専用のリンクがあります（例: <code>calculators.html#bitwise</code>）。',
+          helpTools: 'ツール',
+          d_simple: 'ボタン式の電卓。キーボード: 数字、<code>+ - * /</code>、<code>.</code>、<code>Enter</code> または <code>=</code> で計算、<code>Backspace</code> で 1 文字削除、<code>Esc</code> または <code>C</code> でクリア。',
+          d_sum: '入力しながら 1 行に 1 つの数値を合計します。数字で始まらない行は 0 として扱います。',
+          d_expression: 'math.js で式を計算します: 括弧、累乗（<code>2^10</code>）、関数（<code>sqrt(16)</code>、<code>sin(pi/2)</code>）、単位（<code>5 cm to inch</code>）。<code>Enter</code> で計算します。',
+          d_bandwidth: 'データサイズ（MB・GB・TB）と時間（秒・分・時間）から転送速度を MB/s と Mbps で求めます。1 GB = 1024 MB。',
+          d_bitwise: '10進数を 8・16・32・64 ビットの 2進数と 16進数に変換します。値を入力するか、− / + を使うか、ビットのチェックを切り替えます。クリア・全選択・反転はすべてのビットに作用します。',
+        },
+      };
+
+      const TABS = [
+        { id: 'simple', icon: 'fa-solid fa-calculator' },
+        { id: 'sum', icon: 'fa-solid fa-list-ol' },
+        { id: 'expression', icon: 'fa-solid fa-square-root-variable' },
+        { id: 'bandwidth', icon: 'fa-solid fa-gauge-high' },
+        { id: 'bitwise', icon: 'fa-solid fa-microchip' },
+      ];
+
+      const store = {
+        get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+        set(k, v) { try { localStorage.setItem(k, v); } catch {} },
+      };
+      const $ = (id) => document.getElementById(id);
+      const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+      let lang = store.get('app_lang');
+      if (!I18N[lang]) lang = 'en';
+      let theme = store.get('app_theme') === 'light' ? 'light' : 'dark';
+      const t = (k, vars) => {
+        let s = I18N[lang][k] !== undefined ? I18N[lang][k] : (I18N.en[k] !== undefined ? I18N.en[k] : k);
+        if (vars) Object.entries(vars).forEach(([name, v]) => { s = s.split(`{{${name}}}`).join(String(v)); });
+        return s;
+      };
+      const locale = () => ({ en: 'en-US', pt: 'pt-BR', ja: 'ja-JP' }[lang]);
+      const fmtMath = (v) => (typeof math !== 'undefined' ? math.format(v, { precision: 14 }) : String(v));
+
+      function toast(msg) {
+        const el = $('toast');
+        el.textContent = msg;
+        el.classList.add('show');
+        clearTimeout(toast.timer);
+        toast.timer = setTimeout(() => el.classList.remove('show'), 1400);
+      }
+
+      async function copyText(text) {
+        try { await navigator.clipboard.writeText(text); }
+        catch {
+          const ta = document.createElement('textarea');
+          ta.value = text; document.body.appendChild(ta); ta.select();
+          document.execCommand('copy'); ta.remove();
+        }
+        toast(t('copied'));
+      }
+
+      // ------------------------------------------------------------------
+      // Tabs, language, theme, help
+      // ------------------------------------------------------------------
+      const TAB_KEY = 'calculators_tab';
+      let active = null;
+      const panelHooks = {};
+      const langHooks = {};
+
+      function renderTabs() {
+        const nav = $('tabs');
+        nav.innerHTML = '';
+        TABS.forEach((tab) => {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'tab';
+          btn.role = 'tab';
+          btn.dataset.tab = tab.id;
+          btn.title = t('tab_' + tab.id);
+          btn.innerHTML = `<i class="${tab.icon}" aria-hidden="true"></i><span></span>`;
+          btn.querySelector('span').textContent = t('tab_' + tab.id);
+          btn.setAttribute('aria-selected', String(tab.id === active));
+          btn.addEventListener('click', () => select(tab.id));
+          nav.appendChild(btn);
+        });
+      }
+
+      function select(id, fromHash) {
+        if (!TABS.some((tab) => tab.id === id)) id = TABS[0].id;
+        active = id;
+        document.querySelectorAll('[data-panel]').forEach((p) => { p.hidden = p.dataset.panel !== id; });
+        document.querySelectorAll('.tab').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.tab === id)));
+        store.set(TAB_KEY, id);
+        if (!fromHash && location.hash.slice(1) !== id) history.replaceState(null, '', '#' + id);
+        document.title = `${t('tab_' + id)} · ${t('title')}`;
+        fitTabs();
+        if (panelHooks[id]) panelHooks[id]();
+        renderHelp();
+      }
+
+      // Show every label when they fit; otherwise only the selected tab keeps its label.
+      function fitTabs() {
+        const nav = $('tabs');
+        nav.classList.remove('tight', 'compact');
+        if (nav.scrollWidth > nav.clientWidth + 1) nav.classList.add('tight');
+        if (nav.scrollWidth > nav.clientWidth + 1) nav.classList.add('compact');
+      }
+      new ResizeObserver(fitTabs).observe($('tabs'));
+      // Icon fonts load after the first layout and widen the tabs.
+      window.addEventListener('load', fitTabs);
+      if (document.fonts) document.fonts.ready.then(fitTabs);
+
+      function applyLang() {
+        document.documentElement.lang = lang;
+        document.querySelectorAll('[data-i18n]').forEach((el) => { el.textContent = t(el.dataset.i18n); });
+        document.querySelectorAll('[data-i18n-title]').forEach((el) => { el.title = t(el.dataset.i18nTitle); el.setAttribute('aria-label', t(el.dataset.i18nTitle)); });
+        document.querySelectorAll('[data-i18n-placeholder]').forEach((el) => { el.placeholder = t(el.dataset.i18nPlaceholder); });
+        $('lang-switcher').value = lang;
+        renderTabs();
+        if (active) select(active, true);
+        Object.values(langHooks).forEach((fn) => fn());
+      }
+
+      function applyTheme() {
+        document.documentElement.dataset.theme = theme;
+        $('theme-switcher').querySelector('i').className = theme === 'dark' ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
+      }
+
+      // Bitwise code examples live in the help dialog (formerly inline "Use Cases" tabs).
+      const USE_CASES = [
+        { id: 'mysql', name: 'MySQL', check: 'select_bit_matching' },
+        { id: 'javascript', name: 'JavaScript', check: 'check_bit_matching' },
+        { id: 'python', name: 'Python', check: 'check_bit_matching' },
+        { id: 'php', name: 'PHP', check: 'check_bit_matching' },
+      ];
+      let useCase = 'mysql';
+
+      function renderHelp() {
+        $('help-title').textContent = t('title');
+        const items = TABS.map((tab) => `<li class="${tab.id === active ? 'active' : ''}"><b>${t('tab_' + tab.id)}</b> — ${t('d_' + tab.id)}</li>`).join('');
+        const subtabs = USE_CASES.map((u) => `<button type="button" role="tab" data-uc="${u.id}" aria-selected="${u.id === useCase}">${u.name}</button>`).join('');
+        const panes = USE_CASES.map((u) => `
+          <div data-uc-pane="${u.id}"${u.id === useCase ? '' : ' hidden'}>
+            <h4>${t(u.id + '_title')}</h4>
+            <p>${t(u.id + '_intro')}</p>
+            <h5>${t(u.check)}</h5>
+            <pre><code id="uc-${u.id}-select"></code></pre>
+            <h5>${t('update_set_unset')}</h5>
+            <pre><code id="uc-${u.id}-update"></code></pre>
+          </div>`).join('');
+        $('help-body').innerHTML = `<p>${t('helpIntro')}</p><h3>${t('helpTools')}</h3><ul>${items}</ul>
+          <h3 id="help-usecases">${t('use_cases_title')}</h3>
+          <p class="small muted">${t('use_cases_hint')}</p>
+          <div class="subtabs" role="tablist">${subtabs}</div>${panes}`;
+        $('help-body').querySelectorAll('[data-uc]').forEach((b) => b.addEventListener('click', () => {
+          useCase = b.dataset.uc;
+          $('help-body').querySelectorAll('[data-uc]').forEach((x) => x.setAttribute('aria-selected', String(x.dataset.uc === useCase)));
+          $('help-body').querySelectorAll('[data-uc-pane]').forEach((p) => { p.hidden = p.dataset.ucPane !== useCase; });
+        }));
+        updateCodeExamples();
+      }
+
+      $('lang-switcher').addEventListener('change', (e) => {
+        lang = I18N[e.target.value] ? e.target.value : 'en';
+        store.set('app_lang', lang);
+        applyLang();
+      });
+      $('theme-switcher').addEventListener('click', () => {
+        theme = theme === 'dark' ? 'light' : 'dark';
+        store.set('app_theme', theme);
+        applyTheme();
+      });
+      const help = $('help');
+      const openHelp = () => {
+        help.showModal();
+        const body = $('help-body');
+        body.scrollTop = 0;
+        if (active === 'bitwise') body.scrollTop = $('help-usecases').getBoundingClientRect().top - body.getBoundingClientRect().top - 8;
+      };
+      $('help-btn').addEventListener('click', openHelp);
+      $('help-close').addEventListener('click', () => help.close());
+      help.addEventListener('click', (e) => { if (e.target === help) help.close(); });
+      const typing = () => /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName);
+      document.addEventListener('keydown', (e) => {
+        if (e.key === '?' && !help.open && !typing()) openHelp();
+      });
+      $('tabs').addEventListener('keydown', (e) => {
+        if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+        const i = TABS.findIndex((tab) => tab.id === active);
+        const next = TABS[(i + (e.key === 'ArrowRight' ? 1 : -1) + TABS.length) % TABS.length].id;
+        select(next);
+        document.querySelector(`.tab[data-tab="${next}"]`).focus();
+      });
+      window.addEventListener('hashchange', () => select(location.hash.slice(1), true));
+
+      // ------------------------------------------------------------------
+      // Simple calculator
+      // ------------------------------------------------------------------
+      const scDisplay = $('sc-display');
+      let scExpr = '0';
+      let scError = false;
+      function scRender() {
+        scDisplay.textContent = scError ? t('error') : scExpr;
+        scDisplay.classList.toggle('error', scError);
+      }
+      function scPress(value) {
+        if (value === 'C') { scExpr = '0'; scError = false; }
+        else if (value === '=') {
+          try {
+            const result = math.evaluate(scExpr);
+            if (result === undefined) throw new Error('empty');
+            scExpr = fmtMath(result);
+          } catch { scError = true; }
+        } else if (value === 'Backspace') {
+          if (scError) { scExpr = '0'; scError = false; }
+          else scExpr = scExpr.length > 1 ? scExpr.slice(0, -1) : '0';
+        } else if (scExpr === '0' || scError) { scExpr = value; scError = false; }
+        else scExpr += value;
+        scRender();
+      }
+      $('sc-keypad').querySelectorAll('button').forEach((btn) => btn.addEventListener('click', () => scPress(btn.dataset.value)));
+      const SC_KEYS = { Enter: '=', '=': '=', Escape: 'C', Delete: 'C', c: 'C', C: 'C', ',': '.', x: '*', X: '*', Backspace: 'Backspace' };
+      document.addEventListener('keydown', (e) => {
+        if (active !== 'simple' || help.open || typing() || e.ctrlKey || e.metaKey || e.altKey) return;
+        let value = SC_KEYS[e.key];
+        if (!value && /^[0-9.+\-*/]$/.test(e.key)) value = e.key;
+        if (!value) return;
+        e.preventDefault();
+        scPress(value);
+        const btn = $('sc-keypad').querySelector(`button[data-value="${CSS.escape(value)}"]`);
+        if (btn) { btn.classList.add('pressed'); setTimeout(() => btn.classList.remove('pressed'), 120); }
+      });
+      langHooks.simple = scRender;
+
+      // ------------------------------------------------------------------
+      // Sum
+      // ------------------------------------------------------------------
+      const sumInput = $('sum-input');
+      function sumCalc() {
+        const total = sumInput.value.split('\n').reduce((sum, line) => {
+          const value = parseFloat(line);
+          return sum + (isNaN(value) ? 0 : value);
+        }, 0);
+        $('sum-total').textContent = total.toLocaleString(locale());
+      }
+      sumInput.addEventListener('input', sumCalc);
+      $('sum-copy').addEventListener('click', () => copyText($('sum-total').textContent));
+      $('sum-clear').addEventListener('click', () => { sumInput.value = ''; sumCalc(); sumInput.focus(); });
+      langHooks.sum = sumCalc;
+      panelHooks.sum = () => requestAnimationFrame(() => sumInput.focus());
+
+      // ------------------------------------------------------------------
+      // Expression
+      // ------------------------------------------------------------------
+      const exprInput = $('expr-input');
+      const exprResult = $('expr-result');
+      let exprState = null; // { ok: bool, text }
+      function exprRender() {
+        exprResult.textContent = exprState ? (exprState.ok ? exprState.text : t('error')) : '';
+        exprResult.classList.toggle('error', !!exprState && !exprState.ok);
+        $('expr-copy').hidden = !exprState || !exprState.ok;
+      }
+      function exprCalc() {
+        const expression = exprInput.value;
+        if (!expression) return;
+        try { exprState = { ok: true, text: fmtMath(math.evaluate(expression)) }; }
+        catch { exprState = { ok: false }; }
+        exprRender();
+      }
+      $('expr-calc').addEventListener('click', exprCalc);
+      exprInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') exprCalc(); });
+      $('expr-copy').addEventListener('click', () => copyText(exprResult.textContent));
+      langHooks.expression = exprRender;
+      panelHooks.expression = () => requestAnimationFrame(() => exprInput.focus());
+
+      // ------------------------------------------------------------------
+      // Bandwidth
+      // ------------------------------------------------------------------
+      const bwSize = $('bw-size'), bwSizeUnit = $('bw-size-unit'), bwTime = $('bw-time'), bwTimeUnit = $('bw-time-unit');
+      function bwCalc() {
+        const size = parseFloat(bwSize.value);
+        const time = parseFloat(bwTime.value);
+        const ok = !(isNaN(size) || isNaN(time) || time <= 0 || size < 0);
+        $('bw-results').hidden = !ok;
+        $('bw-empty').hidden = ok;
+        if (!ok) return;
+        // Base units: MB and seconds
+        let sizeInMB = size;
+        if (bwSizeUnit.value === 'GB') sizeInMB = size * 1024;
+        if (bwSizeUnit.value === 'TB') sizeInMB = size * 1024 * 1024;
+        let timeInS = time;
+        if (bwTimeUnit.value === 'm') timeInS = time * 60;
+        if (bwTimeUnit.value === 'h') timeInS = time * 3600;
+        const opts = { maximumFractionDigits: 2 };
+        $('bw-mb').textContent = `${(sizeInMB / timeInS).toLocaleString(locale(), opts)} MB/s`;
+        $('bw-mbits').textContent = `${(sizeInMB * 8 / timeInS).toLocaleString(locale(), opts)} Mbps`;
+      }
+      [bwSize, bwSizeUnit, bwTime, bwTimeUnit].forEach((el) => { el.addEventListener('input', bwCalc); el.addEventListener('change', bwCalc); });
+      $('bw-clear').addEventListener('click', () => { bwSize.value = ''; bwTime.value = ''; bwCalc(); });
+      document.querySelectorAll('[data-copy]').forEach((btn) => btn.addEventListener('click', () => {
+        copyText($(btn.dataset.copy).textContent);
+        const icon = btn.querySelector('i');
+        icon.className = 'fa-solid fa-check';
+        setTimeout(() => { icon.className = 'fa-regular fa-copy'; }, 1000);
+      }));
+      langHooks.bandwidth = bwCalc;
+
+      // ------------------------------------------------------------------
+      // Bitwise
+      // ------------------------------------------------------------------
+      let MAX_BITS = 32;
+      let MAX_VALUE = (1n << 32n) - 1n;
+      let lastToggledBit = 0;
+      let bitValue = 0n;
+      const decInput = $('bw-decimal');
+      const pow2 = (i) => (1n << BigInt(i));
+      const maxValueForBits = (bits) => (1n << BigInt(bits)) - 1n;
+      const clampBig = (v, min, max) => (v < min ? min : (v > max ? max : v));
+      const toBigInt = (x) => {
+        if (typeof x === 'bigint') return x;
+        const s = String(x).trim();
+        if (!/^[0-9]+$/.test(s)) return 0n;
+        try { return BigInt(s); } catch { return 0n; }
+      };
+      const formatBinaryRaw = (v) => v.toString(2).padStart(MAX_BITS, '0');
+      const formatBinary = (v) => formatBinaryRaw(v).replace(/(.{4})/g, '$1 ').trim();
+      const formatHex = (v) => '0x' + v.toString(16).toUpperCase().padStart(MAX_BITS / 4, '0');
+      const activeBits = (v) => {
+        const list = [];
+        for (let i = 0; i < MAX_BITS; i++) if ((v & pow2(i)) !== 0n) list.push({ bit: i, value: pow2(i) });
+        return list;
+      };
+
+      function bitTexts() {
+        $('bw-bin-label').textContent = t('binary_label', { bits: MAX_BITS });
+        $('bw-range').textContent = `${t('range_hint_prefix')} ${maxValueForBits(MAX_BITS).toString()}`;
+        $('bw-bits-hint').textContent = `${t('checkbox_hint_prefix')}${pow2(MAX_BITS - 1).toString()}, ..., 8, 4, 2, 1)`;
+        $('bw-active').textContent = bitValue === 0n ? t('none') : activeBits(bitValue).map((b) => b.value.toString()).join(', ');
+      }
+
+      function setBitValue(value) {
+        bitValue = clampBig(toBigInt(value), 0n, MAX_VALUE);
+        if (decInput.value !== bitValue.toString()) decInput.value = bitValue.toString();
+        for (let i = 0; i < MAX_BITS; i++) {
+          const cb = $('bit-' + i);
+          if (cb) cb.checked = (bitValue & pow2(i)) !== 0n;
+        }
+        $('bw-binary').textContent = formatBinary(bitValue);
+        $('bw-hex').textContent = formatHex(bitValue);
+        bitTexts();
+        updateCodeExamples();
+      }
+
+      function renderCheckboxes() {
+        const box = $('bw-checks');
+        box.innerHTML = '';
+        for (let i = MAX_BITS - 1; i >= 0; i--) {
+          const label = document.createElement('label');
+          label.className = 'bit';
+          label.title = `2^${i} = ${pow2(i).toString()}`;
+          label.innerHTML = `<input type="checkbox" id="bit-${i}"><span class="val">${pow2(i).toString()}</span><small>2^${i}</small>`;
+          label.querySelector('input').addEventListener('change', () => {
+            lastToggledBit = i;
+            let v = 0n;
+            for (let j = 0; j < MAX_BITS; j++) if ($('bit-' + j).checked) v += pow2(j);
+            setBitValue(v);
+          });
+          box.appendChild(label);
+        }
+      }
+
+      function updateCodeExamples() {
+        const code = (id, text) => { const el = $(id); if (el) el.textContent = text; };
+        if (!$('uc-mysql-select')) return;
+        const cur = bitValue;
+        const exampleBits = activeBits(cur).length ? activeBits(cur) : [{ bit: 0, value: 1n }];
+        const focusBit = { bit: lastToggledBit, value: pow2(lastToggledBit) };
+        const binaryString = formatBinaryRaw(cur);
+        const binaryComment = t('flags_binary_decimal', { binary: binaryString, decimal: cur.toString() });
+        const fv = focusBit.value.toString();
+        const without = cur & ~focusBit.value;
+        const withBit = cur | focusBit.value;
+        const toggled = cur ^ focusBit.value;
+        const setC = t('set_bit', { bit: focusBit.bit, value: fv });
+        const unsetC = t('unset_bit', { bit: focusBit.bit, value: fv });
+        const toggleC = t('toggle_bit', { bit: focusBit.bit, value: fv });
+
+        // MySQL
+        let s = `-- ${t('assume_flags_column')}\n`;
+        exampleBits.forEach((b) => { s += `SELECT * FROM users WHERE (flags & ${b.value}) = ${b.value};  -- ${t('check_bit_set', { bit: b.bit })}\n`; });
+        code('uc-mysql-select', s.trimEnd());
+        code('uc-mysql-update',
+          `-- ${setC}\nUPDATE users SET flags = flags | ${fv} WHERE id = 1;\n\n` +
+          `-- ${unsetC}\nUPDATE users SET flags = flags & ~${fv} WHERE id = 1;\n\n` +
+          `-- ${toggleC}\nUPDATE users SET flags = flags ^ ${fv} WHERE id = 1;`);
+
+        // JavaScript
+        s = `const flags = 0b${binaryString}; // ${binaryComment}\n`;
+        exampleBits.forEach((b) => { s += `const hasBit${b.bit} = (flags & ${b.value}) === ${b.value}; // ${t('check_bit_n', { bit: b.bit })}\n`; });
+        code('uc-javascript-select', s.trimEnd());
+        code('uc-javascript-update',
+          `// ${setC}\nlet flags = 0b${formatBinaryRaw(without)}; // ${binaryComment}\n` +
+          `flags |= ${fv}; // flags = 0b${formatBinaryRaw(withBit)} (${t('result_after_set')})\n\n` +
+          `// ${unsetC}\nflags &= ~${fv}; // flags = 0b${formatBinaryRaw(without)} (${t('result_after_unset')})\n\n` +
+          `// ${toggleC}\nflags ^= ${fv}; // flags = 0b${formatBinaryRaw(toggled)} (${t('result_after_toggle')})`);
+
+        // Python
+        s = `# ${t('assuming_flags')}\nflags = 0b${binaryString}  # ${binaryComment}\n`;
+        exampleBits.forEach((b) => { s += `has_bit_${b.bit} = bool(flags & ${b.value})  # ${t('check_bit_n', { bit: b.bit })}\n`; });
+        code('uc-python-select', s.trimEnd());
+        code('uc-python-update',
+          `# ${setC}\nflags = 0b${formatBinaryRaw(without)}  # ${binaryComment}\n` +
+          `flags |= ${fv}  # flags = 0b${formatBinaryRaw(withBit)} (${t('result_after_set')})\n\n` +
+          `# ${unsetC}\nflags &= ~${fv}  # flags = 0b${formatBinaryRaw(without)} (${t('result_after_unset')})\n\n` +
+          `# ${toggleC}\nflags ^= ${fv}  # flags = 0b${formatBinaryRaw(toggled)} (${t('result_after_toggle')})`);
+
+        // PHP
+        s = `<?php\n$flags = 0b${binaryString}; // ${binaryComment}\n`;
+        exampleBits.forEach((b) => { s += `$hasBit${b.bit} = ($flags & ${b.value}) === ${b.value}; // ${t('check_bit_n', { bit: b.bit })}\n`; });
+        code('uc-php-select', s + '?>');
+        code('uc-php-update',
+          `<?php\n// ${setC}\n$flags = 0b${formatBinaryRaw(without)}; // ${binaryComment}\n` +
+          `$flags |= ${fv}; // $flags = 0b${formatBinaryRaw(withBit)} (${t('result_after_set')})\n\n` +
+          `// ${unsetC}\n$flags &= ~${fv}; // $flags = 0b${formatBinaryRaw(without)} (${t('result_after_unset')})\n\n` +
+          `// ${toggleC}\n$flags ^= ${fv}; // $flags = 0b${formatBinaryRaw(toggled)} (${t('result_after_toggle')})\n?>`);
+      }
+
+      decInput.addEventListener('input', () => {
+        const raw = decInput.value.replace(/\D+/g, '');
+        decInput.value = raw;
+        setBitValue(raw === '' ? 0n : clampBig(toBigInt(raw), 0n, MAX_VALUE));
+        if (raw === '') decInput.value = '';
+      });
+      decInput.addEventListener('blur', () => { if (decInput.value === '') decInput.value = bitValue.toString(); });
+      const stepDecimal = (delta) => setBitValue(clampBig(bitValue + BigInt(delta), 0n, MAX_VALUE));
+      $('bw-inc').addEventListener('click', () => stepDecimal(1));
+      $('bw-dec').addEventListener('click', () => stepDecimal(-1));
+      $('bw-bit-clear').addEventListener('click', () => setBitValue(0n));
+      $('bw-bit-all').addEventListener('click', () => setBitValue(MAX_VALUE));
+      $('bw-bit-invert').addEventListener('click', () => setBitValue(MAX_VALUE - bitValue));
+      $('bw-bits').addEventListener('change', (e) => {
+        const bits = parseInt(e.target.value, 10);
+        if (![8, 16, 32, 64].includes(bits)) return;
+        MAX_BITS = bits;
+        MAX_VALUE = maxValueForBits(bits);
+        if (lastToggledBit >= MAX_BITS) lastToggledBit = 0;
+        renderCheckboxes();
+        setBitValue(clampBig(bitValue, 0n, MAX_VALUE));
+      });
+      langHooks.bitwise = bitTexts;
+
+      // ------------------------------------------------------------------
+      // Start
+      // ------------------------------------------------------------------
+      applyTheme();
+      renderCheckboxes();
+      setBitValue(0n);
+      const first = location.hash.slice(1) || store.get(TAB_KEY) || 'simple';
+      active = TABS.some((tab) => tab.id === first) ? first : 'simple';
+      applyLang();
+      if (!location.hash) history.replaceState(null, '', '#' + active);
+    })();
+  </script>
+</body>
+</html>

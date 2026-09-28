@@ -60,32 +60,31 @@
     }
 
     * { box-sizing: border-box; }
-    html, body { min-height: 100%; }
+    html, body { height: 100%; }
     body {
       margin: 0;
+      overflow: hidden;
       color: var(--ink);
-      font: 14px/1.5 "Noto Sans JP", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font: 14px/1.45 "Noto Sans JP", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       background:
         linear-gradient(135deg, color-mix(in srgb, var(--accent) 18%, transparent), transparent 34%),
         linear-gradient(315deg, rgba(255, 107, 107, 0.14), transparent 36%),
         linear-gradient(180deg, var(--bg-1), var(--bg-2));
-      padding: 18px;
     }
 
     button, input, select { font: inherit; }
     button:focus-visible, input:focus-visible, a:focus-visible, select:focus-visible {
-      outline: 3px solid color-mix(in srgb, var(--accent) 55%, transparent);
-      outline-offset: 3px;
+      outline: 2px solid color-mix(in srgb, var(--accent) 65%, transparent);
+      outline-offset: 2px;
     }
 
     .app {
-      width: min(1360px, 100%);
-      margin: 0 auto;
+      height: 100%;
       display: grid;
-      gap: 18px;
+      grid-template-rows: auto minmax(0, 1fr);
     }
 
-    .topbar, .panel {
+    .panel {
       border: 1px solid var(--border);
       border-radius: var(--radius);
       background: var(--panel);
@@ -94,70 +93,57 @@
     }
 
     .topbar {
-      min-height: 78px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 14px;
-      padding: 16px 18px;
-    }
-
-    h1, h2, h3, p { margin: 0; }
-    h1 {
-      font-size: clamp(28px, 5vw, 50px);
-      line-height: 1;
-      letter-spacing: 0;
-    }
-    h2 { font-size: 18px; }
-    h3 { font-size: 14px; color: var(--muted); font-weight: 800; }
-    .subtitle { margin-top: 6px; color: var(--muted); max-width: 760px; }
-
-    .toolbar, .lang-selector, .inline-controls {
+      height: 44px;
       display: flex;
       align-items: center;
       gap: 8px;
-      flex-wrap: wrap;
-      justify-content: flex-end;
-    }
-
-    .lang-selector {
-      padding: 4px;
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
+      padding: 0 8px 0 12px;
       background: var(--panel-strong);
+      border-bottom: 1px solid var(--border);
+      min-width: 0;
     }
 
-    .lang-selector a {
-      min-width: 38px;
-      text-align: center;
-      text-decoration: none;
-      color: var(--muted);
-      padding: 6px 9px;
+    .brand { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 15px; font-weight: 800; white-space: nowrap; }
+    .brand img { width: 18px; height: 18px; flex: none; }
+    .brand span { overflow: hidden; text-overflow: ellipsis; }
+
+    h1, h2, h3, p { margin: 0; }
+    h2 { font-size: 15px; }
+    h3 { font-size: 12px; color: var(--muted); font-weight: 800; }
+
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-left: auto;
+      flex: none;
+    }
+
+    .lang-switcher {
+      height: 30px;
+      padding: 0 6px;
+      border: 1px solid var(--border);
       border-radius: 6px;
-      font-size: 12px;
-      font-weight: 800;
-      border: 1px solid transparent;
-    }
-
-    .lang-selector a.active {
-      color: #fff;
-      background: var(--accent-strong);
+      background: var(--panel-strong);
+      color: var(--ink);
+      font-size: 13px;
+      cursor: pointer;
     }
 
     .btn {
-      min-height: 40px;
+      min-height: 30px;
       border: 1px solid var(--border);
       border-radius: var(--radius);
       background: var(--panel-strong);
       color: var(--ink);
       cursor: pointer;
-      padding: 9px 12px;
+      padding: 4px 12px;
+      font-size: 13px;
       font-weight: 750;
-      transition: transform 0.16s ease, border-color 0.16s ease, background 0.16s ease;
+      transition: border-color 0.16s ease, background 0.16s ease;
     }
 
     .btn:hover {
-      transform: translateY(-1px);
       border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
     }
 
@@ -168,8 +154,9 @@
     }
 
     .btn.icon-btn {
-      width: 40px;
-      min-width: 40px;
+      width: 30px;
+      min-width: 30px;
+      height: 30px;
       padding: 0;
       display: inline-flex;
       align-items: center;
@@ -178,36 +165,43 @@
 
     .grid {
       display: grid;
-      grid-template-columns: minmax(300px, 0.72fr) minmax(0, 1.28fr);
-      gap: 18px;
-      align-items: start;
+      grid-template-columns: minmax(270px, 320px) minmax(0, 1fr);
+      grid-template-rows: minmax(0, 1fr);
+      gap: 12px;
+      padding: 12px;
+      min-height: 0;
+      width: 100%;
+      max-width: 1600px;
+      margin: 0 auto;
     }
 
-    .panel { padding: 18px; }
-    .stack { display: grid; gap: 16px; }
+    .panel { padding: 12px; }
+    .stack { display: grid; gap: 10px; align-content: start; }
+    .scroll { min-height: 0; overflow: auto; }
     .section-title {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 10px;
-      margin-bottom: 12px;
+      gap: 8px;
     }
 
     .drop-zone {
       display: grid;
-      gap: 12px;
-      place-items: center;
-      min-height: 170px;
-      padding: 20px;
-      text-align: center;
+      grid-template-columns: auto minmax(0, 1fr);
+      align-items: center;
+      gap: 6px 10px;
+      padding: 10px;
       border: 1px dashed color-mix(in srgb, var(--accent) 45%, var(--border));
       border-radius: var(--radius);
       background: var(--input-bg);
     }
 
-    .drop-zone input { width: min(100%, 340px); }
+    .drop-zone > i { font-size: 22px; color: var(--accent); }
+    .drop-zone strong { font-size: 13px; }
+    .drop-zone input { grid-column: 1 / -1; width: 100%; min-width: 0; font-size: 12px; }
     .hint, .status-text, .small { color: var(--muted); }
-    .status-text { min-height: 22px; }
+    .small { font-size: 12px; }
+    .status-text { min-height: 20px; font-size: 12px; }
     .status-text.error { color: var(--danger); }
     .status-text.ok { color: var(--accent); }
     .status-text.warn { color: var(--warn); }
@@ -215,40 +209,58 @@
     .switch {
       display: inline-flex;
       align-items: center;
-      gap: 8px;
+      gap: 6px;
       color: var(--muted);
+      font-size: 12px;
       font-weight: 750;
+      cursor: pointer;
     }
-    .switch input { accent-color: var(--accent); }
+    .switch input { accent-color: var(--accent); margin: 0; }
+
+    .view {
+      display: grid;
+      grid-template-rows: minmax(160px, 1fr) auto;
+      gap: 12px;
+      min-height: 0;
+      overflow: auto;
+    }
 
     .canvas-grid {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 14px;
+      gap: 12px;
+      min-height: 0;
     }
 
     .canvas-card {
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      min-height: 0;
       border: 1px solid var(--border);
       border-radius: var(--radius);
       overflow: hidden;
       background: var(--panel-strong);
     }
 
-    .canvas-card header {
-      min-height: 44px;
+    .canvas-card .card-head {
+      min-height: 34px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 10px;
-      padding: 10px 12px;
+      gap: 8px;
+      padding: 6px 10px;
       border-bottom: 1px solid var(--border);
+      font-size: 13px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     canvas.preview {
       display: block;
       width: 100%;
-      min-height: 220px;
-      max-height: 470px;
+      height: 100%;
+      min-height: 0;
       object-fit: contain;
       background:
         linear-gradient(45deg, rgba(255,255,255,.08) 25%, transparent 25%),
@@ -261,24 +273,21 @@
 
     .results {
       display: grid;
-      grid-template-columns: minmax(180px, 0.48fr) minmax(0, 1fr);
-      gap: 14px;
-      align-items: stretch;
+      gap: 10px;
     }
 
     .number-readout {
       display: grid;
-      align-content: center;
-      gap: 8px;
-      padding: 18px;
+      gap: 4px;
+      padding: 10px 12px;
       border: 1px solid var(--border);
       border-radius: var(--radius);
       background: var(--panel-strong);
     }
 
     .number-readout strong {
-      font-size: clamp(30px, 6vw, 58px);
-      line-height: 1;
+      font-size: 32px;
+      line-height: 1.05;
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
       letter-spacing: 0;
       overflow-wrap: anywhere;
@@ -286,17 +295,18 @@
 
     .digit-list {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
-      gap: 10px;
+      grid-template-columns: repeat(auto-fill, minmax(78px, 1fr));
+      gap: 8px;
     }
 
     .digit-card {
       display: grid;
-      gap: 8px;
-      padding: 10px;
+      gap: 6px;
+      padding: 6px;
       border: 1px solid var(--border);
       border-radius: var(--radius);
       background: var(--panel-strong);
+      font-size: 12px;
     }
 
     .digit-card canvas {
@@ -312,38 +322,41 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 8px;
+      gap: 6px;
       font-weight: 800;
     }
 
     .debug-grid {
       display: grid;
       grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 14px;
+      gap: 12px;
     }
+
+    .debug-grid .canvas-card { height: 190px; }
 
     .debug-grid[hidden], .hidden { display: none; }
 
-    .notes {
-      display: grid;
-      gap: 10px;
-      color: var(--muted);
-      border-top: 1px solid var(--border);
-      padding-top: 14px;
+    dialog { width: min(600px, calc(100vw - 32px)); max-height: calc(100vh - 32px); padding: 0; border: 1px solid var(--border); border-radius: 10px; background: var(--panel-strong); color: var(--ink); box-shadow: var(--shadow); }
+    dialog::backdrop { background: rgb(0 0 0 / 45%); }
+    .dlg-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 8px 8px 14px; border-bottom: 1px solid var(--border); font-weight: 800; }
+    .dlg-body { padding: 12px 14px 14px; overflow: auto; }
+    .dlg-body p { margin: 0 0 8px; }
+    .dlg-body h3 { margin: 10px 0 6px; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+    .dlg-body ul { margin: 0; padding-left: 18px; }
+    .dlg-body li { margin: 4px 0; }
+
+    @media (max-width: 900px) {
+      .brand span { display: none; }
     }
 
-    .notes code {
-      color: var(--ink);
-      background: var(--input-bg);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 1px 5px;
-    }
-
-    @media (max-width: 980px) {
-      .grid, .results, .canvas-grid, .debug-grid { grid-template-columns: 1fr; }
-      .topbar { align-items: flex-start; flex-direction: column; }
-      .toolbar, .lang-selector { justify-content: flex-start; }
+    @media (max-width: 720px) {
+      body { overflow: auto; }
+      .app { height: auto; min-height: 100%; }
+      .grid { grid-template-columns: 1fr; grid-template-rows: auto auto; }
+      .scroll, .view { overflow: visible; }
+      .view { grid-template-rows: auto auto; }
+      .canvas-grid, .debug-grid { grid-template-columns: 1fr; }
+      .canvas-card { height: 260px; }
     }
   </style>
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-NWZDZ906DJ"></script>
@@ -357,24 +370,26 @@
 <body>
   <div class="app">
     <header class="topbar">
-      <div>
-        <h1 data-i18n="title">Handwritten Digit OCR</h1>
-        <p class="subtitle" data-i18n="subtitle">Client-side prototype for straightening a boxed form row, cropping handwritten digits, and recognizing them with MNIST ONNX.</p>
-      </div>
+      <div class="brand"><img src="../assets/icons/svg/utils-handwritten_digit_ocr.svg" alt=""><span data-i18n="title">Handwritten Digit OCR</span></div>
       <div class="toolbar">
-        <div class="lang-selector" aria-label="Language">
-          <a href="#" data-lang="en" class="active">EN</a>
-          <a href="#" data-lang="ja">JA</a>
-          <a href="#" data-lang="pt">PT</a>
-        </div>
-        <button class="btn icon-btn" type="button" id="themeBtn" data-i18n-title="theme" title="Toggle theme">
+        <button class="btn primary" type="button" id="processBtn">
+          <i class="fas fa-wand-magic-sparkles"></i>
+          <span data-i18n="process">Process image</span>
+        </button>
+        <button class="btn icon-btn" type="button" id="help-btn" data-i18n-title="help" title="Help"><i class="fas fa-circle-question"></i></button>
+        <select id="lang-switcher" class="lang-switcher" aria-label="Language">
+          <option value="en">EN</option>
+          <option value="pt">PT</option>
+          <option value="ja">JA</option>
+        </select>
+        <button class="btn icon-btn" type="button" id="theme-switcher" data-i18n-title="theme" title="Toggle theme">
           <i class="fas fa-moon"></i>
         </button>
       </div>
     </header>
 
     <main class="grid">
-      <section class="panel stack">
+      <section class="panel stack scroll">
         <div class="section-title">
           <h2 data-i18n="inputTitle">Input</h2>
           <label class="switch">
@@ -384,16 +399,9 @@
         </div>
 
         <div class="drop-zone" id="dropZone">
-          <i class="fas fa-file-image" aria-hidden="true" style="font-size: 34px; color: var(--accent);"></i>
-          <div>
-            <strong data-i18n="uploadTitle">Choose a photo of the form row</strong>
-            <p class="hint" data-i18n="uploadHint">Expected shape: C# followed by boxed handwritten digits.</p>
-          </div>
+          <i class="fas fa-file-image" aria-hidden="true"></i>
+          <strong data-i18n="uploadTitle">Choose a photo of the form row</strong>
           <input id="imageInput" type="file" accept="image/*" />
-          <button class="btn primary" type="button" id="processBtn">
-            <i class="fas fa-wand-magic-sparkles"></i>
-            <span data-i18n="process">Process image</span>
-          </button>
         </div>
 
         <p id="status" class="status-text" role="status" data-i18n="waiting">Waiting for OpenCV.js and the MNIST model...</p>
@@ -405,49 +413,63 @@
           </div>
           <div>
             <h3 data-i18n="digitPreviews">Digit previews</h3>
-            <div id="digitList" class="digit-list" style="margin-top: 10px;"></div>
+            <div id="digitList" class="digit-list" style="margin-top: 6px;"></div>
           </div>
-        </div>
-
-        <div class="notes">
-          <p data-i18n="modelNote">Place mnist-12.onnx in the same folder as this HTML file. Run through a local server so the browser can fetch the model.</p>
-          <p data-i18n="tuningNote">If detection fails, tune the threshold block size, contour area limits, aspect ratio filters, and inner crop padding in the JavaScript constants.</p>
         </div>
       </section>
 
-      <section class="stack">
+      <section class="view">
         <div class="canvas-grid">
           <article class="canvas-card">
-            <header>
+            <div class="card-head">
               <strong data-i18n="originalImage">Original image</strong>
-            </header>
+            </div>
             <canvas id="originalCanvas" class="preview"></canvas>
           </article>
           <article class="canvas-card">
-            <header>
+            <div class="card-head">
               <strong data-i18n="correctedImage">Perspective-corrected image</strong>
-            </header>
+            </div>
             <canvas id="correctedCanvas" class="preview"></canvas>
           </article>
         </div>
 
         <div id="debugPanel" class="debug-grid" hidden>
           <article class="canvas-card">
-            <header><strong data-i18n="thresholdImage">Threshold image</strong></header>
+            <div class="card-head"><strong data-i18n="thresholdImage">Threshold image</strong></div>
             <canvas id="thresholdCanvas" class="preview"></canvas>
           </article>
           <article class="canvas-card">
-            <header><strong data-i18n="boxesImage">Detected boxes</strong></header>
+            <div class="card-head"><strong data-i18n="boxesImage">Detected boxes</strong></div>
             <canvas id="boxesCanvas" class="preview"></canvas>
           </article>
           <article class="canvas-card">
-            <header><strong data-i18n="normalizedImages">Normalized 28x28</strong></header>
+            <div class="card-head"><strong data-i18n="normalizedImages">Normalized 28x28</strong></div>
             <canvas id="normalizedStripCanvas" class="preview"></canvas>
           </article>
         </div>
       </section>
     </main>
   </div>
+
+  <dialog id="help">
+    <div class="dlg-head"><span data-i18n="helpTitle">Handwritten Digit OCR help</span><button class="btn icon-btn" type="button" id="help-close" data-i18n-title="close" title="Close"><i class="fas fa-xmark"></i></button></div>
+    <div class="dlg-body">
+      <p data-i18n="subtitle">Client-side prototype for straightening a boxed form row, cropping handwritten digits, and recognizing them with MNIST ONNX.</p>
+      <h3 data-i18n="helpHowTitle">How it works</h3>
+      <ul>
+        <li data-i18n="helpStep1">Choose a photo of the form row, then press Process image.</li>
+        <li data-i18n="uploadHint">Expected shape: C# followed by boxed handwritten digits.</li>
+        <li data-i18n="helpStep2">Show debug steps adds the threshold, detected boxes and normalized 28x28 views.</li>
+      </ul>
+      <h3 data-i18n="helpModelTitle">Model and tuning</h3>
+      <ul>
+        <li data-i18n="modelNote">Place mnist-12.onnx in the same folder as this HTML file. Run through a local server so the browser can fetch the model.</li>
+        <li data-i18n="tuningNote">If detection fails, tune the threshold block size, contour area limits, aspect ratio filters, and inner crop padding in the JavaScript constants.</li>
+      </ul>
+      <p style="margin-top: 10px;" data-i18n="helpKeys">Press ? to open this help.</p>
+    </div>
+  </dialog>
 
   <script>
     (() => {
@@ -502,7 +524,15 @@
           confidence: 'Confidence',
           labelIgnored: 'First cell ignored as label',
           fallbackWarp: 'No full form rectangle found. Using the original image and continuing with box detection.',
-          modelNotReady: 'Model is not ready yet. Detection previews are shown, but recognition needs mnist-12.onnx.'
+          modelNotReady: 'Model is not ready yet. Detection previews are shown, but recognition needs mnist-12.onnx.',
+          help: 'Help',
+          close: 'Close',
+          helpTitle: 'Handwritten Digit OCR help',
+          helpHowTitle: 'How it works',
+          helpStep1: 'Choose a photo of the form row, then press Process image.',
+          helpStep2: 'Show debug steps adds the threshold, detected boxes and normalized 28x28 views.',
+          helpModelTitle: 'Model and tuning',
+          helpKeys: 'Press ? to open this help.'
         },
         ja: {
           title: '手書き数字 OCR',
@@ -534,7 +564,15 @@
           confidence: '信頼度',
           labelIgnored: '最初のセルはラベルとして無視',
           fallbackWarp: 'フォーム全体の矩形が見つかりませんでした。元画像のまま枠検出を続行します。',
-          modelNotReady: 'モデルはまだ準備できていません。検出プレビューは表示できますが、認識には mnist-12.onnx が必要です。'
+          modelNotReady: 'モデルはまだ準備できていません。検出プレビューは表示できますが、認識には mnist-12.onnx が必要です。',
+          help: 'ヘルプ',
+          close: '閉じる',
+          helpTitle: '手書き数字 OCR のヘルプ',
+          helpHowTitle: '使い方',
+          helpStep1: 'フォーム行の写真を選び、「画像を処理」を押します。',
+          helpStep2: '「デバッグ手順を表示」で二値化画像・検出した枠・正規化 28x28 を表示します。',
+          helpModelTitle: 'モデルと調整',
+          helpKeys: '? キーでこのヘルプを開きます。'
         },
         pt: {
           title: 'OCR de Dígitos Manuscritos',
@@ -566,7 +604,15 @@
           confidence: 'Confiança',
           labelIgnored: 'Primeira célula ignorada como rótulo',
           fallbackWarp: 'Não encontrei o retângulo completo do formulário. Vou usar a imagem original e continuar a detecção das caixas.',
-          modelNotReady: 'O modelo ainda não está pronto. As prévias de detecção aparecem, mas o reconhecimento precisa do mnist-12.onnx.'
+          modelNotReady: 'O modelo ainda não está pronto. As prévias de detecção aparecem, mas o reconhecimento precisa do mnist-12.onnx.',
+          help: 'Ajuda',
+          close: 'Fechar',
+          helpTitle: 'Ajuda do OCR de Dígitos Manuscritos',
+          helpHowTitle: 'Como funciona',
+          helpStep1: 'Escolha uma foto da linha do formulário e clique em Processar imagem.',
+          helpStep2: 'Mostrar etapas de debug adiciona a imagem binarizada, as caixas detectadas e as normalizadas 28x28.',
+          helpModelTitle: 'Modelo e ajustes',
+          helpKeys: 'Pressione ? para abrir esta ajuda.'
         }
       };
 
@@ -585,7 +631,9 @@
         normalizedStripCanvas: $('#normalizedStripCanvas'),
         digitList: $('#digitList'),
         combinedNumber: $('#combinedNumber'),
-        themeBtn: $('#themeBtn')
+        themeBtn: $('#theme-switcher'),
+        langSwitcher: $('#lang-switcher'),
+        help: $('#help')
       };
 
       let currentLang = localStorage.getItem(LKEY) || (translations[navigator.language.split('-')[0]] ? navigator.language.split('-')[0] : 'en');
@@ -615,7 +663,7 @@
           el.title = t(key);
           el.setAttribute('aria-label', t(key));
         });
-        $$('.lang-selector a').forEach((a) => a.classList.toggle('active', a.dataset.lang === currentLang));
+        els.langSwitcher.value = currentLang;
       }
 
       function applyTheme(theme) {
@@ -1258,10 +1306,18 @@
       els.themeBtn.addEventListener('click', () => {
         applyTheme(document.documentElement.dataset.theme === 'light' ? 'dark' : 'light');
       });
-      $('.lang-selector').addEventListener('click', (event) => {
+      els.langSwitcher.addEventListener('change', () => applyLanguage(els.langSwitcher.value));
+      $('#help-btn').addEventListener('click', () => els.help.showModal());
+      $('#help-close').addEventListener('click', () => els.help.close());
+      els.help.addEventListener('click', (event) => {
+        if (event.target === els.help) els.help.close();
+      });
+      document.addEventListener('keydown', (event) => {
+        if (event.key !== '?' || els.help.open || event.ctrlKey || event.metaKey || event.altKey) return;
+        const active = document.activeElement;
+        if (active && (/^(INPUT|TEXTAREA|SELECT)$/.test(active.tagName) || active.isContentEditable)) return;
         event.preventDefault();
-        const lang = event.target.dataset.lang;
-        if (lang) applyLanguage(lang);
+        els.help.showModal();
       });
 
       window.handwrittenDigitOcrDebug = {

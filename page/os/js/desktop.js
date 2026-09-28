@@ -12,8 +12,9 @@ window.OS = (function () {
   }
 
   function isInstalled(id) {
+    if (window.OSCatalog.resolveId) id = window.OSCatalog.resolveId(id);
     const app = window.OSCatalog.byId(id);
-    if (app && (app.kind === "native" || app.kind === "user")) return true;
+    if (app && (app.kind === "native" || app.kind === "user" || app.uninstallable === false)) return true;
     return !!(api.state && api.state.installed.includes(id));
   }
 
@@ -403,7 +404,8 @@ window.OS = (function () {
   function applyInstallPack(pack) {
     if (!api.state) return;
     const ids = window.OSCatalog.installPackIds ? window.OSCatalog.installPackIds(pack) : [];
-    api.state.installed = ["settings", ...ids];
+    const system = window.OSCatalog.systemSiteApps ? window.OSCatalog.systemSiteApps().map((app) => app.id) : [];
+    api.state.installed = ["settings", ...system.filter((id) => !ids.includes(id)), ...ids];
     api.state.appliedDefaultApps = (window.OSCatalog.DEFAULT_INSTALLED || []).slice();
     api.state.clearedRecommendedPins = true;
     api.state.onboarded = true;
@@ -442,7 +444,11 @@ window.OS = (function () {
 
   function uninstallAll() {
     showBusy(window.OSI18n.t("uninstallingAll"));
-    const removable = new Set(window.OSCatalog.stableSiteApps().map((app) => app.id));
+    const removable = new Set(
+      window.OSCatalog.stableSiteApps()
+        .filter((app) => app.uninstallable !== false)
+        .map((app) => app.id)
+    );
     api.state.installed = api.state.installed.filter((id) => !removable.has(id));
     if (!api.state.installed.includes("settings")) api.state.installed.unshift("settings");
     api.state.favorites = api.state.favorites.filter((id) => !removable.has(id));
@@ -463,6 +469,7 @@ window.OS = (function () {
   }
 
   function ensureInstalled(id) {
+    if (window.OSCatalog.resolveId) id = window.OSCatalog.resolveId(id);
     const app = window.OSCatalog.byId(id);
     if (!app) return false;
     if (app.kind === "native" || app.kind === "user") return true;

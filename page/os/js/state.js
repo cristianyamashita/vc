@@ -13,11 +13,35 @@ window.OSState = (function () {
   let saveTimer = null;
   let lastSaved = null;
 
+  // Pages that were merged into a tabbed page keep their old id in saved state.
+  // Map it to the page that absorbed it. Multi-instance ids ("app::2") keep
+  // their suffix.
+  function aliasAppId(id) {
+    if (typeof id !== "string" || !id) return id;
+    const catalog = window.OSCatalog;
+    if (!catalog || typeof catalog.resolveId !== "function") return id;
+    const cut = id.indexOf("::");
+    const base = cut < 0 ? id : id.slice(0, cut);
+    const next = catalog.resolveId(base);
+    if (next === base) return id;
+    return cut < 0 ? next : next + id.slice(cut);
+  }
+
+  function aliasList(list) {
+    const out = [];
+    list.forEach((id) => {
+      const next = aliasAppId(id);
+      if (!out.includes(next)) out.push(next);
+    });
+    return out;
+  }
+
   function normalizePlacements(raw) {
     const out = {};
     if (!raw || typeof raw !== "object") return out;
     Object.keys(raw).forEach((id) => {
       const item = raw[id];
+      if (aliasAppId(id) !== id) return;
       if (!item || typeof item !== "object") return;
       const x = Number(item.x);
       const y = Number(item.y);
@@ -51,8 +75,8 @@ window.OSState = (function () {
       if (!item || typeof item !== "object") return;
       const key = String(ext).replace(/^\./, "").toLowerCase();
       if (!key) return;
-      const apps = Array.isArray(item.apps) ? item.apps.filter((id) => typeof id === "string" && id) : [];
-      const def = typeof item.default === "string" && item.default ? item.default : null;
+      const apps = Array.isArray(item.apps) ? aliasList(item.apps.filter((id) => typeof id === "string" && id)) : [];
+      const def = typeof item.default === "string" && item.default ? aliasAppId(item.default) : null;
       out[key] = { apps, default: def };
     });
     return out;
@@ -100,7 +124,7 @@ window.OSState = (function () {
   }
 
   function normalizeTaskbarPins(raw) {
-    const pins = Array.isArray(raw) ? raw.filter((id) => typeof id === "string" && id) : [];
+    const pins = Array.isArray(raw) ? aliasList(raw.filter((id) => typeof id === "string" && id)) : [];
     return pins.length ? pins : ["file-explorer"];
   }
 
@@ -113,7 +137,7 @@ window.OSState = (function () {
       seen.add(item.id);
       out.push({
         id: String(item.id),
-        appId: typeof item.appId === "string" ? item.appId : null,
+        appId: typeof item.appId === "string" ? aliasAppId(item.appId) : null,
         name: typeof item.name === "string" ? item.name : "",
         at: Number(item.at) || 0,
       });
@@ -155,15 +179,18 @@ window.OSState = (function () {
   function seedNewDefaultApps(raw, installed, onboarded) {
     if (!onboarded) {
       return Array.isArray(raw && raw.appliedDefaultApps)
-        ? raw.appliedDefaultApps.filter(Boolean).slice()
+        ? aliasList(raw.appliedDefaultApps.filter(Boolean))
         : [];
     }
     const defaults = Array.isArray(window.OSCatalog.DEFAULT_INSTALLED)
       ? window.OSCatalog.DEFAULT_INSTALLED
       : [];
-    const applied = Array.isArray(raw && raw.appliedDefaultApps)
-      ? raw.appliedDefaultApps.filter(Boolean).slice()
-      : LEGACY_SEEDED_DEFAULTS.slice();
+    // Old ids of merged pages count as applied under the id that absorbed them.
+    const applied = aliasList(
+      Array.isArray(raw && raw.appliedDefaultApps)
+        ? raw.appliedDefaultApps.filter(Boolean)
+        : LEGACY_SEEDED_DEFAULTS
+    );
     defaults.forEach((id) => {
       if (applied.includes(id)) return;
       applied.push(id);
@@ -353,14 +380,18 @@ window.OSState = (function () {
       return id !== "app-builder" && String(id).indexOf("app-builder::") !== 0;
     }
     const installed = Array.isArray(raw.installed)
-      ? raw.installed.filter(dropRetiredApp)
+      ? aliasList(raw.installed.filter(dropRetiredApp))
       : base.installed.slice();
     if (!installed.includes("settings")) installed.unshift("settings");
+    const systemApps = window.OSCatalog && window.OSCatalog.systemSiteApps ? window.OSCatalog.systemSiteApps() : [];
+    systemApps.forEach((app) => {
+      if (!installed.includes(app.id)) installed.splice(1, 0, app.id);
+    });
     const favorites = Array.isArray(raw.favorites)
-      ? raw.favorites.filter(dropRetiredApp)
+      ? aliasList(raw.favorites.filter(dropRetiredApp))
       : base.favorites.slice();
     const desktopIcons = Array.isArray(raw.desktopIcons)
-      ? raw.desktopIcons.filter(dropRetiredApp)
+      ? aliasList(raw.desktopIcons.filter(dropRetiredApp))
       : base.desktopIcons.slice();
     const onboarded = raw.onboarded !== false;
     const appliedDefaultApps = seedNewDefaultApps(raw, installed, onboarded);
@@ -373,7 +404,10 @@ window.OSState = (function () {
       favorites,
       desktopIcons,
       windows: Array.isArray(raw.windows)
-        ? raw.windows.filter((w) => w && w.id && dropRetiredApp(w.id) && dropRetiredApp(w.appId))
+        ? raw.windows
+            .filter((w) => w && w.id && dropRetiredApp(w.id) && dropRetiredApp(w.appId))
+            .map((w) => Object.assign({}, w, { id: aliasAppId(w.id), appId: aliasAppId(w.appId) }))
+            .filter((w, i, all) => all.findIndex((other) => other.id === w.id) === i)
         : [],
       placements: normalizePlacements(raw.placements),
       desktopLayout: normalizeDesktopLayout(raw.desktopLayout),
