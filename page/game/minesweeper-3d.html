@@ -1,0 +1,1141 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" href="../assets/icons/ico/game-minesweeper-3d.ico" type="image/x-icon">
+  <title>Minesweeper 3D</title>
+  <link rel="stylesheet" href="../assets/fontawesome/css/all.min.css">
+  <style>
+    :root {
+      --bg: #111615; --panel: #1a2120; --panel-2: #212a29; --border: #2e3a38;
+      --text: #e8efee; --muted: #8a9a97; --accent: #1fb5a0; --accent-strong: #008f7d;
+      --accent-soft: rgba(31, 181, 160, .12); --warn: #e0a84a; --neg: #e07a6a; --ok: #3fb950;
+      --glass: rgba(26, 33, 32, .86);
+      --mono: ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
+    }
+    html[data-theme="light"] {
+      --bg: #eef3f2; --panel: #ffffff; --panel-2: #f5f8f7; --border: #d7e0de;
+      --text: #172120; --muted: #62716e; --accent: #008f7d; --accent-strong: #006056;
+      --accent-soft: rgba(0, 143, 125, .09); --warn: #a86a08; --neg: #c0392b; --ok: #1a7f37;
+      --glass: rgba(255, 255, 255, .88);
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
+    body { background: var(--bg); color: var(--text); font: 14px/1.4 system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif; overflow: hidden; }
+    button, input, select { font: inherit; color: inherit; }
+    .app { display: grid; grid-template-rows: auto 1fr; height: 100%; }
+
+    /* Top bar */
+    .topbar { display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 8px 0 12px; background: var(--panel); border-bottom: 1px solid var(--border); min-width: 0; }
+    .brand { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 15px; white-space: nowrap; }
+    .brand img { width: 18px; height: 18px; }
+    .controls { display: flex; align-items: center; gap: 6px; min-width: 0; flex: 0 1 auto; }
+    .tools { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+    .icon-btn { display: grid; place-items: center; width: 30px; height: 30px; padding: 0; border: 1px solid var(--border); border-radius: 6px; background: var(--panel-2); cursor: pointer; }
+    .icon-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .icon-btn.on { background: var(--warn); border-color: var(--warn); color: #1b1300; }
+    select { height: 30px; border: 1px solid var(--border); border-radius: 6px; background: var(--panel-2); padding: 0 6px; font-size: 13px; }
+    :focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+    .chip { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 9px; border: 1px solid var(--border); border-radius: 6px; background: var(--panel-2); font-family: var(--mono); font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .chip i { color: var(--muted); font-size: 12px; }
+    .chip.mines i { color: var(--neg); }
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 30px; padding: 0 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--panel-2); cursor: pointer; white-space: nowrap; font-size: 13px; }
+    .btn:hover { border-color: var(--accent); }
+    .btn.primary { background: var(--accent-strong); border-color: var(--accent-strong); color: #fff; }
+
+    /* Stage */
+    .stage { position: relative; min-height: 0; overflow: hidden; }
+    #scene { position: absolute; inset: 0; display: block; width: 100%; height: 100%; touch-action: none; cursor: pointer; }
+    .toolbar { position: absolute; left: 8px; right: 8px; bottom: 8px; display: flex; align-items: center; gap: 8px; pointer-events: none; }
+    .toolbar > * { pointer-events: auto; }
+    .glass { display: flex; align-items: center; gap: 6px; padding: 4px 6px; border: 1px solid var(--border); border-radius: 8px; background: var(--glass); backdrop-filter: blur(6px); }
+    .status { font-size: 12px; color: var(--muted); padding: 0 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+    .status b { color: var(--text); font-family: var(--mono); }
+    .spacer { flex: 1; }
+    .seg { display: flex; gap: 2px; }
+    .seg button { height: 26px; min-width: 26px; padding: 0 6px; border: 0; border-radius: 5px; background: none; color: var(--muted); font-size: 12px; font-weight: 600; cursor: pointer; }
+    .seg button:hover { color: var(--text); background: var(--panel-2); }
+    .seg button[aria-pressed="true"] { background: var(--accent-strong); color: #fff; }
+    .slice-label { font-size: 12px; color: var(--muted); white-space: nowrap; }
+    .slice-label b { color: var(--text); font-family: var(--mono); }
+    input[type="range"] { width: 110px; accent-color: var(--accent); }
+    .small-btn { display: grid; place-items: center; width: 26px; height: 26px; padding: 0; border: 0; border-radius: 5px; background: none; color: var(--muted); cursor: pointer; }
+    .small-btn:hover { color: var(--text); background: var(--panel-2); }
+    .small-btn.on { color: #fff; background: var(--accent-strong); }
+    #slice-box[hidden] { display: none; }
+
+    /* End overlay */
+    .overlay { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; }
+    .overlay[hidden] { display: none; }
+    .end-card { pointer-events: auto; min-width: 240px; max-width: calc(100% - 32px); padding: 14px 16px; border: 1px solid var(--border); border-radius: 10px; background: var(--glass); backdrop-filter: blur(8px); text-align: center; box-shadow: 0 12px 32px rgb(0 0 0 / 30%); animation: pop .25s ease-out; }
+    .end-card h2 { margin: 0 0 6px; font-size: 16px; }
+    .end-card.win h2 { color: var(--ok); }
+    .end-card.lose h2 { color: var(--neg); }
+    .end-card .line { font-size: 13px; color: var(--muted); }
+    .end-card .line b { color: var(--text); font-family: var(--mono); }
+    .end-card .new-best { color: var(--warn); font-weight: 600; font-size: 13px; margin-top: 4px; }
+    .end-card .row { display: flex; gap: 8px; justify-content: center; margin-top: 10px; }
+    @keyframes pop { from { transform: scale(.92); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+    /* Help */
+    dialog { width: min(600px, calc(100vw - 32px)); max-height: calc(100vh - 32px); padding: 0; border: 1px solid var(--border); border-radius: 10px; background: var(--panel); color: var(--text); }
+    dialog::backdrop { background: rgb(0 0 0 / 45%); }
+    .dlg-head { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-bottom: 1px solid var(--border); font-weight: 600; }
+    .dlg-body { padding: 12px 14px 16px; overflow: auto; max-height: calc(100vh - 100px); }
+    .dlg-body h3 { margin: 12px 0 6px; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+    .dlg-body p { margin: 0 0 8px; }
+    .dlg-body ul { margin: 0; padding-left: 18px; }
+    .dlg-body li { margin: 3px 0; }
+    .dlg-body kbd { font-family: var(--mono); font-size: 12px; background: var(--accent-soft); color: var(--accent); padding: 0 5px; border-radius: 4px; }
+    .best-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .best-table th, .best-table td { padding: 4px 6px; border-bottom: 1px solid var(--border); text-align: left; }
+    .best-table td { font-family: var(--mono); }
+    .best-table th:first-child { color: var(--muted); font-weight: 500; }
+
+    @media (max-width: 860px) { .brand span { display: none; } }
+    @media (max-width: 720px) {
+      .chip.timer { display: none; }
+      #new-btn span { display: none; }
+      .status { display: none; }
+      input[type="range"] { width: 80px; }
+    }
+    @media (max-width: 560px) {
+      .topbar { gap: 4px; padding: 0 6px; }
+      .brand, .toolbar .status { display: none; }
+      .controls, .tools { gap: 4px; }
+      .controls select { min-width: 0; max-width: 72px; }
+      select { padding: 0 2px; font-size: 12px; }
+      .icon-btn { width: 28px; }
+      .chip { padding: 0 6px; }
+      #new-btn { padding: 0 8px; }
+    }
+  </style>
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/"
+    }
+  }
+  </script>
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-NWZDZ906DJ"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-NWZDZ906DJ');
+  </script>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand"><img src="../assets/icons/svg/game-minesweeper-3d.svg" alt=""><span data-i18n="title">Minesweeper 3D</span></div>
+      <div class="controls">
+        <select id="mode-select" data-i18n-title="mode">
+          <option value="surface" data-i18n="modeSurface">Cube</option>
+          <option value="volume" data-i18n="modeVolume">Volume</option>
+        </select>
+        <select id="diff-select" data-i18n-title="difficulty">
+          <option value="easy" data-i18n="easy">Easy</option>
+          <option value="medium" data-i18n="medium">Medium</option>
+          <option value="hard" data-i18n="hard">Hard</option>
+        </select>
+        <button class="btn primary" id="new-btn" type="button" data-i18n-title="newGameKey"><i class="fa-solid fa-rotate-right"></i><span data-i18n="newGame">New</span></button>
+        <span class="chip mines" data-i18n-title="minesLeft"><i class="fa-solid fa-bomb"></i><span id="mines-left">0</span></span>
+        <span class="chip timer" data-i18n-title="time"><i class="fa-regular fa-clock"></i><span id="timer">0:00</span></span>
+      </div>
+      <div class="tools">
+        <button class="icon-btn" id="flag-mode" type="button" data-i18n-title="flagMode" aria-pressed="false"><i class="fa-solid fa-flag"></i></button>
+        <button class="icon-btn" id="help-btn" type="button" data-i18n-title="help"><i class="fa-solid fa-circle-question"></i></button>
+        <select id="lang-switcher" aria-label="Language">
+          <option value="en">EN</option>
+          <option value="pt">PT</option>
+          <option value="ja">JA</option>
+        </select>
+        <button class="icon-btn" id="theme-switcher" type="button" data-i18n-title="theme"><i class="fa-solid fa-sun"></i></button>
+      </div>
+    </header>
+
+    <main class="stage" id="stage">
+      <canvas id="scene"></canvas>
+
+      <div class="toolbar">
+        <div class="glass status" id="status"></div>
+        <div class="spacer"></div>
+        <div class="glass" id="slice-box" hidden>
+          <div class="seg" id="axis-seg" role="group" data-i18n-title="sliceAxis">
+            <button type="button" data-axis="0">X</button>
+            <button type="button" data-axis="1">Y</button>
+            <button type="button" data-axis="2">Z</button>
+          </div>
+          <input type="range" id="slice-range" min="1" max="6" value="6" data-i18n-title="slice">
+          <span class="slice-label"><span data-i18n="layers">Layers</span> <b id="slice-value">6/6</b></span>
+          <button class="small-btn" id="solo-btn" type="button" data-i18n-title="soloLayer" aria-pressed="false"><i class="fa-solid fa-layer-group"></i></button>
+        </div>
+        <div class="glass">
+          <button class="small-btn" id="rotate-btn" type="button" data-i18n-title="autoRotate" aria-pressed="false"><i class="fa-solid fa-arrows-spin"></i></button>
+          <button class="small-btn" id="camera-btn" type="button" data-i18n-title="resetView"><i class="fa-solid fa-crosshairs"></i></button>
+        </div>
+      </div>
+
+      <div class="overlay" id="overlay" hidden>
+        <div class="end-card" id="end-card">
+          <h2 id="end-title"></h2>
+          <div class="line" id="end-time"></div>
+          <div class="line" id="end-best"></div>
+          <div class="new-best" id="end-record" hidden></div>
+          <div class="row">
+            <button class="btn" id="end-view" type="button"><i class="fa-solid fa-eye"></i><span data-i18n="viewBoard">View board</span></button>
+            <button class="btn primary" id="end-again" type="button"><i class="fa-solid fa-rotate-right"></i><span data-i18n="playAgain">Play again</span></button>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <dialog id="help">
+    <div class="dlg-head">
+      <span id="help-title">Minesweeper 3D</span>
+      <button class="icon-btn" id="help-close" type="button" data-i18n-title="close"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="dlg-body" id="help-body"></div>
+  </dialog>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+
+    // ------------------------------------------------------------------
+    // Translations
+    // ------------------------------------------------------------------
+    const I18N = {
+      en: {
+        title: 'Minesweeper 3D', help: 'Help (?)', theme: 'Toggle theme', close: 'Close',
+        mode: 'Board shape', difficulty: 'Difficulty', modeSurface: 'Cube', modeVolume: 'Volume',
+        easy: 'Easy', medium: 'Medium', hard: 'Hard',
+        newGame: 'New', newGameKey: 'New game (R)', minesLeft: 'Mines left', time: 'Time',
+        flagMode: 'Flag mode (F): taps place flags', autoRotate: 'Auto rotate', resetView: 'Reset view (C)',
+        sliceAxis: 'Slice axis', slice: 'Visible layers ([ and ])', layers: 'Layers', soloLayer: 'Show only one layer (L)',
+        viewBoard: 'View board', playAgain: 'Play again',
+        won: 'Cleared!', lost: 'Boom!', yourTime: 'Time', best: 'Best', noBest: '—', newRecord: 'New record!',
+        statusIdle: 'Click a tile to start · right-click flags · drag to rotate',
+        statusIdleTouch: 'Tap a tile to start · long-press flags · drag to rotate',
+        statusPlaying: 'Revealed', statusBest: 'Best',
+        statusFlag: 'Flag mode on',
+        helpIntro: 'Classic Minesweeper in three dimensions. Every number tells how many mines touch that cell. Reveal all safe cells to win. The first click is always safe.',
+        helpModes: 'Board shapes',
+        helpSurface: '<b>Cube</b> — tiles cover the six faces of a cube. Neighbors continue around the edges and corners, so an edge tile also touches tiles on the next face (up to 8 neighbors, 7 at a corner).',
+        helpVolume: '<b>Volume</b> — a solid block of cubes. Each cell has up to 26 neighbors (above, below and around). Revealed cells disappear so you can see inside; use the layer slider to peel the block.',
+        helpControls: 'Controls',
+        helpList: [
+          '<b>Left click / tap</b> — reveal a cell',
+          '<b>Right click / long press</b> — place or remove a flag (also <kbd>Space</kbd> over a cell)',
+          '<b>Click a number</b> — when its flags match, reveals the rest of its neighbors (chord). Middle click also works',
+          '<b>Drag</b> — rotate the board · <b>wheel / pinch</b> — zoom',
+          '<kbd>F</kbd> flag mode (for touch) · <kbd>R</kbd> new game · <kbd>C</kbd> reset view',
+          'Volume: <kbd>[</kbd> <kbd>]</kbd> remove or add layers · <kbd>X</kbd> <kbd>Y</kbd> <kbd>Z</kbd> slice axis · <kbd>L</kbd> single layer',
+        ],
+        helpTip: 'Hover a number to highlight the hidden cells around it.',
+        helpBest: 'Best times', helpStats: 'Games won',
+      },
+      pt: {
+        title: 'Campo Minado 3D', help: 'Ajuda (?)', theme: 'Alternar tema', close: 'Fechar',
+        mode: 'Formato do tabuleiro', difficulty: 'Dificuldade', modeSurface: 'Cubo', modeVolume: 'Volume',
+        easy: 'Fácil', medium: 'Médio', hard: 'Difícil',
+        newGame: 'Novo', newGameKey: 'Novo jogo (R)', minesLeft: 'Minas restantes', time: 'Tempo',
+        flagMode: 'Modo bandeira (F): toques marcam bandeiras', autoRotate: 'Girar automaticamente', resetView: 'Reiniciar vista (C)',
+        sliceAxis: 'Eixo do corte', slice: 'Camadas visíveis ([ e ])', layers: 'Camadas', soloLayer: 'Mostrar só uma camada (L)',
+        viewBoard: 'Ver tabuleiro', playAgain: 'Jogar de novo',
+        won: 'Limpo!', lost: 'Bum!', yourTime: 'Tempo', best: 'Recorde', noBest: '—', newRecord: 'Novo recorde!',
+        statusIdle: 'Clique numa casa para começar · botão direito marca · arraste para girar',
+        statusIdleTouch: 'Toque numa casa para começar · toque longo marca · arraste para girar',
+        statusPlaying: 'Abertas', statusBest: 'Recorde',
+        statusFlag: 'Modo bandeira ativo',
+        helpIntro: 'O Campo Minado clássico em três dimensões. Cada número indica quantas minas tocam aquela casa. Abra todas as casas seguras para vencer. O primeiro clique é sempre seguro.',
+        helpModes: 'Formatos do tabuleiro',
+        helpSurface: '<b>Cubo</b> — as casas cobrem as seis faces de um cubo. Os vizinhos continuam pelas arestas e cantos, então uma casa na aresta também toca casas da face ao lado (até 8 vizinhos, 7 num canto).',
+        helpVolume: '<b>Volume</b> — um bloco sólido de cubos. Cada casa tem até 26 vizinhos (acima, abaixo e ao redor). Casas abertas somem para você ver o interior; use o controle de camadas para descascar o bloco.',
+        helpControls: 'Controles',
+        helpList: [
+          '<b>Clique / toque</b> — abre uma casa',
+          '<b>Botão direito / toque longo</b> — coloca ou tira uma bandeira (também <kbd>Espaço</kbd> sobre a casa)',
+          '<b>Clique num número</b> — se as bandeiras batem, abre os demais vizinhos (acorde). O botão do meio também funciona',
+          '<b>Arrastar</b> — gira o tabuleiro · <b>roda / pinça</b> — zoom',
+          '<kbd>F</kbd> modo bandeira (toque) · <kbd>R</kbd> novo jogo · <kbd>C</kbd> reiniciar vista',
+          'Volume: <kbd>[</kbd> <kbd>]</kbd> tira ou põe camadas · <kbd>X</kbd> <kbd>Y</kbd> <kbd>Z</kbd> eixo do corte · <kbd>L</kbd> camada única',
+        ],
+        helpTip: 'Passe o mouse sobre um número para destacar as casas ocultas ao redor.',
+        helpBest: 'Melhores tempos', helpStats: 'Vitórias',
+      },
+      ja: {
+        title: 'マインスイーパー 3D', help: 'ヘルプ (?)', theme: 'テーマ切替', close: '閉じる',
+        mode: '盤の形', difficulty: '難易度', modeSurface: 'キューブ', modeVolume: 'ボリューム',
+        easy: '初級', medium: '中級', hard: '上級',
+        newGame: '新規', newGameKey: '新しいゲーム (R)', minesLeft: '残りの地雷', time: 'タイム',
+        flagMode: '旗モード (F)：タップで旗を立てる', autoRotate: '自動回転', resetView: '視点リセット (C)',
+        sliceAxis: '断面の軸', slice: '表示する層 ([ と ])', layers: '層', soloLayer: '1層だけ表示 (L)',
+        viewBoard: '盤を見る', playAgain: 'もう一度',
+        won: 'クリア！', lost: 'ドカン！', yourTime: 'タイム', best: 'ベスト', noBest: '—', newRecord: '新記録！',
+        statusIdle: 'マスをクリックして開始 · 右クリックで旗 · ドラッグで回転',
+        statusIdleTouch: 'マスをタップして開始 · 長押しで旗 · ドラッグで回転',
+        statusPlaying: '開いたマス', statusBest: 'ベスト',
+        statusFlag: '旗モード中',
+        helpIntro: '三次元のクラシックなマインスイーパー。数字はそのマスに接している地雷の数です。安全なマスをすべて開ければ勝ち。最初のクリックは必ず安全です。',
+        helpModes: '盤の形',
+        helpSurface: '<b>キューブ</b> — 立方体の6面をマスが覆います。隣接は辺や角をまたいで続くため、辺のマスは隣の面のマスにも接します（最大8、角は7）。',
+        helpVolume: '<b>ボリューム</b> — 立方体が詰まったブロック。各マスは上下左右と斜めに最大26のマスと接します。開いたマスは消えて内部が見えます。層スライダーでブロックを削れます。',
+        helpControls: '操作',
+        helpList: [
+          '<b>クリック / タップ</b> — マスを開く',
+          '<b>右クリック / 長押し</b> — 旗を立てる・外す（マスの上で <kbd>Space</kbd> も可）',
+          '<b>数字をクリック</b> — 旗の数が合っていれば残りの隣接マスを開く（同時開き）。中クリックも可',
+          '<b>ドラッグ</b> — 盤を回転 · <b>ホイール / ピンチ</b> — ズーム',
+          '<kbd>F</kbd> 旗モード（タッチ用） · <kbd>R</kbd> 新しいゲーム · <kbd>C</kbd> 視点リセット',
+          'ボリューム：<kbd>[</kbd> <kbd>]</kbd> 層を減らす・増やす · <kbd>X</kbd> <kbd>Y</kbd> <kbd>Z</kbd> 断面の軸 · <kbd>L</kbd> 1層表示',
+        ],
+        helpTip: '数字にカーソルを合わせると周囲の未開のマスが強調されます。',
+        helpBest: 'ベストタイム', helpStats: '勝利数',
+      },
+    };
+
+    // ------------------------------------------------------------------
+    // Storage, language, theme
+    // ------------------------------------------------------------------
+    const store = {
+      get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+      set(k, v) { try { localStorage.setItem(k, v); } catch {} },
+    };
+    const SAVE_KEY = 'minesweeper3d.v1';
+    const $ = (id) => document.getElementById(id);
+
+    let lang = store.get('app_lang');
+    if (!I18N[lang]) lang = 'en';
+    let theme = store.get('app_theme') === 'light' ? 'light' : 'dark';
+    const t = (k) => (I18N[lang][k] !== undefined ? I18N[lang][k] : I18N.en[k]);
+
+    const saved = (() => { try { return JSON.parse(store.get(SAVE_KEY)) || {}; } catch { return {}; } })();
+    const prefs = {
+      mode: saved.mode === 'volume' ? 'volume' : 'surface',
+      diff: ['easy', 'medium', 'hard'].includes(saved.diff) ? saved.diff : 'easy',
+      best: saved.best && typeof saved.best === 'object' ? saved.best : {},
+      wins: saved.wins && typeof saved.wins === 'object' ? saved.wins : {},
+      played: saved.played && typeof saved.played === 'object' ? saved.played : {},
+      autoRotate: !!saved.autoRotate,
+    };
+    const savePrefs = () => store.set(SAVE_KEY, JSON.stringify(prefs));
+
+    const PRESETS = {
+      surface: { easy: { n: 5, mines: 18 }, medium: { n: 7, mines: 42 }, hard: { n: 9, mines: 80 } },
+      volume: { easy: { n: 4, mines: 5 }, medium: { n: 5, mines: 10 }, hard: { n: 7, mines: 30 } },
+    };
+
+    const isTouch = matchMedia('(pointer: coarse)').matches;
+    const fmtTime = (ms) => {
+      const s = Math.floor(ms / 1000);
+      return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+    };
+    const fmtPrecise = (ms) => {
+      const s = ms / 1000;
+      return s < 60 ? `${s.toFixed(1)}s` : `${Math.floor(s / 60)}:${(s % 60).toFixed(1).padStart(4, '0')}`;
+    };
+
+    // ------------------------------------------------------------------
+    // Three.js scene
+    // ------------------------------------------------------------------
+    const PALETTES = {
+      dark: {
+        bg: 0x111615, core: 0x0a1d1a, hidden: 0x16877a, hiddenAlt: 0x117368, hover: 0x3fd6bf, near: 0x5fa39a,
+        revealed: 0x28322f, flag: 0xe0a84a, boom: 0xe0503f, wrong: 0x7a2e28, mine: 0x0d0f0f, frame: 0x2e3a38,
+        cloth: 0xe0503f, pole: 0xdfe7e5,
+        numbers: ['', '#6cb6ff', '#56d364', '#ff7b72', '#d2a8ff', '#ffa657', '#39c5cf', '#e6edf3', '#a9b4bb'],
+        labelBg: 'rgba(40, 50, 47, 0.92)',
+      },
+      light: {
+        bg: 0xe6eeec, core: 0x2c4a46, hidden: 0x1aa08e, hiddenAlt: 0x138a7a, hover: 0x5ce0c9, near: 0x9bd8cf,
+        revealed: 0xf7faf9, flag: 0xd98f1c, boom: 0xe0503f, wrong: 0xf0b8b0, mine: 0x1b1f1f, frame: 0xb9c7c4,
+        cloth: 0xd9362b, pole: 0x3a4644,
+        numbers: ['', '#1f5fd1', '#1a7f37', '#cf222e', '#6639ba', '#9a3412', '#0e7490', '#24292f', '#57606a'],
+        labelBg: 'rgba(247, 250, 249, 0.94)',
+      },
+    };
+    let pal = PALETTES[theme];
+
+    const canvas = $('scene');
+    const stage = $('stage');
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 500);
+    const controls = new OrbitControls(camera, canvas);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.12;
+    controls.enablePan = false;
+    controls.rotateSpeed = 0.8;
+    controls.autoRotateSpeed = 1.2;
+    controls.mouseButtons = { LEFT: THREE.MOUSE.ROTATE, MIDDLE: null, RIGHT: null };
+
+    scene.add(new THREE.HemisphereLight(0xffffff, 0x445552, 1.4));
+    const sun = new THREE.DirectionalLight(0xffffff, 1.6);
+    sun.position.set(0.6, 1, 0.8);
+    camera.add(sun);
+    scene.add(camera);
+
+    const board = new THREE.Group();
+    scene.add(board);
+
+    const tileGeo = new RoundedBoxGeometry(1, 1, 1, 2, 0.12);
+    const cubeGeo = new RoundedBoxGeometry(1, 1, 1, 2, 0.1);
+    const labelGeo = new THREE.PlaneGeometry(0.78, 0.78);
+    const mineBodyGeo = new THREE.IcosahedronGeometry(0.22, 1);
+    const mineSpikeGeo = new THREE.CylinderGeometry(0.03, 0.03, 0.66, 6);
+    const poleGeo = new THREE.CylinderGeometry(0.025, 0.025, 0.62, 6).rotateX(Math.PI / 2);
+    const clothGeo = (() => {
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.Float32BufferAttribute([0, 0, 0.62, 0, 0, 0.36, 0.3, 0, 0.49], 3));
+      g.computeVertexNormals();
+      return g;
+    })();
+    const baseGeo = new THREE.CylinderGeometry(0.12, 0.16, 0.05, 12).rotateX(Math.PI / 2).translate(0, 0, 0.025);
+
+    const tileMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.55, metalness: 0.05 });
+    const coreMat = new THREE.MeshStandardMaterial({ color: pal.core, roughness: 0.9 });
+    const mineMat = new THREE.MeshStandardMaterial({ color: pal.mine, roughness: 0.35, metalness: 0.6 });
+    const clothMat = new THREE.MeshStandardMaterial({ color: pal.cloth, side: THREE.DoubleSide, roughness: 0.7 });
+    const poleMat = new THREE.MeshStandardMaterial({ color: pal.pole, roughness: 0.5 });
+    const frameMat = new THREE.LineBasicMaterial({ color: pal.frame });
+
+    // Number textures (shared per theme). Plane labels for the cube faces,
+    // sprites with a backdrop for the volume where they float in space.
+    const planeMats = [];
+    const spriteMats = [];
+    function numberColor(n) {
+      if (n < pal.numbers.length) return pal.numbers[n];
+      const hue = (300 + (n - 9) * 17) % 360;
+      return theme === 'dark' ? `hsl(${hue} 85% 72%)` : `hsl(${hue} 70% 36%)`;
+    }
+    function drawNumber(n, withBg) {
+      const c = document.createElement('canvas');
+      c.width = c.height = 128;
+      const g = c.getContext('2d');
+      if (withBg) {
+        g.fillStyle = pal.labelBg;
+        g.beginPath(); g.arc(64, 64, 60, 0, Math.PI * 2); g.fill();
+      }
+      g.fillStyle = numberColor(n);
+      g.font = `800 ${n >= 10 ? 70 : 88}px system-ui, -apple-system, "Segoe UI", sans-serif`;
+      g.textAlign = 'center';
+      g.textBaseline = 'middle';
+      g.fillText(String(n), 64, 70);
+      const tex = new THREE.CanvasTexture(c);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      tex.anisotropy = 4;
+      return tex;
+    }
+    function planeMat(n) {
+      if (!planeMats[n]) planeMats[n] = new THREE.MeshBasicMaterial({ map: drawNumber(n, false), transparent: true, depthWrite: false });
+      return planeMats[n];
+    }
+    function spriteMat(n) {
+      if (!spriteMats[n]) spriteMats[n] = new THREE.SpriteMaterial({ map: drawNumber(n, true), depthWrite: false });
+      return spriteMats[n];
+    }
+    function refreshNumberTextures() {
+      [planeMats, spriteMats].forEach((list, k) => list.forEach((m, n) => {
+        if (!m) return;
+        m.map.dispose();
+        m.map = drawNumber(n, k === 1);
+        m.needsUpdate = true;
+      }));
+    }
+
+    // ------------------------------------------------------------------
+    // Game state
+    // ------------------------------------------------------------------
+    const G = {
+      mode: prefs.mode, diff: prefs.diff, n: 5, mines: 10,
+      cells: [], state: 'ready', // ready | playing | won | lost
+      revealed: 0, flags: 0, startAt: 0, endAt: 0,
+      mesh: null, labels: new THREE.Group(), extras: new THREE.Group(),
+      hover: -1, near: new Set(), blink: new Set(), blinkOn: false, boomCell: -1,
+      slice: { axis: 1, cut: 5, solo: false },
+      anims: [], flagMode: false,
+    };
+    board.add(G.labels, G.extras);
+
+    const HIDDEN = 0, OPEN = 1, FLAG = 2;
+    const tmpM = new THREE.Matrix4();
+    const tmpV = new THREE.Vector3();
+    const tmpS = new THREE.Vector3();
+    const tmpC = new THREE.Color();
+    const Z_AXIS = new THREE.Vector3(0, 0, 1);
+
+    // Face bases for the cube: u × v = normal, oriented so digits read upright.
+    const FACES = [
+      { n: [1, 0, 0], u: [0, 0, -1], v: [0, 1, 0] },
+      { n: [-1, 0, 0], u: [0, 0, 1], v: [0, 1, 0] },
+      { n: [0, 1, 0], u: [1, 0, 0], v: [0, 0, -1] },
+      { n: [0, -1, 0], u: [1, 0, 0], v: [0, 0, 1] },
+      { n: [0, 0, 1], u: [1, 0, 0], v: [0, 1, 0] },
+      { n: [0, 0, -1], u: [-1, 0, 0], v: [0, 1, 0] },
+    ];
+
+    function buildCells() {
+      const { n } = G;
+      const cells = [];
+      if (G.mode === 'surface') {
+        const h = n / 2;
+        FACES.forEach((f) => {
+          const nv = new THREE.Vector3(...f.n), uv = new THREE.Vector3(...f.u), vv = new THREE.Vector3(...f.v);
+          const q = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(uv, vv, nv));
+          for (let j = 0; j < n; j++) {
+            for (let i = 0; i < n; i++) {
+              const a = -h + 0.5 + i, b = -h + 0.5 + j;
+              const pos = nv.clone().multiplyScalar(h).addScaledVector(uv, a).addScaledVector(vv, b);
+              cells.push({ pos, normal: nv, quat: q, alt: (i + j) % 2 === 1 });
+            }
+          }
+        });
+      } else {
+        const o = (n - 1) / 2;
+        for (let z = 0; z < n; z++) for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+          cells.push({ pos: new THREE.Vector3(x - o, y - o, z - o), coord: [x, y, z], alt: (x + y + z) % 2 === 1 });
+        }
+      }
+      // Neighbors by distance: works across cube edges (max 1.5) and in the
+      // volume (26-neighborhood, max sqrt(3)).
+      const limit = G.mode === 'surface' ? 1.5 * 1.5 + 0.01 : 3 + 0.01;
+      cells.forEach((c) => { c.nb = []; c.mine = false; c.count = 0; c.st = HIDDEN; c.label = null; c.flagObj = null; c.anim = null; });
+      for (let a = 0; a < cells.length; a++) {
+        for (let b = a + 1; b < cells.length; b++) {
+          if (cells[a].pos.distanceToSquared(cells[b].pos) <= limit) { cells[a].nb.push(b); cells[b].nb.push(a); }
+        }
+      }
+      return cells;
+    }
+
+    function clearBoard() {
+      if (G.mesh) { board.remove(G.mesh); G.mesh.dispose(); G.mesh = null; }
+      [G.labels, G.extras].forEach((grp) => { while (grp.children.length) grp.remove(grp.children[0]); });
+      board.children.filter((o) => o.userData.static).forEach((o) => { board.remove(o); o.geometry?.dispose?.(); });
+    }
+
+    function newGame() {
+      const preset = PRESETS[G.mode][G.diff];
+      G.n = preset.n; G.mines = preset.mines;
+      clearBoard();
+      G.cells = buildCells();
+      G.state = 'ready'; G.revealed = 0; G.flags = 0; G.startAt = 0; G.endAt = 0;
+      G.hover = -1; G.near.clear(); G.anims = []; G.blink.clear(); G.pulse = null; G.boomCell = -1; G.shake = 0;
+      G.slice.cut = G.n; G.slice.solo = false;
+
+      G.mesh = new THREE.InstancedMesh(G.mode === 'surface' ? tileGeo : cubeGeo, tileMat, G.cells.length);
+      G.mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+      board.add(G.mesh);
+
+      if (G.mode === 'surface') {
+        const core = new THREE.Mesh(new THREE.BoxGeometry(G.n - 0.02, G.n - 0.02, G.n - 0.02), coreMat);
+        core.userData.static = true;
+        board.add(core);
+      } else {
+        const s = G.n + 0.1;
+        const frame = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(s, s, s)), frameMat);
+        frame.userData.static = true;
+        board.add(frame);
+      }
+      G.cells.forEach((_, i) => updateCell(i));
+      G.mesh.instanceMatrix.needsUpdate = true;
+      G.mesh.instanceColor.needsUpdate = true;
+      G.mesh.computeBoundingSphere();
+
+      $('overlay').hidden = true;
+      syncSliceUI();
+      resetCamera();
+      updateHud();
+    }
+
+    function placeMines(safe) {
+      const exclude = new Set([safe, ...G.cells[safe].nb]);
+      if (G.cells.length - exclude.size < G.mines) exclude.clear(), exclude.add(safe);
+      const pool = [];
+      G.cells.forEach((_, i) => { if (!exclude.has(i)) pool.push(i); });
+      for (let k = 0; k < G.mines; k++) {
+        const r = k + Math.floor(Math.random() * (pool.length - k));
+        [pool[k], pool[r]] = [pool[r], pool[k]];
+        G.cells[pool[k]].mine = true;
+      }
+      G.cells.forEach((c) => { c.count = c.nb.reduce((s, j) => s + (G.cells[j].mine ? 1 : 0), 0); });
+    }
+
+    // ------------------------------------------------------------------
+    // Cell visuals
+    // ------------------------------------------------------------------
+    function sliceVisible(c) {
+      if (G.mode !== 'volume') return true;
+      const v = c.coord[G.slice.axis];
+      return G.slice.solo ? v === G.slice.cut - 1 : v < G.slice.cut;
+    }
+
+    function animProgress(c, now) {
+      if (!c.anim) return 1;
+      const p = (now - c.anim.start) / c.anim.dur;
+      return p <= 0 ? 0 : p >= 1 ? 1 : p;
+    }
+
+    function updateCell(i, now = performance.now()) {
+      const c = G.cells[i];
+      const visible = sliceVisible(c);
+      const open = c.st === OPEN;
+      const p = open ? animProgress(c, now) : 0;
+      const ease = 1 - Math.pow(1 - p, 3);
+
+      if (G.mode === 'surface') {
+        const h = 0.34 + (0.06 - 0.34) * ease;
+        const s = 0.92 - 0.02 * ease;
+        tmpV.copy(c.pos).addScaledVector(c.normal, h / 2);
+        tmpS.set(s, s, h);
+        tmpM.compose(tmpV, c.quat, tmpS);
+      } else {
+        const s = visible ? 0.8 * (1 - ease) : 0;
+        tmpS.set(s, s, s);
+        tmpM.makeScale(s, s, s).setPosition(c.pos);
+      }
+      G.mesh.setMatrixAt(i, tmpM);
+
+      let col;
+      if (open) {
+        col = c.mine && i === G.boomCell ? pal.boom : pal.revealed;
+        if (p < 1) tmpC.set(pal.hidden).lerp(new THREE.Color(col), ease);
+      } else if (c.st === FLAG) {
+        col = G.state === 'lost' && !c.mine ? pal.wrong : pal.flag;
+        if (G.mode === 'surface') col = G.state === 'lost' && !c.mine ? pal.wrong : (c.alt ? pal.hiddenAlt : pal.hidden);
+      } else {
+        col = c.alt ? pal.hiddenAlt : pal.hidden;
+        if (G.near.has(i) || (G.blinkOn && G.blink.has(i))) col = pal.near;
+      }
+      if (i === G.hover && G.state !== 'won' && G.state !== 'lost' && !open) col = pal.hover;
+      if (!(open && p < 1)) tmpC.set(col);
+      G.mesh.setColorAt(i, tmpC);
+
+      if (c.label) c.label.visible = visible && p >= 0.6;
+      if (c.flagObj) c.flagObj.visible = visible;
+      if (c.mineObj) c.mineObj.visible = visible;
+    }
+
+    function refreshAll() {
+      if (!G.mesh) return;
+      const now = performance.now();
+      G.cells.forEach((_, i) => updateCell(i, now));
+      G.mesh.instanceMatrix.needsUpdate = true;
+      G.mesh.instanceColor.needsUpdate = true;
+    }
+
+    function addLabel(i) {
+      const c = G.cells[i];
+      if (c.count === 0 || c.mine || c.label) return;
+      let obj;
+      if (G.mode === 'surface') {
+        obj = new THREE.Mesh(labelGeo, planeMat(c.count));
+        obj.position.copy(c.pos).addScaledVector(c.normal, 0.066);
+        obj.quaternion.copy(c.quat);
+      } else {
+        obj = new THREE.Sprite(spriteMat(c.count));
+        obj.position.copy(c.pos);
+        obj.scale.setScalar(0.62);
+      }
+      obj.userData.cell = i;
+      obj.visible = false;
+      c.label = obj;
+      G.labels.add(obj);
+    }
+
+    function makeFlag(i) {
+      const c = G.cells[i];
+      if (G.mode !== 'surface') return null;
+      const grp = new THREE.Group();
+      grp.add(new THREE.Mesh(baseGeo, poleMat), new THREE.Mesh(poleGeo, poleMat), new THREE.Mesh(clothGeo, clothMat));
+      grp.children[1].position.z = 0.31;
+      grp.position.copy(c.pos).addScaledVector(c.normal, 0.34);
+      grp.quaternion.copy(c.quat);
+      grp.rotateZ(-0.6);
+      grp.scale.setScalar(0.01);
+      grp.userData.grow = performance.now();
+      G.extras.add(grp);
+      return grp;
+    }
+
+    function makeMine(i, delay) {
+      const c = G.cells[i];
+      const grp = new THREE.Group();
+      grp.add(new THREE.Mesh(mineBodyGeo, mineMat));
+      for (const r of [[0, 0, 0], [Math.PI / 2, 0, 0], [0, 0, Math.PI / 2], [Math.PI / 4, 0, Math.PI / 4], [-Math.PI / 4, 0, Math.PI / 4]]) {
+        const s = new THREE.Mesh(mineSpikeGeo, mineMat);
+        s.rotation.set(...r);
+        grp.add(s);
+      }
+      grp.position.copy(c.pos);
+      if (G.mode === 'surface') grp.position.addScaledVector(c.normal, 0.3);
+      grp.scale.setScalar(0.01);
+      grp.userData.grow = performance.now() + delay;
+      c.mineObj = grp;
+      G.extras.add(grp);
+    }
+
+    // ------------------------------------------------------------------
+    // Rules
+    // ------------------------------------------------------------------
+    function reveal(start) {
+      const c0 = G.cells[start];
+      if (c0.st !== HIDDEN || G.state === 'won' || G.state === 'lost') return;
+      if (G.state === 'ready') {
+        placeMines(start);
+        G.state = 'playing';
+        G.startAt = performance.now();
+        prefs.played[key()] = (prefs.played[key()] || 0) + 1;
+        savePrefs();
+      }
+      if (c0.mine) { lose(start); return; }
+
+      const now = performance.now();
+      const queue = [[start, 0]];
+      c0.st = OPEN;
+      const opened = [];
+      while (queue.length) {
+        const [i, depth] = queue.shift();
+        const c = G.cells[i];
+        c.anim = { start: now + Math.min(depth * 28, 900), dur: 220 };
+        opened.push(i);
+        G.revealed++;
+        if (c.count === 0) {
+          for (const j of c.nb) {
+            const d = G.cells[j];
+            if (d.st === HIDDEN && !d.mine) { d.st = OPEN; queue.push([j, depth + 1]); }
+          }
+        }
+      }
+      opened.forEach((i) => { addLabel(i); G.anims.push(i); });
+      if (G.revealed === G.cells.length - G.mines) win();
+      updateHud();
+    }
+
+    function toggleFlag(i) {
+      const c = G.cells[i];
+      if (G.state === 'won' || G.state === 'lost' || c.st === OPEN) return;
+      if (c.st === FLAG) {
+        c.st = HIDDEN; G.flags--;
+        if (c.flagObj) { G.extras.remove(c.flagObj); c.flagObj = null; }
+      } else {
+        c.st = FLAG; G.flags++;
+        c.flagObj = makeFlag(i);
+      }
+      updateCell(i);
+      G.mesh.instanceMatrix.needsUpdate = true;
+      G.mesh.instanceColor.needsUpdate = true;
+      updateHud();
+      if (navigator.vibrate && isTouch) navigator.vibrate(15);
+    }
+
+    function chord(i) {
+      const c = G.cells[i];
+      if (c.st !== OPEN || c.count === 0 || G.state !== 'playing') return;
+      const flags = c.nb.filter((j) => G.cells[j].st === FLAG).length;
+      if (flags !== c.count) { pulseNear(i); return; }
+      for (const j of c.nb) {
+        if (G.state !== 'playing') break;
+        if (G.cells[j].st === HIDDEN) reveal(j);
+      }
+    }
+
+    function pulseNear(i) {
+      G.blink = new Set(G.cells[i].nb.filter((j) => G.cells[j].st === HIDDEN));
+      G.pulse = { until: performance.now() + 420 };
+    }
+
+    function lose(i) {
+      G.state = 'lost';
+      G.endAt = performance.now();
+      G.boomCell = i;
+      const c0 = G.cells[i];
+      G.cells.forEach((c, j) => {
+        if (c.mine && c.st !== FLAG) {
+          const delay = j === i ? 0 : 120 + c.pos.distanceTo(c0.pos) * 70;
+          c.st = OPEN;
+          c.anim = { start: G.endAt + delay, dur: j === i ? 160 : 220 };
+          G.anims.push(j);
+          makeMine(j, delay);
+        }
+      });
+      G.shake = G.endAt;
+      refreshAll();
+      updateHud();
+      setTimeout(() => showEnd(false), 900);
+    }
+
+    function win() {
+      G.state = 'won';
+      G.endAt = performance.now();
+      G.cells.forEach((c, i) => {
+        if (c.mine && c.st !== FLAG) { c.st = FLAG; G.flags++; c.flagObj = makeFlag(i); }
+      });
+      const k = key();
+      const time = G.endAt - G.startAt;
+      const prev = prefs.best[k];
+      G.record = !prev || time < prev;
+      if (G.record) prefs.best[k] = Math.round(time);
+      prefs.wins[k] = (prefs.wins[k] || 0) + 1;
+      savePrefs();
+      refreshAll();
+      updateHud();
+      controls.autoRotate = true;
+      setTimeout(() => showEnd(true), 700);
+    }
+
+    const key = () => `${G.mode}-${G.diff}`;
+
+    function showEnd(won) {
+      if ((won && G.state !== 'won') || (!won && G.state !== 'lost')) return;
+      const card = $('end-card');
+      card.className = `end-card ${won ? 'win' : 'lose'}`;
+      $('end-title').textContent = won ? t('won') : t('lost');
+      $('end-time').innerHTML = `${t('yourTime')}: <b>${fmtPrecise(G.endAt - G.startAt)}</b>`;
+      const best = prefs.best[key()];
+      $('end-best').innerHTML = `${t('best')}: <b>${best ? fmtPrecise(best) : t('noBest')}</b>`;
+      $('end-record').hidden = !(won && G.record);
+      $('end-record').textContent = t('newRecord');
+      $('overlay').hidden = false;
+    }
+
+    // ------------------------------------------------------------------
+    // HUD
+    // ------------------------------------------------------------------
+    function updateHud() {
+      $('mines-left').textContent = G.mines - G.flags;
+      renderStatus();
+    }
+    function renderStatus() {
+      const best = prefs.best[key()];
+      const bestTxt = best ? ` · ${t('statusBest')} <b>${fmtPrecise(best)}</b>` : '';
+      let txt;
+      if (G.state === 'ready') txt = (isTouch ? t('statusIdleTouch') : t('statusIdle')) + bestTxt;
+      else txt = `${t('statusPlaying')} <b>${G.revealed}/${G.cells.length - G.mines}</b>${bestTxt}`;
+      if (G.flagMode) txt = `<b style="color:var(--warn)">${t('statusFlag')}</b> · ` + txt;
+      $('status').innerHTML = txt;
+    }
+    function tickTimer() {
+      let ms = 0;
+      if (G.state === 'playing') ms = performance.now() - G.startAt;
+      else if (G.state === 'won' || G.state === 'lost') ms = G.endAt - G.startAt;
+      const txt = fmtTime(ms);
+      if ($('timer').textContent !== txt) $('timer').textContent = txt;
+    }
+
+    // ------------------------------------------------------------------
+    // Slicing (volume)
+    // ------------------------------------------------------------------
+    function syncSliceUI() {
+      $('slice-box').hidden = G.mode !== 'volume';
+      const r = $('slice-range');
+      r.max = G.n;
+      r.value = G.slice.cut;
+      $('slice-value').textContent = G.slice.solo ? `${G.slice.cut}` : `${G.slice.cut}/${G.n}`;
+      document.querySelectorAll('#axis-seg button').forEach((b) => b.setAttribute('aria-pressed', String(+b.dataset.axis === G.slice.axis)));
+      $('solo-btn').classList.toggle('on', G.slice.solo);
+      $('solo-btn').setAttribute('aria-pressed', String(G.slice.solo));
+    }
+    function setSlice(patch) {
+      Object.assign(G.slice, patch);
+      G.slice.cut = Math.max(1, Math.min(G.n, G.slice.cut));
+      syncSliceUI();
+      G.hover = -1; G.near.clear();
+      refreshAll();
+    }
+    $('slice-range').addEventListener('input', (e) => setSlice({ cut: +e.target.value }));
+    document.querySelectorAll('#axis-seg button').forEach((b) => b.addEventListener('click', () => setSlice({ axis: +b.dataset.axis })));
+    $('solo-btn').addEventListener('click', () => setSlice({ solo: !G.slice.solo }));
+
+    // ------------------------------------------------------------------
+    // Camera
+    // ------------------------------------------------------------------
+    function resetCamera() {
+      const d = G.n * (G.mode === 'surface' ? 2.7 : 2.9) + 2;
+      camera.position.set(d * 0.62, d * 0.5, d * 0.62);
+      controls.target.set(0, 0, 0);
+      controls.minDistance = G.n * 0.9 + 1;
+      controls.maxDistance = G.n * 6 + 6;
+      controls.autoRotate = prefs.autoRotate;
+      controls.update();
+    }
+    function resize() {
+      const w = stage.clientWidth, h = stage.clientHeight;
+      if (!w || !h) return;
+      renderer.setSize(w, h, false);
+      camera.aspect = w / h;
+      camera.fov = w / h < 0.9 ? 55 : 42;
+      camera.updateProjectionMatrix();
+    }
+    new ResizeObserver(resize).observe(stage);
+
+    // ------------------------------------------------------------------
+    // Picking & input
+    // ------------------------------------------------------------------
+    const raycaster = new THREE.Raycaster();
+    const ndc = new THREE.Vector2();
+    function pick(clientX, clientY) {
+      const rect = canvas.getBoundingClientRect();
+      ndc.set(((clientX - rect.left) / rect.width) * 2 - 1, -((clientY - rect.top) / rect.height) * 2 + 1);
+      raycaster.setFromCamera(ndc, camera);
+      const targets = G.mode === 'volume' ? [G.mesh, ...G.labels.children.filter((o) => o.visible)] : [G.mesh];
+      const hits = raycaster.intersectObjects(targets, false);
+      for (const h of hits) {
+        if (h.object === G.mesh) {
+          const c = G.cells[h.instanceId];
+          if (G.mode === 'volume' && (c.st === OPEN || !sliceVisible(c))) continue;
+          return h.instanceId;
+        }
+        if (h.object.userData.cell !== undefined) return h.object.userData.cell;
+      }
+      return -1;
+    }
+
+    function setHover(i) {
+      if (i === G.hover && !G.hoverDirty) return;
+      G.hoverDirty = false;
+      const prev = G.hover;
+      const oldNear = [...G.near];
+      G.hover = i;
+      G.near.clear();
+      const c = G.cells[i];
+      if (c && c.st === OPEN && c.count > 0 && G.state === 'playing') {
+        c.nb.forEach((j) => { if (G.cells[j].st === HIDDEN) G.near.add(j); });
+      }
+      const touched = new Set([prev, i, ...oldNear, ...G.near]);
+      touched.forEach((j) => { if (j >= 0) updateCell(j); });
+      G.mesh.instanceMatrix.needsUpdate = true;
+      G.mesh.instanceColor.needsUpdate = true;
+    }
+
+    let down = null;
+    let longPress = 0;
+    canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+    canvas.addEventListener('mousedown', (e) => { if (e.button === 1) e.preventDefault(); });
+    canvas.addEventListener('pointerdown', (e) => {
+      down = { x: e.clientX, y: e.clientY, button: e.button, id: e.pointerId, type: e.pointerType, used: false };
+      if (e.button === 1) e.preventDefault();
+      clearTimeout(longPress);
+      if (e.pointerType === 'touch') {
+        longPress = setTimeout(() => {
+          if (!down || down.used) return;
+          const i = pick(down.x, down.y);
+          if (i >= 0) { down.used = true; act(i, 'flag'); }
+        }, 420);
+      }
+    });
+    canvas.addEventListener('pointermove', (e) => {
+      if (down && Math.hypot(e.clientX - down.x, e.clientY - down.y) > 7) { down.used = true; clearTimeout(longPress); }
+      if (e.pointerType !== 'touch') { G.pendingPick = { x: e.clientX, y: e.clientY }; }
+    });
+    canvas.addEventListener('pointerleave', () => { G.pendingPick = null; if (G.mesh) setHover(-1); });
+    canvas.addEventListener('pointerup', (e) => {
+      clearTimeout(longPress);
+      if (!down || down.used || down.id !== e.pointerId) { down = null; return; }
+      const i = pick(e.clientX, e.clientY);
+      const button = down.button;
+      down = null;
+      if (i < 0) return;
+      if (button === 2) act(i, 'flag');
+      else if (button === 1) act(i, 'chord');
+      else if (button === 0) act(i, G.flagMode ? 'flagOrChord' : 'reveal');
+    });
+    canvas.addEventListener('pointercancel', () => { clearTimeout(longPress); down = null; });
+
+    function act(i, what) {
+      const c = G.cells[i];
+      if (what === 'flag') { if (c.st !== OPEN) toggleFlag(i); else chord(i); }
+      else if (what === 'chord') chord(i);
+      else if (what === 'flagOrChord') { if (c.st === OPEN) chord(i); else toggleFlag(i); }
+      else if (c.st === OPEN) chord(i);
+      else if (c.st === HIDDEN) reveal(i);
+      G.hoverDirty = true;
+      if (G.lastPointer) G.pendingPick = G.lastPointer;
+    }
+    canvas.addEventListener('pointermove', (e) => { if (e.pointerType !== 'touch') G.lastPointer = { x: e.clientX, y: e.clientY }; });
+
+    // ------------------------------------------------------------------
+    // Top bar & keyboard
+    // ------------------------------------------------------------------
+    function applyLang() {
+      document.documentElement.lang = lang;
+      document.title = t('title');
+      document.querySelectorAll('[data-i18n]').forEach((el) => { el.textContent = t(el.dataset.i18n); });
+      document.querySelectorAll('[data-i18n-title]').forEach((el) => { el.title = t(el.dataset.i18nTitle); el.setAttribute('aria-label', t(el.dataset.i18nTitle)); });
+      $('lang-switcher').value = lang;
+      renderStatus();
+      renderHelp();
+      if (!$('overlay').hidden) showEnd(G.state === 'won');
+    }
+    function applyTheme() {
+      document.documentElement.dataset.theme = theme;
+      $('theme-switcher').querySelector('i').className = theme === 'dark' ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
+      pal = PALETTES[theme];
+      scene.background = new THREE.Color(pal.bg);
+      coreMat.color.set(pal.core);
+      mineMat.color.set(pal.mine);
+      clothMat.color.set(pal.cloth);
+      poleMat.color.set(pal.pole);
+      frameMat.color.set(pal.frame);
+      refreshNumberTextures();
+      refreshAll();
+    }
+    function renderHelp() {
+      $('help-title').textContent = t('title');
+      const rows = ['surface', 'volume'].map((m) => {
+        const cells = ['easy', 'medium', 'hard'].map((d) => {
+          const k = `${m}-${d}`;
+          const best = prefs.best[k];
+          return `<td>${best ? fmtPrecise(best) : '—'} <span style="color:var(--muted)">· ${prefs.wins[k] || 0}/${prefs.played[k] || 0}</span></td>`;
+        }).join('');
+        return `<tr><th>${t(m === 'surface' ? 'modeSurface' : 'modeVolume')}</th>${cells}</tr>`;
+      }).join('');
+      const sizes = (m) => ['easy', 'medium', 'hard'].map((d) => {
+        const p = PRESETS[m][d];
+        return `${t(d)} ${p.n}${m === 'surface' ? '²×6' : '³'} · <i class="fa-solid fa-bomb"></i> ${p.mines}`;
+      }).join(' / ');
+      $('help-body').innerHTML = `
+        <p>${t('helpIntro')}</p>
+        <h3>${t('helpModes')}</h3>
+        <ul><li>${t('helpSurface')}<br><span style="color:var(--muted);font-size:12px">${sizes('surface')}</span></li>
+        <li>${t('helpVolume')}<br><span style="color:var(--muted);font-size:12px">${sizes('volume')}</span></li></ul>
+        <h3>${t('helpControls')}</h3>
+        <ul>${t('helpList').map((x) => `<li>${x}</li>`).join('')}</ul>
+        <p style="margin-top:8px;color:var(--muted)">${t('helpTip')}</p>
+        <h3>${t('helpBest')} · ${t('helpStats')}</h3>
+        <table class="best-table"><tr><th></th><th>${t('easy')}</th><th>${t('medium')}</th><th>${t('hard')}</th></tr>${rows}</table>`;
+    }
+
+    $('lang-switcher').addEventListener('change', (e) => {
+      lang = I18N[e.target.value] ? e.target.value : 'en';
+      store.set('app_lang', lang);
+      applyLang();
+    });
+    $('theme-switcher').addEventListener('click', () => {
+      theme = theme === 'dark' ? 'light' : 'dark';
+      store.set('app_theme', theme);
+      applyTheme();
+    });
+    const help = $('help');
+    const openHelp = () => { renderHelp(); help.showModal(); };
+    $('help-btn').addEventListener('click', openHelp);
+    $('help-close').addEventListener('click', () => help.close());
+    help.addEventListener('click', (e) => { if (e.target === help) help.close(); });
+
+    $('mode-select').value = G.mode;
+    $('diff-select').value = G.diff;
+    $('mode-select').addEventListener('change', (e) => { G.mode = prefs.mode = e.target.value; savePrefs(); newGame(); e.target.blur(); });
+    $('diff-select').addEventListener('change', (e) => { G.diff = prefs.diff = e.target.value; savePrefs(); newGame(); e.target.blur(); });
+    $('new-btn').addEventListener('click', newGame);
+    $('end-again').addEventListener('click', newGame);
+    $('end-view').addEventListener('click', () => { $('overlay').hidden = true; });
+    $('camera-btn').addEventListener('click', resetCamera);
+    function syncRotate() {
+      $('rotate-btn').classList.toggle('on', prefs.autoRotate);
+      $('rotate-btn').setAttribute('aria-pressed', String(prefs.autoRotate));
+    }
+    $('rotate-btn').addEventListener('click', () => {
+      prefs.autoRotate = !prefs.autoRotate;
+      controls.autoRotate = prefs.autoRotate;
+      savePrefs();
+      syncRotate();
+    });
+    function setFlagMode(on) {
+      G.flagMode = on;
+      $('flag-mode').classList.toggle('on', on);
+      $('flag-mode').setAttribute('aria-pressed', String(on));
+      renderStatus();
+    }
+    $('flag-mode').addEventListener('click', () => setFlagMode(!G.flagMode));
+
+    document.addEventListener('keydown', (e) => {
+      if (help.open || e.ctrlKey || e.metaKey || e.altKey) return;
+      if (/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName) && e.key !== '?') return;
+      const k = e.key.toLowerCase();
+      if (e.key === '?') { e.preventDefault(); openHelp(); }
+      else if (k === 'r') newGame();
+      else if (k === 'c') resetCamera();
+      else if (k === 'f') setFlagMode(!G.flagMode);
+      else if (e.key === ' ') { e.preventDefault(); if (G.hover >= 0) act(G.hover, 'flag'); }
+      else if (G.mode === 'volume' && e.key === '[') setSlice({ cut: G.slice.cut - 1 });
+      else if (G.mode === 'volume' && e.key === ']') setSlice({ cut: G.slice.cut + 1 });
+      else if (G.mode === 'volume' && k === 'l') setSlice({ solo: !G.slice.solo });
+      else if (G.mode === 'volume' && 'xyz'.includes(k) && k.length === 1) setSlice({ axis: 'xyz'.indexOf(k) });
+      else if (e.key === 'Escape' && !$('overlay').hidden) $('overlay').hidden = true;
+    });
+
+    // ------------------------------------------------------------------
+    // Loop
+    // ------------------------------------------------------------------
+    function frame(now) {
+      // Hover picking once per frame.
+      if (G.pendingPick && !down && G.mesh) {
+        setHover(pick(G.pendingPick.x, G.pendingPick.y));
+        G.pendingPick = null;
+      }
+
+      // Reveal animations.
+      if (G.anims.length) {
+        const keep = [];
+        for (const i of G.anims) {
+          updateCell(i, now);
+          if (animProgress(G.cells[i], now) < 1) keep.push(i);
+          else G.cells[i].anim = null, updateCell(i, now);
+        }
+        G.anims = keep;
+        G.mesh.instanceMatrix.needsUpdate = true;
+        G.mesh.instanceColor.needsUpdate = true;
+      }
+
+      // Pop-in for flags and mines.
+      for (const o of G.extras.children) {
+        if (o.userData.grow === undefined) continue;
+        const p = (now - o.userData.grow) / 220;
+        if (p <= 0) continue;
+        if (p >= 1) { o.scale.setScalar(1); delete o.userData.grow; continue; }
+        o.scale.setScalar(Math.max(0.01, 1 + 0.35 * Math.sin(p * Math.PI) * (1 - p) - (1 - p) * (1 - p)));
+      }
+
+      // Wrong chord: brief blink of the hidden neighbors.
+      if (G.pulse) {
+        const active = now < G.pulse.until;
+        G.blinkOn = active && Math.floor(now / 90) % 2 === 0;
+        G.blink.forEach((j) => updateCell(j, now));
+        G.mesh.instanceColor.needsUpdate = true;
+        if (!active) { G.pulse = null; G.blink.clear(); }
+      }
+
+      // Explosion shake.
+      board.position.set(0, 0, 0);
+      if (G.shake) {
+        const p = (now - G.shake) / 450;
+        if (p < 1) {
+          const a = 0.18 * (1 - p);
+          board.position.set((Math.random() - 0.5) * a, (Math.random() - 0.5) * a, (Math.random() - 0.5) * a);
+        } else G.shake = 0;
+      }
+
+      controls.update();
+      tickTimer();
+      renderer.render(scene, camera);
+    }
+
+    // ------------------------------------------------------------------
+    // Boot
+    // ------------------------------------------------------------------
+    syncRotate();
+    applyLang();
+    applyTheme();
+    resize();
+    newGame();
+    renderer.setAnimationLoop(frame);
+  </script>
+</body>
+</html>

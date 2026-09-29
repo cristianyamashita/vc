@@ -764,6 +764,22 @@ ICONS: dict[str, list[Shape]] = {
         r(15, 5, 2, 4),
         p([(8, 24), (24, 24), (22, 28), (10, 28)], fill=DARK),
     ],
+    # Isometric cube with a tiled front and a mine sitting on the top face.
+    "game-minesweeper-3d": [
+        p([(16, 4), (27, 9.5), (16, 15), (5, 9.5)]),
+        p([(5, 11.5), (15, 16.5), (15, 28), (5, 23)]),
+        p([(17, 16.5), (27, 11.5), (27, 23), (17, 28)], fill=DARK),
+        l(10, 14, 10, 25.5, stroke=TEAL, sw=1.2),
+        l(5, 17.25, 15, 22.25, stroke=TEAL, sw=1.2),
+        l(22, 14, 22, 25.5, stroke=TEAL, sw=1.2),
+        l(17, 22.25, 27, 17.25, stroke=TEAL, sw=1.2),
+        l(12.2, 9.5, 19.8, 9.5, stroke=DARK, sw=1.4),
+        l(16, 6.4, 16, 12.6, stroke=DARK, sw=1.4),
+        l(13.4, 7.4, 18.6, 11.6, stroke=DARK, sw=1.2),
+        l(18.6, 7.4, 13.4, 11.6, stroke=DARK, sw=1.2),
+        c(16, 9.5, 2.4, fill=DARK),
+        c(15.2, 8.8, 0.7),
+    ],
     "game-game1": [
         p([(16, 6), (20, 16), (16, 14), (12, 16)]),
         r(15, 14, 2, 10, rad=1),
