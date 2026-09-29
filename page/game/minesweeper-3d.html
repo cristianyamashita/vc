@@ -697,24 +697,13 @@
       }
       if (c0.mine) { lose(start); return; }
 
-      const now = performance.now();
-      const queue = [[start, 0]];
+      // Only the clicked cell opens: empty cells do not cascade into their
+      // neighbors, so every cell is revealed by the player.
       c0.st = OPEN;
-      const opened = [];
-      while (queue.length) {
-        const [i, depth] = queue.shift();
-        const c = G.cells[i];
-        c.anim = { start: now + Math.min(depth * 28, 900), dur: 220 };
-        opened.push(i);
-        G.revealed++;
-        if (c.count === 0) {
-          for (const j of c.nb) {
-            const d = G.cells[j];
-            if (d.st === HIDDEN && !d.mine) { d.st = OPEN; queue.push([j, depth + 1]); }
-          }
-        }
-      }
-      opened.forEach((i) => { addLabel(i); G.anims.push(i); });
+      c0.anim = { start: performance.now(), dur: 220 };
+      G.revealed++;
+      addLabel(start);
+      G.anims.push(start);
       if (G.revealed === G.cells.length - G.mines) win();
       updateHud();
     }
