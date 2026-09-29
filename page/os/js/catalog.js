@@ -2541,6 +2541,30 @@ window.OSCatalog = (function () {
     }
   },
   {
+    "id": "misc-hollywood",
+    "href": "misc/hollywood.html",
+    "icon": "../assets/icons/svg/misc-hollywood.svg",
+    "kind": "site",
+    "uninstallable": true,
+    "defaultInstalled": false,
+    "channel": "stable",
+    "tag": {
+      "en": "Screen Saver",
+      "pt": "Protetor de Tela",
+      "ja": "スクリーンセーバー"
+    },
+    "name": {
+      "en": "Hollywood",
+      "pt": "Hollywood",
+      "ja": "ハリウッド"
+    },
+    "desc": {
+      "en": "Movie-style hacker screen inspired by the Linux hollywood command: tmux-like panes with htop, code rain, logs, hexdump, vim, network graphs, builds and scans that keep splitting and reshuffling. All simulated.",
+      "pt": "Tela de hacker de filme inspirada no comando hollywood do Linux: painéis estilo tmux com htop, chuva de código, logs, hexdump, vim, gráficos de rede, compilações e varreduras que se dividem e se reorganizam sem parar. Tudo simulado.",
+      "ja": "Linux の hollywood コマンドに着想を得た映画風ハッカー画面。htop、コードの雨、ログ、hexdump、vim、ネットワークグラフ、ビルドやスキャンが動く tmux 風のペインが分割とシャッフルを繰り返します。すべてシミュレーションです。"
+    }
+  },
+  {
     "id": "misc-electronics_lab_3d",
     "href": "misc/electronics_lab_3d.html",
     "icon": "../assets/icons/svg/misc-electronics_lab_3d.svg",

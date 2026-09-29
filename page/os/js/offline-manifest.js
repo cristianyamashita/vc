@@ -70,6 +70,7 @@
     "assets/icons/ico/misc-electronics_lab_3d.ico",
     "assets/icons/ico/misc-eye_gaze_control.ico",
     "assets/icons/ico/misc-fluid_lab.ico",
+    "assets/icons/ico/misc-hollywood.ico",
     "assets/icons/ico/misc-interactive_planetarium.ico",
     "assets/icons/ico/misc-laser1.ico",
     "assets/icons/ico/misc-logic_circuit.ico",
@@ -238,6 +239,7 @@
     "assets/icons/png/misc-electronics_lab_3d.png",
     "assets/icons/png/misc-eye_gaze_control.png",
     "assets/icons/png/misc-fluid_lab.png",
+    "assets/icons/png/misc-hollywood.png",
     "assets/icons/png/misc-interactive_planetarium.png",
     "assets/icons/png/misc-laser1.png",
     "assets/icons/png/misc-logic_circuit.png",
@@ -406,6 +408,7 @@
     "assets/icons/svg/misc-electronics_lab_3d.svg",
     "assets/icons/svg/misc-eye_gaze_control.svg",
     "assets/icons/svg/misc-fluid_lab.svg",
+    "assets/icons/svg/misc-hollywood.svg",
     "assets/icons/svg/misc-interactive_planetarium.svg",
     "assets/icons/svg/misc-laser1.svg",
     "assets/icons/svg/misc-logic_circuit.svg",
@@ -884,6 +887,7 @@
     "misc/electronics_lab_3d.html",
     "misc/eye_gaze_control.html",
     "misc/fluid_lab.html",
+    "misc/hollywood.html",
     "misc/interactive_planetarium.html",
     "misc/laser1.html",
     "misc/logic_circuit.html",
@@ -1130,6 +1134,6 @@
     "models/tinyyolov2-7.onnx",
     "models/yolov8n-coco.onnx"
   ],
-  "version": "d6385cf782ce"
+  "version": "64f387ffa47d"
 };
 })(typeof self !== "undefined" ? self : window);

@@ -1130,6 +1130,22 @@ ICONS: dict[str, list[Shape]] = {
         r(13, 19, 6, 2, rad=1, fill=DARK),
         r(14, 6, 4, 3, rad=1),
     ],
+    # Screen split into tmux panes: code rain, a meter and a prompt.
+    "misc-hollywood": [
+        r(4, 6, 24, 20, rad=2.5),
+        r(6, 8, 9, 16, rad=1, fill=DARK),
+        r(17, 8, 9, 7, rad=1, fill=DARK),
+        r(17, 17, 9, 7, rad=1, fill=DARK),
+        r(8, 10, 1.4, 5, rad=0.7),
+        r(10.8, 14, 1.4, 8, rad=0.7),
+        r(13, 9.5, 1.4, 4, rad=0.7),
+        r(13, 17, 1.4, 3, rad=0.7),
+        r(18.5, 11.5, 1.6, 2, rad=0.4),
+        r(21, 10, 1.6, 3.5, rad=0.4),
+        r(23.5, 11, 1.6, 2.5, rad=0.4),
+        pl([(18.6, 18.8), (20.4, 20.5), (18.6, 22.2)], sw=1.2),
+        r(21.4, 21.5, 3, 1),
+    ],
     "misc-nebula": [
         p(_star(10, 12, 4, 1.8)),
         p(_star(22, 11, 3.5, 1.6)),

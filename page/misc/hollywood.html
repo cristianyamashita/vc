@@ -1,0 +1,1841 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark" data-scheme="classic">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" href="../assets/icons/ico/misc-hollywood.ico" type="image/x-icon">
+  <title>Hollywood</title>
+  <link rel="stylesheet" href="../assets/fontawesome/css/all.min.css">
+  <style>
+    :root {
+      --bg: #111615; --panel: #1a2120; --panel-2: #212a29; --border: #2e3a38;
+      --text: #e8efee; --muted: #8a9a97; --accent: #1fb5a0; --accent-strong: #008f7d;
+      --accent-soft: rgba(31, 181, 160, .12);
+      --mono: ui-monospace, "SF Mono", "Cascadia Mono", "Cascadia Code", Menlo, Consolas, "DejaVu Sans Mono", "Liberation Mono", monospace;
+      --fs: 12px; --lh: 15px;
+      /* Terminal colors: classic, dark */
+      --t-bg: #0b0f0e; --t-fg: #c9d3d1; --t-dim: #5f6e6b; --t-bright: #ffffff;
+      --t-red: #ff6b5e; --t-green: #4ade80; --t-yellow: #f5c542; --t-blue: #5ea8ff;
+      --t-magenta: #d98cff; --t-cyan: #3fd6cf; --t-accent: #1fb5a0;
+      --t-border: #26312f; --t-head: #121816; --t-line: #17211f; --t-status: #1c2523; --t-status-fg: #c9d3d1;
+    }
+    html[data-theme="light"] {
+      --bg: #f3f6f5; --panel: #ffffff; --panel-2: #f5f8f7; --border: #d7e0de;
+      --text: #172120; --muted: #62716e; --accent: #008f7d; --accent-strong: #006056;
+      --accent-soft: rgba(0, 143, 125, .09);
+      --t-bg: #fbfbf7; --t-fg: #26302e; --t-dim: #8f9b98; --t-bright: #000000;
+      --t-red: #c0392b; --t-green: #1a7f37; --t-yellow: #9a6700; --t-blue: #1f5fbf;
+      --t-magenta: #8e3fb0; --t-cyan: #0a7f86; --t-accent: #008f7d;
+      --t-border: #cfd8d6; --t-head: #eef2f1; --t-line: #ebf1ef; --t-status: #e3eae8; --t-status-fg: #26302e;
+    }
+    html[data-scheme="phosphor"] {
+      --t-bg: #020b05; --t-fg: #3ef07a; --t-dim: #1c6b37; --t-bright: #c8ffd9;
+      --t-red: #9dffbc; --t-green: #3ef07a; --t-yellow: #b7ff9a; --t-blue: #27b85a;
+      --t-magenta: #74f7a0; --t-cyan: #8affc0; --t-accent: #3ef07a;
+      --t-border: #0e2a17; --t-head: #041208; --t-line: #07200f; --t-status: #0a2413; --t-status-fg: #3ef07a;
+    }
+    html[data-theme="light"][data-scheme="phosphor"] {
+      --t-bg: #eef8f0; --t-fg: #0f6b2e; --t-dim: #7fb08e; --t-bright: #003d14;
+      --t-red: #045c22; --t-green: #0f7a34; --t-yellow: #3c7a0a; --t-blue: #1d8a45;
+      --t-magenta: #0a5f2a; --t-cyan: #117a50; --t-accent: #0f7a34;
+      --t-border: #c7e2cf; --t-head: #e2f2e6; --t-line: #dcefe1; --t-status: #d5ebdb; --t-status-fg: #0f6b2e;
+    }
+    html[data-scheme="amber"] {
+      --t-bg: #0e0900; --t-fg: #ffb000; --t-dim: #7a5500; --t-bright: #ffe3a3;
+      --t-red: #ff8c1a; --t-green: #ffb000; --t-yellow: #ffd24d; --t-blue: #cc8c00;
+      --t-magenta: #ff9f40; --t-cyan: #ffc966; --t-accent: #ffb000;
+      --t-border: #2b1d00; --t-head: #140d00; --t-line: #1f1500; --t-status: #241800; --t-status-fg: #ffb000;
+    }
+    html[data-theme="light"][data-scheme="amber"] {
+      --t-bg: #fff8e8; --t-fg: #8a4f00; --t-dim: #c29a5c; --t-bright: #4a2800;
+      --t-red: #a33d00; --t-green: #8a5a00; --t-yellow: #6e5200; --t-blue: #a86a00;
+      --t-magenta: #9a4a10; --t-cyan: #7a6010; --t-accent: #a86a00;
+      --t-border: #ecdcb8; --t-head: #fbf0d6; --t-line: #f8ebcb; --t-status: #f5e6c4; --t-status-fg: #8a4f00;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
+    body { background: var(--bg); color: var(--text); font: 14px/1.4 system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif; overflow: hidden; }
+    button, input, select { font: inherit; color: inherit; }
+    .app { display: grid; grid-template-rows: auto 1fr; height: 100%; }
+    html.immersive .app { grid-template-rows: 1fr; }
+    html.immersive .topbar { display: none; }
+
+    /* Top bar */
+    .topbar { display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 8px 0 12px; background: var(--panel); border-bottom: 1px solid var(--border); min-width: 0; }
+    .brand { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 15px; white-space: nowrap; }
+    .brand img { width: 18px; height: 18px; }
+    .actions { display: flex; align-items: center; gap: 6px; min-width: 0; margin-left: 6px; }
+    .tools { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 30px; padding: 0 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--panel-2); font-size: 13px; cursor: pointer; white-space: nowrap; }
+    .btn:hover { border-color: var(--accent); }
+    .btn.on { background: var(--accent-strong); border-color: var(--accent-strong); color: #fff; }
+    .btn.sm { height: 28px; font-size: 12px; }
+    .icon-btn { display: grid; place-items: center; width: 30px; height: 30px; padding: 0; border: 1px solid var(--border); border-radius: 6px; background: var(--panel-2); cursor: pointer; }
+    .icon-btn:hover { border-color: var(--accent); color: var(--accent); }
+    select { height: 30px; border: 1px solid var(--border); border-radius: 6px; background: var(--panel-2); padding: 0 6px; font-size: 13px; }
+    :focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+    /* Settings menu */
+    .menu { position: fixed; z-index: 30; width: 290px; max-height: calc(100vh - 56px); overflow: auto; display: grid; gap: 8px; padding: 12px; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 12px 32px rgb(0 0 0 / 35%); }
+    .menu[hidden] { display: none; }
+    .menu .field { display: grid; grid-template-columns: 1fr 128px; align-items: center; gap: 8px; font-size: 13px; }
+    .menu .field select { width: 100%; }
+    .menu-title { margin-top: 4px; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+    .checks { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 10px; }
+    .checks label { display: flex; align-items: center; gap: 6px; font: 12px/1.6 var(--mono); cursor: pointer; }
+    .checks input { accent-color: var(--accent-strong); margin: 0; }
+
+    /* Stage */
+    .stage { display: grid; grid-template-rows: 1fr auto; min-height: 0; background: var(--t-border); }
+    .panes { position: relative; min-height: 0; overflow: hidden; background: var(--t-border); }
+    .pane { position: absolute; display: grid; grid-template-rows: auto 1fr; background: var(--t-bg); overflow: hidden; }
+    .pane[hidden] { display: none; }
+    .pane.active { outline: 1px solid var(--t-accent); z-index: 1; }
+    .pane-head { display: flex; align-items: center; height: 18px; padding: 0 2px 0 6px; font: 11px/18px var(--mono); color: var(--t-dim); background: var(--t-head); white-space: nowrap; overflow: hidden; user-select: none; }
+    .pane.active .pane-head { background: var(--t-accent); color: var(--t-bg); }
+    .pane-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+    .pane-btns { display: flex; gap: 1px; opacity: 0; transition: opacity .12s; }
+    .pane:hover .pane-btns, .pane.active .pane-btns { opacity: 1; }
+    .pane-btns button { display: grid; place-items: center; width: 20px; height: 16px; padding: 0; border: 0; border-radius: 3px; background: none; color: inherit; font-size: 10px; cursor: pointer; }
+    .pane-btns button:hover { background: color-mix(in srgb, currentColor 20%, transparent); }
+    .pane-body { position: relative; min-height: 0; overflow: hidden; }
+    .pane-body canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+    .term { margin: 0; height: 100%; padding: 2px 6px; font-family: var(--mono); font-size: var(--fs); line-height: var(--lh); color: var(--t-fg); white-space: pre; overflow: hidden; font-variant-ligatures: none; }
+    .term .r { color: var(--t-red); } .term .g { color: var(--t-green); } .term .y { color: var(--t-yellow); }
+    .term .b { color: var(--t-blue); } .term .m { color: var(--t-magenta); } .term .c { color: var(--t-cyan); }
+    .term .d { color: var(--t-dim); } .term .w { color: var(--t-bright); } .term .a { color: var(--t-accent); }
+    .term .B { font-weight: 700; } .term .u { text-decoration: underline; }
+    .term .inv, .term .cur { background: var(--t-fg); color: var(--t-bg); }
+    .term .hdr { background: var(--t-green); color: var(--t-bg); }
+    .term .sel, .term .fk { background: var(--t-cyan); color: var(--t-bg); }
+    .term .cl { background: var(--t-line); }
+    html:not([data-theme="light"])[data-scheme="phosphor"] .term,
+    html:not([data-theme="light"])[data-scheme="amber"] .term { text-shadow: 0 0 5px color-mix(in srgb, currentColor 50%, transparent); }
+    html:not([data-theme="light"])[data-scheme="phosphor"] .panes::after,
+    html:not([data-theme="light"])[data-scheme="amber"] .panes::after { content: ""; position: absolute; inset: 0; z-index: 5; pointer-events: none; background: repeating-linear-gradient(0deg, rgb(0 0 0 / 18%) 0 1px, transparent 1px 3px); }
+
+    /* byobu-like status line */
+    .statusbar { display: flex; align-items: center; height: 20px; font: 11px/20px var(--mono); background: var(--t-status); color: var(--t-status-fg); white-space: nowrap; overflow: hidden; user-select: none; }
+    .statusbar > span { padding: 0 8px; }
+    .sb-host, .sb-clock { background: var(--t-accent); color: var(--t-bg); font-weight: 700; }
+    .sb-cur { font-weight: 700; color: var(--t-bright); }
+    .sb-paused { background: var(--t-yellow); color: var(--t-bg); font-weight: 700; }
+    .sb-paused[hidden] { display: none; }
+    .sb-fill { flex: 1; }
+
+    /* Help */
+    dialog { width: min(620px, calc(100vw - 32px)); max-height: calc(100vh - 32px); padding: 0; border: 1px solid var(--border); border-radius: 10px; background: var(--panel); color: var(--text); }
+    dialog[open] { display: flex; flex-direction: column; }
+    dialog::backdrop { background: rgb(0 0 0 / 45%); }
+    .dlg-head { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-bottom: 1px solid var(--border); font-weight: 600; }
+    .dlg-body { padding: 12px 14px 16px; overflow: auto; font-size: 13.5px; }
+    .dlg-body h3 { margin: 12px 0 6px; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+    .dlg-body p { margin: 0 0 8px; }
+    .dlg-body ul { margin: 0; padding-left: 18px; }
+    .dlg-body li { margin: 3px 0; }
+    .dlg-body ul.keys { list-style: none; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 4px 14px; }
+    .dlg-body code { font-family: var(--mono); background: var(--accent-soft); color: var(--accent); padding: 0 4px; border-radius: 4px; }
+    kbd { display: inline-block; min-width: 22px; margin-right: 6px; padding: 0 5px; border: 1px solid var(--border); border-bottom-width: 2px; border-radius: 4px; background: var(--panel-2); font: 12px/18px var(--mono); text-align: center; }
+    .muted { color: var(--muted); }
+    .small { font-size: 12px; }
+
+    .toast { position: fixed; left: 50%; bottom: 30px; z-index: 40; transform: translate(-50%, 20px); padding: 6px 12px; border-radius: 6px; background: var(--accent-strong); color: #fff; font-size: 13px; opacity: 0; pointer-events: none; transition: .2s; }
+    .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+    @media (max-width: 860px) { .actions .btn span { display: none; } .actions .btn { padding: 0 9px; } }
+    @media (max-width: 560px) { .brand span, .sb-item { display: none; } .dlg-body ul.keys { grid-template-columns: 1fr; } }
+  </style>
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-NWZDZ906DJ"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-NWZDZ906DJ');
+  </script>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand"><img src="../assets/icons/svg/misc-hollywood.svg" alt=""><span data-i18n="title">Hollywood</span></div>
+      <div class="actions">
+        <button class="btn" id="btn-pause" type="button"><i class="fa-solid fa-pause"></i><span data-i18n="pause">Pause</span></button>
+        <button class="btn" id="btn-shuffle" type="button"><i class="fa-solid fa-shuffle"></i><span data-i18n="shuffle">Reshuffle</span></button>
+        <button class="btn" id="btn-split" type="button"><i class="fa-solid fa-table-columns"></i><span data-i18n="split">Split</span></button>
+        <button class="btn" id="btn-settings" type="button" aria-haspopup="true" aria-expanded="false"><i class="fa-solid fa-sliders"></i><span data-i18n="settings">Settings</span></button>
+        <button class="icon-btn" id="btn-full" type="button" data-i18n-title="fullscreen"><i class="fa-solid fa-expand"></i></button>
+      </div>
+      <div class="tools">
+        <button class="icon-btn" id="help-btn" type="button" data-i18n-title="help"><i class="fa-solid fa-circle-question"></i></button>
+        <select id="lang-switcher" aria-label="Language">
+          <option value="en">EN</option>
+          <option value="pt">PT</option>
+          <option value="ja">JA</option>
+        </select>
+        <button class="icon-btn" id="theme-switcher" type="button" data-i18n-title="theme"><i class="fa-solid fa-sun"></i></button>
+      </div>
+    </header>
+
+    <main class="stage">
+      <div class="panes" id="panes"></div>
+      <div class="statusbar">
+        <span class="sb-host">hollywood</span>
+        <span>0:bash-</span>
+        <span class="sb-cur">1:hollywood*</span>
+        <span class="sb-paused" id="sb-paused" hidden></span>
+        <span class="sb-fill"></span>
+        <span class="sb-item" id="sb-panes"></span>
+        <span class="sb-item" id="sb-load"></span>
+        <span class="sb-item" id="sb-mem"></span>
+        <span class="sb-clock" id="sb-clock"></span>
+      </div>
+    </main>
+  </div>
+
+  <div class="menu" id="settings-menu" role="dialog" hidden></div>
+
+  <dialog id="help">
+    <div class="dlg-head"><span id="help-title"></span><button class="icon-btn" id="help-close" type="button" data-i18n-title="close"><i class="fa-solid fa-xmark"></i></button></div>
+    <div class="dlg-body" id="help-body"></div>
+  </dialog>
+  <div class="toast" id="toast"></div>
+
+  <script>
+    (() => {
+      // This script's own text is what the vim pane scrolls through.
+      const SOURCE = (document.currentScript && document.currentScript.textContent) || '';
+
+      // ------------------------------------------------------------------
+      // Text
+      // ------------------------------------------------------------------
+      const I18N = {
+        en: {
+          title: 'Hollywood', pause: 'Pause', resume: 'Resume', shuffle: 'Reshuffle', split: 'Split', settings: 'Settings',
+          fullscreen: 'Full screen (F)', help: 'Help', theme: 'Toggle theme', close: 'Close',
+          interval: 'Change every', never: 'Never', panes: 'Panes', auto: 'Auto', colors: 'Colors',
+          scheme_classic: 'Classic', scheme_phosphor: 'Green phosphor', scheme_amber: 'Amber',
+          font: 'Text size', speed: 'Speed', programs: 'Programs', reset: 'Restore defaults',
+          nextProgram: 'Next program (N)', zoom: 'Zoom (Z)', unzoom: 'Restore (Z)', closePane: 'Close pane (X)',
+          paused: 'PAUSED', exitHint: 'Press F or Esc to leave full screen', lastPane: 'The last pane cannot be closed',
+          noRoom: 'No room for another pane', oneProgram: 'Keep at least one program on',
+          helpIntro: 'A tribute to the Linux <code>hollywood</code> command from byobu: the screen splits into tmux-style panes running technobabble programs that keep reshuffling on their own. Everything is simulated in the browser; nothing is really run, scanned or read from this computer.',
+          helpKeys: 'Keyboard', helpMouse: 'Mouse', helpPrograms: 'Programs',
+          k_space: 'Pause or resume', k_r: 'Reshuffle the whole layout', k_n: 'Next program in the active pane',
+          k_s: 'Split the active pane', k_x: 'Close the active pane', k_z: 'Zoom the active pane, again to restore',
+          k_f: 'Full screen without the top bar', k_help: 'This help',
+          m_click: 'Click a pane to make it active; double-click to zoom it.',
+          m_head: 'The buttons on a pane title change its program, zoom it or close it.',
+          helpSaved: 'Settings are saved in this browser.',
+          w_htop: 'Process viewer with CPU, memory and swap meters',
+          w_matrix: 'Falling green code rain',
+          w_logs: 'System log colored like ccze',
+          w_hexdump: 'Hex and ASCII dump of binary files',
+          w_code: 'The source code of this page scrolling in vim',
+          w_bmon: 'Network bandwidth graphs',
+          w_tree: 'Directory trees',
+          w_make: 'Kernel and CMake builds',
+          w_keys: 'SSH key generation with randomart',
+          w_nmap: 'Port scan of a made-up local network',
+          w_donut: 'Spinning ASCII torus (donut.c)',
+          w_radar: 'Radar sweep tracking contacts',
+          w_man: 'The manual page of hollywood',
+          w_errno: 'List of error codes',
+          manSection: 'General Commands Manual',
+          manPrompt: 'Manual page hollywood(1) line {n} (press h for help or q to quit)',
+          man: {
+            h: { name: 'NAME', synopsis: 'SYNOPSIS', desc: 'DESCRIPTION', keys: 'KEYS', programs: 'PROGRAMS', see: 'SEE ALSO', history: 'HISTORY' },
+            name: 'hollywood - fill your console with Hollywood melodrama technobabble',
+            synopsis: '[program ...]',
+            desc: [
+              'hollywood splits the screen into panes and runs a random program in each one. Every few seconds a pane is split, closed or handed a new program, so the screen never settles. It is meant to look busy and important, like a computer in a movie.',
+              'All output is simulated. No command is executed, no network is scanned and no file is read.',
+            ],
+            history: 'The original hollywood was written by Dustin Kirkland for Ubuntu in 2014, on top of byobu and tmux. This page is a browser tribute to it.',
+          },
+        },
+        pt: {
+          title: 'Hollywood', pause: 'Pausar', resume: 'Continuar', shuffle: 'Embaralhar', split: 'Dividir', settings: 'Ajustes',
+          fullscreen: 'Tela cheia (F)', help: 'Ajuda', theme: 'Alternar tema', close: 'Fechar',
+          interval: 'Mudar a cada', never: 'Nunca', panes: 'Painéis', auto: 'Automático', colors: 'Cores',
+          scheme_classic: 'Clássico', scheme_phosphor: 'Fósforo verde', scheme_amber: 'Âmbar',
+          font: 'Tamanho do texto', speed: 'Velocidade', programs: 'Programas', reset: 'Restaurar padrões',
+          nextProgram: 'Próximo programa (N)', zoom: 'Ampliar (Z)', unzoom: 'Restaurar (Z)', closePane: 'Fechar painel (X)',
+          paused: 'PAUSADO', exitHint: 'Pressione F ou Esc para sair da tela cheia', lastPane: 'O último painel não pode ser fechado',
+          noRoom: 'Não há espaço para outro painel', oneProgram: 'Mantenha pelo menos um programa ativo',
+          helpIntro: 'Uma homenagem ao comando <code>hollywood</code> do Linux (do byobu): a tela se divide em painéis no estilo tmux com programas de tecnobaboseira que se reorganizam sozinhos. Tudo é simulado no navegador; nada é executado, escaneado ou lido deste computador de verdade.',
+          helpKeys: 'Teclado', helpMouse: 'Mouse', helpPrograms: 'Programas',
+          k_space: 'Pausar ou continuar', k_r: 'Embaralhar todo o layout', k_n: 'Próximo programa no painel ativo',
+          k_s: 'Dividir o painel ativo', k_x: 'Fechar o painel ativo', k_z: 'Ampliar o painel ativo, de novo para restaurar',
+          k_f: 'Tela cheia sem a barra superior', k_help: 'Esta ajuda',
+          m_click: 'Clique em um painel para ativá-lo; clique duas vezes para ampliá-lo.',
+          m_head: 'Os botões no título do painel trocam o programa, ampliam ou fecham o painel.',
+          helpSaved: 'Os ajustes ficam salvos neste navegador.',
+          w_htop: 'Monitor de processos com medidores de CPU, memória e swap',
+          w_matrix: 'Chuva de código verde',
+          w_logs: 'Log do sistema colorido como o ccze',
+          w_hexdump: 'Dump hexadecimal e ASCII de arquivos binários',
+          w_code: 'O código-fonte desta página rolando no vim',
+          w_bmon: 'Gráficos de banda de rede',
+          w_tree: 'Árvores de diretórios',
+          w_make: 'Compilação do kernel e com CMake',
+          w_keys: 'Geração de chaves SSH com randomart',
+          w_nmap: 'Varredura de portas de uma rede local inventada',
+          w_donut: 'Toro ASCII girando (donut.c)',
+          w_radar: 'Radar rastreando contatos',
+          w_man: 'A página de manual do hollywood',
+          w_errno: 'Lista de códigos de erro',
+          manSection: 'Manual de Comandos Gerais',
+          manPrompt: 'Página de manual hollywood(1) linha {n} (pressione h para ajuda ou q para sair)',
+          man: {
+            h: { name: 'NOME', synopsis: 'SINOPSE', desc: 'DESCRIÇÃO', keys: 'TECLAS', programs: 'PROGRAMAS', see: 'VEJA TAMBÉM', history: 'HISTÓRICO' },
+            name: 'hollywood - enche o seu console com tecnobaboseira dramática de Hollywood',
+            synopsis: '[programa ...]',
+            desc: [
+              'O hollywood divide a tela em painéis e roda um programa aleatório em cada um. A cada poucos segundos um painel é dividido, fechado ou recebe um novo programa, então a tela nunca fica parada. A ideia é parecer ocupado e importante, como um computador de filme.',
+              'Toda a saída é simulada. Nenhum comando é executado, nenhuma rede é escaneada e nenhum arquivo é lido.',
+            ],
+            history: 'O hollywood original foi escrito por Dustin Kirkland para o Ubuntu em 2014, em cima do byobu e do tmux. Esta página é uma homenagem a ele no navegador.',
+          },
+        },
+        ja: {
+          title: 'ハリウッド', pause: '一時停止', resume: '再開', shuffle: 'シャッフル', split: '分割', settings: '設定',
+          fullscreen: '全画面 (F)', help: 'ヘルプ', theme: 'テーマ切替', close: '閉じる',
+          interval: '切替間隔', never: 'しない', panes: 'ペイン数', auto: '自動', colors: '配色',
+          scheme_classic: 'クラシック', scheme_phosphor: 'グリーン蛍光', scheme_amber: 'アンバー',
+          font: '文字サイズ', speed: '速度', programs: 'プログラム', reset: '初期設定に戻す',
+          nextProgram: '次のプログラム (N)', zoom: 'ズーム (Z)', unzoom: '元に戻す (Z)', closePane: 'ペインを閉じる (X)',
+          paused: '一時停止中', exitHint: 'F または Esc で全画面を終了', lastPane: '最後のペインは閉じられません',
+          noRoom: 'これ以上ペインを追加する余地がありません', oneProgram: 'プログラムを最低ひとつは有効にしてください',
+          helpIntro: 'Linux の <code>hollywood</code> コマンド（byobu 付属）へのオマージュです。画面が tmux 風のペインに分割され、映画のハッカー画面のようなプログラムが動き、自動的に入れ替わり続けます。すべてブラウザ内のシミュレーションで、実際にコマンドを実行したり、スキャンしたり、このコンピューターのファイルを読んだりはしません。',
+          helpKeys: 'キーボード', helpMouse: 'マウス', helpPrograms: 'プログラム',
+          k_space: '一時停止／再開', k_r: 'レイアウト全体をシャッフル', k_n: 'アクティブなペインを次のプログラムへ',
+          k_s: 'アクティブなペインを分割', k_x: 'アクティブなペインを閉じる', k_z: 'アクティブなペインをズーム（もう一度で元に戻す）',
+          k_f: 'トップバーなしの全画面', k_help: 'このヘルプ',
+          m_click: 'ペインをクリックでアクティブに、ダブルクリックでズームします。',
+          m_head: 'ペインのタイトルにあるボタンで、プログラムの切替・ズーム・閉じるができます。',
+          helpSaved: '設定はこのブラウザに保存されます。',
+          w_htop: 'CPU・メモリ・スワップのメーター付きプロセスビューア',
+          w_matrix: '流れ落ちる緑のコード',
+          w_logs: 'ccze 風に色付けされたシステムログ',
+          w_hexdump: 'バイナリファイルの16進数と ASCII のダンプ',
+          w_code: 'このページのソースコードを vim でスクロール',
+          w_bmon: 'ネットワーク帯域のグラフ',
+          w_tree: 'ディレクトリツリー',
+          w_make: 'カーネルと CMake のビルド',
+          w_keys: 'randomart 付きの SSH 鍵生成',
+          w_nmap: '架空のローカルネットワークのポートスキャン',
+          w_donut: '回転する ASCII トーラス（donut.c）',
+          w_radar: '目標を追跡するレーダー',
+          w_man: 'hollywood のマニュアルページ',
+          w_errno: 'エラーコードの一覧',
+          manSection: '一般コマンドマニュアル',
+          manPrompt: 'マニュアルページ hollywood(1) 行 {n} (h でヘルプ、q で終了)',
+          man: {
+            h: { name: '名前', synopsis: '書式', desc: '説明', keys: 'キー', programs: 'プログラム', see: '関連項目', history: '履歴' },
+            name: 'hollywood - コンソールをハリウッド映画風のテクノバブルで埋め尽くす',
+            synopsis: '[プログラム ...]',
+            desc: [
+              'hollywood は画面をペインに分割し、それぞれでランダムなプログラムを実行します。数秒ごとにペインが分割されたり、閉じられたり、別のプログラムに切り替わったりするので、画面が落ち着くことはありません。映画に出てくるコンピューターのように、忙しくて重要そうに見せるためのものです。',
+              '出力はすべてシミュレーションです。コマンドの実行、ネットワークのスキャン、ファイルの読み取りは一切行いません。',
+            ],
+            history: 'オリジナルの hollywood は 2014 年に Dustin Kirkland が Ubuntu 向けに byobu と tmux を使って作成しました。このページはそのブラウザ版オマージュです。',
+          },
+        },
+      };
+      const KEYS = [['Space', 'k_space'], ['R', 'k_r'], ['N', 'k_n'], ['S', 'k_s'], ['X', 'k_x'], ['Z', 'k_z'], ['F', 'k_f'], ['?', 'k_help']];
+
+      // ------------------------------------------------------------------
+      // Helpers
+      // ------------------------------------------------------------------
+      const store = {
+        get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+        set(k, v) { try { localStorage.setItem(k, v); } catch {} },
+      };
+      const $ = (id) => document.getElementById(id);
+      let lang = store.get('app_lang');
+      if (!I18N[lang]) lang = 'en';
+      let theme = store.get('app_theme') === 'light' ? 'light' : 'dark';
+      const t = (k) => (I18N[lang][k] !== undefined ? I18N[lang][k] : I18N.en[k]);
+
+      const TAU = Math.PI * 2;
+      const rand = (a, b) => a + Math.random() * (b - a);
+      const randi = (a, b) => Math.floor(a + Math.random() * (b - a + 1));
+      const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+      const pickW = (weights) => {
+        let sum = 0;
+        for (const k in weights) sum += weights[k];
+        let r = Math.random() * sum;
+        for (const k in weights) { r -= weights[k]; if (r < 0) return k; }
+        return Object.keys(weights)[0];
+      };
+      const shuffled = (arr) => arr.map((v) => [Math.random(), v]).sort((a, b) => a[0] - b[0]).map((x) => x[1]);
+      const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+      const pad2 = (n) => String(n).padStart(2, '0');
+      const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+      const S = (cls, s) => `<span class="${cls}">${esc(s)}</span>`;
+      const hex = (n) => { let s = ''; for (let i = 0; i < n; i++) s += '0123456789abcdef'[(Math.random() * 16) | 0]; return s; };
+      const randBytes = (n) => Array.from({ length: n }, () => (Math.random() * 256) | 0);
+      const b64 = (bytes) => btoa(String.fromCharCode(...bytes)).replace(/=+$/, '');
+      const mac = () => Array.from({ length: 6 }, () => hex(2)).join(':');
+      const lanIp = () => `10.0.3.${randi(2, 254)}`;
+      // Documentation address ranges, so no real host ever shows up.
+      const extIp = () => `${pick(['203.0.113', '198.51.100', '192.0.2'])}.${randi(1, 254)}`;
+      const isWide = (ch) => /[ᄀ-ᅟ⺀-〾ぁ-㏿㐀-䶿一-鿿ꀀ-꓏가-힣豈-﫿︰-﹏＀-｠￠-￦]/.test(ch);
+      const dispW = (s) => { let w = 0; for (const ch of s) w += isWide(ch) ? 2 : 1; return w; };
+
+      // Group equal classes into spans. parts[i] may be one char or a longer string.
+      function runs(parts, classes) {
+        let out = '', cur = null, buf = '';
+        const flush = () => { if (buf) out += cur ? `<span class="${cur}">${esc(buf)}</span>` : esc(buf); buf = ''; };
+        for (let i = 0; i < parts.length; i++) {
+          const c = classes[i] || '';
+          if (c !== cur) { flush(); cur = c; }
+          buf += parts[i];
+        }
+        flush();
+        return out;
+      }
+
+      // Word wrap that counts CJK characters as two columns.
+      function wrap(text, width) {
+        width = Math.max(8, width);
+        const out = [];
+        let line = '', lw = 0;
+        const tokens = text.match(/[　-鿿＀-￯]|[^\s　-鿿＀-￯]+|\s+/g) || [];
+        for (const tok of tokens) {
+          if (/^\s+$/.test(tok)) { if (lw > 0 && lw < width) { line += ' '; lw += 1; } continue; }
+          const w = dispW(tok);
+          if (lw + w > width && lw > 0) { out.push(line.trimEnd()); line = ''; lw = 0; }
+          line += tok; lw += w;
+        }
+        if (line.trim()) out.push(line.trimEnd());
+        return out;
+      }
+
+      function toast(msg) {
+        const el = $('toast');
+        el.textContent = msg;
+        el.classList.add('show');
+        clearTimeout(toast.timer);
+        toast.timer = setTimeout(() => el.classList.remove('show'), 1600);
+      }
+
+      // Character cell size and colors, shared by every pane.
+      const PAD_X = 6, PAD_Y = 2;
+      const M = { cw: 7.2, lh: 15, fs: 12, family: 'monospace' };
+      let PAL = {};
+      function readPalette() {
+        const cs = getComputedStyle(document.documentElement);
+        const v = (n) => cs.getPropertyValue(`--t-${n}`).trim();
+        PAL = { bg: v('bg'), fg: v('fg'), dim: v('dim'), bright: v('bright'), red: v('red'), green: v('green'), yellow: v('yellow'), cyan: v('cyan'), accent: v('accent') };
+      }
+
+      function mkPre(body) {
+        const pre = document.createElement('pre');
+        pre.className = 'term';
+        body.appendChild(pre);
+        return pre;
+      }
+      function mkCanvas(body) {
+        const canvas = document.createElement('canvas');
+        body.appendChild(canvas);
+        const ctx = canvas.getContext('2d');
+        return {
+          ctx,
+          size(w, h) {
+            const d = Math.min(2, window.devicePixelRatio || 1);
+            canvas.width = Math.max(1, Math.round(w * d));
+            canvas.height = Math.max(1, Math.round(h * d));
+            ctx.setTransform(d, 0, 0, d, 0, 0);
+          },
+        };
+      }
+
+      const USERS = ['neo', 'trinity', 'morpheus', 'tank', 'root'];
+      const PROMPT = '<span class="g B">neo@hollywood</span>:<span class="b B">~</span>$ ';
+
+      // A pane that prints lines like a terminal. genFn yields a line of HTML,
+      // a number (pause in seconds), { typed } (a command typed at the prompt)
+      // or { clear: true }.
+      function scrollWidget(body, genFn, lps) {
+        const pre = mkPre(body);
+        const st = { cols: 80, rows: 24 };
+        const gen = genFn(st);
+        let lines = [], wait = 0, acc = 0, typing = null;
+        const draw = () => {
+          const n = Math.max(0, st.rows - (typing ? 1 : 0));
+          const out = n ? lines.slice(-n) : [];
+          if (typing) out.push(PROMPT + esc(typing.text.slice(0, Math.floor(typing.i))) + '<span class="cur"> </span>');
+          pre.innerHTML = out.join('\n');
+        };
+        return {
+          fps: 30,
+          resize(c, r) { st.cols = c; st.rows = r; draw(); },
+          step(dt) {
+            if (typing) {
+              typing.i += dt * typing.cps;
+              if (typing.i >= typing.text.length) { lines.push(PROMPT + esc(typing.text)); typing = null; wait = 0.35; }
+              draw();
+              return;
+            }
+            if (wait > 0) { wait -= dt; if (wait > 0) return; }
+            acc += dt * lps;
+            let changed = false;
+            while (acc >= 1) {
+              acc -= 1;
+              const v = gen.next().value;
+              if (typeof v === 'number') { wait = v; acc = 0; break; }
+              if (v && typeof v === 'object') {
+                if (v.clear) { lines = []; changed = true; continue; }
+                typing = { text: v.typed, i: 0, cps: rand(14, 26) };
+                acc = 0; changed = true;
+                break;
+              }
+              lines.push(v);
+              changed = true;
+            }
+            if (lines.length > 400) lines = lines.slice(-200);
+            if (changed) draw();
+          },
+        };
+      }
+
+      // ------------------------------------------------------------------
+      // htop
+      // ------------------------------------------------------------------
+      const HTOP_PROCS = [
+        ['root', '/sbin/init splash', 0], ['root', '/usr/lib/systemd/systemd-journald', 0], ['root', '/usr/sbin/sshd -D', 0],
+        ['neo', 'tmux new-session -s hollywood', 0], ['neo', 'python3 train.py --epochs 400 --gpu 0', 1],
+        ['neo', 'node server.js --port 8080', 1], ['postgres', 'postgres: 16/main: writer', 0], ['postgres', 'postgres: 16/main: walwriter', 0],
+        ['www-data', 'nginx: worker process', 0], ['root', '/usr/bin/dockerd -H fd://', 0], ['root', '/usr/bin/containerd', 0],
+        ['redis', '/usr/bin/redis-server 127.0.0.1:6379', 0], ['neo', 'ffmpeg -i feed.mkv -c:v libx264 -preset slow out.mp4', 1],
+        ['neo', 'make -j16 bzImage', 1], ['neo', '/usr/lib/gcc/x86_64-linux-gnu/13/cc1 -quiet -O2 kernel/sched/fair.c', 1],
+        ['root', '[kworker/u32:2-events_unbound]', 0], ['root', '[ksoftirqd/0]', 0], ['root', '[rcu_preempt]', 0],
+        ['neo', '/usr/bin/gnome-shell', 0], ['neo', '/usr/lib/xorg/Xorg :0 -nolisten tcp', 0], ['neo', 'rsync -avz /vault/ backup:/vault', 1],
+        ['trinity', 'ssh -L 5432:db01:5432 zion', 0], ['neo', 'vim hollywood.c', 0], ['neo', 'htop', 0], ['root', '/usr/sbin/cron -f -P', 0],
+        ['mysql', '/usr/sbin/mysqld', 0], ['neo', 'java -Xmx8g -jar mainframe.jar', 1], ['root', '/usr/lib/snapd/snapd', 0],
+        ['neo', '/usr/bin/pipewire', 0], ['root', '/usr/sbin/irqbalance --foreground', 0],
+      ];
+      const HTOP_FKEYS = [['F1', 'Help'], ['F2', 'Setup'], ['F3', 'Search'], ['F4', 'Filter'], ['F5', 'Tree'], ['F6', 'SortBy'], ['F7', 'Nice -'], ['F8', 'Nice +'], ['F9', 'Kill'], ['F10', 'Quit']];
+      const fmtK = (kb) => (kb < 100000 ? String(Math.round(kb)) : kb < 10240000 ? Math.round(kb / 1024) + 'M' : (kb / 1048576).toFixed(1) + 'G');
+      const fmtG = (kb) => (kb < 1048576 ? (kb / 1024).toFixed(0) + 'M' : (kb / 1048576).toFixed(2) + 'G');
+      const fmtTime = (s) => {
+        const cs = Math.floor(s * 100) % 100, sec = Math.floor(s) % 60, m = Math.floor(s / 60);
+        return m >= 100 ? `${Math.floor(m / 60)}h${pad2(m % 60)}:${pad2(sec)}` : `${m}:${pad2(sec)}.${pad2(cs)}`;
+      };
+
+      function htopWidget(body) {
+        const pre = mkPre(body);
+        const ncpu = clamp(navigator.hardwareConcurrency || 8, 2, 16);
+        const cpus = Array.from({ length: ncpu }, () => ({ u: rand(2, 30), k: rand(0.5, 6), n: rand(0, 3), target: rand(2, 70) }));
+        const memTotal = pick([7.7, 15.5, 31.2, 62.8]) * 1048576;
+        let memUsed = memTotal * rand(0.25, 0.5);
+        const memBuf = memTotal * rand(0.01, 0.04), memCache = memTotal * rand(0.1, 0.3);
+        const swapTotal = pick([2, 4, 8]) * 1048576, swapUsed = swapTotal * rand(0, 0.08);
+        let uptime = randi(3600, 60 * 86400), thr = randi(600, 1800);
+        const load = [rand(0.3, ncpu * 0.3), 0, 0];
+        load[1] = load[0] * rand(0.7, 1.2); load[2] = load[1] * rand(0.7, 1.2);
+        const procs = HTOP_PROCS.map(([user, cmd, heavy], i) => {
+          const virt = heavy ? rand(4e5, 9e6) : rand(4e3, 2e6), res = virt * rand(0.02, 0.25);
+          return { pid: i === 0 ? 1 : randi(300, 3999999), user, cmd, heavy, cpu: heavy ? rand(10, 95) : rand(0, 2), virt, res, shr: res * rand(0.05, 0.4), time: rand(0, heavy ? 30000 : 3000), st: 'S' };
+        });
+        let cols = 80, rows = 24;
+
+        function update(dt) {
+          uptime += dt;
+          for (const c of cpus) {
+            if (Math.random() < 0.15) c.target = Math.random() < 0.1 ? rand(80, 100) : rand(1, 60);
+            c.u = clamp(c.u + (c.target - c.u) * 0.5 + rand(-4, 4), 0.5, 100);
+            c.k = clamp(c.k + rand(-1, 1), 0.2, 12);
+            c.n = clamp(c.n + rand(-0.5, 0.5), 0, 5);
+          }
+          for (const p of procs) {
+            p.cpu = clamp(p.cpu + rand(-8, 8) * (p.heavy ? 1.5 : 0.15), 0, p.heavy ? 199 : 6);
+            p.time += (p.cpu / 100) * dt * 4;
+            p.st = p.cpu > 25 && Math.random() < 0.6 ? 'R' : 'S';
+            p.res = clamp(p.res * rand(0.99, 1.012), 1000, p.virt);
+          }
+          memUsed = clamp(memUsed * rand(0.995, 1.006), memTotal * 0.15, memTotal * 0.85);
+          const busy = cpus.reduce((s, c) => s + c.u + c.k, 0) / 100;
+          load[0] += (busy - load[0]) * 0.08; load[1] += (load[0] - load[1]) * 0.02; load[2] += (load[1] - load[2]) * 0.005;
+          thr = clamp(thr + randi(-6, 6), 400, 3000);
+        }
+
+        function meter(label, parts, text, width) {
+          const inner = Math.max(1, width - label.length - 2);
+          const ch = new Array(inner).fill(' '), cl = new Array(inner).fill('');
+          let pos = 0;
+          for (const [frac, cls] of parts) {
+            const n = Math.round(clamp(frac, 0, 1) * inner);
+            for (let i = 0; i < n && pos < inner; i++, pos++) { ch[pos] = '|'; cl[pos] = cls; }
+          }
+          const tx = text.slice(-inner);
+          for (let i = 0; i < tx.length; i++) { const p = inner - tx.length + i; ch[p] = tx[i]; cl[p] = cl[p] || 'd'; }
+          return S('c', label) + S('w B', '[') + runs(ch, cl) + S('w B', ']');
+        }
+        const cpuMeter = (label, c, w) => meter(label, [[c.n / 100, 'b'], [c.u / 100, 'g'], [c.k / 100, 'r']], `${Math.min(100, c.u + c.k + c.n).toFixed(1)}%`, w);
+
+        function draw() {
+          const twoCol = cols >= 64;
+          const colW = twoCol ? Math.floor((cols - 1) / 2) : cols;
+          const est = twoCol ? Math.ceil(ncpu / 2) + 3 : ncpu + 5;
+          const avgMode = est > rows - 6;
+          const left = [], right = [];
+          if (avgMode) {
+            const avg = { u: 0, k: 0, n: 0 };
+            cpus.forEach((c) => { avg.u += c.u / ncpu; avg.k += c.k / ncpu; avg.n += c.n / ncpu; });
+            left.push(cpuMeter('Avg', avg, colW));
+          } else {
+            const half = twoCol ? Math.ceil(ncpu / 2) : ncpu;
+            cpus.forEach((c, i) => (i < half ? left : right).push(cpuMeter(String(i + 1).padStart(3), c, colW)));
+          }
+          left.push(meter('Mem', [[memUsed / memTotal, 'g'], [memBuf / memTotal, 'b'], [memCache / memTotal, 'y']], `${fmtG(memUsed)}/${fmtG(memTotal)}`, colW));
+          left.push(meter('Swp', [[swapUsed / swapTotal, 'r']], `${fmtG(swapUsed)}/${fmtG(swapTotal)}`, colW));
+          const running = procs.filter((p) => p.st === 'R').length + 1;
+          const days = Math.floor(uptime / 86400), hms = `${pad2(Math.floor(uptime / 3600) % 24)}:${pad2(Math.floor(uptime / 60) % 60)}:${pad2(Math.floor(uptime) % 60)}`;
+          const info = [
+            S('c', 'Tasks: ') + S('w B', procs.length + 187) + S('c', ', ') + S('g B', thr) + S('c', ' thr; ') + S('g B', running) + S('c', ' running'),
+            S('c', 'Load average: ') + S('w B', load[0].toFixed(2)) + ' ' + S('c B', load[1].toFixed(2)) + ' ' + S('c', load[2].toFixed(2)),
+            S('c', 'Uptime: ') + S('w B', days ? `${days} day${days > 1 ? 's' : ''}, ${hms}` : hms),
+          ];
+          (twoCol ? right : left).push(...info);
+          const L = [];
+          for (let i = 0; i < Math.max(left.length, right.length); i++) {
+            L.push(twoCol ? (left[i] || ' '.repeat(colW)) + ' ' + (right[i] || '') : left[i]);
+          }
+          L.push('');
+          const wide = cols >= 78, mid = cols >= 50;
+          let head = 'PID'.padStart(7) + ' ';
+          if (wide || mid) head += 'USER'.padEnd(10) + ' ';
+          if (wide) head += 'PRI  NI ' + 'VIRT'.padStart(5) + ' ' + 'RES'.padStart(5) + ' ' + 'SHR'.padStart(5) + ' ';
+          if (wide || mid) head += 'S ';
+          head += 'CPU%'.padStart(5) + ' ';
+          if (wide || mid) head += 'MEM%'.padStart(5) + ' ';
+          if (wide) head += 'TIME+'.padStart(8) + '  ';
+          head += 'Command';
+          L.push(S('hdr', head.padEnd(cols)));
+          const fkeys = rows >= 10;
+          const avail = rows - L.length - (fkeys ? 1 : 0);
+          const sorted = [...procs].sort((a, b) => b.cpu - a.cpu);
+          for (let i = 0; i < avail && i < sorted.length; i++) {
+            const p = sorted[i];
+            const exe = p.cmd.split(' ')[0], rest = p.cmd.slice(exe.length);
+            const slash = exe.lastIndexOf('/');
+            const segs = [[String(p.pid).padStart(7) + ' ', '']];
+            if (wide || mid) segs.push([p.user.padEnd(10).slice(0, 10) + ' ', '']);
+            if (wide) segs.push([' 20   0 ' + fmtK(p.virt).padStart(5) + ' ', ''], [fmtK(p.res).padStart(5) + ' ', 'B'], [fmtK(p.shr).padStart(5) + ' ', '']);
+            if (wide || mid) segs.push([p.st + ' ', p.st === 'R' ? 'g B' : '']);
+            segs.push([Math.min(p.cpu, 999).toFixed(1).padStart(5) + ' ', '']);
+            if (wide || mid) segs.push([((p.res / memTotal) * 100).toFixed(1).padStart(5) + ' ', '']);
+            if (wide) segs.push([fmtTime(p.time).padStart(8) + '  ', '']);
+            if (p.cmd.startsWith('[')) segs.push([p.cmd, 'g']);
+            else segs.push([exe.slice(0, slash + 1), ''], [exe.slice(slash + 1), 'B'], [rest, '']);
+            L.push(i === 0 ? S('sel', segs.map((s) => s[0]).join('').padEnd(cols)) : runs(segs.map((s) => s[0]), segs.map((s) => s[1])));
+          }
+          if (fkeys) {
+            while (L.length < rows - 1) L.push('');
+            const parts = [], cls = [];
+            let used = 0;
+            for (const [k, label] of HTOP_FKEYS) {
+              for (const [s, c] of [[k, ''], [label.padEnd(6), 'fk']]) {
+                const cut = s.slice(0, Math.max(0, cols - used));
+                if (cut) { parts.push(cut); cls.push(c); used += cut.length; }
+              }
+            }
+            L.push(runs(parts, cls));
+          }
+          pre.innerHTML = L.join('\n');
+        }
+        return {
+          fps: 1.5,
+          resize(c, r) { cols = c; rows = r; draw(); },
+          step(dt) { update(dt); draw(); },
+        };
+      }
+
+      // ------------------------------------------------------------------
+      // cmatrix
+      // ------------------------------------------------------------------
+      const GLYPHS = 'ｦｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝ0123456789Z:.=*+-<>|';
+      function matrixWidget(body) {
+        const cv = mkCanvas(body), ctx = cv.ctx;
+        let W = 0, H = 0, drops = [];
+        return {
+          fps: 18,
+          resize(c, r, w, h) {
+            W = w; H = h;
+            cv.size(w, h);
+            drops = Array.from({ length: Math.ceil(w / M.cw) }, () => ({ y: -randi(0, r), v: rand(0.35, 1), acc: 0, ch: '' }));
+            ctx.fillStyle = PAL.bg;
+            ctx.fillRect(0, 0, w, h);
+          },
+          step() {
+            ctx.globalAlpha = 0.14;
+            ctx.fillStyle = PAL.bg;
+            ctx.fillRect(0, 0, W, H);
+            ctx.globalAlpha = 1;
+            ctx.font = `${M.fs}px ${M.family}`;
+            ctx.textBaseline = 'top';
+            drops.forEach((d, i) => {
+              d.acc += d.v;
+              if (d.acc < 1) return;
+              d.acc -= 1;
+              const x = i * M.cw;
+              if (d.y >= 0 && d.ch) {
+                ctx.fillStyle = PAL.bg;
+                ctx.fillRect(x, d.y * M.lh, M.cw, M.lh);
+                ctx.fillStyle = PAL.green;
+                ctx.fillText(d.ch, x, d.y * M.lh);
+              }
+              d.y++;
+              d.ch = GLYPHS[(Math.random() * GLYPHS.length) | 0];
+              if (d.y >= 0) { ctx.fillStyle = PAL.bright; ctx.fillText(d.ch, x, d.y * M.lh); }
+              if (d.y * M.lh > H && Math.random() > 0.95) { d.y = -randi(0, 8); d.v = rand(0.35, 1); d.ch = ''; }
+            });
+          },
+        };
+      }
+
+      // ------------------------------------------------------------------
+      // syslog | ccze
+      // ------------------------------------------------------------------
+      const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const BOOT = rand(2000, 900000);
+      const LOG_TPL = [
+        ['kernel', '{kt} usb 1-{d}: new high-speed USB device number {d} using xhci_hcd'],
+        ['kernel', '{kt} {iface}: Link is Up - 1Gbps/Full - flow control rx/tx'],
+        ['kernel', '{kt} EXT4-fs (nvme0n1p{d}): mounted filesystem with ordered data mode. Quota mode: none.'],
+        ['kernel', '{kt} audit: type=1400 apparmor="DENIED" operation="open" profile="{unit}" name="{path}" pid={pid}'],
+        ['kernel', '{kt} [UFW BLOCK] IN={iface} OUT= MAC={mac} SRC={ext} DST={ip} LEN={n} PROTO=TCP SPT={port} DPT={dport}'],
+        ['kernel', '{kt} TCP: request_sock_TCP: Possible SYN flooding on port {dport}. Sending cookies.'],
+        ['kernel', '{kt} Out of memory: Killed process {pid} ({proc}) total-vm:{n}kB, anon-rss:{n}kB'],
+        ['kernel', '{kt} mce: [Hardware Error]: Machine check events logged'],
+        ['kernel', '{kt} nvme nvme0: I/O {n} QID {d} timeout, reset controller'],
+        ['sshd', 'Accepted publickey for {user} from {ip} port {port} ssh2: ED25519 SHA256:{b64}'],
+        ['sshd', 'Failed password for invalid user {bad} from {ext} port {port} ssh2'],
+        ['sshd', 'Connection closed by authenticating user {user} {ext} port {port} [preauth]'],
+        ['sshd', 'pam_unix(sshd:session): session opened for user {user}(uid={uid}) by (uid=0)'],
+        ['systemd', 'Started {svc}.'],
+        ['systemd', 'Starting {svc}...'],
+        ['systemd', '{unit}.service: Deactivated successfully.'],
+        ['systemd', '{unit}.service: Main process exited, code=exited, status=1/FAILURE'],
+        ['CRON', '({user}) CMD (/usr/local/bin/{script} >/dev/null 2>&1)'],
+        ['CRON', 'pam_unix(cron:session): session closed for user root'],
+        ['dhclient', 'DHCPACK of {ip} from {gw} (xid=0x{hex})'],
+        ['NetworkManager', "<info>  device ({iface}): state change: ip-config -> ip-check (reason 'none')"],
+        ['nginx', '{ext} - - "GET {url} HTTP/1.1" {status} {n} "-" "Mozilla/5.0"'],
+        ['postgres', 'LOG:  checkpoint complete: wrote {n} buffers ({pct}%); 0 WAL file(s) added'],
+        ['dockerd', 'level=info msg="Container {hex12} health status changed to healthy"'],
+        ['sudo', '{user} : TTY=pts/{d} ; PWD=/home/{user} ; USER=root ; COMMAND=/usr/bin/{cmd}'],
+        ['systemd-logind', 'New session {n} of user {user}.'],
+        ['smartd', 'Device: /dev/nvme0, Temperature {temp} Celsius reached limit of 70 Celsius'],
+        ['named', 'client @0x{hex12} {ip}#{port} ({domain}): query: {domain} IN A + ({gw})'],
+        ['redis-server', 'Background saving terminated with success'],
+        ['avahi-daemon', 'Joining mDNS multicast group on interface {iface}.IPv4 with address {ip}.'],
+      ];
+      const IFACES = ['eth0', 'wlan0', 'enp3s0', 'docker0', 'tun0', 'br-4f2a'];
+      const UNITS = ['snapd', 'fwupd', 'packagekit', 'man-db', 'logrotate', 'apt-daily', 'certbot', 'backup-vault', 'mainframe-sync', 'nginx', 'postgresql@16-main'];
+      const SERVICES = ['Daily apt download activities', 'Rotate log files', 'Cleanup of Temporary Directories', 'Mainframe sync agent', 'Message of the Day', 'Certbot renewal', 'Daily man-db regeneration', 'Session 42 of User neo', 'Vault backup'];
+      const PATHS = ['/etc/shadow', '/proc/sys/kernel/random/boot_id', '/var/lib/mainframe/keys', '/home/neo/.ssh/authorized_keys', '/dev/nvme0n1', '/sys/firmware/efi/efivars'];
+      const LOG_FILL = {
+        kt: () => S('d', `[${(BOOT + performance.now() / 1000).toFixed(6).padStart(12)}]`),
+        d: () => S('w', randi(0, 9)), n: () => S('w', randi(1, 99999)), pid: () => S('w', randi(300, 99999)), uid: () => S('w', randi(1000, 1004)),
+        iface: () => S('c', pick(IFACES)), unit: () => S('b', pick(UNITS)), svc: () => S('b', pick(SERVICES)), path: () => S('b', pick(PATHS)),
+        mac: () => S('d', mac()), ext: () => S('c B', extIp()), ip: () => S('c', lanIp()), gw: () => S('c', '10.0.3.1'),
+        port: () => S('w', randi(1024, 65535)), dport: () => S('w', pick([22, 80, 443, 3306, 5432, 6379, 8080])),
+        proc: () => S('y', pick(['java', 'python3', 'node', 'chrome', 'ffmpeg', 'mysqld', 'cc1plus', 'rustc'])),
+        user: () => S('y', pick(USERS)), bad: () => S('r', pick(['admin', 'oracle', 'test', 'guest', 'ubnt', 'pi', 'ftpuser', 'support'])),
+        b64: () => S('d', b64(randBytes(32))), hex: () => S('d', hex(8)), hex12: () => S('d', hex(12)),
+        script: () => esc(pick(['backup.sh', 'rotate-keys.sh', 'sync-mainframe', 'healthcheck', 'cleanup-tmp.sh'])),
+        url: () => S('b', pick(['/', '/api/v1/status', '/login', '/wp-login.php', '/.env', '/static/app.js', '/api/v2/telemetry', '/favicon.ico', '/robots.txt', '/admin'])),
+        status: () => { const s = pick([200, 200, 200, 204, 301, 304, 403, 404, 500, 502]); return S(s >= 500 ? 'r B' : s >= 400 ? 'y' : 'g', s); },
+        pct: () => S('w', rand(0.1, 30).toFixed(1)), temp: () => S('r B', randi(71, 84)),
+        cmd: () => esc(pick(['systemctl restart nginx', 'apt upgrade', 'tcpdump -i eth0', 'journalctl -f', 'docker compose up -d', 'vim /etc/hosts'])),
+        domain: () => S('m', pick(['mainframe.lan', 'zion.lan', 'api.example.com', 'updates.example.org', 'gibson.lan'])),
+      };
+      const colorWords = (s) => s
+        .replace(/\b(error|failed|failure|denied|invalid|killed|out of memory)\b/gi, '<span class="r B">$1</span>')
+        .replace(/\b(warning|timeout|deprecated|flooding)\b/gi, '<span class="y">$1</span>')
+        .replace(/\b(accepted|started|success|successfully|up|complete|healthy|opened)\b/gi, '<span class="g">$1</span>');
+      const fillTpl = (tpl) => tpl.split(/(\{\w+\})/).map((part) => {
+        const m = part.match(/^\{(\w+)\}$/);
+        return m && LOG_FILL[m[1]] ? LOG_FILL[m[1]]() : colorWords(esc(part));
+      }).join('');
+
+      function* logsGen() {
+        const pids = {};
+        yield { typed: 'tail -f /var/log/syslog | ccze -A' };
+        while (true) {
+          const [proc, tpl] = pick(LOG_TPL);
+          const d = new Date();
+          const stamp = `${MONTHS[d.getMonth()]} ${String(d.getDate()).padStart(2)} ${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`;
+          if (!pids[proc]) pids[proc] = randi(300, 60000);
+          const who = proc === 'kernel' ? S('g', 'kernel') : S('g', proc) + S('w', `[${pids[proc]}]`);
+          yield `${S('d', stamp)} ${S('m', 'hollywood')} ${who}: ${fillTpl(tpl)}`;
+          if (Math.random() < 0.18) yield rand(0.2, 1.6);
+        }
+      }
+
+      // ------------------------------------------------------------------
+      // hexdump -C
+      // ------------------------------------------------------------------
+      const ELF = [0x7f, 0x45, 0x4c, 0x46, 0x02, 0x01, 0x01, 0x00, 0, 0, 0, 0, 0, 0, 0, 0];
+      function hexLine(off, bytes, n) {
+        const hp = [], hc = [], ap = [], ac = [];
+        for (let i = 0; i < n; i++) {
+          const b = bytes[i] || 0, printable = b >= 32 && b < 127;
+          hp.push(b.toString(16).padStart(2, '0') + (i === 7 && n === 16 ? '  ' : ' '));
+          hc.push(b === 0 ? 'd' : printable ? 'g' : '');
+          ap.push(printable ? String.fromCharCode(b) : '.');
+          ac.push(printable ? 'g' : 'd');
+        }
+        return S('c', off.toString(16).padStart(8, '0')) + '  ' + runs(hp, hc) + ' ' + S('d', '|') + runs(ap, ac) + S('d', '|');
+      }
+      function* hexGen(st) {
+        const FILES = ['/usr/bin/ssh', '/boot/vmlinuz-6.8.0-45-generic', '/usr/lib/x86_64-linux-gnu/libc.so.6', '/dev/nvme0n1p2', '/var/crash/mainframe.core', '/lib/firmware/iwlwifi-cc-a0-77.ucode', '/usr/bin/python3.12'];
+        while (true) {
+          const total = randi(120, 600);
+          yield { typed: `hexdump -C ${pick(FILES)} | head -n ${total}` };
+          let off = 0, mode = 'elf', left = 1, src = randi(0, Math.max(0, SOURCE.length - 2000));
+          for (let i = 0; i < total; i++) {
+            const n = st.cols >= 78 ? 16 : st.cols >= 44 ? 8 : 4;
+            if (left-- <= 0) { mode = pickW({ rand: 5, text: 3, zero: 2, pattern: 1 }); left = randi(2, mode === 'zero' ? 40 : 12); src = randi(0, Math.max(0, SOURCE.length - 2000)); }
+            if (mode === 'zero') { yield hexLine(off, [], n); yield '*'; off += n * (left + 1); left = 0; continue; }
+            let bytes;
+            if (mode === 'elf') bytes = ELF.slice(0, n);
+            else if (mode === 'text') { bytes = Array.from(SOURCE.slice(src, src + n), (c) => c.charCodeAt(0) & 0xff); src += n; }
+            else if (mode === 'pattern') bytes = Array.from({ length: n }, (_, k) => (off + k) & 0xff);
+            else bytes = randBytes(n);
+            yield hexLine(off, bytes, n);
+            off += n;
+          }
+          yield S('c', off.toString(16).padStart(8, '0'));
+          yield 1.2;
+        }
+      }
+
+      // ------------------------------------------------------------------
+      // vim, scrolling through this page's own source
+      // ------------------------------------------------------------------
+      let srcLines = null;
+      function getSourceLines() {
+        if (srcLines) return srcLines;
+        const lines = SOURCE.replace(/\t/g, '  ').split('\n');
+        while (lines.length && !lines[0].trim()) lines.shift();
+        const indent = Math.min(...lines.filter((l) => l.trim()).map((l) => l.match(/^ */)[0].length));
+        srcLines = lines.map((l) => l.slice(Number.isFinite(indent) ? indent : 0));
+        return srcLines.length ? srcLines : (srcLines = ['// hollywood']);
+      }
+      const JS_KW = /^(const|let|var|function|return|if|else|for|while|of|in|new|class|this|switch|case|break|continue|try|catch|throw|typeof|async|await|yield|null|undefined|true|false|do|default|delete|instanceof)$/;
+      function highlight(line) {
+        const re = /(\/\/.*$)|('(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*"|`(?:\\.|[^`\\])*`)|([A-Za-z_$][\w$]*)|(\d+(?:\.\d+)?)/g;
+        let out = '', last = 0, m;
+        while ((m = re.exec(line))) {
+          out += esc(line.slice(last, m.index));
+          last = re.lastIndex;
+          if (m[1]) out += S('b', m[1]);
+          else if (m[2]) out += S('m', m[2]);
+          else if (m[3]) out += JS_KW.test(m[3]) ? S('y', m[3]) : line[last] === '(' ? S('c', m[3]) : esc(m[3]);
+          else out += S('r', m[4]);
+        }
+        return out + esc(line.slice(last));
+      }
+      function codeWidget(body) {
+        const pre = mkPre(body);
+        const src = getSourceLines(), hl = [];
+        let cols = 80, rows = 24, cur = randi(0, src.length - 1), top = Math.max(0, cur - 5);
+        let cmd = `"hollywood.js" [readonly] ${src.length}L, ${SOURCE.length}B`, cmdLife = 3;
+        function draw() {
+          const view = Math.max(1, rows - 2), nw = String(src.length).length;
+          const L = [];
+          for (let i = 0; i < view; i++) {
+            const ln = top + i;
+            if (ln >= src.length) { L.push(S('b', '~')); continue; }
+            const num = S(ln === cur ? 'y B' : 'y', String(ln + 1).padStart(nw) + ' ');
+            const code = hl[ln] || (hl[ln] = highlight(src[ln]));
+            L.push(ln === cur ? `<span class="cl">${num}${code}${' '.repeat(cols)}</span>` : num + code);
+          }
+          const pct = top === 0 ? 'Top' : top + view >= src.length ? 'Bot' : Math.floor((top / (src.length - view)) * 100) + '%';
+          const leftTxt = ' hollywood.js [RO]', rightTxt = `${`${cur + 1},1`.padEnd(14)}${pct.padStart(3)} `;
+          L.push(S('inv B', leftTxt + ' '.repeat(Math.max(1, cols - leftTxt.length - rightTxt.length)) + rightTxt));
+          L.push(esc(cmd));
+          pre.innerHTML = L.join('\n');
+        }
+        return {
+          fps: 7,
+          resize(c, r) { cols = c; rows = r; draw(); },
+          step(dt) {
+            cmdLife -= dt;
+            if (cmdLife <= 0) cmd = '';
+            const r = Math.random();
+            if (r < 0.03) {
+              const word = pick(['function', 'yield', 'draw', 'resize', 'layout', 'pick', 'return', 'widget']);
+              const idx = src.findIndex((l, i) => i > cur && l.includes(word));
+              if (idx > 0) { cur = idx; cmd = '/' + word; cmdLife = 1.5; }
+            } else if (r < 0.04) {
+              cur += Math.floor(rows / 2); cmd = ''; cmdLife = 0;
+            } else cur++;
+            if (cur >= src.length) { cur = 0; top = 0; cmd = ':1'; cmdLife = 1.2; }
+            const view = Math.max(1, rows - 2), so = Math.min(5, Math.floor(view / 3));
+            if (cur < top + so) top = Math.max(0, cur - so);
+            if (cur > top + view - 1 - so) top = cur - view + 1 + so;
+            draw();
+          },
+        };
+      }
+
+      // ------------------------------------------------------------------
+      // bmon
+      // ------------------------------------------------------------------
+      const BLOCKS = ' ▁▂▃▄▅▆▇';
+      const fmtRate = (b) => (b >= 1073741824 ? (b / 1073741824).toFixed(2) + 'GiB' : b >= 1048576 ? (b / 1048576).toFixed(2) + 'MiB' : b >= 1024 ? (b / 1024).toFixed(2) + 'KiB' : b.toFixed(0) + 'B');
+      function bmonWidget(body) {
+        const pre = mkPre(body);
+        const ifs = [
+          { n: 'eth0', base: [2.4e6, 3.2e5] }, { n: 'wlan0', base: [4e4, 1.2e4] }, { n: 'tun0', base: [1.6e5, 6e4] },
+          { n: 'docker0', base: [9e3, 8e3] }, { n: 'lo', base: [1100, 1100] },
+        ].map((f) => ({ ...f, v: [...f.base], goal: [...f.base] }));
+        const hist = [[], []];
+        let cols = 80, rows = 24;
+        function update() {
+          for (const f of ifs) {
+            for (let k = 0; k < 2; k++) {
+              if (Math.random() < 0.12) f.goal[k] = f.base[k] * (Math.random() < 0.08 ? rand(4, 9) : rand(0.1, 2.2));
+              f.v[k] = Math.max(0, f.v[k] + (f.goal[k] - f.v[k]) * 0.35 + f.base[k] * rand(-0.15, 0.15));
+            }
+          }
+          hist[0].push(ifs[0].v[0]); hist[1].push(ifs[0].v[1]);
+          if (hist[0].length > 400) { hist[0].shift(); hist[1].shift(); }
+        }
+        function graph(data, title, cls, gh) {
+          const gw = Math.max(4, cols - 8), d = data.slice(-gw);
+          const max = Math.max(1, ...d) * 1.15;
+          const L = [S('B', ` ${title}`) + S('d', ` ${ifs[0].n} bytes/s`)];
+          for (let r = gh - 1; r >= 0; r--) {
+            const label = r === gh - 1 ? fmtRate(max) : r === 0 ? '0' : '';
+            let row = '';
+            for (let j = 0; j < gw; j++) {
+              const v = d[j - (gw - d.length)];
+              if (v === undefined) { row += ' '; continue; }
+              const h = (v / max) * gh;
+              row += h >= r + 1 ? '█' : h > r ? BLOCKS[Math.floor((h - r) * 8)] : ' ';
+            }
+            L.push(S('d', label.padStart(7).slice(-7) + ' ') + S(cls, row));
+          }
+          return L;
+        }
+        function draw() {
+          const nameW = Math.max(8, Math.min(22, cols - 44));
+          const L = [S('B', ' Interfaces'.padEnd(nameW)) + S('d', '│') + S('B', ' RX bps'.padEnd(12) + '   pps ') + S('d', '│') + S('B', ' TX bps'.padEnd(12) + '   pps')];
+          const nIf = rows > 18 ? ifs.length : rows > 12 ? 3 : 1;
+          ifs.slice(0, nIf).forEach((f, i) => {
+            const name = (i === 0 ? '>' : ' ') + ' ' + f.n;
+            const rx = fmtRate(f.v[0]).padStart(11) + String(Math.round(f.v[0] / 900)).padStart(7) + ' ';
+            const tx = fmtRate(f.v[1]).padStart(11) + String(Math.round(f.v[1] / 700)).padStart(7);
+            L.push(S(i === 0 ? 'w B' : '', name.padEnd(nameW)) + S('d', '│') + S('g', rx) + S('d', '│') + S('c', tx));
+          });
+          L.push(S('d', '─'.repeat(cols)));
+          const remaining = rows - L.length;
+          if (remaining >= 10) {
+            const gh = Math.floor((remaining - 2) / 2);
+            L.push(...graph(hist[0], 'RX', 'g', gh), ...graph(hist[1], 'TX', 'c', gh));
+          } else if (remaining >= 3) {
+            L.push(...graph(hist[0], 'RX', 'g', remaining - 1));
+          }
+          pre.innerHTML = L.join('\n');
+        }
+        for (let i = 0; i < 120; i++) update();
+        return {
+          fps: 4,
+          resize(c, r) { cols = c; rows = r; draw(); },
+          step() { update(); draw(); },
+        };
+      }
+
+      // ------------------------------------------------------------------
+      // tree
+      // ------------------------------------------------------------------
+      const TREE_ROOTS = ['/usr/src/linux-6.8', '/var/lib/docker', '/opt/mainframe', '~/src/hollywood', '/etc', '/usr/share', '/srv/vault'];
+      const TREE_DIRS = ['bin', 'lib', 'include', 'src', 'drivers', 'net', 'crypto', 'kernel', 'arch', 'x86', 'firmware', 'docs', 'scripts', 'tools', 'config', 'cache', 'modules', 'plugins', 'assets', 'locale', 'share', 'log', 'build', 'test', 'vendor', 'node_modules', '.git', 'objects', 'refs', 'hooks', 'security', 'sound', 'fs', 'mm', 'ipc', 'block', 'init', 'overlay2', 'volumes', 'keys'];
+      const TREE_STEMS = ['main', 'core', 'util', 'init', 'config', 'socket', 'crypto', 'hash', 'kernel', 'sched', 'memory', 'netfilter', 'driver', 'buffer', 'cache', 'index', 'auth', 'session', 'vector', 'matrix', 'packet', 'proxy', 'shell', 'daemon', 'signal', 'timer', 'module', 'vault', 'mainframe'];
+      const TREE_EXT = ['.c', '.h', '.o', '.ko', '.so', '.py', '.sh', '.conf', '.json', '.md', '.js', '.rs', '.go', '.txt', '.bin', '.gz', '.log', '.pem', '.key', '.lock', '.png'];
+      function treeName(name) {
+        if (/\.(sh|py)$/.test(name)) return S('g B', name);
+        if (/\.(gz|xz|tar|zip)$/.test(name)) return S('r B', name);
+        if (/\.(png|jpg)$/.test(name)) return S('m B', name);
+        if (/\.(pem|key)$/.test(name)) return S('y', name);
+        return esc(name);
+      }
+      function* treeWalk(prefix, depth, maxDepth, cnt) {
+        const n = randi(2, depth === 0 ? 9 : 6);
+        for (let i = 0; i < n; i++) {
+          if (cnt.d + cnt.f > 380) return;
+          const last = i === n - 1, isDir = depth < maxDepth && Math.random() < (depth === 0 ? 0.7 : 0.5 - depth * 0.08);
+          const branch = S('d', prefix + (last ? '└── ' : '├── '));
+          if (isDir) {
+            cnt.d++;
+            yield branch + S('b B', pick(TREE_DIRS));
+            yield* treeWalk(prefix + (last ? '    ' : '│   '), depth + 1, maxDepth, cnt);
+          } else {
+            cnt.f++;
+            const name = Math.random() < 0.08 ? pick(['Makefile', 'README', 'LICENSE', 'Kconfig', 'configure']) : pick(TREE_STEMS) + pick(TREE_EXT);
+            yield branch + (Math.random() < 0.06 ? S('c B', name) + ' -> ' + esc('../' + pick(TREE_DIRS) + '/' + name) : name === 'configure' ? S('g B', name) : treeName(name));
+          }
+        }
+      }
+      function* treeGen() {
+        while (true) {
+          const root = pick(TREE_ROOTS), cnt = { d: 0, f: 0 };
+          yield { typed: `tree -C ${root}` };
+          yield S('b B', root);
+          yield* treeWalk('', 0, randi(3, 5), cnt);
+          yield '';
+          yield `${cnt.d} directories, ${cnt.f} files`;
+          yield 2;
+        }
+      }
+
+      // ------------------------------------------------------------------
+      // make (kbuild and CMake)
+      // ------------------------------------------------------------------
+      const K_DIRS = ['kernel/sched', 'kernel/bpf', 'mm', 'fs/ext4', 'fs/btrfs', 'net/ipv4', 'net/ipv6', 'net/netfilter', 'crypto', 'lib', 'security/apparmor', 'sound/pci/hda', 'drivers/usb/core', 'drivers/nvme/host', 'drivers/gpu/drm/i915', 'drivers/net/ethernet/intel/e1000e', 'drivers/net/wireless/ath/ath9k', 'arch/x86/kernel', 'block'];
+      const K_STEMS = ['core', 'main', 'fair', 'inode', 'super', 'tcp_input', 'tcp_output', 'route', 'netlink', 'namei', 'file', 'dir', 'xattr', 'ioctl', 'irq', 'dma', 'pci', 'power', 'sysfs', 'trace', 'verifier', 'hash', 'aes', 'sha256', 'gcm', 'page_alloc', 'slab', 'vmscan', 'swap', 'memcontrol'];
+      function* kbuild(num) {
+        yield { typed: 'make -j16 bzImage modules' };
+        for (const [v, p] of [['SYNC', 'include/config/auto.conf'], ['CALL', 'scripts/checksyscalls.sh'], ['DESCEND', 'objtool'], ['INSTALL', 'libsubcmd_headers']]) yield `  ${S('c', v.padEnd(8))}${esc(p)}`;
+        const total = randi(90, 220);
+        for (let i = 0; i < total; i++) {
+          const dir = pick(K_DIRS), stem = pick(K_STEMS);
+          if (Math.random() < 0.025) {
+            const file = `${dir}/${stem}.c`, line = randi(40, 2400), col = randi(5, 17), vname = pick(['ret', 'err', 'flags', 'tmp', 'len']);
+            yield S('B', `${file}:`) + ` In function ${S('B', `‘${stem}_probe’`)}:`;
+            yield S('B', `${file}:${line}:${col}:`) + ' ' + S('m B', 'warning:') + ` unused variable ${S('B', `‘${vname}’`)} [${S('m B', '-Wunused-variable')}]`;
+            yield `${String(line).padStart(5)} |         int ${esc(vname)};`;
+            yield `      |${' '.repeat(col - 1)}${S('g B', '^~~')}`;
+            continue;
+          }
+          const verb = pickW({ CC: 70, 'CC [M]': 10, AR: 4, LD: 4, AS: 4, 'LD [M]': 3, HOSTCC: 3, GEN: 2 });
+          const ext = verb === 'AR' ? '/built-in.a' : verb === 'LD [M]' ? `/${stem}.ko` : verb === 'GEN' ? '/Makefile' : `/${stem}.o`;
+          yield `  ${S('c', verb.padEnd(8))}${esc(dir + ext)}`;
+        }
+        for (const [v, p] of [['LD', 'vmlinux.o'], ['MODPOST', 'Module.symvers'], ['LD', 'vmlinux'], ['SORTTAB', 'vmlinux'], ['SYSMAP', 'System.map'], ['OBJCOPY', 'arch/x86/boot/vmlinux.bin'], ['BUILD', 'arch/x86/boot/bzImage']]) yield `  ${S('c', v.padEnd(8))}${esc(p)}`;
+        yield S('g B', `Kernel: arch/x86/boot/bzImage is ready  (#${num})`);
+      }
+      function* cmakeBuild() {
+        yield { typed: 'cmake --build build -j8' };
+        const targets = [
+          ['core', ['engine/renderer.cpp', 'engine/scene.cpp', 'engine/shader.cpp', 'engine/texture.cpp', 'engine/mesh.cpp', 'math/matrix.cpp', 'math/quaternion.cpp']],
+          ['net', ['socket.cpp', 'packet.cpp', 'tls/handshake.cpp', 'tls/cipher.cpp', 'proxy.cpp']],
+          ['crypto', ['aes.cpp', 'sha256.cpp', 'rsa.cpp', 'ed25519.cpp', 'random.cpp']],
+          ['hollywood', ['main.cpp', 'ui/panes.cpp', 'ui/statusbar.cpp', 'widgets/htop.cpp', 'widgets/matrix.cpp', 'widgets/radar.cpp']],
+        ];
+        const total = targets.reduce((s, [, f]) => s + f.length + 1, 0);
+        let done = 0;
+        const pct = () => `[${String(Math.floor((done / total) * 100)).padStart(3)}%]`;
+        for (const [name, files] of targets) {
+          for (const f of files) { done++; yield `${pct()} ${S('g', `Building CXX object src/${name}/CMakeFiles/${name}.dir/${f}.o`)}`; if (Math.random() < 0.2) yield rand(0.2, 0.8); }
+          done++;
+          const last = name === 'hollywood';
+          yield `${pct()} ${S('g B', last ? `Linking CXX executable ${name}` : `Linking CXX static library lib${name}.a`)}`;
+          yield `${pct()} Built target ${esc(name)}`;
+        }
+      }
+      function* makeGen() {
+        let num = randi(1, 60);
+        while (true) {
+          if (Math.random() < 0.55) yield* kbuild(++num); else yield* cmakeBuild();
+          yield 2.5;
+        }
+      }
+
+      // ------------------------------------------------------------------
+      // ssh-keygen with randomart (the "drunken bishop" walk)
+      // ------------------------------------------------------------------
+      const ART = ' .o+=*BOX@%&#/^SE';
+      function randomart(bytes, title) {
+        const W = 17, H = 9, len = ART.length - 1, field = Array.from({ length: W }, () => new Array(H).fill(0));
+        let x = 8, y = 4;
+        for (const b of bytes) {
+          let v = b;
+          for (let k = 0; k < 4; k++) {
+            x = clamp(x + (v & 1 ? 1 : -1), 0, W - 1);
+            y = clamp(y + (v & 2 ? 1 : -1), 0, H - 1);
+            if (field[x][y] < len - 2) field[x][y]++;
+            v >>= 2;
+          }
+        }
+        field[8][4] = len - 1;
+        field[x][y] = len;
+        const frame = (label) => { const p = Math.floor((W - label.length) / 2); return S('d', '+' + '-'.repeat(p)) + S('w', label) + S('d', '-'.repeat(W - p - label.length) + '+'); };
+        const out = [frame(title)];
+        for (let r = 0; r < H; r++) {
+          const parts = [], cls = [];
+          for (let c = 0; c < W; c++) {
+            const v = field[c][r];
+            parts.push(ART[Math.min(v, len)]);
+            cls.push(v >= len - 1 ? 'r B' : v > 6 ? 'y B' : v > 3 ? 'y' : 'g');
+          }
+          out.push(S('d', '|') + runs(parts, cls) + S('d', '|'));
+        }
+        out.push(frame('[SHA256]'));
+        return out;
+      }
+      function* keysGen() {
+        const TYPES = [['ed25519', 'ED25519', 256], ['rsa', 'RSA', 3072], ['ecdsa', 'ECDSA', 256]];
+        while (true) {
+          const [type, label, bits] = pick(TYPES), user = pick(USERS.slice(0, 4));
+          yield { typed: `ssh-keygen -t ${type}${type === 'rsa' ? ' -b 3072' : ''} -N '' -C ${user}@hollywood` };
+          yield `Generating public/private ${type} key pair.`;
+          yield 0.6;
+          yield `Your identification has been saved in /home/${user}/.ssh/id_${type}`;
+          yield `Your public key has been saved in /home/${user}/.ssh/id_${type}.pub`;
+          yield 'The key fingerprint is:';
+          const hash = randBytes(32);
+          yield S('y', `SHA256:${b64(hash)}`) + ` ${user}@hollywood`;
+          yield "The key's randomart image is:";
+          yield* randomart(hash, `[${label} ${bits}]`);
+          yield 2.5;
+        }
+      }
+
+      // ------------------------------------------------------------------
+      // nmap
+      // ------------------------------------------------------------------
+      const NMAP_SERV = [
+        [22, 'ssh', 'OpenSSH 9.6p1 Ubuntu 3ubuntu13.5 (Ubuntu Linux; protocol 2.0)'], [25, 'smtp', 'Postfix smtpd'], [53, 'domain', 'ISC BIND 9.18.28'],
+        [80, 'http', 'nginx 1.24.0 (Ubuntu)'], [111, 'rpcbind', '2-4 (RPC #100000)'], [139, 'netbios-ssn', 'Samba smbd 4.6.2'], [443, 'ssl/http', 'nginx 1.24.0'],
+        [631, 'ipp', 'CUPS 2.4'], [2049, 'nfs', '3-4 (RPC #100003)'], [3306, 'mysql', 'MySQL 8.0.39-0ubuntu0.24.04.2'], [3389, 'ms-wbt-server', 'xrdp'],
+        [5432, 'postgresql', 'PostgreSQL DB 16.4'], [6379, 'redis', 'Redis key-value store 7.2.5'], [8080, 'http', 'Jetty 10.0.20'], [9100, 'jetdirect?', ''],
+        [27017, 'mongodb', 'MongoDB 7.0.12'],
+      ];
+      const NMAP_HOSTS = ['gateway.lan', 'gibson.lan', 'mainframe.lan', 'zion.lan', 'nebuchadnezzar.lan', 'nas.lan', 'db01.lan', 'k8s-node-2.lan', 'printer-3f.lan', 'build-farm.lan', 'vault.lan'];
+      const NMAP_VENDORS = ['Intel Corporate', 'Raspberry Pi Trading', 'Super Micro Computer', 'Hewlett Packard', 'Synology Incorporated', 'Dell', 'Ubiquiti Networks', 'Brother Industries'];
+      function* nmapGen() {
+        while (true) {
+          const net = `10.0.${randi(0, 9)}`, d = new Date();
+          yield { typed: `nmap -sV -T4 ${net}.0/24` };
+          yield `Starting Nmap 7.94SVN ( https://nmap.org ) at ${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+          yield 1.2;
+          const hosts = shuffled(NMAP_HOSTS).slice(0, randi(3, 6));
+          let ip = 0, up = 0;
+          for (const h of hosts) {
+            ip += randi(1, 40);
+            if (ip > 254) break;
+            up++;
+            yield `Nmap scan report for ${S('w B', h)} (${S('c', `${net}.${ip}`)})`;
+            yield `Host is up (${rand(0.0002, 0.02).toFixed(5)}s latency).`;
+            const ports = shuffled(NMAP_SERV).slice(0, randi(2, 6)).sort((a, b) => a[0] - b[0]);
+            yield `Not shown: ${1000 - ports.length} closed tcp ports (reset)`;
+            yield S('B', 'PORT      STATE    SERVICE        VERSION');
+            for (const [port, svc, ver] of ports) {
+              const state = Math.random() < 0.85 ? 'open' : 'filtered';
+              yield esc(`${port}/tcp`.padEnd(10)) + S(state === 'open' ? 'g' : 'y', state.padEnd(9)) + esc(svc.padEnd(15) + ver);
+            }
+            yield `MAC Address: ${S('d', mac().toUpperCase())} (${esc(pick(NMAP_VENDORS))})`;
+            yield '';
+            yield rand(0.3, 1.2);
+          }
+          yield 'Service detection performed. Please report any incorrect results at https://nmap.org/submit/ .';
+          yield `Nmap done: 256 IP addresses (${S('g B', `${up} hosts up`)}) scanned in ${rand(8, 60).toFixed(2)} seconds`;
+          yield 3;
+        }
+      }
+
+      // ------------------------------------------------------------------
+      // errno
+      // ------------------------------------------------------------------
+      const ERRNO = ('EPERM 1 Operation not permitted|ENOENT 2 No such file or directory|ESRCH 3 No such process|EINTR 4 Interrupted system call|' +
+        'EIO 5 Input/output error|ENXIO 6 No such device or address|E2BIG 7 Argument list too long|ENOEXEC 8 Exec format error|EBADF 9 Bad file descriptor|' +
+        'ECHILD 10 No child processes|EAGAIN 11 Resource temporarily unavailable|ENOMEM 12 Cannot allocate memory|EACCES 13 Permission denied|' +
+        'EFAULT 14 Bad address|ENOTBLK 15 Block device required|EBUSY 16 Device or resource busy|EEXIST 17 File exists|EXDEV 18 Invalid cross-device link|' +
+        'ENODEV 19 No such device|ENOTDIR 20 Not a directory|EISDIR 21 Is a directory|EINVAL 22 Invalid argument|ENFILE 23 Too many open files in system|' +
+        'EMFILE 24 Too many open files|ENOTTY 25 Inappropriate ioctl for device|ETXTBSY 26 Text file busy|EFBIG 27 File too large|' +
+        'ENOSPC 28 No space left on device|ESPIPE 29 Illegal seek|EROFS 30 Read-only file system|EMLINK 31 Too many links|EPIPE 32 Broken pipe|' +
+        'EDOM 33 Numerical argument out of domain|ERANGE 34 Numerical result out of range|EDEADLK 35 Resource deadlock avoided|' +
+        'ENAMETOOLONG 36 File name too long|ENOLCK 37 No locks available|ENOSYS 38 Function not implemented|ENOTEMPTY 39 Directory not empty|' +
+        'ELOOP 40 Too many levels of symbolic links|ENOMSG 42 No message of desired type|EIDRM 43 Identifier removed|ENODATA 61 No data available|' +
+        'ETIME 62 Timer expired|ENOLINK 67 Link has been severed|EPROTO 71 Protocol error|EBADMSG 74 Bad message|' +
+        'EOVERFLOW 75 Value too large for defined data type|EILSEQ 84 Invalid or incomplete multibyte or wide character|EUSERS 87 Too many users|' +
+        'ENOTSOCK 88 Socket operation on non-socket|EDESTADDRREQ 89 Destination address required|EMSGSIZE 90 Message too long|' +
+        'EPROTOTYPE 91 Protocol wrong type for socket|ENOPROTOOPT 92 Protocol not available|EPROTONOSUPPORT 93 Protocol not supported|' +
+        'EOPNOTSUPP 95 Operation not supported|EAFNOSUPPORT 97 Address family not supported by protocol|EADDRINUSE 98 Address already in use|' +
+        'EADDRNOTAVAIL 99 Cannot assign requested address|ENETDOWN 100 Network is down|ENETUNREACH 101 Network is unreachable|' +
+        'ENETRESET 102 Network dropped connection on reset|ECONNABORTED 103 Software caused connection abort|ECONNRESET 104 Connection reset by peer|' +
+        'ENOBUFS 105 No buffer space available|EISCONN 106 Transport endpoint is already connected|ENOTCONN 107 Transport endpoint is not connected|' +
+        'ESHUTDOWN 108 Cannot send after transport endpoint shutdown|ETIMEDOUT 110 Connection timed out|ECONNREFUSED 111 Connection refused|' +
+        'EHOSTDOWN 112 Host is down|EHOSTUNREACH 113 No route to host|EALREADY 114 Operation already in progress|' +
+        'EINPROGRESS 115 Operation now in progress|ESTALE 116 Stale file handle|EDQUOT 122 Disk quota exceeded|ECANCELED 125 Operation canceled|' +
+        'EOWNERDEAD 130 Owner died|ERFKILL 132 Operation not possible due to RF-kill|EHWPOISON 133 Memory page has hardware error').split('|');
+      const errnoLine = (e) => { const [name, num, ...rest] = e.split(' '); return S('y B', name) + ' ' + S('c', num) + ' ' + esc(rest.join(' ')); };
+      function* errnoGen() {
+        while (true) {
+          yield { typed: 'errno -l' };
+          for (const e of ERRNO) yield errnoLine(e);
+          yield 1.5;
+          const q = pick(['ENOENT', 'EACCES', 'ECONNREFUSED', 'ETIMEDOUT', 'EHOSTUNREACH', 'ENOSPC']);
+          yield { typed: `errno ${q}` };
+          yield errnoLine(ERRNO.find((e) => e.startsWith(q + ' ')));
+          yield 1.5;
+          const word = pick(['connection', 'network', 'file', 'device']);
+          yield { typed: `errno -s ${word}` };
+          for (const e of ERRNO.filter((x) => x.toLowerCase().includes(word))) yield errnoLine(e);
+          yield 2;
+        }
+      }
+
+      // ------------------------------------------------------------------
+      // donut.c
+      // ------------------------------------------------------------------
+      const LUM = '.,-~:;=!*#$@';
+      function donutWidget(body) {
+        const pre = mkPre(body);
+        let cols = 40, rows = 20, A = rand(0, TAU), B = rand(0, TAU);
+        return {
+          fps: 24,
+          resize(c, r) { cols = c; rows = r; },
+          step(dt) {
+            A += dt * 1.1; B += dt * 0.55;
+            const n = cols * rows, out = new Array(n).fill(' '), cls = new Array(n).fill(''), zb = new Float32Array(n);
+            const aspect = M.lh / M.cw, size = Math.min(cols, rows * aspect);
+            const K2 = 5, K1 = (size * K2 * 3) / (8 * 3) * 0.95;
+            const cA = Math.cos(A), sA = Math.sin(A), cB = Math.cos(B), sB = Math.sin(B);
+            const dTh = Math.max(0.03, 0.07 * Math.min(1, 40 / size)), dPh = Math.max(0.012, 0.02 * Math.min(1, 60 / size));
+            for (let th = 0; th < TAU; th += dTh) {
+              const ct = Math.cos(th), st = Math.sin(th);
+              for (let ph = 0; ph < TAU; ph += dPh) {
+                const cp = Math.cos(ph), sp = Math.sin(ph);
+                const cx = 2 + ct, cy = st;
+                const x = cx * (cB * cp + sA * sB * sp) - cy * cA * sB;
+                const y = cx * (sB * cp - sA * cB * sp) + cy * cA * cB;
+                const ooz = 1 / (K2 + cA * cx * sp + cy * sA);
+                const xp = Math.floor(cols / 2 + K1 * ooz * x), yp = Math.floor(rows / 2 - (K1 * ooz * y) / aspect);
+                if (xp < 0 || xp >= cols || yp < 0 || yp >= rows) continue;
+                const L = cp * ct * sB - cA * ct * sp - sA * st + cB * (cA * st - ct * sA * sp);
+                const i = xp + yp * cols;
+                if (L > 0 && ooz > zb[i]) {
+                  zb[i] = ooz;
+                  const li = Math.min(11, Math.floor(L * 8));
+                  out[i] = LUM[li];
+                  cls[i] = li < 3 ? 'd' : li < 6 ? 'g' : li < 9 ? 'c' : 'w B';
+                }
+              }
+            }
+            const L = [];
+            for (let r = 0; r < rows; r++) L.push(runs(out.slice(r * cols, (r + 1) * cols), cls.slice(r * cols, (r + 1) * cols)));
+            pre.innerHTML = L.join('\n');
+          },
+        };
+      }
+
+      // ------------------------------------------------------------------
+      // radar
+      // ------------------------------------------------------------------
+      function radarWidget(body) {
+        const cv = mkCanvas(body), ctx = cv.ctx;
+        let W = 200, H = 200, ang = rand(0, TAU);
+        const blip = () => ({ a: rand(0, TAU), r: rand(0.15, 0.95), va: rand(-0.06, 0.06), vr: rand(-0.03, 0.03), life: 0, id: randi(1, 99) });
+        const blips = Array.from({ length: 6 }, blip);
+        return {
+          fps: 30,
+          resize(c, r, w, h) { W = w; H = h; cv.size(w, h); },
+          step(dt) {
+            const prev = ang;
+            ang = (ang + dt * 1.3) % TAU;
+            const swept = (ang - prev + TAU) % TAU;
+            blips.forEach((b, i) => {
+              b.a = (b.a + b.va * dt + TAU) % TAU;
+              b.r += b.vr * dt;
+              b.life = Math.max(0, b.life - dt * 0.3);
+              if (b.r < 0.06 || b.r > 0.98) blips[i] = blip();
+              else if ((b.a - prev + TAU) % TAU <= swept) b.life = 1;
+            });
+            const cx = W / 2, cy = H / 2, R = Math.max(10, Math.min(W, H) / 2 - 12);
+            const small = Math.max(9, M.fs - 2);
+            ctx.fillStyle = PAL.bg;
+            ctx.fillRect(0, 0, W, H);
+            ctx.strokeStyle = PAL.dim;
+            ctx.lineWidth = 1;
+            for (let k = 1; k <= 4; k++) { ctx.beginPath(); ctx.arc(cx, cy, (R * k) / 4, 0, TAU); ctx.stroke(); }
+            ctx.beginPath();
+            ctx.moveTo(cx - R, cy); ctx.lineTo(cx + R, cy); ctx.moveTo(cx, cy - R); ctx.lineTo(cx, cy + R);
+            for (let k = 0; k < 12; k++) {
+              const a = (k * TAU) / 12;
+              ctx.moveTo(cx + Math.cos(a) * R * 0.94, cy + Math.sin(a) * R * 0.94);
+              ctx.lineTo(cx + Math.cos(a) * R, cy + Math.sin(a) * R);
+            }
+            ctx.stroke();
+            ctx.fillStyle = PAL.green;
+            for (let k = 0; k < 28; k++) {
+              ctx.globalAlpha = (1 - k / 28) * 0.3;
+              ctx.beginPath();
+              ctx.moveTo(cx, cy);
+              ctx.arc(cx, cy, R, ang - (k + 1) * 0.035, ang - k * 0.035);
+              ctx.fill();
+            }
+            ctx.globalAlpha = 1;
+            ctx.strokeStyle = PAL.green;
+            ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.cos(ang) * R, cy + Math.sin(ang) * R); ctx.stroke();
+            ctx.font = `${small}px ${M.family}`;
+            ctx.textBaseline = 'middle';
+            let tracked = 0;
+            for (const b of blips) {
+              if (b.life <= 0) continue;
+              tracked++;
+              const x = cx + Math.cos(b.a) * b.r * R, y = cy + Math.sin(b.a) * b.r * R;
+              ctx.globalAlpha = b.life;
+              ctx.fillStyle = PAL.bright;
+              ctx.beginPath(); ctx.arc(x, y, 3, 0, TAU); ctx.fill();
+              if (R > 70) { ctx.fillStyle = PAL.green; ctx.fillText(`#${pad2(b.id)}`, x + 6, y); }
+            }
+            ctx.globalAlpha = 1;
+            ctx.fillStyle = PAL.fg;
+            ctx.textBaseline = 'top';
+            ctx.fillText(`SCAN ${String(Math.round((ang * 360) / TAU)).padStart(3, '0')}°`, 6, 4);
+            ctx.fillText(`TRK ${pad2(tracked)}`, 6, 4 + small + 3);
+            ctx.textBaseline = 'bottom';
+            ctx.fillText('RNG 40 NM', 6, H - 4);
+            const d = new Date(), clock = `${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`;
+            ctx.fillText(clock, W - 6 - ctx.measureText(clock).width, H - 4);
+          },
+        };
+      }
+
+      // ------------------------------------------------------------------
+      // man hollywood
+      // ------------------------------------------------------------------
+      function manLines(cols) {
+        const m = t('man'), ind = cols >= 40 ? 7 : 2, sp = ' '.repeat(ind), w = cols - ind, L = [];
+        const head = 'HOLLYWOOD(1)', mid = t('manSection');
+        const gap = cols - head.length * 2 - dispW(mid);
+        L.push(gap >= 2 ? esc(head) + ' '.repeat(Math.floor(gap / 2)) + esc(mid) + ' '.repeat(Math.ceil(gap / 2)) + esc(head) : esc(head));
+        L.push('');
+        const para = (text, extra = 0) => wrap(text, w - extra).forEach((l) => L.push(sp + ' '.repeat(extra) + esc(l)));
+        // Tagged paragraph (.TP): a short tag shares the line with the text.
+        const tp = (tag, text, tagW) => {
+          const body = wrap(text, w - tagW);
+          if (tag.length < tagW) L.push(sp + S('B', tag) + ' '.repeat(tagW - tag.length) + esc(body.shift() || ''));
+          else L.push(sp + S('B', tag));
+          body.forEach((l) => L.push(sp + ' '.repeat(tagW) + esc(l)));
+        };
+        L.push(S('B', m.h.name)); para(m.name); L.push('');
+        L.push(S('B', m.h.synopsis)); L.push(sp + S('B', 'hollywood') + ' ' + S('u', m.synopsis)); L.push('');
+        L.push(S('B', m.h.desc)); m.desc.forEach((p) => { para(p); L.push(''); });
+        L.push(S('B', m.h.keys)); KEYS.forEach(([k, key]) => tp(k, t(key), 7)); L.push('');
+        L.push(S('B', m.h.programs)); WIDGET_IDS.forEach((id) => tp(WIDGETS[id].cmd, t('w_' + id), 12)); L.push('');
+        L.push(S('B', m.h.see)); para('byobu(1), tmux(1), htop(1), cmatrix(1), bmon(8), ccze(1), hexdump(1), nmap(1), ssh-keygen(1)'); L.push('');
+        L.push(S('B', m.h.history)); para(m.history); L.push('');
+        const foot = 'hollywood', date = new Date().toISOString().slice(0, 10), fgap = cols - foot.length - head.length - date.length;
+        L.push(fgap >= 2 ? foot + ' '.repeat(Math.floor(fgap / 2)) + date + ' '.repeat(Math.ceil(fgap / 2)) + esc(head) : foot);
+        return L;
+      }
+      function manWidget(body) {
+        const pre = mkPre(body);
+        let cols = 80, rows = 24, pos = 0, hold = 0, lines = [], builtFor = '';
+        const build = () => { lines = manLines(cols); builtFor = lang + cols; };
+        const draw = () => {
+          const view = Math.max(1, rows - 1);
+          pre.innerHTML = lines.slice(pos, pos + view).concat(S('inv', t('manPrompt').replace('{n}', pos + 1))).join('\n');
+        };
+        return {
+          fps: 2,
+          resize(c, r) { cols = c; rows = r; build(); draw(); },
+          step(dt) {
+            if (builtFor !== lang + cols) build();
+            if (pos + Math.max(1, rows - 1) >= lines.length) {
+              hold += dt;
+              if (hold > 4) { pos = 0; hold = 0; }
+            } else pos++;
+            draw();
+          },
+        };
+      }
+
+      // ------------------------------------------------------------------
+      // Program registry
+      // ------------------------------------------------------------------
+      const WIDGETS = {
+        htop: { cmd: 'htop', make: htopWidget },
+        matrix: { cmd: 'cmatrix', make: matrixWidget },
+        logs: { cmd: 'ccze', make: (b) => scrollWidget(b, logsGen, 11) },
+        hexdump: { cmd: 'hexdump', make: (b) => scrollWidget(b, hexGen, 16) },
+        code: { cmd: 'vim', make: codeWidget },
+        bmon: { cmd: 'bmon', make: bmonWidget },
+        tree: { cmd: 'tree', make: (b) => scrollWidget(b, treeGen, 18) },
+        make: { cmd: 'make', make: (b) => scrollWidget(b, makeGen, 13) },
+        keys: { cmd: 'ssh-keygen', make: (b) => scrollWidget(b, keysGen, 9) },
+        nmap: { cmd: 'nmap', make: (b) => scrollWidget(b, nmapGen, 7) },
+        donut: { cmd: 'donut', make: donutWidget },
+        radar: { cmd: 'radar', make: radarWidget },
+        man: { cmd: 'man', make: manWidget },
+        errno: { cmd: 'errno', make: (b) => scrollWidget(b, errnoGen, 10) },
+      };
+      const WIDGET_IDS = Object.keys(WIDGETS);
+
+      // ------------------------------------------------------------------
+      // Settings
+      // ------------------------------------------------------------------
+      const SETTINGS_KEY = 'hollywood_settings';
+      const OPTIONS = {
+        interval: [4, 8, 15, 30, 60, 0], panes: ['auto', 1, 2, 3, 4, 5, 6, 7, 8, 9],
+        scheme: ['classic', 'phosphor', 'amber'], font: [10, 11, 12, 13, 14, 16], speed: [0.5, 1, 1.5, 2],
+      };
+      const DEFAULTS = { interval: 8, panes: 'auto', scheme: 'classic', font: 12, speed: 1, off: [] };
+      function loadSettings() {
+        let saved = {};
+        try { saved = JSON.parse(store.get(SETTINGS_KEY) || '{}') || {}; } catch {}
+        const s = { ...DEFAULTS };
+        for (const k of Object.keys(OPTIONS)) if (OPTIONS[k].includes(saved[k])) s[k] = saved[k];
+        if (Array.isArray(saved.off)) s.off = saved.off.filter((id) => WIDGETS[id]);
+        if (s.off.length >= WIDGET_IDS.length) s.off = [];
+        return s;
+      }
+      let settings = loadSettings();
+      const saveSettings = () => store.set(SETTINGS_KEY, JSON.stringify(settings));
+
+      function measure() {
+        const fs = settings.font, lh = Math.round(fs * 1.25);
+        document.documentElement.style.setProperty('--fs', fs + 'px');
+        document.documentElement.style.setProperty('--lh', lh + 'px');
+        const probe = document.createElement('pre');
+        probe.className = 'term';
+        probe.style.cssText = 'position:absolute;left:-9999px;top:0;height:auto;padding:0;visibility:hidden';
+        probe.textContent = 'M'.repeat(200);
+        document.body.appendChild(probe);
+        M.cw = probe.getBoundingClientRect().width / 200 || fs * 0.6;
+        M.family = getComputedStyle(probe).fontFamily;
+        probe.remove();
+        M.lh = lh; M.fs = fs;
+      }
+      const minW = () => Math.max(150, M.cw * 22 + PAD_X * 2);
+      const minH = () => Math.max(80, M.lh * 4 + 22);
+
+      // ------------------------------------------------------------------
+      // Panes: a binary tree of splits, like tmux
+      // ------------------------------------------------------------------
+      const panesEl = $('panes');
+      let root = null, activePane = null, zoomed = null, paused = false, mutateIn = 0, built = false;
+      const leavesOf = (n, out = []) => { if (n) { if (n.leaf) out.push(n); else { leavesOf(n.a, out); leavesOf(n.b, out); } } return out; };
+      const nextInterval = () => settings.interval * rand(0.7, 1.3);
+
+      class Pane {
+        constructor(wid) {
+          this.el = document.createElement('div');
+          this.el.className = 'pane';
+          this.el.innerHTML = '<div class="pane-head"><span class="pane-title"></span><span class="pane-btns">' +
+            '<button type="button" data-act="next"><i class="fa-solid fa-forward-step"></i></button>' +
+            '<button type="button" data-act="zoom"><i class="fa-solid fa-expand"></i></button>' +
+            '<button type="button" data-act="close"><i class="fa-solid fa-xmark"></i></button></span></div><div class="pane-body"></div>';
+          this.head = this.el.firstChild;
+          this.titleEl = this.head.querySelector('.pane-title');
+          this.body = this.el.lastChild;
+          this.index = 0;
+          this.el.addEventListener('mousedown', () => setActive(this));
+          this.el.addEventListener('dblclick', (e) => { if (!e.target.closest('button')) toggleZoom(this); });
+          this.head.querySelectorAll('button').forEach((b) => b.addEventListener('mousedown', (e) => e.preventDefault()));
+          this.head.addEventListener('click', (e) => {
+            const b = e.target.closest('button');
+            if (!b) return;
+            if (b.dataset.act === 'next') nextProgram(this);
+            else if (b.dataset.act === 'zoom') toggleZoom(this);
+            else closePane(this);
+          });
+          this.setWidget(wid);
+        }
+        setWidget(wid) {
+          this.body.textContent = '';
+          this.wid = wid;
+          this.widget = WIDGETS[wid].make(this.body);
+          this.acc = Infinity;
+          this.w = this.h = -1;
+          this.updateHead();
+          this.fit();
+        }
+        fit() {
+          if (this.el.hidden || !this.el.isConnected) return;
+          const w = this.body.clientWidth, h = this.body.clientHeight;
+          if (w === this.w && h === this.h) return;
+          this.w = w; this.h = h;
+          if (w <= 0 || h <= 0) return;
+          this.widget.resize(Math.max(1, Math.floor((w - PAD_X * 2) / M.cw)), Math.max(1, Math.floor((h - PAD_Y * 2) / M.lh)), w, h);
+        }
+        updateHead() {
+          this.titleEl.textContent = `${this.index}:${WIDGETS[this.wid].cmd}`;
+          const [next, zoom, close] = this.head.querySelectorAll('button');
+          next.title = t('nextProgram');
+          zoom.title = t(zoomed === this ? 'unzoom' : 'zoom');
+          zoom.firstChild.className = zoomed === this ? 'fa-solid fa-compress' : 'fa-solid fa-expand';
+          close.title = t('closePane');
+        }
+      }
+
+      function pickWidget(avoid) {
+        const pool = WIDGET_IDS.filter((id) => !settings.off.includes(id));
+        const inUse = new Set(leavesOf(root).map((l) => l.pane.wid));
+        let cands = pool.filter((id) => !inUse.has(id) && id !== avoid);
+        if (!cands.length) cands = pool.filter((id) => id !== avoid);
+        if (!cands.length) cands = pool;
+        return pick(cands);
+      }
+      function newLeaf(wid) {
+        const node = { leaf: true, parent: null, pane: new Pane(wid || pickWidget()) };
+        node.pane.node = node;
+        panesEl.appendChild(node.pane.el);
+        return node;
+      }
+      function rects() {
+        const map = new Map();
+        const walk = (n, x, y, w, h) => {
+          if (n.leaf) { map.set(n, { x, y, w, h }); return; }
+          if (n.dir === 'v') { const wa = Math.round(w * n.ratio); walk(n.a, x, y, wa, h); walk(n.b, x + wa, y, w - wa, h); }
+          else { const ha = Math.round(h * n.ratio); walk(n.a, x, y, w, ha); walk(n.b, x, y + ha, w, h - ha); }
+        };
+        if (root) walk(root, 0, 0, panesEl.clientWidth, panesEl.clientHeight);
+        return map;
+      }
+      function replaceNode(old, node) {
+        const p = old.parent;
+        node.parent = p;
+        if (!p) root = node;
+        else if (p.a === old) p.a = node;
+        else p.b = node;
+      }
+      function canSplit(r) { return r.w >= minW() * 2 || r.h >= minH() * 2; }
+      function splitLeaf(leaf, wid) {
+        const r = rects().get(leaf);
+        if (!r) return null;
+        const canV = r.w >= minW() * 2, canH = r.h >= minH() * 2;
+        if (!canV && !canH) return null;
+        const dir = canV && canH ? (Math.random() < (r.w > r.h * 1.6 ? 0.75 : 0.25) ? 'v' : 'h') : canV ? 'v' : 'h';
+        const len = dir === 'v' ? r.w : r.h, min = dir === 'v' ? minW() : minH();
+        const ratio = rand(Math.max(0.3, min / len), Math.min(0.7, 1 - min / len));
+        const fresh = newLeaf(wid);
+        const split = { leaf: false, dir, ratio, parent: null };
+        replaceNode(leaf, split);
+        [split.a, split.b] = Math.random() < 0.5 ? [leaf, fresh] : [fresh, leaf];
+        leaf.parent = split;
+        fresh.parent = split;
+        return fresh;
+      }
+      function closeLeaf(leaf) {
+        const p = leaf.parent;
+        if (!p) return false;
+        replaceNode(p, p.a === leaf ? p.b : p.a);
+        leaf.pane.el.remove();
+        if (zoomed === leaf.pane) zoomed = null;
+        if (activePane === leaf.pane) activePane = null;
+        return true;
+      }
+      function targetRange() {
+        if (settings.panes !== 'auto') return { min: settings.panes, max: settings.panes };
+        const n = clamp(Math.round((panesEl.clientWidth * panesEl.clientHeight) / (400 * 260)), 2, 9);
+        return { min: Math.max(2, n - 1), max: n + 1 };
+      }
+      function splitSomewhere() {
+        const map = rects();
+        const cands = leavesOf(root).filter((l) => canSplit(map.get(l))).sort((a, b) => map.get(b).w * map.get(b).h - map.get(a).w * map.get(a).h);
+        if (!cands.length) return null;
+        return splitLeaf(Math.random() < 0.6 ? cands[0] : pick(cands));
+      }
+
+      function applyLayout() {
+        if (!root) return;
+        const map = rects(), leaves = leavesOf(root);
+        const full = { x: 0, y: 0, w: panesEl.clientWidth, h: panesEl.clientHeight };
+        leaves.forEach((leaf, i) => {
+          const p = leaf.pane, r = zoomed === p ? full : map.get(leaf);
+          p.index = i;
+          p.el.hidden = !!zoomed && zoomed !== p;
+          p.el.style.left = r.x + 1 + 'px';
+          p.el.style.top = r.y + 1 + 'px';
+          p.el.style.width = Math.max(0, r.w - 2) + 'px';
+          p.el.style.height = Math.max(0, r.h - 2) + 'px';
+          p.updateHead();
+        });
+        leaves.forEach((l) => l.pane.fit());
+        if (!activePane && leaves.length) setActive(pick(leaves).pane);
+        $('sb-panes').textContent = `◫ ${leaves.length}`;
+      }
+
+      function buildLayout() {
+        leavesOf(root).forEach((l) => l.pane.el.remove());
+        root = null; zoomed = null; activePane = null;
+        const { min, max } = targetRange(), n = randi(min, max);
+        root = newLeaf();
+        let guard = 0;
+        while (leavesOf(root).length < n && guard++ < 40) if (!splitSomewhere()) break;
+        applyLayout();
+        mutateIn = nextInterval();
+      }
+      function ensureBuilt() {
+        if (built || panesEl.clientWidth < 40 || panesEl.clientHeight < 40) return;
+        built = true;
+        buildLayout();
+      }
+
+      // Every few seconds: swap a program, split a pane or close one.
+      function mutate() {
+        const count = () => leavesOf(root).length;
+        const { min, max } = targetRange();
+        const swap = () => { const p = pick(leavesOf(root)).pane; p.setWidget(pickWidget(p.wid)); setActive(p); };
+        const split = () => { const f = splitSomewhere(); if (f) setActive(f.pane); return !!f; };
+        const close = () => count() > 1 && closeLeaf(pick(leavesOf(root)));
+        const n = count();
+        if (n < min) split() || swap();
+        else if (n > max) close();
+        else {
+          const r = Math.random();
+          if (r < 0.45 || n === 1) swap();
+          else if (r < 0.75) { if (n < max) split() || swap(); else { close(); split(); } }
+          else if (n > min) close();
+          else { close(); split() || swap(); }
+        }
+        applyLayout();
+      }
+
+      function setActive(p) {
+        activePane = p;
+        leavesOf(root).forEach((l) => l.pane.el.classList.toggle('active', l.pane === p));
+      }
+      function nextProgram(p = activePane) {
+        if (!p) return;
+        p.setWidget(pickWidget(p.wid));
+        setActive(p);
+        mutateIn = nextInterval();
+      }
+      function splitActive() {
+        if (!activePane) return;
+        if (zoomed) zoomed = null;
+        const f = splitLeaf(activePane.node);
+        if (!f) { toast(t('noRoom')); applyLayout(); return; }
+        setActive(f.pane);
+        applyLayout();
+        mutateIn = nextInterval();
+      }
+      function closePane(p = activePane) {
+        if (!p) return;
+        if (!closeLeaf(p.node)) { toast(t('lastPane')); return; }
+        applyLayout();
+        mutateIn = nextInterval();
+      }
+      function toggleZoom(p = activePane) {
+        if (!p) return;
+        zoomed = zoomed === p ? null : p;
+        setActive(p);
+        applyLayout();
+        mutateIn = nextInterval();
+      }
+      function reshuffle() { buildLayout(); }
+      function setPaused(on) {
+        paused = on;
+        const btn = $('btn-pause');
+        btn.classList.toggle('on', on);
+        btn.querySelector('i').className = on ? 'fa-solid fa-play' : 'fa-solid fa-pause';
+        btn.querySelector('span').textContent = t(on ? 'resume' : 'pause');
+        $('sb-paused').hidden = !on;
+      }
+
+      // ------------------------------------------------------------------
+      // Main loop
+      // ------------------------------------------------------------------
+      let last = performance.now();
+      function frame(now) {
+        const dt = Math.min(0.25, (now - last) / 1000);
+        last = now;
+        if (!paused && root) {
+          const sdt = dt * settings.speed;
+          for (const leaf of leavesOf(root)) {
+            const p = leaf.pane;
+            if (p.el.hidden || p.w <= 0 || p.h <= 0) continue;
+            p.acc += sdt;
+            if (p.acc >= 1 / p.widget.fps) { p.widget.step(Math.min(p.acc, 0.5)); p.acc = 0; }
+          }
+          if (settings.interval > 0 && !zoomed) {
+            mutateIn -= dt;
+            if (mutateIn <= 0) { mutate(); mutateIn = nextInterval(); }
+          }
+        }
+        requestAnimationFrame(frame);
+      }
+
+      // byobu-like status line
+      const status = { load: rand(0.3, 2), ghz: rand(2.1, 4.8), mem: rand(20, 55) };
+      function updateStatus() {
+        status.load = clamp(status.load + rand(-0.15, 0.15), 0.05, 12);
+        status.mem = clamp(status.mem + rand(-0.8, 0.8), 8, 92);
+        const ncpu = clamp(navigator.hardwareConcurrency || 8, 2, 16);
+        $('sb-load').textContent = `${status.load.toFixed(2)} ${ncpu}x${status.ghz.toFixed(1)}GHz`;
+        $('sb-mem').textContent = `${Math.round(status.mem)}%`;
+        const d = new Date();
+        $('sb-clock').textContent = `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`;
+      }
+
+      // ------------------------------------------------------------------
+      // Settings menu
+      // ------------------------------------------------------------------
+      const menu = $('settings-menu');
+      function renderMenu() {
+        const sel = (id, key, label) => `<label class="field"><span>${esc(t(key))}</span><select id="set-${id}">${OPTIONS[id].map((v) =>
+          `<option value="${v}"${v === settings[id] ? ' selected' : ''}>${esc(label(v))}</option>`).join('')}</select></label>`;
+        menu.innerHTML =
+          sel('interval', 'interval', (v) => (v ? `${v} s` : t('never'))) +
+          sel('panes', 'panes', (v) => (v === 'auto' ? t('auto') : v)) +
+          sel('scheme', 'colors', (v) => t('scheme_' + v)) +
+          sel('font', 'font', (v) => `${v} px`) +
+          sel('speed', 'speed', (v) => `${v}×`) +
+          `<div class="menu-title">${esc(t('programs'))}</div><div class="checks">` +
+          WIDGET_IDS.map((id) => `<label title="${esc(t('w_' + id))}"><input type="checkbox" value="${id}"${settings.off.includes(id) ? '' : ' checked'}>${esc(WIDGETS[id].cmd)}</label>`).join('') +
+          `</div><button class="btn sm" id="set-reset" type="button"><i class="fa-solid fa-rotate-left"></i><span>${esc(t('reset'))}</span></button>`;
+      }
+      function openMenu() {
+        renderMenu();
+        menu.hidden = false;
+        const r = $('btn-settings').getBoundingClientRect();
+        menu.style.top = r.bottom + 6 + 'px';
+        menu.style.left = clamp(r.left, 8, window.innerWidth - menu.offsetWidth - 8) + 'px';
+        $('btn-settings').setAttribute('aria-expanded', 'true');
+      }
+      function closeMenu() {
+        menu.hidden = true;
+        $('btn-settings').setAttribute('aria-expanded', 'false');
+      }
+      function applyScheme() {
+        document.documentElement.dataset.scheme = settings.scheme;
+        readPalette();
+      }
+      function refit() {
+        measure();
+        leavesOf(root).forEach((l) => { l.pane.w = -1; });
+        applyLayout();
+      }
+      menu.addEventListener('change', (e) => {
+        const el = e.target, parse = (v) => (v === 'auto' || isNaN(+v) ? v : +v);
+        if (el.type === 'checkbox') {
+          const off = el.checked ? settings.off.filter((id) => id !== el.value) : [...settings.off, el.value];
+          if (off.length >= WIDGET_IDS.length) { el.checked = true; toast(t('oneProgram')); return; }
+          settings.off = off;
+          leavesOf(root).forEach((l) => { if (off.includes(l.pane.wid)) l.pane.setWidget(pickWidget(l.pane.wid)); });
+        } else {
+          const key = el.id.replace('set-', '');
+          settings[key] = parse(el.value);
+          if (key === 'interval') mutateIn = nextInterval();
+          if (key === 'panes') buildLayout();
+          if (key === 'scheme') applyScheme();
+          if (key === 'font') refit();
+        }
+        saveSettings();
+      });
+      menu.addEventListener('click', (e) => {
+        if (!e.target.closest('#set-reset')) return;
+        settings = { ...DEFAULTS, off: [] };
+        saveSettings();
+        applyScheme();
+        measure();
+        buildLayout();
+        renderMenu();
+      });
+      $('btn-settings').addEventListener('click', () => (menu.hidden ? openMenu() : closeMenu()));
+      document.addEventListener('mousedown', (e) => {
+        if (!menu.hidden && !menu.contains(e.target) && !e.target.closest('#btn-settings')) closeMenu();
+      });
+
+      // ------------------------------------------------------------------
+      // Top bar, language, theme, help, full screen
+      // ------------------------------------------------------------------
+      function applyLang() {
+        document.documentElement.lang = lang;
+        document.title = t('title');
+        document.querySelectorAll('[data-i18n]').forEach((el) => { el.textContent = t(el.dataset.i18n); });
+        document.querySelectorAll('[data-i18n-title]').forEach((el) => { el.title = t(el.dataset.i18nTitle); el.setAttribute('aria-label', t(el.dataset.i18nTitle)); });
+        $('lang-switcher').value = lang;
+        $('sb-paused').textContent = t('paused');
+        setPaused(paused);
+        leavesOf(root).forEach((l) => l.pane.updateHead());
+        if (!menu.hidden) renderMenu();
+        renderHelp();
+      }
+      function applyTheme() {
+        document.documentElement.dataset.theme = theme;
+        $('theme-switcher').querySelector('i').className = theme === 'dark' ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
+        readPalette();
+      }
+      function renderHelp() {
+        $('help-title').textContent = t('title');
+        const keys = KEYS.map(([k, key]) => `<li><kbd>${esc(k)}</kbd>${esc(t(key))}</li>`).join('');
+        const progs = WIDGET_IDS.map((id) => `<li><code>${esc(WIDGETS[id].cmd)}</code> ${esc(t('w_' + id))}</li>`).join('');
+        $('help-body').innerHTML = `<p>${t('helpIntro')}</p><h3>${esc(t('helpKeys'))}</h3><ul class="keys">${keys}</ul>` +
+          `<h3>${esc(t('helpMouse'))}</h3><ul><li>${esc(t('m_click'))}</li><li>${esc(t('m_head'))}</li></ul>` +
+          `<h3>${esc(t('helpPrograms'))}</h3><ul>${progs}</ul><p class="muted small" style="margin-top:10px">${esc(t('helpSaved'))}</p>`;
+      }
+      const immersive = () => document.documentElement.classList.contains('immersive');
+      function setImmersive(on) {
+        document.documentElement.classList.toggle('immersive', on);
+        if (on) {
+          if (document.documentElement.requestFullscreen && !document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => {});
+          toast(t('exitHint'));
+        } else if (document.fullscreenElement) {
+          document.exitFullscreen().catch(() => {});
+        }
+      }
+      document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement && immersive()) setImmersive(false); });
+
+      $('lang-switcher').addEventListener('change', (e) => {
+        lang = I18N[e.target.value] ? e.target.value : 'en';
+        store.set('app_lang', lang);
+        applyLang();
+      });
+      $('theme-switcher').addEventListener('click', () => {
+        theme = theme === 'dark' ? 'light' : 'dark';
+        store.set('app_theme', theme);
+        applyTheme();
+      });
+      $('btn-pause').addEventListener('click', () => setPaused(!paused));
+      $('btn-shuffle').addEventListener('click', reshuffle);
+      $('btn-split').addEventListener('click', () => splitActive());
+      $('btn-full').addEventListener('click', () => setImmersive(!immersive()));
+      const help = $('help');
+      $('help-btn').addEventListener('click', () => help.showModal());
+      $('help-close').addEventListener('click', () => help.close());
+      help.addEventListener('click', (e) => { if (e.target === help) help.close(); });
+
+      document.addEventListener('keydown', (e) => {
+        if (e.ctrlKey || e.metaKey || e.altKey || help.open) return;
+        const active = document.activeElement;
+        if (active && /INPUT|TEXTAREA|SELECT/.test(active.tagName)) return;
+        if (e.key === 'Escape') {
+          if (!menu.hidden) closeMenu();
+          else if (immersive()) setImmersive(false);
+          return;
+        }
+        if (e.key === '?') { e.preventDefault(); closeMenu(); help.showModal(); return; }
+        if (e.key === ' ') {
+          if (active && active.tagName === 'BUTTON') return;
+          e.preventDefault();
+          setPaused(!paused);
+          return;
+        }
+        const act = { r: reshuffle, n: () => nextProgram(), s: splitActive, x: () => closePane(), z: () => toggleZoom(), f: () => setImmersive(!immersive()) }[e.key.toLowerCase()];
+        if (act) { e.preventDefault(); act(); }
+      });
+
+      let layoutQueued = false;
+      new ResizeObserver(() => {
+        if (layoutQueued) return;
+        layoutQueued = true;
+        requestAnimationFrame(() => { layoutQueued = false; if (built) applyLayout(); else ensureBuilt(); });
+      }).observe(panesEl);
+
+      // ------------------------------------------------------------------
+      // Start
+      // ------------------------------------------------------------------
+      applyTheme();
+      applyScheme();
+      measure();
+      applyLang();
+      ensureBuilt();
+      updateStatus();
+      setInterval(updateStatus, 1000);
+      requestAnimationFrame(frame);
+    })();
+  </script>
+</body>
+</html>
