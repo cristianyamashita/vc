@@ -31,6 +31,7 @@
     "assets/icons/ico/game-helicopter-command.ico",
     "assets/icons/ico/game-marble_track_builder.ico",
     "assets/icons/ico/game-math_quiz.ico",
+    "assets/icons/ico/game-minesweeper-3d.ico",
     "assets/icons/ico/game-missile-command.ico",
     "assets/icons/ico/game-morris.ico",
     "assets/icons/ico/game-pac-man.ico",
@@ -200,6 +201,7 @@
     "assets/icons/png/game-helicopter-command.png",
     "assets/icons/png/game-marble_track_builder.png",
     "assets/icons/png/game-math_quiz.png",
+    "assets/icons/png/game-minesweeper-3d.png",
     "assets/icons/png/game-missile-command.png",
     "assets/icons/png/game-morris.png",
     "assets/icons/png/game-pac-man.png",
@@ -369,6 +371,7 @@
     "assets/icons/svg/game-helicopter-command.svg",
     "assets/icons/svg/game-marble_track_builder.svg",
     "assets/icons/svg/game-math_quiz.svg",
+    "assets/icons/svg/game-minesweeper-3d.svg",
     "assets/icons/svg/game-missile-command.svg",
     "assets/icons/svg/game-morris.svg",
     "assets/icons/svg/game-pac-man.svg",
@@ -850,6 +853,7 @@
     "game/helicopter-command.html",
     "game/marble_track_builder.html",
     "game/math_quiz.html",
+    "game/minesweeper-3d.html",
     "game/missile-command.html",
     "game/morris.html",
     "game/pac-man.html",
@@ -1041,6 +1045,7 @@
     "https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.module.js",
     "https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/controls/OrbitControls.js",
     "https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/controls/TransformControls.js",
+    "https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/geometries/RoundedBoxGeometry.js",
     "https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/loaders/GLTFLoader.js",
     "https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/renderers/CSS2DRenderer.js",
     "https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/utils/BufferGeometryUtils.js",
@@ -1134,6 +1139,6 @@
     "models/tinyyolov2-7.onnx",
     "models/yolov8n-coco.onnx"
   ],
-  "version": "64f387ffa47d"
+  "version": "f49516262fc6"
 };
 })(typeof self !== "undefined" ? self : window);

@@ -211,6 +211,7 @@ IMPORTMAP_CDN = (
     "https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/renderers/CSS2DRenderer.js",
     "https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/controls/OrbitControls.js",
     "https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/controls/TransformControls.js",
+    "https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/geometries/RoundedBoxGeometry.js",
 )
 
 

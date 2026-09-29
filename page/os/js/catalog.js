@@ -1269,6 +1269,30 @@ window.OSCatalog = (function () {
     "settingsPane": "backup"
   },
   {
+    "id": "game-minesweeper-3d",
+    "href": "game/minesweeper-3d.html",
+    "icon": "../assets/icons/svg/game-minesweeper-3d.svg",
+    "kind": "site",
+    "uninstallable": true,
+    "defaultInstalled": false,
+    "channel": "stable",
+    "tag": {
+      "en": "3D Puzzle",
+      "pt": "Quebra-cabeça 3D",
+      "ja": "3Dパズル"
+    },
+    "name": {
+      "en": "Minesweeper 3D",
+      "pt": "Campo Minado 3D",
+      "ja": "マインスイーパー 3D"
+    },
+    "desc": {
+      "en": "Minesweeper in 3D: clear the tiles on the six faces of a rotating cube, where neighbors wrap around edges and corners, or dig through a solid block with 26 neighbors per cell and a layer slicer. Three difficulties, flags, chording and best times.",
+      "pt": "Campo Minado em 3D: abra as casas nas seis faces de um cubo que gira, com vizinhos que continuam pelas arestas e cantos, ou escave um bloco sólido com 26 vizinhos por casa e um cortador de camadas. Três dificuldades, bandeiras, acorde e melhores tempos.",
+      "ja": "3Dのマインスイーパー。回転する立方体の6面のマスを開くモードでは隣接が辺や角をまたいで続き、ボリュームモードでは各マスが26の隣接を持つブロックを層スライサーで掘り進みます。3段階の難易度、旗、同時開き、ベストタイム付き。"
+    }
+  },
+  {
     "id": "game-range-club",
     "href": "game/range-club/index.html",
     "icon": "../assets/icons/svg/game-range-club.svg",
