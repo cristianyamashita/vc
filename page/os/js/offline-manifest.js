@@ -1103,6 +1103,13 @@
   "images": [
     "assets/images/hero-playground-dark.png",
     "assets/images/hero-playground-light.png",
+    "assets/images/hollywood/CREDITS.md",
+    "assets/images/hollywood/face-man.jpg",
+    "assets/images/hollywood/face-woman.jpg",
+    "assets/images/hollywood/sat-chagan.jpg",
+    "assets/images/hollywood/sat-davison.jpg",
+    "assets/images/hollywood/sat-kut.jpg",
+    "assets/images/hollywood/sat-simmons.jpg",
     "assets/images/w9-1.png",
     "assets/images/w9-2.png",
     "assets/images/w9-3.png",
@@ -1139,6 +1146,6 @@
     "models/tinyyolov2-7.onnx",
     "models/yolov8n-coco.onnx"
   ],
-  "version": "f49516262fc6"
+  "version": "fce7f9fa6e7a"
 };
 })(typeof self !== "undefined" ? self : window);

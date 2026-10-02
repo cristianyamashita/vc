@@ -229,14 +229,35 @@
     /* Options grid */
     .options-grid {
       display: grid;
-      grid-template-columns: 1fr;
+      grid-template-columns: 1fr 1fr;
       gap: 8px;
     }
     .opt-group {
       display: flex;
       flex-direction: column;
       gap: 3px;
+      min-width: 0;
     }
+    .opt-group.wide { grid-column: 1 / -1; }
+    .quality-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 3px;
+    }
+    .quality-row input[type="range"] {
+      flex: 1;
+      min-width: 0;
+      accent-color: var(--accent);
+    }
+    .quality-row output {
+      width: 38px;
+      text-align: right;
+      font-size: 0.8rem;
+      color: var(--muted);
+      font-variant-numeric: tabular-nums;
+    }
+    .opt-group select:disabled, .quality-row input:disabled { opacity: 0.45; cursor: not-allowed; }
     .opt-group label {
       font-size: 0.8rem;
       color: var(--muted);
@@ -527,7 +548,7 @@
                 <option value="landscape" data-i18n="optLandscape">Landscape</option>
               </select>
             </div>
-            <div class="opt-group">
+            <div class="opt-group wide">
               <label for="optFit" data-i18n="optFitLabel">Fit mode</label>
               <select id="optFit">
                 <option value="contain" data-i18n="optContain">Contain (letterbox)</option>
@@ -540,13 +561,30 @@
               <input type="number" id="optMargin" value="10" min="0" max="40" step="1" />
             </div>
             <div class="opt-group">
-              <label for="optCompression" data-i18n="optCompressionLabel">Compression</label>
-              <select id="optCompression">
-                <option value="none" data-i18n="optCompressNone">None (original)</option>
-                <option value="low" data-i18n="optCompressLow">Low (JPEG 85%)</option>
-                <option value="medium" selected data-i18n="optCompressMedium">Medium (JPEG 65%)</option>
-                <option value="high" data-i18n="optCompressHigh">High (JPEG 35%)</option>
+              <label for="optMaxSide" data-i18n="optMaxSideLabel">Resolution</label>
+              <select id="optMaxSide">
+                <option value="0" selected data-i18n="optMaxSideOriginal">Original</option>
+                <option value="4000">4000 px</option>
+                <option value="3000">3000 px</option>
+                <option value="2000">2000 px</option>
+                <option value="1500">1500 px</option>
+                <option value="1000">1000 px</option>
               </select>
+            </div>
+            <div class="opt-group wide">
+              <label for="optQuality" data-i18n="optQualityLabel">Quality</label>
+              <select id="optQuality">
+                <option value="original" data-i18n="optQualityOriginal">Original (no recompression)</option>
+                <option value="max" data-i18n="optQualityMax">Maximum (JPEG 95%)</option>
+                <option value="high" selected data-i18n="optQualityHigh">High (JPEG 85%)</option>
+                <option value="medium" data-i18n="optQualityMedium">Medium (JPEG 70%)</option>
+                <option value="low" data-i18n="optQualityLow">Low (JPEG 50%)</option>
+                <option value="custom" data-i18n="optQualityCustom">Custom</option>
+              </select>
+              <div class="quality-row">
+                <input type="range" id="optQualityValue" min="10" max="100" step="1" value="85" />
+                <output id="optQualityOut" for="optQualityValue">85%</output>
+              </div>
             </div>
           </div>
         </div>
@@ -574,6 +612,8 @@
         <li data-i18n="helpStep3"></li>
         <li data-i18n="helpStep4"></li>
       </ul>
+      <h3 data-i18n="helpQualityTitle"></h3>
+      <p data-i18n="helpQuality"></p>
       <h3 data-i18n="helpShortcutsTitle"></h3>
       <p data-i18n="helpShortcut"></p>
     </div>
@@ -604,11 +644,15 @@
         optStretch: "Stretch to fill",
         optActual: "Actual size (clip if needed)",
         optMarginLabel: "Margin (mm)",
-        optCompressionLabel: "Compression",
-        optCompressNone: "None (original)",
-        optCompressLow: "Low (JPEG 85%)",
-        optCompressMedium: "Medium (JPEG 65%)",
-        optCompressHigh: "High (JPEG 35%)",
+        optMaxSideLabel: "Resolution",
+        optMaxSideOriginal: "Original",
+        optQualityLabel: "Quality",
+        optQualityOriginal: "Original (no recompression)",
+        optQualityMax: "Maximum (JPEG 95%)",
+        optQualityHigh: "High (JPEG 85%)",
+        optQualityMedium: "Medium (JPEG 70%)",
+        optQualityLow: "Low (JPEG 50%)",
+        optQualityCustom: "Custom",
         imagesTitle: "Images",
         emptyList: "No images added yet.",
         clearBtn: "Clear all",
@@ -616,7 +660,7 @@
         countOne: "1 image",
         countMany: "{n} images",
         generating: "Generating… {n}/{total}",
-        done: "PDF ready — downloading.",
+        done: "PDF ready ({size}) — downloading.",
         errorLibrary: "jsPDF library failed to load. Please check your internet connection.",
         errorNoImages: "Add at least one image first.",
         errorRead: "Failed to read: {name}",
@@ -630,8 +674,10 @@
         helpHowTitle: "How to use",
         helpStep1: "Drop images on the drop area or click it to browse.",
         helpStep2: "Reorder the list by dragging items or with the ↑ / ↓ buttons; ✕ removes an image.",
-        helpStep3: "Choose page size, orientation, fit mode, margin and compression on the left.",
+        helpStep3: "Choose page size, orientation, fit mode, margin, resolution and quality on the left.",
         helpStep4: "Click Generate PDF to download images.pdf, one image per page.",
+        helpQualityTitle: "Quality",
+        helpQuality: "Original embeds each file without recompressing it: best quality, largest PDF. The other levels re-encode the images as JPEG; move the slider for any value from 10% to 100% — lower means a smaller file. Resolution limits the longer side of each image in pixels. The final size is shown when the PDF is ready.",
         helpShortcutsTitle: "Shortcuts",
         helpShortcut: "? opens this help. Enter or Space on the drop area opens the file picker.",
       },
@@ -651,11 +697,15 @@
         optStretch: "Esticar para preencher",
         optActual: "Tamanho real (recortar se necessário)",
         optMarginLabel: "Margem (mm)",
-        optCompressionLabel: "Compressão",
-        optCompressNone: "Nenhuma (original)",
-        optCompressLow: "Baixa (JPEG 85%)",
-        optCompressMedium: "Média (JPEG 65%)",
-        optCompressHigh: "Alta (JPEG 35%)",
+        optMaxSideLabel: "Resolução",
+        optMaxSideOriginal: "Original",
+        optQualityLabel: "Qualidade",
+        optQualityOriginal: "Original (sem recompressão)",
+        optQualityMax: "Máxima (JPEG 95%)",
+        optQualityHigh: "Alta (JPEG 85%)",
+        optQualityMedium: "Média (JPEG 70%)",
+        optQualityLow: "Baixa (JPEG 50%)",
+        optQualityCustom: "Personalizada",
         imagesTitle: "Imagens",
         emptyList: "Nenhuma imagem adicionada.",
         clearBtn: "Limpar tudo",
@@ -663,7 +713,7 @@
         countOne: "1 imagem",
         countMany: "{n} imagens",
         generating: "Gerando… {n}/{total}",
-        done: "PDF pronto — baixando.",
+        done: "PDF pronto ({size}) — baixando.",
         errorLibrary: "jsPDF não carregou. Verifique sua conexão.",
         errorNoImages: "Adicione pelo menos uma imagem.",
         errorRead: "Falha ao ler: {name}",
@@ -677,8 +727,10 @@
         helpHowTitle: "Como usar",
         helpStep1: "Solte as imagens na área de envio ou clique nela para selecionar.",
         helpStep2: "Reordene a lista arrastando os itens ou com os botões ↑ / ↓; ✕ remove uma imagem.",
-        helpStep3: "Escolha tamanho da página, orientação, modo de ajuste, margem e compressão à esquerda.",
+        helpStep3: "Escolha tamanho da página, orientação, modo de ajuste, margem, resolução e qualidade à esquerda.",
         helpStep4: "Clique em Gerar PDF para baixar images.pdf, uma imagem por página.",
+        helpQualityTitle: "Qualidade",
+        helpQuality: "Original incorpora cada arquivo sem recomprimir: melhor qualidade, PDF maior. Os outros níveis recodificam as imagens em JPEG; mova o controle para qualquer valor de 10% a 100% — quanto menor, menor o arquivo. Resolução limita o lado maior de cada imagem em pixels. O tamanho final aparece quando o PDF fica pronto.",
         helpShortcutsTitle: "Atalhos",
         helpShortcut: "? abre esta ajuda. Enter ou Espaço na área de envio abre o seletor de arquivos.",
       },
@@ -698,11 +750,15 @@
         optStretch: "引き伸ばして塗りつぶす",
         optActual: "実際のサイズ（はみ出す場合は切り取り）",
         optMarginLabel: "余白（mm）",
-        optCompressionLabel: "圧縮",
-        optCompressNone: "なし（オリジナル）",
-        optCompressLow: "低（JPEG 85%）",
-        optCompressMedium: "中（JPEG 65%）",
-        optCompressHigh: "高（JPEG 35%）",
+        optMaxSideLabel: "解像度",
+        optMaxSideOriginal: "オリジナル",
+        optQualityLabel: "画質",
+        optQualityOriginal: "オリジナル（再圧縮なし）",
+        optQualityMax: "最高（JPEG 95%）",
+        optQualityHigh: "高（JPEG 85%）",
+        optQualityMedium: "中（JPEG 70%）",
+        optQualityLow: "低（JPEG 50%）",
+        optQualityCustom: "カスタム",
         imagesTitle: "画像",
         emptyList: "画像がありません。",
         clearBtn: "全て削除",
@@ -710,7 +766,7 @@
         countOne: "1 枚の画像",
         countMany: "{n} 枚の画像",
         generating: "生成中… {n}/{total}",
-        done: "PDF 完成 — ダウンロード中。",
+        done: "PDF 完成（{size}）— ダウンロード中。",
         errorLibrary: "jsPDF の読み込みに失敗しました。インターネット接続を確認してください。",
         errorNoImages: "先に画像を 1 枚以上追加してください。",
         errorRead: "読み取り失敗: {name}",
@@ -724,8 +780,10 @@
         helpHowTitle: "使い方",
         helpStep1: "画像をドロップエリアにドロップするか、クリックして選択します。",
         helpStep2: "項目をドラッグするか ↑ / ↓ ボタンで並べ替えます。✕ で画像を削除します。",
-        helpStep3: "左側でページサイズ・向き・フィットモード・余白・圧縮を選びます。",
+        helpStep3: "左側でページサイズ・向き・フィットモード・余白・解像度・画質を選びます。",
         helpStep4: "「PDF を生成」をクリックすると、1 ページに 1 枚の images.pdf をダウンロードします。",
+        helpQualityTitle: "画質",
+        helpQuality: "「オリジナル」は各ファイルを再圧縮せずに埋め込みます（最高画質・PDF は最大）。その他のレベルは画像を JPEG に再エンコードします。スライダーで 10%〜100% の任意の値を指定でき、低いほどファイルが小さくなります。「解像度」は各画像の長辺をピクセル数で制限します。PDF の完成時に最終サイズを表示します。",
         helpShortcutsTitle: "ショートカット",
         helpShortcut: "? でこのヘルプを開きます。ドロップエリアで Enter / Space を押すとファイル選択が開きます。",
       },
@@ -753,6 +811,7 @@
         el.title = label;
         el.setAttribute('aria-label', label);
       });
+      document.getElementById('optQualityValue').setAttribute('aria-label', t('optQualityLabel'));
       updateCountBadge();
     }
 
@@ -780,6 +839,50 @@
       localStorage.setItem('app_theme', theme);
       applyTheme();
     });
+
+    // ── Options ─────────────────────────────────────────────────────────────
+    const OPTIONS_KEY = 'images_to_pdf_options';
+    const OPTION_IDS = ['optPageSize', 'optOrientation', 'optFit', 'optMargin', 'optMaxSide', 'optQuality', 'optQualityValue'];
+    const QUALITY_PRESETS = { max: 95, high: 85, medium: 70, low: 50 };
+    const optQuality = document.getElementById('optQuality');
+    const optQualityValue = document.getElementById('optQualityValue');
+    const optMaxSide = document.getElementById('optMaxSide');
+
+    function loadOptions() {
+      let saved = {};
+      try { saved = JSON.parse(localStorage.getItem(OPTIONS_KEY) || '{}') || {}; } catch (e) {}
+      OPTION_IDS.forEach(id => {
+        if (saved[id] == null) return;
+        const el = document.getElementById(id);
+        const fallback = el.value;
+        el.value = saved[id];
+        if (el.value !== String(saved[id])) el.value = fallback;
+      });
+    }
+
+    function saveOptions() {
+      const values = Object.fromEntries(OPTION_IDS.map(id => [id, document.getElementById(id).value]));
+      try { localStorage.setItem(OPTIONS_KEY, JSON.stringify(values)); } catch (e) {}
+    }
+
+    function syncQualityUi() {
+      const original = optQuality.value === 'original';
+      optQualityValue.disabled = original;
+      optMaxSide.disabled = original;
+      document.getElementById('optQualityOut').textContent = original ? '—' : optQualityValue.value + '%';
+    }
+
+    optQuality.addEventListener('change', () => {
+      const preset = QUALITY_PRESETS[optQuality.value];
+      if (preset) optQualityValue.value = preset;
+      syncQualityUi();
+    });
+    optQualityValue.addEventListener('input', () => {
+      const value = Number(optQualityValue.value);
+      optQuality.value = Object.keys(QUALITY_PRESETS).find(k => QUALITY_PRESETS[k] === value) || 'custom';
+      syncQualityUi();
+    });
+    OPTION_IDS.forEach(id => document.getElementById(id).addEventListener('change', saveOptions));
 
     // ── State ───────────────────────────────────────────────────────────────
     /** @type {{ id: number, file: File, dataUrl: string, w: number, h: number }[]} */
@@ -813,9 +916,13 @@
     ['dragleave', 'drop'].forEach(evt => {
       dropzone.addEventListener(evt, e => { e.preventDefault(); dropzone.classList.remove('dragging'); });
     });
-    dropzone.addEventListener('drop', e => {
-      const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
-      addFiles(files);
+    // Files dropped anywhere on the page are added instead of opened by the browser
+    const hasFiles = e => Array.from((e.dataTransfer && e.dataTransfer.types) || []).includes('Files');
+    document.addEventListener('dragover', e => { if (hasFiles(e)) e.preventDefault(); });
+    document.addEventListener('drop', e => {
+      if (!hasFiles(e)) return;
+      e.preventDefault();
+      addFiles(Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/')));
     });
 
     fileInput.addEventListener('change', () => {
@@ -828,6 +935,7 @@
       Promise.allSettled(promises).then(results => {
         results.forEach(r => {
           if (r.status === 'rejected') showToast(r.reason, 'error');
+          else images.push(r.value);
         });
         renderList();
       });
@@ -839,8 +947,7 @@
         reader.onload = e => {
           const img = new Image();
           img.onload = () => {
-            images.push({ id: nextId++, file, dataUrl: e.target.result, w: img.naturalWidth, h: img.naturalHeight });
-            resolve();
+            resolve({ id: nextId++, file, dataUrl: e.target.result, w: img.naturalWidth, h: img.naturalHeight });
           };
           img.onerror = () => reject(t('errorRead', { name: file.name }));
           img.src = e.target.result;
@@ -911,7 +1018,7 @@
           const fromId = parseInt(e.dataTransfer.getData('text/plain'));
           const fromIdx = images.findIndex(x => x.id === fromId);
           const toIdx = idx;
-          if (fromIdx === toIdx) return;
+          if (fromIdx < 0 || fromIdx === toIdx) return;
           const [moved] = images.splice(fromIdx, 1);
           images.splice(toIdx, 0, moved);
           renderList();
@@ -952,9 +1059,9 @@
       const orientation  = document.getElementById('optOrientation').value;
       const fitMode     = document.getElementById('optFit').value;
       const margin      = Math.max(0, parseFloat(document.getElementById('optMargin').value) || 0);
-      const compression = document.getElementById('optCompression').value;
-      const qualityMap  = { none: null, low: 0.85, medium: 0.65, high: 0.35 };
-      const jpegQuality = qualityMap[compression];
+      const original    = optQuality.value === 'original';
+      const jpegQuality = Number(optQualityValue.value) / 100;
+      const maxSide     = Number(optMaxSide.value) || 0;
 
       // Show progress
       const progressWrap  = document.getElementById('progressWrap');
@@ -1001,30 +1108,25 @@
         // Compute image rect
         const { x, y, w, h } = computeRect(img.w, img.h, pw, ph, margin, fitMode);
 
-        // Re-encode as JPEG if compression is requested
-        let imgData, fmt;
-        if (jpegQuality !== null) {
-          imgData = await compressToJpeg(img.dataUrl, img.w, img.h, jpegQuality);
-          fmt = 'JPEG';
-        } else {
-          imgData = img.dataUrl;
-          fmt = detectFormat(img.file.type);
-        }
-        pdf.addImage(imgData, fmt, x, y, w, h, undefined, 'FAST');
+        const { data, fmt } = original
+          ? await originalImageData(img)
+          : { data: await renderImage(img, 'image/jpeg', jpegQuality, maxSide), fmt: 'JPEG' };
+        pdf.addImage(data, fmt, x, y, w, h, undefined, 'FAST');
       }
 
+      const blob = pdf.output('blob');
+      const doneMsg = t('done', { size: formatSize(blob.size) });
       progressFill.style.width = '100%';
-      progressLabel.textContent = t('done');
+      progressLabel.textContent = doneMsg;
 
-      // Download
-      pdf.save('images.pdf');
+      downloadBlob(blob, 'images.pdf');
 
       await sleep(1000);
       progressWrap.classList.remove('active');
       progressFill.style.width = '0%';
       progressLabel.textContent = '';
       document.getElementById('generateBtn').disabled = images.length === 0;
-      showToast(t('done'), 'success');
+      showToast(doneMsg, 'success');
     }
 
     function getPageDimsMm(size, orientation, imgs) {
@@ -1069,35 +1171,81 @@
       return { x, y, w, h };
     }
 
-    function compressToJpeg(dataUrl, w, h, quality) {
+    // Original quality: JPEG and PNG go in untouched, anything else is redrawn losslessly as PNG
+    async function originalImageData(img) {
+      const type = img.file.type;
+      if (type === 'image/png') return { data: img.dataUrl, fmt: 'PNG' };
+      if (type === 'image/jpeg' || type === 'image/jpg') {
+        // PDF viewers ignore the EXIF rotation, so a rotated photo has to be redrawn upright
+        if (await readJpegOrientation(img.file) <= 1) return { data: img.dataUrl, fmt: 'JPEG' };
+        return { data: await renderImage(img, 'image/jpeg', 0.95, 0), fmt: 'JPEG' };
+      }
+      return { data: await renderImage(img, 'image/png', undefined, 0), fmt: 'PNG' };
+    }
+
+    function renderImage(img, mime, quality, maxSide) {
       return new Promise((resolve, reject) => {
-        const img = new Image();
-        img.onload = () => {
+        const el = new Image();
+        el.onload = () => {
+          const scale = maxSide > 0 ? Math.min(1, maxSide / Math.max(img.w, img.h)) : 1;
           const canvas = document.createElement('canvas');
-          canvas.width = w;
-          canvas.height = h;
+          canvas.width = Math.max(1, Math.round(img.w * scale));
+          canvas.height = Math.max(1, Math.round(img.h * scale));
           const ctx = canvas.getContext('2d');
-          // Fill white background (JPEG has no alpha channel)
-          ctx.fillStyle = '#ffffff';
-          ctx.fillRect(0, 0, w, h);
-          ctx.drawImage(img, 0, 0, w, h);
-          resolve(canvas.toDataURL('image/jpeg', quality));
+          ctx.imageSmoothingQuality = 'high';
+          if (mime === 'image/jpeg') {
+            // Fill white background (JPEG has no alpha channel)
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+          }
+          ctx.drawImage(el, 0, 0, canvas.width, canvas.height);
+          resolve(canvas.toDataURL(mime, quality));
         };
-        img.onerror = () => reject(new Error('canvas compress failed'));
-        img.src = dataUrl;
+        el.onerror = () => reject(new Error('canvas render failed'));
+        el.src = img.dataUrl;
       });
     }
 
-    function detectFormat(mimeType) {
-      const map = {
-        'image/jpeg': 'JPEG',
-        'image/jpg':  'JPEG',
-        'image/png':  'PNG',
-        'image/webp': 'WEBP',
-        'image/gif':  'GIF',
-        'image/bmp':  'BMP',
-      };
-      return map[mimeType] || 'JPEG';
+    async function readJpegOrientation(file) {
+      try {
+        const view = new DataView(await file.slice(0, 131072).arrayBuffer());
+        if (view.getUint16(0) !== 0xFFD8) return 1;
+        let off = 2;
+        while (off + 4 <= view.byteLength) {
+          const marker = view.getUint16(off);
+          if ((marker & 0xFF00) !== 0xFF00) break;
+          // APP1 segment starting with "Exif"
+          if (marker === 0xFFE1 && view.getUint32(off + 4) === 0x45786966) {
+            const tiff = off + 10;
+            const le = view.getUint16(tiff) === 0x4949;
+            const ifd = tiff + view.getUint32(tiff + 4, le);
+            const count = view.getUint16(ifd, le);
+            for (let i = 0; i < count; i++) {
+              const entry = ifd + 2 + i * 12;
+              if (view.getUint16(entry, le) === 0x0112) return view.getUint16(entry + 8, le);
+            }
+            return 1;
+          }
+          off += 2 + view.getUint16(off + 2);
+        }
+      } catch (e) {}
+      return 1;
+    }
+
+    function formatSize(bytes) {
+      if (bytes < 1024 * 1024) return Math.max(1, Math.round(bytes / 1024)) + ' KB';
+      return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    }
+
+    function downloadBlob(blob, name) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = name;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
     }
 
     function tick() { return new Promise(r => setTimeout(r, 0)); }
@@ -1130,6 +1278,8 @@
     // ── Init ─────────────────────────────────────────────────────────────────
     (function init() {
       applyTheme();
+      loadOptions();
+      syncQualityUi();
       // Apply lang pill
       document.querySelectorAll('.lang-pill button').forEach(b => b.classList.remove('active'));
       const btn = document.getElementById('lang-' + lang);

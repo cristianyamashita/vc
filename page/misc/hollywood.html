@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark" data-scheme="classic">
+<html lang="en" data-theme="dark" data-scheme="phosphor">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -239,6 +239,8 @@
           w_radar: 'Radar sweep tracking contacts',
           w_man: 'The manual page of hollywood',
           w_errno: 'List of error codes',
+          w_sat: 'Satellite pass over military sites, tinted with the scheme colors',
+          w_suspect: 'Face match on a suspect at large (AI-generated faces)',
           manSection: 'General Commands Manual',
           manPrompt: 'Manual page hollywood(1) line {n} (press h for help or q to quit)',
           man: {
@@ -283,6 +285,8 @@
           w_radar: 'Radar rastreando contatos',
           w_man: 'A página de manual do hollywood',
           w_errno: 'Lista de códigos de erro',
+          w_sat: 'Passagem de satélite sobre instalações militares, tingida com as cores do esquema',
+          w_suspect: 'Reconhecimento facial de um suspeito foragido (rostos gerados por IA)',
           manSection: 'Manual de Comandos Gerais',
           manPrompt: 'Página de manual hollywood(1) linha {n} (pressione h para ajuda ou q para sair)',
           man: {
@@ -327,6 +331,8 @@
           w_radar: '目標を追跡するレーダー',
           w_man: 'hollywood のマニュアルページ',
           w_errno: 'エラーコードの一覧',
+          w_sat: '軍事施設上空の衛星画像（配色に合わせて着色）',
+          w_suspect: '逃走中の容疑者の顔照合（AI 生成の顔）',
           manSection: '一般コマンドマニュアル',
           manPrompt: 'マニュアルページ hollywood(1) 行 {n} (h でヘルプ、q で終了)',
           man: {
@@ -1351,6 +1357,292 @@
       }
 
       // ------------------------------------------------------------------
+      // Photo panes: satview and facematch
+      // ------------------------------------------------------------------
+      // Grayscale photos (see ../assets/images/hollywood/CREDITS.md) tinted at
+      // run time with the scheme colors. Only compositing is used, never pixel
+      // reads, so this also works when the page is opened straight from disk.
+      const IMG_DIR = '../assets/images/hollywood/';
+      const imgCache = {};
+      function loadImage(file) {
+        if (!imgCache[file]) { imgCache[file] = new Image(); imgCache[file].src = IMG_DIR + file; }
+        return imgCache[file];
+      }
+      const imgReady = (img) => img.complete && img.naturalWidth > 0;
+      const imgFailed = (img) => img.complete && img.naturalWidth === 0;
+      const luma = (c) => { const n = parseInt(c.slice(1), 16); return 0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255); };
+
+      // Returns draw(ctx, img, source rect, target rect, px). px is the pixel
+      // size: above 1 the picture is blocky, as if it was still being enhanced.
+      function makePhoto() {
+        const low = document.createElement('canvas'), lctx = low.getContext('2d');
+        return (ctx, img, sx, sy, sw, sh, dx, dy, dw, dh, px) => {
+          if (dw < 1 || dh < 1 || sw <= 0 || sh <= 0) return;
+          ctx.save();
+          ctx.beginPath();
+          ctx.rect(dx, dy, dw, dh);
+          ctx.clip();
+          if (px <= 1) {
+            ctx.drawImage(img, sx, sy, sw, sh, dx, dy, dw, dh);
+          } else {
+            const lw = Math.max(1, Math.round(dw / px)), lh = Math.max(1, Math.round(dh / px));
+            if (low.width !== lw || low.height !== lh) { low.width = lw; low.height = lh; }
+            lctx.drawImage(img, sx, sy, sw, sh, 0, 0, lw, lh);
+            ctx.imageSmoothingEnabled = false;
+            ctx.drawImage(low, 0, 0, lw, lh, dx, dy, dw, dh);
+          }
+          // Duotone: black becomes the darker of background/accent, white the lighter.
+          const darkBg = luma(PAL.bg) < luma(PAL.accent);
+          ctx.globalCompositeOperation = 'multiply';
+          ctx.fillStyle = darkBg ? PAL.accent : PAL.bg;
+          ctx.fillRect(dx, dy, dw, dh);
+          ctx.globalCompositeOperation = 'lighten';
+          ctx.fillStyle = darkBg ? PAL.bg : PAL.accent;
+          ctx.fillRect(dx, dy, dw, dh);
+          ctx.restore();
+        };
+      }
+      function hudFont(ctx) {
+        const fs = clamp(M.fs - 1, 9, 13);
+        ctx.font = `${fs}px ${M.family}`;
+        ctx.textBaseline = 'top';
+        return fs;
+      }
+      function hudLabel(ctx, fs, text, x, y, align, inv) {
+        const w = ctx.measureText(text).width + 6;
+        const lx = align === 'right' ? x - w : align === 'center' ? x - w / 2 : x;
+        ctx.globalAlpha = inv ? 1 : 0.78;
+        ctx.fillStyle = inv ? PAL.accent : PAL.bg;
+        ctx.fillRect(lx, y, w, fs + 4);
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = inv ? PAL.bg : PAL.bright;
+        ctx.fillText(text, lx + 3, y + 2);
+      }
+      function brackets(ctx, x, y, w, h, len) {
+        ctx.beginPath();
+        for (const [cx, cy, sx, sy] of [[x, y, 1, 1], [x + w, y, -1, 1], [x, y + h, 1, -1], [x + w, y + h, -1, -1]]) {
+          ctx.moveTo(cx + sx * len, cy); ctx.lineTo(cx, cy); ctx.lineTo(cx, cy + sy * len);
+        }
+        ctx.stroke();
+      }
+      function staticNoise(ctx, x, y, w, h) {
+        ctx.fillStyle = PAL.accent;
+        for (let i = 0, n = Math.min(900, (w * h) / 260); i < n; i++) {
+          ctx.globalAlpha = Math.random() * 0.5;
+          ctx.fillRect(x + Math.random() * w, y + Math.random() * h, rand(2, 14), 2);
+        }
+        ctx.globalAlpha = 1;
+      }
+
+      // lat/lon of the picture center; span is the latitude covered by its height.
+      const SAT_SITES = [
+        { file: 'sat-davison.jpg', lat: 38.715, lon: -77.181, span: 0.022 },
+        { file: 'sat-simmons.jpg', lat: 35.1318, lon: -78.9367, span: 0.024 },
+        { file: 'sat-kut.jpg', lat: 32.482, lon: 45.757, span: 0.06 },
+        { file: 'sat-chagan.jpg', lat: 50.538, lon: 79.193, span: 0.07 },
+      ];
+      function satWidget(body) {
+        const cv = mkCanvas(body), ctx = cv.ctx, photo = makePhoto();
+        let W = 0, H = 0, site = pick(SAT_SITES), img = loadImage(site.file);
+        let cam = { x: 0.5, y: 0.5, z: 1.2 }, from = { ...cam }, to = { ...cam };
+        let phase = 'acquire', tPhase = 0, dur = 1.2, targets = 0, tgt = randi(1, 40), pass = randi(100, 999);
+        const next = (p, d) => { phase = p; tPhase = 0; dur = d; };
+        function newTarget() {
+          from = { ...cam };
+          to = { x: rand(0.15, 0.85), y: rand(0.15, 0.85), z: rand(1.4, 2.6) };
+          tgt++;
+          next('slew', rand(2.5, 4.5));
+        }
+        function newSite() {
+          site = pick(SAT_SITES.filter((s) => s !== site));
+          img = loadImage(site.file);
+          targets = 0; pass++;
+          cam = { x: 0.5, y: 0.5, z: 1.2 };
+          next('acquire', 1.2);
+        }
+        function draw() {
+          const k = Math.min(1, tPhase / dur);
+          ctx.globalAlpha = 1;
+          ctx.fillStyle = PAL.bg;
+          ctx.fillRect(0, 0, W, H);
+          const fs = hudFont(ctx);
+          if (phase === 'acquire' || !imgReady(img)) {
+            staticNoise(ctx, 0, 0, W, H);
+            hudLabel(ctx, fs, imgFailed(img) ? 'NO SIGNAL' : 'ACQUIRING SIGNAL' + '.'.repeat(1 + (Math.floor(tPhase * 3) % 3)), W / 2, H / 2 - fs / 2, 'center', true);
+            return;
+          }
+          const iw = img.naturalWidth, ih = img.naturalHeight;
+          const s = Math.max(W / iw, H / ih) * cam.z, sw = W / s, sh = H / s;
+          const sx = clamp(cam.x * iw - sw / 2, 0, iw - sw), sy = clamp(cam.y * ih - sh / 2, 0, ih - sh);
+          if (phase === 'lock') photo(ctx, img, sx, sy, sw, sh, 0, 0, W, H, 1);
+          else {
+            photo(ctx, img, sx, sy, sw, sh, 0, 0, W, H, 4);
+            if (phase === 'enhance') {
+              photo(ctx, img, sx, sy, sw, sh * k, 0, 0, W, H * k, 1);
+              ctx.fillStyle = PAL.bright;
+              ctx.fillRect(0, H * k - 1, W, 2);
+            }
+          }
+          const cx = Math.round(W / 2) + 0.5, cy = Math.round(H / 2) + 0.5, box = Math.min(W, H) * 0.32, grid = Math.max(40, Math.min(W, H) / 4);
+          ctx.strokeStyle = PAL.bright;
+          ctx.lineWidth = 1;
+          ctx.globalAlpha = 0.14;
+          ctx.beginPath();
+          for (let x = cx % grid; x < W; x += grid) { ctx.moveTo(Math.round(x) + 0.5, 0); ctx.lineTo(Math.round(x) + 0.5, H); }
+          for (let y = cy % grid; y < H; y += grid) { ctx.moveTo(0, Math.round(y) + 0.5); ctx.lineTo(W, Math.round(y) + 0.5); }
+          ctx.stroke();
+          ctx.globalAlpha = 0.75;
+          ctx.beginPath();
+          ctx.moveTo(cx - box * 0.8, cy); ctx.lineTo(cx - 7, cy); ctx.moveTo(cx + 7, cy); ctx.lineTo(cx + box * 0.8, cy);
+          ctx.moveTo(cx, cy - box * 0.8); ctx.lineTo(cx, cy - 7); ctx.moveTo(cx, cy + 7); ctx.lineTo(cx, cy + box * 0.8);
+          ctx.stroke();
+          ctx.globalAlpha = 1;
+          if (phase !== 'slew') { ctx.lineWidth = 2; brackets(ctx, cx - box / 2, cy - box / 2, box, box, box * 0.22); }
+          const lat = site.lat + (0.5 - (sy + sh / 2) / ih) * site.span;
+          const lon = site.lon + (((sx + sw / 2) / iw - 0.5) * site.span * (iw / ih)) / Math.cos((site.lat * Math.PI) / 180);
+          const id = `TGT-${pad2(tgt % 100)}`;
+          const state = phase === 'slew' ? `SLEWING TO ${id}` : phase === 'enhance' ? `ENHANCING ${String(Math.floor(k * 100)).padStart(2)}%` : `${id} LOCKED`;
+          hudLabel(ctx, fs, state, 4, H - fs - 8, 'left', phase === 'lock' && Math.floor(tPhase * 2) % 2 === 0);
+          if (W >= 220) {
+            hudLabel(ctx, fs, `SAT-7 // PASS ${pass}`, 4, 4, 'left');
+            hudLabel(ctx, fs, `${Math.abs(lat).toFixed(4)}°${lat >= 0 ? 'N' : 'S'} ${Math.abs(lon).toFixed(4).padStart(8, '0')}°${lon >= 0 ? 'E' : 'W'}`, 4, fs + 9, 'left');
+          }
+          if (W >= 380) {
+            const d = new Date();
+            hudLabel(ctx, fs, `ZOOM x${cam.z.toFixed(1)}`, W - 4, 4, 'right');
+            hudLabel(ctx, fs, `${pad2(d.getUTCHours())}:${pad2(d.getUTCMinutes())}:${pad2(d.getUTCSeconds())}Z`, W - 4, H - fs - 8, 'right');
+          }
+        }
+        return {
+          fps: 15,
+          resize(c, r, w, h) { W = w; H = h; cv.size(w, h); },
+          step(dt) {
+            tPhase += dt;
+            const k = Math.min(1, tPhase / dur);
+            if (phase === 'slew') {
+              const e = k * k * (3 - 2 * k);
+              cam = { x: from.x + (to.x - from.x) * e, y: from.y + (to.y - from.y) * e, z: from.z + (to.z - from.z) * e };
+              if (k >= 1) next('enhance', 2.2);
+            } else if (phase === 'enhance') {
+              if (k >= 1) next('lock', rand(2, 3.5));
+            } else if (phase === 'lock') {
+              if (k >= 1) { if (++targets >= 4) newSite(); else newTarget(); }
+            } else if (k >= 1 && imgReady(img)) newTarget();
+            draw();
+          },
+        };
+      }
+
+      // Both faces were generated by StyleGAN: these people do not exist.
+      const FACES = [{ file: 'face-man.jpg', sex: 'M' }, { file: 'face-woman.jpg', sex: 'F' }];
+      const ALIASES = ['CIPHER', 'GHOST', 'NOMAD', 'RAVEN', 'ORACLE', 'VIPER', 'ECHO', 'WRAITH', 'ZERO COOL', 'ACID BURN', 'CRASH OVERRIDE', 'PHANTOM'];
+      const PLACES = ['METRO LINE 4', 'PIER 19', 'TERMINAL B', 'SECTOR 7G', '5TH & MAIN', 'CENTRAL STATION', 'PARKING L3', 'NORTH GATE'];
+      // Landmarks of an FFHQ-aligned portrait, as fractions of the picture:
+      // eyes, nose bridge, nose tip, nostrils, mouth, chin, jaw, cheeks, brows, forehead.
+      const FACE_PTS = [[0.365, 0.47], [0.635, 0.47], [0.5, 0.475], [0.5, 0.615], [0.44, 0.64], [0.56, 0.64], [0.405, 0.73], [0.595, 0.73], [0.5, 0.735],
+        [0.5, 0.895], [0.3, 0.7], [0.7, 0.7], [0.265, 0.53], [0.735, 0.53], [0.35, 0.4], [0.65, 0.4], [0.5, 0.3]];
+      const FACE_LINKS = [[14, 0], [15, 1], [0, 2], [2, 1], [14, 16], [16, 15], [2, 3], [3, 4], [3, 5], [4, 6], [5, 7], [6, 8], [8, 7], [6, 10], [7, 11],
+        [10, 9], [9, 11], [12, 10], [13, 11], [12, 14], [13, 15], [0, 4], [1, 5], [8, 9]];
+      const FACE_ROW_ORDER = [0, 7, 6, 5, 1, 4, 2, 3];
+      function suspectWidget(body) {
+        const cv = mkCanvas(body), ctx = cv.ctx, photo = makePhoto();
+        let W = 0, H = 0, idx = randi(0, FACES.length - 1), img, info, phase, tPhase, dur;
+        const next = (p, d) => { phase = p; tPhase = 0; dur = d; };
+        function newSubject() {
+          idx = (idx + 1) % FACES.length;
+          img = loadImage(FACES[idx].file);
+          const seen = new Date(Date.now() - randi(40, 900) * 1000);
+          info = {
+            id: `${randi(1000, 9999)}-${pick(['A', 'B', 'C', 'E', 'K', 'X'])}`, alias: pick(ALIASES), sex: FACES[idx].sex, age: randi(26, 44), height: randi(162, 191),
+            place: `CAM-${randi(10, 99)} ${pick(PLACES)}`, seen: `${pad2(seen.getHours())}:${pad2(seen.getMinutes())}:${pad2(seen.getSeconds())}`,
+            match: rand(86, 99.4), jit: FACE_PTS.map(() => [rand(-0.008, 0.008), rand(-0.008, 0.008)]),
+          };
+          next('search', 1.8);
+        }
+        newSubject();
+        function draw() {
+          const k = Math.min(1, tPhase / dur);
+          ctx.globalAlpha = 1;
+          ctx.fillStyle = PAL.bg;
+          ctx.fillRect(0, 0, W, H);
+          const fs = hudFont(ctx), lh = fs + 5, m = 6;
+          const side = W >= H * 1.2;
+          let size = Math.floor(side ? Math.min(H - m * 2, W * 0.5) : Math.min(W - m * 2, H - m * 2 - lh * 4));
+          if (size < 48) size = Math.max(8, Math.min(W, H) - m * 2);
+          const px = side ? m : Math.floor((W - size) / 2), py = side ? Math.floor((H - size) / 2) : m;
+          const ready = imgReady(img), iw = img.naturalWidth, ih = img.naturalHeight;
+          if (!ready) staticNoise(ctx, px, py, size, size);
+          else if (phase === 'search') photo(ctx, img, 0, 0, iw, ih, px, py, size, size, pick([14, 18, 24]));
+          else if (phase === 'enhance') {
+            photo(ctx, img, 0, 0, iw, ih, px, py, size, size, 8);
+            photo(ctx, img, 0, 0, iw, ih * k, px, py, size, size * k, 1);
+            ctx.fillStyle = PAL.bright;
+            ctx.fillRect(px, py + size * k - 1, size, 2);
+          } else photo(ctx, img, 0, 0, iw, ih, px, py, size, size, 1);
+          ctx.strokeStyle = PAL.accent;
+          ctx.lineWidth = 1;
+          ctx.strokeRect(px + 0.5, py + 0.5, size - 1, size - 1);
+          const shown = Math.min(info.match, info.match * tPhase * 1.2);
+          if (ready && (phase === 'analyze' || phase === 'match')) {
+            const n = phase === 'match' ? FACE_PTS.length : Math.ceil(k * FACE_PTS.length);
+            const pt = (i) => [px + (FACE_PTS[i][0] + info.jit[i][0]) * size, py + (FACE_PTS[i][1] + info.jit[i][1]) * size];
+            ctx.strokeStyle = PAL.bright;
+            ctx.globalAlpha = 0.5;
+            ctx.beginPath();
+            for (const [a, b] of FACE_LINKS) if (a < n && b < n) { ctx.moveTo(...pt(a)); ctx.lineTo(...pt(b)); }
+            ctx.stroke();
+            ctx.globalAlpha = 1;
+            ctx.fillStyle = PAL.bright;
+            for (let i = 0; i < n; i++) { const [x, y] = pt(i); ctx.fillRect(x - 1.5, y - 1.5, 3, 3); }
+            ctx.lineWidth = 2;
+            brackets(ctx, px + size * 0.22, py + size * 0.2, size * 0.56, size * 0.74, size * 0.09);
+            if (phase === 'match' && size >= 120 && (tPhase > 2 || Math.floor(tPhase * 4) % 2 === 0)) hudLabel(ctx, fs, `MATCH ${shown.toFixed(1)}%`, px + size / 2, py + size * 0.2 - fs - 8, 'center', true);
+          }
+          if (size >= 120) {
+            const tag = imgFailed(img) ? 'NO SIGNAL' : phase === 'search' ? `SEARCHING ${randi(100000, 999999)}` : phase === 'enhance' ? `ENHANCING ${String(Math.floor(k * 100)).padStart(2)}%` : phase === 'analyze' ? 'ANALYZING' : 'TRACKING';
+            hudLabel(ctx, fs, tag, px + 4, py + size - fs - 8, 'left', phase === 'match' && Math.floor(tPhase * 2) % 2 === 0);
+          }
+          // Dossier, beside the photo or under it
+          const tx = side ? px + size + 10 : px, ty = side ? py : py + size + 6;
+          const availW = W - tx - m, maxRows = Math.floor((H - ty - m) / lh);
+          if (availW < fs * 5 || maxRows < 1) return;
+          const rows = [
+            ['SUBJECT', info.id, PAL.bright], ['ALIAS', `"${info.alias}"`, PAL.fg], ['SEX/AGE', `${info.sex} / ${info.age}`, PAL.fg], ['HEIGHT', `${info.height} CM`, PAL.fg],
+            ['LAST SEEN', info.seen, PAL.fg], ['LOCATION', info.place, PAL.fg], ['MATCH', phase === 'match' ? `${shown.toFixed(1)}%` : '--.-%', PAL.yellow],
+            ['STATUS', 'AT LARGE', PAL.red],
+          ];
+          const reveal = phase === 'search' ? 0 : phase === 'enhance' ? Math.ceil(k * 4) : phase === 'analyze' ? 4 + Math.ceil(k * 2) : rows.length;
+          const keep = new Set(FACE_ROW_ORDER.slice(0, maxRows));
+          const narrow = availW < fs * 0.6 * 24;
+          let y = ty;
+          rows.forEach(([label, value, color], i) => {
+            if (!keep.has(i)) return;
+            if (i < reveal && !(i === 7 && Math.floor(tPhase * 2) % 2 === 1)) {
+              ctx.fillStyle = PAL.dim;
+              if (!narrow) ctx.fillText(label, tx, y);
+              ctx.fillStyle = color;
+              ctx.fillText(value, narrow ? tx : tx + fs * 0.6 * 11, y);
+            }
+            y += lh;
+          });
+        }
+        return {
+          fps: 15,
+          resize(c, r, w, h) { W = w; H = h; cv.size(w, h); },
+          step(dt) {
+            tPhase += dt;
+            if (tPhase >= dur) {
+              if (phase === 'search') { if (imgReady(img)) next('enhance', 2); }
+              else if (phase === 'enhance') next('analyze', 2.6);
+              else if (phase === 'analyze') next('match', rand(5, 8));
+              else newSubject();
+            }
+            draw();
+          },
+        };
+      }
+
+      // ------------------------------------------------------------------
       // Program registry
       // ------------------------------------------------------------------
       const WIDGETS = {
@@ -1368,6 +1660,8 @@
         radar: { cmd: 'radar', make: radarWidget },
         man: { cmd: 'man', make: manWidget },
         errno: { cmd: 'errno', make: (b) => scrollWidget(b, errnoGen, 10) },
+        sat: { cmd: 'satview', make: satWidget },
+        suspect: { cmd: 'facematch', make: suspectWidget },
       };
       const WIDGET_IDS = Object.keys(WIDGETS);
 
@@ -1379,18 +1673,34 @@
         interval: [4, 8, 15, 30, 60, 0], panes: ['auto', 1, 2, 3, 4, 5, 6, 7, 8, 9],
         scheme: ['classic', 'phosphor', 'amber'], font: [10, 11, 12, 13, 14, 16], speed: [0.5, 1, 1.5, 2],
       };
-      const DEFAULTS = { interval: 8, panes: 'auto', scheme: 'classic', font: 12, speed: 1, off: [] };
+      const DEFAULTS = { interval: 8, panes: 'auto', scheme: 'phosphor', font: 12, speed: 1 };
+      // Programs that start switched off; the rest start on.
+      const DEFAULT_OFF = ['matrix', 'donut', 'radar', 'sat', 'suspect'];
+      const defaultSettings = () => ({ ...DEFAULTS, off: [...DEFAULT_OFF] });
+      // Only what differs from the defaults is stored (format v2), so changing
+      // a default later still reaches everyone who never touched that setting.
       function loadSettings() {
         let saved = {};
         try { saved = JSON.parse(store.get(SETTINGS_KEY) || '{}') || {}; } catch {}
-        const s = { ...DEFAULTS };
+        const s = defaultSettings();
+        if (saved.v !== 2) return s;
         for (const k of Object.keys(OPTIONS)) if (OPTIONS[k].includes(saved[k])) s[k] = saved[k];
-        if (Array.isArray(saved.off)) s.off = saved.off.filter((id) => WIDGETS[id]);
-        if (s.off.length >= WIDGET_IDS.length) s.off = [];
+        const progs = saved.progs && typeof saved.progs === 'object' ? saved.progs : {};
+        s.off = WIDGET_IDS.filter((id) => (typeof progs[id] === 'boolean' ? !progs[id] : DEFAULT_OFF.includes(id)));
+        if (s.off.length >= WIDGET_IDS.length) s.off = [...DEFAULT_OFF];
         return s;
       }
       let settings = loadSettings();
-      const saveSettings = () => store.set(SETTINGS_KEY, JSON.stringify(settings));
+      function saveSettings() {
+        const out = { v: 2 }, progs = {};
+        for (const k of Object.keys(DEFAULTS)) if (settings[k] !== DEFAULTS[k]) out[k] = settings[k];
+        for (const id of WIDGET_IDS) {
+          const on = !settings.off.includes(id);
+          if (on === DEFAULT_OFF.includes(id)) progs[id] = on;
+        }
+        if (Object.keys(progs).length) out.progs = progs;
+        store.set(SETTINGS_KEY, JSON.stringify(out));
+      }
 
       function measure() {
         const fs = settings.font, lh = Math.round(fs * 1.25);
@@ -1726,7 +2036,7 @@
       });
       menu.addEventListener('click', (e) => {
         if (!e.target.closest('#set-reset')) return;
-        settings = { ...DEFAULTS, off: [] };
+        settings = defaultSettings();
         saveSettings();
         applyScheme();
         measure();
