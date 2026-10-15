@@ -163,7 +163,7 @@ def add_url(buckets: dict[str, set[str]], rel: str) -> None:
 
 def resolve_ref(source: Path, raw: str) -> str | None:
     ref = clean_ref(raw)
-    if is_ignored_ref(ref):
+    if is_ignored_ref(ref) or "${" in ref:
         return None
     if ref.startswith(("http://", "https://")):
         return ref.split("#")[0]
@@ -212,6 +212,13 @@ IMPORTMAP_CDN = (
     "https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/controls/OrbitControls.js",
     "https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/controls/TransformControls.js",
     "https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/geometries/RoundedBoxGeometry.js",
+    # Self-contained 3D collection pages: studio lighting and local model import.
+    "https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/environments/RoomEnvironment.js",
+    "https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/loaders/DRACOLoader.js",
+    "https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/libs/meshopt_decoder.module.js",
+    "https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/libs/draco/draco_decoder.js",
+    "https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/libs/draco/draco_wasm_wrapper.js",
+    "https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/libs/draco/draco_decoder.wasm",
 )
 
 
@@ -234,6 +241,8 @@ def seed_globs(buckets: dict[str, set[str]]) -> None:
         "assets/icons/**/*.*",
         "assets/fontawesome/**/*.*",
         "assets/images/**/*.*",
+        # Planner presets are addressed through their runtime JSON manifest.
+        "assets/environment-planner/**/*.json",
         "models/**/*.*",
         # Game sound effects are fetched by name at runtime, so nothing in the
         # source text points at them for the scanner to find.

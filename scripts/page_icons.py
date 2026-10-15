@@ -82,6 +82,77 @@ def slug_from_relpath(rel: str) -> str:
 # --- catalog -----------------------------------------------------------------
 
 ICONS: dict[str, list[Shape]] = {
+    "game-pinball-3d": [
+        r(6, 4, 20, 24, fill=None, stroke=WHITE, sw=1.5, rad=3),
+        c(12, 11, 2.5), c(21, 13, 2.5), c(16, 18, 1.5),
+        l(9, 24, 14, 26, sw=2.8), l(23, 24, 18, 26, sw=2.8),
+    ],
+    "game-bowling-3d": [
+        p([(12, 5), (14, 5), (15, 9), (14, 12), (17, 19), (16, 25), (10, 25), (9, 19), (12, 12), (11, 9)]),
+        r(11, 10, 4, 1.5, fill=DARK), c(24, 22, 5.5),
+        c(22.5, 20, .7, fill=DARK), c(25.2, 20, .7, fill=DARK), c(24, 22, .7, fill=DARK),
+    ],
+    "game-bridge-builder-3d": [
+        l(4, 23, 28, 23, sw=2.5), l(4, 23, 10, 10, sw=1.8),
+        l(10, 10, 16, 23, sw=1.8), l(16, 23, 22, 10, sw=1.8), l(22, 10, 28, 23, sw=1.8),
+        l(10, 10, 22, 10, sw=1.8), l(10, 10, 10, 23, sw=1.2), l(22, 10, 22, 23, sw=1.2),
+        r(3, 23, 4, 5, fill=DARK), r(25, 23, 4, 5, fill=DARK),
+    ],
+    "game-warehouse-robot-3d": [
+        r(5, 15, 13, 10, rad=2), r(8, 11, 7, 5, rad=1),
+        c(8, 26, 2, fill=DARK), c(15, 26, 2, fill=DARK),
+        p([(20, 7), (25, 4), (29, 7), (25, 10)], fill=WHITE),
+        p([(20, 7), (20, 15), (25, 18), (29, 15), (29, 7)], fill=None, stroke=WHITE, sw=1.5),
+        l(25, 10, 25, 18, sw=1.5), l(17, 18, 22, 18, sw=1.5),
+    ],
+    "game-submarine-explorer-3d": [
+        e(16, 18, 12, 6), c(11, 18, 3, fill=DARK), c(11, 18, 1.5),
+        r(15, 9, 7, 5, rad=1), l(18, 10, 18, 6), l(18, 6, 23, 6),
+        l(28, 13, 28, 23, sw=2), c(5, 7, 1, fill=None, stroke=WHITE, sw=1),
+        c(9, 4, 1.3, fill=None, stroke=WHITE, sw=1),
+    ],
+    "game-billiards-3d": [
+        r(4, 6, 24, 21, fill=None, stroke=WHITE, sw=1.7, rad=3),
+        c(9, 20, 3), c(20, 12, 3), c(21, 21, 3, fill=DARK, stroke=WHITE, sw=1),
+        l(8, 10, 17, 18, sw=1.6), c(5, 7, 1.4, fill=DARK), c(27, 26, 1.4, fill=DARK),
+    ],
+    "utils-model-inspector-3d": [
+        p([(6, 10), (16, 5), (25, 10), (16, 15)], fill=None, stroke=WHITE, sw=1.5),
+        pl([(6, 10), (6, 22), (16, 27), (25, 22), (25, 10)], sw=1.5), l(16, 15, 16, 27, sw=1.5),
+        l(4, 18, 28, 18, stroke=DARK, sw=3), l(4, 18, 28, 18, sw=1),
+        c(26, 7, 3, fill=DARK, stroke=WHITE, sw=1.5), l(28, 9, 30, 11, sw=1.5),
+    ],
+    "utils-terrain-generator-3d": [
+        p([(3, 23), (11, 9), (17, 17), (22, 7), (29, 23)], fill=WHITE),
+        p([(8, 14), (11, 9), (14, 14), (11, 13)], fill=DARK),
+        p([(19, 12), (22, 7), (25, 13), (22, 11)], fill=DARK),
+        pl([(5, 27), (12, 25), (19, 28), (27, 25)], sw=1.6),
+    ],
+    "utils-mechanism-lab-3d": [
+        p(_star(12, 13, 9, 6.5, n=10), fill=WHITE), c(12, 13, 3.2, fill=DARK),
+        p(_star(23, 23, 6.3, 4.3, n=8), fill=WHITE), c(23, 23, 2.3, fill=DARK),
+        l(6, 26, 14, 26, sw=1.8), l(10, 23, 10, 29, sw=1.8),
+    ],
+    "utils-molecule-builder-3d": [
+        l(16, 15, 7, 7, sw=2.6), l(16, 15, 26, 8, sw=2.6), l(16, 15, 9, 26, sw=2.6), l(16, 15, 26, 25, sw=2.6),
+        c(16, 15, 5), c(7, 7, 3), c(26, 8, 3, fill=DARK, stroke=WHITE, sw=1.5),
+        c(9, 26, 3), c(26, 25, 3),
+    ],
+    "utils-folding-lab-3d": [
+        p([(4, 9), (14, 4), (19, 13), (28, 9), (26, 25), (16, 29), (12, 18), (5, 23)], fill=None, stroke=WHITE, sw=1.6),
+        pl([(14, 4), (12, 18), (16, 29)], sw=1.6), pl([(19, 13), (12, 18), (26, 25)], stroke=DARK, sw=2),
+        l(19, 13, 16, 29, sw=1.4),
+    ],
+    "utils-architecture-atlas": [
+        p([(4, 10), (12, 5), (20, 10), (12, 15)], fill=None, stroke=WHITE, sw=1.6),
+        p([(4, 10), (4, 21), (12, 26), (20, 21), (20, 10)], fill=None, stroke=WHITE, sw=1.6),
+        l(12, 15, 12, 26, sw=1.6),
+        c(12, 18, 2.2),
+        l(20, 15, 25, 15, sw=1.4),
+        e(26, 10, 3, 1.6), r(23, 10, 6, 8), e(26, 18, 3, 1.6),
+        e(26, 10, 2, .7, fill=DARK),
+        l(20, 22, 25, 25, sw=1.4), c(26, 26, 2.3),
+    ],
     "game-range-club": [
         c(14, 15, 9, fill=None, stroke=WHITE, sw=2),
         c(14, 15, 5, fill=None, stroke=WHITE, sw=2),
@@ -924,6 +995,22 @@ ICONS: dict[str, list[Shape]] = {
         p([(16, 16), (26, 10), (26, 22)], fill=TEAL),
         c(14, 11, 1.6, fill=DARK),
     ],
+    # Extruded invader seen from the front-left: lit front face, dark top and
+    # side faces for depth, a laser rising from the ship at the bottom.
+    "game-space-invaders-3d": [
+        p([(8, 9), (11, 6.5), (25, 6.5), (22, 9)], fill=DARK),
+        p([(22, 9), (25, 6.5), (25, 14), (22, 16)], fill=DARK),
+        r(8, 9, 14, 7, rad=1),
+        r(10, 5, 2, 4),
+        r(18, 5, 2, 4),
+        r(9, 16, 2, 4),
+        r(19, 16, 2, 4),
+        r(6, 12, 2, 3),
+        c(12.5, 12.5, 1.2, fill=DARK),
+        c(17.5, 12.5, 1.2, fill=DARK),
+        l(15, 20, 15, 25, sw=1.6),
+        p([(10.5, 28), (15, 24), (19.5, 28)]),
+    ],
     "game-space-invaders": [
         r(10, 8, 3, 3),
         r(19, 8, 3, 3),
@@ -1299,6 +1386,17 @@ ICONS: dict[str, list[Shape]] = {
         l(11, 20, 8, 27, sw=2),
         l(21, 20, 24, 27, sw=2),
         l(16, 20, 16, 26, sw=2),
+    ],
+    "utils-environment_planner": [
+        p([(5, 19), (16, 24), (27, 19), (16, 14)], fill=DARK),
+        pl([(5, 19), (5, 9), (16, 4), (27, 9), (27, 19), (16, 24), (5, 19)], sw=1.8),
+        pl([(5, 9), (16, 14), (27, 9)], sw=1.6),
+        l(16, 14, 16, 24, sw=1.5),
+        pl([(10, 21), (10, 15), (15, 17), (15, 23)], sw=1.7),
+        l(5, 26, 16, 30, sw=1.5),
+        l(16, 30, 27, 25, sw=1.5),
+        l(5, 24, 5, 28, sw=1.4),
+        l(27, 23, 27, 27, sw=1.4),
     ],
     "misc-nebula_lab": [
         l(8, 9, 16, 16, sw=1.4),

@@ -473,6 +473,30 @@ window.OSCatalog = (function () {
     }
   },
   {
+    "id": "utils-architecture-atlas",
+    "href": "utils/architecture-atlas/index.html",
+    "icon": "../assets/icons/svg/utils-architecture-atlas.svg",
+    "kind": "site",
+    "uninstallable": true,
+    "defaultInstalled": false,
+    "channel": "stable",
+    "tag": {
+      "en": "Architecture",
+      "pt": "Arquitetura",
+      "ja": "アーキテクチャ"
+    },
+    "name": {
+      "en": "Architecture Atlas 3D",
+      "pt": "Architecture Atlas 3D",
+      "ja": "Architecture Atlas 3D"
+    },
+    "desc": {
+      "en": "Explore and edit 3D application architecture: servers, apps, databases, tables, fields and APIs, with typed links, custom shapes and icons, presentations and portable projects.",
+      "pt": "Explore e edite arquiteturas 3D com servidores, aplicações, bancos, tabelas, campos e APIs; relações, formas e ícones personalizados, apresentações e projetos portáteis.",
+      "ja": "サーバー、アプリ、DB、テーブル、カラム、APIの3D構成を編集。接続、形状、アイコン、プレゼン、プロジェクト入出力に対応。"
+    }
+  },
+  {
     "id": "utils-terminal",
     "href": "utils/terminal.html",
     "icon": "../assets/icons/svg/utils-terminal.svg",
@@ -616,6 +640,30 @@ window.OSCatalog = (function () {
       "en": "A persistent focus timer where every completed session grows a unique plant in an animated garden.",
       "pt": "Cronômetro de foco persistente em que cada sessão concluída cultiva uma planta única no jardim animado.",
       "ja": "集中セッションを完了するたび、保存可能なアニメーションの庭に新しい植物が育ちます。"
+    }
+  },
+  {
+    "id": "utils-environment_planner",
+    "href": "utils/environment_planner.html",
+    "icon": "../assets/icons/svg/utils-environment_planner.svg",
+    "kind": "site",
+    "uninstallable": true,
+    "defaultInstalled": false,
+    "channel": "stable",
+    "tag": {
+      "en": "3D",
+      "pt": "3D",
+      "ja": "3D"
+    },
+    "name": {
+      "en": "Environment Planner",
+      "pt": "Planejador de ambientes",
+      "ja": "空間プランナー"
+    },
+    "desc": {
+      "en": "Plan multi-storey spaces in 3D, sculpt terrain, add walls, doors, windows, stairs and ramps, edit furniture in metres or centimetres, and exchange JSON with story-studio.",
+      "pt": "Planeje ambientes com vários andares, terreno, paredes, portas, janelas, escadas e rampas em 3D; crie móveis, use metros ou centímetros e troque JSON com story-studio.",
+      "ja": "地下室や屋根裏を含む複数階の間取り、地形、壁、ドア・窓、階段・スロープ、家具を3Dで編集。メートル/センチとstory-studioとのJSON交換に対応。"
     }
   },
   {
@@ -1267,6 +1315,150 @@ window.OSCatalog = (function () {
       "ja": "localStorageとIndexedDBの全データを1つのJSONバックアップファイルとしてエクスポート。バックアップから復元してブラウザやデバイス間でデータを移行。マージと完全置換モードに対応。バイナリデータ（Blob、ArrayBuffer）も処理可能。"
     },
     "settingsPane": "backup"
+  },
+  {
+    "id": "utils-model-inspector-3d",
+    "href": "utils/model-inspector-3d.html",
+    "icon": "../assets/icons/svg/utils-model-inspector-3d.svg",
+    "kind": "site",
+    "uninstallable": true,
+    "defaultInstalled": false,
+    "channel": "stable",
+    "tag": {
+      "en": "3D",
+      "pt": "3D",
+      "ja": "3D"
+    },
+    "name": {
+      "en": "Model Inspector 3D",
+      "pt": "Inspetor de modelos 3D",
+      "ja": "3Dモデルインスペクター"
+    },
+    "desc": {
+      "en": "Inspect local GLB/glTF models, sections, parts, animations and approximate physical drop tests.",
+      "pt": "Inspecione GLB/glTF locais, cortes, peças, animações e testes aproximados de queda.",
+      "ja": "ローカルGLB/glTFの断面、部品、アニメーションと近似落下テストを検査。"
+    }
+  },
+  {
+    "id": "utils-terrain-generator-3d",
+    "href": "utils/terrain-generator-3d.html",
+    "icon": "../assets/icons/svg/utils-terrain-generator-3d.svg",
+    "kind": "site",
+    "uninstallable": true,
+    "defaultInstalled": false,
+    "channel": "stable",
+    "tag": {
+      "en": "3D",
+      "pt": "3D",
+      "ja": "3D"
+    },
+    "name": {
+      "en": "Terrain Generator 3D",
+      "pt": "Gerador de terrenos 3D",
+      "ja": "3D地形ジェネレーター"
+    },
+    "desc": {
+      "en": "Seeded landscapes, sculpting brushes, conservative erosion and OBJ/planner terrain export.",
+      "pt": "Terrenos por semente, pincéis, erosão conservativa e exportação OBJ ou para planejador.",
+      "ja": "シード地形、ブラシ、土量保存の侵食とOBJ・プランナー出力。"
+    }
+  },
+  {
+    "id": "utils-mechanism-lab-3d",
+    "href": "utils/mechanism-lab-3d.html",
+    "icon": "../assets/icons/svg/utils-mechanism-lab-3d.svg",
+    "kind": "site",
+    "uninstallable": true,
+    "defaultInstalled": false,
+    "channel": "stable",
+    "tag": {
+      "en": "3D",
+      "pt": "3D",
+      "ja": "3D"
+    },
+    "name": {
+      "en": "Mechanism Lab 3D",
+      "pt": "Laboratório de mecanismos 3D",
+      "ja": "3D機構ラボ"
+    },
+    "desc": {
+      "en": "Explore gears, slider cranks and pendulums with inertia, torque limits, backlash and damping.",
+      "pt": "Explore engrenagens, biela/manivela e pêndulos com inércia, torque limitado, folga e amortecimento.",
+      "ja": "慣性、トルク上限、バックラッシュ、減衰を持つ歯車・クランク・振り子。"
+    }
+  },
+  {
+    "id": "utils-molecule-builder-3d",
+    "href": "utils/molecule-builder-3d.html",
+    "icon": "../assets/icons/svg/utils-molecule-builder-3d.svg",
+    "kind": "site",
+    "uninstallable": true,
+    "defaultInstalled": false,
+    "channel": "stable",
+    "tag": {
+      "en": "3D",
+      "pt": "3D",
+      "ja": "3D"
+    },
+    "name": {
+      "en": "Molecule Builder 3D",
+      "pt": "Construtor de moléculas 3D",
+      "ja": "3D分子ビルダー"
+    },
+    "desc": {
+      "en": "Build H/C/N/O structures with bonds, angle forces, repulsion and thermal vibration.",
+      "pt": "Monte estruturas H/C/N/O com ligações, forças angulares, repulsão e vibração térmica.",
+      "ja": "H/C/N/O構造を組み、結合・角度力・反発・熱振動を観察。"
+    }
+  },
+  {
+    "id": "utils-folding-lab-3d",
+    "href": "utils/folding-lab-3d.html",
+    "icon": "../assets/icons/svg/utils-folding-lab-3d.svg",
+    "kind": "site",
+    "uninstallable": true,
+    "defaultInstalled": false,
+    "channel": "stable",
+    "tag": {
+      "en": "3D",
+      "pt": "3D",
+      "ja": "3D"
+    },
+    "name": {
+      "en": "Folding Lab 3D",
+      "pt": "Laboratório de dobraduras 3D",
+      "ja": "3D折り紙ラボ"
+    },
+    "desc": {
+      "en": "Create crease sequences and fold rigid paper panels with angular inertia and damping.",
+      "pt": "Crie sequências de vincos e dobre painéis rígidos com inércia angular e amortecimento.",
+      "ja": "折り目の順序を作り、角慣性と減衰で剛体紙パネルを折る。"
+    }
+  },
+  {
+    "id": "game-space-invaders-3d",
+    "href": "game/space-invaders-3d/index.html",
+    "icon": "../assets/icons/svg/game-space-invaders-3d.svg",
+    "kind": "site",
+    "uninstallable": true,
+    "defaultInstalled": false,
+    "channel": "stable",
+    "tag": {
+      "en": "3D Shooter",
+      "pt": "Shooter 3D",
+      "ja": "3Dシューター"
+    },
+    "name": {
+      "en": "Space Invaders 3D",
+      "pt": "Space Invaders 3D",
+      "ja": "スペースインベーダー 3D"
+    },
+    "desc": {
+      "en": "The arcade classic in 3D: a glowing fleet of voxel invaders marches toward your ship over a planet horizon, with particle explosions, debris, shockwaves and bloom. Destructible shields, bonus UFO, three difficulties, waves that speed up, recorded CC0 sound effects and best scores per difficulty.",
+      "pt": "O clássico de fliperama em 3D: uma frota brilhante de invasores em voxel marcha em direção à sua nave sobre o horizonte de um planeta, com explosões de partículas, destroços, ondas de choque e bloom. Escudos destrutíveis, OVNI bônus, três dificuldades, ondas que aceleram, efeitos sonoros CC0 gravados e melhores pontuações por dificuldade.",
+      "ja": "アーケードの名作を3Dで。惑星の地平線の上を、光るボクセルのインベーダー艦隊が自機へ向かって行進します。パーティクルの爆発、破片、衝撃波、ブルーム効果付き。壊れるシールド、ボーナスUFO、3段階の難易度、加速するウェーブ、録音されたCC0効果音、難易度ごとのベストスコア。"
+    }
   },
   {
     "id": "game-minesweeper-3d",
@@ -2343,9 +2535,9 @@ window.OSCatalog = (function () {
       "ja": "ミサイルコマンド"
     },
     "desc": {
-      "en": "Defend your city from falling missiles. Use your cannon to shoot them down and protect your buildings.",
-      "pt": "Defenda sua cidade dos mísseis que caem. Use seu canhão para derrubá-los e proteger seus edifícios.",
-      "ja": "落下するミサイルから都市を守ってください。大砲を使って撃ち落とし、建物を守ります。"
+      "en": "Defend a glowing coastal city in 3D. Upgrade weapons, reinforce districts and chain explosions through escalating missile waves.",
+      "pt": "Defenda uma cidade costeira em 3D. Melhore armas, reforce distritos e cause explosões em cadeia contra ondas de mísseis.",
+      "ja": "光る沿岸都市を3Dで防衛。武器と地区を強化し、連鎖爆発で激しくなるミサイル攻撃を迎撃しましょう。"
     }
   },
   {
@@ -2370,6 +2562,150 @@ window.OSCatalog = (function () {
       "en": "Simplified Rummy vs AI: draw/discard, sets & runs, optional jokers, tri‑lingual UI (EN/PT/JA).",
       "pt": "Simplified Rummy vs AI: draw/discard, sets & runs, optional jokers, tri‑lingual UI (EN/PT/JA).",
       "ja": "Simplified Rummy vs AI: draw/discard, sets & runs, optional jokers, tri‑lingual UI (EN/PT/JA)."
+    }
+  },
+  {
+    "id": "game-pinball-3d",
+    "href": "game/pinball-3d.html",
+    "icon": "../assets/icons/svg/game-pinball-3d.svg",
+    "kind": "site",
+    "uninstallable": true,
+    "defaultInstalled": false,
+    "channel": "stable",
+    "tag": {
+      "en": "3D",
+      "pt": "3D",
+      "ja": "3D"
+    },
+    "name": {
+      "en": "Pinball 3D",
+      "pt": "Pinball 3D",
+      "ja": "3Dピンボール"
+    },
+    "desc": {
+      "en": "Spring launch, powered bumpers, moving flippers and tilt control with rigid-body physics.",
+      "pt": "Lançamento por mola, bumpers, flippers móveis e controle de tilt com física de corpos rígidos.",
+      "ja": "ばね発射、動力バンパー、可動フリッパー、TILT制御の剛体ピンボール。"
+    }
+  },
+  {
+    "id": "game-bowling-3d",
+    "href": "game/bowling-3d.html",
+    "icon": "../assets/icons/svg/game-bowling-3d.svg",
+    "kind": "site",
+    "uninstallable": true,
+    "defaultInstalled": false,
+    "channel": "stable",
+    "tag": {
+      "en": "3D",
+      "pt": "3D",
+      "ja": "3D"
+    },
+    "name": {
+      "en": "Bowling 3D",
+      "pt": "Boliche 3D",
+      "ja": "3Dボウリング"
+    },
+    "desc": {
+      "en": "Compound pins, oil-dependent ball friction, spin and ten-frame strike/spare scoring.",
+      "pt": "Pinos compostos, atrito dependente do óleo, efeito e pontuação de dez rodadas.",
+      "ja": "複合ピン、オイルに応じた摩擦、回転、10フレームの得点計算。"
+    }
+  },
+  {
+    "id": "game-bridge-builder-3d",
+    "href": "game/bridge-builder-3d.html",
+    "icon": "../assets/icons/svg/game-bridge-builder-3d.svg",
+    "kind": "site",
+    "uninstallable": true,
+    "defaultInstalled": false,
+    "channel": "stable",
+    "tag": {
+      "en": "3D",
+      "pt": "3D",
+      "ja": "3D"
+    },
+    "name": {
+      "en": "Bridge Builder 3D",
+      "pt": "Construtor de pontes 3D",
+      "ja": "3D橋づくり"
+    },
+    "desc": {
+      "en": "Build steel trusses and tension cables, test vehicle loads and inspect strain and failures.",
+      "pt": "Construa treliças e cabos, teste cargas de veículos e observe deformação e ruptura.",
+      "ja": "鋼材トラスとケーブルを組み、車両荷重でひずみと破損を確認。"
+    }
+  },
+  {
+    "id": "game-warehouse-robot-3d",
+    "href": "game/warehouse-robot-3d.html",
+    "icon": "../assets/icons/svg/game-warehouse-robot-3d.svg",
+    "kind": "site",
+    "uninstallable": true,
+    "defaultInstalled": false,
+    "channel": "stable",
+    "tag": {
+      "en": "3D",
+      "pt": "3D",
+      "ja": "3D"
+    },
+    "name": {
+      "en": "Warehouse Robot 3D",
+      "pt": "Robô de armazém 3D",
+      "ja": "3D倉庫ロボット"
+    },
+    "desc": {
+      "en": "Deliver physical cargo with motor force, floor friction, conveyor traction and magnetic towing.",
+      "pt": "Entregue cargas com motor, atrito, tração de esteiras e transporte magnético.",
+      "ja": "モーター、床摩擦、コンベア牽引、磁気接続で荷物を配送。"
+    }
+  },
+  {
+    "id": "game-submarine-explorer-3d",
+    "href": "game/submarine-explorer-3d.html",
+    "icon": "../assets/icons/svg/game-submarine-explorer-3d.svg",
+    "kind": "site",
+    "uninstallable": true,
+    "defaultInstalled": false,
+    "channel": "stable",
+    "tag": {
+      "en": "3D",
+      "pt": "3D",
+      "ja": "3D"
+    },
+    "name": {
+      "en": "Submarine Explorer 3D",
+      "pt": "Exploração submarina 3D",
+      "ja": "3D潜水探査"
+    },
+    "desc": {
+      "en": "Explore underwater with buoyancy, fluid drag, currents, sonar and specimen collection.",
+      "pt": "Explore com empuxo, arrasto, correntezas, sonar e coleta de amostras.",
+      "ja": "浮力、抗力、水流、ソナーで海中を探査して試料を採取。"
+    }
+  },
+  {
+    "id": "game-billiards-3d",
+    "href": "game/billiards-3d.html",
+    "icon": "../assets/icons/svg/game-billiards-3d.svg",
+    "kind": "site",
+    "uninstallable": true,
+    "defaultInstalled": false,
+    "channel": "stable",
+    "tag": {
+      "en": "3D",
+      "pt": "3D",
+      "ja": "3D"
+    },
+    "name": {
+      "en": "Billiards 3D",
+      "pt": "Sinuca 3D",
+      "ja": "3Dビリヤード"
+    },
+    "desc": {
+      "en": "Cue spin, sliding and rolling friction, cushions, pockets and local two-player 8-ball.",
+      "pt": "Efeito, atrito de deslizamento e rolamento, tabelas, caçapas e bola 8 para dois jogadores.",
+      "ja": "回転、滑り・転がり摩擦、クッション、ポケットと2人用エイトボール。"
     }
   },
   {

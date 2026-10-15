@@ -1,515 +1,351 @@
-<!DOCTYPE html>
-<html lang="en">
+<!doctype html>
+<html lang="en" data-theme="dark">
 <head>
-    <link rel="icon" href="../assets/icons/ico/game-missile-command.ico" type="image/x-icon">
-
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Missile Command</title>
-    <style>
-        :root {
-            --bg-1: #ffffff;
-            --bg-2: #f0f2f5;
-            --card: #ffffff;
-            --ink: #000000;
-            --muted: #65676b;
-            --border: #dcdfe6;
-            --accent: #1877f2;
-            --btn-primary-color: #ffffff;
-            --btn-ghost-bg: #e4e6eb;
-            --btn-ghost-border: #ced0d4;
-        }
-
-        body.dark-theme {
-            --bg-1: #0b0f14;
-            --bg-2: #0a0f1a;
-            --card: #0f1623cc;
-            --ink: #dbe7ff;
-            --muted: #92a3ba;
-            --border: #1f2a3f;
-            --accent: #4ea1ff;
-            --btn-primary-color: #0a0f18;
-            --btn-ghost-bg: #1a2234;
-            --btn-ghost-border: #2a3450;
-        }
-
-        body {
-            font-family: 'Noto Sans JP', system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, 'Helvetica Neue', Arial, 'Noto Sans';
-            background-color: var(--bg-2);
-            color: var(--ink);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            margin: 0;
-            height: 100vh;
-        }
-
-        #game-container {
-            position: relative;
-            border: 2px solid var(--border);
-            box-shadow: 0 18px 60px rgba(0,0,0,.40);
-        }
-
-        canvas {
-            display: block;
-            background-color: var(--bg-1);
-        }
-
-        #ui-container {
-            padding: 10px;
-            background-color: var(--card);
-            border: 1px solid var(--border);
-            border-radius: 5px;
-            margin-top: 10px;
-            width: 800px;
-            box-sizing: border-box;
-        }
-
-        .lang-selector {
-            margin-bottom: 10px;
-        }
-
-        .lang-selector a {
-            color: var(--muted);
-            text-decoration: none;
-            font-size: 13px;
-            font-weight: 600;
-            padding: 4px 8px;
-            border-radius: 8px;
-            border: 1px solid transparent;
-        }
-
-        .lang-selector a:hover {
-            border-color: var(--border);
-        }
-
-        .lang-selector a.active {
-            color: var(--accent);
-        }
-
-        #theme-toggle-btn {
-            cursor: pointer;
-            padding: 5px 10px;
-            border-radius: 5px;
-            border: 1px solid var(--btn-ghost-border);
-            background-color: var(--btn-ghost-bg);
-            color: var(--ink);
-        }
-
-        #theme-toggle-btn:hover {
-            background-color: var(--btn-ghost-bg);
-            border-color: var(--accent);
-        }
-    </style>
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-NWZDZ906DJ"></script>
-    <script>
-        window.dataLayer = window.dataLayer || [];
-        function gtag(){dataLayer.push(arguments);}
-        gtag('js', new Date());
-        gtag('config', 'G-NWZDZ906DJ');
-    </script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#091719">
+<title>Missile Command 3D</title>
+<link rel="icon" href="../assets/icons/ico/game-missile-command.ico" type="image/x-icon">
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/"}}</script>
+<style>
+:root{color-scheme:dark;--bg:#091719;--panel:#102326ed;--ink:#e6f4ed;--muted:#94b6b2;--line:#547c714d;--accent:#b8f596;--button:#173033;--shadow:#0005}
+:root[data-theme=light]{color-scheme:light;--bg:#e4eee5;--panel:#eff5e8ed;--ink:#18372f;--muted:#506b5c;--line:#395e4940;--accent:#356c39;--button:#dce8d8;--shadow:#273d3520}
+*{box-sizing:border-box}html,body{height:100%;margin:0;overflow:hidden}body{font:13px/1.4 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--ink);background:var(--bg)}button,select{font:inherit;color:inherit}button,select{height:30px;border:1px solid var(--line);border-radius:5px;background:var(--button);padding:0 9px}button{cursor:pointer;touch-action:manipulation}button:hover:not(:disabled){border-color:var(--accent);filter:brightness(1.12)}button:disabled{opacity:.4;cursor:default}:focus-visible{outline:2px solid var(--accent);outline-offset:3px}[hidden]{display:none!important}.app{height:100%;display:grid;grid-template-rows:44px minmax(0,1fr)}.topbar{height:44px;display:flex;align-items:center;gap:8px;padding:0 12px;background:var(--bg);border-bottom:1px solid var(--line);z-index:10}.brand{display:flex;align-items:center;gap:8px;min-width:0}.brand img{width:18px;height:18px}.brand h1{font-size:15px;white-space:nowrap;margin:0;font-weight:600;letter-spacing:-.3px}.brand small{font-size:10px;font-weight:500;color:var(--accent);border:1px solid var(--line);border-radius:3px;padding:1px 4px;margin-left:2px}.top-actions{margin-left:auto;display:flex;align-items:center;gap:6px}.icon-button{width:30px;padding:0;font-size:16px}.stage{position:relative;min-width:0;min-height:0;overflow:hidden;background:#10242c}#canvas{width:100%;height:100%;display:block;touch-action:none;outline-offset:-3px;cursor:crosshair}.vignette{position:absolute;inset:0;pointer-events:none;box-shadow:inset 0 0 110px #03101770}.hud{position:absolute;top:14px;left:16px;right:16px;display:flex;justify-content:space-between;gap:12px;pointer-events:none}.stats{display:flex;gap:24px}.stat{display:flex;flex-direction:column;gap:2px}.label{font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted)}.stat strong{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:23px;font-weight:400;font-variant-numeric:tabular-nums;line-height:1.2}.stat:first-child strong{color:var(--accent)}.hud-block{padding:10px 12px;background:var(--panel);border:1px solid var(--line);border-radius:7px;backdrop-filter:blur(12px)}.districts{display:flex;gap:5px;margin-top:8px}.districts i{width:19px;height:6px;background:#b8f596;box-shadow:0 0 8px #a5f29855}.districts i.damaged{background:#ffa35c}.districts i.lost{background:#78908b30;box-shadow:none}.city-status{text-align:right}.city-status .label{letter-spacing:1px}.city-status b{margin-left:8px;font-weight:500;font-family:monospace}.dock{position:absolute;bottom:16px;left:50%;transform:translateX(-50%);display:flex;gap:8px;align-items:stretch;max-width:calc(100% - 24px)}.battery{height:56px;min-width:106px;padding:7px 10px;display:grid;grid-template-columns:1fr auto;gap:4px 10px;text-align:left;background:var(--panel);backdrop-filter:blur(12px);box-shadow:0 4px 24px var(--shadow);border-radius:7px}.battery[aria-pressed=true]{border-color:var(--accent);box-shadow:inset 0 2px var(--accent),0 4px 24px var(--shadow)}.battery .name{font-size:11px;white-space:nowrap}.battery kbd{font:10px ui-monospace,monospace;color:var(--muted);border:1px solid var(--line);border-radius:3px;padding:0 4px;align-self:start}.battery .charge{grid-column:1/-1;display:flex;align-items:center;gap:8px;color:var(--accent);font:12px ui-monospace,monospace}.meter{height:3px;flex:1;min-width:25px;background:var(--line)}.meter i{display:block;background:var(--accent);height:100%;transition:width .15s}.shield-button{min-width:100px}.shield-button .charge{font-size:10px}.reticle{position:absolute;width:30px;height:30px;border:1px solid #d2ffd8;border-radius:50%;pointer-events:none;transform:translate(-50%,-50%);filter:drop-shadow(0 0 4px #86ffd4);opacity:.8}.reticle::before,.reticle::after{content:"";position:absolute;background:#d2ffd8}.reticle::before{width:1px;height:40px;left:14px;top:-6px}.reticle::after{height:1px;width:40px;top:14px;left:-6px}.reticle b{position:absolute;inset:5px;border-radius:50%;background:#061e2633}.screen-panel{position:absolute;left:50%;top:44%;transform:translate(-50%,-50%);width:min(330px,calc(100% - 32px));padding:14px;background:var(--panel);backdrop-filter:blur(18px);border:1px solid var(--line);border-radius:10px;box-shadow:0 18px 80px #0004;text-align:center}.screen-panel .emblem{display:block;width:38px;height:38px;margin:0 auto 10px;border:1px solid var(--line);border-radius:50%;padding:8px}.screen-panel h2{font-size:16px;font-weight:500;margin:0 0 8px}.screen-panel p{color:var(--muted);font-size:12px;margin:0 0 12px}.primary{background:var(--accent);color:var(--bg);border-color:var(--accent);font-weight:650}.screen-panel .primary{width:100%;height:32px}.screen-panel .secondary{margin-top:8px;width:100%;background:transparent}.notice{position:absolute;top:96px;left:50%;transform:translateX(-50%);background:var(--panel);border:1px solid var(--line);padding:7px 12px;border-radius:5px;font-size:12px;color:var(--accent);pointer-events:none;white-space:nowrap}.scene-caption{position:absolute;bottom:18px;left:16px;pointer-events:none;color:#b2d3c399;font:10px ui-monospace,monospace;letter-spacing:1px}.scene-caption span{display:block;margin-top:4px;font-size:9px;letter-spacing:2px}.loading{position:absolute;inset:0;z-index:9;background:var(--bg);display:grid;place-content:center;gap:12px;text-align:center;padding:14px}.loading p{max-width:380px;color:var(--muted)}dialog{width:min(490px,calc(100% - 28px));max-height:85%;overflow:auto;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:10px;padding:14px;backdrop-filter:blur(20px);box-shadow:0 20px 80px #0008}dialog::backdrop{background:#021218a0;backdrop-filter:blur(5px)}.dialog-top{display:flex;align-items:center;justify-content:space-between;gap:12px}.dialog-top h2{font-size:16px;margin:0}dialog h3{font-size:13px;margin:14px 0 4px}dialog p{color:var(--muted);margin:5px 0;font-size:13px}dialog kbd{font:11px monospace;border:1px solid var(--line);border-radius:3px;padding:1px 4px}.settings-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:12px}#flash{position:absolute;inset:0;pointer-events:none;background:#ff7844;opacity:0}button svg{width:16px;height:16px;vertical-align:middle;fill:none;stroke:currentColor;stroke-width:1.5}
+@media(max-width:720px){.scene-caption{display:none}.stats{gap:14px}.hud{left:10px;right:10px;top:10px}.stat strong{font-size:19px}.hud-block{padding:8px 10px}.battery{min-width:88px;padding:7px 8px}.dock{gap:5px;bottom:12px}.shield-button{min-width:88px}.topbar{padding:0 8px;gap:5px}.brand h1{font-size:14px}.top-actions{gap:4px}}
+@media(max-width:480px){.brand h1{max-width:122px;overflow:hidden;text-overflow:ellipsis}.brand small{display:none}.topbar #restart{display:none}.topbar{gap:4px}.top-actions{gap:3px}.top-actions button,.top-actions select{padding:0 5px;min-width:27px}.stats{gap:11px}.stat strong{font-size:17px}.label{font-size:9px;letter-spacing:1px}.city-status{padding:8px}.districts{gap:3px}.districts i{width:10px}.city-status b{margin-left:3px}.battery{min-width:0;width:76px;gap:4px;height:54px}.battery .name{font-size:10px}.battery kbd{display:none}.dock{max-width:calc(100% - 12px);gap:4px}.shield-button{width:72px}.shield-button .charge{font-size:9px}.notice{top:82px}.screen-panel{top:43%}}
+@media(max-height:450px){.hud{top:8px}.hud-block{padding:5px 10px}.stat strong{font-size:17px}.dock{bottom:8px}.battery{height:46px}.screen-panel{top:48%;padding:10px}.screen-panel .emblem{display:none}.notice{top:72px}}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}.vignette{box-shadow:none}}
+.best-stat{display:flex}.upgrade-panel{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(690px,calc(100% - 24px));max-height:calc(100% - 24px);display:flex;flex-direction:column;background:var(--panel);border:1px solid var(--line);border-radius:10px;backdrop-filter:blur(20px);box-shadow:0 16px 90px #0006;overflow:hidden;z-index:4}.upgrade-top{padding:12px 14px;display:flex;align-items:center;justify-content:space-between;gap:12px;border-bottom:1px solid var(--line)}.upgrade-top h2{font-size:16px;margin:0 0 3px;font-weight:600}.upgrade-top p{font-size:11px;color:var(--muted);margin:0}.wallet{text-align:right;white-space:nowrap}.wallet strong{display:block;font:23px ui-monospace,monospace;color:var(--accent)}.upgrade-content{min-height:0;overflow:auto;display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:12px 14px}.upgrade-section{display:flex;flex-direction:column;gap:8px}.upgrade-section h3{font-size:12px;letter-spacing:.6px;margin:0 0 2px;color:var(--muted);font-weight:500}.upgrade-card{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 8px;padding:9px 10px;border:1px solid var(--line);border-radius:6px;background:color-mix(in srgb,var(--button) 50%,transparent);min-height:74px}.upgrade-card h4{font-size:12px;font-weight:550;margin:0}.upgrade-card .upgrade-level{font:10px ui-monospace,monospace;color:var(--muted);text-align:right}.upgrade-card p{font-size:11px;line-height:1.4;color:var(--muted);margin:0;align-self:center}.upgrade-card button{min-width:66px;padding:0 8px;font:12px ui-monospace,monospace;color:var(--accent);align-self:end}.upgrade-card button:disabled{opacity:.5}.upgrade-card.maxed{border-color:color-mix(in srgb,var(--accent) 45%,transparent)}.upgrade-card.maxed .upgrade-level{color:var(--accent)}.upgrade-footer{padding:10px 14px;border-top:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:10px}.upgrade-footer span{font-size:11px;color:var(--muted)}.upgrade-footer button{flex-shrink:0}.districts i{height:7px}.city-status .districts i[title]{cursor:help}.weapon-level{color:var(--accent);font:9px ui-monospace,monospace}.dock .name{display:flex;gap:4px;align-items:center}
+@media(max-width:580px){.upgrade-content{grid-template-columns:1fr;padding:10px;gap:14px}.upgrade-top,.upgrade-footer{padding:10px}.upgrade-footer span{max-width:45%}.upgrade-card{min-height:68px}.upgrade-panel{width:calc(100% - 20px)}}
+@media(max-width:480px){.best-stat{display:none}.stats{gap:10px}.upgrade-top h2{font-size:15px}.upgrade-footer button{font-size:12px}.wallet strong{font-size:20px}.weapon-level{display:none}}
+</style>
 </head>
 <body>
-    <div id="ui-container">
-        <div class="lang-selector">
-            <a href="#" data-lang="en" class="active">EN</a>
-            <a href="#" data-lang="ja">JA</a>
-            <a href="#" data-lang="pt">PT</a>
-        </div>
-        <button id="theme-toggle-btn" data-i18n="toggleTheme">Toggle Theme</button>
-        <h1 data-i18n="title">Missile Command</h1>
-        <p>
-            <span data-i18n="cityXP">City XP</span>: <span id="city-xp">1000</span> |
-            <span data-i18n="shields">Shields</span>: <span id="shields">0</span>
-        </p>
-    </div>
-    <div id="game-container">
-        <canvas id="gameCanvas" width="800" height="600"></canvas>
-    </div>
-
-    <script>
-        const translations = {
-            en: {
-                title: "Missile Command",
-                cityXP: "City XP",
-                shields: "Shields",
-                toggleTheme: "Toggle Theme",
-                gameOver: "Game Over"
-            },
-            ja: {
-                title: "ミサイルコマンド",
-                cityXP: "都市XP",
-                shields: "シールド",
-                toggleTheme: "テーマを切り替え",
-                gameOver: "ゲームオーバー"
-            },
-            pt: {
-                title: "Comando de Mísseis",
-                cityXP: "XP da Cidade",
-                shields: "Escudos",
-                toggleTheme: "Alternar Tema",
-                gameOver: "Fim de Jogo"
-            }
-        };
-
-        function setLanguage(lang) {
-            currentLang = lang;
-            localStorage.setItem('app_lang', lang);
-            document.querySelectorAll('[data-i18n]').forEach(element => {
-                const key = element.getAttribute('data-i18n');
-                if (translations[lang] && translations[lang][key]) {
-                    element.innerText = translations[lang][key];
-                }
-            });
-            document.querySelectorAll('.lang-selector a').forEach(a => {
-                a.classList.remove('active');
-                if (a.getAttribute('data-lang') === lang) {
-                    a.classList.add('active');
-                }
-            });
-        }
-
-        document.querySelector('.lang-selector').addEventListener('click', (event) => {
-            event.preventDefault();
-            const lang = event.target.getAttribute('data-lang');
-            if (lang) {
-                setLanguage(lang);
-            }
-        });
-
-        const themeToggleButton = document.getElementById('theme-toggle-btn');
-        const body = document.body;
-
-        themeToggleButton.addEventListener('click', () => {
-            body.classList.toggle('dark-theme');
-        });
-
-        const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
-        const cityXpSpan = document.getElementById('city-xp');
-        const shieldsSpan = document.getElementById('shields');
-
-        let city = {
-            xp: 1000,
-            buildings: [],
-            shields: 0
-        };
-
-        const cannon = {
-            x: canvas.width / 2,
-            y: canvas.height - 30,
-            width: 50,
-            height: 30
-        };
-
-        let enemyMissiles = [];
-        let friendlyMissiles = [];
-        let explosions = [];
-        let shieldPowerUps = [];
-        let screenFlash = 0;
-
-        function createBuildings() {
-            const buildingWidth = 50;
-            const buildingMaxHeight = 150;
-            const buildingMinHeight = 50;
-            const gap = 20;
-            const totalBuildingWidth = (buildingWidth + gap) * 6 - gap;
-            let currentX = (canvas.width - totalBuildingWidth) / 2;
-
-            for (let i = 0; i < 6; i++) {
-                const height = Math.random() * (buildingMaxHeight - buildingMinHeight) + buildingMinHeight;
-                city.buildings.push({
-                    x: currentX,
-                    y: canvas.height - height,
-                    width: buildingWidth,
-                    originalHeight: height,
-                    currentHeight: height
-                });
-                currentX += buildingWidth + gap;
-            }
-        }
-
-        function drawCity() {
-            city.buildings.forEach(building => {
-                if (building.currentHeight > 0) {
-                    ctx.fillStyle = 'gray';
-                    ctx.fillRect(building.x, canvas.height - building.currentHeight, building.width, building.currentHeight);
-                }
-            });
-        }
-
-        function drawCannon() {
-            ctx.fillStyle = 'green';
-            ctx.fillRect(cannon.x - cannon.width / 2, cannon.y - cannon.height, cannon.width, cannon.height);
-        }
-
-        function drawEnemyMissiles() {
-            enemyMissiles.forEach(missile => {
-                ctx.fillStyle = 'red';
-                ctx.fillRect(missile.x - 2, missile.y - 6, 4, 12);
-            });
-        }
-
-        function updateEnemyMissiles() {
-            enemyMissiles.forEach((missile, index) => {
-                const dx = missile.targetX - missile.x;
-                const dy = missile.targetY - missile.y;
-                const dist = Math.sqrt(dx * dx + dy * dy);
-
-                if (dist < missile.speed) {
-                    // Explode on impact
-                    explosions.push({ x: missile.targetX, y: missile.targetY, radius: 30, currentRadius: 0 });
-                    enemyMissiles.splice(index, 1);
-
-                    // Check for building collision
-                    city.buildings.forEach(building => {
-                        if (building.currentHeight > 0 &&
-                            missile.targetX > building.x && missile.targetX < building.x + building.width &&
-                            missile.targetY >= (canvas.height - building.currentHeight)) {
-                            if (city.shields > 0) {
-                                city.shields--;
-                            } else {
-                                building.currentHeight -= 20;
-                                if (building.currentHeight < 0) building.currentHeight = 0;
-                                city.xp -= 10;
-                                screenFlash = 1;
-                            }
-                        }
-                    });
-                } else {
-                    missile.x += (dx / dist) * missile.speed;
-                    missile.y += (dy / dist) * missile.speed;
-                }
-            });
-        }
-
-        function spawnEnemyMissile() {
-            const x = Math.random() * canvas.width;
-            const availableBuildings = city.buildings.filter(b => b.currentHeight > 0);
-            if (availableBuildings.length === 0) return;
-
-            const targetBuilding = availableBuildings[Math.floor(Math.random() * availableBuildings.length)];
-            const targetX = targetBuilding.x + targetBuilding.width / 2;
-            const targetY = canvas.height - targetBuilding.currentHeight;
-
-            enemyMissiles.push({
-                x: x,
-                y: 0,
-                targetX: targetX,
-                targetY: targetY,
-                speed: 1
-            });
-        }
-
-        function drawExplosions() {
-            explosions.forEach(explosion => {
-                ctx.beginPath();
-                ctx.arc(explosion.x, explosion.y, explosion.currentRadius, 0, Math.PI * 2);
-                ctx.fillStyle = `rgba(255, 165, 0, ${1 - explosion.currentRadius / explosion.radius})`;
-                ctx.fill();
-            });
-        }
-
-        function updateExplosions() {
-            explosions.forEach((explosion, index) => {
-                explosion.currentRadius += 1;
-                if (explosion.currentRadius >= explosion.radius) {
-                    explosions.splice(index, 1);
-                }
-            });
-        }
-
-        function drawFriendlyMissiles() {
-            friendlyMissiles.forEach(missile => {
-                ctx.beginPath();
-                ctx.moveTo(missile.x, missile.y);
-                ctx.lineTo(missile.startX, missile.startY);
-                ctx.strokeStyle = 'cyan';
-                ctx.stroke();
-            });
-        }
-
-        function updateFriendlyMissiles() {
-            friendlyMissiles.forEach((missile, index) => {
-                const dx = missile.targetX - missile.x;
-                const dy = missile.targetY - missile.y;
-                const dist = Math.sqrt(dx * dx + dy * dy);
-
-                if (dist < missile.speed) {
-                    explosions.push({ x: missile.targetX, y: missile.targetY, radius: 50, currentRadius: 0 });
-                    friendlyMissiles.splice(index, 1);
-                } else {
-                    missile.x += (dx / dist) * missile.speed;
-                    missile.y += (dy / dist) * missile.speed;
-                }
-            });
-        }
-
-        function checkExplosionCollisions() {
-            explosions.forEach(explosion => {
-                enemyMissiles.forEach((missile, missileIndex) => {
-                    const dx = missile.x - explosion.x;
-                    const dy = missile.y - explosion.y;
-                    const dist = Math.sqrt(dx * dx + dy * dy);
-
-                    if (dist < explosion.currentRadius) {
-                        enemyMissiles.splice(missileIndex, 1);
-                        city.xp += 10; // Bonus for destroying missile
-                    }
-                });
-
-                shieldPowerUps.forEach((powerUp, powerUpIndex) => {
-                    const dx = powerUp.x - explosion.x;
-                    const dy = powerUp.y - explosion.y;
-                    const dist = Math.sqrt(dx * dx + dy * dy);
-
-                    if (dist < explosion.currentRadius) {
-                        shieldPowerUps.splice(powerUpIndex, 1);
-                        if (city.shields < 3) {
-                            city.shields++;
-                        }
-                    }
-                });
-            });
-        }
-
-        function spawnShieldPowerUp() {
-            if (shieldPowerUps.length > 0) return; // Only one power-up at a time
-
-            const x = Math.random() * canvas.width;
-            shieldPowerUps.push({
-                x: x,
-                y: 0,
-                speed: 0.5
-            });
-        }
-
-        function drawShieldPowerUps() {
-            shieldPowerUps.forEach(powerUp => {
-                ctx.fillStyle = 'blue';
-                ctx.fillRect(powerUp.x - 5, powerUp.y - 5, 10, 10);
-            });
-        }
-
-        function updateShieldPowerUps() {
-            shieldPowerUps.forEach((powerUp, index) => {
-                powerUp.y += powerUp.speed;
-                if (powerUp.y > canvas.height) {
-                    shieldPowerUps.splice(index, 1);
-                }
-            });
-        }
-
-        function regenerateCity() {
-            if (city.xp < 1000) {
-                city.xp += 0.1;
-            }
-
-            city.buildings.forEach(building => {
-                if (building.currentHeight < building.originalHeight) {
-                    building.currentHeight += 0.05;
-                }
-            });
-        }
-
-        function gameLoop(now) {
-            if (!lastEnemySpawn) {
-                lastEnemySpawn = now;
-            }
-
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-            if (now - lastEnemySpawn > enemySpawnRate) {
-                spawnEnemyMissile();
-                lastEnemySpawn = now;
-                if (enemySpawnRate > 500) { // Minimum spawn rate of 0.5s
-                    enemySpawnRate -= 50; // Increase spawn rate
-                }
-            }
-
-            if (screenFlash > 0) {
-                ctx.fillStyle = `rgba(255, 0, 0, ${screenFlash * 0.5})`;
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
-                screenFlash -= 0.05;
-            }
-
-            drawCity();
-            drawCannon();
-            drawEnemyMissiles();
-            drawFriendlyMissiles();
-            drawExplosions();
-            drawShieldPowerUps();
-
-            updateEnemyMissiles();
-            updateFriendlyMissiles();
-            updateExplosions();
-            updateShieldPowerUps();
-            checkExplosionCollisions();
-            regenerateCity();
-
-            cityXpSpan.textContent = Math.floor(city.xp);
-            shieldsSpan.textContent = city.shields;
-
-            if (city.xp <= 0) {
-                alert(translations[currentLang].gameOver);
-                return;
-            }
-
-            requestAnimationFrame(gameLoop);
-        }
-
-        let currentLang = 'en';
-        let mousePos = { x: 0, y: 0 };
-
-        function fireFriendlyMissile(targetX, targetY) {
-            friendlyMissiles.push({
-                x: cannon.x,
-                y: cannon.y - cannon.height,
-                startX: cannon.x,
-                startY: cannon.y - cannon.height,
-                targetX: targetX,
-                targetY: targetY,
-                speed: 10
-            });
-        }
-
-        canvas.addEventListener('mousemove', (event) => {
-            const rect = canvas.getBoundingClientRect();
-            mousePos.x = event.clientX - rect.left;
-            mousePos.y = event.clientY - rect.top;
-        });
-
-        canvas.addEventListener('click', (event) => {
-            fireFriendlyMissile(mousePos.x, mousePos.y);
-        });
-
-        window.addEventListener('keydown', (event) => {
-            if (event.code === 'Space') {
-                fireFriendlyMissile(mousePos.x, mousePos.y);
-            }
-        });
-
-        document.addEventListener('DOMContentLoaded', () => {
-            const savedLang = localStorage.getItem('app_lang');
-            const browserLang = navigator.language.split('-')[0];
-            const initialLang = savedLang || (translations[browserLang] ? browserLang : 'en');
-            setLanguage(initialLang);
-
-            const savedTheme = localStorage.getItem('app_theme');
-            if (savedTheme === 'light') {
-                body.classList.remove('dark-theme');
-            } else {
-                body.classList.add('dark-theme');
-            }
-        });
-
-        let enemySpawnRate = 3000;
-        let lastEnemySpawn = 0;
-
-        createBuildings();
-        setInterval(spawnShieldPowerUp, 10000); // Spawn a shield power-up every 10 seconds
-        gameLoop();
-
-    </script>
+<div class="app">
+<div class="topbar">
+ <div class="brand"><img src="../assets/icons/svg/game-missile-command.svg" alt=""><h1>Missile Command <small>3D</small></h1></div>
+ <div class="top-actions">
+  <button id="pause" class="icon-button" data-title="pause" disabled>Ⅱ</button>
+  <button id="restart" class="icon-button" data-title="restart" disabled>↻</button>
+  <button id="sound" class="icon-button" data-title="sound" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M11 4 5 9H2v6h3l6 5zM16 9l6 6m0-6-6 6"/></svg></button>
+  <button id="fullscreen" class="icon-button" data-title="fullscreen">⛶</button>
+  <button id="help" class="icon-button" data-title="help">?</button>
+  <select id="lang-switcher" data-title="language"><option value="en">EN</option><option value="pt">PT</option><option value="ja">JA</option></select>
+  <button id="theme-switcher" class="icon-button" data-title="theme">◐</button>
+ </div>
+</div>
+<main id="stage" class="stage">
+ <canvas id="canvas" tabindex="0" data-title="canvas"></canvas>
+ <div class="vignette"></div>
+ <div class="hud">
+  <div class="hud-block stats"><div class="stat"><span class="label" data-i18n="score"></span><strong id="score">00000</strong></div><div class="stat"><span class="label" data-i18n="wave"></span><strong id="wave">01</strong></div><div class="stat"><span class="label" data-i18n="credits"></span><strong id="credits">0</strong></div><div class="stat best-stat"><span class="label" data-i18n="best"></span><strong id="best">00000</strong></div></div>
+  <div class="hud-block city-status"><span class="label" data-i18n="districts"></span><b id="cities">6 / 6</b><div id="districts" class="districts"><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
+ </div>
+ <div id="reticle" class="reticle" hidden><b></b></div>
+ <div id="notice" class="notice" role="status" aria-live="polite" hidden></div>
+ <div class="scene-caption">35° 41′ N &nbsp; 139° 41′ E<span data-i18n="sector"></span></div>
+ <div class="dock" id="dock">
+  <button class="battery" data-battery="0" aria-pressed="false"><span class="name" data-i18n="west"></span><kbd>1</kbd><span class="charge"><span class="meter"><i></i></span><span class="ammo">24</span></span></button>
+  <button class="battery" data-battery="1" aria-pressed="true"><span class="name" data-i18n="central"></span><kbd>2</kbd><span class="charge"><span class="meter"><i></i></span><span class="ammo">24</span></span></button>
+  <button class="battery" data-battery="2" aria-pressed="false"><span class="name" data-i18n="east"></span><kbd>3</kbd><span class="charge"><span class="meter"><i></i></span><span class="ammo">24</span></span></button>
+  <button id="shield" class="battery shield-button"><span class="name" data-i18n="shield"></span><kbd>E</kbd><span class="charge" id="shield-status"></span></button>
+ </div>
+ <div id="screen-panel" class="screen-panel" hidden><img class="emblem" src="../assets/icons/svg/game-missile-command.svg" alt=""><h2 id="panel-title"></h2><p id="panel-text"></p><button id="play" class="primary"></button><button id="panel-help" class="secondary" data-i18n="how"></button></div>
+ <section id="upgrade-panel" class="upgrade-panel" aria-labelledby="upgrade-title" hidden>
+  <div class="upgrade-top"><div><h2 id="upgrade-title" data-i18n="upgrades"></h2><p id="upgrade-reward"></p></div><div class="wallet"><span class="label" data-i18n="credits"></span><strong id="shop-credits">0</strong></div></div>
+  <div class="upgrade-content"><div class="upgrade-section" id="weapon-upgrades"><h3 data-i18n="weapons"></h3></div><div class="upgrade-section" id="city-upgrades"><h3 data-i18n="cityUpgrades"></h3></div></div>
+  <div class="upgrade-footer"><span id="upgrade-feedback" role="status" aria-live="polite"></span><button id="next-wave" class="primary"></button></div>
+ </section>
+ <div id="flash"></div>
+ <div id="loading" class="loading"><span>◇</span><p id="loading-text"></p><button id="retry" data-i18n="retry" hidden></button></div>
+</main>
+</div>
+<dialog id="help-dialog">
+ <div class="dialog-top"><h2 data-i18n="helpTitle"></h2><button id="close-help" data-i18n="close"></button></div>
+ <h3 data-i18n="aimTitle"></h3><p data-i18n="aimHelp"></p>
+ <h3 data-i18n="defenseTitle"></h3><p data-i18n="defenseHelp"></p>
+ <h3 data-i18n="waveTitle"></h3><p data-i18n="waveHelp"></p>
+ <h3 data-i18n="upgrades"></h3><p data-i18n="upgradeHelp"></p>
+ <h3 data-i18n="keysTitle"></h3><p data-i18n="keysHelp"></p>
+ <div class="settings-row"><label for="quality" data-i18n="quality"></label><select id="quality"><option value="high" data-i18n="high"></option><option value="low" data-i18n="low"></option></select></div>
+ <p data-i18n="saveHelp"></p>
+ <button id="help-restart" data-i18n="restart" disabled></button>
+</dialog>
+<script>
+(() => {
+const strings={
+ en:{score:'Score',wave:'Wave',best:'Best',districts:'Districts',sector:'COASTAL DEFENSE / SECTOR 07',west:'West',central:'Central',east:'East',shield:'Shield',ready:'Ready',spent:'Used',active:'Active',pause:'Pause',resume:'Resume',restart:'New game',sound:'Sound',fullscreen:'Full screen',help:'Help',language:'Language',theme:'Light / dark',canvas:'Defense field. Aim with the pointer or arrow keys; fire with click or Space.',how:'How to play',retry:'Reload',loading:'Establishing defense network…',error:'The 3D scene could not load. Check your connection and WebGL support, then reload.',contextError:'The graphics connection was lost. Reload to restore the scene.',startTitle:'Keep the city lights alive.',startText:'6 districts. 3 batteries. One last line of defense.',start:'Begin defense',paused:'Defense paused',pausedText:'Your city is waiting.',over:'The city has fallen.',overText:'Final score: {score} · Wave {wave}',again:'Defend again',helpTitle:'Defense manual',close:'Close',aimTitle:'Intercept in the sky',aimHelp:'Click or touch the sky to send an interceptor. Hold to fire repeatedly. Missiles take time to arrive: aim ahead of the orange threats. The expanding green blast destroys nearby missiles and triggers chain reactions.',defenseTitle:'Three batteries, six districts',defenseHelp:'Select a battery below or use 1, 2, 3. Each starts with 24 shots per wave. Empty batteries switch automatically. Press E or the shield button to protect the city. At the start, the shield lasts 3 seconds with one charge per wave, and each district withstands two impacts.',waveTitle:'Survive the next wave',waveHelp:'Clear every incoming missile to advance. Ammunition and the shield refill each wave. Surviving districts grant 100 points each. Faster missiles arrive in wave 2; splitting warheads in wave 3. Your best score is saved on this browser.',keysTitle:'Keyboard',keysHelp:'Arrow keys: aim · Space: fire · 1 / 2 / 3: battery · E: shield · P / Esc: pause · F: full screen · M: sound · ?: help. Leaving this window pauses the game.',quality:'Graphics',high:'High · glow & shadows',low:'Low · better performance',saveHelp:'Best score, graphics, sound and theme are stored locally and included in the Backup tool.',incoming:'Wave {wave} · Incoming',clear:'Wave cleared · +{score}',shieldOn:'City shield active',empty:'No ammunition · use your shield',savedError:'Browser storage unavailable',fullscreenError:'Full screen is unavailable in this window'},
+ pt:{score:'Pontos',wave:'Onda',best:'Recorde',districts:'Distritos',sector:'DEFESA COSTEIRA / SETOR 07',west:'Oeste',central:'Central',east:'Leste',shield:'Escudo',ready:'Pronto',spent:'Usado',active:'Ativo',pause:'Pausar',resume:'Continuar',restart:'Novo jogo',sound:'Som',fullscreen:'Tela inteira',help:'Ajuda',language:'Idioma',theme:'Claro / escuro',canvas:'Campo de defesa. Mire com o ponteiro ou as setas; dispare com clique ou Espaço.',how:'Como jogar',retry:'Recarregar',loading:'Conectando a rede de defesa…',error:'Não foi possível carregar a cena 3D. Confira a conexão e o suporte a WebGL e recarregue.',contextError:'A conexão gráfica foi perdida. Recarregue para restaurar a cena.',startTitle:'Mantenha a cidade acesa.',startText:'6 distritos. 3 baterias. A última linha de defesa.',start:'Iniciar defesa',paused:'Defesa pausada',pausedText:'Sua cidade está esperando.',over:'A cidade caiu.',overText:'Pontuação: {score} · Onda {wave}',again:'Defender novamente',helpTitle:'Manual de defesa',close:'Fechar',aimTitle:'Intercepte no céu',aimHelp:'Clique ou toque no céu para lançar um interceptor. Segure para disparar continuamente. O míssil leva tempo para chegar: mire à frente das ameaças laranjas. A explosão verde se expande, destrói mísseis próximos e causa reações em cadeia.',defenseTitle:'Três baterias, seis distritos',defenseHelp:'Selecione uma bateria abaixo ou use 1, 2, 3. Cada uma começa com 24 disparos por onda. Baterias vazias são trocadas automaticamente. Pressione E ou o botão do escudo para proteger a cidade. No início, o escudo dura 3 segundos com uma carga por onda, e cada distrito resiste a dois impactos.',waveTitle:'Sobreviva à próxima onda',waveHelp:'Elimine todos os mísseis para avançar. Munição e escudo são recarregados a cada onda. Cada distrito sobrevivente rende 100 pontos. Mísseis rápidos chegam na onda 2; ogivas que se dividem, na onda 3. O recorde fica salvo neste navegador.',keysTitle:'Teclado',keysHelp:'Setas: mirar · Espaço: disparar · 1 / 2 / 3: bateria · E: escudo · P / Esc: pausar · F: tela inteira · M: som · ?: ajuda. Sair desta janela pausa o jogo.',quality:'Gráficos',high:'Alto · brilho e sombras',low:'Baixo · mais desempenho',saveHelp:'Recorde, gráficos, som e tema são salvos localmente e incluídos na ferramenta de Backup.',incoming:'Onda {wave} · Ataque chegando',clear:'Onda concluída · +{score}',shieldOn:'Escudo da cidade ativo',empty:'Sem munição · use o escudo',savedError:'Armazenamento indisponível',fullscreenError:'Tela inteira indisponível nesta janela'},
+ ja:{score:'スコア',wave:'ウェーブ',best:'ベスト',districts:'地区',sector:'沿岸防衛 / セクター 07',west:'西側',central:'中央',east:'東側',shield:'シールド',ready:'準備完了',spent:'使用済み',active:'作動中',pause:'一時停止',resume:'再開',restart:'新しいゲーム',sound:'サウンド',fullscreen:'全画面',help:'ヘルプ',language:'言語',theme:'ライト / ダーク',canvas:'防衛エリア。ポインターか矢印キーで照準を合わせ、クリックかスペースで発射します。',how:'遊び方',retry:'再読み込み',loading:'防衛ネットワークに接続中…',error:'3Dシーンを読み込めませんでした。接続とWebGL対応を確認して再読み込みしてください。',contextError:'グラフィックス接続が失われました。再読み込みしてください。',startTitle:'街の明かりを守ろう。',startText:'6つの地区。3つの砲台。最後の防衛線。',start:'防衛開始',paused:'防衛を一時停止中',pausedText:'街があなたを待っています。',over:'街が陥落しました。',overText:'最終スコア：{score} · ウェーブ {wave}',again:'もう一度守る',helpTitle:'防衛マニュアル',close:'閉じる',aimTitle:'空中で迎撃',aimHelp:'空をクリックまたはタッチして迎撃弾を発射。長押しで連射できます。到達まで時間がかかるので、オレンジ色の敵の進路を先読みしましょう。緑の爆発が広がり、近くのミサイルを破壊して連鎖反応を起こします。',defenseTitle:'3つの砲台と6つの地区',defenseHelp:'下のボタンか1・2・3キーで砲台を選択。各砲台の初期弾数は1ウェーブ24発。弾切れ時は自動で切り替わります。Eかシールドボタンで都市を保護。初期状態では3秒間、各ウェーブ1回使えます。地区の初期HPは2です。',waveTitle:'次のウェーブへ',waveHelp:'すべての敵ミサイルを処理すると次へ進みます。弾薬とシールドは毎ウェーブ補充。残った地区ごとに100点。ウェーブ2から高速弾、3から分裂弾が登場します。ベストスコアはこのブラウザーに保存されます。',keysTitle:'キーボード',keysHelp:'矢印：照準 · スペース：発射 · 1 / 2 / 3：砲台 · E：シールド · P / Esc：一時停止 · F：全画面 · M：サウンド · ?：ヘルプ。ウィンドウを離れると一時停止します。',quality:'グラフィックス',high:'高 · 発光と影',low:'低 · 軽量表示',saveHelp:'ベストスコア、画質、サウンド、テーマはローカル保存され、バックアップツールに含まれます。',incoming:'ウェーブ {wave} · 敵接近',clear:'ウェーブ突破 · +{score}',shieldOn:'都市シールド作動中',empty:'弾切れ · シールドを使用',savedError:'保存機能を利用できません',fullscreenError:'このウィンドウでは全画面を利用できません'}
+};
+const upgradeStrings={
+ en:{credits:'Credits',upgrades:'Upgrade your defenses',weapons:'Weapons · all three batteries',cityUpgrades:'City · all surviving districts',waveReward:'Wave {wave} cleared · +{credits} credits',nextWave:'Launch wave {wave} →',shopHint:'Spend now or save for later.',upgradeHelp:'Each interception earns 10–25 credits. A cleared wave earns 80 credits plus 20 per surviving district. Between waves, buy weapon or city upgrades, or restore the weakest district. The next wave starts only when you launch it. Upgrades last for this game; a new game starts fresh. Armor adds one hit point to each surviving district. Industry income begins with the next wave.',waveHelp:'Clear all incoming missiles, then upgrade your defenses before launching the next wave. Ammunition and shields refill at launch. Each surviving district grants 100 score points. Fast missiles arrive in wave 2; splitting warheads in wave 3.',blastName:'Blast radius',blastEffect:'Radius {from} → {to} m',cadenceName:'Rapid fire',cadenceEffect:'{from} → {to} shots / second',ammoName:'Ammo reserves',ammoEffect:'{from} → {to} shots / battery',speedName:'Interceptor engines',speedEffect:'Speed {from} → {to}%',armorName:'District armor',armorEffect:'{from} → {to} HP · +1 HP now',shieldName:'Shield generator',shieldEffect:'{from} → {to} s · {charges}× / wave',industryName:'City industry',industryEffect:'+{from} → +{to} credits / district / wave',repairName:'Repair & rebuild',repairEffect:'District {district}: {hp} → {max} HP',healthy:'All districts at full strength',level:'Level {level} / {max}',maximum:'Maxed',restore:'Restore',buy:'Buy {name} for {cost} credits',missing:'Need {amount} more credits',purchased:'{name} upgraded.',repaired:'District {district} restored.',fullLevel:'Maximum level reached',current:'Current: {value}',districtHealth:'District {district}: {hp} / {max} HP'},
+ pt:{credits:'Créditos',upgrades:'Melhore suas defesas',weapons:'Armas · todas as três baterias',cityUpgrades:'Cidade · distritos sobreviventes',waveReward:'Onda {wave} concluída · +{credits} créditos',nextWave:'Iniciar onda {wave} →',shopHint:'Invista agora ou guarde para depois.',upgradeHelp:'Cada interceptação rende de 10 a 25 créditos. Concluir uma onda rende 80 créditos mais 20 por distrito sobrevivente. Entre ondas, melhore as armas e a cidade ou restaure o distrito mais danificado. A próxima onda só começa quando você a inicia. Melhorias duram esta partida; um novo jogo começa do zero. A blindagem adiciona um ponto de vida a cada distrito sobrevivente. A indústria passa a gerar créditos na próxima onda.',waveHelp:'Elimine todos os mísseis e melhore suas defesas antes de iniciar a próxima onda. Munição e escudos são recarregados ao iniciar. Cada distrito sobrevivente rende 100 pontos. Mísseis rápidos chegam na onda 2; ogivas que se dividem, na onda 3.',blastName:'Raio da explosão',blastEffect:'Raio de {from} → {to} m',cadenceName:'Disparo rápido',cadenceEffect:'{from} → {to} disparos / segundo',ammoName:'Reserva de munição',ammoEffect:'{from} → {to} disparos / bateria',speedName:'Motores dos interceptores',speedEffect:'Velocidade {from} → {to}%',armorName:'Blindagem dos distritos',armorEffect:'{from} → {to} PV · +1 PV agora',shieldName:'Gerador de escudo',shieldEffect:'{from} → {to} s · {charges}× / onda',industryName:'Indústria da cidade',industryEffect:'+{from} → +{to} créditos / distrito / onda',repairName:'Reparar e reconstruir',repairEffect:'Distrito {district}: {hp} → {max} PV',healthy:'Todos os distritos intactos',level:'Nível {level} / {max}',maximum:'Máximo',restore:'Restaurar',buy:'Comprar {name} por {cost} créditos',missing:'Faltam {amount} créditos',purchased:'{name}: melhoria aplicada.',repaired:'Distrito {district} restaurado.',fullLevel:'Nível máximo atingido',current:'Atual: {value}',districtHealth:'Distrito {district}: {hp} / {max} PV'},
+ ja:{credits:'クレジット',upgrades:'防衛設備を強化',weapons:'武器 · 3つの砲台すべて',cityUpgrades:'都市 · 生存地区すべて',waveReward:'ウェーブ {wave} 突破 · +{credits} クレジット',nextWave:'ウェーブ {wave} 開始 →',shopHint:'今使うか、次に備えて貯めよう。',upgradeHelp:'迎撃ごとに10〜25クレジット獲得。ウェーブ突破で80と生存地区ごとに20クレジットを獲得します。合間に武器や都市を強化し、最も損傷した地区を復旧できます。開始ボタンを押すまで次の攻撃は始まりません。強化は今回のゲーム中有効で、新しいゲームではリセットされます。装甲は生存地区のHPを1増加。産業の追加収入は次のウェーブからです。',waveHelp:'すべての敵を処理したら、設備を強化して次のウェーブを開始。弾薬とシールドは開始時に補充。生存地区ごとに100点。ウェーブ2から高速弾、3から分裂弾が登場します。',blastName:'爆発範囲',blastEffect:'半径 {from} → {to} m',cadenceName:'高速連射',cadenceEffect:'毎秒 {from} → {to} 発',ammoName:'弾薬庫',ammoEffect:'各砲台 {from} → {to} 発',speedName:'迎撃エンジン',speedEffect:'速度 {from} → {to}%',armorName:'地区の装甲',armorEffect:'{from} → {to} HP · 即時 +1 HP',shieldName:'シールド発生装置',shieldEffect:'{from} → {to} 秒 · 毎ウェーブ {charges} 回',industryName:'都市産業',industryEffect:'地区・ウェーブごとに +{from} → +{to}',repairName:'修理・再建',repairEffect:'地区 {district}：{hp} → {max} HP',healthy:'全地区のHPは最大です',level:'レベル {level} / {max}',maximum:'最大',restore:'復旧',buy:'{name}を{cost}クレジットで購入',missing:'あと{amount}クレジット必要',purchased:'{name}を強化しました。',repaired:'地区 {district} を復旧しました。',fullLevel:'最大レベルです',current:'現在：{value}',districtHealth:'地区 {district}：{hp} / {max} HP'}
+};
+for(const lang of Object.keys(upgradeStrings))Object.assign(strings[lang],upgradeStrings[lang]);
+const $=id=>document.getElementById(id),key='vc.missile-command.v1';
+let saved={};try{saved=JSON.parse(localStorage.getItem(key)||'{}')||{}}catch{}
+let lang='en';try{lang=localStorage.getItem('app_lang')||navigator.language.slice(0,2)}catch{}if(!strings[lang])lang='en';
+const prefs={best:Number.isFinite(Number(saved.best))?Math.max(0,Math.floor(Number(saved.best))):0,theme:saved.theme==='light'?'light':'dark',sound:saved.sound===true,quality:saved.quality==='low'?'low':'high'};
+const text=(k,vars={})=>(strings[lang][k]||k).replace(/\{(\w+)\}/g,(_,name)=>vars[name]??'');
+function persist(){try{localStorage.setItem(key,JSON.stringify(prefs))}catch{}}
+function translate(){document.documentElement.lang=lang;$('lang-switcher').value=lang;document.querySelectorAll('[data-i18n]').forEach(el=>el.textContent=text(el.dataset.i18n));document.querySelectorAll('[data-title]').forEach(el=>{el.title=text(el.dataset.title);el.setAttribute('aria-label',el.title)});$('loading-text').textContent=text(window.bootFailure||'loading');window.game?.refresh()}
+$('lang-switcher').onchange=e=>{lang=e.target.value;try{localStorage.setItem('app_lang',lang)}catch{}translate()};
+$('theme-switcher').onclick=()=>{prefs.theme=prefs.theme==='dark'?'light':'dark';document.documentElement.dataset.theme=prefs.theme;persist();window.game?.setTheme()};
+$('retry').onclick=()=>location.reload();document.documentElement.dataset.theme=prefs.theme;$('quality').value=prefs.quality;translate();
+window.ui={$ ,prefs,text,persist,translate};
+window.failBoot=(reason='error')=>{window.bootFailure=reason;$('loading').hidden=false;$('loading-text').textContent=text(reason);$('retry').hidden=false;$('screen-panel').hidden=true};
+})();
+</script>
+<script type="module">
+const {$,prefs,text,persist,translate}=window.ui;
+try {
+const THREE=await import('three');
+const {EffectComposer}=await import('three/addons/postprocessing/EffectComposer.js');
+const {RenderPass}=await import('three/addons/postprocessing/RenderPass.js');
+const {UnrealBloomPass}=await import('three/addons/postprocessing/UnrealBloomPass.js');
+const {OutputPass}=await import('three/addons/postprocessing/OutputPass.js');
+const stage=$('stage'),canvas=$('canvas'),reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const scene=new THREE.Scene();scene.fog=new THREE.FogExp2(0x6a777d,.0032);const camera=new THREE.PerspectiveCamera(49,1,.1,800);
+const renderer=new THREE.WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance'});
+renderer.setPixelRatio(Math.min(devicePixelRatio,prefs.quality==='high'?1.6:1));renderer.shadowMap.enabled=prefs.quality==='high';renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.15;
+const composer=new EffectComposer(renderer);composer.addPass(new RenderPass(scene,camera));const bloom=new UnrealBloomPass(new THREE.Vector2(800,600),.55,.6,1.05);composer.addPass(bloom);composer.addPass(new OutputPass());
+const V=(x=0,y=0,z=0)=>new THREE.Vector3(x,y,z),rand=(a,b)=>a+Math.random()*(b-a);
+let seed=7301;function seeded(){seed=(seed*1664525+1013904223)>>>0;return seed/4294967296}
+const mat=(color,roughness=.75,metalness=.2)=>new THREE.MeshStandardMaterial({color,roughness,metalness});
+const concrete=mat(0x263d40),roof=mat(0x172d32),pavement=mat(0x263d3b),edge=mat(0x49675c),rock=mat(0x233b3e),metal=mat(0x42716c,.36,.65);
+const green=new THREE.MeshBasicMaterial({color:new THREE.Color(1.1,2,1.15)}),amber=new THREE.MeshBasicMaterial({color:new THREE.Color(2.5,.6,.12)});
+const boxGeo=new THREE.BoxGeometry(1,1,1),sphereGeo=new THREE.SphereGeometry(1,24,16);
+function mesh(geo,material,pos,scale,parent=scene){const m=new THREE.Mesh(geo,material);if(pos)m.position.copy(pos);if(scale)m.scale.copy(scale);parent.add(m);return m}
+function box(w,h,d,x,y,z,material,parent){const m=mesh(boxGeo,material,V(x,y,z),V(w,h,d),parent);m.castShadow=true;m.receiveShadow=true;return m}
+const hemi=new THREE.HemisphereLight(0x9ad9db,0x1a2b38,2.1);scene.add(hemi);
+const sun=new THREE.DirectionalLight(0xffbd85,3.8);sun.position.set(-40,55,-35);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);Object.assign(sun.shadow.camera,{left:-65,right:65,top:60,bottom:-40,near:1,far:180});sun.shadow.bias=-.0007;scene.add(sun);
+const rim=new THREE.DirectionalLight(0x65c9d9,2);rim.position.set(30,15,50);scene.add(rim);
+// A procedural sky and water keep the scene self-contained: no texture downloads.
+const skyMat=new THREE.ShaderMaterial({side:THREE.BackSide,depthWrite:false,uniforms:{top:{value:new THREE.Color('#091c31')},bottom:{value:new THREE.Color('#d98b66')}},vertexShader:'varying vec3 vPos; void main(){vPos=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',fragmentShader:'varying vec3 vPos; uniform vec3 top; uniform vec3 bottom; void main(){float h=normalize(vPos).y; vec3 col=mix(bottom,top,smoothstep(-.09,.28,h)); gl_FragColor=vec4(col,1.);}' });
+mesh(new THREE.SphereGeometry(380,32,20),skyMat,V());
+const sunDisk=mesh(new THREE.SphereGeometry(9,32,24),new THREE.MeshBasicMaterial({color:0xffc68b,fog:false}),V(-72,36,-200));
+const starsGeo=new THREE.BufferGeometry(),starPoints=[];for(let i=0;i<420;i++)starPoints.push((seeded()-.5)*500,55+seeded()*200,-100-seeded()*150);starsGeo.setAttribute('position',new THREE.Float32BufferAttribute(starPoints,3));const stars=new THREE.Points(starsGeo,new THREE.PointsMaterial({color:0xd6f8e6,size:.35,transparent:true,opacity:.7}));scene.add(stars);
+const waterMat=new THREE.ShaderMaterial({uniforms:{time:{value:0},light:{value:0}},vertexShader:'varying vec3 vWorld; void main(){vWorld=(modelMatrix*vec4(position,1.)).xyz;gl_Position=projectionMatrix*viewMatrix*vec4(vWorld,1.);}',fragmentShader:`varying vec3 vWorld; uniform float time; uniform float light; void main(){vec2 p=vWorld.xz;float wave=sin(p.x*.21+p.y*.32+time*.35)*sin(p.y*.65-time*.4);float glint=pow(max(0.,wave),8.);float path=exp(-pow((p.x+30.+p.y*.19)/16.,2.));float distanceFade=1.-smoothstep(30.,200.,abs(p.y));vec3 base=mix(vec3(.018,.068,.079),vec3(.15,.29,.3),light);vec3 col=base+vec3(.004,.011,.014)*wave*distanceFade+vec3(.19,.10,.046)*glint*path*distanceFade;float haze=smoothstep(60.,300.,-p.y);gl_FragColor=vec4(mix(col,vec3(.20,.28,.30),haze*.6),1.);}`});
+const water=mesh(new THREE.PlaneGeometry(700,700),waterMat,V(0,-1.2,0));water.rotation.x=-Math.PI/2;
+// Mountain silhouettes, layered into the horizon.
+for(let layer=0;layer<3;layer++){
+ const points=[],colors=[],baseZ=-175+layer*36,segments=100,width=380;
+ const tint=new THREE.Color([0x6d7785,0x475f6c,0x2e4956][layer]);
+ function ridge(x){return 7+5*Math.sin(x*.053+layer*2)+3*Math.sin(x*.12-layer)+2*Math.sin(x*.23+layer)+Math.abs(x)*.024}
+ for(let i=0;i<segments;i++){
+  const x=(i/segments-.5)*width,nx=((i+1)/segments-.5)*width,h=ridge(x),nh=ridge(nx);
+  points.push(x,-3,baseZ+15,x,h,baseZ,nx,nh,baseZ,x,-3,baseZ+15,nx,nh,baseZ,nx,-3,baseZ+15);
+  for(let j=0;j<6;j++){const shade=j===1||j===2||j===4?1:.65;colors.push(tint.r*shade,tint.g*shade,tint.b*shade)}
+ }
+ const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(points,3));geo.setAttribute('color',new THREE.Float32BufferAttribute(colors,3));geo.computeVertexNormals();mesh(geo,new THREE.MeshBasicMaterial({vertexColors:true,side:THREE.DoubleSide}));
+}
+const island=mesh(new THREE.CylinderGeometry(1,1.07,2.6,10),rock,V(0,-1,1),V(46,1,19));island.receiveShadow=true;
+box(81,.7,22,0,.25,2,pavement);box(82,.45,.8,0,.3,13.1,edge);box(82,.45,.8,0,.3,-9.1,edge);
+box(79,.035,.12,0,.63,12.6,green);box(79,.035,.10,0,.63,-8.6,green);
+for(const z of [-5,5,10]){box(78,.02,1.35,0,.62,z,roof);for(let x=-38;x<=38;x+=2)box(.65,.026,.045,x,.64,z,edge)}
+for(let x=-38;x<40;x+=11)box(.8,.02,19,x,.64,1,roof);
+// District buildings use instanced window lights to keep GPU draw calls down.
+const cities=[],cityXs=[-29,-18,-7,7,18,29];
+for(let c=0;c<6;c++){
+ const group=new THREE.Group();group.position.set(cityXs[c],.65,0);scene.add(group);const windows=[];
+ for(let j=0;j<12;j++){
+  const x=(j%4-1.5)*1.65+(seeded()-.5)*.35,z=Math.floor(j/4)*2.7-4,h=(j===5?8.5:1.8)+seeded()*5.8,w=.9+seeded()*.6,d=1+seeded()*.6;
+  box(w,h,d,x,h/2,z,j%3===0?roof:concrete,group);box(w+.12,.15,d+.12,x,h+.08,z,edge,group);
+  if(j%4===0){box(.05,1.7,.05,x,h+.9,z,metal,group);mesh(sphereGeo,amber,V(x,h+1.8,z),V(.08,.08,.08),group)}
+  for(let y=.55;y<h-.2;y+=.56)for(let col=0;col<2;col++){if(seeded()>.22)windows.push([x+(col-.5)*w*.48,y,z+d/2+.008,.16,.22,.018]);if(seeded()>.45)windows.push([x+w/2+.008,y,z+(col-.5)*d*.48,.018,.22,.16])}
+ }
+ const winMat=new THREE.MeshBasicMaterial({color:new THREE.Color(.9,1.5,1.05)}),inst=new THREE.InstancedMesh(boxGeo,winMat,windows.length),dummy=new THREE.Object3D();
+ windows.forEach((a,i)=>{dummy.position.set(...a.slice(0,3));dummy.scale.set(...a.slice(3));dummy.updateMatrix();inst.setMatrixAt(i,dummy.matrix)});group.add(inst);
+ const ring=mesh(new THREE.TorusGeometry(4.7,.025,4,64),green,V(cityXs[c],.7,0));ring.rotation.x=Math.PI/2;
+ const armorNodes=new THREE.Group();group.add(armorNodes);
+ for(const side of [-1,1]){box(.28,1.2,6.6,side*3.7,.6,-.7,metal,armorNodes);box(.10,.09,6.6,side*3.7,1.25,-.7,green,armorNodes)}
+ const factories=[];
+ for(let i=0;i<3;i++){const factory=new THREE.Group();factory.position.set(-2.4+i*2.4,0,4);group.add(factory);box(1.7,1.1,1.1,0,.55,0,metal,factory);box(1.7,.07,1.15,0,1.16,0,green,factory);box(.28,1.4,.28,.45,1.5,0,roof,factory);factories.push(factory)}
+ cities.push({hp:2,group,windows:inst,ring,x:cityXs[c],armorNodes,factories});
+}
+const batteries=[];
+for(const x of [-36,0,36]){
+ const group=new THREE.Group();group.position.set(x,.6,9);scene.add(group);
+ mesh(new THREE.CylinderGeometry(2.2,2.8,.7,8),metal,V(0,.35,0),null,group);
+ const ring=mesh(new THREE.TorusGeometry(2.3,.065,6,48),green,V(0,.75,0),null,group);ring.rotation.x=-Math.PI/2;
+ mesh(new THREE.SphereGeometry(1.15,16,10,0,Math.PI*2,0,Math.PI/2),concrete,V(0,.7,0),null,group);
+ const turret=new THREE.Group();turret.position.set(0,1.3,0);group.add(turret);for(const off of [-.35,.35])box(.32,.36,2.4,off,0,-.7,metal,turret);
+ const reserves=new THREE.Group();group.add(reserves);
+ for(const side of [-1,1]){box(.8,.6,1.9,side*1.55,.9,.1,metal,reserves);box(.6,.08,1.7,side*1.55,1.24,.1,green,reserves)}
+ const coils=[];for(let i=0;i<3;i++){const coil=mesh(new THREE.TorusGeometry(1.3+i*.17,.04,6,32),green,V(0,.84+i*.2,0),null,group);coil.rotation.x=Math.PI/2;coils.push(coil)}
+ batteries.push({group,turret,ring,ammo:24,reserves,coils});
+}
+const shieldMat=new THREE.MeshBasicMaterial({color:0x7ef8c4,wireframe:true,transparent:true,opacity:.09,depthWrite:false});
+const dome=mesh(new THREE.SphereGeometry(1,40,20,0,Math.PI*2,0,Math.PI/2),shieldMat,V(0,.7,0),V(40,14,14));dome.visible=false;
+const glowCanvas=document.createElement('canvas');glowCanvas.width=64;glowCanvas.height=64;const gc=glowCanvas.getContext('2d'),gradient=gc.createRadialGradient(32,32,0,32,32,32);gradient.addColorStop(0,'#fff');gradient.addColorStop(.15,'#ffffffee');gradient.addColorStop(.4,'#ffffff55');gradient.addColorStop(1,'#ffffff00');gc.fillStyle=gradient;gc.fillRect(0,0,64,64);const glowTex=new THREE.CanvasTexture(glowCanvas);
+function glow(color,size,parent=scene){const m=new THREE.SpriteMaterial({map:glowTex,color,transparent:true,blending:THREE.AdditiveBlending,depthWrite:false});const sprite=new THREE.Sprite(m);sprite.scale.set(size,size,1);parent.add(sprite);return sprite}
+const enemies=[],friends=[],blasts=[],particles=[];
+const upgrades={blast:0,cadence:0,ammo:0,speed:0,armor:0,shield:0,industry:0};
+const upgradeDefs=[
+ {id:'blast',group:'weapon',costs:[160,270,400]},
+ {id:'cadence',group:'weapon',costs:[140,240,360]},
+ {id:'ammo',group:'weapon',costs:[120,210,310]},
+ {id:'speed',group:'weapon',costs:[120,200,300]},
+ {id:'armor',group:'city',costs:[220,350,500]},
+ {id:'shield',group:'city',costs:[180,300,420]},
+ {id:'industry',group:'city',costs:[200,320,440]},
+ {id:'repair',group:'city',costs:[]}
+];
+let credits=0,waveCredits=0,shopMessage='shopHint',shopMessageVars={};
+const maxHP=()=>2+upgrades.armor;
+const ammoCapacity=()=>24+upgrades.ammo*6;
+const blastRadius=()=>7+upgrades.blast*1.5;
+const shotInterval=()=>[.2,.16,.13,.10][upgrades.cadence];
+const interceptorSpeed=()=>57*(1+upgrades.speed*.25);
+const shieldDuration=()=>3+upgrades.shield;
+const shieldCapacity=()=>1+Math.floor(upgrades.shield/2);
+function repairTarget(){return cities.reduce((best,c,i)=>c.hp<maxHP()&&(best<0||c.hp<cities[best].hp)?i:best,-1)}
+function upgradeCost(id){if(id==='repair'){const i=repairTarget();return i<0?null:cities[i].hp===0?180:90}const def=upgradeDefs.find(d=>d.id===id);return def?.costs[upgrades[id]]??null}
+function syncDefenses(){
+ cities.forEach(c=>{const healthy=c.hp===maxHP();c.group.scale.y=c.hp? .65+.35*c.hp/maxHP():.12;c.windows.visible=c.hp>0;c.ring.visible=c.hp>0;c.windows.material.color.setRGB(...(healthy?[.9,1.5,1.05]:[1.3,.6,.2]));c.armorNodes.visible=upgrades.armor>0&&c.hp>0;c.armorNodes.scale.y=1+upgrades.armor*.35;c.factories.forEach((m,i)=>m.visible=c.hp>0&&i<upgrades.industry);c.ring.scale.setScalar(1+upgrades.armor*.04)});
+ batteries.forEach(b=>{b.turret.scale.set(1+upgrades.cadence*.12,1+upgrades.cadence*.1,1+upgrades.speed*.2);b.reserves.visible=upgrades.ammo>0;b.reserves.scale.y=1+upgrades.ammo*.25;b.coils.forEach((m,i)=>m.visible=i<upgrades.blast)});
+}
+let combatHeight=48;
+let state='ready',wave=1,score=0,selected=1,spawnLeft=0,spawnTimer=0,shieldCharge=1,shieldTime=0,fireTimer=0,holding=false,spaceDown=false,simTime=0,visualTime=0,noticeTime=0,noticeKey='',noticeVars={},shake=0,shots=0,kills=0;
+const aim=V(0,22,0),keys=new Set(),raycaster=new THREE.Raycaster(),aimPlane=new THREE.Plane(V(0,0,1),0);
+const trailGeo=new THREE.CylinderGeometry(1,1,1,5),headGeo=new THREE.ConeGeometry(.14,.7,6),up=V(0,1,0);
+function projectile(start,end,enemy,type='normal',target=-1){
+ const group=new THREE.Group();scene.add(group);const head=mesh(headGeo,enemy?amber:green,V(),null,group),halo=glow(enemy?0xff692f:0xa6ffb5,enemy?2.1:1.6,group);
+ const trail=mesh(trailGeo,new THREE.MeshBasicMaterial({color:enemy?0xff773d:0xb7ffd1,transparent:true,opacity:.8,blending:THREE.AdditiveBlending,depthWrite:false}));
+ const p={pos:start.clone(),start:start.clone(),end:end.clone(),group,head,halo,trail,enemy,type,target,speed:enemy?(type==='fast'?11:5.1+Math.min(wave,20)*.36)*Math.sqrt(combatHeight/48):interceptorSpeed()*Math.sqrt(combatHeight/48),age:0};group.position.copy(start);(enemy?enemies:friends).push(p);return p;
+}
+function removeProjectile(p,list){scene.remove(p.group,p.trail);p.halo.material.dispose();p.trail.material.dispose();const i=list.indexOf(p);if(i>=0)list.splice(i,1)}
+function burst(pos,friendly=true,chain=false){
+ const material=new THREE.MeshBasicMaterial({color:friendly?0xafffb0:0xff7739,transparent:true,opacity:.14,depthWrite:false,blending:THREE.AdditiveBlending});
+ const shell=mesh(sphereGeo,material,pos.clone());const ring=mesh(new THREE.TorusGeometry(1,.018,4,64),new THREE.MeshBasicMaterial({color:friendly?0xd5ffd0:0xffb36b,transparent:true,opacity:.9,depthWrite:false,blending:THREE.AdditiveBlending}),pos.clone());ring.quaternion.copy(camera.quaternion);
+ const halo=glow(friendly?0x9bffb0:0xff7b39,1);halo.position.copy(pos);
+ blasts.push({pos:pos.clone(),age:0,life:chain?1.55:2.25,max:chain?4.6+upgrades.blast*.7:friendly?blastRadius():4,radius:0,friendly,shell,ring,halo});
+ for(let i=0;i<(prefs.quality==='high'?14:6);i++){if(particles.length>220)break;const m=mesh(boxGeo,friendly?green:amber,pos.clone(),V(.07,.07,.35));particles.push({m,v:V(rand(-4,4),rand(-2,5),rand(-3,3)),age:0,life:rand(.5,1.15)})}
+ if(!reduced)shake=Math.max(shake,friendly?.04:.28);tone(friendly?140:65,.2,'triangle',.035);
+}
+function disposeBlast(b){scene.remove(b.shell,b.ring,b.halo);b.shell.material.dispose();b.ring.geometry.dispose();b.ring.material.dispose();b.halo.material.dispose()}
+function alive(){return cities.filter(c=>c.hp>0)}
+function spawnEnemy(start,type){const living=cities.map((c,i)=>c.hp>0?i:-1).filter(i=>i>=0);if(!living.length)return;const target=living[Math.floor(Math.random()*living.length)],city=cities[target];type=type||(wave>=3&&Math.random()<.23?'split':wave>=2&&Math.random()<.24?'fast':'normal');const p=projectile(start||V(rand(-36,36),rand(combatHeight-5,combatHeight+1),0),V(city.x,1.5,0),true,type,target);if(type==='split'){p.head.scale.set(1.8,1.4,1.8);p.halo.material.color.set(0xffbe5c)}return p}
+function record(){if(score>prefs.best){prefs.best=score;persist()}}
+function nextWave(){spawnLeft=10+wave*3;spawnTimer=1.8;shieldCharge=shieldCapacity();shieldTime=0;fireTimer=0;batteries.forEach(b=>b.ammo=ammoCapacity());announce('incoming',{wave});refresh()}
+function clearEffects(){for(const p of [...friends])removeProjectile(p,friends);for(const b of blasts)disposeBlast(b);blasts.length=0;for(const p of particles)scene.remove(p.m);particles.length=0;shieldTime=0;dome.visible=false;shake=0}
+function finishWave(){
+ const survivors=alive().length;score+=survivors*100;waveCredits=80+survivors*(20+upgrades.industry*10);credits+=waveCredits;record();
+ state='upgrades';clearInput();clearEffects();noticeTime=0;$('notice').hidden=true;shopMessage='shopHint';shopMessageVars={};refresh();$('next-wave').focus();
+}
+function launchWave(){if(state!=='upgrades'||$('help-dialog').open)return;wave++;state='playing';clearInput();nextWave();canvas.focus();startAudio()}
+function buyUpgrade(id){
+ if(state!=='upgrades'||$('help-dialog').open)return false;
+ const cost=upgradeCost(id);if(cost===null||credits<cost)return false;
+ if(id==='repair'){const i=repairTarget();cities[i].hp=maxHP();shopMessage='repaired';shopMessageVars={district:i+1}}
+ else{upgrades[id]++;if(id==='armor')cities.forEach(c=>{if(c.hp>0)c.hp++});shopMessage='purchased';shopMessageVars={name:id+'Name'}}
+ credits-=cost;syncDefenses();refresh();tone(520,.16,'sine',.04);return true;
+}
+function reset(){for(const p of [...enemies])removeProjectile(p,enemies);for(const p of [...friends])removeProjectile(p,friends);for(const b of blasts)disposeBlast(b);blasts.length=0;for(const p of particles)scene.remove(p.m);particles.length=0;Object.keys(upgrades).forEach(k=>upgrades[k]=0);credits=0;waveCredits=0;cities.forEach(c=>c.hp=2);syncDefenses();wave=1;score=0;shots=0;kills=0;simTime=0;shieldTime=0;fireTimer=0;shake=0;selected=1;aim.set(0,combatHeight*.48,0);state='playing';clearInput();nextWave();showAim();refresh();canvas.focus();startAudio()}
+function announce(key,vars={}){noticeKey=key;noticeVars=vars;noticeTime=3;$('notice').textContent=text(key,vars);$('notice').hidden=false}
+function fire(){if(state!=='playing'||fireTimer>0||$('help-dialog').open)return;let b=batteries[selected];if(b.ammo<=0){const next=batteries.findIndex(v=>v.ammo>0);if(next<0){if(noticeKey!=='empty'||noticeTime<=0)announce('empty');return}selected=next;b=batteries[selected]}b.ammo--;shots++;fireTimer=shotInterval();const start=b.group.position.clone().add(V(0,1.8,0));projectile(start,aim,false);tone(350,.085,'sine',.025);refresh()}
+function activateShield(){if(state!=='playing'||shieldCharge<=0||shieldTime>0||$('help-dialog').open)return;shieldCharge--;shieldTime=shieldDuration();announce('shieldOn');tone(240,.45,'sine',.05);refresh()}
+function clearInput(){holding=false;spaceDown=false;keys.clear()}
+function pause(){if(state!=='playing')return;state='paused';clearInput();refresh()}
+function resume(){if(state!=='paused'||$('help-dialog').open)return;state='playing';refresh();canvas.focus();startAudio()}
+function togglePause(){state==='playing'?pause():resume()}
+function endGame(){state='over';clearInput();record();refresh()}
+function impact(p){if(shieldTime>0){burst(p.pos,true,true);return}const c=cities[p.target];if(!c||c.hp<=0)return;c.hp--;syncDefenses();burst(V(c.x,2,0),false);refresh();if(!alive().length)endGame()}
+function step(dt){
+ if(state!=='playing')return;simTime+=dt;fireTimer=Math.max(0,fireTimer-dt);shieldTime=Math.max(0,shieldTime-dt);
+ if(keys.size){const move=25*dt*Math.sqrt(combatHeight/48);if(keys.has('ArrowLeft'))aim.x-=move;if(keys.has('ArrowRight'))aim.x+=move;if(keys.has('ArrowUp'))aim.y+=move;if(keys.has('ArrowDown'))aim.y-=move;aim.x=THREE.MathUtils.clamp(aim.x,-40,40);aim.y=THREE.MathUtils.clamp(aim.y,3,combatHeight);showAim()}
+ if(holding||spaceDown)fire();
+ if(spawnLeft>0){spawnTimer-=dt;if(spawnTimer<=0){spawnEnemy();spawnLeft--;spawnTimer=Math.max(.3,1.45-wave*.072)*rand(.65,1.3)}}
+ for(const list of [friends,enemies])for(const p of [...list]){
+  p.age+=dt;const delta=p.end.clone().sub(p.pos),distance=delta.length(),travel=p.speed*dt;
+  if(distance<=travel){p.pos.copy(p.end);if(p.enemy)impact(p);else burst(p.pos);removeProjectile(p,list);continue}
+  delta.normalize();p.pos.addScaledVector(delta,travel);p.group.position.copy(p.pos);p.head.quaternion.setFromUnitVectors(up,delta);
+  const len=Math.min(p.age*p.speed,p.enemy?11:6),tail=p.pos.clone().addScaledVector(delta,-len);p.trail.position.copy(p.pos).add(tail).multiplyScalar(.5);p.trail.quaternion.setFromUnitVectors(up,delta);p.trail.scale.set(p.enemy?.045:.04,len,p.enemy?.045:.04);
+  if(p.type==='split'&&p.pos.y<25){const pos=p.pos.clone();removeProjectile(p,list);spawnEnemy(pos,'normal');spawnEnemy(pos,'fast')}
+ }
+ for(let i=blasts.length-1;i>=0;i--){const b=blasts[i];b.age+=dt;const progress=b.age/b.life;if(progress>=1){disposeBlast(b);blasts.splice(i,1);continue}b.radius=b.max*Math.sin(progress*Math.PI);b.shell.scale.setScalar(Math.max(.001,b.radius));b.ring.scale.setScalar(Math.max(.001,b.radius));b.shell.material.opacity=.14*(1-progress);b.ring.material.opacity=.85*(1-progress);b.halo.scale.setScalar(Math.max(.001,b.radius*3));b.halo.material.opacity=.3*(1-progress);
+  if(b.friendly)for(const p of [...enemies])if(p.pos.distanceTo(b.pos)<b.radius+.35){const pos=p.pos.clone();score+=p.type==='split'?75:p.type==='fast'?50:25;credits+=p.type==='split'?25:p.type==='fast'?15:10;kills++;removeProjectile(p,enemies);burst(pos,true,true);record();refresh()}
+ }
+ for(let i=particles.length-1;i>=0;i--){const p=particles[i];p.age+=dt;if(p.age>p.life){scene.remove(p.m);particles.splice(i,1);continue}p.v.y-=5*dt;p.m.position.addScaledVector(p.v,dt);p.m.scale.multiplyScalar(1-dt*.7)}
+ if(!spawnLeft&&!enemies.length&&state==='playing')finishWave();
+ if(shieldTime===0&&dome.visible)refresh();
+}
+function refresh(){
+ $('upgrade-panel').hidden=state!=='upgrades';$('credits').textContent=credits;if(state==='upgrades')refreshShop();
+ $('score').textContent=String(score).padStart(5,'0');$('wave').textContent=String(wave).padStart(2,'0');$('best').textContent=String(prefs.best).padStart(5,'0');$('cities').textContent=alive().length+' / 6';
+ [...$('districts').children].forEach((el,i)=>{el.className=cities[i].hp===0?'lost':cities[i].hp<maxHP()?'damaged':'';el.title=text('districtHealth',{district:i+1,hp:cities[i].hp,max:maxHP()})});
+ document.querySelectorAll('[data-battery]').forEach((el,i)=>{el.setAttribute('aria-pressed',String(i===selected));el.querySelector('.ammo').textContent=batteries[i].ammo;el.querySelector('.meter i').style.width=(batteries[i].ammo/ammoCapacity()*100)+'%';batteries[i].ring.visible=i===selected;el.disabled=state!=='playing'&&state!=='paused'});
+ $('shield-status').textContent=(shieldTime>0?text('active'):shieldCharge?text('ready')+' · '+shieldCharge:text('spent'));$('shield').disabled=state!=='playing'||!shieldCharge||shieldTime>0;
+ $('pause').disabled=state!=='playing'&&state!=='paused';$('pause').textContent=state==='paused'?'▷':'Ⅱ';$('pause').title=text(state==='paused'?'resume':'pause');$('pause').setAttribute('aria-label',$('pause').title);$('restart').disabled=state==='ready';$('help-restart').disabled=state==='ready';
+ $('screen-panel').hidden=state==='playing'||state==='upgrades';$('reticle').hidden=state!=='playing';
+ if(state==='ready'||state==='paused'||state==='over'){const mode=state==='ready'?'start':state==='paused'?'paused':'over';$('panel-title').textContent=text(mode==='start'?'startTitle':mode);$('panel-text').textContent=text(mode==='start'?'startText':mode+'Text',{score,wave});$('play').textContent=text(state==='ready'?'start':state==='paused'?'resume':'again')}
+ $('sound').setAttribute('aria-pressed',String(prefs.sound));$('sound').innerHTML=prefs.sound?'<svg viewBox="0 0 24 24"><path d="M11 4 5 9H2v6h3l6 5zM15 8q5 4 0 8m3-11q8 7 0 14"/></svg>':'<svg viewBox="0 0 24 24"><path d="M11 4 5 9H2v6h3l6 5zM16 9l6 6m0-6-6 6"/></svg>';
+ if(noticeTime>0)$('notice').textContent=text(noticeKey,noticeVars);
+}
+for(const def of upgradeDefs){
+ const card=document.createElement('article');card.className='upgrade-card';card.id='upgrade-'+def.id;
+ card.innerHTML='<h4></h4><span class="upgrade-level"></span><p></p><button type="button"></button>';
+ card.querySelector('button').onclick=()=>buyUpgrade(def.id);$(def.group+'-upgrades').append(card);
+}
+function upgradeEffect(id,level){
+ if(level===3){const values={blast:blastRadius()+' m',cadence:(1/shotInterval()).toFixed(1)+' / s',ammo:ammoCapacity(),speed:(100+upgrades.speed*25)+'%',armor:maxHP(),shield:shieldDuration()+' s · '+shieldCapacity()+'×',industry:'+'+upgrades.industry*10};return text('current',{value:values[id]})}
+ const next=Math.min(3,level+1),from=level===3?next:level;
+ switch(id){
+ case 'blast':return text('blastEffect',{from:7+from*1.5,to:7+next*1.5});
+ case 'cadence':return text('cadenceEffect',{from:(1/[.2,.16,.13,.10][from]).toFixed(1),to:(1/[.2,.16,.13,.10][next]).toFixed(1)});
+ case 'ammo':return text('ammoEffect',{from:24+from*6,to:24+next*6});
+ case 'speed':return text('speedEffect',{from:100+from*25,to:100+next*25});
+ case 'armor':return text('armorEffect',{from:2+from,to:2+next});
+ case 'shield':return text('shieldEffect',{from:3+from,to:3+next,charges:1+Math.floor(next/2)});
+ case 'industry':return text('industryEffect',{from:from*10,to:next*10});
+ case 'repair':{const i=repairTarget();return i<0?text('healthy'):text('repairEffect',{district:i+1,hp:cities[i].hp,max:maxHP()})}
+ }
+}
+function refreshShop(){
+ $('shop-credits').textContent=credits;$('upgrade-reward').textContent=text('waveReward',{wave,credits:waveCredits});$('next-wave').textContent=text('nextWave',{wave:wave+1});
+ $('upgrade-feedback').textContent=text(shopMessage,shopMessage==='purchased'?{name:text(shopMessageVars.name)}:shopMessageVars);
+ for(const def of upgradeDefs){const card=$('upgrade-'+def.id),button=card.querySelector('button'),level=upgrades[def.id]||0,cost=upgradeCost(def.id),maxed=def.id!=='repair'&&cost===null;
+  card.classList.toggle('maxed',maxed);card.querySelector('h4').textContent=text(def.id+'Name');card.querySelector('.upgrade-level').textContent=def.id==='repair'?'':text('level',{level,max:3});card.querySelector('p').textContent=upgradeEffect(def.id,level);
+  button.textContent=cost===null?(maxed?text('maximum'):'—'):'◇ '+cost;button.disabled=cost===null||credits<cost;
+  button.title=cost===null?text(maxed?'fullLevel':'healthy'):credits<cost?text('missing',{amount:cost-credits}):text('buy',{name:text(def.id+'Name'),cost});button.setAttribute('aria-label',button.title);
+ }
+}
+$('next-wave').onclick=launchWave;
+function setTheme(){const light=prefs.theme==='light';skyMat.uniforms.top.value.set(light?'#658f9b':'#091c31');skyMat.uniforms.bottom.value.set(light?'#f8cc93':'#d98b66');waterMat.uniforms.light.value=light?1:0;hemi.intensity=light?3:1.7;sun.intensity=light?3.5:2.3;stars.visible=!light;renderer.toneMappingExposure=light?1.25:1.15}
+function resize(){const w=stage.clientWidth,h=stage.clientHeight;if(!w||!h)return;camera.aspect=w/h;const fov=THREE.MathUtils.degToRad(camera.fov/2);const dist=Math.max(77,48/(Math.tan(fov)*camera.aspect));const centerY=Math.max(19,dist*Math.tan(fov)-28);combatHeight=Math.max(48,centerY*2+12);aim.y=Math.min(aim.y,combatHeight);camera.position.set(0,centerY+1+dist*.20,dist);camera.lookAt(0,centerY,0);camera.updateProjectionMatrix();renderer.setSize(w,h,false);composer.setSize(w,h);showAim()}
+function showAim(){const p=aim.clone().project(camera);$('reticle').style.left=(p.x+1)*.5*stage.clientWidth+'px';$('reticle').style.top=(1-p.y)*.5*stage.clientHeight+'px'}
+function pointerAim(e){const r=canvas.getBoundingClientRect();raycaster.setFromCamera(new THREE.Vector2((e.clientX-r.left)/r.width*2-1,1-(e.clientY-r.top)/r.height*2),camera);const p=raycaster.ray.intersectPlane(aimPlane,new THREE.Vector3());if(p){aim.set(THREE.MathUtils.clamp(p.x,-40,40),THREE.MathUtils.clamp(p.y,3,combatHeight),0);showAim()}}
+canvas.addEventListener('pointerdown',e=>{if(e.button!==0||state!=='playing')return;e.preventDefault();canvas.focus();canvas.setPointerCapture(e.pointerId);pointerAim(e);holding=true;startAudio();fire()});
+canvas.addEventListener('pointermove',e=>{if(state==='playing')pointerAim(e)});canvas.addEventListener('pointerup',()=>holding=false);canvas.addEventListener('pointercancel',()=>holding=false);canvas.addEventListener('lostpointercapture',()=>holding=false);
+document.querySelectorAll('[data-battery]').forEach(el=>el.onclick=()=>{selected=Number(el.dataset.battery);refresh();canvas.focus()});
+$('shield').onclick=activateShield;$('pause').onclick=togglePause;$('restart').onclick=reset;$('play').onclick=()=>state==='paused'?resume():reset();
+function openHelp(){pause();clearInput();$('help-dialog').showModal()}
+$('help').onclick=openHelp;$('panel-help').onclick=openHelp;$('close-help').onclick=()=>$('help-dialog').close();$('help-restart').onclick=()=>{$('help-dialog').close();reset()};
+async function fullscreen(){try{if(document.fullscreenElement)await document.exitFullscreen();else await document.documentElement.requestFullscreen()}catch{announce('fullscreenError')}}
+$('fullscreen').onclick=fullscreen;
+let audioCtx;function startAudio(){if(!prefs.sound)return;try{audioCtx??=new (window.AudioContext||window.webkitAudioContext)();if(audioCtx.state==='suspended')audioCtx.resume().catch(()=>{})}catch{}}
+function tone(freq,duration,type,volume){if(!prefs.sound||!audioCtx||audioCtx.state!=='running')return;const o=audioCtx.createOscillator(),g=audioCtx.createGain();o.type=type;o.frequency.setValueAtTime(freq,audioCtx.currentTime);o.frequency.exponentialRampToValueAtTime(Math.max(25,freq*.3),audioCtx.currentTime+duration);g.gain.setValueAtTime(volume,audioCtx.currentTime);g.gain.exponentialRampToValueAtTime(.001,audioCtx.currentTime+duration);o.connect(g);g.connect(audioCtx.destination);o.start();o.stop(audioCtx.currentTime+duration);o.onended=()=>{o.disconnect();g.disconnect()}}
+$('sound').onclick=()=>{prefs.sound=!prefs.sound;persist();startAudio();refresh()};
+$('quality').onchange=e=>{prefs.quality=e.target.value;renderer.shadowMap.enabled=prefs.quality==='high';renderer.setPixelRatio(Math.min(devicePixelRatio,prefs.quality==='high'?1.6:1));composer.setPixelRatio(renderer.getPixelRatio());scene.traverse(o=>{if(o.material?.isMeshStandardMaterial)o.material.needsUpdate=true});resize();persist()};
+window.addEventListener('keydown',e=>{
+ if(e.target.closest('select,input,textarea')||e.ctrlKey||e.metaKey||e.altKey)return;
+ if($('help-dialog').open)return;
+ if(e.key==='?'){e.preventDefault();openHelp();return}
+ if(e.code==='Space'&&e.target.tagName==='BUTTON')return;
+ if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Space'].includes(e.code)){e.preventDefault();if(state==='playing'){keys.add(e.code);if(e.code==='Space'){spaceDown=true;startAudio();fire()}}return}
+ if(e.repeat)return;const k=e.key.toLowerCase();if(k==='p'||k==='escape'){e.preventDefault();togglePause()}else if(k==='e')activateShield();else if(['1','2','3'].includes(k)){selected=Number(k)-1;refresh()}else if(k==='f')fullscreen();else if(k==='m')$('sound').click();
+});
+window.addEventListener('keyup',e=>{keys.delete(e.code);if(e.code==='Space')spaceDown=false});window.addEventListener('blur',()=>{clearInput();pause()});document.addEventListener('visibilitychange',()=>{if(document.hidden){clearInput();pause()}});
+canvas.addEventListener('webglcontextlost',e=>{e.preventDefault();pause();window.failBoot('contextError')});
+new ResizeObserver(resize).observe(stage);
+let last=performance.now();function frame(now){const dt=Math.min((now-last)/1000,.05);last=now;if(!document.hidden){visualTime+=dt;step(dt);waterMat.uniforms.time.value=reduced?0:visualTime;dome.visible=shieldTime>0;shieldMat.opacity=.085+Math.sin(visualTime*7)*.025;for(const b of batteries){const dir=aim.clone().sub(b.group.position).normalize();b.turret.quaternion.setFromUnitVectors(V(0,0,-1),dir)}if(noticeTime>0){noticeTime-=dt;if(noticeTime<=0)$('notice').hidden=true}shake=Math.max(0,shake-dt);$('flash').style.opacity=shake>.12?shake*.17:0;if(prefs.quality==='high')composer.render();else renderer.render(scene,camera)}requestAnimationFrame(frame)}
+window.game={refresh,setTheme,get state(){return{mode:state,wave,score,best:prefs.best,cities:cities.map(c=>c.hp),ammo:batteries.map(b=>b.ammo),selected,shieldCharge,shieldTime,shots,kills,credits,upgrades:{...upgrades},maxHP:maxHP(),ammoCapacity:ammoCapacity(),blastRadius:blastRadius(),shotInterval:shotInterval(),interceptorSpeed:interceptorSpeed(),shieldDuration:shieldDuration(),shieldCapacity:shieldCapacity(),enemies:enemies.length,friends:friends.length,spawnLeft,simTime}},scene,camera};
+// Deterministic stepping and scenario setup are opt-in, only for the local regression harness.
+if(new URLSearchParams(location.search).has('test'))window.game.test={advance(seconds){for(let t=0;t<seconds;t+=1/60)step(1/60)},spawn:spawnEnemy,burst:(x,y)=>burst(V(x,y,0)),aim(x,y){aim.set(x,y,0)},fire,clear(){spawnLeft=0;for(const p of [...enemies])removeProjectile(p,enemies)},reset,buy:buyUpgrade};
+syncDefenses();setTheme();resize();refresh();$('loading').hidden=true;requestAnimationFrame(frame);
+} catch(error) {console.error(error);window.failBoot()}
+</script>
 </body>
 </html>

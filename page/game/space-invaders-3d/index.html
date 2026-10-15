@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" href="../../assets/icons/ico/game-space-invaders-3d.ico" type="image/x-icon">
+  <title>Space Invaders 3D</title>
+  <link rel="stylesheet" href="../../assets/fontawesome/css/all.min.css">
+  <link rel="stylesheet" href="styles.css">
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/"
+    }
+  }
+  </script>
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-NWZDZ906DJ"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-NWZDZ906DJ');
+  </script>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand"><img src="../../assets/icons/svg/game-space-invaders-3d.svg" alt=""><span data-i18n="title">Space Invaders 3D</span></div>
+      <div class="controls">
+        <select id="diff-select" data-i18n-title="difficulty">
+          <option value="easy" data-i18n="easy">Easy</option>
+          <option value="normal" data-i18n="normal">Normal</option>
+          <option value="hard" data-i18n="hard">Hard</option>
+        </select>
+        <button class="btn primary" id="new-btn" type="button" data-i18n-title="newGameKey"><i class="fa-solid fa-rotate-right"></i><span data-i18n="newGame">New</span></button>
+        <span class="chip score" data-i18n-title="score"><i class="fa-solid fa-star"></i><span id="score">0</span></span>
+        <span class="chip hi" data-i18n-title="hiScore"><i class="fa-solid fa-trophy"></i><span id="hi">0</span></span>
+        <span class="chip wave" data-i18n-title="wave"><i class="fa-solid fa-layer-group"></i><span id="wave">1</span></span>
+        <span class="chip lives" data-i18n-title="lives"><i class="fa-solid fa-heart"></i><span id="lives">3</span></span>
+      </div>
+      <div class="tools">
+        <button class="icon-btn" id="pause-btn" type="button" data-i18n-title="pauseKey"><i class="fa-solid fa-pause"></i></button>
+        <button class="icon-btn" id="sound-btn" type="button" data-i18n-title="sound" aria-pressed="true"><i class="fa-solid fa-volume-high"></i></button>
+        <button class="icon-btn" id="fx-btn" type="button" data-i18n-title="effects" aria-pressed="true"><i class="fa-solid fa-wand-magic-sparkles"></i></button>
+        <button class="icon-btn" id="help-btn" type="button" data-i18n-title="help"><i class="fa-solid fa-circle-question"></i></button>
+        <select id="lang-switcher" aria-label="Language">
+          <option value="en">EN</option>
+          <option value="pt">PT</option>
+          <option value="ja">JA</option>
+        </select>
+        <button class="icon-btn" id="theme-switcher" type="button" data-i18n-title="theme"><i class="fa-solid fa-sun"></i></button>
+      </div>
+    </header>
+
+    <main class="stage" id="stage">
+      <canvas id="scene"></canvas>
+      <div class="vignette" id="vignette"></div>
+      <div class="banner" id="banner"></div>
+      <div id="popups"></div>
+
+      <div class="hud-bottom">
+        <div class="glass status" id="status"></div>
+        <div class="spacer"></div>
+        <div class="touch" id="touch">
+          <button type="button" id="touch-left" data-i18n-title="moveLeft"><i class="fa-solid fa-caret-left"></i></button>
+          <button type="button" id="touch-right" data-i18n-title="moveRight"><i class="fa-solid fa-caret-right"></i></button>
+          <button type="button" class="fire" id="touch-fire" data-i18n-title="fire"><i class="fa-solid fa-bolt"></i></button>
+        </div>
+      </div>
+
+      <div class="overlay" id="overlay">
+        <div class="card" id="card">
+          <h2 id="card-title"></h2>
+          <div class="line" id="card-line1"></div>
+          <div class="line" id="card-line2"></div>
+          <div class="record" id="card-record" hidden></div>
+          <div class="row">
+            <button class="btn" id="card-secondary" type="button" hidden></button>
+            <button class="btn primary" id="card-primary" type="button"></button>
+          </div>
+        </div>
+      </div>
+
+      <div class="fail" id="fail" hidden><p data-i18n="loadFail">The 3D renderer could not start. Check your connection (Three.js is loaded from a CDN) and WebGL support, then reload.</p></div>
+    </main>
+  </div>
+
+  <dialog id="help">
+    <div class="dlg-head">
+      <span id="help-title">Space Invaders 3D</span>
+      <button class="icon-btn" id="help-close" type="button" data-i18n-title="close"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="dlg-body" id="help-body"></div>
+  </dialog>
+
+  <script type="module" src="game.js"></script>
+</body>
+</html>

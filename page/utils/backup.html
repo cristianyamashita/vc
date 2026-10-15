@@ -585,11 +585,25 @@
        indexedDB.databases() is not available in all browsers,
        so we maintain a known list as well.
        ================================================================ */
+    // Missile Command 3D: vc.missile-command.v1 (best score, theme, sound, graphics).
+    // Included by the full localStorage export and restored without key filtering.
     // Minesweeper 3D: minesweeper3d.v1 (mode, difficulty, best times, wins)
     // is included in the automatic localStorage export.
+    // Space Invaders 3D: vc.space-invaders-3d.v1 (difficulty, sound, effects,
+    // best scores per difficulty) is included in the automatic localStorage export.
     // Range Club: rangeClub.save.v1 and rangeClub.prefs.v1 are included in
     // the automatic localStorage export; custom target photos live below.
+    // Architecture Atlas: projects contain custom image icons, scenarios, views and tours.
+    // vc_architecture_atlas_prefs_v1 is covered by the automatic localStorage export.
+    // The eleven 3D pages use vc.3d.<slug>.v1 for preferences, records and
+    // saved structures/heightfields/molecules/creases. All keys participate
+    // in the automatic localStorage export and both restore modes.
+    // The inspector stores original GLB/glTF, binary buffers and textures as
+    // ArrayBuffers; serializeValue/deserializeValue preserve those bytes.
     const KNOWN_IDB_DATABASES = [
+      { name: 'VC3DModelsDB', version: 1, stores: ['models'] },
+      { name: 'EnvironmentPlannerDB', version: 1, stores: ['projects', 'assets'] },
+      { name: 'ArchitectureAtlasDB', version: 1, stores: ['projects'] },
       { name: 'RangeClubDB', version: 1, stores: ['photos'] },
       {
         name: 'prompt_context_db',
@@ -1032,6 +1046,8 @@
                     const storeRecords = dbData.stores[sn] || [];
                     const firstRecord = storeRecords[0];
                     const knownInlineKeys = {
+                      VC3DModelsDB: { models: 'id' },
+                      EnvironmentPlannerDB: { projects: 'id', assets: 'id' },
                       ServiceTycoonDB: { scenarios: 'id', saves: 'scenarioId' },
                       FlashcardsSRSDB: { decks: 'id', cards: 'id', settings: 'key' },
                       DesktopOSDB: { wallpapers: 'id', userApps: 'id', fsNodes: 'id', fsBlobs: 'id' },
