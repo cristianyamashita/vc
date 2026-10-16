@@ -923,6 +923,8 @@
     "os/apps/app-studio/studio.js",
     "os/apps/apps.css",
     "os/apps/sheets/sheets-engine.js",
+    "os/apps/sheets/sheets-functions.js",
+    "os/apps/sheets/sheets-dialogs.js",
     "os/apps/sheets/sheets-icons.js",
     "os/apps/sheets/sheets.css",
     "os/apps/sheets/sheets.js",

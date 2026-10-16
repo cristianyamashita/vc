@@ -286,8 +286,10 @@ window.OSSheetsEngine = (function () {
         }
         continue;
       }
-      if ("+-*/^&=%(),:;!".indexOf(ch) >= 0) {
+      if ("+-*/^&=%(),:;!{}".indexOf(ch) >= 0) {
         if (ch === ",") push("sep", ",");
+        else if (ch === "{") push("lb");
+        else if (ch === "}") push("rb");
         else if (ch === ";") push("sep", ";");
         else if (ch === "(") push("lp");
         else if (ch === ")") push("rp");
@@ -319,7 +321,7 @@ window.OSSheetsEngine = (function () {
           const next = s.charAt(i);
           const letters = s.slice(ch === "$" ? start + 1 : start, afterLetters);
           const looksRef = letters && digits && parseA1((ch === "$" ? "$" : "") + letters + (absR ? "$" : "") + digits);
-          if (looksRef && next !== "(" && next !== ".") {
+          if (looksRef && next !== "(" && next !== "." && !/[A-Za-z_]/.test(next)) {
             const ref = parseA1((s.charAt(start) === "$" ? "$" : "") + letters + (absR ? "$" : "") + digits);
             push("ref", a1(ref.r, ref.c, ref.absR, ref.absC), ref);
             continue;
@@ -420,6 +422,18 @@ window.OSSheetsEngine = (function () {
         if (peek().t === "rp") eat();
         return inner;
       }
+      if (tok.t === "lb") {
+        const rows = [[]];
+        while (peek().t !== "rb" && peek().t !== "eof") {
+          rows[rows.length - 1].push(parseExpr(0));
+          if (peek().t === "sep") {
+            const sp = eat();
+            if (sp.v === ";") rows.push([]);
+          }
+        }
+        if (peek().t === "rb") eat();
+        return { t: "arr", rows: rows };
+      }
       return { t: "err", v: ERR.VALUE };
     }
     function parseExpr(minP) {
@@ -503,6 +517,7 @@ window.OSSheetsEngine = (function () {
 
   function scalar(ctx, v) {
     if (isErr(v)) return v;
+    if (Array.isArray(v)) return v.length ? scalar(ctx, v[0]) : null;
     if (isRange(v)) {
       if (v.r1 === v.r2 && v.c1 === v.c2) return ctx.getValue(v.sheetId, v.r1, v.c1);
       return ctx.getValue(v.sheetId, v.r1, v.c1);
@@ -2146,6 +2161,12 @@ window.OSSheetsEngine = (function () {
 
   function evalArg(ast, ctx) {
     if (!ast) return e(ERR.VALUE);
+    if (ast.t === "name") {
+      const def = ctx.wb.nameRef ? ctx.wb.nameRef(ast.v, ctx.sheetId) : null;
+      if (!def) return e(ERR.NAME);
+      if (def.r != null) return rng(def.sheetId, def.r, def.c, def.r, def.c);
+      return def;
+    }
     if (ast.t === "ref") {
       const sh = ast.sheet ? ctx.wb.sheetByName(ast.sheet) : ctx.wb.sheetById(ctx.sheetId);
       if (!sh) return e(ERR.REF);
@@ -2160,7 +2181,21 @@ window.OSSheetsEngine = (function () {
     if (ast.t === "str") return ast.v;
     if (ast.t === "bool") return ast.v;
     if (ast.t === "err") return e(ast.v);
-    if (ast.t === "name") return e(ERR.NAME);
+    if (ast.t === "arr") {
+      const out = [];
+      for (let i = 0; i < ast.rows.length; i++) {
+        const row = [];
+        for (let j = 0; j < ast.rows[i].length; j++) row.push(scalar(ctx, evalAst(ast.rows[i][j], ctx)));
+        out.push(row);
+      }
+      return out;
+    }
+    if (ast.t === "name") {
+      const def = ctx.wb.nameRef ? ctx.wb.nameRef(ast.v, ctx.sheetId) : null;
+      if (!def) return e(ERR.NAME);
+      if (def.r != null) return rng(def.sheetId, def.r, def.c, def.r, def.c);
+      return def;
+    }
     if (ast.t === "pct") {
       const v = toNum(scalar(ctx, evalAst(ast.a, ctx)));
       return isErr(v) ? v : v / 100;
@@ -2224,44 +2259,172 @@ window.OSSheetsEngine = (function () {
     return e(ERR.VALUE);
   }
 
+  const LOCALE = { lang: "en" };
+  function groupThousands(s) {
+    const parts = s.split(".");
+    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    return parts.join(".");
+  }
+  function localizeNumber(s) {
+    if (LOCALE.lang !== "pt") return s;
+    return s.replace(/[.,]/g, function (ch) {
+      return ch === "." ? "," : ".";
+    });
+  }
+  function fmtDate(p, kind) {
+    const y = String(p.y);
+    const m = String(p.m).padStart(2, "0");
+    const d = String(p.d).padStart(2, "0");
+    if (kind === "iso") return y + "-" + m + "-" + d;
+    if (LOCALE.lang === "pt") return d + "/" + m + "/" + y;
+    if (LOCALE.lang === "ja") return y + "/" + m + "/" + d;
+    return m + "/" + d + "/" + y;
+  }
+  function fmtTime(p, withSec) {
+    const H = String(p.H).padStart(2, "0");
+    const M = String(p.M).padStart(2, "0");
+    return withSec ? H + ":" + M + ":" + String(p.S).padStart(2, "0") : H + ":" + M;
+  }
+  function toFraction(value) {
+    const sign = value < 0 ? "-" : "";
+    const abs = Math.abs(value);
+    const whole = Math.floor(abs);
+    const frac = abs - whole;
+    if (frac < 1e-9) return sign + whole;
+    let bestN = 1;
+    let bestD = 1;
+    let bestErr = Infinity;
+    for (let d = 1; d <= 99; d++) {
+      const n = Math.round(frac * d);
+      const err = Math.abs(frac - n / d);
+      if (err < bestErr - 1e-12) {
+        bestErr = err;
+        bestN = n;
+        bestD = d;
+        if (err < 1e-9) break;
+      }
+    }
+    if (bestN === 0) return sign + whole;
+    if (bestN === bestD) return sign + (whole + 1);
+    return sign + (whole ? whole + " " : "") + bestN + "/" + bestD;
+  }
   function formatValue(value, style) {
     if (isErr(value)) return value.error;
     if (value == null || value === "") return "";
     if (typeof value === "boolean") return value ? "TRUE" : "FALSE";
-    const fmt = (style && style.format) || "general";
+    let fmt = (style && style.format) || "general";
     if (typeof value === "number") {
       const dec = style && style.decimals != null ? style.decimals : 2;
-      if (fmt === "percent") return (value * 100).toFixed(dec) + "%";
-      if (fmt === "currency") {
-        const sign = value < 0 ? "-" : "";
-        return sign + "$" + Math.abs(value).toFixed(dec).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-      }
+      const sep = !style || style.sep !== false;
+      if (fmt === "percent") return localizeNumber((value * 100).toFixed(dec)) + "%";
       if (fmt === "yen") {
-        const sign = value < 0 ? "-" : "";
-        return sign + "¥" + Math.round(Math.abs(value)).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+        fmt = "currency";
+        style = Object.assign({}, style, { symbol: "¥", decimals: style && style.decimals != null ? style.decimals : 0 });
       }
-      if (fmt === "number") return value.toFixed(dec);
-      if (fmt === "date") {
+      if (fmt === "currency" || fmt === "accounting") {
+        const sym = (style && style.symbol) || "$";
+        const d = style && style.decimals != null ? style.decimals : 2;
+        const body = sym + groupThousands(Math.abs(value).toFixed(d));
+        if (fmt === "accounting") return value < 0 ? "(" + localizeNumber(body) + ")" : localizeNumber(body);
+        return (value < 0 ? "-" : "") + localizeNumber(body);
+      }
+      if (fmt === "number") return localizeNumber(sep ? groupThousands(value.toFixed(dec)) : value.toFixed(dec));
+      if (fmt === "integer") return localizeNumber(groupThousands(Math.round(value).toFixed(0)));
+      if (fmt === "scientific") return value.toExponential(dec).replace("e+", "E+").replace("e-", "E-");
+      if (fmt === "fraction") return toFraction(value);
+      if (fmt === "date") return fmtDate(serialToParts(value), "locale");
+      if (fmt === "dateIso") return fmtDate(serialToParts(value), "iso");
+      if (fmt === "dateLong") {
         const p = serialToParts(value);
-        return p.y + "-" + String(p.m).padStart(2, "0") + "-" + String(p.d).padStart(2, "0");
+        try {
+          const loc = LOCALE.lang === "pt" ? "pt-BR" : LOCALE.lang === "ja" ? "ja-JP" : "en-US";
+          return new Date(Date.UTC(p.y, p.m - 1, p.d)).toLocaleDateString(loc, { timeZone: "UTC", year: "numeric", month: "long", day: "numeric" });
+        } catch (_err) {
+          return fmtDate(p, "iso");
+        }
       }
+      if (fmt === "datetime") {
+        const p = serialToParts(value);
+        return fmtDate(p, "locale") + " " + fmtTime(p, false);
+      }
+      if (fmt === "time") return fmtTime(serialToParts(value), true);
+      if (fmt === "custom" && style && style.code) return excelText(value, style.code);
       if (fmt === "text") return String(value);
-      if (Math.abs(value) >= 1e10 || (Math.abs(value) > 0 && Math.abs(value) < 1e-6)) return String(value);
+      if (Math.abs(value) >= 1e11 || (Math.abs(value) > 0 && Math.abs(value) < 1e-6)) return value.toExponential(4).replace("e+", "E+").replace("e-", "E-");
       if (Number.isInteger(value)) return String(value);
       return String(Math.round(value * 1e10) / 1e10);
     }
+    if (typeof value === "string" && fmt === "custom" && style && style.code) return excelText(value, style.code);
     return String(value);
   }
+  function parseDateText(text, lang) {
+    const s = String(text || "").trim();
+    let m = s.match(/^(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?)?$/);
+    let y;
+    let mo;
+    let d;
+    if (m) {
+      y = Number(m[1]);
+      mo = Number(m[2]);
+      d = Number(m[3]);
+    } else {
+      m = s.match(/^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{4}|\d{2})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?)?$/);
+      if (!m) return null;
+      const a = Number(m[1]);
+      const b = Number(m[2]);
+      y = Number(m[3]);
+      if (y < 100) y += y < 50 ? 2000 : 1900;
+      const dayFirst = (lang || LOCALE.lang) === "pt" || a > 12;
+      if (dayFirst) {
+        d = a;
+        mo = b;
+      } else {
+        mo = a;
+        d = b;
+      }
+    }
+    if (mo < 1 || mo > 12 || d < 1 || d > 31) return null;
+    const check = new Date(Date.UTC(y, mo - 1, d));
+    if (check.getUTCMonth() !== mo - 1 || check.getUTCDate() !== d) return null;
+    let serial = dateToSerial(y, mo, d);
+    const hasTime = m[4] != null;
+    if (hasTime) serial += (Number(m[4]) * 3600 + Number(m[5]) * 60 + Number(m[6] || 0)) / 86400;
+    return { serial: serial, hasTime: hasTime };
+  }
+  function parseTimeText(text) {
+    const m = String(text || "").trim().match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?\s*([AaPp][Mm])?$/);
+    if (!m) return null;
+    let h = Number(m[1]);
+    const mi = Number(m[2]);
+    const sec = Number(m[3] || 0);
+    if (m[4]) {
+      const pm = /p/i.test(m[4]);
+      if (h === 12) h = pm ? 12 : 0;
+      else if (pm) h += 12;
+    }
+    if (h > 23 || mi > 59 || sec > 59) return null;
+    return (h * 3600 + mi * 60 + sec) / 86400;
+  }
 
+  const SHEET_PROPS = ["hiddenRows", "hiddenCols", "frozenRows", "frozenCols", "condFormats", "filter", "charts", "tabColor", "gridlines"];
+  function sheetDefaults() {
+    return { hiddenRows: {}, hiddenCols: {}, frozenRows: 0, frozenCols: 0, condFormats: [], filter: null, charts: [], tabColor: "", gridlines: true };
+  }
   function emptySheet(name, index) {
-    return {
-      id: uid(),
-      name: name || "Sheet" + (index || 1),
-      cells: {},
-      colWidths: {},
-      rowHeights: {},
-      merges: [],
-    };
+    return Object.assign(
+      {
+        id: uid(),
+        name: name || "Sheet" + (index || 1),
+        cells: {},
+        colWidths: {},
+        rowHeights: {},
+        merges: [],
+      },
+      sheetDefaults()
+    );
+  }
+  function deepClone(v) {
+    return v == null ? v : JSON.parse(JSON.stringify(v));
   }
   function normMerge(m) {
     if (!m) return null;
@@ -2302,7 +2465,7 @@ window.OSSheetsEngine = (function () {
       name: data.name || "Book 1",
       activeSheetId: data.activeSheetId,
       sheets: (data.sheets || []).map(function (s) {
-        return {
+        const out = {
           id: s.id,
           name: s.name,
           cells: s.cells || {},
@@ -2310,7 +2473,13 @@ window.OSSheetsEngine = (function () {
           rowHeights: s.rowHeights || {},
           merges: Array.isArray(s.merges) ? s.merges.map(normMerge).filter(Boolean) : [],
         };
+        const defs = sheetDefaults();
+        SHEET_PROPS.forEach(function (k) {
+          out[k] = s[k] != null ? deepClone(s[k]) : defs[k];
+        });
+        return out;
       }),
+      names: Object.assign({}, data.names || {}),
       updatedAt: data.updatedAt || Date.now(),
       cache: new Map(),
       dirty: new Set(),
@@ -2462,6 +2631,11 @@ window.OSSheetsEngine = (function () {
         } else if (ch.type === "merges") {
           const sh = sheetById(ch.sheetId);
           if (sh) sh.merges = cloneMerges(forward ? ch.next : ch.prev);
+        } else if (ch.type === "prop") {
+          const sh = sheetById(ch.sheetId);
+          if (sh) sh[ch.key] = deepClone(forward ? ch.next : ch.prev);
+        } else if (ch.type === "names") {
+          wb.names = Object.assign({}, forward ? ch.next : ch.prev);
         }
       }
       invalidateAll();
@@ -2542,6 +2716,9 @@ window.OSSheetsEngine = (function () {
         rowHeights: Object.assign({}, sh.rowHeights),
         merges: cloneMerges(sh.merges),
       };
+      SHEET_PROPS.forEach(function (k) {
+        copy[k] = deepClone(sh[k]);
+      });
       const idx = wb.sheets.findIndex(function (s) {
         return s.id === id;
       });
@@ -2591,6 +2768,51 @@ window.OSSheetsEngine = (function () {
       });
       sh.cells = next;
       const count = Math.abs(delta);
+      function shiftMap(map) {
+        const out = {};
+        Object.keys(map || {}).forEach(function (k) {
+          let pos = Number(k);
+          if (delta < 0 && pos >= at && pos < at - delta) return;
+          if (pos >= at) pos += delta;
+          if (pos >= 0) out[pos] = map[k];
+        });
+        return out;
+      }
+      if (isRow) {
+        sh.rowHeights = shiftMap(sh.rowHeights);
+        sh.hiddenRows = shiftMap(sh.hiddenRows);
+      } else {
+        sh.colWidths = shiftMap(sh.colWidths);
+        sh.hiddenCols = shiftMap(sh.hiddenCols);
+      }
+      function shiftRange(m) {
+        let a = isRow ? m.r1 : m.c1;
+        let b = isRow ? m.r2 : m.c2;
+        if (delta < 0) {
+          const mapPos = function (p, isEnd) {
+            if (p < at) return p;
+            if (p < at + count) return isEnd ? at - 1 : at;
+            return p - count;
+          };
+          a = mapPos(a, false);
+          b = mapPos(b, true);
+          if (b < a) return null;
+        } else if (a >= at) {
+          a += delta;
+          b += delta;
+        } else if (b >= at) b += delta;
+        const out = Object.assign({}, m);
+        if (isRow) {
+          out.r1 = a;
+          out.r2 = b;
+        } else {
+          out.c1 = a;
+          out.c2 = b;
+        }
+        return out;
+      }
+      sh.condFormats = (sh.condFormats || []).map(shiftRange).filter(Boolean);
+      if (sh.filter) sh.filter = shiftRange(sh.filter);
       sh.merges = (sh.merges || [])
         .map(function (m) {
           let a = isRow ? m.r1 : m.c1;
@@ -2622,6 +2844,70 @@ window.OSSheetsEngine = (function () {
       invalidateAll();
       notify();
     }
+    function seriesInfo(sheetId, r1, c1, r2, c2, vertical) {
+      const raws = [];
+      if (vertical) for (let r = r1; r <= r2; r++) raws.push(getRaw(sheetId, r, c1));
+      else for (let c = c1; c <= c2; c++) raws.push(getRaw(sheetId, r1, c));
+      if (!raws.length || raws.some(function (x) { return x === "" || String(x).charAt(0) === "="; })) return null;
+      const allNum = raws.every(function (x) {
+        return Number.isFinite(Number(x));
+      });
+      if (allNum) {
+        const n = raws.map(Number);
+        const step = n.length > 1 ? n[1] - n[0] : 1;
+        for (let i = 2; i < n.length; i++) if (Math.abs(n[i] - n[i - 1] - step) > 1e-9) return null;
+        return { kind: "num", first: n[0], last: n[n.length - 1], step: step, len: n.length };
+      }
+      const m = raws.map(function (x) {
+        return String(x).match(/^(.*?)(\d+)$/);
+      });
+      if (m.every(Boolean)) {
+        const prefix = m[0][1];
+        if (!m.every(function (x) { return x[1] === prefix; })) return null;
+        const n = m.map(function (x) {
+          return Number(x[2]);
+        });
+        const step = n.length > 1 ? n[1] - n[0] : 1;
+        for (let i = 2; i < n.length; i++) if (n[i] - n[i - 1] !== step) return null;
+        return { kind: "text", prefix: prefix, first: n[0], last: n[n.length - 1], step: step, len: n.length, pad: m[0][2].length };
+      }
+      const lists = [
+        ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"],
+        ["mon", "tue", "wed", "thu", "fri", "sat", "sun"],
+        ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"],
+        ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"],
+        ["segunda", "terça", "quarta", "quinta", "sexta", "sábado", "domingo"],
+        ["seg", "ter", "qua", "qui", "sex", "sáb", "dom"],
+        ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"],
+        ["月曜日", "火曜日", "水曜日", "木曜日", "金曜日", "土曜日", "日曜日"],
+        ["月", "火", "水", "木", "金", "土", "日"],
+        ["1月", "2月", "3月", "4月", "5月", "6月", "7月", "8月", "9月", "10月", "11月", "12月"],
+      ];
+      const low = raws.map(function (x) {
+        return String(x).toLowerCase();
+      });
+      for (let i = 0; i < lists.length; i++) {
+        const idx = lists[i].indexOf(low[0]);
+        if (idx < 0) continue;
+        let ok = true;
+        for (let k = 1; k < low.length; k++) if (lists[i][(idx + k) % lists[i].length] !== low[k]) ok = false;
+        if (!ok) continue;
+        const cap = raws[0] === raws[0].toUpperCase() ? "upper" : raws[0].charAt(0) === raws[0].charAt(0).toUpperCase() ? "title" : "lower";
+        return { kind: "list", list: lists[i], start: idx, len: raws.length, cap: cap };
+      }
+      return null;
+    }
+    function seriesValue(info, k) {
+      if (info.kind === "num") return String(Math.round((info.first + info.step * k) * 1e10) / 1e10);
+      if (info.kind === "text") {
+        const n = info.first + info.step * k;
+        return info.prefix + (n < 0 ? String(n) : String(n).padStart(info.pad, "0"));
+      }
+      let w = info.list[(((info.start + k) % info.list.length) + info.list.length) % info.list.length];
+      if (info.cap === "upper") w = w.toUpperCase();
+      else if (info.cap === "title") w = w.charAt(0).toUpperCase() + w.slice(1);
+      return w;
+    }
     function fill(sheetId, r1, c1, r2, c2, toR, toC) {
       beginBatch();
       const srcH = r2 - r1;
@@ -2630,6 +2916,9 @@ window.OSSheetsEngine = (function () {
       const destC1 = Math.min(c1, toC);
       const destR2 = Math.max(r2, toR);
       const destC2 = Math.max(c2, toC);
+      const vertical = destR2 - destR1 > srcH;
+      const horizontal = destC2 - destC1 > srcW;
+      const seriesCache = {};
       for (let r = destR1; r <= destR2; r++) {
         for (let c = destC1; c <= destC2; c++) {
           if (r >= r1 && r <= r2 && c >= c1 && c <= c2) continue;
@@ -2638,13 +2927,16 @@ window.OSSheetsEngine = (function () {
           let raw = getRaw(sheetId, sr, sc);
           const style = Object.assign({}, getStyle(sheetId, sr, sc));
           if (String(raw).charAt(0) === "=") raw = adjustFormula(raw, r - sr, c - sc);
-          else if (srcH === 0 && srcW === 0) {
-            const n = Number(raw);
-            if (raw !== "" && Number.isFinite(n)) {
-              const stepR = r > r2 ? r - r2 : r < r1 ? r - r1 : 0;
-              const stepC = c > c2 ? c - c2 : c < c1 ? c - c1 : 0;
-              raw = String(n + stepR + stepC);
-            }
+          else if (vertical && !horizontal) {
+            const key = "v" + c;
+            if (!(key in seriesCache)) seriesCache[key] = seriesInfo(sheetId, r1, c, r2, c, true);
+            const info = seriesCache[key];
+            if (info) raw = seriesValue(info, r > r2 ? r - r1 : r - r1);
+          } else if (horizontal && !vertical) {
+            const key = "h" + r;
+            if (!(key in seriesCache)) seriesCache[key] = seriesInfo(sheetId, r, c1, r, c2, false);
+            const info = seriesCache[key];
+            if (info) raw = seriesValue(info, c - c1);
           }
           applyCell(sheetId, r, c, raw, style, true);
         }
@@ -2850,8 +3142,9 @@ window.OSSheetsEngine = (function () {
         name: wb.name,
         activeSheetId: wb.activeSheetId,
         updatedAt: wb.updatedAt,
+        names: Object.assign({}, wb.names),
         sheets: wb.sheets.map(function (s) {
-          return {
+          const out = {
             id: s.id,
             name: s.name,
             cells: s.cells,
@@ -2859,8 +3152,55 @@ window.OSSheetsEngine = (function () {
             rowHeights: s.rowHeights,
             merges: cloneMerges(s.merges),
           };
+          SHEET_PROPS.forEach(function (k) {
+            out[k] = deepClone(s[k]);
+          });
+          return out;
         }),
       };
+    }
+    function getSheetProp(sheetId, key) {
+      const sh = sheetById(sheetId);
+      return sh ? sh[key] : undefined;
+    }
+    function setSheetProp(sheetId, key, value, record) {
+      const sh = sheetById(sheetId);
+      if (!sh) return;
+      const prev = deepClone(sh[key]);
+      sh[key] = deepClone(value);
+      if (record !== false) pushChange({ type: "prop", sheetId: sheetId, key: key, prev: prev, next: deepClone(value) });
+      invalidateAll();
+      notify();
+    }
+    function nameRef(name, currentSheetId) {
+      const key = String(name || "").toUpperCase();
+      const def = wb.names[key];
+      if (!def) return null;
+      return parseAddress(def, currentSheetId, api);
+    }
+    function defineName(name, ref) {
+      const key = String(name || "").trim().toUpperCase();
+      if (!/^[A-Z_\\][A-Z0-9_.\\]*$/.test(key) || parseA1(key)) return false;
+      const prev = Object.assign({}, wb.names);
+      if (ref) wb.names[key] = String(ref);
+      else delete wb.names[key];
+      pushChange({ type: "names", prev: prev, next: Object.assign({}, wb.names) });
+      invalidateAll();
+      notify();
+      return true;
+    }
+    function setRowHeight(sheetId, r, h) {
+      const sh = sheetById(sheetId);
+      if (sh) sh.rowHeights[r] = Math.max(12, Math.min(400, h));
+      notify();
+    }
+    function isHiddenRow(sheetId, r) {
+      const sh = sheetById(sheetId);
+      return !!(sh && sh.hiddenRows && sh.hiddenRows[r]);
+    }
+    function isHiddenCol(sheetId, c) {
+      const sh = sheetById(sheetId);
+      return !!(sh && sh.hiddenCols && sh.hiddenCols[c]);
     }
     const api = {
       data: wb,
@@ -2899,6 +3239,16 @@ window.OSSheetsEngine = (function () {
       colWidth: colWidth,
       rowHeight: rowHeight,
       setColWidth: setColWidth,
+      setRowHeight: setRowHeight,
+      getSheetProp: getSheetProp,
+      setSheetProp: setSheetProp,
+      isHiddenRow: isHiddenRow,
+      isHiddenCol: isHiddenCol,
+      nameRef: nameRef,
+      defineName: defineName,
+      names: function () {
+        return Object.assign({}, wb.names);
+      },
       undo: undo,
       redo: redo,
       beginBatch: beginBatch,
@@ -3108,6 +3458,9 @@ window.OSSheetsEngine = (function () {
         }
       }
       ws["!ref"] = "A1:" + colName(maxC) + String(maxR + 1);
+      const cols = [];
+      for (let c = 0; c <= maxC; c++) cols.push({ wpx: sh.colWidths[c] || 84 });
+      ws["!cols"] = cols;
       if (sh.merges && sh.merges.length) {
         ws["!merges"] = sh.merges.map(function (m) {
           return { s: { r: m.r1, c: m.c1 }, e: { r: m.r2, c: m.c2 } };
@@ -3134,6 +3487,10 @@ window.OSSheetsEngine = (function () {
           return normMerge({ r1: m.s.r, c1: m.s.c, r2: m.e.r, c2: m.e.c });
         })
         .filter(Boolean);
+      ((ws && ws["!cols"]) || []).forEach(function (col, i) {
+        if (col && col.wpx) sh.colWidths[i] = Math.max(36, Math.min(480, Math.round(col.wpx)));
+        else if (col && col.wch) sh.colWidths[i] = Math.max(36, Math.min(480, Math.round(col.wch * 7 + 5)));
+      });
       const ref = ws && ws["!ref"];
       const range = ref ? XLSX.utils.decode_range(ref) : { s: { r: 0, c: 0 }, e: { r: 0, c: 0 } };
       for (let r = range.s.r; r <= range.e.r; r++) {
@@ -3141,9 +3498,15 @@ window.OSSheetsEngine = (function () {
           const cell = ws[XLSX.utils.encode_cell({ r: r, c: c })];
           if (!cell) continue;
           let raw = "";
+          const style = {};
           if (cell.f) raw = "=" + cell.f;
-          else if (cell.v != null) raw = String(cell.v);
-          if (raw !== "") sh.cells[posKey(r, c)] = { raw: raw, style: {} };
+          else if (cell.t === "d" && cell.v instanceof Date) {
+            raw = String((cell.v.getTime() - EXCEL_EPOCH) / 86400000);
+            style.format = "date";
+          } else if (cell.v != null) raw = String(cell.v);
+          if (cell.t === "n" && cell.z && /[ymd]/i.test(String(cell.z)) && !/0|#/.test(String(cell.z))) style.format = "date";
+          else if (cell.t === "n" && cell.z && String(cell.z).indexOf("%") >= 0) style.format = "percent";
+          if (raw !== "") sh.cells[posKey(r, c)] = { raw: raw, style: style };
         }
       }
       return sh;
@@ -3171,6 +3534,36 @@ window.OSSheetsEngine = (function () {
     parseLiteral: parseLiteral,
     formatValue: formatValue,
     isErr: isErr,
+    isRange: isRange,
+    LOCALE: LOCALE,
+    parseDateText: parseDateText,
+    parseTimeText: parseTimeText,
+    serialToParts: serialToParts,
+    dateToSerial: dateToSerial,
+    parseFormula: parseFormula,
+    H: {
+      e: e,
+      ERR: ERR,
+      toNum: toNum,
+      toStr: toStr,
+      toBool: toBool,
+      scalar: scalar,
+      flatten: flatten,
+      collectNums: collectNums,
+      firstErr: firstErr,
+      matchCriteria: matchCriteria,
+      mean: mean,
+      variance: variance,
+      excelText: excelText,
+      serialToParts: serialToParts,
+      dateToSerial: dateToSerial,
+      todaySerial: todaySerial,
+      isWeekend: isWeekend,
+      holidaySet: holidaySet,
+      percentile: percentile,
+      fact: fact,
+      rng: rng,
+    },
     createWorkbook: createWorkbook,
     fromData: fromData,
     listWorkbooks: listWorkbooks,
