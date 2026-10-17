@@ -7,6 +7,8 @@ import * as THREE from "three";
 import { shapeGeometry, registerCustom, unregisterCustom, customIds, propDocSync, invalidateGeometry, catalog } from "./props.js";
 import { propChecked, SHAPES, uid, clone } from "./schema.js";
 import { invalidateThumb } from "./thumbs.js";
+import { surfaceMaterial, textureIndex } from "./materials.js";
+import { textureControl } from "./textures.js";
 import * as store from "./store.js";
 
 const DEG = Math.PI / 180;
@@ -105,9 +107,15 @@ export class PropEditor {
     for (const m of this.meshes) {
       this.root.remove(m);
       m.geometry.dispose();
-      m.material.dispose();
+      if (!m.material.userData?.shared) m.material.dispose();
     }
     this.meshes = [];
+  }
+  /** Material for one part: a shared triplanar one when it has a texture, else its own. */
+  partMaterial(b) {
+    const op = b.opacity ?? 1;
+    if (b.material && textureIndex[b.material] && op >= 1) return surfaceMaterial({ material: b.material, tint: b.color, roughness: 0.8 });
+    return new THREE.MeshStandardMaterial({ color: b.color, roughness: 0.8, transparent: op < 1, opacity: op, depthWrite: op >= 1 });
   }
   rebuild() {
     this.clearMeshes();
@@ -120,7 +128,7 @@ export class PropEditor {
   }
   makeMesh(b, i) {
     const op = b.opacity ?? 1;
-    const m = new THREE.Mesh(shapeGeometry(b), new THREE.MeshStandardMaterial({ color: b.color, roughness: 0.8, transparent: op < 1, opacity: op, depthWrite: op >= 1 }));
+    const m = new THREE.Mesh(shapeGeometry(b), this.partMaterial(b));
     m.position.set(b.x || 0, b.y || 0, b.z || 0);
     m.rotation.set(b.rx || 0, b.ry || 0, b.rz || 0, "YXZ");
     m.castShadow = op >= 0.7;
@@ -135,11 +143,9 @@ export class PropEditor {
     m.geometry.dispose();
     m.geometry = shapeGeometry(b);
     const op = b.opacity ?? 1;
-    m.material.color.set(b.color);
-    m.material.transparent = op < 1;
-    m.material.opacity = op;
-    m.material.depthWrite = op >= 1;
-    m.material.needsUpdate = true;
+    if (!m.material.userData?.shared) m.material.dispose();
+    m.material = this.partMaterial(b);
+    m.castShadow = op >= 0.7;
     m.position.set(b.x || 0, b.y || 0, b.z || 0);
     m.rotation.set(b.rx || 0, b.ry || 0, b.rz || 0, "YXZ");
     m.scale.set(1, 1, 1);
@@ -346,7 +352,7 @@ export class PropEditor {
     host.innerHTML =
       `<div class="stitle">${esc(this.doc.name[this.app.lang] || this.doc.name.en)} · ${this.doc.source.boxes.length} ${esc(t("partsCount"))}</div>` +
       this.doc.source.boxes
-        .map((b, i) => `<div class="trow ${i === this.selected ? "selected" : ""}" data-part="${i}" style="--depth:0"><span class="swatch" style="background:${esc(b.color)}"></span><span class="tlabel">${i + 1} · ${esc(t(`shape_${b.shape}`))} · ${Math.round(b.w * 100)}×${Math.round(b.h * 100)}×${Math.round(b.d * 100)}</span><button class="mini ${b.locked ? "on" : ""}" data-lockpart="${i}">${b.locked ? "🔒" : "🔓"}</button></div>`)
+        .map((b, i) => `<div class="trow ${i === this.selected ? "selected" : ""}" data-part="${i}" style="--depth:0"><span class="swatch" style="background:${esc(b.color)}"></span><span class="tlabel">${i + 1} · ${esc(t(`shape_${b.shape}`))} · ${Math.round(b.w * 100)}×${Math.round(b.h * 100)}×${Math.round(b.d * 100)}${b.material ? " ▦" : ""}</span><button class="mini ${b.locked ? "on" : ""}" data-lockpart="${i}">${b.locked ? "🔒" : "🔓"}</button></div>`)
         .join("");
     host.onclick = (e) => {
       const lock = e.target.closest("[data-lockpart]");
@@ -503,6 +509,30 @@ export class PropEditor {
       b.locked = !b.locked;
       this.select(this.selected);
     });
+    const tex = textureControl(app, {
+      value: b.material || null,
+      disabled: locked,
+      onChange: (id) => {
+        this.checkpoint();
+        b.material = id;
+        this.refreshPart(this.selected);
+        this.renderPartsList();
+      },
+    });
+    const noTint = document.createElement("input");
+    noTint.type = "checkbox";
+    noTint.checked = !!b.noTint;
+    noTint.disabled = locked;
+    noTint.addEventListener("change", () => {
+      this.checkpoint();
+      b.noTint = noTint.checked;
+    });
+    const noTintField = document.createElement("label");
+    noTintField.className = "field check";
+    const noTintLabel = document.createElement("span");
+    noTintLabel.className = "flabel";
+    noTintLabel.textContent = t("noTint");
+    noTintField.append(noTint, noTintLabel);
     const round = ["cylinder", "cone", "roundcone", "torus"].includes(b.shape);
     root.append(
       this.section(`${t("part")} ${this.selected + 1}`, [
@@ -512,7 +542,7 @@ export class PropEditor {
       ]),
       this.section(t("position"), [n("x", "X"), n("y", "Y"), n("z", "Z")]),
       this.section(t("rotation"), [n("rx", "X", { scale: 180 / Math.PI, unit: "°", min: -360, max: 360 }), n("ry", "Y", { scale: 180 / Math.PI, unit: "°", min: -360, max: 360 }), n("rz", "Z", { scale: 180 / Math.PI, unit: "°", min: -360, max: 360 })]),
-      this.section(t("surface"), [this.field(t("tint"), color), n("opacity", t("opacity"), { scale: 100, unit: "%", min: 5, max: 100 })]),
+      this.section(t("surface"), [this.field(t("texture"), tex), this.field(t("tint"), color), n("opacity", t("opacity"), { scale: 100, unit: "%", min: 5, max: 100 }), noTintField]),
       this.section(null, [
         this.actionButton(t("duplicate"), () => this.duplicatePart()),
         this.actionButton(t("mirrorX"), () => this.mirrorPart()),

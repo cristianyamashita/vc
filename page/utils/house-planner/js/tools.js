@@ -6,8 +6,9 @@ import * as THREE from "three";
 import { M, CM } from "./scene.js";
 import { uid, OPENING_PRESETS, GATE_WIDTHS, wallLength, polylineLength, isLocked } from "./schema.js";
 import { tileKey, floorTop } from "./build/slabs.js";
-import { nearestOnWall, clampOpening, wallHeight } from "./build/walls.js";
-import { propObject, propBounds } from "./props.js";
+import { nearestOnWall, clampOpening, wallHeight, outerSide, cornerExtension } from "./build/walls.js";
+import { propObject, propBounds, propDocSync } from "./props.js";
+import { KITCHEN_UNITS, KITCHEN_SIZES, unitDocId } from "./build/kitchen.js";
 import { ghostMaterial } from "./materials.js";
 import { buildStairs, defaultRise } from "./build/stairs.js";
 import { DEFAULT_MATERIAL } from "./build/outdoor.js";
@@ -22,7 +23,7 @@ export const TAB_TOOLS = {
   stairs: ["select", "place"],
   outdoor: ["select", "polygon"],
   garden: ["select", "polygon", "fence", "siteWall"],
-  objects: ["select", "place"],
+  objects: ["select", "place", "kitchen"],
 };
 const DEG = Math.PI / 180;
 
@@ -140,7 +141,10 @@ export class Tools {
         this.openingClick(e);
         break;
       case "objects":
-        this.placeClick(e);
+        if (tool === "kitchen") {
+          if (!storey || isLocked(this.app.project, storey.id)) return this.app.toast(this.app.t("lockedItem"));
+          this.kitchenClick(e);
+        } else this.placeClick(e);
         break;
       case "stairs":
         if (!storey || isLocked(this.app.project, storey.id)) return this.app.toast(this.app.t("lockedItem"));
@@ -190,7 +194,8 @@ export class Tools {
         else this.openingGhost(e);
         break;
       case "objects":
-        this.placeGhost(e);
+        if (tool === "kitchen") this.kitchenGhost(e);
+        else this.placeGhost(e);
         break;
     }
   }
@@ -517,6 +522,7 @@ export class Tools {
     this.app.addObject(doc, { wx, wz, top: target.top, building: target.building, storey: target.storey, yaw: this.app.state.ghostYaw });
   }
   rotateGhost(delta) {
+    if (this.app.state.tab === "objects" && this.tool === "kitchen") return this.cycleKitchenUnit(delta > 0 ? 1 : -1);
     this.app.state.ghostYaw = (this.app.state.ghostYaw + delta + 360) % 360;
     if (this.app.state.tab === "stairs") {
       if (this.lastMove) this.stairsGhost(this.lastMove);
@@ -527,6 +533,145 @@ export class Tools {
       g.rotation.y = this.app.state.ghostYaw * DEG;
       this.app.scene.requestRender();
     }
+  }
+
+  // ----------------------------------------------------------- kitchen
+
+  /** [ and ] step through the unit types. */
+  cycleKitchenUnit(step) {
+    const i = KITCHEN_UNITS.indexOf(this.app.state.pendingKitchenUnit);
+    this.app.state.pendingKitchenUnit = KITCHEN_UNITS[(i + step + KITCHEN_UNITS.length) % KITCHEN_UNITS.length];
+    this.app.refreshToolbar();
+    this.clearGhost();
+    if (this.lastMove) this.kitchenGhost(this.lastMove);
+  }
+  /**
+   * Where the pending unit would stand: flush to the hovered wall of the
+   * active storey, on the pointer's side, snapped to the grid, clamped to
+   * the wall between the adjoining walls and butted against the nearest
+   * unit of the same level already on that wall. Returns {doc, wall, u0,
+   * at (building-local cm), yaw (deg), side} or null.
+   */
+  kitchenTarget(e) {
+    const hit = this.wallUnderPointer(e);
+    if (!hit) return null;
+    const storey = this.app.storey(), building = this.app.building();
+    const wall = hit.wall, L = wallLength(wall), T = wall.thickness;
+    if (L < 20) return null;
+    const dx = (wall.b[0] - wall.a[0]) / L, dz = (wall.b[1] - wall.a[1]) / L;
+    const l = this.app.toLocal(building, hit.point);
+    const d = -(l.x - wall.a[0]) * dz + (l.z - wall.a[1]) * dx;
+    const side = Math.abs(d) > 1 ? Math.sign(d) : -outerSide(wall, storey, this.app.project.grid.tile);
+    const n = [-dz * side, dx * side]; // towards the room
+    const unit = this.app.state.pendingKitchenUnit;
+    const size = KITCHEN_SIZES[unit];
+    const w = size.width, dep = size.depth;
+    const [e0, e1] = cornerExtension(wall, storey.walls);
+    const lo = e0, hi = L - e1 - w;
+    if (hi < lo) return null;
+    const snap = this.app.state.snap ? this.app.project.grid.snap : 1;
+    let u0 = Math.round((hit.u - w / 2) / snap) * snap;
+    // butt against units of the same level on this wall
+    let best = null, bestD = 40;
+    for (const iv of this.kitchenIntervals(storey, wall, side, size.mount)) {
+      for (const cand of [iv[1], iv[0] - w]) {
+        const dd = Math.abs(cand - u0);
+        if (dd < bestD && cand >= lo - 0.01 && cand <= hi + 0.01) {
+          bestD = dd;
+          best = cand;
+        }
+      }
+    }
+    if (best != null) u0 = best;
+    u0 = Math.max(lo, Math.min(hi, u0));
+    // a corner unit turns its second back towards the wall end it touches
+    let mirrored = false;
+    if (unit === "corner") {
+      const leftAtStart = side > 0; // the unit's −X end is at the a end when the front faces +side
+      const atStart = u0 <= lo + 0.5, atEnd = u0 >= hi - 0.5;
+      mirrored = leftAtStart ? atEnd && !atStart : atStart && !atEnd;
+    }
+    const doc = propDocSync(unitDocId(unit, mirrored));
+    if (!doc) return null;
+    const uc = u0 + w / 2, off = T / 2 + dep / 2;
+    const cx = wall.a[0] + dx * uc + n[0] * off, cz = wall.a[1] + dz * uc + n[1] * off;
+    const y = this.floorOffsetAt(storey, cx, cz) + size.mount;
+    const yaw = Math.atan2(n[0], n[1]) / DEG;
+    return { doc, wall, u0, w, side, at: [cx, y, cz], yaw: ((yaw % 360) + 360) % 360 };
+  }
+  /** Offset of the floor group under a building-local point (cm above the storey), or 0. */
+  floorOffsetAt(storey, x, z) {
+    const tile = this.app.project.grid.tile;
+    const key = tileKey(Math.floor(x / tile), Math.floor(z / tile));
+    for (const fg of storey.floorGroups) if (fg.tiles.some(([tx, tz]) => tileKey(tx, tz) === key)) return floorTop(storey, fg) - storey.elevation;
+    return 0;
+  }
+  /** [u0, u1] spans along the wall of kitchen units already standing against it on that side. */
+  kitchenIntervals(storey, wall, side, mount) {
+    const L = wallLength(wall), T = wall.thickness;
+    const dx = (wall.b[0] - wall.a[0]) / L, dz = (wall.b[1] - wall.a[1]) / L;
+    const nx = -dz * side, nz = dx * side;
+    const out = [];
+    for (const o of storey.objects) {
+      const doc = o.prop ? propDocSync(o.prop) : null;
+      if (!doc?.kitchen || doc.kitchen.mount !== mount) continue;
+      const b = propBounds(doc);
+      const phi = (o.rotation[1] || 0) * DEG, c = Math.cos(phi), sn = Math.sin(phi);
+      const xs = [b.min.x * CM * o.scale[0], b.max.x * CM * o.scale[0]], zs = [b.min.z * CM * o.scale[2], b.max.z * CM * o.scale[2]];
+      let dMin = Infinity, uMin = Infinity, uMax = -Infinity;
+      for (const lx of xs)
+        for (const lz of zs) {
+          const px = o.at[0] + lx * c + lz * sn, pz = o.at[2] - lx * sn + lz * c;
+          const rx = px - wall.a[0], rz = pz - wall.a[1];
+          dMin = Math.min(dMin, rx * nx + rz * nz);
+          const u = rx * dx + rz * dz;
+          uMin = Math.min(uMin, u);
+          uMax = Math.max(uMax, u);
+        }
+      if (Math.abs(dMin - T / 2) > 6 || uMax < -1 || uMin > L + 1) continue;
+      out.push([uMin, uMax]);
+    }
+    return out;
+  }
+  kitchenGhost(e) {
+    const target = this.kitchenTarget(e);
+    if (!target) return this.clearGhost();
+    const building = this.app.building(), storey = this.app.storey();
+    let outer = this.ghost.children[0];
+    if (!outer || outer.userData.docId !== target.doc.id) {
+      outer = new THREE.Group();
+      outer.userData.docId = target.doc.id;
+      const g = propObject(target.doc);
+      g.traverse((o) => {
+        if (o.isMesh) o.material = ghostMaterial("#008f7d");
+      });
+      outer.add(g);
+      this.app.applyBuildingTransform(outer, building);
+      this.setGhost(outer);
+    }
+    const g = outer.children[0];
+    g.position.set(target.at[0] * M, (storey.elevation + target.at[1]) * M, target.at[2] * M);
+    g.rotation.set(0, target.yaw * DEG, 0);
+    this.app.showMeasure(`${target.doc.name[this.app.lang] || target.doc.name.en} · ${Math.round(target.u0)} cm`);
+    this.app.scene.requestRender();
+  }
+  kitchenClick(e) {
+    const target = this.kitchenTarget(e);
+    if (!target) return;
+    if (isLocked(this.app.project, target.wall.id)) return this.app.toast(this.app.t("lockedItem"));
+    const finish = this.app.state.kitchenFinish;
+    const r1 = (v) => Math.round(v * 10) / 10;
+    const placement = {
+      id: uid("ob"), name: "", prop: target.doc.id, inline: null,
+      at: [r1(target.at[0]), r1(target.at[1]), r1(target.at[2])], rotation: [0, r1(target.yaw), 0], scale: [1, 1, 1],
+      tint: finish.tint || null, material: finish.material || null, locked: false,
+    };
+    this.app.checkpoint();
+    this.app.storey().objects.push(placement);
+    this.app.changed({ rebuild: "building", buildingId: this.app.building().id });
+    this.clearGhost();
+    if (this.lastMove) this.kitchenGhost(this.lastMove);
+    this.app.toast(`${this.app.t("placed")}: ${target.doc.name[this.app.lang] || target.doc.name.en}`);
   }
 
   // ------------------------------------------------------------ stairs

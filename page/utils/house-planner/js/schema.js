@@ -5,6 +5,8 @@
 export const KIND = "housePlannerProject";
 export const VERSION = 1;
 export const SHAPES = ["box", "rounded", "sphere", "cylinder", "cone", "roundcone", "torus"];
+// Built-in texture ids plus the custom ones registered at runtime
+// (`custom-tex-…`, see materials.js registerCustomTexture).
 export const TEXTURE_IDS = [
   "grass", "gravel", "sand", "dirt", "rock", "paving", "concrete", "asphalt",
   "woodFloor", "planks", "tiles", "carpet", "rubber", "plaster", "bricks", "metalPlate",
@@ -65,6 +67,22 @@ export function color(v, fallback = null) {
 }
 export function texture(v, fallback = null) {
   return TEXTURE_IDS.includes(v) ? v : fallback;
+}
+export const CUSTOM_TEXTURE_PREFIX = "custom-tex-";
+export function registerTextureId(id) {
+  if (!TEXTURE_IDS.includes(id)) TEXTURE_IDS.push(id);
+}
+export function unregisterTextureId(id) {
+  const i = TEXTURE_IDS.indexOf(id);
+  if (i >= 0) TEXTURE_IDS.splice(i, 1);
+}
+/** A custom texture row from an exported project: {id, name, tile, data} or null. */
+export function customTextureChecked(raw) {
+  if (!raw || typeof raw !== "object") return null;
+  const id = typeof raw.id === "string" && /^custom-tex-[a-z0-9_-]{1,40}$/i.test(raw.id) ? raw.id : null;
+  const data = typeof raw.data === "string" && /^data:image\/(png|jpeg|webp);base64,/.test(raw.data) && raw.data.length < 6e6 ? raw.data : null;
+  if (!id || !data) return null;
+  return { id, name: str(raw.name, id, 60), tile: num(raw.tile, 5, 2000, 100), data };
 }
 export function str(v, fallback = "", max = 80) {
   return typeof v === "string" ? v.slice(0, max) : fallback;
@@ -467,6 +485,8 @@ export function propChecked(raw) {
     axis: ["x", "y", "z"].includes(b.axis) ? b.axis : "y",
     color: color(b.color, "#b9b1a0"),
     opacity: num(b.opacity, 0.05, 1, 1),
+    material: texture(b.material, null),
+    noTint: !!b.noTint,
     locked: !!b.locked,
   }));
   return d;

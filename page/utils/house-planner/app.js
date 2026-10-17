@@ -11,9 +11,11 @@ import { Tools, TAB_TOOLS } from "./js/tools.js";
 import { Tree } from "./js/panels/tree.js";
 import { PropsPanel } from "./js/panels/props.js";
 import { History } from "./js/history.js";
-import { loadTextureIndex, setTextureReadyCallback, textureIndex } from "./js/materials.js";
-import { loadCatalog, catalog, getPropDoc, propObject, searchCatalog, registerCustom, customIds, propDocSync } from "./js/props.js";
-import { thumbnail } from "./js/thumbs.js";
+import { loadTextureIndex, setTextureReadyCallback, isCustomTexture } from "./js/materials.js";
+import { loadCatalog, catalog, getPropDoc, propObject, searchCatalog, registerCustom, registerGenerated, customIds, propDocSync } from "./js/props.js";
+import { thumbnail, clearThumbs } from "./js/thumbs.js";
+import { TextureManager, textureControl, fillTextureSelect } from "./js/textures.js";
+import { KITCHEN_UNITS, kitchenDocs } from "./js/build/kitchen.js";
 import { PropEditor } from "./js/propedit.js";
 import { Dims } from "./js/dims.js";
 import { buildFloorGroup, floorTop, floorThickness, tileSet, tileKey, splitTiles } from "./js/build/slabs.js";
@@ -38,7 +40,7 @@ const HOTKEYS = {
   menu: { new: "N", open: "O", save: "S", saveAs: "Shift+S", export: "X", import: "I", exportPlan: "P", exportView: "Shift+P" },
   view: { "snap-btn": "G", "cutaway-btn": "C", "doors-btn": "B", "view-3d": "Q", "view-top": "T", "view-walk": "K", "fit-btn": "F" },
   modes: { translate: "W", rotate: "E", scale: "R", dims: "M" },
-  tools: { select: "V", raise: "A", lower: "Z", flatten: "L", smooth: "U", paint: "A", erase: "Z", rect: "L", draw: "A", railing: "L", add: "A", gate: "L", place: "A", polygon: "A", fence: "L", siteWall: "U" },
+  tools: { select: "V", raise: "A", lower: "Z", flatten: "L", smooth: "U", paint: "A", erase: "Z", rect: "L", draw: "A", railing: "L", add: "A", gate: "L", place: "A", kitchen: "L", polygon: "A", fence: "L", siteWall: "U" },
 };
 const DEFAULT_TOOL = { terrain: "raise", floors: "paint", walls: "draw", openings: "add", stairs: "place", outdoor: "polygon", garden: "polygon", objects: "place" };
 
@@ -48,7 +50,7 @@ class App {
     this.lang = prefs.lang;
     this.t = makeT(() => this.lang);
     this.project = freshProject();
-    this.state = { tab: "floors", tool: "select", selection: null, activeBuilding: null, activeStorey: null, activeFloorGroup: null, pendingPreset: "door-single", pendingProp: null, ghostYaw: 0, pendingStairShape: "straight", pendingOutdoorType: "deck", pendingGardenMaterial: DEFAULT_MATERIAL.garden, pendingRailingStyle: "glass", pendingFenceStyle: "picket", pendingGateType: "single", pendingWallTop: "follow", snap: prefs.snap !== false, orbitOverride: false, transformMode: null, caps: [] };
+    this.state = { tab: "floors", tool: "select", selection: null, activeBuilding: null, activeStorey: null, activeFloorGroup: null, pendingPreset: "door-single", pendingProp: null, ghostYaw: 0, pendingStairShape: "straight", pendingOutdoorType: "deck", pendingGardenMaterial: DEFAULT_MATERIAL.garden, pendingRailingStyle: "glass", pendingFenceStyle: "picket", pendingGateType: "single", pendingWallTop: "follow", pendingKitchenUnit: "base", kitchenFinish: { material: null, tint: "#ece7dd" }, snap: prefs.snap !== false, orbitOverride: false, transformMode: null, caps: [] };
     this.buildingGroups = new Map();
     this.storeyGroups = new Map();
     this.roofGroups = new Map();
@@ -74,15 +76,25 @@ class App {
     this.scene.onFrame = () => this.dims.update();
     this.history = new History(() => this.project, (p) => this.restore(p));
     this.history.onChange(() => this.refreshHistoryButtons());
-    setTextureReadyCallback(() => this.scene.requestRender());
+    setTextureReadyCallback((id) => {
+      this.scene.requestRender();
+      if (isCustomTexture(id)) {
+        // thumbnails rendered before the image arrived show a white stand-in
+        clearThumbs();
+        if (!$("#catalog").hidden) this.renderCatalog();
+      }
+    });
+    this.textures = new TextureManager(this);
     this.bindUI();
     await loadTextureIndex();
+    await this.textures.load(); // before the project: its ids must pass validation
     try {
       this.customProps = await store.listCustomProps();
     } catch {
       this.customProps = [];
     }
     await loadCatalog(this.customProps);
+    for (const doc of kitchenDocs()) registerGenerated(doc);
     let project = null;
     try {
       if (prefs.lastProjectId) project = await store.loadProject(prefs.lastProjectId);
@@ -1045,13 +1057,30 @@ class App {
       hint.textContent = t("polygonHint");
       extra.append(sel, hint);
     } else if (tab === "garden") {
-      const sel = document.createElement("select");
-      sel.innerHTML = Object.keys(textureIndex).map((k) => `<option value="${k}">${esc(textureIndex[k].name[this.lang] || k)}</option>`).join("");
-      sel.value = this.state.pendingGardenMaterial;
+      const sel = fillTextureSelect(document.createElement("select"), { value: this.state.pendingGardenMaterial, lang: this.lang, t, none: false });
       sel.addEventListener("change", () => (this.state.pendingGardenMaterial = sel.value));
       const hint = document.createElement("label");
       hint.textContent = t("polygonHint");
       extra.append(sel, hint);
+    } else if (tab === "objects" && tool === "kitchen") {
+      const sel = document.createElement("select");
+      sel.innerHTML = KITCHEN_UNITS.map((k) => `<option value="${k}">${esc(t(`unit_${k}`))}</option>`).join("");
+      sel.value = this.state.pendingKitchenUnit;
+      sel.addEventListener("change", () => {
+        this.state.pendingKitchenUnit = sel.value;
+        this.tools.clearGhost();
+      });
+      const finish = this.state.kitchenFinish;
+      const tex = textureControl(this, { value: finish.material, onChange: (id) => (finish.material = id), small: true });
+      tex.title = t("finish");
+      const color = document.createElement("input");
+      color.type = "color";
+      color.value = finish.tint || "#ffffff";
+      color.title = t("finish");
+      color.addEventListener("input", () => (finish.tint = color.value));
+      const hint = document.createElement("label");
+      hint.textContent = t("kitchenHint");
+      extra.append(sel, tex, color, hint);
     } else if (tab === "objects") {
       const hint = document.createElement("label");
       hint.textContent = this.state.pendingProp ? `${this.state.pendingProp.name[this.lang] || this.state.pendingProp.name.en} · ${t("rotateGhost")}` : t("catalog");
@@ -1202,6 +1231,7 @@ class App {
       if (!file) return;
       try {
         const parsed = store.parseImport(await file.text());
+        if (parsed.customTextures?.length) await this.textures.importRows(parsed.customTextures);
         if (parsed.prop) {
           await store.saveCustomProp(parsed.prop);
           registerCustom(parsed.prop);
@@ -1415,11 +1445,15 @@ class App {
         this.queueSave();
         break;
       }
-      case "export":
-        store.download(store.exportProject(this.project, this.customProps), store.safeFilename(this.project.name, ""));
+      case "export": {
+        const ids = store.usedTextureIds(this.project, this.customProps, this.textures.rows.map((r) => r.id));
+        const textures = await this.textures.exportRows(ids);
+        store.download(store.exportProject(this.project, this.customProps, textures), store.safeFilename(this.project.name, ""));
         this.toast(t("exported"));
         break;
+      }
       case "import": $("#import-file").click(); break;
+      case "textures": this.textures.open(); break;
       case "exportPlan": await this.exportPlan(); break;
       case "exportView": await this.exportView(); break;
       case "open": await this.openProjectsDialog(); break;
@@ -1486,6 +1520,11 @@ class App {
     const tool = TAB_TOOLS[this.state.tab].find((k) => HOTKEYS.tools[k] === key);
     if (tool) return this.setTool(tool), true;
     return false;
+  }
+  /** A custom texture was added or removed: every texture select is rebuilt. */
+  refreshAfterTextures() {
+    this.refreshAll();
+    if (this.editor?.active) this.editor.refreshPanels();
   }
   toast(msg) {
     const el = $("#toast");

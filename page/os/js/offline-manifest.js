@@ -1274,6 +1274,7 @@
     "utils/cannon-es",
     "utils/fullscreen_message.js",
     "utils/house-planner/app.js",
+    "utils/house-planner/js/build/kitchen.js",
     "utils/house-planner/js/build/outdoor.js",
     "utils/house-planner/js/build/railing.js",
     "utils/house-planner/js/build/roof.js",
@@ -1301,6 +1302,7 @@
     "utils/house-planner/js/store.js",
     "utils/house-planner/js/sun.js",
     "utils/house-planner/js/terrain.js",
+    "utils/house-planner/js/textures.js",
     "utils/house-planner/js/three",
     "utils/house-planner/js/three/addons/controls/OrbitControls.js",
     "utils/house-planner/js/three/addons/controls/TransformControls.js",
@@ -1687,6 +1689,6 @@
     "models/tinyyolov2-7.onnx",
     "models/yolov8n-coco.onnx"
   ],
-  "version": "3f40f099584b"
+  "version": "bbaf1627e882"
 };
 })(typeof self !== "undefined" ? self : window);
