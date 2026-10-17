@@ -109,7 +109,7 @@ export function freshProject(name = "") {
     sun: freshSun(),
     buildings: [b],
     outdoor: [], gardenPatches: [], objects: [],
-    view: { cutaway: false, activeBuilding: b.id, activeStorey: b.storeys[0].id, camera: null },
+    view: { cutaway: false, doorsOpen: false, activeBuilding: b.id, activeStorey: b.storeys[0].id, camera: null },
   };
 }
 
@@ -336,6 +336,7 @@ export function projectChecked(raw) {
     objects: (Array.isArray(raw.objects) ? raw.objects : []).map(placementChecked),
     view: {
       cutaway: !!view.cutaway,
+      doorsOpen: !!view.doorsOpen,
       activeBuilding: activeBuilding.id,
       activeStorey: activeStorey.id,
       camera: view.camera && Array.isArray(view.camera.pos) && Array.isArray(view.camera.target)

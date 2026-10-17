@@ -20,6 +20,9 @@ import { buildWall } from "./js/build/walls.js";
 import { buildStairs, stairsCutQuads, tilesUnderQuads } from "./js/build/stairs.js";
 import { buildPolygon, DEFAULT_MATERIAL } from "./js/build/outdoor.js";
 import { buildRoof } from "./js/build/roof.js";
+import { Walk } from "./js/walk.js";
+import { renderPlan } from "./js/plan2d.js";
+import { propBounds } from "./js/props.js";
 import * as store from "./js/store.js";
 import { freshProject, freshBuilding, freshStorey, locate, isLocked, uid, clone, OPENING_PRESETS, projectChecked, findBuilding, topStorey } from "./js/schema.js";
 
@@ -52,6 +55,7 @@ class App {
     this.terrain = new Terrain();
     this.gizmo = new Gizmo(this);
     this.tools = new Tools(this);
+    this.walk = new Walk(this);
     this.tree = new Tree(this, $("#tree"));
     this.propsPanel = new PropsPanel(this, $("#props"));
     this.editor = new PropEditor(this);
@@ -84,6 +88,7 @@ class App {
   // --------------------------------------------------------- project
 
   setProject(project, { fit = false } = {}) {
+    this.walk?.exit();
     this.project = project;
     prefs.lastProjectId = project.id;
     savePrefs();
@@ -329,7 +334,7 @@ class App {
         const mesh = buildFloorGroup(fg, s, this.project.grid.tile, this.stairWells(b, s, fg));
         if (mesh) sg.add(mesh);
       }
-      for (const w of s.walls) sg.add(buildWall(w, s, s.walls, this.project.grid.tile));
+      for (const w of s.walls) sg.add(buildWall(w, s, s.walls, this.project.grid.tile, { doorsOpen: this.project.view.doorsOpen }));
       for (const st of s.stairs) sg.add(buildStairs(st, s));
       for (const o of s.objects) sg.add(this.makeObjectGroup(o, s.elevation));
       group.add(sg);
@@ -502,6 +507,7 @@ class App {
     return { x: l.x * CM, y: l.y * CM, z: l.z * CM };
   }
   fitAll() {
+    if (this.walk.active) this.setView("3d");
     this.scene.fit(this.sceneBounds);
   }
 
@@ -724,6 +730,7 @@ class App {
     this.setTool(tools.includes(def) ? def : "select");
   }
   setTool(tool) {
+    if (tool !== "select" && this.walk?.active) this.setView("3d");
     this.state.tool = tool;
     this.tools.reset();
     this.scene.setToolActive(tool !== "select");
@@ -804,6 +811,7 @@ class App {
     }
     $("#snap-btn").classList.toggle("on", this.state.snap);
     $("#cutaway-btn").classList.toggle("on", this.project.view.cutaway);
+    $("#doors-btn").classList.toggle("on", this.project.view.doorsOpen);
   }
   updateLeftPanel() {
     const showCatalog = this.state.tab === "objects" && this.state.tool === "place";
@@ -853,6 +861,7 @@ class App {
   async editProp(id) {
     const doc = id ? await getPropDoc(id) : null;
     if (id && !doc) return;
+    if (this.walk.active) this.setView("3d");
     this.editor.enter(doc);
   }
   async pickProp(id) {
@@ -886,8 +895,10 @@ class App {
       this.refreshToolbar();
       this.queueSave();
     });
+    $("#doors-btn").addEventListener("click", () => this.toggleDoors());
     $("#view-3d").addEventListener("click", () => this.setView("3d"));
     $("#view-top").addEventListener("click", () => this.setView("top"));
+    $("#view-walk").addEventListener("click", () => this.setView(this.walk.active ? "3d" : "walk"));
     $("#fit-btn").addEventListener("click", () => this.fitAll());
     $("#undo-btn").addEventListener("click", () => this.history.undo());
     $("#redo-btn").addEventListener("click", () => this.history.redo());
@@ -986,10 +997,62 @@ class App {
     });
   }
   setView(view) {
-    this.scene.setView(view);
-    this.gizmo.setCamera(this.scene.camera);
+    if (view === "walk") {
+      if (this.editor?.active) return this.toast(this.t("finishEditing"));
+      this.walk.enter();
+    } else {
+      this.walk.exit();
+      this.scene.setView(view);
+      this.gizmo.setCamera(this.scene.camera);
+    }
     $("#view-3d").classList.toggle("on", view === "3d");
     $("#view-top").classList.toggle("on", view === "top");
+    $("#view-walk").classList.toggle("on", view === "walk");
+    $("#walk-hint").hidden = view !== "walk";
+    $("#viewport").classList.toggle("walking", view === "walk");
+  }
+  /** Swing every door leaf open (or closed) in all buildings. */
+  toggleDoors() {
+    this.project.view.doorsOpen = !this.project.view.doorsOpen;
+    for (const b of this.project.buildings) this.rebuildBuilding(b.id, { quiet: true });
+    this.afterSceneChange();
+    if (this.state.selection) {
+      const found = this.locate(this.state.selection);
+      if (found && !this.walk.active) this.attachSelection(found);
+    }
+    this.refreshToolbar();
+    this.queueSave();
+  }
+  /** Footprint (cm, before the placement's rotation) of a placed object. */
+  objectFootprint(o) {
+    const doc = o.inline || this.propDoc(o.prop);
+    if (!doc) return null;
+    const b = propBounds(doc), [sx, , sz] = o.scale;
+    return { minX: b.min.x * CM * sx, maxX: b.max.x * CM * sx, minZ: b.min.z * CM * sz, maxZ: b.max.z * CM * sz };
+  }
+  objectName(o) {
+    if (o.name) return o.name;
+    const doc = o.inline || this.propDoc(o.prop);
+    return doc ? doc.name[this.lang] || doc.name.en : "";
+  }
+  async exportPlan() {
+    const b = this.building(), s = this.storey();
+    const canvas = renderPlan({
+      project: this.project, building: b, storey: s, lang: this.lang, t: this.t,
+      objectFootprint: (o) => this.objectFootprint(o),
+      objectName: (o) => this.objectName(o),
+      wellTiles: (fg) => this.stairWells(b, s, fg),
+    });
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
+    const idx = b.storeys.indexOf(s) + 1;
+    downloadBlob(blob, store.safeFilename(this.project.name, `-plan-${idx}`).replace(/\.json$/, ".png"));
+    this.toast(this.t("exported"));
+  }
+  async exportView() {
+    const blob = await this.scene.capture();
+    if (!blob) return;
+    downloadBlob(blob, store.safeFilename(this.project.name, "-view").replace(/\.json$/, ".png"));
+    this.toast(this.t("exported"));
   }
   onKey(e) {
     const tag = document.activeElement?.tagName;
@@ -998,6 +1061,12 @@ class App {
       return;
     }
     const mod = e.ctrlKey || e.metaKey;
+    if (this.walk.active && !mod) {
+      if (e.key === "?") $("#help-dialog").showModal();
+      else if (!this.walk.key(e)) return;
+      e.preventDefault();
+      return;
+    }
     if (e.key === "Alt") {
       this.state.orbitOverride = true;
       this.scene.applyButtons(true);
@@ -1093,6 +1162,8 @@ class App {
         this.toast(t("exported"));
         break;
       case "import": $("#import-file").click(); break;
+      case "exportPlan": await this.exportPlan(); break;
+      case "exportView": await this.exportView(); break;
       case "open": await this.openProjectsDialog(); break;
     }
   }
@@ -1154,6 +1225,14 @@ import { propDocSync as propDocSyncLocal } from "./js/props.js";
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 const r1 = (v) => Math.round(v * 10) / 10;
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+}
 
 const app = new App();
 window.HousePlanner = app;
