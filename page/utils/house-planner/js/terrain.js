@@ -53,6 +53,16 @@ function withCut(mat, cut, key) {
   return mat;
 }
 
+/** Height (cm) of the terrain's slope plane at world cm: the ground falls
+ *  towards `direction` (0 = -Z, 90 = +X) by `percent` per 100 cm. */
+export function planeHeight(doc, x, z) {
+  const s = doc?.slope;
+  if (!s || !s.percent) return 0;
+  const a = s.direction * DEG;
+  return -(x * Math.sin(a) - z * Math.cos(a)) * (s.percent / 100);
+}
+const DEG = Math.PI / 180;
+
 export class Terrain {
   constructor() {
     this.mesh = null;
@@ -159,9 +169,9 @@ export class Terrain {
   /** Displayed height (cm) at a vertex index: stored height limited by the clamp. */
   shownHeight(x, z) {
     const n = this.doc.resolution;
-    const h = this.doc.heights[z * (n + 1) + x];
-    if (!this.clamp) return h;
     const px = (x / n - 0.5) * this.doc.width, pz = (z / n - 0.5) * this.doc.depth;
+    const h = this.doc.heights[z * (n + 1) + x] + planeHeight(this.doc, px, pz);
+    if (!this.clamp) return h;
     return Math.min(h, this.clamp(px, pz));
   }
   /** Push stored heights (and clamp) into the mesh; true when anything moved. */
@@ -226,7 +236,7 @@ export class Terrain {
         const cur = t.heights[k];
         let next = cur;
         if (mode === "raise" || mode === "lower") next = cur + strength * weight * (mode === "raise" ? 1 : -1) * 0.25;
-        else if (mode === "flatten") next = cur + (target - cur) * weight * 0.35;
+        else if (mode === "flatten") next = cur + (target - planeHeight(t, vx, vz) - cur) * weight * 0.35;
         else if (mode === "smooth") {
           let sum = 0, count = 0;
           for (let dz = -1; dz <= 1; dz++)

@@ -212,6 +212,27 @@ export class PropsPanel {
       });
       return this.field(t(key), input, key === "resolution" ? "" : "cm");
     };
+    const slopeField = (key, min, max, unit) => {
+      const input = this.el("input", { type: "range", min, max, step: key === "direction" ? 5 : 0.5, value: tr.slope[key], disabled: this.locked ? "" : null });
+      const out = this.el("span", { class: "unit", text: `${tr.slope[key]}${unit}` });
+      let cp = false;
+      input.addEventListener("input", () => {
+        if (!cp) {
+          app.checkpoint();
+          cp = true;
+        }
+        tr.slope[key] = Number(input.value);
+        out.textContent = `${tr.slope[key]}${unit}`;
+        app.terrain.update();
+        app.sun.place();
+        app.scene.requestRender();
+      });
+      input.addEventListener("change", () => {
+        cp = false;
+        app.changed({ rebuild: "none", terrain: true, panels: false });
+      });
+      return this.el("label", { class: "field" }, [this.el("span", { class: "flabel", text: t(key) }), input, out]);
+    };
     const brush = app.prefs.brush;
     const brushField = (key, min, max) => {
       const input = this.el("input", { type: "range", min, max, step: 1, value: brush[key] });
@@ -227,6 +248,7 @@ export class PropsPanel {
       this.section(t("brush"), [brushField("radius", 20, 1000), brushField("strength", 1, 100), this.el("p", { class: "hint", text: t("terrainHint") })]),
       this.section(t("size"), [sizeField("width", 200, 50000), sizeField("depth", 200, 50000), sizeField("resolution", 8, 96)]),
       this.section(t("surface"), [this.material(tr, "material"), this.color(tr, "tint"), this.check(tr, "flattenUnderBuildings", { rebuild: "all" })]),
+      this.section(t("slope"), [slopeField("direction", 0, 360, "°"), slopeField("percent", 0, 60, "%"), this.el("p", { class: "hint", text: t("slopeHint") })]),
       this.section(null, [
         this.button(t("flattenAll"), () => {
           app.checkpoint();
@@ -356,6 +378,14 @@ export class PropsPanel {
         this.number(s, "slabThickness", { min: 2, max: 100 }),
         this.check(s, "visible", { allowLocked: true }),
       ]),
+      s === building.storeys[0]
+        ? this.section(t("foundation"), [
+            this.check(s.foundation, "enabled", { label: t("foundationOn"), rebuild: "all" }),
+            s.foundation.enabled ? this.material(s.foundation, "material", { rebuild: "all" }) : null,
+            s.foundation.enabled ? this.color(s.foundation, "tint", { rebuild: "all" }) : null,
+            this.el("p", { class: "hint", text: t("foundationHint") }),
+          ])
+        : null,
       this.section(null, [
         this.button(t("setActive"), () => app.setActive(building.id, s.id)),
         this.lockRow(s, s.id),

@@ -45,6 +45,34 @@ export function buildFloorGroup(fg, storey, tile, skip = null) {
   mesh.userData = { kind: "floorGroup", id: fg.id, storeyId: storey.id, origin: [cx, cz] };
   return mesh;
 }
+const FOUNDATION_BURY = 20; // cm below the lowest ground under a tile
+/**
+ * Concrete base under a floor group: one column per tile from the slab's
+ * underside down into the ground. `groundAt(lx, lz)` gives the terrain
+ * height (cm) at building-local cm. Null when no column reaches the ground.
+ */
+export function buildFoundation(fg, storey, tile, groundAt, skip = null, { material = "concrete", tint = null } = {}) {
+  const tiles = skip?.size ? fg.tiles.filter(([x, z]) => !skip.has(tileKey(x, z))) : fg.tiles;
+  const top = floorTop(storey, fg) - floorThickness(storey, fg);
+  const parts = [];
+  for (const [x, z] of tiles) {
+    let ground = Infinity;
+    for (const [dx, dz] of [[0, 0], [1, 0], [0, 1], [1, 1], [0.5, 0.5]]) ground = Math.min(ground, groundAt((x + dx) * tile, (z + dz) * tile));
+    const bottom = ground - FOUNDATION_BURY;
+    if (!(top - bottom > 1)) continue;
+    const g = new THREE.BoxGeometry(tile * M, (top - bottom) * M, tile * M);
+    g.translate((x + 0.5) * tile * M, ((top + bottom) / 2) * M, (z + 0.5) * tile * M);
+    parts.push(g);
+  }
+  if (!parts.length) return null;
+  const geo = mergeGeometries(parts, false);
+  parts.forEach((g) => g.dispose());
+  const mesh = new THREE.Mesh(geo, surfaceMaterial({ material, tint, offset: 1 }));
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  mesh.userData = { kind: "floorGroup", id: fg.id, storeyId: storey.id, foundation: true };
+  return mesh;
+}
 /** Bounding box (cm, building-local) of every tile on every storey. */
 export function buildingFootprint(building, tile) {
   let minX = Infinity, minZ = Infinity, maxX = -Infinity, maxZ = -Infinity;

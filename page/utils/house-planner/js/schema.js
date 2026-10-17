@@ -108,6 +108,7 @@ export function freshTerrain(width = 4000, depth = 3000, resolution = 40) {
     width, depth, resolution,
     heights: new Array((resolution + 1) ** 2).fill(0),
     material: "grass", tint: null, locked: false, flattenUnderBuildings: true,
+    slope: { direction: 0, percent: 0 },
   };
 }
 export const CITIES = [
@@ -130,7 +131,7 @@ export const CITIES = [
   { id: "capetown", lat: -33.9, name: { en: "Cape Town", pt: "Cidade do Cabo", ja: "ケープタウン" } },
 ];
 export function freshSun() {
-  return { azimuth: 215, elevation: 48, intensity: 1.2, useTime: false, time: 14, latitude: 35.7, city: "tokyo", month: 6, shadows: true, night: false };
+  return { azimuth: 215, elevation: 48, intensity: 1.2, useTime: true, time: 14, latitude: 35.7, city: "tokyo", month: 6, shadows: true, night: false };
 }
 export const OUTDOOR_TYPES = ["deck", "pool", "path", "pond", "stream"];
 export const NOTE_COLORS = ["#e0a526", "#d9534f", "#2f9e6b", "#2a7fd0", "#8e44ad"];
@@ -142,12 +143,20 @@ export function freshStorey(prev, preset = "ground", name = "") {
   const elevation = p.elevation ?? (prev ? prev.elevation + prev.height : 0);
   return {
     id: uid("st"), name, elevation, height: p.height, slabThickness: 20,
-    locked: false, visible: true,
+    locked: false, visible: true, foundation: freshFoundation(),
     floorGroups: [], walls: [], stairs: [], lights: [], railings: [], objects: [], rooms: [],
   };
 }
+/** Concrete base from the lowest slab down into the ground (sloping or raised lots). */
+export function freshFoundation() {
+  return { enabled: false, material: "concrete", tint: null };
+}
+export function foundationChecked(raw) {
+  raw = raw && typeof raw === "object" ? raw : {};
+  return { enabled: !!raw.enabled, material: texture(raw.material, "concrete"), tint: color(raw.tint, null) };
+}
 export function freshRoof() {
-  return { type: "gable", pitch: 30, overhang: 40, height: 20, ridgeAxis: "x", material: "planks", tint: null, visible: true, locked: false };
+  return { type: "gable", pitch: 30, overhang: 40, height: 20, ridgeAxis: "x", material: "planks", tint: null, visible: false, locked: false };
 }
 export function freshBuilding(name = "", at = [0, 0]) {
   const ground = freshStorey(null, "ground");
@@ -180,6 +189,7 @@ export function terrainChecked(raw = {}) {
     tint: color(raw.tint, null),
     locked: !!raw.locked,
     flattenUnderBuildings: raw.flattenUnderBuildings !== false,
+    slope: { direction: num(raw.slope?.direction, 0, 360, 0), percent: num(raw.slope?.percent, 0, 100, 0) },
   };
   const count = (resolution + 1) ** 2;
   if (Array.isArray(raw.heights) && raw.heights.length === count)
@@ -193,7 +203,7 @@ export function sunChecked(raw = {}) {
     azimuth: num(raw.azimuth, 0, 360, d.azimuth),
     elevation: num(raw.elevation, 2, 90, d.elevation),
     intensity: num(raw.intensity, 0, 3, d.intensity),
-    useTime: !!raw.useTime,
+    useTime: raw.useTime == null ? d.useTime : !!raw.useTime,
     time: num(raw.time, 0, 24, d.time),
     latitude: num(raw.latitude, -70, 70, d.latitude),
     city: CITIES.some((c) => c.id === raw.city) ? raw.city : "custom",
@@ -417,6 +427,7 @@ export function storeyChecked(raw = {}, index = 0) {
     elevation: num(raw.elevation, -5000, 50000, index * 300),
     height: num(raw.height, 100, 1500, 300),
     slabThickness: num(raw.slabThickness, 2, 100, 20),
+    foundation: foundationChecked(raw.foundation),
     locked: !!raw.locked,
     visible: raw.visible !== false,
     floorGroups: (Array.isArray(raw.floorGroups) ? raw.floorGroups : []).map(floorGroupChecked),

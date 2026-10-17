@@ -27,7 +27,8 @@ import { computeQuantities, quantitiesCSV, formatQuantity, unitLabel, columnLabe
 import { selectedItems, canJoin, copySelection, pasteClipboard, arrange, Ruler } from "./js/multi.js";
 import { makeTemplate, TEMPLATE_IDS } from "./js/templates.js";
 import { shareLink, readShareHash, exportGLB } from "./js/share.js";
-import { buildFloorGroup, floorTop, floorThickness, tileSet, tileKey, splitTiles } from "./js/build/slabs.js";
+import { buildFloorGroup, buildFoundation, floorTop, floorThickness, tileSet, tileKey, splitTiles } from "./js/build/slabs.js";
+import { mergeProject } from "./js/merge.js";
 import { buildWall } from "./js/build/walls.js";
 import { buildStairs, stairsCutQuads, tilesUnderQuads } from "./js/build/stairs.js";
 import { buildPolygon, polygonOutline, DEFAULT_MATERIAL, WATER_TYPES } from "./js/build/outdoor.js";
@@ -425,9 +426,13 @@ class App {
       sg.userData = { kind: "storeyGroup", id: s.id };
       const rooms = syncRooms(s);
       this.roomsByStorey.set(s.id, rooms);
+      const foundation = s === b.storeys[0] && s.foundation?.enabled ? this.groundSampler(b) : null;
       for (const fg of s.floorGroups) {
-        const mesh = buildFloorGroup(fg, s, this.project.grid.tile, this.stairWells(b, s, fg));
+        const wells = this.stairWells(b, s, fg);
+        const mesh = buildFloorGroup(fg, s, this.project.grid.tile, wells);
         if (mesh) sg.add(mesh);
+        const base = foundation && buildFoundation(fg, s, this.project.grid.tile, foundation, wells, s.foundation);
+        if (base) sg.add(base);
       }
       for (const w of s.walls) sg.add(buildWall(w, s, s.walls, this.project.grid.tile, { doorsOpen: this.project.view.doorsOpen }));
       for (const st of s.stairs) sg.add(buildStairs(st, s));
@@ -664,7 +669,7 @@ class App {
     const items = [];
     for (const b of this.project.buildings) {
       const s = b.storeys[0];
-      if (!s) continue;
+      if (!s || s.foundation?.enabled) continue; // the foundation reaches the natural ground instead
       const c = Math.cos(b.rotation * DEG), sn = Math.sin(b.rotation * DEG);
       for (const fg of s.floorGroups) {
         if (!fg.tiles.length) continue;
@@ -682,6 +687,15 @@ class App {
       }
       return max;
     };
+  }
+  /** Terrain height (cm) at building-local cm, following the building's position and rotation. */
+  groundSampler(b) {
+    const c = Math.cos(b.rotation * DEG), sn = Math.sin(b.rotation * DEG);
+    return (lx, lz) => this.terrain.heightAt(b.at[0] + lx * c - lz * sn, b.at[1] + lx * sn + lz * c);
+  }
+  /** Buildings whose foundation follows the ground (rebuilt when the terrain moves). */
+  foundationBuildings() {
+    return this.project.buildings.filter((b) => b.storeys[0]?.foundation?.enabled);
   }
   terrainTouched() {
     this.scene.requestRender();
@@ -742,6 +756,7 @@ class App {
     if (terrain) {
       this.terrain.update();
       this.sun.place();
+      for (const b of this.foundationBuildings()) this.rebuildBuilding(b.id, { quiet: true });
       if (this.project.outdoor.length || this.project.gardenPatches.length || this.project.fences.length || this.project.siteWalls.length) this.rebuildSite({ quiet: true });
     }
     if (this.state.selection) {
@@ -1493,6 +1508,11 @@ class App {
             registerCustom(p);
           }
           const project = parsed.project;
+          if (this.importMode === "add") {
+            await this.addProject(project, { extendTerrain: true });
+            this.importMode = "replace";
+            return;
+          }
           const existing = await store.loadProject(project.id).catch(() => null);
           if (existing) project.id = uid("p");
           await store.saveProject(project);
@@ -1823,7 +1843,8 @@ class App {
         this.toast(t("exported"));
         break;
       }
-      case "import": $("#import-file").click(); break;
+      case "import": this.importMode = "replace"; $("#import-file").click(); break;
+      case "importAdd": this.importMode = "add"; $("#import-file").click(); break;
       case "textures": this.textures.open(); break;
       case "exportPlan": await this.exportPlan(); break;
       case "quantities": this.showQuantities(); break;
@@ -1855,11 +1876,30 @@ class App {
       }
     }
   }
+  /** Merge another project into this one as extra buildings beside the current content (js/merge.js). */
+  async addProject(source, { extendTerrain = false } = {}) {
+    if (this.editor?.active) return this.toast(this.t("finishEditing"));
+    this.checkpoint();
+    const merged = mergeProject(this.project, source, { extendTerrain, tile: this.project.grid.tile });
+    merged.id = this.project.id;
+    merged.name = this.project.name;
+    merged.createdAt = this.project.createdAt;
+    merged.view = { ...this.project.view, camera: null };
+    this.setProject(merged, { fit: true });
+    this.queueSave();
+    this.toast(this.t("addedToProject"));
+  }
   openTemplatesDialog() {
     const t = this.t;
     const host = $("#templates-list");
-    host.innerHTML = `<div class="plist">${TEMPLATE_IDS.map((id) => `<div class="pitem"><span class="pname">${esc(t(`template_${id}`))}</span><span class="pdate">${esc(t(`template_${id}_desc`))}</span><button class="tb small" data-template="${id}">${esc(t("new"))}</button></div>`).join("")}</div>`;
+    host.innerHTML = `<div class="plist">${TEMPLATE_IDS.map((id) => `<div class="pitem"><span class="pname">${esc(t(`template_${id}`))}</span><span class="pdate">${esc(t(`template_${id}_desc`))}</span><button class="tb small" data-template="${id}">${esc(t("new"))}</button><button class="tb small" data-template-add="${id}">${esc(t("addToProject"))}</button></div>`).join("")}</div>`;
     host.onclick = async (e) => {
+      const add = e.target.closest("[data-template-add]");
+      if (add) {
+        $("#templates-dialog").close();
+        await this.addProject(makeTemplate(add.dataset.templateAdd, t(`template_${add.dataset.templateAdd}`)));
+        return;
+      }
       const b = e.target.closest("[data-template]");
       if (!b) return;
       await this.saveNow();
@@ -1926,11 +1966,18 @@ class App {
     const list = await store.listProjects();
     const host = $("#projects-list");
     host.innerHTML = list.length
-      ? `<div class="plist">${list.map((p) => `<div class="pitem" data-id="${p.id}"><span class="pname">${esc(p.name || t("untitled"))}</span><span class="pdate">${new Date(p.updatedAt).toLocaleString(this.lang)}</span><button class="tb small" data-open="${p.id}">${esc(t("open"))}</button><button class="tb small danger" data-del="${p.id}">${esc(t("delete"))}</button></div>`).join("")}</div>`
+      ? `<div class="plist">${list.map((p) => `<div class="pitem" data-id="${p.id}"><span class="pname">${esc(p.name || t("untitled"))}</span><span class="pdate">${new Date(p.updatedAt).toLocaleString(this.lang)}</span><button class="tb small" data-open="${p.id}">${esc(t("open"))}</button><button class="tb small" data-add="${p.id}">${esc(t("addToProject"))}</button><button class="tb small danger" data-del="${p.id}">${esc(t("delete"))}</button></div>`).join("")}</div>`
       : `<p class="hint">${esc(t("noProjects"))}</p>`;
     host.onclick = async (e) => {
       const open = e.target.closest("[data-open]") || e.target.closest(".pname")?.parentElement;
       const del = e.target.closest("[data-del]");
+      const add = e.target.closest("[data-add]");
+      if (add) {
+        $("#projects-dialog").close();
+        const source = await store.loadProject(add.dataset.add);
+        if (source) await this.addProject(source, { extendTerrain: true });
+        return;
+      }
       if (del) {
         const p = list.find((x) => x.id === del.dataset.del);
         if (!confirm(t("confirmDeleteProject", { name: p?.name || t("untitled") }))) return;
