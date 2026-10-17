@@ -6,6 +6,7 @@ import { propDocSync, customIds } from "../props.js";
 import { stairsSteps } from "../build/stairs.js";
 import { polygonLevels } from "../build/outdoor.js";
 import { clampGate } from "../build/railing.js";
+import { formatArea } from "../rooms.js";
 
 export class PropsPanel {
   constructor(app, root) {
@@ -157,6 +158,7 @@ export class PropsPanel {
       case "building": return this.renderBuilding(found);
       case "storey": return this.renderStorey(found);
       case "floorGroup": return this.renderFloorGroup(found);
+      case "room": return this.renderRoom(found);
       case "wall": return this.renderWall(found);
       case "opening": return this.renderOpening(found);
       case "object": return this.renderObject(found);
@@ -366,6 +368,25 @@ export class PropsPanel {
         this.lockRow(fg, fg.id),
         this.button(t("delete"), () => app.deleteSelected(), "danger"),
       ]),
+    );
+  }
+  renderRoom({ item: r }) {
+    const app = this.app, t = app.t, lang = app.lang;
+    this.scope = "building";
+    const face = app.roomFace(r.id);
+    const textures = textureIds().map((id) => [id, textureIndex[id].name[lang] || id]);
+    this.root.append(
+      this.section(null, [
+        this.text(r, "name"),
+        face ? this.el("p", { class: "hint", text: `${t("area")}: ${formatArea(face.area, lang)} · ${t("grossArea")}: ${formatArea(face.grossArea, lang)} · ${t("perimeter")}: ${Math.round(face.perimeter)} cm` }) : null,
+        this.el("p", { class: "hint", text: t("roomHint") }),
+      ]),
+      this.section(t("floorFinish"), [
+        this.select(r, "floorMaterial", [["", t("none")], ...textures], { label: t("texture") }),
+        this.color(r, "floorTint", { label: t("tint") }),
+      ]),
+      this.section(t("ceiling"), [this.color(r, "ceilingTint", { label: t("tint") })]),
+      this.section(null, [this.lockRow(r, r.id)]),
     );
   }
   renderWall({ item: w, storey }) {

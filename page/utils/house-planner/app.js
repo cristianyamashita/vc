@@ -16,12 +16,16 @@ import { loadCatalog, catalog, getPropDoc, propObject, searchCatalog, registerCu
 import { thumbnail } from "./js/thumbs.js";
 import { PropEditor } from "./js/propedit.js";
 import { Dims } from "./js/dims.js";
+import { RoomLabels } from "./js/roomlabels.js";
+import { syncRooms, roomLabel } from "./js/rooms.js";
+import { buildRoomFinish } from "./js/build/room.js";
+import { computeQuantities, quantitiesCSV, formatQuantity, unitLabel, columnLabel, COLUMNS } from "./js/quantities.js";
 import { buildFloorGroup, floorTop, floorThickness, tileSet, tileKey, splitTiles } from "./js/build/slabs.js";
 import { buildWall } from "./js/build/walls.js";
 import { buildStairs, stairsCutQuads, tilesUnderQuads } from "./js/build/stairs.js";
 import { buildPolygon, DEFAULT_MATERIAL } from "./js/build/outdoor.js";
 import { buildSiteWall } from "./js/build/sitewall.js";
-import { buildRoof } from "./js/build/roof.js";
+import { buildRoof, CEILING } from "./js/build/roof.js";
 import { buildRailing, railingOffset } from "./js/build/railing.js";
 import { Walk } from "./js/walk.js";
 import { renderPlan } from "./js/plan2d.js";
@@ -53,6 +57,7 @@ class App {
     this.storeyGroups = new Map();
     this.roofGroups = new Map();
     this.objectGroups = new Map();
+    this.roomsByStorey = new Map(); // storey id -> [{face, room}]
     this.saveTimer = null;
     this.customProps = [];
   }
@@ -71,7 +76,11 @@ class App {
     this.propsPanel = new PropsPanel(this, $("#props"));
     this.editor = new PropEditor(this);
     this.dims = new Dims(this);
-    this.scene.onFrame = () => this.dims.update();
+    this.roomLabels = new RoomLabels(this);
+    this.scene.onFrame = () => {
+      this.dims.update();
+      this.roomLabels.update();
+    };
     this.history = new History(() => this.project, (p) => this.restore(p));
     this.history.onChange(() => this.refreshHistoryButtons());
     setTextureReadyCallback(() => this.scene.requestRender());
@@ -247,6 +256,7 @@ class App {
     const found = id && this.locate(id);
     if (!found) return this.toast(this.t("noSelection"));
     if (found.type === "terrain" || found.type === "sun") return;
+    if (found.type === "room") return this.toast(this.t("roomDerived"));
     if (isLocked(this.project, id)) return this.toast(this.t("lockedItem"));
     if (found.type === "building" && this.project.buildings.length < 2) return this.toast(this.t("lastBuilding"));
     if (found.type === "storey" && found.building.storeys.length < 2) return this.toast(this.t("lastStorey"));
@@ -356,6 +366,8 @@ class App {
     for (const s of b.storeys) {
       const sg = new THREE.Group();
       sg.userData = { kind: "storeyGroup", id: s.id };
+      const rooms = syncRooms(s);
+      this.roomsByStorey.set(s.id, rooms);
       for (const fg of s.floorGroups) {
         const mesh = buildFloorGroup(fg, s, this.project.grid.tile, this.stairWells(b, s, fg));
         if (mesh) sg.add(mesh);
@@ -364,6 +376,10 @@ class App {
       for (const st of s.stairs) sg.add(buildStairs(st, s));
       for (const r of s.railings) sg.add(buildRailing(r, "railing", { baseY: s.elevation + railingOffset(r, s, this.project.grid.tile), storeyId: s.id }));
       for (const o of s.objects) sg.add(this.makeObjectGroup(o, s.elevation));
+      for (const { face, room } of rooms) {
+        const g = buildRoomFinish(face, room, s, { floorY: this.roomFloorY(b, s, face), ceilingY: this.roomCeilingY(b, s, face) });
+        if (g) sg.add(g);
+      }
       group.add(sg);
       this.storeyGroups.set(s.id, sg);
     }
@@ -376,6 +392,38 @@ class App {
     this.buildingGroups.set(id, group);
     this.applyVisibility();
     if (!quiet) this.afterSceneChange();
+  }
+  /** Detected rooms of a storey as [{face, room}] (see js/rooms.js). */
+  roomsOf(s) {
+    let pairs = this.roomsByStorey.get(s.id);
+    if (!pairs) {
+      pairs = syncRooms(s);
+      this.roomsByStorey.set(s.id, pairs);
+    }
+    return pairs;
+  }
+  roomFace(id) {
+    for (const pairs of this.roomsByStorey.values()) for (const p of pairs) if (p.room.id === id) return p.face;
+    return null;
+  }
+  /** Floor level (cm, building-relative) under a room: its floor group, else the storey. */
+  roomFloorY(b, s, face) {
+    const tile = this.project.grid.tile;
+    const k = tileKey(Math.floor(face.labelPoint[0] / tile), Math.floor(face.labelPoint[1] / tile));
+    const fg = s.floorGroups.find((g) => g.tiles.some(([x, z]) => tileKey(x, z) === k));
+    return fg ? floorTop(s, fg) : s.elevation;
+  }
+  /** Underside of the slab above a room, or the storey top (minus the roof ceiling). */
+  roomCeilingY(b, s, face) {
+    const tile = this.project.grid.tile;
+    const k = tileKey(Math.floor(face.labelPoint[0] / tile), Math.floor(face.labelPoint[1] / tile));
+    const above = b.storeys.filter((x) => x.elevation > s.elevation).sort((x, y) => x.elevation - y.elevation)[0];
+    if (above) {
+      const fg = above.floorGroups.find((g) => g.tiles.some(([x, z]) => tileKey(x, z) === k));
+      if (fg) return floorTop(above, fg) - floorThickness(above, fg);
+    }
+    const top = s.elevation + s.height;
+    return !above && b.roof && b.roof.type !== "none" && b.roof.ceiling !== false ? top - CEILING : top;
   }
   /** Tiles of a floor group left open by stairs from the storeys below. */
   stairWells(b, s, fg) {
@@ -454,6 +502,8 @@ class App {
         if (!g) continue;
         const cut = this.project.view.cutaway && s.elevation > active.elevation;
         g.visible = s.visible && !cut;
+        // room ceilings open up with the roof ceiling in cutaway
+        for (const rg of g.children) if (rg.userData.kind === "roomGroup") for (const m of rg.children) if (m.userData.ceiling) m.visible = !this.project.view.cutaway;
       }
       const rg = this.roofGroups.get(b.id);
       if (rg) rg.visible = this.roofShown(b);
@@ -620,6 +670,7 @@ class App {
     this.refreshSelectors();
     this.refreshHistoryButtons();
     this.refreshToolbar();
+    this.roomLabels.refresh();
   }
   refreshHistoryButtons() {
     $("#undo-btn").disabled = !this.history.canUndo();
@@ -663,6 +714,10 @@ class App {
       if (changedId && !this.walk?.active && found.type !== "sun" && found.type !== "terrain") {
         const box = this.selectionBox(found);
         if (box) this.scene.centerOn(box.getCenter(new THREE.Vector3()));
+        else if (found.type === "room") {
+          const face = this.roomFace(found.item.id), g = this.buildingGroups.get(found.building.id);
+          if (face && g) this.scene.centerOn(new THREE.Vector3(face.labelPoint[0] * M, (this.roomFloorY(found.building, found.storey, face) + 50) * M, face.labelPoint[1] * M).applyMatrix4(g.matrixWorld));
+        }
       }
       if (!keepTool && found.type !== "sun" && found.type !== "terrain" && this.state.tool !== "select") this.setTool("select");
     }
@@ -873,6 +928,7 @@ class App {
     this.dims.setEnabled(!this.dims.enabled);
     this.renderSelectionBar();
     this.propsPanel.render();
+    this.roomLabels.refresh();
   }
   /** Row above the tree: move / rotate / scale / measures for the selection. */
   renderSelectionBar() {
@@ -906,7 +962,7 @@ class App {
       let kind = null, id = null;
       for (let p = o; p && !kind; p = p.parent) {
         const k = p.userData.kind;
-        if (["terrain", "floorGroup", "wall", "opening", "object", "stairs", "outdoor", "garden", "roof", "railing", "fence", "gate", "siteWall"].includes(k)) {
+        if (["terrain", "floorGroup", "wall", "opening", "object", "stairs", "outdoor", "garden", "roof", "railing", "fence", "gate", "siteWall", "room"].includes(k)) {
           kind = k;
           id = p.userData.id;
         } else if (k === "leaf" || k === "glass") {
@@ -1226,6 +1282,7 @@ class App {
     // dialogs
     $$("dialog [data-close]").forEach((b) => b.addEventListener("click", () => b.closest("dialog").close()));
     $("#help-btn").addEventListener("click", () => $("#help-dialog").showModal());
+    $("#quantities-csv").addEventListener("click", () => this.exportQuantities());
     $("#lang-switcher").addEventListener("change", (e) => {
       this.lang = e.target.value;
       prefs.lang = this.lang;
@@ -1267,6 +1324,7 @@ class App {
     $("#view-walk").classList.toggle("on", view === "walk");
     $("#walk-hint").hidden = view !== "walk";
     $("#viewport").classList.toggle("walking", view === "walk");
+    this.roomLabels.refresh();
   }
   /** Swing every door leaf open (or closed) in all buildings. */
   toggleDoors() {
@@ -1299,11 +1357,49 @@ class App {
       objectFootprint: (o) => this.objectFootprint(o),
       objectName: (o) => this.objectName(o),
       wellTiles: (fg) => this.stairWells(b, s, fg),
+      rooms: this.roomsOf(s),
+      roomName: (room) => roomLabel(room, s, this.t),
     });
     const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
     const idx = b.storeys.indexOf(s) + 1;
     downloadBlob(blob, store.safeFilename(this.project.name, `-plan-${idx}`).replace(/\.json$/, ".png"));
     this.toast(this.t("exported"));
+  }
+  /** Rows of the bill of quantities for the whole project. */
+  quantities() {
+    const t = this.t, lang = this.lang;
+    return computeQuantities(this.project, {
+      t,
+      textureName: (id) => textureIndex[id]?.name?.[lang] || id,
+      objectName: (o) => this.objectName(o) || o.prop || t("object"),
+      buildingName: (b, i) => b.name || `${t("building")} ${i + 1}`,
+      storeyName: (s, i) => s.name || `${t("storey")} ${i + 1}`,
+      roomName: (room, s) => roomLabel(room, s, t),
+      roomsOf: (s) => this.roomsOf(s),
+      wellTiles: (b, s, fg) => this.stairWells(b, s, fg),
+    });
+  }
+  exportQuantities() {
+    const csv = quantitiesCSV(this.quantities(), this.t);
+    downloadBlob(new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" }), store.safeFilename(this.project.name, "-quantities").replace(/\.json$/, ".csv"));
+    this.toast(this.t("exported"));
+  }
+  showQuantities() {
+    const t = this.t, rows = this.quantities();
+    const host = $("#quantities-body");
+    if (!rows.length) host.innerHTML = `<p class="hint">${esc(t("noQuantities"))}</p>`;
+    else {
+      const head = COLUMNS.map((c) => `<th class="${c === "quantity" ? "num" : ""}">${esc(columnLabel(c, t))}</th>`).join("");
+      let last = "";
+      const body = rows.map((r) => {
+        const grp = `${r.building}\u0001${r.storey}`;
+        const first = grp !== last;
+        last = grp;
+        return `<tr class="${first ? "grp" : ""}"><td>${first ? esc(r.building) : ""}</td><td>${first ? esc(r.storey) : ""}</td><td>${esc(t(`cat_${r.category}`))}</td><td>${esc(r.item)}</td><td>${esc(r.material)}</td><td class="num">${esc(formatQuantity(r, this.lang))}</td><td>${esc(unitLabel(r.unit, t))}</td></tr>`;
+      }).join("");
+      host.innerHTML = `<table class="qtable"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>`;
+    }
+    $("#quantities-dialog").showModal();
   }
   async exportView() {
     const blob = await this.scene.capture();
@@ -1421,6 +1517,8 @@ class App {
         break;
       case "import": $("#import-file").click(); break;
       case "exportPlan": await this.exportPlan(); break;
+      case "quantities": this.showQuantities(); break;
+      case "quantitiesCsv": this.exportQuantities(); break;
       case "exportView": await this.exportView(); break;
       case "open": await this.openProjectsDialog(); break;
     }

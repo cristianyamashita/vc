@@ -120,7 +120,7 @@ export function freshStorey(prev, preset = "ground", name = "") {
   return {
     id: uid("st"), name, elevation, height: p.height, slabThickness: 20,
     locked: false, visible: true,
-    floorGroups: [], walls: [], stairs: [], railings: [], objects: [],
+    floorGroups: [], walls: [], stairs: [], railings: [], objects: [], rooms: [],
   };
 }
 export function freshRoof() {
@@ -323,6 +323,19 @@ export function railingChecked(raw = {}, kind = "railing") {
   if (fence) out.gates = (Array.isArray(raw.gates) ? raw.gates : []).map((g) => gateChecked(g, length));
   return out;
 }
+/** A room record: the face it belongs to is re-detected from the walls. */
+export function roomChecked(raw = {}) {
+  return {
+    id: str(raw.id, uid("rm")),
+    name: str(raw.name, ""),
+    polygonKey: str(raw.polygonKey, "", 16),
+    centroid: vec2(raw.centroid),
+    floorMaterial: texture(raw.floorMaterial, null),
+    floorTint: color(raw.floorTint, null),
+    ceilingTint: color(raw.ceilingTint, null),
+    locked: !!raw.locked,
+  };
+}
 export function storeyChecked(raw = {}, index = 0) {
   return {
     id: str(raw.id, uid("st")),
@@ -337,6 +350,7 @@ export function storeyChecked(raw = {}, index = 0) {
     stairs: (Array.isArray(raw.stairs) ? raw.stairs : []).map(stairsChecked),
     railings: (Array.isArray(raw.railings) ? raw.railings : []).map((r) => railingChecked(r, "railing")),
     objects: (Array.isArray(raw.objects) ? raw.objects : []).map(placementChecked),
+    rooms: (Array.isArray(raw.rooms) ? raw.rooms : []).map(roomChecked),
   };
 }
 export function roofChecked(raw) {
@@ -403,7 +417,7 @@ export function projectChecked(raw) {
     check(b);
     for (const s of b.storeys) {
       check(s);
-      for (const list of [s.floorGroups, s.walls, s.stairs, s.railings, s.objects]) for (const it of list) check(it);
+      for (const list of [s.floorGroups, s.walls, s.stairs, s.railings, s.objects, s.rooms]) for (const it of list) check(it);
       for (const w of s.walls) for (const o of w.openings) check(o);
     }
   }
@@ -516,6 +530,7 @@ export function locate(project, id) {
       for (const s of storey.stairs) if (s.id === id) return { type: "stairs", item: s, building, storey, list: storey.stairs };
       for (const r of storey.railings) if (r.id === id) return { type: "railing", item: r, building, storey, list: storey.railings };
       for (const o of storey.objects) if (o.id === id) return { type: "object", item: o, building, storey, list: storey.objects };
+      for (const r of storey.rooms || []) if (r.id === id) return { type: "room", item: r, building, storey, list: storey.rooms };
     }
   }
   return null;

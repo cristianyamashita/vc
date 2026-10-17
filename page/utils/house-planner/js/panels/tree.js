@@ -2,6 +2,7 @@
 // → storeys → floors / walls → openings / objects) with lock and
 // visibility toggles and a search box.
 import { propDocSync } from "../props.js";
+import { formatArea } from "../rooms.js";
 
 export class Tree {
   constructor(app, root) {
@@ -19,6 +20,7 @@ export class Tree {
       case "siteWall": return `${t("siteWall")} ${index + 1}`;
       case "storey": return `${t("storey")} ${index + 1}`;
       case "floorGroup": return `${t("floor")} ${index + 1}`;
+      case "room": return `${t("room")} ${index + 1}`;
       case "wall": return `${t("wall")} ${index + 1}`;
       case "opening": return `${t(item.type === "door" ? "door" : "window")} ${index + 1}`;
       case "stairs": return `${t("stairs")} ${index + 1} · ${t(`shape_${item.shape}`)}`;
@@ -83,6 +85,13 @@ export class Tree {
         const fkey = `f:${s.id}`;
         row(`group:${fkey}`, "group", `${t("floors")} (${s.floorGroups.length})`, 2, { children: fkey, always: true });
         if (open(fkey)) s.floorGroups.forEach((fg, i) => row(fg.id, "floorGroup", `${this.label("floorGroup", fg, i)} · ${fg.tiles.length}`, 3, { icon: "▦", lockable: true, locked: fg.locked, active: fg.id === state.activeFloorGroup }));
+        const rmkey = `rm:${s.id}`;
+        row(`group:${rmkey}`, "group", `${t("rooms")} (${s.rooms.length})`, 2, { children: rmkey, always: true });
+        if (open(rmkey))
+          s.rooms.forEach((r, i) => {
+            const face = this.app.roomFace(r.id);
+            row(r.id, "room", `${this.label("room", r, i)}${face ? ` · ${formatArea(face.area, this.app.lang)}` : ""}`, 3, { icon: "⬚", lockable: true, locked: r.locked });
+          });
         const wkey = `w:${s.id}`;
         row(`group:${wkey}`, "group", `${t("walls")} (${s.walls.length})`, 2, { children: wkey, always: true });
         if (open(wkey))

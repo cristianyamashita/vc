@@ -2,17 +2,19 @@
 // on an A4 landscape page at 150 dpi: walls as filled double lines with
 // door swings and window lines, floor groups as light fills with name and
 // area, stairs as treads with an arrow, objects as labelled footprints,
-// dimension chains along the four sides, a scale bar, a north arrow and a
-// title block. Coordinates are building-local centimetres; the page is
-// white for printing.
+// room names with their net area, a dimension line per wall (and per
+// opening) on the free side of the wall, dimension chains along the four
+// sides, a scale bar, a north arrow and a title block. Coordinates are
+// building-local centimetres; the page is white for printing.
 import { stairsBoxes } from "./build/stairs.js";
-import { cornerExtension, clampOpening, doorSwing } from "./build/walls.js";
+import { cornerExtension, clampOpening, doorSwing, outerSide } from "./build/walls.js";
 import { tileKey } from "./build/slabs.js";
 import { wallLength } from "./schema.js";
+import { pointInPolygon } from "./geom.js";
 
 const DEG = Math.PI / 180;
 export const PAGE = { w: 1754, h: 1240, dpi: 150 }; // A4 landscape at 150 dpi
-const MARGIN = 50, TITLE = 78, FOOTER = 80, DIMS = 96; // px
+const MARGIN = 50, TITLE = 78, FOOTER = 80, DIMS = 124; // px
 const RATIOS = [20, 25, 30, 40, 50, 60, 75, 100, 125, 150, 200, 250, 300, 400, 500, 750, 1000];
 const FLOOR_FILLS = ["#eef3ee", "#eaf0f6", "#f5efe4", "#f0eaf4", "#e8f4f1", "#f6ece8"];
 const INK = "#1c1c1c", WALL = "#3b3b3b", DIM = "#555555", LIGHT = "#9a9a9a";
@@ -21,8 +23,11 @@ const INK = "#1c1c1c", WALL = "#3b3b3b", DIM = "#555555", LIGHT = "#9a9a9a";
  * Render the plan; returns the canvas. `objectFootprint(o)` gives the
  * local bounds of a placed object as {minX, maxX, minZ, maxZ} in cm (before
  * its own rotation) and `wellTiles(fg)` the tile keys cut by stairs below.
+ * `rooms` is the storey's detected [{face, room}] list (js/rooms.js) and
+ * `roomName(room)` its display name; without rooms the floor groups are
+ * labelled instead.
  */
-export function renderPlan({ project, building, storey, lang = "en", t = (k) => k, objectFootprint, wellTiles, objectName }) {
+export function renderPlan({ project, building, storey, lang = "en", t = (k) => k, objectFootprint, wellTiles, objectName, rooms = [], roomName }) {
   const tile = project.grid.tile;
   const canvas = document.createElement("canvas");
   canvas.width = PAGE.w;
@@ -165,31 +170,39 @@ export function renderPlan({ project, building, storey, lang = "en", t = (k) => 
       ctx.restore();
     }
   }
-  // ---- floor labels (over objects, under walls)
-  for (const g of groups) {
-    if (!g.tiles.length) continue;
-    const area = (g.tiles.length * tile * tile) / 10000;
-    let cx = 0, cz = 0;
-    for (const [x, z] of g.tiles) {
-      cx += (x + 0.5) * tile;
-      cz += (z + 0.5) * tile;
-    }
-    cx /= g.tiles.length;
-    cz /= g.tiles.length;
-    const name = g.fg.name || `${t("floor")} ${g.i + 1}`;
-    const text = `${area.toLocaleString(lang, { maximumFractionDigits: 2 })} m²`;
+  // ---- room labels, or floor labels when the walls close no room (over objects, under walls)
+  const labelBox = (px, py, name, text) => {
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.font = font(14, "600");
     const w = Math.max(ctx.measureText(name).width, ctx.measureText(text).width) + 12;
     ctx.fillStyle = "rgba(255,255,255,0.8)";
-    ctx.fillRect(X(cx) - w / 2, Y(cz) - 18, w, 36);
+    ctx.fillRect(px - w / 2, py - 18, w, 36);
     ctx.fillStyle = INK;
-    ctx.fillText(name, X(cx), Y(cz) - 8);
+    ctx.fillText(name, px, py - 8);
     ctx.font = font(12);
     ctx.fillStyle = DIM;
-    ctx.fillText(text, X(cx), Y(cz) + 9);
-  }
+    ctx.fillText(text, px, py + 9);
+  };
+  const roomList = rooms.filter((p) => p.face && p.room);
+  if (roomList.length)
+    roomList.forEach(({ face, room }, i) => {
+      const name = roomName?.(room) || room.name || `${t("room")} ${i + 1}`;
+      labelBox(X(face.labelPoint[0]), Y(face.labelPoint[1]), name, `${(face.area / 10000).toLocaleString(lang, { maximumFractionDigits: 1 })} m²`);
+    });
+  else
+    for (const g of groups) {
+      if (!g.tiles.length) continue;
+      const area = (g.tiles.length * tile * tile) / 10000;
+      let cx = 0, cz = 0;
+      for (const [x, z] of g.tiles) {
+        cx += (x + 0.5) * tile;
+        cz += (z + 0.5) * tile;
+      }
+      cx /= g.tiles.length;
+      cz /= g.tiles.length;
+      labelBox(X(cx), Y(cz), g.fg.name || `${t("floor")} ${g.i + 1}`, `${area.toLocaleString(lang, { maximumFractionDigits: 2 })} m²`);
+    }
   // ---- walls
   ctx.lineJoin = "miter";
   for (const r of wallRects) {
@@ -253,6 +266,83 @@ export function renderPlan({ project, building, storey, lang = "en", t = (k) => 
     ctx.restore();
   }
 
+  // ---- wall dimensions: one line per wall on the side without a room (the
+  // outside), split at the openings when there are any, plus the total
+  const roomPolys = roomList.map((p) => p.face.polygon);
+  const off1 = 18 / S, off2 = 40 / S; // cm, so the lines sit at a fixed page distance
+  ctx.font = font(10.5);
+  ctx.lineWidth = 1;
+  for (const r of wallRects) {
+    const { w, L, ang } = r;
+    if (L < 30) continue;
+    const h = w.thickness / 2;
+    const c = Math.cos(ang), s = Math.sin(ang);
+    const mx = (w.a[0] + w.b[0]) / 2, mz = (w.a[1] + w.b[1]) / 2;
+    const probe = (sign) => [mx - s * sign * (h + 15), mz + c * sign * (h + 15)]; // local +v axis is (−s, c)
+    const inRoom = (p) => roomPolys.some((poly) => pointInPolygon(p[0], p[1], poly));
+    const plus = inRoom(probe(1)), minus = inRoom(probe(-1));
+    const side = plus && !minus ? -1 : minus && !plus ? 1 : plus && minus ? 1 : outerSide(w, storey, tile);
+    const ops = w.openings.map((raw) => clampOpening({ ...raw }, w)).sort((a, b) => a.offset - b.offset);
+    const chain = [0];
+    for (const op of ops) {
+      if (op.offset - chain[chain.length - 1] >= 1) chain.push(op.offset);
+      chain.push(op.offset + op.width);
+    }
+    if (L - chain[chain.length - 1] >= 1) chain.push(L);
+    else chain[chain.length - 1] = L;
+    ctx.save();
+    ctx.translate(X(w.a[0]), Y(w.a[1]));
+    ctx.rotate(ang);
+    // text reads left-to-right / bottom-to-top on the page
+    const flip = c < -1e-6 || (Math.abs(c) < 1e-6 && s > 0);
+    const drawChain = (cms, yCm, ext) => {
+      const y = side * yCm * S;
+      ctx.strokeStyle = DIM;
+      ctx.fillStyle = DIM;
+      ctx.beginPath();
+      ctx.moveTo(cms[0] * S, y);
+      ctx.lineTo(cms[cms.length - 1] * S, y);
+      for (const u of cms) {
+        const x = u * S;
+        ctx.moveTo(x, y - 4);
+        ctx.lineTo(x, y + 4);
+        ctx.moveTo(x - 3, y + 3);
+        ctx.lineTo(x + 3, y - 3);
+      }
+      ctx.stroke();
+      if (ext) {
+        ctx.strokeStyle = LIGHT;
+        ctx.beginPath();
+        for (const u of cms) {
+          ctx.moveTo(u * S, side * h * S);
+          ctx.lineTo(u * S, y - side * 6);
+        }
+        ctx.stroke();
+      }
+      ctx.textAlign = "center";
+      ctx.textBaseline = (side > 0) !== flip ? "top" : "bottom";
+      for (let i = 1; i < cms.length; i++) {
+        const len = cms[i] - cms[i - 1];
+        if (len < 1) continue;
+        const label = fmt(len, lang);
+        if (ctx.measureText(label).width > len * S - 4) continue;
+        const tx = ((cms[i] + cms[i - 1]) / 2) * S, ty = y + side * 5;
+        if (flip) {
+          ctx.save();
+          ctx.translate(tx, ty);
+          ctx.rotate(Math.PI);
+          ctx.fillText(label, 0, 0);
+          ctx.restore();
+        } else ctx.fillText(label, tx, ty);
+      }
+    };
+    if (chain.length > 2) {
+      drawChain(chain, h + off1, true);
+      drawChain([0, L], h + off2, false);
+    } else drawChain([0, L], h + off1, true);
+    ctx.restore();
+  }
+
   // ---- dimensions
   const xs = chainCoords(wallRects.flatMap((r) => [r.w.a[0], r.w.b[0]]), dimExt.minX, dimExt.maxX);
   const zs = chainCoords(wallRects.flatMap((r) => [r.w.a[1], r.w.b[1]]), dimExt.minZ, dimExt.maxZ);
@@ -260,7 +350,7 @@ export function renderPlan({ project, building, storey, lang = "en", t = (k) => 
   ctx.fillStyle = DIM;
   ctx.lineWidth = 1;
   ctx.font = font(12);
-  const d1 = 36, d2 = 76; // px outside the extents
+  const d1 = 62, d2 = 102; // px outside the extents, beyond the wall dimensions
   const top = Y(dimExt.minZ), bottom = Y(dimExt.maxZ), left = X(dimExt.minX), right = X(dimExt.maxX);
   hChain(ctx, xs.map(X), top - d1, -1, xs, lang);
   hChain(ctx, [X(dimExt.minX), X(dimExt.maxX)], top - d2, -1, [dimExt.minX, dimExt.maxX], lang);
