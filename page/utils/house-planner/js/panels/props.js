@@ -2,7 +2,7 @@
 import { OPENING_PRESETS, STOREY_PRESETS, isLocked, wallLength } from "../schema.js";
 import { textureIds, textureIndex } from "../materials.js";
 import { Sun } from "../sun.js";
-import { propDocSync } from "../props.js";
+import { propDocSync, customIds } from "../props.js";
 import { stairsSteps } from "../build/stairs.js";
 import { polygonLevels } from "../build/outdoor.js";
 
@@ -456,6 +456,7 @@ export class PropsPanel {
       this.section(t("surface"), [this.material(o, "material"), this.color(o, "tint")]),
       this.section(null, [
         this.button(t("duplicate"), () => app.duplicateSelected()),
+        doc ? this.button(`✎ ${t(o.prop && customIds.has(o.prop) ? "editObject" : "editCopy")}`, () => app.editor.enter(doc)) : null,
         this.lockRow(o, o.id),
         this.button(t("delete"), () => app.deleteSelected(), "danger"),
       ]),

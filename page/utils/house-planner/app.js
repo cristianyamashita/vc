@@ -12,7 +12,9 @@ import { Tree } from "./js/panels/tree.js";
 import { PropsPanel } from "./js/panels/props.js";
 import { History } from "./js/history.js";
 import { loadTextureIndex, setTextureReadyCallback, textureIndex } from "./js/materials.js";
-import { loadCatalog, catalog, getPropDoc, propObject, searchCatalog, registerCustom } from "./js/props.js";
+import { loadCatalog, catalog, getPropDoc, propObject, searchCatalog, registerCustom, customIds, propDocSync } from "./js/props.js";
+import { thumbnail } from "./js/thumbs.js";
+import { PropEditor } from "./js/propedit.js";
 import { buildFloorGroup, floorTop, floorThickness, tileSet, tileKey, splitTiles } from "./js/build/slabs.js";
 import { buildWall } from "./js/build/walls.js";
 import { buildStairs, stairsCutQuads, tilesUnderQuads } from "./js/build/stairs.js";
@@ -50,6 +52,7 @@ class App {
     this.tools = new Tools(this);
     this.tree = new Tree(this, $("#tree"));
     this.propsPanel = new PropsPanel(this, $("#props"));
+    this.editor = new PropEditor(this);
     this.history = new History(() => this.project, (p) => this.restore(p));
     this.history.onChange(() => this.refreshHistoryButtons());
     setTextureReadyCallback(() => this.scene.requestRender());
@@ -461,6 +464,7 @@ class App {
   // ---------------------------------------------------------- changes
 
   checkpoint() {
+    if (this.editor?.active) return this.editor.checkpoint();
     this.history.checkpoint();
   }
   /**
@@ -514,6 +518,7 @@ class App {
     }
   }
   refreshAll() {
+    if (this.editor?.active) return this.editor.refreshPanels();
     this.tree.render();
     this.propsPanel.render();
     this.refreshSelectors();
@@ -663,6 +668,7 @@ class App {
   // --------------------------------------------------------- tabs/tools
 
   setTab(tab) {
+    if (this.editor?.active) return;
     this.state.tab = tab;
     prefs.tab = tab;
     savePrefs();
@@ -746,7 +752,11 @@ class App {
     } else if (tab === "objects") {
       const hint = document.createElement("label");
       hint.textContent = this.state.pendingProp ? `${this.state.pendingProp.name[this.lang] || this.state.pendingProp.name.en} · ${t("rotateGhost")}` : t("catalog");
-      extra.append(hint);
+      const btn = document.createElement("button");
+      btn.className = "tb small";
+      btn.textContent = `+ ${t("newObject")}`;
+      btn.addEventListener("click", () => this.editProp(null));
+      extra.append(btn, hint);
     }
     $("#snap-btn").classList.toggle("on", this.state.snap);
     $("#cutaway-btn").classList.toggle("on", this.project.view.cutaway);
@@ -769,8 +779,37 @@ class App {
     const items = searchCatalog(q, cat.value);
     const list = $("#catalog-list");
     list.innerHTML = items.length
-      ? items.map((p) => `<div class="citem ${this.state.pendingProp?.id === p.id ? "on" : ""}" data-prop="${p.id}"><span>${esc(p.name[lang] || p.name.en)}</span><span class="ccat">${esc(catalog.categories[p.category]?.[lang] || p.category)}</span></div>`).join("")
+      ? items.map((p) => `<div class="citem ${this.state.pendingProp?.id === p.id ? "on" : ""}" data-prop="${p.id}"><img class="cthumb" alt="" data-thumb="${p.id}"><span class="cname">${esc(p.name[lang] || p.name.en)}</span><span class="ccat">${esc(catalog.categories[p.category]?.[lang] || p.category)}</span><span class="cacts"><button class="mini" data-edit="${p.id}" title="${esc(t(p.custom ? "editObject" : "editCopy"))}">✎</button>${p.custom ? `<button class="mini" data-delprop="${p.id}" title="${esc(t("delete"))}">🗑</button>` : ""}</span></div>`).join("")
       : `<p class="hint">${esc(t("noResults"))}</p>`;
+    this.fillThumbs(list);
+  }
+  /** Render thumbnails for the visible catalog, a few per frame. */
+  fillThumbs(list) {
+    const imgs = [...list.querySelectorAll("img[data-thumb]")];
+    const token = (this.thumbToken = (this.thumbToken || 0) + 1);
+    const step = async () => {
+      if (token !== this.thumbToken) return;
+      const batch = imgs.splice(0, 4);
+      if (!batch.length) return;
+      for (const img of batch) {
+        const doc = await getPropDoc(img.dataset.thumb);
+        if (token !== this.thumbToken) return;
+        if (doc) {
+          try {
+            img.src = thumbnail(doc);
+          } catch (err) {
+            console.warn("thumb", err);
+          }
+        }
+      }
+      requestAnimationFrame(step);
+    };
+    step();
+  }
+  async editProp(id) {
+    const doc = id ? await getPropDoc(id) : null;
+    if (id && !doc) return;
+    this.editor.enter(doc);
   }
   async pickProp(id) {
     const doc = await getPropDoc(id);
@@ -825,6 +864,10 @@ class App {
       this.renderCatalog();
     });
     $("#catalog-list").addEventListener("click", (e) => {
+      const edit = e.target.closest("[data-edit]");
+      if (edit) return this.editProp(edit.dataset.edit);
+      const del = e.target.closest("[data-delprop]");
+      if (del) return this.editor.deleteCustom(del.dataset.delprop);
       const it = e.target.closest("[data-prop]");
       if (it) this.pickProp(it.dataset.prop);
     });
@@ -917,6 +960,23 @@ class App {
       e.preventDefault();
       return;
     }
+    if (this.editor?.active) {
+      if (mod && e.key.toLowerCase() === "z") (e.shiftKey ? this.editor.redo() : this.editor.undo());
+      else if (mod && e.key.toLowerCase() === "y") this.editor.redo();
+      else if (mod && e.key.toLowerCase() === "d") this.editor.duplicatePart();
+      else if (mod && e.key.toLowerCase() === "s") this.editor.save();
+      else if (e.key === "Delete" || e.key === "Backspace") this.editor.deletePart();
+      else if (e.key === "Escape") this.editor.cancel();
+      else if (/^[wW]$/.test(e.key)) this.editor.app.gizmo.setMode("translate");
+      else if (/^[eE]$/.test(e.key)) this.editor.app.gizmo.setMode("rotate");
+      else if (/^[rR]$/.test(e.key)) this.editor.app.gizmo.setMode("scale");
+      else if (/^[fF]$/.test(e.key)) this.editor.frame();
+      else if (e.key === "?") $("#help-dialog").showModal();
+      else return;
+      if (/^[wWeErR]$/.test(e.key)) this.editor.renderToolbar();
+      e.preventDefault();
+      return;
+    }
     if (mod && e.key.toLowerCase() === "z") {
       e.preventDefault();
       if (e.shiftKey) this.history.redo();
@@ -966,6 +1026,7 @@ class App {
   }
   async projectAction(action) {
     const t = this.t;
+    if (this.editor?.active) return this.toast(t("finishEditing"));
     switch (action) {
       case "new":
         await this.saveNow();
