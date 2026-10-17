@@ -21,8 +21,9 @@ import { buildWall } from "./js/build/walls.js";
 import { buildStairs, stairsCutQuads, tilesUnderQuads } from "./js/build/stairs.js";
 import { buildPolygon, DEFAULT_MATERIAL } from "./js/build/outdoor.js";
 import { buildRoof } from "./js/build/roof.js";
+import { buildRailing, railingOffset } from "./js/build/railing.js";
 import * as store from "./js/store.js";
-import { freshProject, freshBuilding, freshStorey, locate, isLocked, uid, clone, OPENING_PRESETS, projectChecked, findBuilding, topStorey } from "./js/schema.js";
+import { freshProject, freshBuilding, freshStorey, locate, isLocked, uid, clone, OPENING_PRESETS, projectChecked, findBuilding, topStorey, RAILING_STYLES, FENCE_STYLES, GATE_TYPES } from "./js/schema.js";
 
 const DEG = Math.PI / 180;
 const $ = (s, r = document) => r.querySelector(s);
@@ -35,7 +36,7 @@ class App {
     this.lang = prefs.lang;
     this.t = makeT(() => this.lang);
     this.project = freshProject();
-    this.state = { tab: "floors", tool: "select", selection: null, activeBuilding: null, activeStorey: null, activeFloorGroup: null, pendingPreset: "door-single", pendingProp: null, ghostYaw: 0, pendingStairShape: "straight", pendingOutdoorType: "deck", pendingGardenMaterial: DEFAULT_MATERIAL.garden, snap: prefs.snap !== false, orbitOverride: false, transformMode: null, caps: [] };
+    this.state = { tab: "floors", tool: "select", selection: null, activeBuilding: null, activeStorey: null, activeFloorGroup: null, pendingPreset: "door-single", pendingProp: null, ghostYaw: 0, pendingStairShape: "straight", pendingOutdoorType: "deck", pendingGardenMaterial: DEFAULT_MATERIAL.garden, pendingRailingStyle: "glass", pendingFenceStyle: "picket", pendingGateType: "single", snap: prefs.snap !== false, orbitOverride: false, transformMode: null, caps: [] };
     this.buildingGroups = new Map();
     this.storeyGroups = new Map();
     this.roofGroups = new Map();
@@ -242,11 +243,12 @@ class App {
   }
   duplicateSelected() {
     const found = this.state.selection && this.locate(this.state.selection);
-    if (!found || !["object", "stairs", "outdoor", "garden"].includes(found.type)) return;
+    if (!found || !["object", "stairs", "outdoor", "garden", "railing", "fence"].includes(found.type)) return;
     this.checkpoint();
     const copy = clone(found.item);
-    copy.id = uid(found.type === "object" ? "ob" : found.type === "stairs" ? "sr" : found.type === "garden" ? "g" : "d");
+    copy.id = uid({ object: "ob", stairs: "sr", garden: "g", outdoor: "d", railing: "rl", fence: "fe" }[found.type]);
     copy.locked = false;
+    if (copy.gates) for (const g of copy.gates) g.id = uid("gt");
     if (copy.points) copy.points = copy.points.map(([x, z]) => [x + 50, z + 50]);
     else copy.at[0] += 50;
     found.list.push(copy);
@@ -336,6 +338,7 @@ class App {
       }
       for (const w of s.walls) sg.add(buildWall(w, s, s.walls, this.project.grid.tile));
       for (const st of s.stairs) sg.add(buildStairs(st, s));
+      for (const r of s.railings) sg.add(buildRailing(r, "railing", { baseY: s.elevation + railingOffset(r, s, this.project.grid.tile), storeyId: s.id }));
       for (const o of s.objects) sg.add(this.makeObjectGroup(o, s.elevation));
       group.add(sg);
       this.storeyGroups.set(s.id, sg);
@@ -377,6 +380,7 @@ class App {
       const g = buildPolygon(gp, "garden", this.terrain);
       if (g) this.siteGroup.add(g);
     }
+    for (const f of this.project.fences) this.siteGroup.add(buildRailing(f, "fence", { heightAt: (x, z) => this.terrain.heightAt(x, z) }));
     if (!quiet) this.afterSceneChange();
   }
   makeObjectGroup(o, baseY) {
@@ -537,7 +541,7 @@ class App {
     if (terrain) {
       this.terrain.update();
       this.sun.place();
-      if (this.project.outdoor.length || this.project.gardenPatches.length) this.rebuildSite({ quiet: true });
+      if (this.project.outdoor.length || this.project.gardenPatches.length || this.project.fences.length) this.rebuildSite({ quiet: true });
     }
     if (this.state.selection) {
       const found = this.locate(this.state.selection);
@@ -728,6 +732,35 @@ class App {
         };
         return T(bGroup, this.scene.world, b, adapter, adapter.modes);
       }
+      case "railing":
+      case "fence": {
+        const fence = found.type === "fence";
+        const item = found.item;
+        const adapter = {
+          planar: true, modes: ["translate", "rotate"], rebuild: fence ? "site" : "building", buildingId: found.building?.id || null,
+          apply: (group, { step, turn, snapTo }) => {
+            const [ox, oz] = group.userData.origin || item.points[0] || [0, 0];
+            const dx = snapTo(group.position.x * CM - ox, step), dz = snapTo(group.position.z * CM - oz, step);
+            const ang = this.gizmo.mode === "rotate" ? snapTo(-group.rotation.y / DEG, turn) * DEG : 0;
+            if (dx || dz || ang) {
+              const c = Math.cos(ang), sn = Math.sin(ang);
+              item.points = item.points.map(([x, z]) => {
+                const rx = x - ox, rz = z - oz;
+                return [r1(ox + dx + rx * c - rz * sn), r1(oz + dz + rx * sn + rz * c)];
+              });
+            }
+            group.position.set((ox + dx) * M, group.position.y, (oz + dz) * M);
+            group.rotation.set(0, 0, 0);
+            group.userData.origin = [ox + dx, oz + dz];
+          },
+        };
+        const root = fence ? this.siteGroup : bGroup;
+        return T(this.findGroup(root, `${found.type}Group`, id), fence ? this.siteGroup : sGroup, item, adapter, adapter.modes);
+      }
+      case "gate": {
+        const hit = this.findGroup(this.siteGroup, "gate", id);
+        return hit ? { group: hit, parent: hit.parent, placement: found.item, adapter: null, modes: [], locked } : null;
+      }
       case "storey":
         return sGroup ? { group: sGroup, parent: bGroup, placement: found.item, adapter: null, modes: [], locked } : null;
       default:
@@ -805,7 +838,7 @@ class App {
       let kind = null, id = null;
       for (let p = o; p && !kind; p = p.parent) {
         const k = p.userData.kind;
-        if (["terrain", "floorGroup", "wall", "opening", "object", "stairs", "outdoor", "garden", "roof"].includes(k)) {
+        if (["terrain", "floorGroup", "wall", "opening", "object", "stairs", "outdoor", "garden", "roof", "railing", "fence", "gate"].includes(k)) {
           kind = k;
           id = p.userData.id;
         } else if (k === "leaf" || k === "glass") {
@@ -876,6 +909,36 @@ class App {
       btn.textContent = `+ ${t("newGroup")}`;
       btn.addEventListener("click", () => this.newFloorGroup());
       extra.append(sel, btn);
+    } else if (tab === "walls" && tool === "railing") {
+      const sel = document.createElement("select");
+      sel.innerHTML = RAILING_STYLES.map((k) => `<option value="${k}">${esc(t(`style_${k}`))}</option>`).join("");
+      sel.value = this.state.pendingRailingStyle;
+      sel.addEventListener("change", () => {
+        this.state.pendingRailingStyle = sel.value;
+        this.tools.clearGhost();
+      });
+      const hint = document.createElement("label");
+      hint.textContent = t("lineHint");
+      extra.append(sel, hint);
+    } else if (tab === "garden" && tool === "fence") {
+      const sel = document.createElement("select");
+      sel.innerHTML = FENCE_STYLES.map((k) => `<option value="${k}">${esc(t(`style_${k}`))}</option>`).join("");
+      sel.value = this.state.pendingFenceStyle;
+      sel.addEventListener("change", () => {
+        this.state.pendingFenceStyle = sel.value;
+        this.tools.clearGhost();
+      });
+      const hint = document.createElement("label");
+      hint.textContent = t("lineHint");
+      extra.append(sel, hint);
+    } else if (tab === "garden" && tool === "gate") {
+      const sel = document.createElement("select");
+      sel.innerHTML = GATE_TYPES.map((k) => `<option value="${k}">${esc(t(`gate_${k}`))}</option>`).join("");
+      sel.value = this.state.pendingGateType;
+      sel.addEventListener("change", () => (this.state.pendingGateType = sel.value));
+      const hint = document.createElement("label");
+      hint.textContent = t("gateHint");
+      extra.append(sel, hint);
     } else if (tab === "openings") {
       const sel = document.createElement("select");
       sel.innerHTML = Object.keys(OPENING_PRESETS).map((k) => `<option value="${k}">${esc(t(k))}</option>`).join("");
@@ -1173,6 +1236,7 @@ class App {
         break;
       case "Enter":
         if (this.tools.poly) this.tools.closePolygon();
+        else if (this.tools.line) this.tools.finishLine();
         else return;
         break;
       case "Delete": case "Backspace": this.deleteSelected(); break;

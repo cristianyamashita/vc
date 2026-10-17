@@ -1,10 +1,11 @@
 // Right panel: properties of the selection, built from small field helpers.
-import { OPENING_PRESETS, STOREY_PRESETS, ROOF_TYPES, isLocked, wallLength } from "../schema.js";
+import { OPENING_PRESETS, STOREY_PRESETS, ROOF_TYPES, RAILING_STYLES, FENCE_STYLES, GATE_TYPES, GATE_WIDTHS, isLocked, wallLength, polylineLength } from "../schema.js";
 import { textureIds, textureIndex } from "../materials.js";
 import { Sun } from "../sun.js";
 import { propDocSync, customIds } from "../props.js";
 import { stairsSteps } from "../build/stairs.js";
 import { polygonLevels } from "../build/outdoor.js";
+import { clampGate } from "../build/railing.js";
 
 export class PropsPanel {
   constructor(app, root) {
@@ -161,6 +162,8 @@ export class PropsPanel {
       case "object": return this.renderObject(found);
       case "stairs": return this.renderStairs(found);
       case "outdoor": case "garden": return this.renderPolygon(found);
+      case "railing": case "fence": return this.renderRailing(found);
+      case "gate": return this.renderGate(found);
     }
   }
   renderProject() {
@@ -423,11 +426,11 @@ export class PropsPanel {
     );
     void building;
   }
-  renderPolygon({ item: poly, type }) {
+  /** Editable point list of a polygon (closed) or a polyline (open). */
+  pointsSection(item, { rebuild, min, closed, hint, buildingId = null }) {
     const app = this.app, t = app.t;
-    this.scope = "site";
-    const levels = polygonLevels(poly, type, app.terrain);
-    const pointRows = poly.points.map((pt, i) => {
+    const changed = () => app.changed({ rebuild, buildingId });
+    const pointRows = item.points.map((pt, i) => {
       const row = this.el("div", { class: "ptrow" });
       const mk = (idx) => {
         const input = this.el("input", { type: "number", step: 1, value: pt[idx], disabled: this.locked ? "" : null });
@@ -436,27 +439,34 @@ export class PropsPanel {
           if (!Number.isFinite(v) || v === pt[idx]) return;
           app.checkpoint();
           pt[idx] = Math.max(-1e5, Math.min(1e5, v));
-          app.changed({ rebuild: "site" });
+          changed();
         });
         return input;
       };
-      const del = this.el("button", { class: "mini", type: "button", text: "×", title: t("removePoint"), disabled: this.locked || poly.points.length <= 3 ? "" : null });
+      const del = this.el("button", { class: "mini", type: "button", text: "×", title: t("removePoint"), disabled: this.locked || item.points.length <= min ? "" : null });
       del.addEventListener("click", () => {
         app.checkpoint();
-        poly.points.splice(i, 1);
-        app.changed({ rebuild: "site" });
+        item.points.splice(i, 1);
+        changed();
       });
       row.append(this.el("span", { class: "flabel", text: `${i + 1}` }), mk(0), mk(1), del);
       return row;
     });
     const addPoint = this.button(`+ ${t("addPoint")}`, () => {
-      const n = poly.points.length;
-      const a = poly.points[n - 1], b = poly.points[0];
+      const n = item.points.length;
+      const a = item.points[n - 1], b = closed ? item.points[0] : item.points[n - 2] || a;
       app.checkpoint();
-      poly.points.push([Math.round((a[0] + b[0]) / 2), Math.round((a[1] + b[1]) / 2)]);
-      app.changed({ rebuild: "site" });
+      // closed: between the last and first point; open: extend the last segment
+      item.points.push(closed ? [Math.round((a[0] + b[0]) / 2), Math.round((a[1] + b[1]) / 2)] : [Math.round(a[0] + (a[0] - b[0]) * 0.5), Math.round(a[1] + (a[1] - b[1]) * 0.5)]);
+      changed();
     });
-    addPoint.disabled = this.locked || poly.points.length >= 200;
+    addPoint.disabled = this.locked || item.points.length >= 200;
+    return this.section(`${t("points")} (${item.points.length})`, [...pointRows, addPoint, hint ? this.el("p", { class: "hint", text: hint }) : null]);
+  }
+  renderPolygon({ item: poly, type }) {
+    const app = this.app, t = app.t;
+    this.scope = "site";
+    const levels = polygonLevels(poly, type, app.terrain);
     const main = [this.text(poly, "name")];
     if (type === "outdoor") {
       main.push(this.select(poly, "type", [["deck", t("deck")], ["pool", t("pool")], ["path", t("path")]], { label: t("type") }));
@@ -470,8 +480,56 @@ export class PropsPanel {
     this.root.append(
       this.section(null, main),
       this.section(t("surface"), [this.material(poly, "material"), this.color(poly, "tint")]),
-      this.section(`${t("points")} (${poly.points.length})`, [...pointRows, addPoint, this.el("p", { class: "hint", text: t("pointsHint") })]),
+      this.pointsSection(poly, { rebuild: "site", min: 3, closed: true, hint: t("pointsHint") }),
       this.section(null, [this.button(t("duplicate"), () => app.duplicateSelected()), this.lockRow(poly, poly.id), this.button(t("delete"), () => app.deleteSelected(), "danger")]),
+    );
+  }
+  renderRailing({ item: r, type, building }) {
+    const app = this.app, t = app.t;
+    const fence = type === "fence";
+    this.scope = fence ? "site" : "building";
+    const styles = (fence ? FENCE_STYLES : RAILING_STYLES).map((k) => [k, t(`style_${k}`)]);
+    const main = [
+      this.text(r, "name"),
+      this.select(r, "style", styles, { label: t("style") }),
+      this.number(r, "height", { min: 20, max: 400 }),
+      this.number(r, "postSpacing", { min: 40, max: 600 }),
+      this.el("p", { class: "hint", text: `${t("length")}: ${Math.round(polylineLength(r.points))} cm` }),
+    ];
+    const actions = [];
+    if (fence) {
+      actions.push(this.button(t("addGate"), () => {
+        app.select(r.id);
+        app.setTab("garden");
+        app.setTool("gate");
+      }));
+    }
+    this.root.append(
+      this.section(null, main),
+      this.section(t("surface"), [this.material(r, "material"), this.color(r, "tint")]),
+      this.pointsSection(r, { rebuild: this.scope, min: 2, closed: false, hint: t("lineEditHint"), buildingId: building?.id || null }),
+      this.section(null, [...actions, this.button(t("duplicate"), () => app.duplicateSelected()), this.lockRow(r, r.id), this.button(t("delete"), () => app.deleteSelected(), "danger")]),
+    );
+  }
+  renderGate({ item: g, fence }) {
+    const app = this.app, t = app.t;
+    this.scope = "site";
+    const len = polylineLength(fence.points);
+    const clamp = () => clampGate(g, fence);
+    this.root.append(
+      this.section(null, [
+        this.select(g, "type", GATE_TYPES.map((k) => [k, t(`gate_${k}`)]), {
+          label: t("type"),
+          after: (v) => {
+            g.width = GATE_WIDTHS[v] ?? g.width;
+            clamp();
+          },
+        }),
+        this.number(g, "offset", { min: 0, max: len, after: clamp, label: t("position") }),
+        this.number(g, "width", { min: 60, max: 600, after: clamp }),
+        this.el("p", { class: "hint", text: t("gateSlideHint") }),
+      ]),
+      this.section(null, [this.lockRow(g, g.id), this.button(t("delete"), () => app.deleteSelected(), "danger")]),
     );
   }
   renderObject({ item: o, building }) {

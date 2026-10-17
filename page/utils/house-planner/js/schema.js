@@ -26,6 +26,10 @@ export const STOREY_PRESETS = [
 ];
 export const TILE = 50;
 export const ROOF_TYPES = ["none", "flat", "gable", "hip"];
+export const RAILING_STYLES = ["glass", "wood", "metal", "masonry"];
+export const FENCE_STYLES = ["picket", "ranch", "masonry", "hedge"];
+export const GATE_TYPES = ["single", "double", "sliding"];
+export const GATE_WIDTHS = { single: 100, double: 240, sliding: 300 };
 
 let counter = 0;
 export function uid(prefix = "id") {
@@ -89,7 +93,7 @@ export function freshStorey(prev, preset = "ground", name = "") {
   return {
     id: uid("st"), name, elevation, height: p.height, slabThickness: 20,
     locked: false, visible: true,
-    floorGroups: [], walls: [], stairs: [], objects: [],
+    floorGroups: [], walls: [], stairs: [], railings: [], objects: [],
   };
 }
 export function freshRoof() {
@@ -108,7 +112,7 @@ export function freshProject(name = "") {
     terrain: freshTerrain(),
     sun: freshSun(),
     buildings: [b],
-    outdoor: [], gardenPatches: [], objects: [],
+    outdoor: [], gardenPatches: [], fences: [], objects: [],
     view: { cutaway: false, activeBuilding: b.id, activeStorey: b.storeys[0].id, camera: null },
   };
 }
@@ -240,6 +244,37 @@ export function placementChecked(raw = {}) {
   };
   return out;
 }
+export function gateChecked(raw = {}, length = 1e5) {
+  const type = GATE_TYPES.includes(raw.type) ? raw.type : "single";
+  return {
+    id: str(raw.id, uid("gt")),
+    offset: num(raw.offset, 0, length, 0),
+    width: num(raw.width, 60, 600, GATE_WIDTHS[type] ?? 100),
+    type,
+    locked: !!raw.locked,
+  };
+}
+/** A railing (storey, building-local cm) or a fence (site, world cm): a polyline with posts. */
+export function railingChecked(raw = {}, kind = "railing") {
+  const fence = kind === "fence";
+  const styles = fence ? FENCE_STYLES : RAILING_STYLES;
+  const points = (Array.isArray(raw.points) ? raw.points : []).map((p) => vec2(p)).slice(0, 200);
+  let length = 0;
+  for (let i = 1; i < points.length; i++) length += Math.hypot(points[i][0] - points[i - 1][0], points[i][1] - points[i - 1][1]);
+  const out = {
+    id: str(raw.id, uid(fence ? "fe" : "rl")),
+    name: str(raw.name, ""),
+    points,
+    height: num(raw.height, 20, 400, fence ? 150 : 100),
+    style: styles.includes(raw.style) ? raw.style : styles[0],
+    postSpacing: num(raw.postSpacing, 40, 600, 150),
+    material: texture(raw.material, null),
+    tint: color(raw.tint, null),
+    locked: !!raw.locked,
+  };
+  if (fence) out.gates = (Array.isArray(raw.gates) ? raw.gates : []).map((g) => gateChecked(g, length));
+  return out;
+}
 export function storeyChecked(raw = {}, index = 0) {
   return {
     id: str(raw.id, uid("st")),
@@ -252,6 +287,7 @@ export function storeyChecked(raw = {}, index = 0) {
     floorGroups: (Array.isArray(raw.floorGroups) ? raw.floorGroups : []).map(floorGroupChecked),
     walls: (Array.isArray(raw.walls) ? raw.walls : []).map(wallChecked),
     stairs: (Array.isArray(raw.stairs) ? raw.stairs : []).map(stairsChecked),
+    railings: (Array.isArray(raw.railings) ? raw.railings : []).map((r) => railingChecked(r, "railing")),
     objects: (Array.isArray(raw.objects) ? raw.objects : []).map(placementChecked),
   };
 }
@@ -314,9 +350,14 @@ export function projectChecked(raw) {
     check(b.id);
     for (const s of b.storeys) {
       check(s.id);
-      for (const list of [s.floorGroups, s.walls, s.stairs, s.objects]) for (const it of list) check(it.id);
+      for (const list of [s.floorGroups, s.walls, s.stairs, s.railings, s.objects]) for (const it of list) check(it.id);
       for (const w of s.walls) for (const o of w.openings) check(o.id);
     }
+  }
+  const fences = (Array.isArray(raw.fences) ? raw.fences : []).map((f) => railingChecked(f, "fence"));
+  for (const f of fences) {
+    check(f.id);
+    for (const g of f.gates) check(g.id);
   }
   const view = raw.view && typeof raw.view === "object" ? raw.view : {};
   const activeBuilding = buildings.find((b) => b.id === view.activeBuilding) || buildings[0];
@@ -333,6 +374,7 @@ export function projectChecked(raw) {
     buildings,
     outdoor: (Array.isArray(raw.outdoor) ? raw.outdoor : []).map((p) => polygonChecked(p, "outdoor")),
     gardenPatches: (Array.isArray(raw.gardenPatches) ? raw.gardenPatches : []).map((p) => polygonChecked(p, "garden")),
+    fences,
     objects: (Array.isArray(raw.objects) ? raw.objects : []).map(placementChecked),
     view: {
       cutaway: !!view.cutaway,
@@ -394,6 +436,10 @@ export function locate(project, id) {
   for (const o of project.objects) if (o.id === id) return { type: "object", item: o, list: project.objects };
   for (const d of project.outdoor) if (d.id === id) return { type: "outdoor", item: d, list: project.outdoor };
   for (const g of project.gardenPatches) if (g.id === id) return { type: "garden", item: g, list: project.gardenPatches };
+  for (const f of project.fences) {
+    if (f.id === id) return { type: "fence", item: f, list: project.fences };
+    for (const g of f.gates) if (g.id === id) return { type: "gate", item: g, fence: f, list: f.gates };
+  }
   for (const building of project.buildings) {
     if (building.id === id) return { type: "building", item: building, building };
     for (const storey of building.storeys) {
@@ -404,6 +450,7 @@ export function locate(project, id) {
         for (const op of wall.openings) if (op.id === id) return { type: "opening", item: op, building, storey, wall, list: wall.openings };
       }
       for (const s of storey.stairs) if (s.id === id) return { type: "stairs", item: s, building, storey, list: storey.stairs };
+      for (const r of storey.railings) if (r.id === id) return { type: "railing", item: r, building, storey, list: storey.railings };
       for (const o of storey.objects) if (o.id === id) return { type: "object", item: o, building, storey, list: storey.objects };
     }
   }
@@ -412,10 +459,16 @@ export function locate(project, id) {
 export function isLocked(project, id) {
   const hit = locate(project, id);
   if (!hit) return false;
-  return !!(hit.item.locked || hit.wall?.locked || hit.storey?.locked || hit.building?.locked);
+  return !!(hit.item.locked || hit.wall?.locked || hit.fence?.locked || hit.storey?.locked || hit.building?.locked);
 }
 export function wallLength(w) {
   return Math.hypot(w.b[0] - w.a[0], w.b[1] - w.a[1]);
+}
+/** Length (cm) of a polyline. */
+export function polylineLength(points) {
+  let len = 0;
+  for (let i = 1; i < points.length; i++) len += Math.hypot(points[i][0] - points[i - 1][0], points[i][1] - points[i - 1][1]);
+  return len;
 }
 export function storeyTop(storey) {
   return storey.elevation + storey.height;
