@@ -263,6 +263,9 @@ class App {
     const found = this.locate(id);
     if (!found || found.type !== "storey") return;
     found.item.visible = !found.item.visible;
+    // a hidden storey folds up in the list; showing it again unfolds it
+    if (found.item.visible) this.tree.collapsed.delete(`s:${id}`);
+    else this.tree.collapsed.add(`s:${id}`);
     this.applyVisibility();
     this.refreshAll();
     this.queueSave();

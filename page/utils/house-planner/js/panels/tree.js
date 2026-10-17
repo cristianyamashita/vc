@@ -43,7 +43,7 @@ export class Tree {
       const lock = opts.lockable ? `<button class="mini ${locked ? "on" : ""}" data-lock="${id}" title="${t("lock")}">${locked ? "🔒" : "🔓"}</button>` : "";
       const eye = opts.visibleToggle ? `<button class="mini ${opts.visible ? "" : "off"}" data-eye="${id}" title="${t("visible")}">${opts.visible ? "👁" : "⊘"}</button>` : "";
       rows.push(
-        `<div class="trow ${sel === id ? "selected" : ""} ${opts.active ? "active" : ""} ${opts.hidden ? "dim" : ""}" data-id="${id}" data-type="${type}" style="--depth:${q ? 0 : depth}">${caret}<span class="ticon">${opts.icon || ""}</span><span class="tlabel">${escapeHtml(text)}</span>${eye}${lock}</div>`,
+        `<div class="trow ${sel === id ? "selected" : ""} ${opts.active ? "active" : ""} ${opts.hidden ? "muted" : ""}" data-id="${id}" data-type="${type}" style="--depth:${q ? 0 : depth}">${caret}<span class="ticon">${opts.icon || ""}</span><span class="tlabel">${escapeHtml(text)}</span>${eye}${lock}</div>`,
       );
     };
     const open = (key) => q || !this.collapsed.has(key);
