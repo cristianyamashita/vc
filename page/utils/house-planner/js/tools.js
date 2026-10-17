@@ -4,22 +4,23 @@
 // through app.checkpoint() / app.changed().
 import * as THREE from "three";
 import { M, CM } from "./scene.js";
-import { uid, OPENING_PRESETS, wallLength, isLocked } from "./schema.js";
+import { uid, OPENING_PRESETS, GATE_WIDTHS, wallLength, polylineLength, isLocked } from "./schema.js";
 import { tileKey, floorTop } from "./build/slabs.js";
 import { nearestOnWall, clampOpening, wallHeight } from "./build/walls.js";
 import { propObject, propBounds } from "./props.js";
 import { ghostMaterial } from "./materials.js";
 import { buildStairs, defaultRise } from "./build/stairs.js";
 import { DEFAULT_MATERIAL } from "./build/outdoor.js";
+import { buildRailing, railingOffset, nearestOnPolyline, pointAlong, clampGate, DEFAULT_TEXTURE } from "./build/railing.js";
 
 export const TAB_TOOLS = {
   terrain: ["select", "raise", "lower", "flatten", "smooth"],
   floors: ["select", "paint", "erase", "rect"],
-  walls: ["select", "draw"],
+  walls: ["select", "draw", "railing"],
   openings: ["select", "add"],
   stairs: ["select", "place"],
   outdoor: ["select", "polygon"],
-  garden: ["select", "polygon"],
+  garden: ["select", "polygon", "fence", "gate"],
   objects: ["select", "place"],
 };
 const DEG = Math.PI / 180;
@@ -32,6 +33,7 @@ export class Tools {
     this.stroke = null; // per-drag state
     this.chain = null; // wall drawing start [x,z]
     this.poly = null; // polygon points being drawn (world cm)
+    this.line = null; // railing / fence points being drawn (cm)
     this.lastMove = null; // last pointer event, to redraw ghosts
     this.ghost = new THREE.Group();
     app.scene.overlay.add(this.ghost);
@@ -42,12 +44,14 @@ export class Tools {
     this.canvas.addEventListener("pointerleave", () => this.clearGhost());
     this.canvas.addEventListener("dblclick", () => {
       if (this.poly) this.closePolygon();
+      else if (this.line) this.finishLine();
       else this.endChain();
     });
     this.canvas.addEventListener("contextmenu", (e) => {
       e.preventDefault();
       if (this.chain) this.endChain();
       else if (this.poly) this.closePolygon();
+      else if (this.line) this.finishLine();
     });
   }
   get tool() {
@@ -56,16 +60,18 @@ export class Tools {
   reset() {
     this.chain = null;
     this.poly = null;
+    this.line = null;
     this.stroke = null;
     this.down = null;
     this.clearGhost();
   }
   /** Something to cancel with Esc (wall chain or polygon)? */
   get busy() {
-    return !!(this.chain || this.poly);
+    return !!(this.chain || this.poly || this.line);
   }
   cancel() {
     if (this.chain) return this.endChain();
+    if (this.line) return this.finishLine();
     if (this.poly) {
       this.poly = null;
       this.clearGhost();
@@ -123,7 +129,8 @@ export class Tools {
         break;
       case "walls":
         if (!storey || isLocked(this.app.project, storey.id)) return this.app.toast(this.app.t("lockedItem"));
-        this.wallClick(e);
+        if (tool === "railing") this.lineClick(e);
+        else this.wallClick(e);
         break;
       case "openings":
         if (!storey) return;
@@ -138,7 +145,9 @@ export class Tools {
         break;
       case "outdoor":
       case "garden":
-        this.polygonClick(e);
+        if (tool === "fence") this.lineClick(e);
+        else if (tool === "gate") this.gateClick(e);
+        else this.polygonClick(e);
         break;
     }
   }
@@ -154,7 +163,9 @@ export class Tools {
         break;
       case "outdoor":
       case "garden":
-        this.polygonGhost(e);
+        if (tool === "fence") this.lineGhost(e);
+        else if (tool === "gate") this.gateGhost(e);
+        else this.polygonGhost(e);
         break;
       case "terrain":
         if (this.stroke && this.down) this.brush(e);
@@ -169,7 +180,8 @@ export class Tools {
         } else this.tileGhost(e);
         break;
       case "walls":
-        this.wallGhost(e);
+        if (tool === "railing") this.lineGhost(e);
+        else this.wallGhost(e);
         break;
       case "openings":
         this.openingGhost(e);
@@ -562,6 +574,204 @@ export class Tools {
     this.app.changed({ rebuild: "building", buildingId: this.app.building().id });
     this.app.select(st.id, { keepTool: true });
     this.app.toast(this.app.t("placed"));
+  }
+
+  // ------------------------------------------------- railings / fences
+
+  /** Railing (building-local, on the active storey's floor) or fence (world, on the ground)? */
+  get lineKind() {
+    return this.app.state.tab === "garden" ? "fence" : "railing";
+  }
+  /** Snapped cm point for the line being drawn: magnet to ends, grid, Shift axis lock. */
+  linePoint(e) {
+    const fence = this.lineKind === "fence";
+    const storey = this.app.storey(), building = this.app.building();
+    let x, z;
+    const ends = [];
+    if (fence) {
+      const hit = this.terrainHit(e) || this.app.scene.pickPlane(e, 0);
+      if (!hit) return null;
+      x = hit.x * CM;
+      z = hit.z * CM;
+      for (const f of this.app.project.fences) ends.push(...f.points);
+    } else {
+      const p = this.app.scene.pickPlane(e, (storey.elevation + this.activeOffset()) * M);
+      if (!p) return null;
+      const l = this.app.toLocal(building, p);
+      x = l.x;
+      z = l.z;
+      for (const w of storey.walls) ends.push(w.a, w.b);
+      for (const r of storey.railings) ends.push(...r.points);
+    }
+    let best = null, bestD = 20;
+    for (const end of ends) {
+      const d = Math.hypot(end[0] - x, end[1] - z);
+      if (d < bestD) {
+        bestD = d;
+        best = end;
+      }
+    }
+    if (best) return [best[0], best[1]];
+    const snap = this.app.state.snap ? this.app.project.grid.snap : 1;
+    x = Math.round(x / snap) * snap;
+    z = Math.round(z / snap) * snap;
+    const last = this.line?.[this.line.length - 1];
+    if (last && e.shiftKey) {
+      if (Math.abs(x - last[0]) > Math.abs(z - last[1])) z = last[1];
+      else x = last[0];
+    }
+    return [x, z];
+  }
+  /** The item being drawn, with the pending style. */
+  pendingLine(points) {
+    const fence = this.lineKind === "fence";
+    const style = fence ? this.app.state.pendingFenceStyle : this.app.state.pendingRailingStyle;
+    const list = fence ? this.app.project.fences : this.app.storey().railings;
+    const last = [...list].reverse().find((r) => r.style === style);
+    const item = {
+      id: uid(fence ? "fe" : "rl"), name: "", points, height: last?.height ?? (fence ? 150 : 100), style,
+      postSpacing: last?.postSpacing ?? 150, material: last?.material ?? DEFAULT_TEXTURE[style] ?? null, tint: last?.tint ?? null, locked: false,
+    };
+    if (fence) item.gates = [];
+    return item;
+  }
+  lineClick(e) {
+    const p = this.linePoint(e);
+    if (!p) return;
+    if (!this.line) this.line = [];
+    const last = this.line[this.line.length - 1];
+    if (last && Math.hypot(last[0] - p[0], last[1] - p[1]) < 2) return;
+    // clicking the first point again closes the loop and ends
+    if (this.line.length >= 3 && Math.hypot(this.line[0][0] - p[0], this.line[0][1] - p[1]) < 15) {
+      this.line.push([this.line[0][0], this.line[0][1]]);
+      return this.finishLine();
+    }
+    this.line.push(p);
+    this.lineGhost(e);
+  }
+  /** End the line: a railing or fence when it has at least 2 points. */
+  finishLine() {
+    const pts = this.line;
+    if (!pts) return;
+    this.line = null;
+    this.clearGhost();
+    if (pts.length < 2 || polylineLength(pts) < 5) return this.app.toast(this.app.t("lineNeed2"));
+    const fence = this.lineKind === "fence";
+    const item = this.pendingLine(pts.map(([x, z]) => [x, z]));
+    this.app.checkpoint();
+    if (fence) {
+      this.app.project.fences.push(item);
+      this.app.changed({ rebuild: "site" });
+    } else {
+      this.app.storey().railings.push(item);
+      this.app.changed({ rebuild: "building", buildingId: this.app.building().id });
+    }
+    this.app.select(item.id, { keepTool: true });
+    this.app.toast(this.app.t(fence ? "fenceDone" : "railingDone"));
+  }
+  lineGhost(e) {
+    const p = this.linePoint(e);
+    if (!p) return this.clearGhost();
+    const fence = this.lineKind === "fence";
+    const storey = this.app.storey(), building = this.app.building();
+    const committed = this.line || [];
+    const pts = [...committed, p];
+    const pending = this.pendingLine(committed);
+    const style = pending.style;
+    const key = `${this.lineKind}|${style}|${committed.map((q) => q.join(",")).join(";")}`;
+    let outer = this.ghost.children[0];
+    if (!outer || outer.userData.key !== key) {
+      // the committed part as real geometry, rebuilt only when a point is added
+      outer = new THREE.Group();
+      outer.userData.key = key;
+      if (committed.length >= 2) {
+        const item = pending;
+        const g = fence
+          ? buildRailing(item, "fence", { heightAt: (x, z) => this.app.terrain.heightAt(x, z), ghost: ghostMaterial("#008f7d") })
+          : buildRailing(item, "railing", { baseY: storey.elevation + railingOffset(item, storey, this.app.project.grid.tile), ghost: ghostMaterial("#008f7d") });
+        outer.add(g);
+      }
+      outer.add(new THREE.Group()); // the moving segment
+      if (!fence) this.app.applyBuildingTransform(outer, building);
+      this.setGhost(outer);
+    }
+    const live = outer.children[outer.children.length - 1];
+    for (const c of [...live.children]) {
+      live.remove(c);
+      c.geometry?.dispose?.();
+    }
+    const baseY = fence ? (x, z) => this.app.terrain.heightAt(x, z) + 2 : () => storey.elevation + this.activeOffset() + 2;
+    const mat = ghostMaterial("#008f7d");
+    const dot = new THREE.Mesh(new THREE.SphereGeometry(0.06, 10, 8), mat);
+    dot.position.set(p[0] * M, baseY(p[0], p[1]) * M, p[1] * M);
+    live.add(dot);
+    const last = committed[committed.length - 1];
+    if (last) {
+      const dx = p[0] - last[0], dz = p[1] - last[1];
+      const len = Math.hypot(dx, dz);
+      if (len > 1) {
+        const h = pending.height * M;
+        const y0 = baseY(last[0], last[1]), y1 = baseY(p[0], p[1]);
+        const box = new THREE.Mesh(new THREE.BoxGeometry(Math.hypot(len, y1 - y0) * M, h, 0.06), mat);
+        box.position.set(((last[0] + p[0]) / 2) * M, ((y0 + y1) / 2) * M + h / 2, ((last[1] + p[1]) / 2) * M);
+        box.rotation.y = -Math.atan2(dz, dx);
+        box.rotation.z = Math.atan2(y1 - y0, len);
+        box.rotation.order = "YZX";
+        live.add(box);
+        this.app.showMeasure(`${Math.round(len)} cm · Σ ${Math.round(polylineLength(pts))} cm`);
+      }
+    }
+    this.app.scene.requestRender();
+  }
+
+  // ------------------------------------------------------------- gates
+
+  /** Fence under the pointer: {fence, s (cm along it), point}. */
+  fenceUnderPointer(e) {
+    const meshes = [];
+    this.app.siteGroup?.traverse((o) => {
+      if (o.userData.kind === "fence" && o.isMesh) meshes.push(o);
+    });
+    const hit = this.app.scene.pickObjects(e, meshes, false)[0];
+    if (!hit) return null;
+    const fence = this.app.project.fences.find((f) => f.id === hit.object.userData.id);
+    if (!fence) return null;
+    const near = nearestOnPolyline(fence.points, hit.point.x * CM, hit.point.z * CM);
+    if (!near) return null;
+    return { fence, s: near.s, point: hit.point, near };
+  }
+  pendingGate(fence, s) {
+    const type = this.app.state.pendingGateType;
+    const width = GATE_WIDTHS[type] ?? 100;
+    const snap = this.app.state.snap ? this.app.project.grid.snap : 1;
+    const gate = { id: uid("gt"), offset: Math.round((s - width / 2) / snap) * snap, width, type, locked: false };
+    return clampGate(gate, fence);
+  }
+  gateClick(e) {
+    const hit = this.fenceUnderPointer(e);
+    if (!hit) return;
+    if (isLocked(this.app.project, hit.fence.id)) return this.app.toast(this.app.t("lockedItem"));
+    const gate = this.pendingGate(hit.fence, hit.s);
+    const overlaps = hit.fence.gates.some((g) => gate.offset < g.offset + g.width && g.offset < gate.offset + gate.width);
+    if (overlaps) return this.app.toast(this.app.t("gateOverlap"));
+    this.app.checkpoint();
+    hit.fence.gates.push(gate);
+    this.app.changed({ rebuild: "site" });
+    this.app.select(gate.id, { keepTool: true });
+  }
+  gateGhost(e) {
+    const hit = this.fenceUnderPointer(e);
+    if (!hit) return this.clearGhost();
+    const gate = this.pendingGate(hit.fence, hit.s);
+    const p0 = pointAlong(hit.fence.points, gate.offset), p1 = pointAlong(hit.fence.points, gate.offset + gate.width);
+    const H = hit.fence.height;
+    const y = Math.max(this.app.terrain.heightAt(p0.x, p0.z), this.app.terrain.heightAt(p1.x, p1.z));
+    const box = new THREE.Mesh(new THREE.BoxGeometry(gate.width * M, H * M, 30 * M), ghostMaterial("#008f7d"));
+    box.position.set(((p0.x + p1.x) / 2) * M, (y + H / 2) * M, ((p0.z + p1.z) / 2) * M);
+    box.rotation.y = -Math.atan2(p1.z - p0.z, p1.x - p0.x);
+    const group = new THREE.Group();
+    group.add(box);
+    this.setGhost(group);
   }
 
   // ---------------------------------------------------------- polygons
