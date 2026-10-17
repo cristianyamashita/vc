@@ -34,11 +34,11 @@ body {
   overflow: hidden;
 }
 button, select, input { font: inherit; color: inherit; }
-.app { height: 100%; display: grid; grid-template-rows: auto auto 1fr; }
+.app { height: 100%; display: grid; grid-template-rows: auto auto 1fr; min-width: 0; overflow: hidden; }
 
 /* top bar */
 .topbar {
-  height: 44px; display: flex; align-items: center; gap: 6px; padding: 0 10px;
+  height: 44px; display: flex; align-items: center; gap: 6px; padding: 0 10px; min-width: 0;
   background: var(--panel); border-bottom: 1px solid var(--border);
 }
 .appicon { width: 18px; height: 18px; }
@@ -71,7 +71,7 @@ button, select, input { font: inherit; color: inherit; }
 .dropdown button:hover { background: var(--soft); }
 
 /* toolbar */
-.toolbar { height: 34px; display: flex; align-items: center; gap: 8px; padding: 0 10px; background: var(--panel); border-bottom: 1px solid var(--border); }
+.toolbar { height: 34px; display: flex; align-items: center; gap: 8px; padding: 0 10px; min-width: 0; overflow: hidden; background: var(--panel); border-bottom: 1px solid var(--border); }
 .tools { display: flex; gap: 4px; align-items: center; }
 .tools label { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--muted); }
 .tools select { height: 26px; font-size: 12px; }
@@ -94,7 +94,7 @@ input[type="search"], input[type="text"], input[type="number"] {
 .trow:hover { background: var(--soft); }
 .trow.selected { background: var(--accent); color: var(--accent-ink); }
 .trow.active .tlabel { font-weight: 600; }
-.trow.dim { opacity: 0.55; }
+.trow.muted { opacity: 0.55; }
 .caret { width: 16px; flex: 0 0 16px; border: 0; background: transparent; color: inherit; cursor: pointer; padding: 0; font-size: 11px; }
 .ticon { width: 16px; text-align: center; font-size: 11px; opacity: 0.8; }
 .tlabel { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -112,6 +112,15 @@ input[type="search"], input[type="text"], input[type="number"] {
 .citem:hover { border-color: var(--accent); }
 .citem.on { border-color: var(--accent); background: var(--soft); }
 .citem .ccat { font-size: 10px; color: var(--muted); }
+.citem { position: relative; padding-top: 4px; }
+.citem .cthumb { width: 100%; height: 68px; object-fit: contain; border-radius: 5px; background: rgba(127, 127, 127, 0.08); }
+.citem .cname { line-height: 1.2; }
+.citem .cacts { position: absolute; top: 2px; right: 2px; display: none; gap: 2px; }
+.citem:hover .cacts { display: flex; }
+.citem .cacts .mini { background: var(--panel); opacity: 0.9; border: 1px solid var(--border); }
+.swatch { width: 12px; height: 12px; border-radius: 3px; border: 1px solid rgba(0, 0, 0, 0.2); flex: 0 0 12px; }
+.sep { width: 1px; height: 20px; background: var(--border); margin: 0 4px; }
+body.editing .tabs button { opacity: 0.35; }
 
 .viewport { position: relative; min-width: 0; min-height: 0; background: var(--bg); }
 .viewport canvas { width: 100%; height: 100%; display: block; touch-action: none; }
@@ -120,6 +129,15 @@ input[type="search"], input[type="text"], input[type="number"] {
   background: var(--panel); border: 1px solid var(--border); font-size: 12px; pointer-events: none; box-shadow: var(--shadow);
 }
 .measure { top: 8px; }
+.dims { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.dims .dim { position: absolute; transform: translate(-50%, -50%); padding: 1px 6px; border-radius: 5px; background: var(--accent); color: var(--accent-ink); font-size: 11px; font-weight: 600; white-space: nowrap; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25); }
+.sel-actions { flex-wrap: nowrap; }
+.sel-actions .mode .mlabel { font-size: 9.5px; letter-spacing: -0.01em; }
+.sel-actions .tb, .row-actions.modes .btn { flex: 1; min-width: 0; padding: 3px 2px; }
+.tb.mode, .btn.mode { display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; height: 40px; line-height: 1; }
+.mode .mico { font-size: 15px; line-height: 16px; height: 16px; }
+.mode .mlabel { font-size: 10.5px; line-height: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.row-actions.modes { flex-wrap: nowrap; }
 .toast { bottom: 10px; }
 
 /* properties */

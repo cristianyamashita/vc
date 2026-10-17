@@ -66,6 +66,20 @@ export class Terrain {
     };
     this.depthMaterial = withCut(new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking }), this.cut, "depth-cut");
   }
+  /** Reuse the mesh and material when only heights changed (a rebuild must
+   *  not destroy and recompile the terrain shader every time). */
+  ensure(doc) {
+    const b = this.built;
+    const same = this.mesh && b && b.resolution === doc.resolution && b.width === doc.width && b.depth === doc.depth;
+    if (!same) return this.build(doc);
+    this.doc = doc;
+    if (this.matKey !== this.materialKey()) this.refreshMaterial();
+    this.update();
+    return this.mesh;
+  }
+  materialKey() {
+    return `${this.doc.material}|${this.doc.tint || ""}`;
+  }
   build(doc) {
     this.doc = doc;
     const n = doc.resolution;
@@ -88,6 +102,7 @@ export class Terrain {
     geo.setIndex(indices);
     this.dispose();
     this.mesh = new THREE.Mesh(geo, this.material());
+    this.built = { resolution: n, width: doc.width, depth: doc.depth };
     this.mesh.customDepthMaterial = this.depthMaterial;
     this.mesh.receiveShadow = true;
     this.mesh.castShadow = true;
@@ -102,12 +117,14 @@ export class Terrain {
     const m = id
       ? new TriplanarMaterial({ textureId: id, tile: textureTile(id), color, roughness: 1, metalness: textureIndex[id].metal || 0 })
       : new THREE.MeshStandardMaterial({ color, roughness: 0.9, metalness: 0 });
+    this.matKey = this.materialKey();
     return withCut(m, this.cut, id ? "triplanar-cut" : "standard-cut");
   }
   refreshMaterial() {
     if (!this.mesh) return;
-    this.mesh.material.dispose();
+    const old = this.mesh.material;
     this.mesh.material = this.material();
+    old.dispose();
   }
   /** Polygons (world cm) where the ground is not drawn (pools). */
   setCutouts(polys) {

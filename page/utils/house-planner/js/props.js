@@ -38,6 +38,9 @@ export function registerCustom(doc) {
   else catalog.props.push(entry);
   geometryCache.delete(doc.id);
 }
+export function invalidateGeometry(id) {
+  geometryCache.delete(id);
+}
 export function unregisterCustom(id) {
   docs.delete(id);
   customIds.delete(id);
@@ -80,7 +83,8 @@ function fold(s) {
 
 // --------------------------------------------------------------- geometry
 
-function partGeometry(b) {
+/** Unit shape scaled to w/h/d, before the part's own placement. */
+export function shapeGeometry(b) {
   let g;
   switch (b.shape) {
     case "sphere": g = new THREE.SphereGeometry(0.5, 14, 10); break;
@@ -107,8 +111,15 @@ function partGeometry(b) {
     if (b.axis === "z") g.rotateX(Math.PI / 2);
   }
   g.scale(b.w, b.h, b.d);
+  return g;
+}
+export function partMatrix(b) {
   const e = new THREE.Euler(b.rx || 0, b.ry || 0, b.rz || 0, "YXZ");
-  g.applyMatrix4(new THREE.Matrix4().compose(new THREE.Vector3(b.x || 0, b.y || 0, b.z || 0), new THREE.Quaternion().setFromEuler(e), new THREE.Vector3(1, 1, 1)));
+  return new THREE.Matrix4().compose(new THREE.Vector3(b.x || 0, b.y || 0, b.z || 0), new THREE.Quaternion().setFromEuler(e), new THREE.Vector3(1, 1, 1));
+}
+function partGeometry(b) {
+  const g = shapeGeometry(b);
+  g.applyMatrix4(partMatrix(b));
   const c = new THREE.Color(b.color);
   const n = g.attributes.position.count;
   const arr = new Float32Array(n * 3);
@@ -142,14 +153,15 @@ export function propGeometry(doc) {
     }
   }
   const out = { opaque: null, glass: [], bounds: new THREE.Box3() };
+  const uniform = (list) => list.map((g) => (g.index ? g.toNonIndexed() : g));
   if (opaque.length) {
-    out.opaque = mergeGeometries(opaque, false);
+    out.opaque = mergeGeometries(uniform(opaque), false);
     opaque.forEach((g) => g.dispose());
     out.opaque.computeBoundingBox();
     out.bounds.union(out.opaque.boundingBox);
   }
   for (const [opacity, list] of glassBuckets) {
-    const geo = mergeGeometries(list, false);
+    const geo = mergeGeometries(uniform(list), false);
     list.forEach((g) => g.dispose());
     geo.computeBoundingBox();
     out.bounds.union(geo.boundingBox);

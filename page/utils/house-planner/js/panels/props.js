@@ -2,7 +2,7 @@
 import { OPENING_PRESETS, STOREY_PRESETS, isLocked, wallLength } from "../schema.js";
 import { textureIds, textureIndex } from "../materials.js";
 import { Sun } from "../sun.js";
-import { propDocSync } from "../props.js";
+import { propDocSync, customIds } from "../props.js";
 import { stairsSteps } from "../build/stairs.js";
 import { polygonLevels } from "../build/outdoor.js";
 
@@ -36,7 +36,8 @@ export class PropsPanel {
       this.app.checkpoint();
       obj[key] = v;
       after?.(v);
-      this.app.changed({ rebuild: this.scope });
+      this.app.changed({ rebuild: this.scope, panels: false });
+      this.app.tree.render();
     });
     return this.field(label ?? this.app.t(key), input, unit);
   }
@@ -89,7 +90,8 @@ export class PropsPanel {
         this.colorCheckpoint = true;
       }
       obj[key] = input.value;
-      this.app.changed({ rebuild: rebuild ?? this.scope, save: false });
+      input.classList.remove("empty");
+      this.app.changed({ rebuild: rebuild ?? this.scope, save: false, panels: false });
     });
     input.addEventListener("change", () => {
       this.colorCheckpoint = false;
@@ -139,6 +141,15 @@ export class PropsPanel {
     if (!found) return this.renderProject();
     const head = this.el("div", { class: "phead" }, [this.el("span", { class: "ptype", text: t(found.type) }), this.locked ? this.el("span", { class: "tag", text: `🔒 ${t("lockedShort")}` }) : null]);
     root.append(head);
+    const caps = app.state.caps || [];
+    const icons = { translate: "↔", rotate: "⟳", scale: "⤢" };
+    if (caps.length || found.type !== "sun")
+      root.append(
+        this.el("div", { class: "row-actions modes" }, [
+          ...["translate", "rotate", "scale"].filter((m) => caps.includes(m)).map((m) => this.el("button", { class: `btn mode ${app.state.transformMode === m ? "on" : ""}`, type: "button", onclick: () => app.setTransformMode(m) }, [this.el("span", { class: "mico", text: icons[m] }), this.el("span", { class: "mlabel", text: t(m) })])),
+          this.el("button", { class: `btn mode ${app.dims.enabled ? "on" : ""}`, type: "button", onclick: () => app.toggleDims() }, [this.el("span", { class: "mico", text: "📏" }), this.el("span", { class: "mlabel", text: t("dims") })]),
+        ]),
+      );
     switch (found.type) {
       case "terrain": return this.renderTerrain(found.item);
       case "sun": return this.renderSun(found.item);
@@ -223,7 +234,7 @@ export class PropsPanel {
         }
         sun[key] = Number(input.value);
         out.textContent = `${sun[key]}${unit}`;
-        app.changed({ rebuild: "none", light: true, save: false });
+        app.changed({ rebuild: "none", light: true, save: false, panels: false });
       });
       input.addEventListener("change", () => {
         cp = false;
@@ -456,6 +467,7 @@ export class PropsPanel {
       this.section(t("surface"), [this.material(o, "material"), this.color(o, "tint")]),
       this.section(null, [
         this.button(t("duplicate"), () => app.duplicateSelected()),
+        doc ? this.button(`✎ ${t(o.prop && customIds.has(o.prop) ? "editObject" : "editCopy")}`, () => app.editor.enter(doc)) : null,
         this.lockRow(o, o.id),
         this.button(t("delete"), () => app.deleteSelected(), "danger"),
       ]),

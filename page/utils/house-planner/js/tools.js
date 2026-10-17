@@ -99,6 +99,7 @@ export class Tools {
     if (e.button !== 0 || this.app.gizmo.dragging || this.app.gizmo.hovering) return;
     if (this.app.state.orbitOverride) return;
     this.down = { x: e.clientX, y: e.clientY, moved: false };
+    if (this.app.editor?.active) return;
     const tool = this.tool;
     if (tool === "select") return;
     const storey = this.app.storey(), building = this.app.building();
@@ -143,7 +144,7 @@ export class Tools {
   }
   onMove(e) {
     if (this.down && (Math.abs(e.clientX - this.down.x) > 3 || Math.abs(e.clientY - this.down.y) > 3)) this.down.moved = true;
-    if (this.app.gizmo.dragging) return;
+    if (this.app.gizmo.dragging || this.app.editor?.active) return;
     this.lastMove = e;
     const tool = this.tool;
     if (tool === "select") return;
@@ -182,6 +183,10 @@ export class Tools {
     if (e.button !== 0) return;
     const down = this.down;
     this.down = null;
+    if (this.app.editor?.active) {
+      if (down && !down.moved && !this.app.gizmo.dragging) this.app.editor.pick(e);
+      return;
+    }
     if (!down) return;
     if (this.tool === "select") {
       if (!down.moved && !this.app.gizmo.dragging) this.app.pickSelect(e);
