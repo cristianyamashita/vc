@@ -1,9 +1,10 @@
-// IndexedDB: HousePlannerDB v1 with `projects`, `props` (custom objects)
-// and `thumbs`. Registered in page/utils/backup.html.
-import { projectChecked, propChecked, clone, uid, freshBuilding, freshStorey, OPENING_PRESETS, TILE } from "./schema.js";
+// IndexedDB: HousePlannerDB v2 with `projects`, `props` (custom objects),
+// `thumbs` and `textures` (custom texture images as blobs). Registered in
+// page/utils/backup.html.
+import { projectChecked, propChecked, clone, uid, freshBuilding, freshStorey, OPENING_PRESETS, TILE, registerTextureId, customTextureChecked } from "./schema.js";
 
 const DB = "HousePlannerDB";
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 let dbPromise = null;
 
 export function openDB() {
@@ -15,6 +16,7 @@ export function openDB() {
       if (!db.objectStoreNames.contains("projects")) db.createObjectStore("projects", { keyPath: "id" });
       if (!db.objectStoreNames.contains("props")) db.createObjectStore("props", { keyPath: "id" });
       if (!db.objectStoreNames.contains("thumbs")) db.createObjectStore("thumbs", { keyPath: "id" });
+      if (!db.objectStoreNames.contains("textures")) db.createObjectStore("textures", { keyPath: "id" });
     };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
@@ -68,16 +70,58 @@ export function saveCustomProp(doc) {
 }
 export const deleteCustomProp = (id) => Promise.all([storeDelete("props", id), storeDelete("thumbs", id)]);
 
+// -------------------------------------------------------------- textures
+
+/** Custom textures: {id, name, tile (cm), blob, updatedAt}. */
+export async function listTextures() {
+  const rows = await storeAll("textures");
+  return rows.filter((r) => r && r.id && r.blob instanceof Blob).sort((a, b) => (a.updatedAt < b.updatedAt ? -1 : 1));
+}
+export function saveTexture(row) {
+  row.updatedAt = new Date().toISOString();
+  return storeWrite("textures", row);
+}
+export const deleteTexture = (id) => storeDelete("textures", id);
+/** Ids of custom textures referenced by any saved project (for safe deletion). */
+export async function textureUsers(id) {
+  const rows = await storeAll("projects");
+  const needle = `"${id}"`;
+  return rows.filter((r) => JSON.stringify(r.data || {}).includes(needle)).map((r) => ({ id: r.id, name: r.name }));
+}
+export function blobToDataURL(blob) {
+  return new Promise((resolve, reject) => {
+    const fr = new FileReader();
+    fr.onload = () => resolve(fr.result);
+    fr.onerror = () => reject(fr.error);
+    fr.readAsDataURL(blob);
+  });
+}
+export async function dataURLToBlob(url) {
+  const res = await fetch(url);
+  return res.blob();
+}
+
 // --------------------------------------------------------- export/import
 
-export function exportProject(project, customProps = []) {
+/**
+ * Project JSON with the custom objects it places and the custom textures
+ * it (or those objects) use, as {id, name, tile, data (data URL)}.
+ */
+export function exportProject(project, customProps = [], textures = []) {
   const used = new Set();
   const visit = (o) => o.prop && used.add(o.prop);
   project.objects.forEach(visit);
   for (const b of project.buildings) for (const s of b.storeys) s.objects.forEach(visit);
   const doc = clone(project);
   doc.customProps = customProps.filter((p) => used.has(p.id));
+  const text = JSON.stringify(doc);
+  doc.customTextures = textures.filter((tx) => text.includes(`"${tx.id}"`));
   return JSON.stringify(doc, null, 1);
+}
+/** Custom texture ids referenced anywhere in a project (and its custom objects). */
+export function usedTextureIds(project, customProps = [], ids = []) {
+  const text = JSON.stringify({ project, customProps });
+  return ids.filter((id) => text.includes(`"${id}"`));
 }
 export function download(text, filename) {
   const blob = new Blob([text], { type: "application/json" });
@@ -99,10 +143,13 @@ export function safeFilename(name, suffix) {
 export function parseImport(text) {
   const raw = JSON.parse(text);
   if (raw?.kind === "housePlannerProject") {
+    // textures first: their ids must be known before the project is validated
+    const customTextures = (Array.isArray(raw.customTextures) ? raw.customTextures : []).map(customTextureChecked).filter(Boolean);
+    for (const tx of customTextures) registerTextureId(tx.id);
     const customProps = (Array.isArray(raw.customProps) ? raw.customProps : []).map(propChecked);
-    return { project: projectChecked(raw), customProps };
+    return { project: projectChecked(raw), customProps, customTextures };
   }
-  if (raw?.kind === "environmentPlannerProject") return { project: fromEnvironmentPlanner(raw), customProps: [] };
+  if (raw?.kind === "environmentPlannerProject") return { project: fromEnvironmentPlanner(raw), customProps: [], customTextures: [] };
   if (raw?.kind === "prop") return { prop: propChecked(raw) };
   throw new Error("unsupported");
 }

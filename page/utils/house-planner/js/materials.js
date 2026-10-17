@@ -5,7 +5,7 @@
 import * as THREE from "three";
 
 export const TEXTURE_ROOT = new URL("../../../assets/house-planner/textures/", import.meta.url).href;
-export const textureIndex = {}; // id -> {name:{en,pt,ja}, tile, metal}
+export const textureIndex = {}; // id -> {name:{en,pt,ja}, tile, metal, custom?}
 
 export async function loadTextureIndex() {
   try {
@@ -18,6 +18,12 @@ export async function loadTextureIndex() {
 }
 export const textureIds = () => Object.keys(textureIndex);
 export const textureTile = (id) => textureIndex[id]?.tile || 2;
+export const isCustomTexture = (id) => !!textureIndex[id]?.custom;
+/** Built-in ids and custom ids, for grouped selects. */
+export function textureGroups() {
+  const ids = textureIds();
+  return { builtin: ids.filter((id) => !textureIndex[id].custom), custom: ids.filter((id) => textureIndex[id].custom) };
+}
 
 const loader = new THREE.TextureLoader();
 function solid(r, g, b, colorSpace) {
@@ -33,10 +39,10 @@ let onTextureReady = () => {};
 export function setTextureReadyCallback(fn) {
   onTextureReady = fn;
 }
-function loadMap(id, file, colorSpace) {
+function loadMap(url, colorSpace) {
   return new Promise((resolve, reject) => {
     loader.load(
-      `${TEXTURE_ROOT}${id}/${file}`,
+      url,
       (tex) => {
         tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
         tex.colorSpace = colorSpace;
@@ -54,7 +60,11 @@ function slotFor(id) {
   if (slot) return slot;
   slot = { map: { value: WHITE }, normalMap: { value: FLAT_NORMAL }, ready: false, loading: null };
   slots.set(id, slot);
-  slot.loading = Promise.all([loadMap(id, "color.jpg", THREE.SRGBColorSpace), loadMap(id, "normal.jpg", THREE.NoColorSpace)])
+  const custom = textureIndex[id]?.custom;
+  slot.loading = (custom
+    ? loadMap(textureIndex[id].url, THREE.SRGBColorSpace).then((map) => [map, FLAT_NORMAL])
+    : Promise.all([loadMap(`${TEXTURE_ROOT}${id}/color.jpg`, THREE.SRGBColorSpace), loadMap(`${TEXTURE_ROOT}${id}/normal.jpg`, THREE.NoColorSpace)])
+  )
     .then(([map, normalMap]) => {
       slot.map.value = map;
       slot.normalMap.value = normalMap;
@@ -67,6 +77,51 @@ function slotFor(id) {
   return slot;
 }
 export const textureLoaded = (id) => (textureIndex[id] ? slotFor(id).loading : Promise.resolve());
+
+/**
+ * Register (or update) a user texture: an image blob tiled every `tile`
+ * centimetres, with a flat normal map. The image is loaded through an
+ * object URL; materials created earlier for the same id pick it up
+ * through the shared slot uniforms.
+ */
+export function registerCustomTexture({ id, name, tile, blob }) {
+  const old = textureIndex[id];
+  if (old?.url) URL.revokeObjectURL(old.url);
+  const url = URL.createObjectURL(blob);
+  const tileM = Math.max(0.05, (Number(tile) || 100) / 100);
+  textureIndex[id] = { name: { en: name, pt: name, ja: name }, tile: tileM, metal: 0, custom: true, url };
+  const slot = slots.get(id);
+  if (slot) {
+    // replace the image in place, keep the uniform objects
+    slot.ready = false;
+    slot.loading = loadMap(url, THREE.SRGBColorSpace)
+      .then((map) => {
+        slot.map.value?.dispose?.();
+        slot.map.value = map;
+        slot.ready = true;
+        onTextureReady(id);
+      })
+      .catch(() => {});
+  }
+  for (const m of cache.values()) if (m.isTriplanarMaterial && m.textureId === id) m._tile.value = tileM;
+  return textureIndex[id];
+}
+export function unregisterCustomTexture(id) {
+  const entry = textureIndex[id];
+  if (!entry?.custom) return;
+  if (entry.url) URL.revokeObjectURL(entry.url);
+  delete textureIndex[id];
+  const slot = slots.get(id);
+  if (slot) {
+    if (slot.map.value !== WHITE) slot.map.value.dispose?.();
+    slots.delete(id);
+  }
+  for (const [key, m] of [...cache.entries()])
+    if (key.startsWith(`${id}|`)) {
+      cache.delete(key);
+      m.dispose();
+    }
+}
 
 const VERTEX_PARS = /* glsl */ `
 varying vec3 vTriPos;

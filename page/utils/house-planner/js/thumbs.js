@@ -31,6 +31,9 @@ function ensure() {
 export function thumbKey(doc) {
   return `${doc.id}|${doc.updatedAt || ""}|${doc.source.boxes.length}`;
 }
+export function clearThumbs() {
+  cache.clear();
+}
 export function invalidateThumb(id) {
   for (const k of [...cache.keys()]) if (k.startsWith(`${id}|`)) cache.delete(k);
 }

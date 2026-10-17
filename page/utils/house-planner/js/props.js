@@ -1,11 +1,14 @@
 // Catalog objects ("props"): JSON documents made of primitive parts in
 // metres, the format shared with story-studio and the Environment Planner.
-// Parts are baked into one vertex-coloured geometry per opacity bucket, so a
-// chair with forty parts is one or two draw calls.
+// Parts are baked into one vertex-coloured geometry per bucket (texture id,
+// tint-ability, opacity), so a chair with forty parts is one or two draw
+// calls. A part may carry `material` (a texture id, rendered triplanar
+// with its colour as tint) and `noTint` (keeps its colour when the
+// placement has a tint or texture: countertops, handles, appliances).
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
-import { surfaceMaterial, partGlassMaterial } from "./materials.js";
+import { surfaceMaterial, partGlassMaterial, textureIndex } from "./materials.js";
 import { propChecked } from "./schema.js";
 
 export const ASSET_ROOT = new URL("../../../assets/house-planner/", import.meta.url).href;
@@ -38,6 +41,19 @@ export function registerCustom(doc) {
   else catalog.props.push(entry);
   geometryCache.delete(doc.id);
   glowCache.delete(doc.id);
+}
+/** A generated built-in document (kitchen units): listed in the catalog, not editable in place. */
+export function registerGenerated(doc) {
+  docs.set(doc.id, doc);
+  const entry = { id: doc.id, name: doc.name, category: doc.category || "kitchen", tags: doc.tags, custom: false, generated: true, parts: doc.source.boxes.length };
+  const i = catalog.props.findIndex((p) => p.id === doc.id);
+  if (i >= 0) catalog.props[i] = entry;
+  else catalog.props.push(entry);
+  geometryCache.delete(doc.id);
+}
+/** Drop every cached geometry (a texture was added or removed). */
+export function invalidateAllGeometry() {
+  geometryCache.clear();
 }
 export function invalidateGeometry(id) {
   geometryCache.delete(id);
@@ -135,7 +151,7 @@ function partGeometry(b) {
   return g;
 }
 
-const geometryCache = new Map(); // id -> {opaque, glass:[{opacity, geo}], bounds}
+const geometryCache = new Map(); // id -> {opaque:[{material, noTint, geo}], glass:[{opacity, geo}], bounds}
 const inlineCache = new WeakMap();
 
 /** Baked geometry buckets for a prop document. */
@@ -143,25 +159,30 @@ export function propGeometry(doc) {
   const builtin = !!doc.id && docs.get(doc.id) === doc;
   const cached = builtin ? geometryCache.get(doc.id) : inlineCache.get(doc);
   if (cached) return cached;
-  const opaque = [], glassBuckets = new Map();
+  const opaqueBuckets = new Map(), glassBuckets = new Map();
   for (const b of doc.source.boxes) {
     if (b.hole) continue;
     const g = partGeometry(b);
     const op = b.opacity ?? 1;
-    if (op >= 1) opaque.push(g);
-    else {
+    if (op >= 1) {
+      const material = b.material && textureIndex[b.material] ? b.material : null;
+      const key = `${material || ""}|${b.noTint ? 1 : 0}`;
+      if (!opaqueBuckets.has(key)) opaqueBuckets.set(key, { material, noTint: !!b.noTint, list: [] });
+      opaqueBuckets.get(key).list.push(g);
+    } else {
       const key = Math.round(op * 20) / 20;
       if (!glassBuckets.has(key)) glassBuckets.set(key, []);
       glassBuckets.get(key).push(g);
     }
   }
-  const out = { opaque: null, glass: [], bounds: new THREE.Box3() };
+  const out = { opaque: [], glass: [], bounds: new THREE.Box3() };
   const uniform = (list) => list.map((g) => (g.index ? g.toNonIndexed() : g));
-  if (opaque.length) {
-    out.opaque = mergeGeometries(uniform(opaque), false);
-    opaque.forEach((g) => g.dispose());
-    out.opaque.computeBoundingBox();
-    out.bounds.union(out.opaque.boundingBox);
+  for (const { material, noTint, list } of opaqueBuckets.values()) {
+    const geo = mergeGeometries(uniform(list), false);
+    list.forEach((g) => g.dispose());
+    geo.computeBoundingBox();
+    out.bounds.union(geo.boundingBox);
+    out.opaque.push({ material, noTint, geo });
   }
   for (const [opacity, list] of glassBuckets) {
     const geo = mergeGeometries(uniform(list), false);
@@ -176,12 +197,19 @@ export function propGeometry(doc) {
   return out;
 }
 
-/** A Group of meshes for a placement. tint multiplies the baked colours. */
+/**
+ * A Group of meshes for a placement. The placement's tint and texture
+ * multiply the baked colours of every part without `noTint`; a part's own
+ * texture wins over the placement's.
+ */
 export function propObject(doc, { tint = null, material = null } = {}) {
   const { opaque, glass } = propGeometry(doc);
   const group = new THREE.Group();
-  if (opaque) {
-    const mesh = new THREE.Mesh(opaque, surfaceMaterial({ material, tint, vertexColors: true, roughness: 0.8 }));
+  for (const bucket of opaque) {
+    const mat = bucket.noTint
+      ? surfaceMaterial({ material: bucket.material, tint: null, vertexColors: true, roughness: 0.8 })
+      : surfaceMaterial({ material: bucket.material || material, tint, vertexColors: true, roughness: 0.8 });
+    const mesh = new THREE.Mesh(bucket.geo, mat);
     mesh.castShadow = true;
     mesh.receiveShadow = true;
     group.add(mesh);

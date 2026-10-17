@@ -1,6 +1,7 @@
 // Right panel: properties of the selection, built from small field helpers.
 import { OPENING_PRESETS, STOREY_PRESETS, ROOF_PRESETS, CITIES, ROOF_TYPES, RAILING_STYLES, FENCE_STYLES, GATE_TYPES, GATE_WIDTHS, WALL_TOPS, OUTDOOR_TYPES, NOTE_COLORS, isLocked, wallLength, polylineLength } from "../schema.js";
 import { textureIds, textureIndex } from "../materials.js";
+import { textureControl } from "../textures.js";
 import { Sun } from "../sun.js";
 import { propDocSync, customIds } from "../props.js";
 import { stairsSteps } from "../build/stairs.js";
@@ -113,9 +114,17 @@ export class PropsPanel {
     return this.field(label ?? this.app.t(key), wrap);
   }
   material(obj, key, { label, rebuild } = {}) {
-    const lang = this.app.lang;
-    const opts = [["", this.app.t("solidColor")], ...textureIds().map((id) => [id, textureIndex[id].name[lang] || id])];
-    return this.select(obj, key, opts, { label: label ?? this.app.t("texture"), rebuild });
+    const control = textureControl(this.app, {
+      value: obj[key],
+      disabled: !!this.locked,
+      onChange: (id) => {
+        if (id === obj[key]) return;
+        this.app.checkpoint();
+        obj[key] = id;
+        this.app.changed({ rebuild: rebuild ?? this.scope });
+      },
+    });
+    return this.field(label ?? this.app.t("texture"), control);
   }
   button(text, onClick, cls = "") {
     return this.el("button", { class: `btn ${cls}`, type: "button", text, onclick: onClick });
