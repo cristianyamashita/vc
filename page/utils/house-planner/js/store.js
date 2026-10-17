@@ -17,6 +17,7 @@ export function openDB() {
       if (!db.objectStoreNames.contains("props")) db.createObjectStore("props", { keyPath: "id" });
       if (!db.objectStoreNames.contains("thumbs")) db.createObjectStore("thumbs", { keyPath: "id" });
       if (!db.objectStoreNames.contains("textures")) db.createObjectStore("textures", { keyPath: "id" });
+      if (!db.objectStoreNames.contains("versions")) db.createObjectStore("versions", { keyPath: "id" });
     };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
@@ -58,6 +59,29 @@ export function saveProject(project) {
   return storeWrite("projects", { id: snapshot.id, name: snapshot.name, updatedAt: snapshot.updatedAt, data: snapshot });
 }
 export const deleteProject = (id) => storeDelete("projects", id);
+
+// ---------------------------------------------------------------- versions
+
+const VERSIONS_KEEP = 20;
+export async function listVersions(projectId) {
+  const rows = await storeAll("versions");
+  return rows.filter((r) => r.projectId === projectId).sort((a, b) => (a.savedAt < b.savedAt ? 1 : -1));
+}
+/** Snapshot the project; keeps the newest VERSIONS_KEEP per project. */
+export async function saveVersion(project, label = "") {
+  const snapshot = clone(project);
+  const row = { id: `${project.id}:${Date.now().toString(36)}`, projectId: project.id, savedAt: new Date().toISOString(), label, data: snapshot };
+  await storeWrite("versions", row);
+  const all = await listVersions(project.id);
+  for (const old of all.slice(VERSIONS_KEEP)) await storeDelete("versions", old.id);
+  return row;
+}
+export async function loadVersion(id) {
+  const row = await storeRead("versions", id);
+  return row ? projectChecked(row.data) : null;
+}
+export const deleteVersion = (id) => storeDelete("versions", id);
+
 
 // ----------------------------------------------------------------- props
 

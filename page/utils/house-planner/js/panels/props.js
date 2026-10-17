@@ -1,4 +1,5 @@
 // Right panel: properties of the selection, built from small field helpers.
+import { arrange } from "../multi.js";
 import { OPENING_PRESETS, STOREY_PRESETS, ROOF_PRESETS, CITIES, ROOF_TYPES, RAILING_STYLES, FENCE_STYLES, GATE_TYPES, GATE_WIDTHS, WALL_TOPS, OUTDOOR_TYPES, NOTE_COLORS, isLocked, wallLength, polylineLength } from "../schema.js";
 import { textureIds, textureIndex } from "../materials.js";
 import { textureControl } from "../textures.js";
@@ -416,6 +417,8 @@ export class PropsPanel {
         this.el("p", { class: "hint", text: `${t("length")}: ${Math.round(wallLength(w))} cm` }),
         this.number(w, "thickness", { min: 5, max: 100 }),
         this.number(w, "height", { min: 30, max: 1500, nullable: true, label: `${t("height")} (${storey.height})` }),
+        this.check(w, "skirting"),
+        this.check(w, "trim"),
       ]),
       this.section(t("innerSide"), [this.material(w, "material"), this.color(w, "tint", { nullable: false })]),
       this.section(t("outerSide"), [
@@ -462,6 +465,18 @@ export class PropsPanel {
       this.section(null, [this.lockRow(o, o.id), this.button(t("delete"), () => app.deleteSelected(), "danger")]),
     );
   }
+  /** Align / distribute / mirror buttons for a multi-selection. */
+  arrangeSection() {
+    const app = this.app, t = app.t;
+    const n = app.state.extra.size + 1;
+    if (!app.state.extra.size) return this.el("p", { class: "hint", text: t("multiHint") });
+    const b = (label, op, edge) => this.el("button", { class: "btn", type: "button", text: label, onclick: () => arrange(app, op, edge) });
+    return this.section(`${t("arrange")} (${n})`, [
+      this.el("div", { class: "row-actions" }, [b(`⇤ ${t("alignLeft")}`, "alignX", "min"), b(`⇥ ${t("alignRight")}`, "alignX", "max"), b(`⤒ ${t("alignBack")}`, "alignZ", "min"), b(`⤓ ${t("alignFront")}`, "alignZ", "max")]),
+      this.el("div", { class: "row-actions" }, [b(`↔ ${t("centerX")}`, "centerX"), b(`↕ ${t("centerZ")}`, "centerZ"), b(`⋯ ${t("distributeX")}`, "distX"), b(`⋮ ${t("distributeZ")}`, "distZ")]),
+      this.el("div", { class: "row-actions" }, [b(`⇋ ${t("mirrorX")}`, "mirrorX"), b(`⇵ ${t("mirrorZ")}`, "mirrorZ")]),
+    ]);
+  }
   renderStairs({ item: st, building }) {
     const app = this.app, t = app.t;
     this.scope = "building";
@@ -472,6 +487,8 @@ export class PropsPanel {
         this.text(st, "name"),
         this.select(st, "shape", [["straight", t("shape_straight")], ["L", t("shape_L")], ["U", t("shape_U")]], { label: t("shape") }),
         this.select(st, "turn", [["left", t("turnLeft")], ["right", t("turnRight")]], { label: t("turn") }),
+        this.select(st, "railing", [["none", t("none")], ["left", t("turnLeft")], ["right", t("turnRight")], ["both", t("both")]], { label: t("stairRailing") }),
+        this.select(st, "railingStyle", [["wood", t("style_wood")], ["metal", t("style_metal")]], { label: t("style") }),
         n("at", 0, "X"), n("at", 1, "Z"),
         this.number(st, "rotation", { min: -360, max: 360, unit: "°", step: 15 }),
       ]),
@@ -484,6 +501,7 @@ export class PropsPanel {
         this.check(st, "cutFloorAbove"),
       ]),
       this.section(t("surface"), [this.material(st, "material"), this.color(st, "tint")]),
+      this.arrangeSection(),
       this.section(null, [this.button(t("duplicate"), () => app.duplicateSelected()), this.lockRow(st, st.id), this.button(t("delete"), () => app.deleteSelected(), "danger")]),
     );
     void building;
@@ -708,6 +726,7 @@ export class PropsPanel {
       this.section(t("scale"), [n("scale", 0, "X", { unit: "×", min: 0.05, max: 50, step: 0.05 }), n("scale", 1, "Y", { unit: "×", min: 0.05, max: 50, step: 0.05 }), n("scale", 2, "Z", { unit: "×", min: 0.05, max: 50, step: 0.05 })]),
       this.section(t("surface"), [this.material(o, "material"), this.color(o, "tint")]),
       doc?.category === "lighting" ? this.section(t("light"), this.lightFields(o)) : null,
+      this.arrangeSection(),
       this.section(null, [
         this.button(t("duplicate"), () => app.duplicateSelected()),
         doc ? this.button(`✎ ${t(o.prop && customIds.has(o.prop) ? "editObject" : "editCopy")}`, () => app.editor.enter(doc)) : null,

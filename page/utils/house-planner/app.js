@@ -24,6 +24,9 @@ import { RoomLabels } from "./js/roomlabels.js";
 import { syncRooms, roomLabel } from "./js/rooms.js";
 import { buildRoomFinish } from "./js/build/room.js";
 import { computeQuantities, quantitiesCSV, formatQuantity, unitLabel, columnLabel, COLUMNS } from "./js/quantities.js";
+import { selectedItems, canJoin, copySelection, pasteClipboard, arrange, Ruler } from "./js/multi.js";
+import { makeTemplate, TEMPLATE_IDS } from "./js/templates.js";
+import { shareLink, readShareHash, exportGLB } from "./js/share.js";
 import { buildFloorGroup, floorTop, floorThickness, tileSet, tileKey, splitTiles } from "./js/build/slabs.js";
 import { buildWall } from "./js/build/walls.js";
 import { buildStairs, stairsCutQuads, tilesUnderQuads } from "./js/build/stairs.js";
@@ -43,8 +46,8 @@ const TABS = ["terrain", "floors", "walls", "openings", "stairs", "outdoor", "ga
 // Keyboard shortcuts shown in parentheses on labels. Global ones are unique;
 // tool keys are per tab (only the active tab's tools listen).
 const HOTKEYS = {
-  menu: { new: "N", open: "O", save: "S", saveAs: "Shift+S", export: "X", import: "I", exportPlan: "P", exportView: "Shift+P" },
-  view: { "snap-btn": "G", "cutaway-btn": "C", "doors-btn": "B", "night-btn": "J", "view-3d": "Q", "view-top": "T", "view-walk": "K", "fit-btn": "F" },
+  menu: { new: "N", template: "Shift+N", open: "O", versions: "H", save: "S", saveAs: "Shift+S", export: "X", import: "I", exportPlan: "P", exportView: "Shift+P", exportGlb: "Shift+X", share: "Shift+L" },
+  view: { "snap-btn": "G", "cutaway-btn": "C", "doors-btn": "B", "ruler-btn": "D", "night-btn": "J", "view-3d": "Q", "view-top": "T", "view-walk": "K", "fit-btn": "F" },
   modes: { translate: "W", rotate: "E", scale: "R", dims: "M" },
   tools: { select: "V", raise: "A", lower: "Z", flatten: "L", smooth: "U", paint: "A", erase: "Z", rect: "L", draw: "A", railing: "L", add: "A", gate: "L", place: "A", polygon: "A", fence: "L", siteWall: "U", kitchen: "L", note: "U" },
 };
@@ -56,7 +59,7 @@ class App {
     this.lang = prefs.lang;
     this.t = makeT(() => this.lang);
     this.project = freshProject();
-    this.state = { tab: "floors", tool: "select", selection: null, activeBuilding: null, activeStorey: null, activeFloorGroup: null, pendingPreset: "door-single", pendingProp: null, ghostYaw: 0, pendingStairShape: "straight", pendingOutdoorType: "deck", pendingStreamWidth: 120, pendingGardenMaterial: DEFAULT_MATERIAL.garden, pendingRailingStyle: "glass", pendingFenceStyle: "picket", pendingGateType: "single", pendingWallTop: "follow", pendingKitchenUnit: "base", kitchenFinish: { material: null, tint: "#ece7dd" }, snap: prefs.snap !== false, orbitOverride: false, transformMode: null, caps: [] };
+    this.state = { tab: "floors", tool: "select", selection: null, activeBuilding: null, activeStorey: null, activeFloorGroup: null, pendingPreset: "door-single", pendingProp: null, ghostYaw: 0, pendingStairShape: "straight", pendingOutdoorType: "deck", pendingStreamWidth: 120, pendingGardenMaterial: DEFAULT_MATERIAL.garden, pendingRailingStyle: "glass", pendingFenceStyle: "picket", pendingGateType: "single", pendingWallTop: "follow", extra: new Set(), pendingKitchenUnit: "base", kitchenFinish: { material: null, tint: "#ece7dd" }, snap: prefs.snap !== false, orbitOverride: false, transformMode: null, caps: [] };
     this.buildingGroups = new Map();
     this.storeyGroups = new Map();
     this.roofGroups = new Map();
@@ -83,11 +86,14 @@ class App {
     this.night = new Night(this);
     this.notes = new Notes(this);
     this.roomLabels = new RoomLabels(this);
+    this.ruler = new Ruler(this);
+    this.extraHelpers = new Map();
     this.scene.onFrame = () => {
       this.dims.update();
       this.notes.update();
       this.night.frame();
       this.roomLabels.update();
+      this.ruler.update();
     };
     this.history = new History(() => this.project, (p) => this.restore(p));
     this.history.onChange(() => this.refreshHistoryButtons());
@@ -119,6 +125,22 @@ class App {
       }
     } catch (err) {
       console.warn("load failed", err);
+    }
+    const shared = await readShareHash();
+    if (shared) {
+      try {
+        const parsed = store.parseImport(shared);
+        for (const p of parsed.customProps || []) {
+          await store.saveCustomProp(p);
+          registerCustom(p);
+        }
+        project = parsed.project;
+        project.id = uid("p");
+        await store.saveProject(project);
+        history.replaceState(null, "", location.pathname + location.search);
+      } catch (err) {
+        console.warn("share link", err);
+      }
     }
     this.setProject(project || freshProject(this.t("untitled")), { fit: true });
     this.setTab(TABS.includes(prefs.tab) ? prefs.tab : "floors");
@@ -273,6 +295,18 @@ class App {
     const id = this.state.selection;
     const found = id && this.locate(id);
     if (!found) return this.toast(this.t("noSelection"));
+    if (this.state.extra.size) {
+      const items = selectedItems(this).filter((f) => !isLocked(this.project, f.item.id));
+      if (!items.length) return this.toast(this.t("lockedItem"));
+      this.checkpoint();
+      for (const f of items) f.list.splice(f.list.indexOf(f.item), 1);
+      this.state.selection = null;
+      this.state.extra.clear();
+      this.gizmo.detach();
+      this.changed({ rebuild: "all" });
+      this.toast(this.t("deleted"));
+      return;
+    }
     if (found.type === "terrain" || found.type === "sun") return;
     if (found.type === "room") return this.toast(this.t("roomDerived"));
     if (isLocked(this.project, id)) return this.toast(this.t("lockedItem"));
@@ -296,6 +330,10 @@ class App {
   duplicateSelected() {
     const found = this.state.selection && this.locate(this.state.selection);
     if (!found || !["object", "stairs", "outdoor", "garden", "railing", "fence", "siteWall", "note"].includes(found.type)) return;
+    if (this.state.extra.size) {
+      if (copySelection(this)) pasteClipboard(this);
+      return;
+    }
     this.checkpoint();
     const copy = clone(found.item);
     copy.id = uid({ object: "ob", stairs: "sr", garden: "g", outdoor: "d", railing: "rl", fence: "fe", siteWall: "sw", note: "nt" }[found.type]);
@@ -483,7 +521,18 @@ class App {
       const ph = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.5), new THREE.MeshStandardMaterial({ color: 0x999999, wireframe: true }));
       ph.position.y = 0.25;
       g.add(ph);
-      getPropDoc(o.prop).then((d) => d && this.changed({ rebuild: "all", save: false }));
+      // one loader per prop id, and one coalesced rebuild once docs arrive
+      // (registering a rebuild per object per rebuild doubled the work each time)
+      this.pendingProps ??= new Set();
+      if (o.prop && !this.pendingProps.has(o.prop)) {
+        this.pendingProps.add(o.prop);
+        getPropDoc(o.prop).then((d) => {
+          this.pendingProps.delete(o.prop);
+          if (!d) return;
+          clearTimeout(this.propRebuildTimer);
+          this.propRebuildTimer = setTimeout(() => this.changed({ rebuild: "all", save: false }), 60);
+        });
+      }
     }
     g.userData = { kind: "object", id: o.id };
     if (doc && this.night.isLamp(o, doc)) {
@@ -679,6 +728,7 @@ class App {
     this.project.view.camera = this.scene.cameraState();
     try {
       await store.saveProject(this.project);
+      this.maybeSaveVersion();
       $("#save-status").textContent = this.t("saved");
     } catch (err) {
       console.warn(err);
@@ -710,8 +760,61 @@ class App {
 
   // -------------------------------------------------------- selection
 
+  /** Shift+click: add or remove an item from the multi-selection. */
+  toggleExtra(id) {
+    const found = this.locate(id);
+    if (!found) return;
+    if (!this.state.selection) return this.select(id);
+    if (id === this.state.selection) return;
+    if (!canJoin(this, found)) return this.toast(this.t("multiSameStorey"));
+    if (this.state.extra.has(id)) this.state.extra.delete(id);
+    else this.state.extra.add(id);
+    this.refreshExtras();
+    this.propsPanel.render();
+    this.tree.render();
+  }
+  refreshExtras() {
+    for (const [id, h] of this.extraHelpers) {
+      if (!this.state.extra.has(id)) {
+        this.scene.overlay.remove(h);
+        h.geometry.dispose();
+        this.extraHelpers.delete(id);
+      }
+    }
+    for (const id of this.state.extra) {
+      const found = this.locate(id);
+      const group = found && this.transformTarget(found)?.group;
+      if (!group) {
+        this.state.extra.delete(id);
+        continue;
+      }
+      let h = this.extraHelpers.get(id);
+      if (!h) {
+        h = new THREE.BoxHelper(group, 0x3aa5ff);
+        h.material.depthTest = false;
+        h.renderOrder = 20;
+        this.scene.overlay.add(h);
+        this.extraHelpers.set(id, h);
+      } else h.setFromObject(group);
+    }
+    this.scene.requestRender();
+  }
+  /** The primary placement moved by the gizmo: move the extras by the same delta. */
+  extrasFollow(from, to) {
+    if (!this.state.extra.size || !from || !to) return;
+    const d = to.map((v, i) => v - (from[i] ?? 0));
+    if (!d.some((v) => Math.abs(v) > 0.01)) return;
+    let building = null;
+    for (const f of selectedItems(this).filter((f) => f.item.id !== this.state.selection && !f.item.locked)) {
+      if (f.type === "stairs") f.item.at = [f.item.at[0] + d[0], f.item.at[1] + d[2]];
+      else f.item.at = f.item.at.map((v, i) => Math.round((v + d[i]) * 10) / 10);
+      building = f.building;
+    }
+    this.changed({ rebuild: building ? "building" : "site", buildingId: building?.id });
+  }
   select(id, { keepTool = false } = {}) {
     const changedId = id !== this.state.selection;
+    if (changedId) this.state.extra.clear();
     if (changedId) this.state.transformMode = null;
     this.state.selection = id;
     const found = id ? this.locate(id) : null;
@@ -745,6 +848,7 @@ class App {
       }
       if (!keepTool && found.type !== "sun" && found.type !== "terrain" && this.state.tool !== "select") this.setTool("select");
     }
+    this.refreshExtras();
     this.refreshAll();
   }
   /** Modes the selection can be transformed with, and its scene group. */
@@ -1000,6 +1104,7 @@ class App {
         else this.select(null);
         return;
       }
+      if (event.shiftKey && this.state.selection) return this.toggleExtra(id);
       this.select(id);
       return;
     }
@@ -1176,6 +1281,7 @@ class App {
       extra.append(btn, hint);
     }
     $("#snap-btn").classList.toggle("on", this.state.snap);
+    $("#ruler-btn").classList.toggle("on", !!this.ruler?.active);
     $("#cutaway-btn").classList.toggle("on", this.project.view.cutaway);
     $("#doors-btn").classList.toggle("on", this.project.view.doorsOpen);
     $("#night-btn").classList.toggle("on", !!this.project.sun.night);
@@ -1274,6 +1380,7 @@ class App {
     $("#view-top").addEventListener("click", () => this.setView("top"));
     $("#view-walk").addEventListener("click", () => this.setView(this.walk.active ? "3d" : "walk"));
     $("#fit-btn").addEventListener("click", () => this.fitAll());
+    $("#ruler-btn").addEventListener("click", () => this.ruler.toggle());
     $("#undo-btn").addEventListener("click", () => this.history.undo());
     $("#redo-btn").addEventListener("click", () => this.history.redo());
     $("#building-select").addEventListener("change", (e) => {
@@ -1594,11 +1701,28 @@ class App {
       this.saveNow();
       return;
     }
+    if (mod && e.key.toLowerCase() === "c") {
+      const n = copySelection(this);
+      if (n) {
+        e.preventDefault();
+        this.toast(`${this.t("copied")} (${n})`);
+      }
+      return;
+    }
+    if (mod && e.key.toLowerCase() === "v") {
+      const n = pasteClipboard(this);
+      if (n) {
+        e.preventDefault();
+        this.toast(`${this.t("pasted")} (${n})`);
+      }
+      return;
+    }
     if (mod) return;
     switch (e.key) {
       case "?": $("#help-dialog").showModal(); break;
       case "Escape":
-        if (this.tools.busy) this.tools.cancel();
+        if (this.ruler.active) this.ruler.toggle(false);
+        else if (this.tools.busy) this.tools.cancel();
         else if (this.state.tool !== "select") this.setTool("select");
         else this.select(null);
         break;
@@ -1655,7 +1779,95 @@ class App {
       case "quantitiesCsv": this.exportQuantities(); break;
       case "exportView": await this.exportView(); break;
       case "open": await this.openProjectsDialog(); break;
+      case "template": this.openTemplatesDialog(); break;
+      case "versions": await this.openVersionsDialog(); break;
+      case "share": {
+        try {
+          const url = await shareLink(this.project, this.customProps);
+          await navigator.clipboard.writeText(url);
+          this.toast(`${t("linkCopied")} (${Math.round(url.length / 1024)} KB)`);
+        } catch (err) {
+          console.warn(err);
+          this.toast(t("linkFailed"));
+        }
+        break;
+      }
+      case "exportGlb": {
+        try {
+          await exportGLB(this.scene.world, store.safeFilename(this.project.name, "").replace(/\.json$/, ".glb"));
+          this.toast(t("exported"));
+        } catch (err) {
+          console.warn(err);
+          this.toast(t("importError"));
+        }
+        break;
+      }
     }
+  }
+  openTemplatesDialog() {
+    const t = this.t;
+    const host = $("#templates-list");
+    host.innerHTML = `<div class="plist">${TEMPLATE_IDS.map((id) => `<div class="pitem"><span class="pname">${esc(t(`template_${id}`))}</span><span class="pdate">${esc(t(`template_${id}_desc`))}</span><button class="tb small" data-template="${id}">${esc(t("new"))}</button></div>`).join("")}</div>`;
+    host.onclick = async (e) => {
+      const b = e.target.closest("[data-template]");
+      if (!b) return;
+      await this.saveNow();
+      $("#templates-dialog").close();
+      const project = makeTemplate(b.dataset.template, t(`template_${b.dataset.template}`));
+      await store.saveProject(project);
+      this.setProject(project, { fit: true });
+      this.queueSave();
+    };
+    $("#templates-dialog").showModal();
+  }
+  /** Keep a version at most every 10 minutes of saving. */
+  async maybeSaveVersion(force = false, label = "") {
+    const now = Date.now();
+    if (!force && this.lastVersionAt && now - this.lastVersionAt < 10 * 60 * 1000) return;
+    this.lastVersionAt = now;
+    try {
+      await store.saveVersion(this.project, label);
+    } catch (err) {
+      console.warn("version", err);
+    }
+  }
+  async openVersionsDialog() {
+    const t = this.t;
+    await this.saveNow();
+    const render = async () => {
+      const list = await store.listVersions(this.project.id);
+      const host = $("#versions-list");
+      host.innerHTML =
+        `<div class="row-actions"><button class="tb small" data-newversion>${esc(t("saveVersion"))}</button></div>` +
+        (list.length
+          ? `<div class="plist">${list.map((v) => `<div class="pitem"><span class="pname">${esc(v.label || new Date(v.savedAt).toLocaleString(this.lang))}</span><span class="pdate">${esc(new Date(v.savedAt).toLocaleString(this.lang))}</span><button class="tb small" data-restore="${v.id}">${esc(t("restore"))}</button><button class="tb small danger" data-delversion="${v.id}">${esc(t("delete"))}</button></div>`).join("")}</div>`
+          : `<p class="hint">${esc(t("noVersions"))}</p>`);
+      host.onclick = async (e) => {
+        if (e.target.closest("[data-newversion]")) {
+          await this.maybeSaveVersion(true, prompt(t("versionLabel"), "") || "");
+          return render();
+        }
+        const del = e.target.closest("[data-delversion]");
+        if (del) {
+          await store.deleteVersion(del.dataset.delversion);
+          return render();
+        }
+        const res = e.target.closest("[data-restore]");
+        if (res) {
+          if (!confirm(t("confirmRestore"))) return;
+          await this.maybeSaveVersion(true, t("beforeRestore"));
+          const project = await store.loadVersion(res.dataset.restore);
+          if (project) {
+            project.id = this.project.id;
+            await store.saveProject(project);
+            this.setProject(project);
+          }
+          $("#versions-dialog").close();
+        }
+      };
+    };
+    await render();
+    $("#versions-dialog").showModal();
   }
   async openProjectsDialog() {
     const t = this.t;
@@ -1708,6 +1920,9 @@ class App {
     if (e.shiftKey) {
       if (key === "S") return this.projectAction("saveAs"), true;
       if (key === "P") return this.projectAction("exportView"), true;
+      if (key === "N") return this.projectAction("template"), true;
+      if (key === "X") return this.projectAction("exportGlb"), true;
+      if (key === "L") return this.projectAction("share"), true;
       return false;
     }
     const menu = Object.entries(HOTKEYS.menu).find(([, k]) => k === key);
