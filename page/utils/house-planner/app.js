@@ -739,8 +739,8 @@ class App {
     const caps = this.state.caps || [];
     host.hidden = false;
     host.innerHTML =
-      ["translate", "rotate", "scale"].map((m) => `<button class="tb small ${this.state.transformMode === m ? "on" : ""}" data-mode="${m}" ${caps.includes(m) ? "" : "disabled"} title="${esc(t(m))}">${icons[m]} ${esc(t(m))}</button>`).join("") +
-      `<button class="tb small ${this.dims.enabled ? "on" : ""}" data-dims title="${esc(t("dims"))}">📏</button>`;
+      ["translate", "rotate", "scale"].map((m) => `<button class="tb mode ${this.state.transformMode === m ? "on" : ""}" data-mode="${m}" ${caps.includes(m) ? "" : "disabled"} title="${esc(t(m))}"><span class="mico">${icons[m]}</span><span class="mlabel">${esc(t(m))}</span></button>`).join("") +
+      `<button class="tb mode ${this.dims.enabled ? "on" : ""}" data-dims title="${esc(t("dims"))}"><span class="mico">📏</span><span class="mlabel">${esc(t("dims"))}</span></button>`;
   }
   findGroup(root, kind, id) {
     let out = null;

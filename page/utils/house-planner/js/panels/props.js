@@ -146,8 +146,8 @@ export class PropsPanel {
     if (caps.length || found.type !== "sun")
       root.append(
         this.el("div", { class: "row-actions modes" }, [
-          ...["translate", "rotate", "scale"].filter((m) => caps.includes(m)).map((m) => this.el("button", { class: `btn ${app.state.transformMode === m ? "on" : ""}`, type: "button", text: `${icons[m]} ${t(m)}`, onclick: () => app.setTransformMode(m) })),
-          this.el("button", { class: `btn ${app.dims.enabled ? "on" : ""}`, type: "button", text: `📏 ${t("dims")}`, onclick: () => app.toggleDims() }),
+          ...["translate", "rotate", "scale"].filter((m) => caps.includes(m)).map((m) => this.el("button", { class: `btn mode ${app.state.transformMode === m ? "on" : ""}`, type: "button", onclick: () => app.setTransformMode(m) }, [this.el("span", { class: "mico", text: icons[m] }), this.el("span", { class: "mlabel", text: t(m) })])),
+          this.el("button", { class: `btn mode ${app.dims.enabled ? "on" : ""}`, type: "button", onclick: () => app.toggleDims() }, [this.el("span", { class: "mico", text: "📏" }), this.el("span", { class: "mlabel", text: t("dims") })]),
         ]),
       );
     switch (found.type) {
