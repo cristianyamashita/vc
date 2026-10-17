@@ -562,6 +562,308 @@ def leisure():
     return docs
 
 
+
+# ---------------------------------------------------------------- household
+
+
+def household():
+    """Generated everyday objects: laundry, appliances, utilities, entrance, garden."""
+    docs = {}
+    WHITE, STEEL, DARK, WOOD, GLASS, CHROME, GREY = "#f2f0ea", "#2b2e33", "#1c1e22", "#8a6a48", "#9fc3d2", "#9aa0a8", "#6f767f"
+    cyl = "cylinder"
+
+    def doc(pid, name, cat, boxes, footprint, tags, light=None, mount=None):
+        d = {"kind": "prop", "version": 1, "id": pid, "name": name, "footprint": footprint, "source": {"type": "boxes", "boxes": boxes}}
+        if light:
+            d["light"] = light
+        if mount:
+            d["mount"] = mount
+        docs[pid] = (d, tags, cat)
+
+    # ---- laundry
+    doc("washing-machine", {"en": "Washing machine", "pt": "Máquina de lavar", "ja": "洗濯機"}, "kitchen", [
+        box(0.6, 0.85, 0.6, 0, 0.425, 0, WHITE, shape="rounded"),
+        box(0.44, 0.44, 0.03, 0, 0.42, 0.3, GREY, shape=cyl, axis="z"),
+        box(0.36, 0.36, 0.02, 0, 0.42, 0.315, GLASS, shape=cyl, axis="z", opacity=0.6),
+        box(0.5, 0.08, 0.02, 0, 0.78, 0.3, "#d9d6cd"),
+        box(0.05, 0.05, 0.02, 0.18, 0.78, 0.315, DARK, shape=cyl, axis="z"),
+    ], [0.6, 0.6], ("washer laundry clothes", "lavadora roupa lavanderia", "洗濯 ランドリー"))
+    doc("dryer", {"en": "Tumble dryer", "pt": "Secadora de roupa", "ja": "乾燥機"}, "kitchen", [
+        box(0.6, 0.85, 0.6, 0, 0.425, 0, WHITE, shape="rounded"),
+        box(0.46, 0.46, 0.03, 0, 0.4, 0.3, "#d9d6cd", shape=cyl, axis="z"),
+        box(0.3, 0.3, 0.02, 0, 0.4, 0.315, GREY, shape=cyl, axis="z"),
+        box(0.5, 0.08, 0.02, 0, 0.78, 0.3, "#d9d6cd"),
+    ], [0.6, 0.6], ("dryer laundry clothes", "secadora roupa lavanderia", "乾燥 ランドリー"))
+    doc("ironing-board", {"en": "Ironing board", "pt": "Tábua de passar", "ja": "アイロン台"}, "kitchen", [
+        box(0.4, 0.03, 1.2, 0, 0.88, 0, "#7bb0d8", shape="rounded"),
+        box(0.02, 0.9, 0.02, 0.1, 0.44, 0.3, GREY, rz=0.35),
+        box(0.02, 0.9, 0.02, -0.1, 0.44, 0.3, GREY, rz=-0.35),
+        box(0.02, 0.9, 0.02, 0.1, 0.44, -0.3, GREY, rz=0.35),
+        box(0.02, 0.9, 0.02, -0.1, 0.44, -0.3, GREY, rz=-0.35),
+        box(0.12, 0.1, 0.22, 0, 0.95, -0.35, "#3b6fa0", shape="rounded"),
+    ], [0.45, 1.25], ("iron board laundry", "ferro tabua passar", "アイロン"))
+    doc("laundry-basket", {"en": "Laundry basket", "pt": "Cesto de roupa", "ja": "洗濯かご"}, "kitchen", [
+        box(0.42, 0.55, 0.42, 0, 0.275, 0, "#c9b28a", shape=cyl),
+        box(0.36, 0.08, 0.36, 0, 0.56, 0, WHITE, shape=cyl),
+    ], [0.45, 0.45], ("hamper basket laundry clothes", "cesto roupa suja", "かご 洗濯"))
+    drying = [box(0.03, 1.0, 0.03, x, 0.5, z, GREY) for x in (-0.5, 0.5) for z in (-0.25, 0.25)]
+    for k in range(5):
+        drying.append(box(1.05, 0.015, 0.015, 0, 0.98 - k * 0.1, -0.25 + k * 0.125, CHROME, shape=cyl, axis="x"))
+    drying.append(box(0.9, 0.3, 0.02, 0, 0.82, -0.05, "#7bb0d8"))
+    drying.append(box(0.9, 0.3, 0.02, 0, 0.72, 0.07, WHITE))
+    doc("drying-rack", {"en": "Clothes drying rack", "pt": "Varal de chão", "ja": "物干しスタンド"}, "kitchen", drying, [1.1, 0.6],
+        ("clothes airer drying laundry", "varal roupa secar", "物干し 洗濯"))
+
+    # ---- kitchen
+    doc("microwave", {"en": "Microwave", "pt": "Micro-ondas", "ja": "電子レンジ"}, "kitchen", [
+        box(0.5, 0.3, 0.38, 0, 0.15, 0, "#d9d6cd", shape="rounded"),
+        box(0.3, 0.22, 0.01, -0.07, 0.15, 0.195, DARK),
+        box(0.08, 0.26, 0.01, 0.18, 0.15, 0.195, GREY),
+    ], [0.5, 0.4], ("microwave oven appliance", "micro-ondas forno eletrodomestico", "レンジ 家電"))
+    doc("dishwasher", {"en": "Dishwasher", "pt": "Lava-louças", "ja": "食洗機"}, "kitchen", [
+        box(0.6, 0.85, 0.6, 0, 0.425, 0, STEEL, shape="rounded"),
+        box(0.56, 0.72, 0.01, 0, 0.38, 0.305, CHROME),
+        box(0.5, 0.03, 0.03, 0, 0.8, 0.32, GREY, shape=cyl, axis="x"),
+    ], [0.6, 0.6], ("dishwasher appliance", "lava-loucas eletrodomestico", "食洗機 家電"))
+    doc("kitchen-island", {"en": "Kitchen island", "pt": "Ilha de cozinha", "ja": "キッチンアイランド"}, "kitchen", [
+        box(1.8, 0.86, 0.9, 0, 0.43, 0, "#3a3d42"),
+        box(1.9, 0.04, 1.0, 0, 0.9, 0, "#d8d4cc", shape="rounded"),
+        box(0.4, 0.02, 0.4, -0.5, 0.93, 0, CHROME, shape="rounded"),
+        box(0.06, 0.25, 0.06, -0.5, 1.05, -0.12, CHROME, shape=cyl),
+        box(0.02, 0.02, 0.14, 0.5, 0.6, 0.46, CHROME, shape=cyl, axis="z"),
+        box(0.02, 0.02, 0.14, -0.5, 0.6, 0.46, CHROME, shape=cyl, axis="z"),
+    ], [1.9, 1.0], ("island counter kitchen sink", "ilha bancada cozinha", "アイランド カウンター"))
+    doc("kitchen-bin", {"en": "Pedal bin", "pt": "Lixeira com pedal", "ja": "ペダル式ゴミ箱"}, "kitchen", [
+        box(0.3, 0.6, 0.3, 0, 0.3, 0, CHROME, shape=cyl),
+        box(0.31, 0.04, 0.31, 0, 0.62, 0, GREY, shape=cyl),
+        box(0.1, 0.02, 0.06, 0, 0.01, 0.17, DARK),
+    ], [0.32, 0.36], ("trash bin garbage waste", "lixo lixeira", "ゴミ箱"))
+    doc("kettle", {"en": "Electric kettle", "pt": "Chaleira elétrica", "ja": "電気ケトル"}, "kitchen", [
+        box(0.18, 0.02, 0.18, 0, 0.01, 0, DARK, shape=cyl),
+        box(0.16, 0.2, 0.16, 0, 0.12, 0, CHROME, shape=cyl),
+        box(0.03, 0.12, 0.03, 0.1, 0.15, 0, DARK, shape="rounded"),
+        box(0.03, 0.03, 0.06, -0.08, 0.2, 0, CHROME, shape=cyl, axis="x"),
+    ], [0.2, 0.2], ("kettle tea water boil", "chaleira cha agua", "ケトル お湯"))
+    doc("toaster", {"en": "Toaster", "pt": "Torradeira", "ja": "トースター"}, "kitchen", [
+        box(0.28, 0.18, 0.16, 0, 0.09, 0, CHROME, shape="rounded"),
+        box(0.2, 0.01, 0.03, 0, 0.185, -0.03, DARK), box(0.2, 0.01, 0.03, 0, 0.185, 0.03, DARK),
+        box(0.03, 0.03, 0.02, 0.1, 0.1, 0.09, DARK),
+    ], [0.3, 0.18], ("toaster bread breakfast", "torradeira pao cafe da manha", "トースター パン"))
+    rack = [box(0.4, 0.02, 0.3, 0, 0.01, 0, CHROME)]
+    for k in range(6):
+        rack.append(box(0.015, 0.2, 0.015, -0.15 + k * 0.06, 0.12, 0, CHROME, shape=cyl))
+        rack.append(box(0.015, 0.2, 0.015, -0.15 + k * 0.06, 0.12, 0.1, CHROME, shape=cyl))
+    for k in range(4):
+        rack.append(box(0.02, 0.2, 0.2, -0.12 + k * 0.08, 0.13, 0.05, WHITE, shape=cyl, axis="x"))
+    doc("dish-rack", {"en": "Dish rack", "pt": "Escorredor de louça", "ja": "水切りラック"}, "kitchen", rack, [0.42, 0.32],
+        ("dish drainer plates", "escorredor pratos louca", "食器 水切り"))
+    wine = [box(0.5, 0.9, 0.3, 0, 0.45, 0, WOOD)]
+    for i in range(3):
+        for j in range(3):
+            wine.append(box(0.07, 0.07, 0.3, -0.15 + j * 0.15, 0.15 + i * 0.3, 0.02, ("#4a1f2a", "#2f5a2a", "#e4d9b0")[(i + j) % 3], shape=cyl, axis="z"))
+    doc("wine-rack", {"en": "Wine rack", "pt": "Adega de garrafas", "ja": "ワインラック"}, "dining", wine, [0.5, 0.32],
+        ("wine bottles rack cellar", "vinho garrafas adega", "ワイン 瓶"))
+    cart = [box(0.6, 0.02, 0.4, 0, 0.78, 0, "#c9a24a"), box(0.6, 0.02, 0.4, 0, 0.35, 0, "#c9a24a")]
+    for x in (-0.28, 0.28):
+        for z in (-0.18, 0.18):
+            cart.append(box(0.02, 0.8, 0.02, x, 0.4, z, "#c9a24a", shape=cyl))
+            cart.append(box(0.06, 0.06, 0.03, x, 0.03, z, DARK, shape=cyl, axis="z"))
+    cart += [box(0.07, 0.25, 0.07, -0.15, 0.91, 0, "#2f5a2a", shape=cyl), box(0.07, 0.25, 0.07, 0.0, 0.91, -0.1, "#4a1f2a", shape=cyl),
+             box(0.08, 0.12, 0.08, 0.18, 0.85, 0.08, GLASS, shape=cyl, opacity=0.5), box(0.08, 0.12, 0.08, 0.18, 0.85, -0.08, GLASS, shape=cyl, opacity=0.5)]
+    doc("bar-cart", {"en": "Bar cart", "pt": "Carrinho de bar", "ja": "バーワゴン"}, "dining", cart, [0.62, 0.42],
+        ("drinks trolley bar cart", "carrinho bebidas bar", "ワゴン 酒"))
+
+    # ---- bathroom
+    doc("bidet", {"en": "Bidet", "pt": "Bidê", "ja": "ビデ"}, "bathroom", [
+        box(0.36, 0.38, 0.5, 0, 0.19, 0, WHITE, shape="rounded"),
+        box(0.3, 0.03, 0.42, 0, 0.395, 0, "#e6e2d8", shape="rounded"),
+        box(0.03, 0.08, 0.03, 0, 0.44, -0.2, CHROME, shape=cyl),
+    ], [0.4, 0.55], ("bidet toilet bathroom", "bide banheiro", "ビデ 浴室"))
+    doc("washbasin-pedestal", {"en": "Pedestal washbasin", "pt": "Lavatório com coluna", "ja": "ペデスタル洗面器"}, "bathroom", [
+        box(0.18, 0.7, 0.2, 0, 0.35, -0.05, WHITE),
+        box(0.55, 0.15, 0.45, 0, 0.78, 0, WHITE, shape="rounded"),
+        box(0.42, 0.04, 0.32, 0, 0.84, 0.02, "#e6e2d8", shape="rounded"),
+        box(0.03, 0.12, 0.03, 0, 0.9, -0.17, CHROME, shape=cyl),
+    ], [0.55, 0.45], ("sink basin washbasin bathroom", "pia lavatorio banheiro", "洗面 浴室"))
+    doc("bathroom-cabinet", {"en": "Mirror cabinet", "pt": "Armário com espelho", "ja": "ミラーキャビネット"}, "bathroom", [
+        box(0.6, 0.7, 0.14, 0, 0, 0.07, WHITE),
+        box(0.56, 0.66, 0.01, 0, 0, 0.145, "#c7d6e0"),
+        box(0.56, 0.02, 0.02, 0, -0.36, 0.08, CHROME),
+    ], [0.6, 0.15], ("mirror cabinet bathroom wall", "espelho armario banheiro parede", "鏡 収納 浴室"), mount="wall")
+    doc("toilet-paper-holder", {"en": "Toilet paper holder", "pt": "Porta-papel higiênico", "ja": "トイレットペーパーホルダー"}, "bathroom", [
+        box(0.06, 0.08, 0.02, 0, 0, 0.01, CHROME),
+        box(0.02, 0.02, 0.14, 0, 0, 0.08, CHROME, shape=cyl, axis="z"),
+        box(0.12, 0.12, 0.1, 0, -0.01, 0.1, WHITE, shape=cyl, axis="z"),
+    ], [0.14, 0.15], ("toilet paper roll holder", "papel higienico suporte", "トイレットペーパー"), mount="wall")
+
+    # ---- bedroom / living
+    doc("dressing-table", {"en": "Dressing table", "pt": "Penteadeira", "ja": "ドレッサー"}, "bedroom", [
+        box(1.0, 0.04, 0.45, 0, 0.74, 0, WOOD),
+        box(0.04, 0.72, 0.04, -0.46, 0.36, -0.18, WOOD), box(0.04, 0.72, 0.04, 0.46, 0.36, -0.18, WOOD),
+        box(0.04, 0.72, 0.04, -0.46, 0.36, 0.18, WOOD), box(0.04, 0.72, 0.04, 0.46, 0.36, 0.18, WOOD),
+        box(0.3, 0.1, 0.4, 0.3, 0.67, 0, WOOD),
+        box(0.5, 0.6, 0.03, 0, 1.08, -0.2, WOOD), box(0.44, 0.54, 0.01, 0, 1.08, -0.18, "#c7d6e0"),
+        box(0.4, 0.42, 0.4, 0, 0.21, 0.35, "#b99673", shape="rounded"),
+    ], [1.0, 0.95], ("vanity dresser mirror makeup", "penteadeira espelho maquiagem", "鏡台 化粧"))
+    doc("bedroom-bench", {"en": "Bed-end bench", "pt": "Banco de pé de cama", "ja": "ベッドベンチ"}, "bedroom", [
+        box(1.2, 0.12, 0.4, 0, 0.4, 0, "#8d8b85", shape="rounded"),
+        box(0.04, 0.34, 0.04, -0.55, 0.17, -0.16, WOOD), box(0.04, 0.34, 0.04, 0.55, 0.17, -0.16, WOOD),
+        box(0.04, 0.34, 0.04, -0.55, 0.17, 0.16, WOOD), box(0.04, 0.34, 0.04, 0.55, 0.17, 0.16, WOOD),
+    ], [1.2, 0.4], ("bench seat bedroom", "banco quarto", "ベンチ 寝室"))
+    doc("fireplace", {"en": "Fireplace", "pt": "Lareira", "ja": "暖炉"}, "living", [
+        box(1.4, 1.1, 0.5, 0, 0.55, 0, "#8c8578"),
+        box(0.8, 0.7, 0.4, 0, 0.4, 0.06, DARK),
+        box(1.5, 0.08, 0.6, 0, 1.14, 0, WOOD),
+        box(0.6, 0.25, 0.3, 0, 0.2, 0.1, "#6b4830", shape=cyl, axis="x"),
+        box(0.4, 0.4, 0.2, 0, 0.45, 0.12, "#ff9a3c", shape="cone", opacity=0.8),
+        box(0.9, 0.06, 0.9, 0, 0.03, 0.55, "#5a5650"),
+    ], [1.5, 1.0], ("fireplace chimney hearth fire", "lareira chamine fogo", "暖炉 炎"),
+        light={"color": "#ffb366", "intensity": 1.6, "distance": 4.5, "at": [0, 0.5, 0.3]})
+    doc("air-conditioner", {"en": "Split air conditioner", "pt": "Ar-condicionado split", "ja": "エアコン"}, "living", [
+        box(0.9, 0.3, 0.22, 0, 0, 0.11, WHITE, shape="rounded"),
+        box(0.84, 0.03, 0.02, 0, -0.12, 0.22, "#d9d6cd"),
+        box(0.12, 0.03, 0.01, 0.35, 0.05, 0.225, DARK),
+    ], [0.9, 0.22], ("air conditioning ac cooling heat pump", "ar-condicionado climatizacao", "エアコン 冷房 暖房"), mount="wall")
+    fan = [box(0.12, 0.3, 0.12, 0, -0.15, 0, "#6b4830", shape=cyl), box(0.26, 0.08, 0.26, 0, -0.34, 0, "#6b4830", shape=cyl)]
+    import math as _m
+    for k in range(4):
+        a = k * _m.pi / 2
+        fan.append(box(0.56, 0.01, 0.13, 0.36 * _m.cos(a), -0.35, 0.36 * _m.sin(a), WOOD, ry=-a))
+    fan.append(box(0.2, 0.14, 0.2, 0, -0.45, 0, GLASS, shape="sphere", opacity=0.85))
+    doc("ceiling-fan", {"en": "Ceiling fan with light", "pt": "Ventilador de teto com luz", "ja": "シーリングファン"}, "lighting", fan, [1.3, 1.3],
+        ("fan ceiling air light", "ventilador teto luz", "扇風機 天井 照明"),
+        light={"color": "#fff4dd", "intensity": 2.0, "distance": 5.5, "at": [0, -0.5, 0]}, mount="ceiling")
+    doc("upright-piano", {"en": "Upright piano", "pt": "Piano vertical", "ja": "アップライトピアノ"}, "living", [
+        box(1.45, 1.2, 0.6, 0, 0.6, 0, DARK),
+        box(1.4, 0.08, 0.3, 0, 0.72, 0.42, DARK),
+        box(1.3, 0.03, 0.14, 0, 0.77, 0.45, WHITE), box(1.3, 0.03, 0.05, 0, 0.8, 0.4, DARK),
+        box(0.5, 0.44, 0.3, 0, 0.22, 0.75, DARK), box(0.5, 0.06, 0.3, 0, 0.47, 0.75, "#4a1f2a"),
+    ], [1.45, 1.0], ("piano music instrument", "piano musica instrumento", "ピアノ 楽器"))
+    doc("aquarium", {"en": "Aquarium", "pt": "Aquário", "ja": "水槽"}, "living", [
+        box(1.0, 0.7, 0.45, 0, 0.35, 0, "#3a3d42"),
+        box(1.0, 0.5, 0.45, 0, 0.96, 0, "#4e9fd0", opacity=0.45),
+        box(1.0, 0.03, 0.45, 0, 0.72, 0, DARK), box(1.0, 0.03, 0.45, 0, 1.22, 0, DARK),
+        box(0.15, 0.1, 0.05, -0.25, 0.9, 0, "#e0a526"), box(0.1, 0.07, 0.04, 0.2, 1.05, 0, "#c9202a"),
+        box(0.08, 0.3, 0.08, 0.35, 0.88, 0, "#2f9e6b", shape="cone"),
+    ], [1.0, 0.45], ("aquarium fish tank", "aquario peixes", "水槽 魚"),
+        light={"color": "#7fd0ff", "intensity": 0.8, "distance": 2.5, "at": [0, 1.0, 0]})
+    coat = [box(0.4, 0.03, 0.4, 0, 0.015, 0, DARK, shape=cyl), box(0.03, 1.75, 0.03, 0, 0.88, 0, DARK, shape=cyl)]
+    for k in range(4):
+        a = k * _m.pi / 2
+        coat.append(box(0.16, 0.03, 0.03, 0.1 * _m.cos(a), 1.7, 0.1 * _m.sin(a), DARK, shape=cyl, axis="x", ry=-a))
+    coat.append(box(0.3, 0.5, 0.12, 0.1, 1.42, 0.06, "#3b6fa0", shape="rounded"))
+    doc("coat-rack", {"en": "Coat stand", "pt": "Cabideiro de chão", "ja": "コート掛け"}, "living", coat, [0.4, 0.4],
+        ("coat rack hanger entrance hall", "cabide casaco entrada hall", "コート ハンガー 玄関"))
+    shoe = [box(0.8, 0.02, 0.3, 0, y, 0, WOOD) for y in (0.02, 0.2, 0.38)]
+    shoe += [box(0.02, 0.4, 0.3, x, 0.2, 0, WOOD) for x in (-0.4, 0.4)]
+    for k, c in enumerate(("#2b2e33", "#c9202a", "#f2f0ea", "#8a6a48")):
+        shoe.append(box(0.1, 0.07, 0.24, -0.3 + k * 0.2, 0.07 + (k % 2) * 0.18, 0, c, shape="rounded"))
+    doc("shoe-rack", {"en": "Shoe rack", "pt": "Sapateira", "ja": "靴棚"}, "living", shoe, [0.82, 0.32],
+        ("shoes rack entrance hall", "sapatos sapateira entrada", "靴 玄関"))
+    doc("doormat", {"en": "Doormat", "pt": "Capacho", "ja": "玄関マット"}, "decor", [
+        box(0.7, 0.015, 0.45, 0, 0.0075, 0, "#8a6a48", flat=True),
+        box(0.6, 0.016, 0.35, 0, 0.008, 0, "#5a4632", flat=True),
+    ], [0.7, 0.45], ("doormat welcome entrance mat", "capacho tapete entrada", "マット 玄関"))
+    doc("floor-vase", {"en": "Floor vase", "pt": "Vaso de chão", "ja": "フロア花瓶"}, "decor", [
+        box(0.3, 0.6, 0.3, 0, 0.3, 0, "#b87333", shape=cyl),
+        box(0.18, 0.15, 0.18, 0, 0.67, 0, "#b87333", shape=cyl),
+        box(0.02, 0.9, 0.02, 0.03, 1.1, 0, "#c9b28a", shape=cyl, rz=0.1), box(0.02, 0.8, 0.02, -0.04, 1.05, 0.02, "#c9b28a", shape=cyl, rz=-0.15),
+        box(0.14, 0.2, 0.14, 0.1, 1.5, 0, "#e4d9b0", shape="cone"), box(0.12, 0.18, 0.12, -0.12, 1.4, 0.02, "#e4d9b0", shape="cone"),
+    ], [0.32, 0.32], ("vase decor plant dried", "vaso decoracao", "花瓶 装飾"))
+    doc("cat-tree", {"en": "Cat tree", "pt": "Arranhador para gato", "ja": "キャットタワー"}, "living", [
+        box(0.5, 0.03, 0.5, 0, 0.015, 0, "#c9b28a"),
+        box(0.1, 0.6, 0.1, 0.15, 0.3, 0.1, "#b9a27d", shape=cyl), box(0.1, 1.1, 0.1, -0.15, 0.55, -0.1, "#b9a27d", shape=cyl),
+        box(0.35, 0.03, 0.35, 0.15, 0.62, 0.1, "#c9b28a"), box(0.4, 0.03, 0.4, -0.15, 1.12, -0.1, "#c9b28a"),
+        box(0.3, 0.3, 0.3, -0.15, 0.4, -0.1, "#c9b28a", shape=cyl, axis="z"),
+    ], [0.5, 0.5], ("cat tree scratching post pet", "gato arranhador pet", "猫 ペット"))
+    doc("robot-vacuum", {"en": "Robot vacuum", "pt": "Aspirador robô", "ja": "ロボット掃除機"}, "living", [
+        box(0.34, 0.09, 0.34, 0, 0.045, 0, "#3a3d42", shape=cyl),
+        box(0.08, 0.01, 0.08, 0, 0.095, 0, CHROME, shape=cyl),
+    ], [0.35, 0.35], ("vacuum cleaner robot", "aspirador robo limpeza", "掃除機 ロボット"))
+
+    # ---- office
+    doc("printer", {"en": "Printer", "pt": "Impressora", "ja": "プリンター"}, "office", [
+        box(0.45, 0.2, 0.38, 0, 0.1, 0, "#d9d6cd", shape="rounded"),
+        box(0.3, 0.04, 0.2, 0, 0.22, 0, "#3a3d42"),
+        box(0.25, 0.01, 0.2, 0, 0.09, 0.26, WHITE),
+    ], [0.45, 0.5], ("printer scanner office", "impressora escritorio", "プリンター"))
+
+    # ---- utilities (garage & storage)
+    doc("water-heater", {"en": "Water heater", "pt": "Aquecedor de água (boiler)", "ja": "給湯器"}, "storage", [
+        box(0.5, 1.2, 0.5, 0, 0.7, 0, WHITE, shape=cyl),
+        box(0.5, 0.1, 0.5, 0, 0.05, 0, GREY, shape=cyl),
+        box(0.03, 0.4, 0.03, 0.1, 1.48, 0, CHROME, shape=cyl), box(0.03, 0.4, 0.03, -0.1, 1.48, 0, CHROME, shape=cyl),
+    ], [0.5, 0.5], ("boiler water heater tank utility", "boiler aquecedor agua", "給湯 ボイラー"))
+    doc("breaker-panel", {"en": "Electrical panel", "pt": "Quadro de luz", "ja": "分電盤"}, "storage", [
+        box(0.35, 0.5, 0.1, 0, 0, 0.05, "#d9d6cd"),
+        box(0.31, 0.46, 0.01, 0, 0, 0.105, "#c9c4ba"),
+        box(0.04, 0.02, 0.01, 0.12, 0.2, 0.11, DARK),
+    ], [0.35, 0.12], ("fuse box electrical panel breaker", "quadro disjuntor eletrico", "分電盤 電気"), mount="wall")
+    doc("ac-outdoor-unit", {"en": "Air conditioner outdoor unit", "pt": "Condensadora de ar-condicionado", "ja": "エアコン室外機"}, "storage", [
+        box(0.8, 0.55, 0.3, 0, 0.3, 0, "#d9d6cd"),
+        box(0.44, 0.44, 0.02, 0, 0.3, 0.155, GREY, shape=cyl, axis="z"),
+        box(0.04, 0.03, 0.3, -0.3, 0.015, 0, DARK), box(0.04, 0.03, 0.3, 0.3, 0.015, 0, DARK),
+    ], [0.8, 0.32], ("ac condenser outdoor unit", "ar-condicionado condensadora externa", "室外機 エアコン"))
+    doc("solar-panel", {"en": "Solar panel", "pt": "Painel solar", "ja": "ソーラーパネル"}, "storage", [
+        box(1.7, 0.04, 1.0, 0, 0.25, 0, "#1f3b6b", rx=-0.45),
+        box(1.72, 0.02, 1.02, 0, 0.27, 0, "#2b4f8a", rx=-0.45, opacity=0.6),
+        box(0.04, 0.5, 0.04, -0.7, 0.25, 0.3, GREY), box(0.04, 0.5, 0.04, 0.7, 0.25, 0.3, GREY),
+    ], [1.7, 1.0], ("solar photovoltaic panel roof energy", "solar fotovoltaico painel telhado energia", "太陽光 パネル 屋根"))
+    doc("gas-meter", {"en": "Gas meter box", "pt": "Caixa de medidor de gás", "ja": "ガスメーター"}, "storage", [
+        box(0.4, 0.5, 0.2, 0, 0, 0.1, "#d9d6cd"),
+        box(0.03, 0.03, 0.4, 0.15, -0.3, 0.1, "#e0a526", shape=cyl),
+    ], [0.4, 0.22], ("gas meter box utility", "gas medidor caixa", "ガス メーター"), mount="wall")
+
+    # ---- garden / entrance
+    doc("mailbox", {"en": "Mailbox", "pt": "Caixa de correio", "ja": "郵便受け"}, "garden", [
+        box(0.08, 1.0, 0.08, 0, 0.5, 0, WOOD),
+        box(0.25, 0.22, 0.45, 0, 1.11, 0, "#3b6fa0", shape="rounded"),
+        box(0.02, 0.1, 0.03, 0.14, 1.2, 0.1, "#c9202a"),
+    ], [0.3, 0.5], ("mailbox post letters", "correio caixa cartas", "郵便受け"))
+    doc("lawn-mower", {"en": "Lawn mower", "pt": "Cortador de grama", "ja": "芝刈り機"}, "garden", [
+        box(0.5, 0.25, 0.6, 0, 0.2, 0, "#c9202a", shape="rounded"),
+        box(0.3, 0.2, 0.3, 0, 0.42, -0.05, DARK, shape=cyl),
+        box(0.02, 0.9, 0.02, -0.2, 0.6, 0.45, GREY, rx=-0.6), box(0.02, 0.9, 0.02, 0.2, 0.6, 0.45, GREY, rx=-0.6),
+        box(0.44, 0.03, 0.03, 0, 0.95, 0.7, DARK, shape=cyl, axis="x"),
+        box(0.14, 0.14, 0.06, -0.25, 0.07, -0.22, DARK, shape=cyl, axis="x"), box(0.14, 0.14, 0.06, 0.25, 0.07, -0.22, DARK, shape=cyl, axis="x"),
+        box(0.14, 0.14, 0.06, -0.25, 0.07, 0.22, DARK, shape=cyl, axis="x"), box(0.14, 0.14, 0.06, 0.25, 0.07, 0.22, DARK, shape=cyl, axis="x"),
+    ], [0.55, 1.0], ("mower grass lawn garden", "cortador grama jardim", "芝刈り 庭"))
+    doc("dog-house", {"en": "Dog house", "pt": "Casinha de cachorro", "ja": "犬小屋"}, "garden", [
+        box(0.8, 0.7, 0.9, 0, 0.35, 0, WOOD),
+        box(0.9, 0.05, 0.55, -0.26, 0.86, 0, "#6b4830", rz=0.6), box(0.9, 0.05, 0.55, 0.26, 0.86, 0, "#6b4830", rz=-0.6),
+        box(0.35, 0.4, 0.05, 0, 0.22, 0.44, DARK, shape="rounded"),
+        box(0.2, 0.05, 0.2, 0.3, 0.03, 0.6, CHROME, shape=cyl),
+    ], [0.95, 1.0], ("dog kennel pet house", "cachorro casinha pet", "犬 小屋 ペット"))
+    shed = [box(2.0, 2.1, 1.5, 0, 1.05, 0, "#7a8a5a"), box(2.2, 0.06, 1.7, 0, 2.2, 0, "#4b5059", rx=0.12),
+            box(0.8, 1.8, 0.05, 0.3, 0.9, 0.76, "#5f6e46"), box(0.04, 0.1, 0.03, 0.6, 0.95, 0.79, CHROME),
+            box(0.5, 0.5, 0.04, -0.5, 1.4, 0.76, GLASS, opacity=0.6)]
+    doc("garden-shed", {"en": "Garden shed", "pt": "Depósito de jardim", "ja": "物置"}, "garden", shed, [2.2, 1.7],
+        ("shed storage garden tools hut", "deposito ferramentas jardim casinha", "物置 庭 道具"))
+    doc("bird-bath", {"en": "Bird bath", "pt": "Bebedouro de pássaros", "ja": "バードバス"}, "garden", [
+        box(0.3, 0.05, 0.3, 0, 0.025, 0, "#8c8578", shape=cyl), box(0.12, 0.7, 0.12, 0, 0.4, 0, "#8c8578", shape=cyl),
+        box(0.5, 0.1, 0.5, 0, 0.78, 0, "#8c8578", shape=cyl), box(0.42, 0.02, 0.42, 0, 0.83, 0, "#4e9fd0", shape=cyl, opacity=0.7),
+    ], [0.5, 0.5], ("bird bath fountain garden", "passaros fonte jardim", "鳥 水盤 庭"))
+    tramp = [box(2.4, 0.06, 2.4, 0, 0.8, 0, "#1c1e22", shape=cyl), box(2.5, 0.08, 2.5, 0, 0.84, 0, "#2f6fb3", shape="torus", tube=0.12)]
+    for k in range(6):
+        a = k * _m.pi / 3
+        tramp.append(box(0.05, 0.8, 0.05, 1.1 * _m.cos(a), 0.4, 1.1 * _m.sin(a), GREY, shape=cyl))
+        tramp.append(box(0.04, 1.8, 0.04, 1.2 * _m.cos(a), 1.7, 1.2 * _m.sin(a), GREY, shape=cyl))
+    tramp.append(box(2.5, 1.8, 2.5, 0, 1.7, 0, "#3a3d42", opacity=0.25))
+    doc("trampoline", {"en": "Trampoline", "pt": "Cama elástica", "ja": "トランポリン"}, "kids", tramp, [2.5, 2.5],
+        ("trampoline jump kids garden", "cama elastica pular criancas", "トランポリン 子供"))
+    doc("toy-chest", {"en": "Toy chest", "pt": "Baú de brinquedos", "ja": "おもちゃ箱"}, "kids", [
+        box(0.8, 0.45, 0.45, 0, 0.225, 0, "#e0a526", shape="rounded"),
+        box(0.82, 0.06, 0.47, 0, 0.48, 0, "#c9202a", shape="rounded"),
+        box(0.12, 0.12, 0.12, -0.2, 0.57, 0, "#2f6fb3"), box(0.14, 0.14, 0.14, 0.2, 0.58, 0.05, "#2f9e6b", shape="sphere"),
+    ], [0.82, 0.47], ("toys box chest kids storage", "brinquedos bau criancas", "おもちゃ 箱 子供"))
+    doc("bike-rack", {"en": "Bike rack", "pt": "Bicicletário", "ja": "駐輪ラック"}, "garden", [
+        box(1.2, 0.03, 0.03, 0, 0.3, -0.2, CHROME, shape=cyl, axis="x"), box(1.2, 0.03, 0.03, 0, 0.3, 0.2, CHROME, shape=cyl, axis="x"),
+        *[box(0.03, 0.3, 0.03, x, 0.15, z, CHROME, shape=cyl) for x in (-0.55, 0.55) for z in (-0.2, 0.2)],
+        *[box(0.03, 0.03, 0.4, x, 0.5, 0, CHROME, shape=cyl, axis="z") for x in (-0.4, -0.2, 0, 0.2, 0.4)],
+    ], [1.2, 0.5], ("bicycle rack parking", "bicicleta suporte", "自転車 ラック"))
+    return docs
+
+
 # ------------------------------------------------------------------ build
 
 
@@ -627,7 +929,7 @@ def main() -> None:
             # generated vehicles follow the first motorcycle in the catalog order
             for gid, (gdoc, gtags) in generated.items():
                 write(props_dir, manifest, gid, gdoc["name"], "vehicles", tags_for("vehicles", gdoc["name"], gtags), gdoc["source"]["boxes"], gdoc["footprint"])
-    for gid, (gdoc, gtags, gcat) in leisure().items():
+    for gid, (gdoc, gtags, gcat) in {**leisure(), **household()}.items():
         write(props_dir, manifest, gid, gdoc["name"], gcat, tags_for(gcat, gdoc["name"], gtags), gdoc["source"]["boxes"], gdoc["footprint"], gdoc.get("light"), gdoc.get("mount"))
     (OUT / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=1) + "\n")
     total = sum(p["parts"] for p in manifest["props"])
