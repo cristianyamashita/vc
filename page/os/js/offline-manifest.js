@@ -1255,11 +1255,15 @@
     "utils/fullscreen_message.js",
     "utils/house-planner/app.js",
     "utils/house-planner/js/build/outdoor.js",
+    "utils/house-planner/js/build/railing.js",
+    "utils/house-planner/js/build/roof.js",
     "utils/house-planner/js/build/slabs.js",
     "utils/house-planner/js/build/stairs.js",
     "utils/house-planner/js/build/three",
+    "utils/house-planner/js/build/three/addons/geometries/RoundedBoxGeometry.js",
     "utils/house-planner/js/build/three/addons/utils/BufferGeometryUtils.js",
     "utils/house-planner/js/build/walls.js",
+    "utils/house-planner/js/dims.js",
     "utils/house-planner/js/geom.js",
     "utils/house-planner/js/gizmo.js",
     "utils/house-planner/js/history.js",
@@ -1267,6 +1271,7 @@
     "utils/house-planner/js/materials.js",
     "utils/house-planner/js/panels/props.js",
     "utils/house-planner/js/panels/tree.js",
+    "utils/house-planner/js/plan2d.js",
     "utils/house-planner/js/prefs.js",
     "utils/house-planner/js/propedit.js",
     "utils/house-planner/js/props.js",
@@ -1282,6 +1287,7 @@
     "utils/house-planner/js/three/addons/utils/BufferGeometryUtils.js",
     "utils/house-planner/js/thumbs.js",
     "utils/house-planner/js/tools.js",
+    "utils/house-planner/js/walk.js",
     "utils/house-planner/styles.css",
     "utils/house-planner/three",
     "utils/slides_runner.js",
@@ -1650,6 +1656,6 @@
     "models/tinyyolov2-7.onnx",
     "models/yolov8n-coco.onnx"
   ],
-  "version": "f6ad739d9693"
+  "version": "02f84d746ed4"
 };
 })(typeof self !== "undefined" ? self : window);
