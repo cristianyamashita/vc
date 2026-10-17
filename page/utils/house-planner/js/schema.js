@@ -143,7 +143,7 @@ export function freshStorey(prev, preset = "ground", name = "") {
   return {
     id: uid("st"), name, elevation, height: p.height, slabThickness: 20,
     locked: false, visible: true,
-    floorGroups: [], walls: [], stairs: [], lights: [], lights: [], railings: [], objects: [], rooms: [],
+    floorGroups: [], walls: [], stairs: [], lights: [], railings: [], objects: [], rooms: [],
   };
 }
 export function freshRoof() {
@@ -162,7 +162,7 @@ export function freshProject(name = "") {
     terrain: freshTerrain(),
     sun: freshSun(),
     buildings: [b],
-    outdoor: [], gardenPatches: [], fences: [], siteWalls: [], objects: [], notes: [], lights: [], lights: [], lights: [],
+    outdoor: [], gardenPatches: [], fences: [], siteWalls: [], objects: [], notes: [], lights: [],
     view: { cutaway: false, doorsOpen: false, activeBuilding: b.id, activeStorey: b.storeys[0].id, camera: null },
   };
 }

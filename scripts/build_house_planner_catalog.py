@@ -93,6 +93,7 @@ ITEMS: list[tuple[str, str, str, str, str]] = [
     ("kitchen-table", "dining", "table", "mesa", "テーブル"), ("kitchen-child-chair", "dining", "chair kids", "cadeira crianca", "椅子 子供"),
     ("restaurant-table", "dining", "table", "mesa", "テーブル"), ("refectory-table", "dining", "table bench", "mesa banco", "テーブル"),
     ("stool", "dining", "", "", ""), ("bar-stool", "dining", "stool", "banqueta", "スツール"),
+    ("bar-shelf", "dining", "bar bottles drinks back", "bar bebidas garrafas", "バー 酒 棚"),
     ("bar-counter", "dining", "counter", "balcao", "カウンター"), ("plastic-chair", "dining", "chair", "cadeira", "椅子"),
     ("plastic-table", "dining", "table", "mesa", "テーブル"),
     # kitchen
@@ -173,7 +174,7 @@ ITEMS: list[tuple[str, str, str, str, str]] = [
     ("weight-bench", "sports", "", "", ""), ("weight-rack", "sports", "", "", ""), ("dumbbell", "sports", "", "", ""),
     ("barbell", "sports", "", "", ""), ("basketball-hoop", "sports", "basket", "basquete", "バスケ"), ("volley-net", "sports", "", "", ""),
     ("volleyball", "sports", "", "", ""), ("ball", "sports", "", "", ""), ("pool-table", "sports", "billiards snooker", "sinuca bilhar", "ビリヤード"),
-    ("goal", "sports", "football soccer", "futebol gol", "サッカー ゴール"),
+    ("goal", "sports", "football soccer", "futebol gol", "サッカー ゴール"), ("gym-mirror", "sports", "mirror wall", "espelho parede", "鏡 壁"),
     # storage
     ("cardboard-boxes", "storage", "", "", ""), ("pallet", "storage", "", "", ""), ("steel-shelf", "storage", "shelf", "estante", "棚"),
     ("tool-chest", "storage", "", "", ""), ("tool-board", "storage", "", "", ""), ("tool-trolley", "storage", "", "", ""),
@@ -407,6 +408,160 @@ def fixtures():
     return docs
 
 
+
+# ------------------------------------------------------------------ leisure
+
+
+def leisure():
+    """Generated gym, bar, office and façade props (garage + leisure sample)."""
+    docs = {}
+    STEEL, DARK, WOOD, GLASS, CHROME = "#2b2e33", "#1c1e22", "#8a6a48", "#fff1cc", "#9aa0a8"
+
+    def doc(pid, name, cat, boxes, footprint, tags, light=None, mount=None):
+        d = {"kind": "prop", "version": 1, "id": pid, "name": name, "footprint": footprint, "source": {"type": "boxes", "boxes": boxes}}
+        if light:
+            d["light"] = light
+        if mount:
+            d["mount"] = mount
+        docs[pid] = (d, tags, cat)
+
+    # power rack with pull-up bar, J-hooks and a loaded barbell
+    rack = [box(1.3, 0.02, 1.4, 0, 0.01, 0, "#3a3d42")]
+    for x in (-0.55, 0.55):
+        for z in (-0.6, 0.6):
+            rack.append(box(0.06, 2.2, 0.06, x, 1.1, z, STEEL))
+        rack.append(box(0.06, 0.06, 1.26, x, 2.17, 0, STEEL))
+        rack.append(box(0.06, 0.06, 1.26, x, 0.05, 0, STEEL))
+        rack.append(box(0.1, 0.05, 0.12, x, 1.0, -0.3, "#c9202a"))
+    rack.append(box(1.16, 0.03, 0.03, 0, 2.17, 0.6, CHROME, shape="cylinder", axis="x"))
+    rack.append(box(2.2, 0.03, 0.03, 0, 1.04, -0.3, CHROME, shape="cylinder", axis="x"))
+    for x in (-0.9, 0.9):
+        rack.append(box(0.04, 0.45, 0.45, x, 1.04, -0.3, DARK, shape="cylinder", axis="x"))
+        rack.append(box(0.03, 0.35, 0.35, x + (0.05 if x > 0 else -0.05), 1.04, -0.3, "#c9202a", shape="cylinder", axis="x"))
+    doc("squat-rack", {"en": "Power rack with barbell", "pt": "Gaiola de agachamento com barra", "ja": "パワーラック"}, "sports", rack, [2.3, 1.5],
+        ("squat rack cage barbell weights", "agachamento gaiola barra pesos musculacao", "スクワット バーベル 筋トレ"))
+
+    # three-tier dumbbell rack
+    dr = [box(0.06, 0.95, 0.5, x, 0.48, 0, STEEL) for x in (-0.6, 0.6)]
+    for i, (y, zc) in enumerate(((0.25, 0.12), (0.55, 0.0), (0.85, -0.12))):
+        dr.append(box(1.2, 0.03, 0.3, 0, y, zc, STEEL))
+        for k in range(5):
+            x = -0.45 + k * 0.225
+            r = 0.07 + i * 0.015
+            dr.append(box(0.09, 0.03, 0.03, x, y + 0.03 + r, zc, CHROME, shape="cylinder", axis="x"))
+            dr.append(box(0.05, r * 2, r * 2, x - 0.065, y + 0.03 + r, zc, DARK, shape="cylinder", axis="x"))
+            dr.append(box(0.05, r * 2, r * 2, x + 0.065, y + 0.03 + r, zc, DARK, shape="cylinder", axis="x"))
+    doc("dumbbell-rack", {"en": "Dumbbell rack", "pt": "Suporte de halteres", "ja": "ダンベルラック"}, "sports", dr, [1.25, 0.55],
+        ("dumbbells rack weights", "halteres pesos suporte musculacao", "ダンベル 筋トレ"))
+
+    # kettlebells on a rubber tray
+    kb = [box(0.95, 0.03, 0.4, 0, 0.015, 0, "#3a3d42")]
+    for k, sz in enumerate((0.2, 0.25, 0.3)):
+        x = -0.32 + k * 0.32
+        kb.append(box(sz, sz, sz, x, 0.03 + sz / 2, 0, DARK, shape="sphere"))
+        kb.append(box(sz * 0.7, sz * 0.5, 0.04, x, 0.03 + sz + 0.02, 0, DARK, shape="torus", tube=0.2, rx=1.5708))
+    doc("kettlebell-set", {"en": "Kettlebells", "pt": "Kettlebells", "ja": "ケトルベル"}, "sports", kb, [1.0, 0.45],
+        ("kettlebell weights", "pesos musculacao", "筋トレ"))
+
+    doc("yoga-mat", {"en": "Yoga mat", "pt": "Tapete de yoga", "ja": "ヨガマット"}, "sports", [
+        box(0.61, 0.01, 1.8, 0, 0.005, 0, "#6f4bb0"),
+        box(0.61, 0.09, 0.09, 0, 0.05, -0.86, "#6f4bb0", shape="cylinder", axis="x"),
+    ], [0.65, 1.85], ("yoga mat stretch pilates", "yoga alongamento pilates", "ヨガ ストレッチ"))
+    doc("exercise-ball", {"en": "Exercise ball", "pt": "Bola de pilates", "ja": "バランスボール"}, "sports", [
+        box(0.65, 0.65, 0.65, 0, 0.325, 0, "#2f6fb3", shape="sphere"),
+    ], [0.65, 0.65], ("ball swiss pilates gym", "bola suica pilates", "ボール ピラティス"))
+    doc("foam-roller", {"en": "Foam roller", "pt": "Rolo de massagem", "ja": "フォームローラー"}, "sports", [
+        box(0.15, 0.15, 0.9, 0, 0.075, 0, STEEL, shape="cylinder", axis="z"),
+    ], [0.15, 0.9], ("foam roller massage", "rolo massagem", "ローラー"))
+
+    # medicine balls on a two-post rack
+    mb = [box(0.05, 1.0, 0.05, x, 0.5, 0, STEEL) for x in (-0.38, 0.38)]
+    cols = ("#c9202a", "#2f6fb3", "#e0a526", "#2f9e6b", "#6f4bb0", "#f2ede4")
+    for i, (y, sz) in enumerate(((0.22, 0.28), (0.55, 0.24), (0.85, 0.2))):
+        for z in (-0.1, 0.1):
+            mb.append(box(0.8, 0.025, 0.025, 0, y, z, STEEL, shape="cylinder", axis="x"))
+        for j, x in enumerate((-0.18, 0.18)):
+            mb.append(box(sz, sz, sz, x, y + sz / 2 + 0.01, 0, cols[i * 2 + j], shape="sphere"))
+    doc("medicine-ball-rack", {"en": "Medicine ball rack", "pt": "Suporte de bolas medicinais", "ja": "メディシンボールラック"}, "sports", mb, [0.85, 0.35],
+        ("medicine balls rack", "bolas medicinais suporte", "ボール ラック"))
+
+    # lockers
+    lk = [box(1.6, 1.8, 0.5, 0, 0.9, 0, "#3a3d42")]
+    for x in (-0.6, -0.2, 0.2, 0.6):
+        lk.append(box(0.36, 1.7, 0.02, x, 0.9, 0.26, "#4b5059"))
+        lk.append(box(0.03, 0.1, 0.02, x + 0.14, 0.95, 0.28, CHROME))
+        lk.append(box(0.2, 0.08, 0.01, x, 1.6, 0.275, DARK))
+    doc("gym-lockers", {"en": "Lockers", "pt": "Armários de vestiário", "ja": "ロッカー"}, "sports", lk, [1.6, 0.5],
+        ("lockers cabinet changing room", "armario vestiario", "ロッカー 更衣"))
+
+    # wall cue rack (wall mount: back at z=0, y around the hanging point)
+    cr = [box(0.6, 0.08, 0.03, 0, 0.75, 0.015, WOOD), box(0.6, 0.08, 0.07, 0, -0.75, 0.035, WOOD)]
+    for x in (-0.22, -0.074, 0.074, 0.22):
+        cr.append(box(0.025, 1.45, 0.025, x, 0, 0.045, "#c8a06a", shape="cylinder"))
+        cr.append(box(0.015, 0.02, 0.015, x, 0.735, 0.045, "#3b6fa0", shape="cylinder"))
+    doc("cue-rack", {"en": "Cue rack", "pt": "Suporte de tacos", "ja": "キューラック"}, "sports", cr, [0.6, 0.08],
+        ("billiards pool cue rack wall", "sinuca bilhar taco parede", "ビリヤード キュー"), mount="wall")
+
+    doc("coffee-machine", {"en": "Espresso machine", "pt": "Máquina de café", "ja": "エスプレッソマシン"}, "kitchen", [
+        box(0.28, 0.38, 0.34, 0, 0.19, 0, DARK, shape="rounded"),
+        box(0.28, 0.03, 0.34, 0, 0.395, 0, CHROME),
+        box(0.07, 0.07, 0.08, 0, 0.19, 0.19, CHROME, shape="cylinder", axis="z"),
+        box(0.02, 0.02, 0.12, 0, 0.16, 0.26, DARK, shape="cylinder", axis="z"),
+        box(0.24, 0.02, 0.1, 0, 0.03, 0.2, CHROME),
+        box(0.07, 0.06, 0.07, 0, 0.07, 0.2, "#f2ede4", shape="cylinder"),
+    ], [0.3, 0.4], ("coffee espresso machine", "cafe cafeteira expresso", "コーヒー"))
+
+    mf = [
+        box(0.5, 0.85, 0.55, 0, 0.425, 0, DARK, shape="rounded"),
+        box(0.46, 0.75, 0.01, 0, 0.45, 0.275, STEEL),
+        box(0.42, 0.7, 0.02, 0, 0.45, 0.285, "#9fc3d2", opacity=0.45),
+        box(0.02, 0.4, 0.03, 0.2, 0.45, 0.3, CHROME),
+        box(0.4, 0.01, 0.45, 0, 0.35, 0, "#c8ced6"), box(0.4, 0.01, 0.45, 0, 0.6, 0, "#c8ced6"),
+    ]
+    for y in (0.46, 0.71):
+        for k, x in enumerate((-0.12, 0, 0.12)):
+            mf.append(box(0.06, 0.2, 0.06, x, y, 0.1, ("#2f9e6b", "#c9202a", "#e0a526")[k], shape="cylinder"))
+    doc("mini-fridge", {"en": "Bar fridge", "pt": "Frigobar", "ja": "ミニ冷蔵庫"}, "kitchen", mf, [0.5, 0.55],
+        ("mini fridge bar drinks beverage", "frigobar geladeira bebidas", "冷蔵庫 飲み物"))
+
+    doc("wall-tv", {"en": "Wall-mounted TV", "pt": "TV de parede", "ja": "壁掛けテレビ"}, "living", [
+        box(0.2, 0.2, 0.03, 0, 0, 0.015, "#3a3d42"),
+        box(1.6, 0.9, 0.04, 0, 0, 0.05, DARK),
+        box(1.52, 0.84, 0.005, 0, 0, 0.075, "#2a6fa0", flat=True),
+    ], [1.6, 0.1], ("television screen wall", "televisao tela parede", "テレビ 壁"), mount="wall")
+
+    ws = []
+    bookc = ("#b3362a", "#2f6fb3", "#e0a526", "#2f9e6b", "#6f4bb0", "#f2ede4", "#8a6a48", "#3b6fa0", "#c9202a")
+    for i, y in enumerate((-0.35, 0, 0.35)):
+        ws.append(box(1.2, 0.03, 0.25, 0, y, 0.125, WOOD))
+        for j, x in enumerate((-0.4, 0, 0.4)):
+            if i == 2 and j == 2:
+                continue
+            ws.append(box(0.25, 0.22, 0.18, x, y + 0.125, 0.12, bookc[i * 3 + j]))
+    ws.append(box(0.1, 0.1, 0.1, 0.45, 0.415, 0.12, "#b87333", shape="cylinder"))
+    ws.append(box(0.2, 0.14, 0.2, 0.45, 0.54, 0.12, "#3f8f4a", shape="sphere"))
+    doc("wall-shelves", {"en": "Wall shelves with books", "pt": "Prateleiras de parede com livros", "ja": "壁の棚と本"}, "office", ws, [1.2, 0.25],
+        ("shelf books wall", "prateleira livros parede", "棚 本 壁"), mount="wall")
+
+    sl = [box(2.4, 0.06, 0.05, 0, 2.57, 0, WOOD), box(2.4, 0.06, 0.05, 0, 0.03, 0, WOOD)]
+    for k in range(12):
+        sl.append(box(0.06, 2.6, 0.04, -1.1 + k * 0.2, 1.3, 0, "#8a6a48", grain=0.03))
+    doc("slat-panel", {"en": "Wooden slat panel", "pt": "Painel ripado de madeira", "ja": "木製ルーバーパネル"}, "decor", sl, [2.4, 0.06],
+        ("slats louvre brise facade screen wood", "ripado brise fachada madeira", "ルーバー 格子 木 外壁"))
+
+    doc("led-strip", {"en": "LED strip", "pt": "Fita de LED", "ja": "LEDバー"}, "lighting", [
+        box(2.0, 0.02, 0.04, 0, -0.01, 0, CHROME),
+        box(1.98, 0.01, 0.03, 0, -0.025, 0, GLASS, opacity=0.9),
+    ], [2.0, 0.05], ("led strip linear ceiling light", "led linear teto luz", "LED 天井 照明"),
+        light={"color": "#fff4dd", "intensity": 1.6, "distance": 4.5, "at": [0, -0.05, 0]}, mount="ceiling")
+    doc("downlight", {"en": "Recessed downlight", "pt": "Spot embutido", "ja": "ダウンライト"}, "lighting", [
+        box(0.1, 0.01, 0.1, 0, -0.005, 0, "#e8e2d6", shape="cylinder"),
+        box(0.07, 0.006, 0.07, 0, -0.012, 0, GLASS, shape="cylinder"),
+    ], [0.1, 0.1], ("recessed spot downlight ceiling", "spot embutido teto", "ダウンライト 天井"),
+        light={"color": "#fff4dd", "intensity": 1.4, "distance": 4, "at": [0, -0.04, 0]}, mount="ceiling")
+    return docs
+
+
 # ------------------------------------------------------------------ build
 
 
@@ -472,6 +627,8 @@ def main() -> None:
             # generated vehicles follow the first motorcycle in the catalog order
             for gid, (gdoc, gtags) in generated.items():
                 write(props_dir, manifest, gid, gdoc["name"], "vehicles", tags_for("vehicles", gdoc["name"], gtags), gdoc["source"]["boxes"], gdoc["footprint"])
+    for gid, (gdoc, gtags, gcat) in leisure().items():
+        write(props_dir, manifest, gid, gdoc["name"], gcat, tags_for(gcat, gdoc["name"], gtags), gdoc["source"]["boxes"], gdoc["footprint"], gdoc.get("light"), gdoc.get("mount"))
     (OUT / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=1) + "\n")
     total = sum(p["parts"] for p in manifest["props"])
     print(f"{len(manifest['props'])} props, {total} parts total")
