@@ -37,15 +37,18 @@ export function registerCustom(doc) {
   if (i >= 0) catalog.props[i] = entry;
   else catalog.props.push(entry);
   geometryCache.delete(doc.id);
+  glowCache.delete(doc.id);
 }
 export function invalidateGeometry(id) {
   geometryCache.delete(id);
+  glowCache.delete(id);
 }
 export function unregisterCustom(id) {
   docs.delete(id);
   customIds.delete(id);
   catalog.props = catalog.props.filter((p) => p.id !== id);
   geometryCache.delete(id);
+  glowCache.delete(id);
 }
 export function getPropDoc(id) {
   const d = docs.get(id);
@@ -194,4 +197,45 @@ export function propObject(doc, { tint = null, material = null } = {}) {
 }
 export function propBounds(doc) {
   return propGeometry(doc).bounds;
+}
+
+// ------------------------------------------------------------- lighting
+
+/** Parts that read as a bulb, shade or flame: near white, or warm yellow / orange. */
+export function isBulbPart(b) {
+  if (b.hole) return false;
+  const { h, s, l } = new THREE.Color(b.color || "#ffffff").getHSL({});
+  return (l >= 0.72 && s <= 0.45) || (h >= 0.04 && h <= 0.2 && l >= 0.5 && s >= 0.3);
+}
+const glowCache = new Map();
+const inlineGlow = new WeakMap();
+/**
+ * Baked geometry of the bulb parts (slightly inflated so it draws over the
+ * part itself) and their centre, for the night glow and point light. Null
+ * when the object has no bulb-like part.
+ */
+export function propGlow(doc) {
+  const builtin = !!doc.id && docs.get(doc.id) === doc;
+  const cached = builtin ? glowCache.get(doc.id) : inlineGlow.get(doc);
+  if (cached !== undefined) return cached;
+  const parts = doc.source.boxes.filter(isBulbPart);
+  let out = null;
+  if (parts.length) {
+    const geos = parts.map((b) => {
+      const g = shapeGeometry({ ...b, w: b.w * 1.04 + 0.004, h: b.h * 1.04 + 0.004, d: b.d * 1.04 + 0.004 });
+      g.applyMatrix4(partMatrix(b));
+      return g.index ? g.toNonIndexed() : g;
+    });
+    const geo = mergeGeometries(geos, false);
+    geos.forEach((g) => g.dispose());
+    geo.computeBoundingBox();
+    const centre = geo.boundingBox.getCenter(new THREE.Vector3());
+    out = { geo, centre };
+  }
+  if (builtin) glowCache.set(doc.id, out);
+  else inlineGlow.set(doc, out);
+  return out;
+}
+export function invalidateGlow(id) {
+  glowCache.delete(id);
 }

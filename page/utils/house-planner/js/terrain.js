@@ -7,9 +7,10 @@ import { TriplanarMaterial, textureIndex, textureTile } from "./materials.js";
 import { M } from "./scene.js";
 import { pointInPolygon } from "./geom.js";
 
-// Pools cut the ground: the terrain shaders discard fragments inside the
-// pool polygons (world metres), in the colour pass and in the shadow pass.
-const CUT_MAX = 160, CUT_POLYS = 8;
+// Pools, ponds and streams cut the ground: the terrain shaders discard
+// fragments inside their polygons (world metres), in the colour pass and in
+// the shadow pass.
+const CUT_MAX = 320, CUT_POLYS = 12;
 const CUT_PARS = /* glsl */ `
 uniform vec2 uCutPts[${CUT_MAX}];
 uniform int uCutStart[${CUT_POLYS}];
@@ -126,7 +127,7 @@ export class Terrain {
     this.mesh.material = this.material();
     old.dispose();
   }
-  /** Polygons (world cm) where the ground is not drawn (pools). */
+  /** Polygons (world cm) where the ground is not drawn (pools, ponds, streams). */
   setCutouts(polys) {
     const { pts, start, len } = this.cut;
     pts.value.fill(0);

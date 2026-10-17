@@ -26,6 +26,7 @@ export class Tree {
       case "garden": return `${t("gardenPatch")} ${index + 1}`;
       case "railing": case "fence": return `${t(type)} ${index + 1} · ${t(`style_${item.style}`)}`;
       case "gate": return `${t(`gate_${item.type}`)} ${index + 1}`;
+      case "note": return `${index + 1}. ${item.text ? item.text.slice(0, 40) : t("note")}`;
       case "object": {
         const doc = item.inline || propDocSync(item.prop);
         return doc ? doc.name[lang] || doc.name.en || item.prop : item.prop || t("object");
@@ -55,7 +56,7 @@ export class Tree {
     row("site", "site", `${t("siteObjects")} (${project.objects.length})`, 0, { icon: "🌳", children: "site", always: true });
     if (open("site")) project.objects.forEach((o, i) => row(o.id, "object", this.label("object", o, i), 1, { icon: "▫", lockable: true, locked: o.locked }));
     row("outdoorList", "site", `${t("outdoor")} (${project.outdoor.length})`, 0, { icon: "🪵", children: "outdoor", always: true });
-    if (open("outdoor")) project.outdoor.forEach((d, i) => row(d.id, "outdoor", this.label("outdoor", d, i), 1, { icon: d.type === "pool" ? "💧" : d.type === "path" ? "〰" : "▭", lockable: true, locked: d.locked }));
+    if (open("outdoor")) project.outdoor.forEach((d, i) => row(d.id, "outdoor", this.label("outdoor", d, i), 1, { icon: { pool: "💧", path: "〰", pond: "🌊", stream: "💦" }[d.type] || "▭", lockable: true, locked: d.locked }));
     row("gardenList", "site", `${t("garden")} (${project.gardenPatches.length})`, 0, { icon: "🌿", children: "garden", always: true });
     if (open("garden")) project.gardenPatches.forEach((g, i) => row(g.id, "garden", this.label("garden", g, i), 1, { icon: "▧", lockable: true, locked: g.locked }));
     row("fenceList", "site", `${t("fences")} (${project.fences.length})`, 0, { icon: "🪧", children: "fences", always: true });
@@ -70,6 +71,9 @@ export class Tree {
         row(w.id, "siteWall", this.label("siteWall", w, i), 1, { icon: "▬", lockable: true, locked: w.locked });
         w.gates.forEach((g, gi) => row(g.id, "gate", this.label("gate", g, gi), 2, { icon: "⊏", lockable: true, locked: g.locked }));
       });
+    const notes = project.notes || [];
+    row("noteList", "site", `${t("notes")} (${notes.length})`, 0, { icon: "📌", children: "notes", always: true });
+    if (open("notes")) notes.forEach((n, i) => row(n.id, "note", this.label("note", n, i), 1, { icon: n.done ? "☑" : "☐", hidden: n.done }));
     project.buildings.forEach((b, bi) => {
       const bkey = `b:${b.id}`;
       row(b.id, "building", this.label("building", b, bi), 0, { icon: "🏠", children: bkey, lockable: true, locked: b.locked, active: b.id === state.activeBuilding, always: true });

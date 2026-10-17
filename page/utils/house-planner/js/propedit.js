@@ -68,6 +68,8 @@ export class PropEditor {
     app.scene.world.visible = false;
     app.scene.overlay.visible = false;
     app.sun.roofs.visible = false;
+    app.night.group.visible = false;
+    app.notes.render();
     app.scene.setToolActive(false);
     this.root.visible = true;
     document.body.classList.add("editing");
@@ -88,6 +90,7 @@ export class PropEditor {
     app.scene.world.visible = true;
     app.scene.overlay.visible = true;
     app.sun.roofs.visible = true;
+    app.night.group.visible = true;
     document.body.classList.remove("editing");
     $("#tabs").querySelectorAll("button").forEach((b) => (b.disabled = false));
     $("#editor-parts").hidden = true;
