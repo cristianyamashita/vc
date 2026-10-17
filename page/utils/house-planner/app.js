@@ -11,7 +11,7 @@ import { Tools, TAB_TOOLS } from "./js/tools.js";
 import { Tree } from "./js/panels/tree.js";
 import { PropsPanel } from "./js/panels/props.js";
 import { History } from "./js/history.js";
-import { loadTextureIndex, setTextureReadyCallback, isCustomTexture } from "./js/materials.js";
+import { loadTextureIndex, setTextureReadyCallback, isCustomTexture, textureIndex } from "./js/materials.js";
 import { loadCatalog, catalog, getPropDoc, propObject, searchCatalog, registerCustom, registerGenerated, customIds, propDocSync } from "./js/props.js";
 import { thumbnail, clearThumbs } from "./js/thumbs.js";
 import { TextureManager, textureControl, fillTextureSelect } from "./js/textures.js";
