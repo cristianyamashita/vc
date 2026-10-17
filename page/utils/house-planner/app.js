@@ -53,7 +53,6 @@ const HOTKEYS = {
   modes: { translate: "W", rotate: "E", scale: "R", dims: "M" },
   tools: { light: "Z", select: "V", raise: "A", lower: "Z", flatten: "L", smooth: "U", paint: "A", erase: "Z", rect: "L", draw: "A", railing: "L", add: "A", gate: "L", place: "A", polygon: "A", fence: "L", siteWall: "U", kitchen: "L", note: "U" },
 };
-const DEFAULT_TOOL = { terrain: "raise", floors: "paint", walls: "draw", openings: "add", stairs: "place", outdoor: "polygon", garden: "polygon", objects: "place" };
 
 class App {
   constructor() {
@@ -1244,11 +1243,10 @@ class App {
     prefs.tab = tab;
     savePrefs();
     $$("#tabs button").forEach((b) => b.classList.toggle("on", b.dataset.tab === tab));
-    const tools = TAB_TOOLS[tab];
-    const def = DEFAULT_TOOL[tab] || "select";
+    // every tab opens with the Select tool; the tab's own tools are a click or hotkey away
     if (tab === "terrain") this.state.selection = "terrain";
     else if (this.state.selection === "terrain") this.state.selection = null;
-    this.setTool(tools.includes(def) ? def : "select");
+    this.setTool("select");
   }
   setTool(tool) {
     if (tool !== "select" && this.walk?.active) this.setView("3d");
