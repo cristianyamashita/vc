@@ -38,7 +38,7 @@ import { Walk } from "./js/walk.js";
 import { renderPlan } from "./js/plan2d.js";
 import { propBounds } from "./js/props.js";
 import * as store from "./js/store.js";
-import { freshProject, freshBuilding, freshStorey, freshNote, locate, isLocked, uid, clone, OPENING_PRESETS, OUTDOOR_TYPES, projectChecked, findBuilding, topStorey, RAILING_STYLES, FENCE_STYLES, GATE_TYPES, WALL_TOPS } from "./js/schema.js";
+import { freshProject, freshBuilding, freshStorey, freshNote, freshLight, locate, isLocked, uid, clone, OPENING_PRESETS, OUTDOOR_TYPES, projectChecked, findBuilding, topStorey, RAILING_STYLES, FENCE_STYLES, GATE_TYPES, WALL_TOPS } from "./js/schema.js";
 
 const DEG = Math.PI / 180;
 const $ = (s, r = document) => r.querySelector(s);
@@ -49,7 +49,7 @@ const HOTKEYS = {
   menu: { new: "N", template: "Shift+N", open: "O", versions: "H", save: "S", saveAs: "Shift+S", export: "X", import: "I", exportPlan: "P", exportView: "Shift+P", exportGlb: "Shift+X", share: "Shift+L" },
   view: { "snap-btn": "G", "cutaway-btn": "C", "doors-btn": "B", "ruler-btn": "D", "night-btn": "J", "view-3d": "Q", "view-top": "T", "view-walk": "K", "fit-btn": "F" },
   modes: { translate: "W", rotate: "E", scale: "R", dims: "M" },
-  tools: { select: "V", raise: "A", lower: "Z", flatten: "L", smooth: "U", paint: "A", erase: "Z", rect: "L", draw: "A", railing: "L", add: "A", gate: "L", place: "A", polygon: "A", fence: "L", siteWall: "U", kitchen: "L", note: "U" },
+  tools: { light: "Z", select: "V", raise: "A", lower: "Z", flatten: "L", smooth: "U", paint: "A", erase: "Z", rect: "L", draw: "A", railing: "L", add: "A", gate: "L", place: "A", polygon: "A", fence: "L", siteWall: "U", kitchen: "L", note: "U" },
 };
 const DEFAULT_TOOL = { terrain: "raise", floors: "paint", walls: "draw", openings: "add", stairs: "place", outdoor: "polygon", garden: "polygon", objects: "place" };
 
@@ -329,14 +329,14 @@ class App {
   }
   duplicateSelected() {
     const found = this.state.selection && this.locate(this.state.selection);
-    if (!found || !["object", "stairs", "outdoor", "garden", "railing", "fence", "siteWall", "note"].includes(found.type)) return;
+    if (!found || !["object", "stairs", "outdoor", "garden", "railing", "fence", "siteWall", "note", "light"].includes(found.type)) return;
     if (this.state.extra.size) {
       if (copySelection(this)) pasteClipboard(this);
       return;
     }
     this.checkpoint();
     const copy = clone(found.item);
-    copy.id = uid({ object: "ob", stairs: "sr", garden: "g", outdoor: "d", railing: "rl", fence: "fe", siteWall: "sw", note: "nt" }[found.type]);
+    copy.id = uid({ object: "ob", stairs: "sr", garden: "g", outdoor: "d", railing: "rl", fence: "fe", siteWall: "sw", note: "nt", light: "lt" }[found.type]);
     copy.locked = false;
     if (copy.gates) for (const g of copy.gates) g.id = uid("gt");
     if (copy.points) copy.points = copy.points.map(([x, z]) => [x + 50, z + 50]);
@@ -388,6 +388,7 @@ class App {
     for (const id of [...this.buildingGroups.keys()]) this.disposeBuilding(id);
     this.scene.world.clear();
     this.objectGroups.clear();
+    this.lightMarkers?.clear();
     this.scene.world.add(this.terrain.ensure(this.project.terrain));
     this.terrain.setClamp(this.project.terrain.flattenUnderBuildings ? this.makeClamp() : null);
     this.siteGroup = new THREE.Group();
@@ -432,6 +433,7 @@ class App {
       for (const st of s.stairs) sg.add(buildStairs(st, s));
       for (const r of s.railings) sg.add(buildRailing(r, "railing", { baseY: s.elevation + railingOffset(r, s, this.project.grid.tile), storeyId: s.id }));
       for (const o of s.objects) sg.add(this.makeObjectGroup(o, s.elevation));
+      for (const l of s.lights || []) sg.add(this.makeLightMarker(l, s.elevation));
       for (const { face, room } of rooms) {
         const g = buildRoomFinish(face, room, s, { floorY: this.roomFloorY(b, s, face), ceilingY: this.roomCeilingY(b, s, face) });
         if (g) sg.add(g);
@@ -500,6 +502,7 @@ class App {
     }
     this.terrain.setCutouts(this.project.outdoor.filter((p) => WATER_TYPES.includes(p.type)).map((p) => polygonOutline(p)).filter((pts) => pts.length >= 3));
     for (const o of this.project.objects) this.siteGroup.add(this.makeObjectGroup(o, 0));
+    for (const l of this.project.lights || []) this.siteGroup.add(this.makeLightMarker(l, 0));
     for (const d of this.project.outdoor) {
       const g = buildPolygon(d, "outdoor", this.terrain);
       if (g) this.siteGroup.add(g);
@@ -511,6 +514,41 @@ class App {
     for (const f of this.project.fences) this.siteGroup.add(buildRailing(f, "fence", { heightAt: (x, z) => this.terrain.heightAt(x, z) }));
     for (const w of this.project.siteWalls) this.siteGroup.add(buildSiteWall(w, this.terrain));
     if (!quiet) this.afterSceneChange();
+  }
+  /** Small emissive marker for a light point (selectable, movable). */
+  makeLightMarker(l, baseY) {
+    this.lightMarkers ??= new Map();
+    const g = new THREE.Group();
+    const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.07, 12, 10), new THREE.MeshBasicMaterial({ color: l.on === false ? 0x777777 : l.color }));
+    bulb.userData.sharedGeometry = false;
+    g.add(bulb);
+    if (l.type === "spot") {
+      const cone = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.14, 12, 1, true), new THREE.MeshBasicMaterial({ color: l.color, wireframe: true }));
+      cone.position.y = -0.1;
+      g.add(cone);
+    }
+    g.position.set(l.at[0] * M, (l.at[1] + baseY) * M, l.at[2] * M);
+    g.userData = { kind: "light", id: l.id };
+    this.lightMarkers.set(l.id, g);
+    return g;
+  }
+  addLight(at, building = null, storey = null) {
+    this.checkpoint();
+    const light = freshLight();
+    if (building && storey) {
+      const l = this.toLocal(building, new THREE.Vector3(at[0] * M, at[1] * M, at[2] * M));
+      light.at = [r1(l.x), r1(l.y - storey.elevation), r1(l.z)];
+      storey.lights ??= [];
+      storey.lights.push(light);
+      this.changed({ rebuild: "building", buildingId: building.id });
+    } else {
+      light.at = at.map(r1);
+      this.project.lights ??= [];
+      this.project.lights.push(light);
+      this.changed({ rebuild: "site" });
+    }
+    this.select(light.id, { keepTool: true });
+    if (!this.project.sun.night) this.toast(this.t("lightNightOff"));
   }
   makeObjectGroup(o, baseY) {
     const doc = o.inline || this.propDoc(o.prop);
@@ -1008,6 +1046,19 @@ class App {
         };
         return T(this.findGroup(this.siteGroup, "siteWallGroup", id), this.siteGroup, item, adapter, adapter.modes);
       }
+      case "light": {
+        const g = this.lightMarkers?.get(id);
+        const parent = found.storey ? this.storeyGroups.get(found.storey.id) : this.siteGroup;
+        const l = found.item;
+        const adapter = {
+          planar: false, modes: ["translate"], rebuild: found.building ? "building" : "site", buildingId: found.building?.id || null,
+          apply: (group, { step, snapTo }) => {
+            l.at = [snapTo(group.position.x * CM, step), snapTo(group.position.y * CM - (found.storey ? found.storey.elevation : 0), step), snapTo(group.position.z * CM, step)].map(r1);
+            group.position.set(l.at[0] * M, (l.at[1] + (found.storey ? found.storey.elevation : 0)) * M, l.at[2] * M);
+          },
+        };
+        return T(g, parent, l, adapter, adapter.modes);
+      }
       case "gate": {
         const hit = this.findGroup(this.siteGroup, "gate", id);
         return hit ? { group: hit, parent: hit.parent, placement: found.item, adapter: null, modes: [], locked } : null;
@@ -1090,7 +1141,7 @@ class App {
       let kind = null, id = null;
       for (let p = o; p && !kind; p = p.parent) {
         const k = p.userData.kind;
-        if (["terrain", "floorGroup", "wall", "opening", "object", "stairs", "outdoor", "garden", "roof", "railing", "fence", "gate", "siteWall", "room"].includes(k)) {
+        if (["terrain", "floorGroup", "wall", "opening", "object", "stairs", "outdoor", "garden", "roof", "railing", "fence", "gate", "siteWall", "room", "light"].includes(k)) {
           kind = k;
           id = p.userData.id;
         } else if (k === "leaf" || k === "glass") {
@@ -1273,7 +1324,7 @@ class App {
       extra.append(sel, tex, color, hint);
     } else if (tab === "objects") {
       const hint = document.createElement("label");
-      hint.textContent = tool === "note" ? t("noteHint") : this.state.pendingProp ? `${this.state.pendingProp.name[this.lang] || this.state.pendingProp.name.en} · ${t("rotateGhost")}` : t("catalog");
+      hint.textContent = tool === "light" ? t("lightPointHint") : tool === "note" ? t("noteHint") : this.state.pendingProp ? `${this.state.pendingProp.name[this.lang] || this.state.pendingProp.name.en} · ${t("rotateGhost")}` : t("catalog");
       const btn = document.createElement("button");
       btn.className = "tb small";
       btn.textContent = `+ ${t("newObject")}`;

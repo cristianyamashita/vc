@@ -18,6 +18,7 @@ export class Tree {
     switch (type) {
       case "building": return `${t("building")} ${index + 1}`;
       case "siteWall": return `${t("siteWall")} ${index + 1}`;
+      case "light": return `${t(item.type === "spot" ? "lightSpot" : "lightPoint")} ${index + 1}`;
       case "storey": return `${t("storey")} ${index + 1}`;
       case "floorGroup": return `${t("floor")} ${index + 1}`;
       case "room": return `${t("room")} ${index + 1}`;
@@ -57,6 +58,8 @@ export class Tree {
     row("terrain", "terrain", t("terrain"), 0, { icon: "⛰", lockable: true, locked: project.terrain.locked, always: true });
     row("site", "site", `${t("siteObjects")} (${project.objects.length})`, 0, { icon: "🌳", children: "site", always: true });
     if (open("site")) project.objects.forEach((o, i) => row(o.id, "object", this.label("object", o, i), 1, { icon: "▫", lockable: true, locked: o.locked }));
+    row("lightList", "site", `${t("lights")} (${(project.lights || []).length})`, 0, { icon: "💡", children: "siteLights", always: true });
+    if (open("siteLights")) (project.lights || []).forEach((l, i) => row(l.id, "light", this.label("light", l, i), 1, { icon: "✦", lockable: true, locked: l.locked }));
     row("outdoorList", "site", `${t("outdoor")} (${project.outdoor.length})`, 0, { icon: "🪵", children: "outdoor", always: true });
     if (open("outdoor")) project.outdoor.forEach((d, i) => row(d.id, "outdoor", this.label("outdoor", d, i), 1, { icon: { pool: "💧", path: "〰", pond: "🌊", stream: "💦" }[d.type] || "▭", lockable: true, locked: d.locked }));
     row("gardenList", "site", `${t("garden")} (${project.gardenPatches.length})`, 0, { icon: "🌿", children: "garden", always: true });
@@ -112,6 +115,9 @@ export class Tree {
         const okey = `o:${s.id}`;
         row(`group:${okey}`, "group", `${t("objects")} (${s.objects.length})`, 2, { children: okey, always: true });
         if (open(okey)) s.objects.forEach((o, i) => row(o.id, "object", this.label("object", o, i), 3, { icon: "▫", lockable: true, locked: o.locked }));
+        const lkey = `l:${s.id}`;
+        row(`group:${lkey}`, "group", `${t("lights")} (${(s.lights || []).length})`, 2, { children: lkey, always: true });
+        if (open(lkey)) (s.lights || []).forEach((l, i) => row(l.id, "light", this.label("light", l, i), 3, { icon: "✦", lockable: true, locked: l.locked }));
         void sLocked;
       });
     });

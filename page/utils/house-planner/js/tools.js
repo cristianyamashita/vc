@@ -23,7 +23,7 @@ export const TAB_TOOLS = {
   stairs: ["select", "place"],
   outdoor: ["select", "polygon"],
   garden: ["select", "polygon", "fence", "siteWall"],
-  objects: ["select", "place", "note", "kitchen"],
+  objects: ["select", "place", "note", "kitchen", "light"],
 };
 const DEG = Math.PI / 180;
 
@@ -143,6 +143,7 @@ export class Tools {
         break;
       case "objects":
         if (tool === "note") this.noteClick(e);
+        else if (tool === "light") this.lightClick(e);
         else if (tool === "kitchen") {
           if (!storey || isLocked(this.app.project, storey.id)) return this.app.toast(this.app.t("lockedItem"));
           this.kitchenClick(e);
@@ -202,6 +203,7 @@ export class Tools {
         break;
       case "objects":
         if (tool === "note") this.noteGhost(e);
+        else if (tool === "light") this.lightGhost(e);
         else if (tool === "kitchen") this.kitchenGhost(e);
         else this.placeGhost(e);
         break;
@@ -480,10 +482,11 @@ export class Tools {
   /** Where a new object would land: {point (world m), storey?, building?, y (cm)}. */
   placeTarget(e) {
     const meshes = [];
+    const wallMount = this.app.state.pendingProp?.mount === "wall";
     for (const b of this.app.project.buildings) {
       const g = this.app.buildingGroup(b.id);
       g?.traverse((o) => {
-        if (o.userData.kind === "floorGroup" && o.visible && o.parent?.visible) meshes.push(o);
+        if (o.userData.kind === (wallMount ? "wall" : "floorGroup") && o.visible && o.parent?.visible) meshes.push(o);
       });
     }
     if (this.app.terrain.mesh) meshes.push(this.app.terrain.mesh);
@@ -494,7 +497,15 @@ export class Tools {
     if (ud.kind === "floorGroup") {
       const found = this.app.locate(ud.id);
       if (!found) return null;
-      return { point: hit.point, building: found.building, storey: found.storey, top: floorTop(found.storey, found.item) };
+      const mount = this.app.state.pendingProp?.mount;
+      const top = mount === "ceiling" ? found.storey.elevation + found.storey.height : floorTop(found.storey, found.item);
+      return { point: hit.point, building: found.building, storey: found.storey, top };
+    }
+    if (ud.kind === "wall") {
+      const found = this.app.locate(ud.id);
+      if (!found) return null;
+      const n = hit.face.normal.clone().transformDirection(hit.object.matrixWorld);
+      return { point: hit.point.clone().addScaledVector(n, 0.01), building: found.building, storey: found.storey, top: hit.point.y * CM, yaw: (Math.atan2(n.x, n.z) * 180) / Math.PI };
     }
     return { point: hit.point, building: null, storey: null, top: this.app.terrain.heightAt(hit.point.x * CM, hit.point.z * CM) };
   }
@@ -517,6 +528,10 @@ export class Tools {
     const sx = snap ? Math.round(target.point.x / snap) * snap : target.point.x;
     const sz = snap ? Math.round(target.point.z / snap) * snap : target.point.z;
     g.position.set(sx, target.top * M, sz);
+    if (target.yaw != null) this.app.state.ghostYaw = Math.round(target.yaw / 15) * 15;
+    if (target.yaw != null) this.app.state.ghostYaw = Math.round(target.yaw / 15) * 15;
+    if (target.yaw != null) this.app.state.ghostYaw = Math.round(target.yaw / 15) * 15;
+    if (target.yaw != null) this.app.state.ghostYaw = Math.round(target.yaw / 15) * 15;
     g.rotation.set(0, this.app.state.ghostYaw * DEG, 0);
     this.app.scene.requestRender();
   }
@@ -570,6 +585,114 @@ export class Tools {
     }
     dot.position.copy(hit.point);
     this.app.scene.requestRender();
+  }
+  lightGhost(e) {
+    const hit = this.noteTarget(e);
+    if (!hit) return this.clearGhost();
+    let dot = this.ghost.children[0];
+    if (!dot || dot.userData.kind !== "lightPin") {
+      dot = new THREE.Mesh(new THREE.SphereGeometry(0.09, 12, 10), new THREE.MeshBasicMaterial({ color: 0xffd9a8, depthTest: false }));
+      dot.userData.kind = "lightPin";
+      dot.renderOrder = 30;
+      this.setGhost(dot);
+    }
+    const n = hit.face?.normal ? hit.face.normal.clone().transformDirection(hit.object.matrixWorld) : new THREE.Vector3(0, 1, 0);
+    dot.position.copy(hit.point).addScaledVector(n, 0.1);
+    this.app.scene.requestRender();
+  }
+  lightClick(e) {
+    const hit = this.noteTarget(e);
+    if (!hit) return;
+    const n = hit.face?.normal ? hit.face.normal.clone().transformDirection(hit.object.matrixWorld) : new THREE.Vector3(0, 1, 0);
+    const p = hit.point.clone().addScaledVector(n, 0.1);
+    // inside a building? use its storey so the light moves with it
+    let building = null, storey = null;
+    for (let o = hit.object; o; o = o.parent) {
+      if (o.userData.kind === "storeyGroup") storey = this.app.locate(o.userData.id)?.item;
+      if (o.userData.kind === "building") building = this.app.locate(o.userData.id)?.item;
+    }
+    this.app.addLight([p.x * CM, p.y * CM, p.z * CM], building, storey);
+  }
+  lightGhost(e) {
+    const hit = this.noteTarget(e);
+    if (!hit) return this.clearGhost();
+    let dot = this.ghost.children[0];
+    if (!dot || dot.userData.kind !== "lightPin") {
+      dot = new THREE.Mesh(new THREE.SphereGeometry(0.09, 12, 10), new THREE.MeshBasicMaterial({ color: 0xffd9a8, depthTest: false }));
+      dot.userData.kind = "lightPin";
+      dot.renderOrder = 30;
+      this.setGhost(dot);
+    }
+    const n = hit.face?.normal ? hit.face.normal.clone().transformDirection(hit.object.matrixWorld) : new THREE.Vector3(0, 1, 0);
+    dot.position.copy(hit.point).addScaledVector(n, 0.1);
+    this.app.scene.requestRender();
+  }
+  lightClick(e) {
+    const hit = this.noteTarget(e);
+    if (!hit) return;
+    const n = hit.face?.normal ? hit.face.normal.clone().transformDirection(hit.object.matrixWorld) : new THREE.Vector3(0, 1, 0);
+    const p = hit.point.clone().addScaledVector(n, 0.1);
+    // inside a building? use its storey so the light moves with it
+    let building = null, storey = null;
+    for (let o = hit.object; o; o = o.parent) {
+      if (o.userData.kind === "storeyGroup") storey = this.app.locate(o.userData.id)?.item;
+      if (o.userData.kind === "building") building = this.app.locate(o.userData.id)?.item;
+    }
+    this.app.addLight([p.x * CM, p.y * CM, p.z * CM], building, storey);
+  }
+  lightGhost(e) {
+    const hit = this.noteTarget(e);
+    if (!hit) return this.clearGhost();
+    let dot = this.ghost.children[0];
+    if (!dot || dot.userData.kind !== "lightPin") {
+      dot = new THREE.Mesh(new THREE.SphereGeometry(0.09, 12, 10), new THREE.MeshBasicMaterial({ color: 0xffd9a8, depthTest: false }));
+      dot.userData.kind = "lightPin";
+      dot.renderOrder = 30;
+      this.setGhost(dot);
+    }
+    const n = hit.face?.normal ? hit.face.normal.clone().transformDirection(hit.object.matrixWorld) : new THREE.Vector3(0, 1, 0);
+    dot.position.copy(hit.point).addScaledVector(n, 0.1);
+    this.app.scene.requestRender();
+  }
+  lightClick(e) {
+    const hit = this.noteTarget(e);
+    if (!hit) return;
+    const n = hit.face?.normal ? hit.face.normal.clone().transformDirection(hit.object.matrixWorld) : new THREE.Vector3(0, 1, 0);
+    const p = hit.point.clone().addScaledVector(n, 0.1);
+    // inside a building? use its storey so the light moves with it
+    let building = null, storey = null;
+    for (let o = hit.object; o; o = o.parent) {
+      if (o.userData.kind === "storeyGroup") storey = this.app.locate(o.userData.id)?.item;
+      if (o.userData.kind === "building") building = this.app.locate(o.userData.id)?.item;
+    }
+    this.app.addLight([p.x * CM, p.y * CM, p.z * CM], building, storey);
+  }
+  lightGhost(e) {
+    const hit = this.noteTarget(e);
+    if (!hit) return this.clearGhost();
+    let dot = this.ghost.children[0];
+    if (!dot || dot.userData.kind !== "lightPin") {
+      dot = new THREE.Mesh(new THREE.SphereGeometry(0.09, 12, 10), new THREE.MeshBasicMaterial({ color: 0xffd9a8, depthTest: false }));
+      dot.userData.kind = "lightPin";
+      dot.renderOrder = 30;
+      this.setGhost(dot);
+    }
+    const n = hit.face?.normal ? hit.face.normal.clone().transformDirection(hit.object.matrixWorld) : new THREE.Vector3(0, 1, 0);
+    dot.position.copy(hit.point).addScaledVector(n, 0.1);
+    this.app.scene.requestRender();
+  }
+  lightClick(e) {
+    const hit = this.noteTarget(e);
+    if (!hit) return;
+    const n = hit.face?.normal ? hit.face.normal.clone().transformDirection(hit.object.matrixWorld) : new THREE.Vector3(0, 1, 0);
+    const p = hit.point.clone().addScaledVector(n, 0.1);
+    // inside a building? use its storey so the light moves with it
+    let building = null, storey = null;
+    for (let o = hit.object; o; o = o.parent) {
+      if (o.userData.kind === "storeyGroup") storey = this.app.locate(o.userData.id)?.item;
+      if (o.userData.kind === "building") building = this.app.locate(o.userData.id)?.item;
+    }
+    this.app.addLight([p.x * CM, p.y * CM, p.z * CM], building, storey);
   }
   noteClick(e) {
     const hit = this.noteTarget(e);

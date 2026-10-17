@@ -146,8 +146,10 @@
     "assets/house-planner/props/car-lift.json",
     "assets/house-planner/props/car.json",
     "assets/house-planner/props/cardboard-boxes.json",
+    "assets/house-planner/props/ceiling-flush.json",
     "assets/house-planner/props/cement-sack.json",
     "assets/house-planner/props/chair.json",
+    "assets/house-planner/props/chandelier.json",
     "assets/house-planner/props/cherry-tree.json",
     "assets/house-planner/props/chest-freezer.json",
     "assets/house-planner/props/chest-of-drawers.json",
@@ -166,6 +168,7 @@
     "assets/house-planner/props/curtain.json",
     "assets/house-planner/props/cypress.json",
     "assets/house-planner/props/dead-tree.json",
+    "assets/house-planner/props/desk-lamp.json",
     "assets/house-planner/props/desk.json",
     "assets/house-planner/props/dining-chair.json",
     "assets/house-planner/props/dining-table.json",
@@ -189,6 +192,8 @@
     "assets/house-planner/props/folding-screen.json",
     "assets/house-planner/props/fuel-pump.json",
     "assets/house-planner/props/game-console.json",
+    "assets/house-planner/props/garden-bollard.json",
+    "assets/house-planner/props/garden-spike.json",
     "assets/house-planner/props/gas-cylinder.json",
     "assets/house-planner/props/glass-bottle.json",
     "assets/house-planner/props/glass-cabinet.json",
@@ -264,6 +269,7 @@
     "assets/house-planner/props/pond.json",
     "assets/house-planner/props/pool-table.json",
     "assets/house-planner/props/pool.json",
+    "assets/house-planner/props/post-cap-light.json",
     "assets/house-planner/props/radio.json",
     "assets/house-planner/props/ranch-fence.json",
     "assets/house-planner/props/reeds.json",
@@ -302,6 +308,7 @@
     "assets/house-planner/props/sofa.json",
     "assets/house-planner/props/sport-bike.json",
     "assets/house-planner/props/sports-car.json",
+    "assets/house-planner/props/spot-rail.json",
     "assets/house-planner/props/spring-rider.json",
     "assets/house-planner/props/standing-mirror.json",
     "assets/house-planner/props/steamer-trunk.json",
@@ -342,7 +349,9 @@
     "assets/house-planner/props/volley-net.json",
     "assets/house-planner/props/volleyball.json",
     "assets/house-planner/props/wall-clock.json",
+    "assets/house-planner/props/wall-lantern.json",
     "assets/house-planner/props/wall-mirror.json",
+    "assets/house-planner/props/wall-sconce.json",
     "assets/house-planner/props/wall-torch.json",
     "assets/house-planner/props/wall.json",
     "assets/house-planner/props/wardrobe.json",
@@ -1700,6 +1709,6 @@
     "models/tinyyolov2-7.onnx",
     "models/yolov8n-coco.onnx"
   ],
-  "version": "dd4ef58e9064"
+  "version": "87ac848053fd"
 };
 })(typeof self !== "undefined" ? self : window);

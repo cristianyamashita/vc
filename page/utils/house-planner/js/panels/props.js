@@ -178,6 +178,7 @@ export class PropsPanel {
       case "gate": return this.renderGate(found);
       case "siteWall": return this.renderSiteWall(found);
       case "note": return this.renderNote(found);
+      case "light": return this.renderLight(found);
     }
   }
   renderProject() {
@@ -674,8 +675,49 @@ export class PropsPanel {
     return [
       this.check(o, "lightOn", { rebuild: "light" }),
       this.el("label", { class: "field" }, [this.el("span", { class: "flabel", text: t("lightIntensity") }), input, out]),
+      this.color(o, "lightColor", { label: t("lightColor"), rebuild: "light" }),
+      this.number(o, "lightRange", { min: 50, max: 3000, nullable: true, label: t("lightRange") }),
+      this.check(o, "lightShadows", { rebuild: "light", label: t("lightShadows") }),
       this.el("p", { class: "hint", text: t(app.project.sun.night ? "lightNightOn" : "lightNightOff") }),
     ];
+  }
+  renderLight({ item: l, building }) {
+    const app = this.app, t = app.t;
+    this.scope = building ? "building" : "site";
+    const range = (key, min, max, step, unit) => {
+      const input = this.el("input", { type: "range", min, max, step, value: l[key], disabled: this.locked ? "" : null });
+      const out = this.el("span", { class: "unit", text: `${l[key]}${unit}` });
+      let cp = false;
+      input.addEventListener("input", () => {
+        if (!cp) {
+          app.checkpoint();
+          cp = true;
+        }
+        l[key] = Number(input.value);
+        out.textContent = `${l[key]}${unit}`;
+        app.changed({ rebuild: "none", light: true, save: false, panels: false });
+      });
+      input.addEventListener("change", () => {
+        cp = false;
+        app.changed({ rebuild: "none", light: true, panels: false });
+      });
+      return this.el("label", { class: "field" }, [this.el("span", { class: "flabel", text: t(key === "range" ? "lightRange" : key) }), input, out]);
+    };
+    this.root.append(
+      this.section(null, [
+        this.text(l, "name"),
+        this.select(l, "type", [["point", t("lightPoint")], ["spot", t("lightSpot")]], { label: t("type") }),
+        this.check(l, "on", { label: t("lightOn") }),
+        this.color(l, "color", { label: t("lightColor"), nullable: false }),
+        range("intensity", 0, 5, 0.1, "×"),
+        range("range", 50, 3000, 10, " cm"),
+        l.type === "spot" ? range("angle", 10, 120, 5, "°") : null,
+        this.check(l, "shadows", { label: t("lightShadows") }),
+        this.el("p", { class: "hint", text: t(app.project.sun.night ? "lightNightOn" : "lightNightOff") }),
+      ]),
+      this.section(t("position"), [this.vec(l, "at", 0, { label: "X" }), this.vec(l, "at", 1, { label: "Y" }), this.vec(l, "at", 2, { label: "Z" })]),
+      this.section(null, [this.button(t("duplicate"), () => app.duplicateSelected()), this.lockRow(l, l.id), this.button(t("delete"), () => app.deleteSelected(), "danger")]),
+    );
   }
   renderNote({ item: n }) {
     const app = this.app, t = app.t;

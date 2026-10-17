@@ -143,7 +143,7 @@ export function freshStorey(prev, preset = "ground", name = "") {
   return {
     id: uid("st"), name, elevation, height: p.height, slabThickness: 20,
     locked: false, visible: true,
-    floorGroups: [], walls: [], stairs: [], railings: [], objects: [], rooms: [],
+    floorGroups: [], walls: [], stairs: [], lights: [], lights: [], railings: [], objects: [], rooms: [],
   };
 }
 export function freshRoof() {
@@ -162,7 +162,7 @@ export function freshProject(name = "") {
     terrain: freshTerrain(),
     sun: freshSun(),
     buildings: [b],
-    outdoor: [], gardenPatches: [], fences: [], siteWalls: [], objects: [], notes: [],
+    outdoor: [], gardenPatches: [], fences: [], siteWalls: [], objects: [], notes: [], lights: [], lights: [], lights: [],
     view: { cutaway: false, doorsOpen: false, activeBuilding: b.id, activeStorey: b.storeys[0].id, camera: null },
   };
 }
@@ -200,6 +200,26 @@ export function sunChecked(raw = {}) {
     month: int(raw.month, 1, 12, d.month),
     shadows: raw.shadows !== false,
     night: !!raw.night,
+  };
+}
+export const LIGHT_TYPES = ["point", "spot"];
+export function freshLight(at = [0, 200, 0]) {
+  return { id: uid("lt"), name: "", at, type: "point", color: "#ffd9a8", intensity: 1, range: 600, angle: 60, on: true, shadows: false, locked: false };
+}
+export function lightChecked(raw = {}) {
+  const d = freshLight();
+  return {
+    id: str(raw.id, uid("lt")),
+    name: str(raw.name, ""),
+    at: vec3(raw.at, d.at),
+    type: LIGHT_TYPES.includes(raw.type) ? raw.type : "point",
+    color: color(raw.color, d.color),
+    intensity: num(raw.intensity, 0, 5, 1),
+    range: num(raw.range, 50, 3000, 600),
+    angle: num(raw.angle, 10, 120, 60),
+    on: raw.on !== false,
+    shadows: !!raw.shadows,
+    locked: !!raw.locked,
   };
 }
 export function noteChecked(raw = {}) {
@@ -307,6 +327,18 @@ export function placementChecked(raw = {}) {
     material: texture(raw.material, null),
     lightOn: raw.lightOn !== false,
     lightIntensity: num(raw.lightIntensity, 0, 3, 1),
+    lightColor: color(raw.lightColor, null),
+    lightRange: raw.lightRange == null ? null : num(raw.lightRange, 50, 3000, 260),
+    lightShadows: !!raw.lightShadows,
+    lightColor: color(raw.lightColor, null),
+    lightRange: raw.lightRange == null ? null : num(raw.lightRange, 50, 3000, 260),
+    lightShadows: !!raw.lightShadows,
+    lightColor: color(raw.lightColor, null),
+    lightRange: raw.lightRange == null ? null : num(raw.lightRange, 50, 3000, 260),
+    lightShadows: !!raw.lightShadows,
+    lightColor: color(raw.lightColor, null),
+    lightRange: raw.lightRange == null ? null : num(raw.lightRange, 50, 3000, 260),
+    lightShadows: !!raw.lightShadows,
     locked: !!raw.locked,
   };
   return out;
@@ -390,6 +422,7 @@ export function storeyChecked(raw = {}, index = 0) {
     floorGroups: (Array.isArray(raw.floorGroups) ? raw.floorGroups : []).map(floorGroupChecked),
     walls: (Array.isArray(raw.walls) ? raw.walls : []).map(wallChecked),
     stairs: (Array.isArray(raw.stairs) ? raw.stairs : []).map(stairsChecked),
+    lights: (Array.isArray(raw.lights) ? raw.lights : []).map(lightChecked),
     railings: (Array.isArray(raw.railings) ? raw.railings : []).map((r) => railingChecked(r, "railing")),
     objects: (Array.isArray(raw.objects) ? raw.objects : []).map(placementChecked),
     rooms: (Array.isArray(raw.rooms) ? raw.rooms : []).map(roomChecked),
@@ -462,7 +495,7 @@ export function projectChecked(raw) {
     check(b);
     for (const s of b.storeys) {
       check(s);
-      for (const list of [s.floorGroups, s.walls, s.stairs, s.railings, s.objects, s.rooms]) for (const it of list) check(it);
+      for (const list of [s.floorGroups, s.walls, s.stairs, s.railings, s.objects, s.rooms, s.lights || [, s.lights || [, s.lights || [, s.lights || []]]]]) for (const it of list) check(it);
       for (const w of s.walls) for (const o of w.openings) check(o);
     }
   }
@@ -477,6 +510,8 @@ export function projectChecked(raw) {
     for (const g of w.gates) check(g);
   }
   const notes = (Array.isArray(raw.notes) ? raw.notes : []).map(noteChecked);
+  const lights = (Array.isArray(raw.lights) ? raw.lights : []).map(lightChecked);
+  for (const l of lights) check(l);
   for (const n of notes) check(n);
   const view = raw.view && typeof raw.view === "object" ? raw.view : {};
   const activeBuilding = buildings.find((b) => b.id === view.activeBuilding) || buildings[0];
@@ -497,6 +532,7 @@ export function projectChecked(raw) {
     siteWalls,
     objects: (Array.isArray(raw.objects) ? raw.objects : []).map(placementChecked),
     notes,
+    lights,
     view: {
       cutaway: !!view.cutaway,
       doorsOpen: !!view.doorsOpen,
@@ -517,6 +553,22 @@ export function propChecked(raw) {
   d.id = String(raw.id || uid("prop")).replace(/[^a-zA-Z0-9_.-]/g, "-").slice(0, 64);
   d.name = names(raw.name || d.id);
   d.category = str(raw.category, "custom", 32);
+  if (raw.light && typeof raw.light === "object")
+    d.light = { color: color(raw.light.color, "#ffc37a"), intensity: num(raw.light.intensity, 0, 20, 1.7), distance: num(raw.light.distance, 0.5, 60, 2.6), at: Array.isArray(raw.light.at) ? raw.light.at.slice(0, 3).map((v) => num(v, -50, 50, 0)) : [0, 1, 0] };
+  else delete d.light;
+  d.mount = ["floor", "wall", "ceiling"].includes(raw.mount) ? raw.mount : "floor";
+  if (raw.light && typeof raw.light === "object")
+    d.light = { color: color(raw.light.color, "#ffc37a"), intensity: num(raw.light.intensity, 0, 20, 1.7), distance: num(raw.light.distance, 0.5, 60, 2.6), at: Array.isArray(raw.light.at) ? raw.light.at.slice(0, 3).map((v) => num(v, -50, 50, 0)) : [0, 1, 0] };
+  else delete d.light;
+  d.mount = ["floor", "wall", "ceiling"].includes(raw.mount) ? raw.mount : "floor";
+  if (raw.light && typeof raw.light === "object")
+    d.light = { color: color(raw.light.color, "#ffc37a"), intensity: num(raw.light.intensity, 0, 20, 1.7), distance: num(raw.light.distance, 0.5, 60, 2.6), at: Array.isArray(raw.light.at) ? raw.light.at.slice(0, 3).map((v) => num(v, -50, 50, 0)) : [0, 1, 0] };
+  else delete d.light;
+  d.mount = ["floor", "wall", "ceiling"].includes(raw.mount) ? raw.mount : "floor";
+  if (raw.light && typeof raw.light === "object")
+    d.light = { color: color(raw.light.color, "#ffc37a"), intensity: num(raw.light.intensity, 0, 20, 1.7), distance: num(raw.light.distance, 0.5, 60, 2.6), at: Array.isArray(raw.light.at) ? raw.light.at.slice(0, 3).map((v) => num(v, -50, 50, 0)) : [0, 1, 0] };
+  else delete d.light;
+  d.mount = ["floor", "wall", "ceiling"].includes(raw.mount) ? raw.mount : "floor";
   d.tags = raw.tags && typeof raw.tags === "object"
     ? { en: tagList(raw.tags.en), pt: tagList(raw.tags.pt), ja: tagList(raw.tags.ja) }
     : { en: [], pt: [], ja: [] };
@@ -569,6 +621,7 @@ export function locate(project, id) {
     if (w.id === id) return { type: "siteWall", item: w, list: project.siteWalls };
     for (const g of w.gates) if (g.id === id) return { type: "gate", item: g, siteWall: w, host: w, list: w.gates };
   }
+  for (const l of project.lights || []) if (l.id === id) return { type: "light", item: l, list: project.lights };
   for (const building of project.buildings) {
     if (building.id === id) return { type: "building", item: building, building };
     for (const storey of building.storeys) {
@@ -581,6 +634,7 @@ export function locate(project, id) {
       for (const s of storey.stairs) if (s.id === id) return { type: "stairs", item: s, building, storey, list: storey.stairs };
       for (const r of storey.railings) if (r.id === id) return { type: "railing", item: r, building, storey, list: storey.railings };
       for (const o of storey.objects) if (o.id === id) return { type: "object", item: o, building, storey, list: storey.objects };
+      for (const l of storey.lights || []) if (l.id === id) return { type: "light", item: l, building, storey, list: storey.lights };
       for (const r of storey.rooms || []) if (r.id === id) return { type: "room", item: r, building, storey, list: storey.rooms };
     }
   }

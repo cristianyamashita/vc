@@ -334,6 +334,79 @@ def vehicles():
     return docs
 
 
+# ------------------------------------------------------------------ fixtures
+
+
+def fixtures():
+    """Generated lamps: desk, wall, ceiling, garden and post lights."""
+    docs = {}
+    GLASS = "#fff1cc"
+
+    def doc(pid, name, boxes, footprint, light, tags, mount=None):
+        d = {"kind": "prop", "version": 1, "id": pid, "name": name, "footprint": footprint, "light": light, "source": {"type": "boxes", "boxes": boxes}}
+        if mount:
+            d["mount"] = mount
+        docs[pid] = (d, tags)
+
+    doc("desk-lamp", {"en": "Desk lamp", "pt": "Luminária de mesa articulada", "ja": "デスクランプ"}, [
+        box(0.16, 0.02, 0.16, 0, 0.01, 0, "#2b2e33", shape="cylinder"),
+        box(0.03, 0.3, 0.03, 0.04, 0.16, 0, "#4a4f58", shape="cylinder", rz=-0.35),
+        box(0.03, 0.24, 0.03, 0.17, 0.36, 0, "#4a4f58", shape="cylinder", rz=0.9),
+        box(0.14, 0.1, 0.14, 0.26, 0.4, 0, "#2b2e33", shape="cone", rz=1.2),
+        box(0.08, 0.02, 0.08, 0.3, 0.37, 0, GLASS, shape="cylinder", rz=1.2),
+    ], [0.4, 0.2], {"color": "#fff1cc", "intensity": 1.2, "distance": 2.5, "at": [0.3, 0.33, 0]}, ("desk table lamp", "mesa escritorio", "机 ランプ"))
+    doc("wall-sconce", {"en": "Wall sconce", "pt": "Arandela", "ja": "ウォールランプ"}, [
+        box(0.12, 0.2, 0.02, 0, 0, 0.01, "#4a4f58", shape="rounded"),
+        box(0.02, 0.02, 0.1, 0, 0.02, 0.06, "#4a4f58", shape="cylinder", axis="z"),
+        box(0.18, 0.12, 0.18, 0, 0.06, 0.13, "#f0e6d2", shape="cone", opacity=0.9),
+        box(0.06, 0.06, 0.06, 0, 0.04, 0.13, GLASS, shape="sphere"),
+    ], [0.2, 0.25], {"color": "#ffd9a8", "intensity": 1.3, "distance": 3.5, "at": [0, 0.08, 0.14]}, ("wall light sconce", "parede luz arandela", "壁 ブラケット"), "wall")
+    doc("wall-lantern", {"en": "Outdoor wall lantern", "pt": "Luminária externa de parede", "ja": "屋外ウォールランタン"}, [
+        box(0.1, 0.16, 0.02, 0, 0, 0.01, "#2b2e33"),
+        box(0.02, 0.02, 0.14, 0, 0.06, 0.08, "#2b2e33", shape="cylinder", axis="z"),
+        box(0.14, 0.2, 0.14, 0, -0.06, 0.16, GLASS, opacity=0.5),
+        box(0.16, 0.02, 0.16, 0, 0.05, 0.16, "#2b2e33"),
+        box(0.16, 0.02, 0.16, 0, -0.17, 0.16, "#2b2e33"),
+        box(0.02, 0.2, 0.02, 0.07, -0.06, 0.09, "#2b2e33"), box(0.02, 0.2, 0.02, -0.07, -0.06, 0.09, "#2b2e33"),
+        box(0.02, 0.2, 0.02, 0.07, -0.06, 0.23, "#2b2e33"), box(0.02, 0.2, 0.02, -0.07, -0.06, 0.23, "#2b2e33"),
+    ], [0.2, 0.3], {"color": "#ffcf8a", "intensity": 1.6, "distance": 5, "at": [0, -0.06, 0.16]}, ("outdoor wall lantern garden", "externa jardim lanterna", "屋外 ランタン"), "wall")
+    doc("ceiling-flush", {"en": "Ceiling light", "pt": "Plafon de teto", "ja": "シーリングライト"}, [
+        box(0.36, 0.04, 0.36, 0, -0.02, 0, "#e8e2d6", shape="cylinder"),
+        box(0.3, 0.08, 0.3, 0, -0.07, 0, GLASS, shape="cylinder", opacity=0.85),
+    ], [0.36, 0.36], {"color": "#fff4dd", "intensity": 2.4, "distance": 6, "at": [0, -0.12, 0]}, ("ceiling flush light", "teto plafon", "天井 照明"), "ceiling")
+    chand = [box(0.03, 0.4, 0.03, 0, -0.2, 0, "#c9a24a", shape="cylinder"), box(0.7, 0.03, 0.7, 0, -0.42, 0, "#c9a24a", shape="torus", tube=0.1)]
+    import math as _m
+    for k in range(6):
+        a = k * _m.pi / 3
+        chand.append(box(0.05, 0.12, 0.05, 0.3 * _m.cos(a), -0.36, 0.3 * _m.sin(a), "#c9a24a", shape="cylinder"))
+        chand.append(box(0.06, 0.06, 0.06, 0.3 * _m.cos(a), -0.27, 0.3 * _m.sin(a), GLASS, shape="sphere"))
+    doc("chandelier", {"en": "Chandelier", "pt": "Lustre", "ja": "シャンデリア"}, chand, [0.7, 0.7], {"color": "#ffe3b0", "intensity": 2.6, "distance": 7, "at": [0, -0.3, 0]}, ("ceiling chandelier", "teto lustre", "天井 シャンデリア"), "ceiling")
+    rail = [box(1.0, 0.03, 0.03, 0, -0.015, 0, "#2b2e33")]
+    for x in (-0.35, 0, 0.35):
+        rail.append(box(0.03, 0.08, 0.03, x, -0.07, 0, "#2b2e33", shape="cylinder"))
+        rail.append(box(0.08, 0.12, 0.08, x, -0.15, 0.03, "#2b2e33", shape="cylinder", rx=0.5))
+        rail.append(box(0.06, 0.01, 0.06, x, -0.2, 0.06, GLASS, shape="cylinder", rx=0.5))
+    doc("spot-rail", {"en": "Spotlight rail", "pt": "Trilho de spots", "ja": "スポットライトレール"}, rail, [1.0, 0.2], {"color": "#fff4dd", "intensity": 2.2, "distance": 5, "at": [0, -0.2, 0.05]}, ("ceiling spots track", "teto spots trilho", "天井 スポット"), "ceiling")
+    doc("garden-bollard", {"en": "Garden bollard light", "pt": "Balizador de jardim", "ja": "ガーデンライト（ポール）"}, [
+        box(0.1, 0.6, 0.1, 0, 0.3, 0, "#3b4044", shape="cylinder"),
+        box(0.12, 0.08, 0.12, 0, 0.62, 0, GLASS, shape="cylinder", opacity=0.8),
+        box(0.14, 0.02, 0.14, 0, 0.67, 0, "#3b4044", shape="cylinder"),
+    ], [0.14, 0.14], {"color": "#ffd9a8", "intensity": 1.2, "distance": 4, "at": [0, 0.62, 0]}, ("garden path light bollard", "jardim caminho balizador", "庭 小道 照明"))
+    doc("garden-spike", {"en": "Garden spike light", "pt": "Espeto de luz para jardim", "ja": "ガーデンスパイクライト"}, [
+        box(0.02, 0.15, 0.02, 0, 0.0, 0, "#3b4044", shape="cylinder"),
+        box(0.08, 0.14, 0.08, 0, 0.14, 0.03, "#3b4044", shape="cylinder", rx=-0.7),
+        box(0.06, 0.01, 0.06, 0, 0.19, 0.08, GLASS, shape="cylinder", rx=-0.7),
+    ], [0.1, 0.16], {"color": "#fff1cc", "intensity": 1.4, "distance": 4, "at": [0, 0.2, 0.1]}, ("garden spot uplight", "jardim spot", "庭 スポット"))
+    doc("post-cap-light", {"en": "Post cap light", "pt": "Luminária de pilar de muro", "ja": "門柱灯"}, [
+        box(0.18, 0.02, 0.18, 0, 0.01, 0, "#3b4044"),
+        box(0.14, 0.14, 0.14, 0, 0.09, 0, GLASS, opacity=0.6),
+        box(0.02, 0.14, 0.02, 0.07, 0.09, 0.07, "#3b4044"), box(0.02, 0.14, 0.02, -0.07, 0.09, 0.07, "#3b4044"),
+        box(0.02, 0.14, 0.02, 0.07, 0.09, -0.07, "#3b4044"), box(0.02, 0.14, 0.02, -0.07, 0.09, -0.07, "#3b4044"),
+        box(0.2, 0.02, 0.2, 0, 0.17, 0, "#3b4044", shape="cone"),
+    ], [0.2, 0.2], {"color": "#ffcf8a", "intensity": 1.5, "distance": 5, "at": [0, 0.09, 0]}, ("wall post cap light fence gate", "muro pilar cerca portao", "塀 柱 門"))
+    return docs
+
+
 # ------------------------------------------------------------------ build
 
 
@@ -391,7 +464,10 @@ def main() -> None:
             continue
         name = d.get("name") if isinstance(d.get("name"), dict) else {"en": str(d.get("name", pid))}
         name = {"en": name.get("en", pid), "pt": name.get("pt") or name.get("en", pid), "ja": name.get("ja") or name.get("en", pid)}
-        write(props_dir, manifest, pid, name, cat, tags_for(cat, name, (ten, tpt, tja)), boxes, d.get("footprint"))
+        write(props_dir, manifest, pid, name, cat, tags_for(cat, name, (ten, tpt, tja)), boxes, d.get("footprint"), d.get("light"))
+        if pid == "wall-torch":
+            for gid, (gdoc, gtags) in fixtures().items():
+                write(props_dir, manifest, gid, gdoc["name"], "lighting", tags_for("lighting", gdoc["name"], gtags), gdoc["source"]["boxes"], gdoc["footprint"], gdoc.get("light"), gdoc.get("mount"))
         if pid == "motorcycle":
             # generated vehicles follow the first motorcycle in the catalog order
             for gid, (gdoc, gtags) in generated.items():
@@ -403,10 +479,31 @@ def main() -> None:
         print("skipped:", ", ".join(skipped))
 
 
-def write(props_dir, manifest, pid, name, cat, tags, boxes, footprint):
+# Light descriptors (story-studio format, metres) for lamps that lack one,
+# and mounts for fixtures that hang from the ceiling or sit on a wall.
+LIGHTS = {
+    "floor-lamp": {"color": "#ffd9a8", "intensity": 1.8, "distance": 4.5, "at": [0, 1.72, 0]},
+    "paper-floor-lamp": {"color": "#ffe4bd", "intensity": 1.4, "distance": 4, "at": [0, 0.87, 0]},
+    "table-lamp": {"color": "#ffd9a8", "intensity": 1.2, "distance": 3, "at": [0, 0.37, 0]},
+    "hanging-bulb": {"color": "#fff1cc", "intensity": 1.8, "distance": 5, "at": [0, -0.14, 0]},
+    "string-lights": {"color": "#fff2cc", "intensity": 1.2, "distance": 4, "at": [0, -0.3, 0]},
+    "lamp": {"color": "#ffe9b0", "intensity": 3, "distance": 9, "at": [0, 3.24, 0]},
+    "tiki-torch": {"color": "#ffb866", "intensity": 2, "distance": 5, "at": [0, 2.24, 0]},
+    "wall-torch": {"color": "#ffb866", "intensity": 1.8, "distance": 4.5, "at": [0, 0.73, 0.31]},
+}
+MOUNTS = {"pendant-lamp": "ceiling", "hanging-bulb": "ceiling", "string-lights": "ceiling", "wall-torch": "wall", "wall-sconce": "wall", "wall-lantern": "wall", "ceiling-flush": "ceiling", "chandelier": "ceiling", "spot-rail": "ceiling"}
+
+
+def write(props_dir, manifest, pid, name, cat, tags, boxes, footprint, light=None, mount=None):
     doc = {"kind": "prop", "version": 1, "id": pid, "name": name, "source": {"type": "boxes", "boxes": boxes}}
     if footprint:
         doc["footprint"] = footprint
+    light = light or LIGHTS.get(pid)
+    if light:
+        doc["light"] = light
+    mount = mount or MOUNTS.get(pid)
+    if mount:
+        doc["mount"] = mount
     (props_dir / f"{pid}.json").write_text(json.dumps(doc, ensure_ascii=False, separators=(",", ":")))
     manifest["props"].append({"id": pid, "name": name, "category": cat, "tags": tags, "file": f"props/{pid}.json", "parts": len(boxes)})
 
