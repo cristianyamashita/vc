@@ -274,8 +274,7 @@ class App {
     for (const id of [...this.buildingGroups.keys()]) this.disposeBuilding(id);
     this.scene.world.clear();
     this.objectGroups.clear();
-    if (this.terrain.mesh) this.terrain.dispose();
-    this.scene.world.add(this.terrain.build(this.project.terrain));
+    this.scene.world.add(this.terrain.ensure(this.project.terrain));
     this.terrain.setClamp(this.project.terrain.flattenUnderBuildings ? this.makeClamp() : null);
     this.siteGroup = new THREE.Group();
     this.siteGroup.name = "site";
