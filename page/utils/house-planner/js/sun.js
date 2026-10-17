@@ -73,7 +73,7 @@ export class Sun {
       this.light.intensity = 0.7 * sun.intensity * (0.5 + 0.5 * horizon);
       this.hemi.color.copy(NIGHT_SKY);
       this.hemi.groundColor.copy(NIGHT_GROUND);
-      this.hemi.intensity = 0.55;
+      this.hemi.intensity = 0.35;
     } else {
       const color = SUN_LOW.clone().lerp(SUN_HIGH, THREE.MathUtils.smoothstep(elevation, 4, 35));
       this.light.color.copy(color);

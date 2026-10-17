@@ -22,7 +22,7 @@ const POOL_COLOR = 0x5fd0ff, POOL_RANGE = 4.5, POOL_INTENSITY = 4;
 
 const glowMaterial = new THREE.MeshStandardMaterial({ color: 0xfff1cc, emissive: 0xffc97a, emissiveIntensity: 1.6, roughness: 0.6 });
 glowMaterial.userData.shared = true;
-const nightGlass = new THREE.MeshPhysicalMaterial({ color: 0xffe3a6, emissive: 0xffc46a, emissiveIntensity: 0.9, transparent: true, opacity: 0.85, roughness: 0.3, metalness: 0, depthWrite: false, side: THREE.DoubleSide });
+const nightGlass = new THREE.MeshPhysicalMaterial({ color: 0xffe3a6, emissive: 0xffc46a, emissiveIntensity: 0.45, transparent: true, opacity: 0.5, roughness: 0.3, metalness: 0, depthWrite: false, side: THREE.DoubleSide });
 nightGlass.userData.shared = true;
 const litWater = new THREE.MeshPhysicalMaterial({ color: "#2d9cc4", emissive: 0x1e8fc4, emissiveIntensity: 0.55, transparent: true, opacity: 0.7, roughness: 0.08, metalness: 0, depthWrite: false, side: THREE.DoubleSide });
 litWater.userData.shared = true;
@@ -70,7 +70,7 @@ export class Night {
   ensurePools() {
     if (this.points.length) return;
     for (let i = 0; i < POINTS; i++) {
-      const l = new THREE.PointLight(LAMP_COLOR, 0, 2.6, 2);
+      const l = new THREE.PointLight(LAMP_COLOR, 0, 2.6, 1.5);
       if (i < POINT_SHADOWS) {
         l.castShadow = true;
         l.shadow.mapSize.set(512, 512);
@@ -81,7 +81,7 @@ export class Night {
       this.points.push(l);
     }
     for (let i = 0; i < SPOTS; i++) {
-      const l = new THREE.SpotLight(LAMP_COLOR, 0, 4, 0.5, 0.45, 2);
+      const l = new THREE.SpotLight(LAMP_COLOR, 0, 4, 0.5, 0.45, 1.5);
       if (i < SPOT_SHADOWS) {
         l.castShadow = true;
         l.shadow.mapSize.set(1024, 1024);
