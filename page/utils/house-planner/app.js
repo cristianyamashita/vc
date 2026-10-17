@@ -137,7 +137,6 @@ class App {
         }
         project = parsed.project;
         project.id = uid("p");
-        await store.saveProject(project);
         history.replaceState(null, "", location.pathname + location.search);
       } catch (err) {
         console.warn("share link", err);
@@ -161,6 +160,7 @@ class App {
     this.state.activeFloorGroup = null;
     this.history.clear();
     this.gizmo.detach();
+    this.dirty = false;
     this.rebuildAll();
     if (project.view.camera) this.scene.restoreCamera(project.view.camera);
     else if (fit) this.fitAll();
@@ -771,22 +771,26 @@ class App {
     else this.refreshHistoryButtons();
     if (save) this.queueSave();
   }
+  /** The project changed: nothing is written until the user saves (Save, Ctrl+S). */
   queueSave() {
-    clearTimeout(this.saveTimer);
-    $("#save-status").textContent = this.t("saving");
-    this.saveTimer = setTimeout(() => this.saveNow(), 1500);
+    this.dirty = true;
+    $("#save-status").textContent = `● ${this.t("unsaved")}`;
   }
   async saveNow() {
-    clearTimeout(this.saveTimer);
     this.project.view.camera = this.scene.cameraState();
     try {
       await store.saveProject(this.project);
+      this.dirty = false;
       this.maybeSaveVersion();
       $("#save-status").textContent = this.t("saved");
     } catch (err) {
       console.warn(err);
-      $("#save-status").textContent = this.t("unsaved");
+      $("#save-status").textContent = `● ${this.t("unsaved")}`;
     }
+  }
+  /** Before replacing the project: true when there is nothing unsaved or the user agrees to lose it. */
+  confirmDiscard() {
+    return !this.dirty || confirm(this.t("discardChanges"));
   }
   refreshAll() {
     if (this.editor?.active) return this.editor.refreshPanels();
@@ -1513,10 +1517,11 @@ class App {
             this.importMode = "replace";
             return;
           }
+          if (!this.confirmDiscard()) return;
           const existing = await store.loadProject(project.id).catch(() => null);
           if (existing) project.id = uid("p");
-          await store.saveProject(project);
           this.setProject(project, { fit: true });
+          this.queueSave();
         }
         this.toast(t("importOk"));
       } catch (err) {
@@ -1551,8 +1556,10 @@ class App {
         this.scene.applyButtons(false);
       }
     });
-    window.addEventListener("beforeunload", () => {
-      if (this.saveTimer) this.saveNow();
+    window.addEventListener("beforeunload", (e) => {
+      if (!this.dirty) return;
+      e.preventDefault();
+      e.returnValue = "";
     });
   }
   setView(view) {
@@ -1821,7 +1828,7 @@ class App {
     if (this.editor?.active) return this.toast(t("finishEditing"));
     switch (action) {
       case "new":
-        await this.saveNow();
+        if (!this.confirmDiscard()) break;
         this.setProject(freshProject(t("untitled")), { fit: true });
         this.queueSave();
         break;
@@ -1829,7 +1836,6 @@ class App {
       case "saveAs": {
         const name = prompt(t("saveAsName"), `${this.project.name || t("untitled")} (2)`);
         if (name === null) break;
-        await this.saveNow();
         const copy = clone(this.project);
         copy.id = uid("p");
         copy.name = name.trim() || `${this.project.name || t("untitled")} (2)`;
@@ -1904,10 +1910,9 @@ class App {
       }
       const b = e.target.closest("[data-template]");
       if (!b) return;
-      await this.saveNow();
+      if (!this.confirmDiscard()) return;
       $("#templates-dialog").close();
       const project = makeTemplate(b.dataset.template, t(`template_${b.dataset.template}`));
-      await store.saveProject(project);
       this.setProject(project, { fit: true });
       this.queueSave();
     };
@@ -1926,7 +1931,6 @@ class App {
   }
   async openVersionsDialog() {
     const t = this.t;
-    await this.saveNow();
     const render = async () => {
       const list = await store.listVersions(this.project.id);
       const host = $("#versions-list");
@@ -1964,7 +1968,6 @@ class App {
   }
   async openProjectsDialog() {
     const t = this.t;
-    await this.saveNow();
     const list = await store.listProjects();
     const host = $("#projects-list");
     host.innerHTML = list.length
@@ -1993,6 +1996,7 @@ class App {
       }
       if (open) {
         const id = open.dataset.open || open.dataset.id;
+        if (id !== this.project.id && !this.confirmDiscard()) return;
         const project = await store.loadProject(id);
         if (project) this.setProject(project);
         $("#projects-dialog").close();

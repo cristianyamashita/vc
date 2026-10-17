@@ -2,7 +2,7 @@
 export const TEXT = {
   en: {
     title: "House Planner",
-    project: "Project", projectName: "Name", new: "New", open: "Open", save: "Save", saveAs: "Save as copy", saveAsName: "Name of the copy:", export: "Export JSON", import: "Import JSON",
+    project: "Project", projectName: "Name", new: "New", open: "Open", save: "Save", saveAs: "Save as copy", saveAsName: "Name of the copy:", discardChanges: "There are unsaved changes. Discard them?", export: "Export JSON", import: "Import JSON",
     saved: "Saved", saving: "Saving…", unsaved: "Not saved", projects: "Saved projects", noProjects: "No saved projects yet.", delete: "Delete", cancel: "Cancel", close: "Close", confirmDelete: "Delete this item?", confirmDeleteProject: "Delete project \"{name}\"?", untitled: "Untitled house",
     terrain: "Terrain", floors: "Floors", walls: "Walls", openings: "Openings", stairs: "Stairs", outdoor: "Outdoor", garden: "Garden", objects: "Objects",
     select: "Select", raise: "Raise", lower: "Lower", flatten: "Flatten", smooth: "Smooth", paint: "Paint", erase: "Erase", rect: "Rectangle", draw: "Draw wall", add: "Add", place: "Place",
@@ -53,7 +53,7 @@ export const TEXT = {
     skirting: "Skirting board", trim: "Trims around openings", stairRailing: "Handrail", both: "Both sides",
     helpBatch3: "Shift+click selects several objects of a storey; then align, spread or mirror them in the panel, move them together with the gizmo, Ctrl+C / Ctrl+V copies them (also between projects) and Delete removes all. The Ruler (D) measures between two clicks. Walls can get a skirting board and trims; stairs a handrail. Project › New from template starts from a ready house; Versions keeps a snapshot every 10 minutes and lets you restore one; Export 3D saves a GLB for Blender or AR viewers; Copy share link puts the whole project in a URL.",
     helpLot: "Garden › Wall draws a boundary wall on the lot: its top follows the ground, runs straight between the ends or climbs in steps, and its base is always buried; Openings › Gate puts a gate in a fence or wall. A deck can stand on wooden posts. The roof can be flat, one slope, gable or hip, with a covering preset; the Attic storey preset adds a storey under the roof. Selecting an item recentres the orbit on it; F frames it. Pick a city in the Sun panel to set the latitude.",
-    helpStorage: "Projects autosave to this browser (IndexedDB). Use Project › Export to download a JSON file and Import to load it or an Environment Planner project. Lock any item to protect it from accidental edits.",
+    helpStorage: "Projects are kept in this browser (IndexedDB) and written only when you save (Save, Ctrl+S); ● marks unsaved changes. Use Project › Export to download a JSON file and Import to load it or an Environment Planner project. Lock any item to protect it from accidental edits.",
     siteWall: "Wall (lot)", siteWalls: "Boundary walls", wallTop: "Top follows", top_follow: "Ground (smooth)", top_straight: "Straight line", top_stepped: "Steps", stepLength: "Step length", siteWallDone: "Wall added.", outerFace: "Outer face", railing: "Railing", railings: "Railings", fence: "Fence", fences: "Fences", gate: "Gate", style: "Style", postSpacing: "Post spacing", addGate: "Add gate",
     style_glass: "Glass", style_wood: "Wood", style_metal: "Metal", style_masonry: "Masonry", style_picket: "Picket", style_ranch: "Ranch rails", style_hedge: "Hedge",
     gate_single: "Single gate", gate_double: "Double gate", gate_sliding: "Sliding gate",
@@ -79,7 +79,7 @@ export const TEXT = {
   },
   pt: {
     title: "Planejador de casas",
-    project: "Projeto", projectName: "Nome", new: "Novo", open: "Abrir", save: "Salvar", saveAs: "Salvar como cópia", saveAsName: "Nome da cópia:", export: "Exportar JSON", import: "Importar JSON",
+    project: "Projeto", projectName: "Nome", new: "Novo", open: "Abrir", save: "Salvar", saveAs: "Salvar como cópia", saveAsName: "Nome da cópia:", discardChanges: "Há alterações não salvas. Descartá-las?", export: "Exportar JSON", import: "Importar JSON",
     saved: "Salvo", saving: "Salvando…", unsaved: "Não salvo", projects: "Projetos salvos", noProjects: "Nenhum projeto salvo ainda.", delete: "Excluir", cancel: "Cancelar", close: "Fechar", confirmDelete: "Excluir este item?", confirmDeleteProject: "Excluir o projeto \"{name}\"?", untitled: "Casa sem nome",
     terrain: "Terreno", floors: "Pisos", walls: "Paredes", openings: "Aberturas", stairs: "Escadas", outdoor: "Externo", garden: "Jardim", objects: "Objetos",
     select: "Selecionar", raise: "Levantar", lower: "Abaixar", flatten: "Aplanar", smooth: "Suavizar", paint: "Pintar", erase: "Apagar", rect: "Retângulo", draw: "Desenhar parede", add: "Adicionar", place: "Posicionar",
@@ -130,7 +130,7 @@ export const TEXT = {
     skirting: "Rodapé", trim: "Molduras nas aberturas", stairRailing: "Corrimão", both: "Dos dois lados",
     helpBatch3: "Shift+clique seleciona vários objetos de um andar; depois alinhe, distribua ou espelhe no painel, mova todos com o gizmo, Ctrl+C / Ctrl+V copia (inclusive entre projetos) e Delete apaga todos. A Régua (D) mede entre dois cliques. Paredes podem ter rodapé e molduras; escadas, corrimão. Projeto › Novo a partir de modelo começa de uma casa pronta; Versões guarda um instantâneo a cada 10 minutos e permite restaurar; Exportar 3D salva um GLB para Blender ou visualizadores AR; Copiar link coloca o projeto inteiro numa URL.",
     helpLot: "Jardim › Muro desenha um muro no lote: o topo acompanha o terreno, segue reto entre as pontas ou sobe em degraus, e a base fica sempre enterrada; Aberturas › Portão coloca um portão numa cerca ou muro. O deck pode ficar sobre pilares de madeira. O telhado pode ser plano, de uma água, duas águas ou quatro águas, com cobertura pronta; o preset de andar Sótão cria um andar sob o telhado. Selecionar um item centraliza a órbita nele; F enquadra. Escolha uma cidade no painel do Sol para definir a latitude.",
-    helpStorage: "Os projetos são salvos automaticamente neste navegador (IndexedDB). Use Projeto › Exportar para baixar um JSON e Importar para carregá-lo ou um projeto do Environment Planner. Trave qualquer item para evitar edições acidentais.",
+    helpStorage: "Os projetos ficam neste navegador (IndexedDB) e só são gravados quando você salva (Salvar, Ctrl+S); ● marca alterações não salvas. Use Projeto › Exportar para baixar um JSON e Importar para carregá-lo ou um projeto do Environment Planner. Trave qualquer item para evitar edições acidentais.",
     siteWall: "Muro", siteWalls: "Muros", wallTop: "Topo", top_follow: "Acompanha o terreno", top_straight: "Linha reta", top_stepped: "Em degraus", stepLength: "Tamanho do degrau", siteWallDone: "Muro adicionado.", outerFace: "Face externa", railing: "Guarda-corpo", railings: "Guarda-corpos", fence: "Cerca", fences: "Cercas", gate: "Portão", style: "Estilo", postSpacing: "Espaço entre postes", addGate: "Adicionar portão",
     style_glass: "Vidro", style_wood: "Madeira", style_metal: "Metal", style_masonry: "Alvenaria", style_picket: "Estacas", style_ranch: "Réguas de fazenda", style_hedge: "Cerca viva",
     gate_single: "Portão simples", gate_double: "Portão duplo", gate_sliding: "Portão de correr",
@@ -156,7 +156,7 @@ export const TEXT = {
   },
   ja: {
     title: "ハウスプランナー",
-    project: "プロジェクト", projectName: "名前", new: "新規", open: "開く", save: "保存", saveAs: "コピーとして保存", saveAsName: "コピーの名前:", export: "JSONを書き出す", import: "JSONを読み込む",
+    project: "プロジェクト", projectName: "名前", new: "新規", open: "開く", save: "保存", saveAs: "コピーとして保存", saveAsName: "コピーの名前:", discardChanges: "保存していない変更があります。破棄しますか？", export: "JSONを書き出す", import: "JSONを読み込む",
     saved: "保存済み", saving: "保存中…", unsaved: "未保存", projects: "保存済みプロジェクト", noProjects: "保存されたプロジェクトはありません。", delete: "削除", cancel: "キャンセル", close: "閉じる", confirmDelete: "この項目を削除しますか？", confirmDeleteProject: "プロジェクト「{name}」を削除しますか？", untitled: "無題の家",
     terrain: "地形", floors: "床", walls: "壁", openings: "開口部", stairs: "階段", outdoor: "屋外", garden: "庭", objects: "オブジェクト",
     select: "選択", raise: "盛り上げ", lower: "掘り下げ", flatten: "平らにする", smooth: "なめらか", paint: "塗る", erase: "消す", rect: "矩形", draw: "壁を描く", add: "追加", place: "配置",
@@ -207,7 +207,7 @@ export const TEXT = {
     skirting: "巾木", trim: "開口部の額縁", stairRailing: "手すり", both: "両側",
     helpBatch3: "Shift+クリックで同じ階の複数のオブジェクトを選択し、パネルで整列・等間隔・反転、ギズモでまとめて移動、Ctrl+C / Ctrl+V でコピー（プロジェクト間も可）、Delete で一括削除できます。定規（D）は2点間を測ります。壁には巾木と額縁、階段には手すりを付けられます。プロジェクト › テンプレートから新規 は完成した家から始め、バージョンは10分ごとのスナップショットを保存して復元でき、3Dの書き出しは Blender や AR ビューア用の GLB を保存し、共有リンクはプロジェクト全体を URL に入れます。",
     helpLot: "庭 › 塀 で敷地の塀を描きます。上端は地面に沿う・両端を直線で結ぶ・段々の3種類で、基部は常に埋まります。開口部 › 門 でフェンスや塀に門を付けます。デッキは束柱の上にもできます。屋根は陸屋根・片流れ・切妻・寄棟から選べ、屋根材のプリセットがあります。階のプリセット「屋根裏部屋」で屋根の下に階を追加します。項目を選ぶと回転の中心がそこに移り、F で画面に収めます。太陽パネルで都市を選ぶと緯度が決まります。",
-    helpStorage: "プロジェクトはこのブラウザ（IndexedDB）に自動保存されます。プロジェクト › 書き出すでJSONをダウンロードし、読み込むでそのファイルやEnvironment Plannerのプロジェクトを開けます。誤操作を防ぐには項目をロックします。",
+    helpStorage: "プロジェクトはこのブラウザ（IndexedDB）に保存され、保存（保存、Ctrl+S）したときだけ書き込まれます。● は未保存の変更を示します。プロジェクト › 書き出すでJSONをダウンロードし、読み込むでそのファイルやEnvironment Plannerのプロジェクトを開けます。誤操作を防ぐには項目をロックします。",
     siteWall: "塀", siteWalls: "塀", wallTop: "上端", top_follow: "地面に沿う", top_straight: "直線", top_stepped: "段々", stepLength: "段の長さ", siteWallDone: "塀を追加しました。", outerFace: "外側の面", railing: "手すり", railings: "手すり", fence: "フェンス", fences: "フェンス", gate: "門", style: "スタイル", postSpacing: "支柱の間隔", addGate: "門を追加",
     style_glass: "ガラス", style_wood: "木", style_metal: "金属", style_masonry: "石積み", style_picket: "板柵", style_ranch: "横桟", style_hedge: "生け垣",
     gate_single: "片開き門", gate_double: "両開き門", gate_sliding: "引き戸門",
