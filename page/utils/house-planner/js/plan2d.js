@@ -22,7 +22,7 @@ const INK = "#1c1c1c", WALL = "#3b3b3b", DIM = "#555555", LIGHT = "#9a9a9a";
  * local bounds of a placed object as {minX, maxX, minZ, maxZ} in cm (before
  * its own rotation) and `wellTiles(fg)` the tile keys cut by stairs below.
  */
-export function renderPlan({ project, building, storey, lang = "en", t = (k) => k, objectFootprint, wellTiles, objectName }) {
+export function renderPlan({ project, building, storey, lang = "en", t = (k) => k, objectFootprint, wellTiles, objectName, notes = [] }) {
   const tile = project.grid.tile;
   const canvas = document.createElement("canvas");
   canvas.width = PAGE.w;
@@ -270,6 +270,51 @@ export function renderPlan({ project, building, storey, lang = "en", t = (k) => 
   vChain(ctx, [Y(dimExt.minZ), Y(dimExt.maxZ)], left - d2, -1, [dimExt.minZ, dimExt.maxZ], lang);
   vChain(ctx, zs.map(Y), right + d1, 1, zs, lang);
   vChain(ctx, [Y(dimExt.minZ), Y(dimExt.maxZ)], right + d2, 1, [dimExt.minZ, dimExt.maxZ], lang);
+
+  // ---- notes: numbered pins (world cm -> building-local) within this storey's height
+  const rot = building.rotation * DEG, cth = Math.cos(rot), sth = Math.sin(rot);
+  const pins = [];
+  notes.forEach((n, i) => {
+    const y = n.at[1];
+    if (y < storey.elevation - 60 || y > storey.elevation + storey.height + 60) return;
+    const dx = n.at[0] - building.at[0], dz = n.at[2] - building.at[1];
+    const px = X(dx * cth + dz * sth), py = Y(-dx * sth + dz * cth);
+    if (px < MARGIN || px > PAGE.w - MARGIN || py < MARGIN + TITLE || py > PAGE.h - MARGIN - FOOTER) return;
+    pins.push({ n, i, px, py });
+  });
+  for (const { n, i, px, py } of pins) {
+    ctx.beginPath();
+    ctx.arc(px, py, 11, 0, Math.PI * 2);
+    ctx.fillStyle = n.done ? "#b9b9b9" : n.color;
+    ctx.fill();
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.fillStyle = "#ffffff";
+    ctx.font = font(12, "700");
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(String(i + 1), px, py + 0.5);
+  }
+  if (pins.length) {
+    const lx = MARGIN + 640, lineH = 16, shown = pins.slice(0, 8);
+    let ly = PAGE.h - MARGIN - 10;
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+    for (const { n, i } of [...shown].reverse()) {
+      ctx.beginPath();
+      ctx.arc(lx + 7, ly, 6, 0, Math.PI * 2);
+      ctx.fillStyle = n.done ? "#b9b9b9" : n.color;
+      ctx.fill();
+      ctx.fillStyle = n.done ? LIGHT : INK;
+      ctx.font = font(12);
+      ctx.fillText(`${i + 1}. ${ellipsize(ctx, n.text || t("note"), 300)}${n.done ? " ✓" : ""}`, lx + 18, ly);
+      ly -= lineH;
+    }
+    ctx.fillStyle = DIM;
+    ctx.font = font(12, "600");
+    ctx.fillText(pins.length > shown.length ? `${t("notes")} (${pins.length})` : t("notes"), lx, ly);
+  }
 
   // ---- title block
   const storeyIndex = building.storeys.indexOf(storey);

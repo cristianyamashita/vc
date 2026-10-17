@@ -12,7 +12,11 @@ export const POOL_WALL = 20; // cm
 export const POOL_WATER = 12; // cm below the rim
 export const PATH_THICK = 3;
 export const PATCH_LIFT = 1;
-export const DEFAULT_MATERIAL = { deck: "planks", pool: "tiles", path: "paving", garden: "gravel" };
+export const DEFAULT_MATERIAL = { deck: "planks", pool: "tiles", path: "paving", garden: "gravel", pond: "dirt", stream: "rock" };
+export const MUD_TINT = "#7d6a50"; // muddy banks of ponds and streams
+export const WATER_TYPES = ["pool", "pond", "stream"];
+const STREAM_WATER = 6; // cm below the bank line
+const POND_WATER_MARGIN = 2; // water never above the lowest rim point
 
 /** THREE.Shape in the XZ plane (x → x, z → −y so rotateX(−90°) maps back). */
 function shapeOf(pts) {
@@ -49,10 +53,12 @@ export function terrainRange(pts, terrain) {
 }
 /**
  * Surface following the terrain triangles inside the polygon, lifted by
- * `lift` cm. Each terrain triangle clips the polygon, so the skin matches the
- * ground exactly. Returns null when nothing is inside the terrain.
+ * `lift` cm (a number, or a function (x, z) -> cm for bowls). Each terrain
+ * triangle clips the polygon, so the skin matches the ground exactly.
+ * Returns null when nothing is inside the terrain.
  */
 export function conformGeometry(pts, terrain, lift) {
+  const liftAt = typeof lift === "function" ? lift : () => lift;
   const t = terrain.doc, n = t.resolution;
   const cw = t.width / n, cd = t.depth / n;
   const b = polygonBounds(pts);
@@ -69,7 +75,7 @@ export function conformGeometry(pts, terrain, lift) {
         if (piece.length < 3 || Math.abs(polygonArea(piece)) < 0.5) continue;
         const faces = THREE.ShapeUtils.triangulateShape(piece.map(([x, z]) => new THREE.Vector2(x, z)), []);
         const base = positions.length / 3;
-        for (const [x, z] of piece) positions.push(x * M, (terrain.heightAt(x, z) + lift) * M, z * M);
+        for (const [x, z] of piece) positions.push(x * M, (terrain.heightAt(x, z) + liftAt(x, z)) * M, z * M);
         for (const [a, bb, c] of faces) {
           const p = piece[a], q = piece[bb], r = piece[c];
           const area = (q[0] - p[0]) * (r[1] - p[1]) - (r[0] - p[0]) * (q[1] - p[1]);
@@ -117,6 +123,58 @@ function skirtGeometry(pts, terrain, top, bottom) {
   geo.computeVertexNormals();
   return geo;
 }
+/**
+ * Closed outline (world cm) of an outdoor item: its points, or for a stream
+ * the band of `width` around its polyline (mitred joints, capped mitre).
+ */
+export function polygonOutline(poly) {
+  if (poly.type !== "stream") return dedupe(poly.points);
+  return streamBand(dedupe(poly.points, 1), poly.width || 120);
+}
+export function streamBand(pts, width) {
+  if (pts.length < 2) return [];
+  const half = width / 2;
+  const dirs = [];
+  for (let i = 0; i < pts.length - 1; i++) {
+    const dx = pts[i + 1][0] - pts[i][0], dz = pts[i + 1][1] - pts[i][1];
+    const l = Math.hypot(dx, dz) || 1;
+    dirs.push([dx / l, dz / l]);
+  }
+  const left = [], right = [];
+  for (let i = 0; i < pts.length; i++) {
+    const d0 = dirs[Math.max(0, i - 1)], d1 = dirs[Math.min(dirs.length - 1, i)];
+    let nx = -(d0[1] + d1[1]) / 2, nz = (d0[0] + d1[0]) / 2; // average left normal
+    const l = Math.hypot(nx, nz) || 1;
+    nx /= l;
+    nz /= l;
+    const cosHalf = Math.max(0.35, nx * -d1[1] + nz * d1[0]); // mitre length limit
+    const m = half / cosHalf;
+    left.push([pts[i][0] + nx * m, pts[i][1] + nz * m]);
+    right.push([pts[i][0] - nx * m, pts[i][1] - nz * m]);
+  }
+  // round the two ends a little so the stream does not stop in a hard line
+  const cap = (p, d, sign) => {
+    const out = [];
+    for (let k = 1; k < 4; k++) {
+      const a = (Math.PI / 4) * k;
+      const cx = p[0] + d[0] * sign * Math.sin(a) * half, cz = p[1] + d[1] * sign * Math.sin(a) * half;
+      const c = Math.cos(a) * half;
+      out.push([cx + (sign > 0 ? -d[1] : d[1]) * c, cz + (sign > 0 ? d[0] : -d[0]) * c]);
+    }
+    return out;
+  };
+  const end = cap(pts[pts.length - 1], dirs[dirs.length - 1], 1);
+  const start = cap(pts[0], dirs[0], -1);
+  return dedupe([...left, ...end, ...right.reverse(), ...start], 1);
+}
+/** Depth profile of a natural bed: 0 at the edge, `depth` past `bank` cm inside. */
+function bowl(pts, depth, bank) {
+  return (x, z) => {
+    const d = Math.min(1, edgeDistance(x, z, pts) / Math.max(1, bank));
+    const s = d * d * (3 - 2 * d);
+    return -depth * s;
+  };
+}
 function solidMesh(geo, poly, kind) {
   const mesh = new THREE.Mesh(geo, surfaceMaterial({ material: poly.material, tint: poly.tint }));
   mesh.castShadow = true;
@@ -126,10 +184,12 @@ function solidMesh(geo, poly, kind) {
 }
 /** Top level (cm) of a polygon item, used by the properties panel. */
 export function polygonLevels(poly, kind, terrain) {
-  const pts = dedupe(poly.points);
+  const pts = kind === "garden" ? dedupe(poly.points) : polygonOutline(poly);
   if (pts.length < 3) return null;
   const { min, max } = terrainRange(pts, terrain);
   if (kind === "garden") return { bottom: min, top: max + PATCH_LIFT };
+  if (poly.type === "pond") return { bottom: min - poly.depth, top: Math.min(min + poly.height, max - POND_WATER_MARGIN), water: true };
+  if (poly.type === "stream") return { bottom: min - poly.depth, top: max - STREAM_WATER, water: true };
   if (poly.type === "pool") {
     const top = max + 3;
     return { top, bottom: top - Math.max(30, Math.abs(poly.height)) };
@@ -144,7 +204,7 @@ export function polygonLevels(poly, kind, terrain) {
  * "outdoor" or "garden" with the item id.
  */
 export function buildPolygon(poly, kind, terrain) {
-  const pts = dedupe(poly.points);
+  const pts = kind === "garden" ? dedupe(poly.points) : polygonOutline(poly);
   if (pts.length < 3 || Math.abs(polygonArea(pts)) < 100) return null;
   const group = buildPolygonMeshes(poly, kind, terrain, pts);
   // put the group's origin at the centroid so the gizmo sits on the shape
@@ -178,6 +238,7 @@ function buildPolygonMeshes(poly, kind, terrain, pts) {
     }
     return group;
   }
+  if (poly.type === "pond" || poly.type === "stream") return waterBed(group, poly, kind, pts, levels, terrain);
   if (poly.type === "pool") {
     const inner = insetPolygon(pts, POOL_WALL);
     const outer = shapeOf(pts);
@@ -195,7 +256,7 @@ function buildPolygonMeshes(poly, kind, terrain, pts) {
       water.castShadow = false;
       water.receiveShadow = true;
       water.renderOrder = 10;
-      water.userData = { kind, id: poly.id, water: true };
+      water.userData = { kind, id: poly.id, water: true, tint: undefined };
       group.add(water);
     }
     return group;
@@ -203,6 +264,41 @@ function buildPolygonMeshes(poly, kind, terrain, pts) {
   // deck
   if (poly.open) return openDeck(group, poly, kind, pts, levels, terrain);
   group.add(solidMesh(extrude(shapeOf(pts), levels.bottom, levels.top), poly, kind));
+  return group;
+}
+/**
+ * Pond: a bowl dug into the ground (natural edge at the terrain, `depth`
+ * below the lowest rim point in the middle) with a level water plane at
+ * lowest point + height. Stream: the same bowl along a band around the
+ * polyline, with the water following the ground a few cm under the banks.
+ * The ground inside is cut by the terrain shader (see app.rebuildSite).
+ */
+function waterBed(group, poly, kind, pts, levels, terrain) {
+  const stream = poly.type === "stream";
+  const b = polygonBounds(pts);
+  const span = Math.max(b.maxX - b.minX, b.maxZ - b.minZ);
+  const bank = stream ? Math.max(20, poly.width * 0.45) : Math.max(60, Math.min(250, span * 0.3));
+  const profile = bowl(pts, poly.depth, bank);
+  const bed = conformGeometry(pts, terrain, (x, z) => profile(x, z) - 1);
+  const rim = skirtGeometry(pts, terrain, 1, -2); // closes the hairline between the cut ground and the bed
+  const parts = [bed, rim].filter(Boolean);
+  if (parts.length) {
+    const geo = parts.length > 1 ? mergeGeometries(parts, false) : parts[0];
+    if (parts.length > 1) parts.forEach((g) => g.dispose());
+    const mesh = solidMesh(geo, { ...poly, tint: poly.tint || MUD_TINT }, kind);
+    mesh.castShadow = false;
+    group.add(mesh);
+  }
+  const waterGeo = stream ? conformGeometry(pts, terrain, -STREAM_WATER) : flat(shapeOf(pts), levels.top);
+  if (waterGeo) {
+    const tint = stream ? "#3f9bb8" : "#3a8aa6";
+    const water = new THREE.Mesh(waterGeo, waterMaterial(tint));
+    water.castShadow = false;
+    water.receiveShadow = true;
+    water.renderOrder = 10;
+    water.userData = { kind, id: poly.id, water: true, tint };
+    group.add(water);
+  }
   return group;
 }
 const DECK_SLAB = 8, DECK_RIM = 20, RIM_T = 4, POST_GAP = 200, POST_GRID = 250, POST_BURY = 20, MAX_POSTS = 400;

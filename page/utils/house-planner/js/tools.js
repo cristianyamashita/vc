@@ -10,7 +10,7 @@ import { nearestOnWall, clampOpening, wallHeight } from "./build/walls.js";
 import { propObject, propBounds } from "./props.js";
 import { ghostMaterial } from "./materials.js";
 import { buildStairs, defaultRise } from "./build/stairs.js";
-import { DEFAULT_MATERIAL } from "./build/outdoor.js";
+import { DEFAULT_MATERIAL, MUD_TINT, streamBand } from "./build/outdoor.js";
 import { buildSiteWall } from "./build/sitewall.js";
 import { buildRailing, railingOffset, nearestOnPolyline, pointAlong, clampGate, DEFAULT_TEXTURE } from "./build/railing.js";
 
@@ -22,7 +22,7 @@ export const TAB_TOOLS = {
   stairs: ["select", "place"],
   outdoor: ["select", "polygon"],
   garden: ["select", "polygon", "fence", "siteWall"],
-  objects: ["select", "place"],
+  objects: ["select", "place", "note"],
 };
 const DEG = Math.PI / 180;
 
@@ -140,7 +140,8 @@ export class Tools {
         this.openingClick(e);
         break;
       case "objects":
-        this.placeClick(e);
+        if (tool === "note") this.noteClick(e);
+        else this.placeClick(e);
         break;
       case "stairs":
         if (!storey || isLocked(this.app.project, storey.id)) return this.app.toast(this.app.t("lockedItem"));
@@ -148,10 +149,14 @@ export class Tools {
         break;
       case "outdoor":
       case "garden":
-        if (tool === "fence" || tool === "siteWall") this.lineClick(e);
+        if (tool === "fence" || tool === "siteWall" || this.streamMode) this.lineClick(e);
         else this.polygonClick(e);
         break;
     }
+  }
+  /** Outdoor › stream: drawn as a polyline, not a closed polygon. */
+  get streamMode() {
+    return this.app.state.tab === "outdoor" && this.tool === "polygon" && this.app.state.pendingOutdoorType === "stream";
   }
   onMove(e) {
     if (this.app.walk?.active) return;
@@ -166,7 +171,7 @@ export class Tools {
         break;
       case "outdoor":
       case "garden":
-        if (tool === "fence" || tool === "siteWall") this.lineGhost(e);
+        if (tool === "fence" || tool === "siteWall" || this.streamMode) this.lineGhost(e);
         else this.polygonGhost(e);
         break;
       case "terrain":
@@ -190,7 +195,8 @@ export class Tools {
         else this.openingGhost(e);
         break;
       case "objects":
-        this.placeGhost(e);
+        if (tool === "note") this.noteGhost(e);
+        else this.placeGhost(e);
         break;
     }
   }
@@ -529,6 +535,39 @@ export class Tools {
     }
   }
 
+  // ------------------------------------------------------------- notes
+
+  /** Any visible surface under the pointer (world metres). */
+  noteTarget(e) {
+    const hits = this.app.scene.ray(e).intersectObjects(this.app.scene.world.children, true);
+    for (const h of hits) {
+      let visible = true;
+      for (let p = h.object; p; p = p.parent) if (!p.visible) visible = false;
+      if (!visible || h.object.material?.visible === false) continue;
+      if (h.object.userData.kind === "terrain" && this.app.terrain.isCut(h.point.x * CM, h.point.z * CM)) continue;
+      return h;
+    }
+    return null;
+  }
+  noteGhost(e) {
+    const hit = this.noteTarget(e);
+    if (!hit) return this.clearGhost();
+    let dot = this.ghost.children[0];
+    if (!dot || dot.userData.kind !== "notePin") {
+      dot = new THREE.Mesh(new THREE.SphereGeometry(0.07, 12, 10), new THREE.MeshBasicMaterial({ color: 0xe0a526, depthTest: false }));
+      dot.userData.kind = "notePin";
+      dot.renderOrder = 30;
+      this.setGhost(dot);
+    }
+    dot.position.copy(hit.point);
+    this.app.scene.requestRender();
+  }
+  noteClick(e) {
+    const hit = this.noteTarget(e);
+    if (!hit) return;
+    this.app.addNote([hit.point.x * CM, hit.point.y * CM, hit.point.z * CM]);
+  }
+
   // ------------------------------------------------------------ stairs
 
   /** Stairs about to be placed (building-local yaw = ghost yaw + building rotation). */
@@ -582,8 +621,9 @@ export class Tools {
 
   // ------------------------------------------------- railings / fences
 
-  /** Railing (building-local, on the active storey's floor) or fence (world, on the ground)? */
+  /** Railing (building-local, on the active storey's floor), fence / wall / stream (world, on the ground)? */
   get lineKind() {
+    if (this.app.state.tab === "outdoor") return "stream";
     if (this.app.state.tab !== "garden") return "railing";
     return this.tool === "siteWall" ? "siteWall" : "fence";
   }
@@ -630,6 +670,13 @@ export class Tools {
   }
   /** The item being drawn, with the pending style. */
   pendingLine(points) {
+    if (this.lineKind === "stream") {
+      const last = [...this.app.project.outdoor].reverse().find((d) => d.type === "stream");
+      return {
+        id: uid("d"), name: "", points, type: "stream", material: last?.material ?? DEFAULT_MATERIAL.stream, tint: last?.tint ?? MUD_TINT,
+        height: 0, open: false, postSize: 15, depth: last?.depth ?? 25, width: this.app.state.pendingStreamWidth || 120, lights: false, locked: false,
+      };
+    }
     if (this.lineKind === "siteWall") {
       const last = this.app.project.siteWalls[this.app.project.siteWalls.length - 1];
       return {
@@ -673,7 +720,10 @@ export class Tools {
     const fence = kind !== "railing";
     const item = this.pendingLine(pts.map(([x, z]) => [x, z]));
     this.app.checkpoint();
-    if (kind === "siteWall") {
+    if (kind === "stream") {
+      this.app.project.outdoor.push(item);
+      this.app.changed({ rebuild: "site" });
+    } else if (kind === "siteWall") {
       this.app.project.siteWalls.push(item);
       this.app.changed({ rebuild: "site" });
     } else if (fence) {
@@ -684,11 +734,41 @@ export class Tools {
       this.app.changed({ rebuild: "building", buildingId: this.app.building().id });
     }
     this.app.select(item.id, { keepTool: true });
-    this.app.toast(this.app.t(kind === "siteWall" ? "siteWallDone" : fence ? "fenceDone" : "railingDone"));
+    this.app.toast(this.app.t(kind === "stream" ? "placed" : kind === "siteWall" ? "siteWallDone" : fence ? "fenceDone" : "railingDone"));
+  }
+  /** Stream ghost: the band outline on the ground plus the points. */
+  streamGhost(e, p) {
+    const pts = [...(this.line || []), p];
+    const group = new THREE.Group();
+    const lift = 4;
+    const v = (q) => new THREE.Vector3(q[0] * M, (this.app.terrain.heightAt(q[0], q[1]) + lift) * M, q[1] * M);
+    const mat = ghostMaterial("#008f7d");
+    const dotGeo = new THREE.SphereGeometry(0.1, 10, 8);
+    for (const q of pts) {
+      const dot = new THREE.Mesh(dotGeo, mat);
+      dot.position.copy(v(q));
+      group.add(dot);
+    }
+    if (pts.length >= 2) {
+      const lineMat = new THREE.LineBasicMaterial({ color: 0x008f7d, depthTest: false });
+      const axis = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts.map(v)), lineMat);
+      axis.renderOrder = 25;
+      group.add(axis);
+      const band = streamBand(pts, this.app.state.pendingStreamWidth || 120);
+      if (band.length >= 3) {
+        const outline = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(band.map(v)), lineMat);
+        outline.renderOrder = 25;
+        group.add(outline);
+      }
+      const last = pts[pts.length - 2];
+      this.app.showMeasure(`${Math.round(Math.hypot(p[0] - last[0], p[1] - last[1]))} cm · Σ ${Math.round(polylineLength(pts))} cm`);
+    }
+    this.setGhost(group);
   }
   lineGhost(e) {
     const p = this.linePoint(e);
     if (!p) return this.clearGhost();
+    if (this.lineKind === "stream") return this.streamGhost(e, p);
     const fence = this.lineKind !== "railing";
     const storey = this.app.storey(), building = this.app.building();
     const committed = this.line || [];

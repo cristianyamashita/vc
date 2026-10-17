@@ -1,5 +1,5 @@
 // Right panel: properties of the selection, built from small field helpers.
-import { OPENING_PRESETS, STOREY_PRESETS, ROOF_PRESETS, CITIES, ROOF_TYPES, RAILING_STYLES, FENCE_STYLES, GATE_TYPES, GATE_WIDTHS, WALL_TOPS, isLocked, wallLength, polylineLength } from "../schema.js";
+import { OPENING_PRESETS, STOREY_PRESETS, ROOF_PRESETS, CITIES, ROOF_TYPES, RAILING_STYLES, FENCE_STYLES, GATE_TYPES, GATE_WIDTHS, WALL_TOPS, OUTDOOR_TYPES, NOTE_COLORS, isLocked, wallLength, polylineLength } from "../schema.js";
 import { textureIds, textureIndex } from "../materials.js";
 import { Sun } from "../sun.js";
 import { propDocSync, customIds } from "../props.js";
@@ -165,6 +165,7 @@ export class PropsPanel {
       case "railing": case "fence": return this.renderRailing(found);
       case "gate": return this.renderGate(found);
       case "siteWall": return this.renderSiteWall(found);
+      case "note": return this.renderNote(found);
     }
   }
   renderProject() {
@@ -268,7 +269,13 @@ export class PropsPanel {
         this.number(sun, "latitude", { min: -70, max: 70, unit: "°", label: t("latitude"), after: () => (sun.city = "custom") }),
         this.select(sun, "month", months, { label: t("month"), rebuild: "light" }),
       ]),
-      this.section(t("light"), [range("intensity", 0, 3, 0.05, "×"), this.check(sun, "shadows", { rebuild: "light" })]),
+      this.section(t("light"), [
+        range("intensity", 0, 3, 0.05, "×"),
+        this.check(sun, "shadows", { rebuild: "light" }),
+        this.check(sun, "night", { rebuild: "light", label: `${t("night")} (J)` }),
+        this.el("p", { class: "hint", text: t("nightHint") }),
+      ]),
+      this.section(t("seasons"), [this.button(`🗓 ${t("compare")}`, () => app.compareSeasons()), this.el("p", { class: "hint", text: t("compareHint") })]),
     );
   }
   renderBuilding({ item: b }) {
@@ -493,22 +500,28 @@ export class PropsPanel {
     this.scope = "site";
     const levels = polygonLevels(poly, type, app.terrain);
     const main = [this.text(poly, "name")];
+    const stream = type === "outdoor" && poly.type === "stream";
     if (type === "outdoor") {
-      main.push(this.select(poly, "type", [["deck", t("deck")], ["pool", t("pool")], ["path", t("path")]], { label: t("type") }));
+      // a stream is a polyline; the other types are closed polygons
+      const types = OUTDOOR_TYPES.filter((k) => (k === "stream") === stream).map((k) => [k, t(k)]);
+      main.push(this.select(poly, "type", types, { label: t("type") }));
       if (poly.type === "deck") {
         main.push(this.number(poly, "height", { min: -300, max: 300, label: t("deckHeight") }), this.check(poly, "open", { label: t("deckOpen"), rebuild: "site" }));
         if (poly.open) main.push(this.number(poly, "postSize", { min: 8, max: 40 }));
-      }
-      else if (poly.type === "pool") {
+      } else if (poly.type === "pool") {
         const proxy = { get v() { return Math.abs(poly.height); }, set v(x) { poly.height = -Math.abs(x); } };
-        main.push(this.number(proxy, "v", { min: 30, max: 300, label: t("poolDepth") }));
+        main.push(this.number(proxy, "v", { min: 30, max: 300, label: t("poolDepth") }), this.check(poly, "lights", { label: t("poolLights"), rebuild: "light" }));
+      } else if (poly.type === "pond") {
+        main.push(this.number(poly, "height", { min: 0, max: 300, label: t("waterLevel") }), this.number(poly, "depth", { min: 5, max: 300, label: t("bedDepth") }));
+      } else if (stream) {
+        main.push(this.number(poly, "width", { min: 20, max: 1000, label: t("streamWidth") }), this.number(poly, "depth", { min: 5, max: 200, label: t("bedDepth") }), this.el("p", { class: "hint", text: `${t("length")}: ${Math.round(polylineLength(poly.points))} cm` }));
       }
     }
     if (levels) main.push(this.el("p", { class: "hint", text: `${t("topLevel")}: ${Math.round(levels.top)} cm · ${t("bottomLevel")}: ${Math.round(levels.bottom)} cm` }));
     this.root.append(
       this.section(null, main),
       this.section(t("surface"), [this.material(poly, "material"), this.color(poly, "tint")]),
-      this.pointsSection(poly, { rebuild: "site", min: 3, closed: true, hint: t("pointsHint") }),
+      this.pointsSection(poly, { rebuild: "site", min: stream ? 2 : 3, closed: !stream, hint: t(stream ? "lineEditHint" : "pointsHint") }),
       this.section(null, [this.button(t("duplicate"), () => app.duplicateSelected()), this.lockRow(poly, poly.id), this.button(t("delete"), () => app.deleteSelected(), "danger")]),
     );
   }
@@ -589,6 +602,66 @@ export class PropsPanel {
       this.section(null, [this.lockRow(g, g.id), this.button(t("delete"), () => app.deleteSelected(), "danger")]),
     );
   }
+  /** Light on/off and intensity of a lighting object (used at night). */
+  lightFields(o) {
+    const app = this.app, t = app.t;
+    const input = this.el("input", { type: "range", min: 0, max: 3, step: 0.1, value: o.lightIntensity ?? 1, disabled: this.locked ? "" : null });
+    const out = this.el("span", { class: "unit", text: `${o.lightIntensity ?? 1}×` });
+    let cp = false;
+    input.addEventListener("input", () => {
+      if (!cp) {
+        app.checkpoint();
+        cp = true;
+      }
+      o.lightIntensity = Number(input.value);
+      out.textContent = `${o.lightIntensity}×`;
+      app.changed({ rebuild: "none", light: true, save: false, panels: false });
+    });
+    input.addEventListener("change", () => {
+      cp = false;
+      app.changed({ rebuild: "none", light: true, panels: false });
+    });
+    return [
+      this.check(o, "lightOn", { rebuild: "light" }),
+      this.el("label", { class: "field" }, [this.el("span", { class: "flabel", text: t("lightIntensity") }), input, out]),
+      this.el("p", { class: "hint", text: t(app.project.sun.night ? "lightNightOn" : "lightNightOff") }),
+    ];
+  }
+  renderNote({ item: n }) {
+    const app = this.app, t = app.t;
+    this.scope = "none";
+    const index = app.project.notes.indexOf(n) + 1;
+    const area = this.el("textarea", { rows: 3, maxlength: 240 });
+    area.value = n.text;
+    area.addEventListener("change", () => {
+      app.checkpoint();
+      n.text = area.value.trim().slice(0, 240);
+      app.changed({ rebuild: "none" });
+    });
+    const swatches = this.el("div", { class: "row-actions" }, NOTE_COLORS.map((c) => {
+      const b = this.el("button", { class: `swatch-btn ${n.color === c ? "on" : ""}`, type: "button", title: c });
+      b.style.background = c;
+      b.addEventListener("click", () => {
+        if (n.color === c) return;
+        app.checkpoint();
+        n.color = c;
+        app.changed({ rebuild: "none" });
+      });
+      return b;
+    }));
+    const pos = (i, label) => this.vec(n, "at", i, { label, after: () => app.notes.render() });
+    this.root.append(
+      this.section(null, [
+        this.el("p", { class: "hint", text: `${t("note")} ${index}` }),
+        this.el("label", { class: "field stack" }, [this.el("span", { class: "flabel", text: t("noteText") }), area]),
+        this.check(n, "done", { label: t("noteDone"), rebuild: "none" }),
+        this.field(t("tint"), swatches),
+        this.color(n, "color", { nullable: false, rebuild: "none", label: t("custom") }),
+      ]),
+      this.section(t("position"), [pos(0, "X"), pos(1, "Y"), pos(2, "Z")]),
+      this.section(null, [this.button(t("duplicate"), () => app.duplicateSelected()), this.button(t("delete"), () => app.deleteSelected(), "danger")]),
+    );
+  }
   renderObject({ item: o, building }) {
     const app = this.app, t = app.t;
     this.scope = building ? "building" : "site";
@@ -604,6 +677,7 @@ export class PropsPanel {
       this.section(t("rotation"), [n("rotation", 0, "X", { unit: "°", min: -360, max: 360 }), n("rotation", 1, "Y", { unit: "°", min: -360, max: 360 }), n("rotation", 2, "Z", { unit: "°", min: -360, max: 360 })]),
       this.section(t("scale"), [n("scale", 0, "X", { unit: "×", min: 0.05, max: 50, step: 0.05 }), n("scale", 1, "Y", { unit: "×", min: 0.05, max: 50, step: 0.05 }), n("scale", 2, "Z", { unit: "×", min: 0.05, max: 50, step: 0.05 })]),
       this.section(t("surface"), [this.material(o, "material"), this.color(o, "tint")]),
+      doc?.category === "lighting" ? this.section(t("light"), this.lightFields(o)) : null,
       this.section(null, [
         this.button(t("duplicate"), () => app.duplicateSelected()),
         doc ? this.button(`✎ ${t(o.prop && customIds.has(o.prop) ? "editObject" : "editCopy")}`, () => app.editor.enter(doc)) : null,

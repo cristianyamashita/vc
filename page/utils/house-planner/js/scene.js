@@ -123,10 +123,22 @@ export class Scene3D {
       this.renderer.render(this.scene, this.camera);
     }
   }
-  setBackground(dark) {
-    this.scene.background = new THREE.Color(dark ? "#1c2426" : "#dfe9ec");
-    this.grid.material.color.set(dark ? 0x4e6e68 : 0x8aa39c);
+  setBackground(dark = this.darkTheme) {
+    this.darkTheme = dark;
+    if (this.night) {
+      this.scene.background = new THREE.Color("#0a1020");
+      this.grid.material.color.set(0x2c4452);
+    } else {
+      this.scene.background = new THREE.Color(dark ? "#1c2426" : "#dfe9ec");
+      this.grid.material.color.set(dark ? 0x4e6e68 : 0x8aa39c);
+    }
     this.requestRender();
+  }
+  /** Night sky (independent of the UI theme). */
+  setNight(on) {
+    if (!!on === !!this.night) return;
+    this.night = !!on;
+    this.setBackground();
   }
   /** Orbit around a point without moving the camera. */
   centerOn(point) {

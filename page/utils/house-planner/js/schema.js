@@ -112,7 +112,12 @@ export const CITIES = [
   { id: "capetown", lat: -33.9, name: { en: "Cape Town", pt: "Cidade do Cabo", ja: "ケープタウン" } },
 ];
 export function freshSun() {
-  return { azimuth: 215, elevation: 48, intensity: 1.2, useTime: false, time: 14, latitude: 35.7, city: "tokyo", month: 6, shadows: true };
+  return { azimuth: 215, elevation: 48, intensity: 1.2, useTime: false, time: 14, latitude: 35.7, city: "tokyo", month: 6, shadows: true, night: false };
+}
+export const OUTDOOR_TYPES = ["deck", "pool", "path", "pond", "stream"];
+export const NOTE_COLORS = ["#e0a526", "#d9534f", "#2f9e6b", "#2a7fd0", "#8e44ad"];
+export function freshNote(at = [0, 0, 0]) {
+  return { id: uid("nt"), at, text: "", color: NOTE_COLORS[0], done: false };
 }
 export function freshStorey(prev, preset = "ground", name = "") {
   const p = STOREY_PRESETS.find((s) => s.id === preset) || STOREY_PRESETS[0];
@@ -139,7 +144,7 @@ export function freshProject(name = "") {
     terrain: freshTerrain(),
     sun: freshSun(),
     buildings: [b],
-    outdoor: [], gardenPatches: [], fences: [], siteWalls: [], objects: [],
+    outdoor: [], gardenPatches: [], fences: [], siteWalls: [], objects: [], notes: [],
     view: { cutaway: false, doorsOpen: false, activeBuilding: b.id, activeStorey: b.storeys[0].id, camera: null },
   };
 }
@@ -176,6 +181,16 @@ export function sunChecked(raw = {}) {
     city: CITIES.some((c) => c.id === raw.city) ? raw.city : "custom",
     month: int(raw.month, 1, 12, d.month),
     shadows: raw.shadows !== false,
+    night: !!raw.night,
+  };
+}
+export function noteChecked(raw = {}) {
+  return {
+    id: str(raw.id, uid("nt")),
+    at: vec3(raw.at),
+    text: str(raw.text, "", 240),
+    color: color(raw.color, NOTE_COLORS[0]),
+    done: !!raw.done,
   };
 }
 export function openingChecked(raw = {}, wallLength = 1e5) {
@@ -268,6 +283,8 @@ export function placementChecked(raw = {}) {
       : [1, 1, 1].map(() => num(raw.scale, 0.05, 50, 1)),
     tint: color(raw.tint, null),
     material: texture(raw.material, null),
+    lightOn: raw.lightOn !== false,
+    lightIntensity: num(raw.lightIntensity, 0, 3, 1),
     locked: !!raw.locked,
   };
   return out;
@@ -382,10 +399,13 @@ export function polygonChecked(raw = {}, kind = "outdoor") {
     locked: !!raw.locked,
   };
   if (kind === "outdoor") {
-    out.type = ["deck", "pool", "path"].includes(raw.type) ? raw.type : "deck";
-    out.height = num(raw.height, -300, 300, out.type === "pool" ? -150 : out.type === "path" ? 3 : 15);
+    out.type = OUTDOOR_TYPES.includes(raw.type) ? raw.type : "deck";
+    out.height = num(raw.height, -300, 300, out.type === "pool" ? -150 : out.type === "path" ? 3 : out.type === "pond" ? 20 : out.type === "stream" ? 0 : 15);
     out.open = !!raw.open;
     out.postSize = num(raw.postSize, 8, 40, 15);
+    out.depth = num(raw.depth, 5, 300, out.type === "stream" ? 25 : 80); // pond / stream bed below the ground
+    out.width = num(raw.width, 20, 1000, 120); // stream
+    out.lights = !!raw.lights; // pool: underwater lights at night
   }
   return out;
 }
@@ -417,6 +437,8 @@ export function projectChecked(raw) {
     check(w);
     for (const g of w.gates) check(g);
   }
+  const notes = (Array.isArray(raw.notes) ? raw.notes : []).map(noteChecked);
+  for (const n of notes) check(n);
   const view = raw.view && typeof raw.view === "object" ? raw.view : {};
   const activeBuilding = buildings.find((b) => b.id === view.activeBuilding) || buildings[0];
   const activeStorey = activeBuilding.storeys.find((s) => s.id === view.activeStorey) || activeBuilding.storeys[0];
@@ -435,6 +457,7 @@ export function projectChecked(raw) {
     fences,
     siteWalls,
     objects: (Array.isArray(raw.objects) ? raw.objects : []).map(placementChecked),
+    notes,
     view: {
       cutaway: !!view.cutaway,
       doorsOpen: !!view.doorsOpen,
@@ -495,6 +518,7 @@ export function locate(project, id) {
   if (id === "sun") return { type: "sun", item: project.sun };
   for (const o of project.objects) if (o.id === id) return { type: "object", item: o, list: project.objects };
   for (const d of project.outdoor) if (d.id === id) return { type: "outdoor", item: d, list: project.outdoor };
+  for (const n of project.notes || []) if (n.id === id) return { type: "note", item: n, list: project.notes };
   for (const g of project.gardenPatches) if (g.id === id) return { type: "garden", item: g, list: project.gardenPatches };
   for (const f of project.fences) {
     if (f.id === id) return { type: "fence", item: f, list: project.fences };

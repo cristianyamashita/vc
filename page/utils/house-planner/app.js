@@ -16,10 +16,12 @@ import { loadCatalog, catalog, getPropDoc, propObject, searchCatalog, registerCu
 import { thumbnail } from "./js/thumbs.js";
 import { PropEditor } from "./js/propedit.js";
 import { Dims } from "./js/dims.js";
+import { Night } from "./js/night.js";
+import { Notes } from "./js/notes.js";
 import { buildFloorGroup, floorTop, floorThickness, tileSet, tileKey, splitTiles } from "./js/build/slabs.js";
 import { buildWall } from "./js/build/walls.js";
 import { buildStairs, stairsCutQuads, tilesUnderQuads } from "./js/build/stairs.js";
-import { buildPolygon, DEFAULT_MATERIAL } from "./js/build/outdoor.js";
+import { buildPolygon, polygonOutline, DEFAULT_MATERIAL, WATER_TYPES } from "./js/build/outdoor.js";
 import { buildSiteWall } from "./js/build/sitewall.js";
 import { buildRoof } from "./js/build/roof.js";
 import { buildRailing, railingOffset } from "./js/build/railing.js";
@@ -27,7 +29,7 @@ import { Walk } from "./js/walk.js";
 import { renderPlan } from "./js/plan2d.js";
 import { propBounds } from "./js/props.js";
 import * as store from "./js/store.js";
-import { freshProject, freshBuilding, freshStorey, locate, isLocked, uid, clone, OPENING_PRESETS, projectChecked, findBuilding, topStorey, RAILING_STYLES, FENCE_STYLES, GATE_TYPES, WALL_TOPS } from "./js/schema.js";
+import { freshProject, freshBuilding, freshStorey, freshNote, locate, isLocked, uid, clone, OPENING_PRESETS, OUTDOOR_TYPES, projectChecked, findBuilding, topStorey, RAILING_STYLES, FENCE_STYLES, GATE_TYPES, WALL_TOPS } from "./js/schema.js";
 
 const DEG = Math.PI / 180;
 const $ = (s, r = document) => r.querySelector(s);
@@ -36,9 +38,9 @@ const TABS = ["terrain", "floors", "walls", "openings", "stairs", "outdoor", "ga
 // tool keys are per tab (only the active tab's tools listen).
 const HOTKEYS = {
   menu: { new: "N", open: "O", save: "S", saveAs: "Shift+S", export: "X", import: "I", exportPlan: "P", exportView: "Shift+P" },
-  view: { "snap-btn": "G", "cutaway-btn": "C", "doors-btn": "B", "view-3d": "Q", "view-top": "T", "view-walk": "K", "fit-btn": "F" },
+  view: { "snap-btn": "G", "cutaway-btn": "C", "doors-btn": "B", "night-btn": "J", "view-3d": "Q", "view-top": "T", "view-walk": "K", "fit-btn": "F" },
   modes: { translate: "W", rotate: "E", scale: "R", dims: "M" },
-  tools: { select: "V", raise: "A", lower: "Z", flatten: "L", smooth: "U", paint: "A", erase: "Z", rect: "L", draw: "A", railing: "L", add: "A", gate: "L", place: "A", polygon: "A", fence: "L", siteWall: "U" },
+  tools: { select: "V", raise: "A", lower: "Z", flatten: "L", smooth: "U", paint: "A", erase: "Z", rect: "L", draw: "A", railing: "L", add: "A", gate: "L", place: "A", polygon: "A", fence: "L", siteWall: "U", note: "L" },
 };
 const DEFAULT_TOOL = { terrain: "raise", floors: "paint", walls: "draw", openings: "add", stairs: "place", outdoor: "polygon", garden: "polygon", objects: "place" };
 
@@ -48,7 +50,7 @@ class App {
     this.lang = prefs.lang;
     this.t = makeT(() => this.lang);
     this.project = freshProject();
-    this.state = { tab: "floors", tool: "select", selection: null, activeBuilding: null, activeStorey: null, activeFloorGroup: null, pendingPreset: "door-single", pendingProp: null, ghostYaw: 0, pendingStairShape: "straight", pendingOutdoorType: "deck", pendingGardenMaterial: DEFAULT_MATERIAL.garden, pendingRailingStyle: "glass", pendingFenceStyle: "picket", pendingGateType: "single", pendingWallTop: "follow", snap: prefs.snap !== false, orbitOverride: false, transformMode: null, caps: [] };
+    this.state = { tab: "floors", tool: "select", selection: null, activeBuilding: null, activeStorey: null, activeFloorGroup: null, pendingPreset: "door-single", pendingProp: null, ghostYaw: 0, pendingStairShape: "straight", pendingOutdoorType: "deck", pendingStreamWidth: 120, pendingGardenMaterial: DEFAULT_MATERIAL.garden, pendingRailingStyle: "glass", pendingFenceStyle: "picket", pendingGateType: "single", pendingWallTop: "follow", snap: prefs.snap !== false, orbitOverride: false, transformMode: null, caps: [] };
     this.buildingGroups = new Map();
     this.storeyGroups = new Map();
     this.roofGroups = new Map();
@@ -71,7 +73,13 @@ class App {
     this.propsPanel = new PropsPanel(this, $("#props"));
     this.editor = new PropEditor(this);
     this.dims = new Dims(this);
-    this.scene.onFrame = () => this.dims.update();
+    this.night = new Night(this);
+    this.notes = new Notes(this);
+    this.scene.onFrame = () => {
+      this.dims.update();
+      this.notes.update();
+      this.night.frame();
+    };
     this.history = new History(() => this.project, (p) => this.restore(p));
     this.history.onChange(() => this.refreshHistoryButtons());
     setTextureReadyCallback(() => this.scene.requestRender());
@@ -267,16 +275,16 @@ class App {
   }
   duplicateSelected() {
     const found = this.state.selection && this.locate(this.state.selection);
-    if (!found || !["object", "stairs", "outdoor", "garden", "railing", "fence", "siteWall"].includes(found.type)) return;
+    if (!found || !["object", "stairs", "outdoor", "garden", "railing", "fence", "siteWall", "note"].includes(found.type)) return;
     this.checkpoint();
     const copy = clone(found.item);
-    copy.id = uid({ object: "ob", stairs: "sr", garden: "g", outdoor: "d", railing: "rl", fence: "fe", siteWall: "sw" }[found.type]);
+    copy.id = uid({ object: "ob", stairs: "sr", garden: "g", outdoor: "d", railing: "rl", fence: "fe", siteWall: "sw", note: "nt" }[found.type]);
     copy.locked = false;
     if (copy.gates) for (const g of copy.gates) g.id = uid("gt");
     if (copy.points) copy.points = copy.points.map(([x, z]) => [x + 50, z + 50]);
     else copy.at[0] += 50;
     found.list.push(copy);
-    this.changed({ rebuild: found.building ? "building" : "site", buildingId: found.building?.id });
+    this.changed({ rebuild: found.type === "note" ? "none" : found.building ? "building" : "site", buildingId: found.building?.id });
     this.select(copy.id);
   }
   toggleLock(id) {
@@ -394,7 +402,7 @@ class App {
       this.objectGroups.delete(c.userData.id);
       if (c.userData.kind !== "object") c.traverse((o) => o.isMesh && o.geometry.dispose());
     }
-    this.terrain.setCutouts(this.project.outdoor.filter((p) => p.type === "pool" && p.points.length >= 3).map((p) => p.points));
+    this.terrain.setCutouts(this.project.outdoor.filter((p) => WATER_TYPES.includes(p.type)).map((p) => polygonOutline(p)).filter((pts) => pts.length >= 3));
     for (const o of this.project.objects) this.siteGroup.add(this.makeObjectGroup(o, 0));
     for (const d of this.project.outdoor) {
       const g = buildPolygon(d, "outdoor", this.terrain);
@@ -420,6 +428,10 @@ class App {
       getPropDoc(o.prop).then((d) => d && this.changed({ rebuild: "all", save: false }));
     }
     g.userData = { kind: "object", id: o.id };
+    if (doc && this.night.isLamp(o, doc)) {
+      const glow = this.night.glowMesh(doc);
+      if (glow) g.add(glow);
+    }
     g.traverse((m) => {
       if (m.isMesh) m.userData.sharedGeometry = true;
     });
@@ -498,6 +510,7 @@ class App {
     this.sun.fit(box);
     this.sun.apply(this.project.sun);
     this.updateSunRoofs();
+    this.night.update();
     this.scene.requestRender();
   }
   makeClamp() {
@@ -617,6 +630,7 @@ class App {
     this.renderSelectionBar();
     this.tree.render();
     this.propsPanel.render();
+    this.notes.render();
     this.refreshSelectors();
     this.refreshHistoryButtons();
     this.refreshToolbar();
@@ -1038,12 +1052,29 @@ class App {
       extra.append(sel, hint);
     } else if (tab === "outdoor") {
       const sel = document.createElement("select");
-      sel.innerHTML = ["deck", "pool", "path"].map((k) => `<option value="${k}">${esc(t(k))}</option>`).join("");
+      sel.innerHTML = OUTDOOR_TYPES.map((k) => `<option value="${k}">${esc(t(k))}</option>`).join("");
       sel.value = this.state.pendingOutdoorType;
-      sel.addEventListener("change", () => (this.state.pendingOutdoorType = sel.value));
+      sel.addEventListener("change", () => {
+        this.state.pendingOutdoorType = sel.value;
+        this.tools.reset();
+        this.refreshToolbar();
+      });
+      extra.append(sel);
+      if (this.state.pendingOutdoorType === "stream") {
+        const w = document.createElement("input");
+        w.type = "number";
+        w.min = 20;
+        w.max = 1000;
+        w.step = 10;
+        w.value = this.state.pendingStreamWidth;
+        w.title = t("streamWidth");
+        w.style.width = "64px";
+        w.addEventListener("change", () => (this.state.pendingStreamWidth = Math.min(1000, Math.max(20, Number(w.value) || 120))));
+        extra.append(w);
+      }
       const hint = document.createElement("label");
-      hint.textContent = t("polygonHint");
-      extra.append(sel, hint);
+      hint.textContent = t(this.state.pendingOutdoorType === "stream" ? "lineHint" : "polygonHint");
+      extra.append(hint);
     } else if (tab === "garden") {
       const sel = document.createElement("select");
       sel.innerHTML = Object.keys(textureIndex).map((k) => `<option value="${k}">${esc(textureIndex[k].name[this.lang] || k)}</option>`).join("");
@@ -1054,7 +1085,7 @@ class App {
       extra.append(sel, hint);
     } else if (tab === "objects") {
       const hint = document.createElement("label");
-      hint.textContent = this.state.pendingProp ? `${this.state.pendingProp.name[this.lang] || this.state.pendingProp.name.en} · ${t("rotateGhost")}` : t("catalog");
+      hint.textContent = tool === "note" ? t("noteHint") : this.state.pendingProp ? `${this.state.pendingProp.name[this.lang] || this.state.pendingProp.name.en} · ${t("rotateGhost")}` : t("catalog");
       const btn = document.createElement("button");
       btn.className = "tb small";
       btn.textContent = `+ ${t("newObject")}`;
@@ -1064,6 +1095,7 @@ class App {
     $("#snap-btn").classList.toggle("on", this.state.snap);
     $("#cutaway-btn").classList.toggle("on", this.project.view.cutaway);
     $("#doors-btn").classList.toggle("on", this.project.view.doorsOpen);
+    $("#night-btn").classList.toggle("on", !!this.project.sun.night);
   }
   updateLeftPanel() {
     const showCatalog = this.state.tab === "objects" && this.state.tool === "place";
@@ -1148,6 +1180,13 @@ class App {
       this.queueSave();
     });
     $("#doors-btn").addEventListener("click", () => this.toggleDoors());
+    $("#night-btn").addEventListener("click", () => this.toggleNight());
+    $("#seasons-grid").addEventListener("click", (e) => {
+      const b = e.target.closest("[data-time]");
+      if (!b) return;
+      $("#seasons-dialog").close();
+      this.applySeason(Number(b.dataset.time), Number(b.dataset.month));
+    });
     $("#view-3d").addEventListener("click", () => this.setView("3d"));
     $("#view-top").addEventListener("click", () => this.setView("top"));
     $("#view-walk").addEventListener("click", () => this.setView(this.walk.active ? "3d" : "walk"));
@@ -1268,6 +1307,69 @@ class App {
     $("#walk-hint").hidden = view !== "walk";
     $("#viewport").classList.toggle("walking", view === "walk");
   }
+  /** Night: dark sky, moon, lamps and windows lit (project.sun.night). */
+  toggleNight() {
+    this.checkpoint();
+    this.project.sun.night = !this.project.sun.night;
+    this.changed({ rebuild: "none", light: true });
+  }
+  /**
+   * Seasons: the current view at 9 h, 12 h and 16 h for the chosen month and
+   * the month six months later, rendered with the main renderer into small
+   * canvases while the sun is temporarily moved, shown in a dialog.
+   */
+  compareSeasons() {
+    const sun = this.project.sun, t = this.t;
+    const saved = { ...sun };
+    const months = [sun.month, ((sun.month + 5) % 12) + 1];
+    const times = [9, 12, 16];
+    const src = this.scene.canvas;
+    const W = 168, H = Math.round((168 * src.height) / Math.max(1, src.width));
+    const grid = $("#seasons-grid");
+    grid.innerHTML = "";
+    this.scene.controls.update();
+    for (const month of months)
+      for (const time of times) {
+        Object.assign(sun, { useTime: true, time, month, night: false });
+        this.sun.apply(sun);
+        this.night.update();
+        this.scene.renderer.render(this.scene.scene, this.scene.camera);
+        const c = document.createElement("canvas");
+        c.width = W;
+        c.height = H;
+        c.getContext("2d").drawImage(src, 0, 0, W, H);
+        const name = new Date(2024, month - 1, 1).toLocaleString(this.lang, { month: "short" });
+        const b = document.createElement("button");
+        b.className = "season";
+        b.type = "button";
+        b.dataset.time = String(time);
+        b.dataset.month = String(month);
+        const label = document.createElement("span");
+        label.textContent = `${name} · ${time} h`;
+        b.append(c, label);
+        grid.append(b);
+      }
+    Object.assign(sun, saved);
+    this.sun.apply(sun);
+    this.night.update();
+    this.scene.requestRender();
+    $("#seasons-hint").textContent = t("seasonsHint");
+    $("#seasons-dialog").showModal();
+  }
+  applySeason(time, month) {
+    this.checkpoint();
+    Object.assign(this.project.sun, { useTime: true, time, month });
+    this.changed({ rebuild: "none", light: true });
+  }
+  /** A note pinned at a world point (cm). */
+  addNote(at) {
+    this.checkpoint();
+    const note = freshNote(at.map(r1));
+    this.project.notes.push(note);
+    this.changed({ rebuild: "none" });
+    this.select(note.id, { keepTool: true });
+    this.propsPanel.root.querySelector("textarea")?.focus();
+  }
   /** Swing every door leaf open (or closed) in all buildings. */
   toggleDoors() {
     this.project.view.doorsOpen = !this.project.view.doorsOpen;
@@ -1295,7 +1397,7 @@ class App {
   async exportPlan() {
     const b = this.building(), s = this.storey();
     const canvas = renderPlan({
-      project: this.project, building: b, storey: s, lang: this.lang, t: this.t,
+      project: this.project, building: b, storey: s, lang: this.lang, t: this.t, notes: this.project.notes,
       objectFootprint: (o) => this.objectFootprint(o),
       objectName: (o) => this.objectName(o),
       wellTiles: (fg) => this.stairWells(b, s, fg),

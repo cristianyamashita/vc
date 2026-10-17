@@ -9,6 +9,9 @@ import * as THREE from "three";
 const DEG = Math.PI / 180;
 const SUN_LOW = new THREE.Color(0xffae6e);
 const SUN_HIGH = new THREE.Color(0xfff4e0);
+const MOON = new THREE.Color(0x9fb4dc);
+const DAY_SKY = new THREE.Color(0xe4edf5), DAY_GROUND = new THREE.Color(0x7a7262);
+const NIGHT_SKY = new THREE.Color(0x1d2a44), NIGHT_GROUND = new THREE.Color(0x0a0c12);
 
 /** Unit vector toward the sun. Azimuth 0 = +X, 90 = +Z (clockwise seen from above). */
 export function sunDirection(azimuth, elevation) {
@@ -59,15 +62,27 @@ export class Sun {
     }
     return { azimuth: sun.azimuth, elevation: sun.elevation };
   }
+  /** Night keeps the direction but turns the sun into a cool, dim moon. */
   apply(sun) {
     const { azimuth, elevation } = Sun.angles(sun);
     this.dir = sunDirection(azimuth, elevation);
     const horizon = THREE.MathUtils.smoothstep(elevation, -2, 4);
-    const color = SUN_LOW.clone().lerp(SUN_HIGH, THREE.MathUtils.smoothstep(elevation, 4, 35));
-    this.light.color.copy(color);
-    this.light.intensity = 3.2 * sun.intensity * horizon;
+    this.night = !!sun.night;
+    if (this.night) {
+      this.light.color.copy(MOON);
+      this.light.intensity = 0.7 * sun.intensity * (0.5 + 0.5 * horizon);
+      this.hemi.color.copy(NIGHT_SKY);
+      this.hemi.groundColor.copy(NIGHT_GROUND);
+      this.hemi.intensity = 0.55;
+    } else {
+      const color = SUN_LOW.clone().lerp(SUN_HIGH, THREE.MathUtils.smoothstep(elevation, 4, 35));
+      this.light.color.copy(color);
+      this.light.intensity = 3.2 * sun.intensity * horizon;
+      this.hemi.color.copy(DAY_SKY);
+      this.hemi.groundColor.copy(DAY_GROUND);
+      this.hemi.intensity = 0.9 + 0.6 * sun.intensity * (0.4 + 0.6 * horizon);
+    }
     this.light.castShadow = sun.shadows;
-    this.hemi.intensity = 0.9 + 0.6 * sun.intensity * (0.4 + 0.6 * horizon);
     this.place();
   }
   /** Fit the shadow frustum to a Box3 (metres) of everything that matters. */
