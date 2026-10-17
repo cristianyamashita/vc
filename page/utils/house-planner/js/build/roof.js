@@ -18,8 +18,8 @@ const PARAPET = 15;
 const GABLE_END = 20;
 const CEILING = 10;
 const CEILING_TINT = "#f1ede6";
-const UP = new THREE.Vector3(0, 1, 0);
-const DOWN = new THREE.Vector3(0, -1, 0);
+export const UP = new THREE.Vector3(0, 1, 0);
+export const DOWN = new THREE.Vector3(0, -1, 0);
 
 /** Rectangle (cm, building-local) under the roof, or null without tiles or walls. */
 export function roofRect(building, tile) {
@@ -44,7 +44,7 @@ export function roofRect(building, tile) {
 }
 
 /** Triangles collected in cm; the winding follows the wanted normal side. */
-class Shell {
+export class Shell {
   constructor() {
     this.pos = [];
   }
@@ -82,6 +82,29 @@ function slopedGeometry(roof, rect, base) {
   const ue0 = u0 - o, ue1 = u1 + o, ve0 = v0 - o, ve1 = v1 + o;
   const yE = base - o * tan, yR = base + half * tan;
   const s = new Shell();
+  if (roof.type === "shed") {
+    // one slope: low eave at uL, high wall at uH, three closing walls
+    const dir = roof.highSide === "-" ? -1 : 1;
+    const uL = dir > 0 ? u0 : u1, uH = dir > 0 ? u1 : u0;
+    const y = (u) => base + dir * (u - uL) * tan;
+    const uLe = uL - dir * o, uHe = uH + dir * o;
+    s.quad(P(uLe, y(uLe) + T, ve0), P(uHe, y(uHe) + T, ve0), P(uHe, y(uHe) + T, ve1), P(uLe, y(uLe) + T, ve1), UP);
+    s.quad(P(uLe, y(uLe), ve0), P(uHe, y(uHe), ve0), P(uHe, y(uHe), ve1), P(uLe, y(uLe), ve1), DOWN);
+    for (const [ue, d] of [[uLe, -dir], [uHe, dir]])
+      s.quad(P(ue, y(ue), ve0), P(ue, y(ue) + T, ve0), P(ue, y(ue) + T, ve1), P(ue, y(ue), ve1), want(d, 0, 0));
+    for (const [ve, dv] of [[ve0, -1], [ve1, 1]])
+      s.quad(P(uLe, y(uLe), ve), P(uHe, y(uHe), ve), P(uHe, y(uHe) + T, ve), P(uLe, y(uLe) + T, ve), want(0, 0, dv));
+    for (const side of [-1, 1]) {
+      const uw = uH + (side * GABLE_END) / 2;
+      s.quad(P(uw, base, v0), P(uw, base, v1), P(uw, y(uH), v1), P(uw, y(uH), v0), want(side, 0, 0));
+    }
+    for (const [v, dv] of [[v0, -1], [v1, 1]])
+      for (const side of [-1, 1]) {
+        const vv = v + (side * GABLE_END) / 2;
+        s.tri(P(uL, base, vv), P(uH, base, vv), P(uH, y(uH), vv), want(0, 0, side));
+      }
+    return s.geometry();
+  }
   if (roof.type === "gable") {
     for (const [ue, dir] of [[ue0, -1], [ue1, 1]]) {
       // top and underside of one slope
@@ -173,7 +196,7 @@ export function buildRoof(building, tile = 50) {
   mesh.receiveShadow = true;
   mesh.userData = { kind: "roof", id: building.id };
   group.add(mesh);
-  const ceiling = ceilingGeometry(storey, tile, base);
+  const ceiling = roof.ceiling === false ? null : ceilingGeometry(storey, tile, base);
   if (ceiling) {
     const c = new THREE.Mesh(ceiling, surfaceMaterial({ tint: CEILING_TINT }));
     c.castShadow = true;

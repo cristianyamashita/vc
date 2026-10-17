@@ -16,6 +16,7 @@ export class Tree {
     if (item.name) return item.name;
     switch (type) {
       case "building": return `${t("building")} ${index + 1}`;
+      case "siteWall": return `${t("siteWall")} ${index + 1}`;
       case "storey": return `${t("storey")} ${index + 1}`;
       case "floorGroup": return `${t("floor")} ${index + 1}`;
       case "wall": return `${t("wall")} ${index + 1}`;
@@ -62,6 +63,12 @@ export class Tree {
       project.fences.forEach((f, i) => {
         row(f.id, "fence", this.label("fence", f, i), 1, { icon: "⫴", lockable: true, locked: f.locked });
         f.gates.forEach((g, gi) => row(g.id, "gate", this.label("gate", g, gi), 2, { icon: "⊏", lockable: true, locked: g.locked }));
+      });
+    row("siteWallList", "site", `${t("siteWalls")} (${project.siteWalls.length})`, 0, { icon: "🧱", children: "siteWalls", always: true });
+    if (open("siteWalls"))
+      project.siteWalls.forEach((w, i) => {
+        row(w.id, "siteWall", this.label("siteWall", w, i), 1, { icon: "▬", lockable: true, locked: w.locked });
+        w.gates.forEach((g, gi) => row(g.id, "gate", this.label("gate", g, gi), 2, { icon: "⊏", lockable: true, locked: g.locked }));
       });
     project.buildings.forEach((b, bi) => {
       const bkey = `b:${b.id}`;

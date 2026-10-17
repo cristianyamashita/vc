@@ -55,7 +55,7 @@ export function nearestOnPolyline(points, px, pz) {
   return best;
 }
 /** Segments of a polyline as {s0, s1, a, b} in cumulative distance. */
-function segments(points) {
+export function segments(points) {
   const out = [];
   let acc = 0;
   for (let i = 1; i < points.length; i++) {
@@ -305,7 +305,7 @@ export function buildRailing(item, kind, { baseY = 0, heightAt = null, storeyId 
 }
 
 /** A level gate (single, double or sliding) across the bay from A to B. */
-function gateGeometry(gate, A, B, L, H, style, item, list) {
+export function gateGeometry(gate, A, B, L, H, style, item, list) {
   const color = ["picket", "ranch", "wood"].includes(style) ? item.tint || DEFAULT_TINT[style] : GATE_COLOR;
   const P = A.v.clone();
   P.y = Math.max(A.v.y, B.v.y);

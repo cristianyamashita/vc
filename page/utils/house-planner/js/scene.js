@@ -128,8 +128,18 @@ export class Scene3D {
     this.grid.material.color.set(dark ? 0x4e6e68 : 0x8aa39c);
     this.requestRender();
   }
-  /** Frame a Box3 (metres). */
-  fit(box) {
+  /** Orbit around a point without moving the camera. */
+  centerOn(point) {
+    this.controls.target.copy(point);
+    if (this.view === "top") {
+      this.ortho.position.set(point.x, 120, point.z);
+      this.ortho.lookAt(point);
+    }
+    this.controls.update();
+    this.requestRender();
+  }
+  /** Frame a Box3 (metres). keepDirection keeps the current viewing angle. */
+  fit(box, { keepDirection = false } = {}) {
     if (!box || box.isEmpty()) box = new THREE.Box3(new THREE.Vector3(-8, 0, -6), new THREE.Vector3(8, 3, 6));
     const center = box.getCenter(new THREE.Vector3());
     const size = box.getSize(new THREE.Vector3());
@@ -142,7 +152,8 @@ export class Scene3D {
       this.resize();
     } else {
       const dist = radius / Math.sin((this.perspective.fov * Math.PI) / 360);
-      const dir = new THREE.Vector3(0.6, 0.55, 0.7).normalize();
+      const dir = keepDirection ? this.perspective.position.clone().sub(this.controls.target).normalize() : new THREE.Vector3(0.6, 0.55, 0.7).normalize();
+      if (dir.lengthSq() < 0.01 || dir.y < 0.05) dir.set(0.6, 0.55, 0.7).normalize();
       this.perspective.position.copy(center).addScaledVector(dir, dist * 1.05);
     }
     this.controls.update();

@@ -8,6 +8,7 @@ export const SHAPES = ["box", "rounded", "sphere", "cylinder", "cone", "roundcon
 export const TEXTURE_IDS = [
   "grass", "gravel", "sand", "dirt", "rock", "paving", "concrete", "asphalt",
   "woodFloor", "planks", "tiles", "carpet", "rubber", "plaster", "bricks", "metalPlate",
+  "woodLight", "woodDark", "bricksRed", "bricksOrange", "stone", "marble", "stoneTiles", "azulejo", "roofTiles", "fiberCement",
 ];
 export const OPENING_PRESETS = {
   "door-single": { type: "door", width: 90, height: 210, sill: 0 },
@@ -23,9 +24,16 @@ export const STOREY_PRESETS = [
   { id: "ground", elevation: 0, height: 300 },
   { id: "upper", elevation: null, height: 300 }, // elevation = previous top
   { id: "basement", elevation: -250, height: 250 },
+  { id: "attic", elevation: null, height: 110 }, // knee-wall height; the roof closes the rest
 ];
 export const TILE = 50;
-export const ROOF_TYPES = ["none", "flat", "gable", "hip"];
+export const ROOF_TYPES = ["none", "flat", "shed", "gable", "hip"];
+export const ROOF_PRESETS = [
+  { id: "wood", material: "planks" },
+  { id: "clayTiles", material: "roofTiles", tint: "#c8653f" },
+  { id: "concrete", material: "concrete" },
+  { id: "fiberCement", material: "fiberCement", tint: "#d8d8d2" },
+];
 export const RAILING_STYLES = ["glass", "wood", "metal", "masonry"];
 export const FENCE_STYLES = ["picket", "ranch", "masonry", "hedge"];
 export const GATE_TYPES = ["single", "double", "sliding"];
@@ -84,8 +92,27 @@ export function freshTerrain(width = 4000, depth = 3000, resolution = 40) {
     material: "grass", tint: null, locked: false, flattenUnderBuildings: true,
   };
 }
+export const CITIES = [
+  { id: "tokyo", lat: 35.7, name: { en: "Tokyo", pt: "Tóquio", ja: "東京" } },
+  { id: "sydney", lat: -33.9, name: { en: "Sydney", pt: "Sydney", ja: "シドニー" } },
+  { id: "newyork", lat: 40.7, name: { en: "New York", pt: "Nova York", ja: "ニューヨーク" } },
+  { id: "miami", lat: 25.8, name: { en: "Miami", pt: "Miami", ja: "マイアミ" } },
+  { id: "losangeles", lat: 34.1, name: { en: "Los Angeles", pt: "Los Angeles", ja: "ロサンゼルス" } },
+  { id: "mexico", lat: 19.4, name: { en: "Mexico City", pt: "Cidade do México", ja: "メキシコシティ" } },
+  { id: "belem", lat: -1.5, name: { en: "Belém", pt: "Belém", ja: "ベレン" } },
+  { id: "rio", lat: -22.9, name: { en: "Rio de Janeiro", pt: "Rio de Janeiro", ja: "リオデジャネイロ" } },
+  { id: "saopaulo", lat: -23.5, name: { en: "São Paulo", pt: "São Paulo", ja: "サンパウロ" } },
+  { id: "portoalegre", lat: -30.0, name: { en: "Porto Alegre", pt: "Porto Alegre", ja: "ポルトアレグレ" } },
+  { id: "buenosaires", lat: -34.6, name: { en: "Buenos Aires", pt: "Buenos Aires", ja: "ブエノスアイレス" } },
+  { id: "milan", lat: 45.5, name: { en: "Milan", pt: "Milão", ja: "ミラノ" } },
+  { id: "lisbon", lat: 38.7, name: { en: "Lisbon", pt: "Lisboa", ja: "リスボン" } },
+  { id: "paris", lat: 48.9, name: { en: "Paris", pt: "Paris", ja: "パリ" } },
+  { id: "london", lat: 51.5, name: { en: "London", pt: "Londres", ja: "ロンドン" } },
+  { id: "singapore", lat: 1.3, name: { en: "Singapore", pt: "Singapura", ja: "シンガポール" } },
+  { id: "capetown", lat: -33.9, name: { en: "Cape Town", pt: "Cidade do Cabo", ja: "ケープタウン" } },
+];
 export function freshSun() {
-  return { azimuth: 215, elevation: 48, intensity: 1.2, useTime: false, time: 14, latitude: -23.5, month: 6, shadows: true };
+  return { azimuth: 215, elevation: 48, intensity: 1.2, useTime: false, time: 14, latitude: 35.7, city: "tokyo", month: 6, shadows: true };
 }
 export function freshStorey(prev, preset = "ground", name = "") {
   const p = STOREY_PRESETS.find((s) => s.id === preset) || STOREY_PRESETS[0];
@@ -112,7 +139,7 @@ export function freshProject(name = "") {
     terrain: freshTerrain(),
     sun: freshSun(),
     buildings: [b],
-    outdoor: [], gardenPatches: [], fences: [], objects: [],
+    outdoor: [], gardenPatches: [], fences: [], siteWalls: [], objects: [],
     view: { cutaway: false, doorsOpen: false, activeBuilding: b.id, activeStorey: b.storeys[0].id, camera: null },
   };
 }
@@ -146,6 +173,7 @@ export function sunChecked(raw = {}) {
     useTime: !!raw.useTime,
     time: num(raw.time, 0, 24, d.time),
     latitude: num(raw.latitude, -70, 70, d.latitude),
+    city: CITIES.some((c) => c.id === raw.city) ? raw.city : "custom",
     month: int(raw.month, 1, 12, d.month),
     shadows: raw.shadows !== false,
   };
@@ -255,6 +283,26 @@ export function gateChecked(raw = {}, length = 1e5) {
   };
 }
 /** A railing (storey, building-local cm) or a fence (site, world cm): a polyline with posts. */
+export const WALL_TOPS = ["follow", "straight", "stepped"];
+export function siteWallChecked(raw = {}) {
+  const points = (Array.isArray(raw.points) ? raw.points : []).map((p) => vec2(p)).slice(0, 200);
+  const len = polylineLength(points);
+  return {
+    id: str(raw.id, uid("sw")),
+    name: str(raw.name, ""),
+    points,
+    thickness: num(raw.thickness, 10, 60, 20),
+    height: num(raw.height, 30, 400, 200),
+    top: WALL_TOPS.includes(raw.top) ? raw.top : "follow",
+    stepLength: num(raw.stepLength, 50, 500, 100),
+    material: texture(raw.material, "plaster"),
+    tint: color(raw.tint, null),
+    outerMaterial: texture(raw.outerMaterial, null),
+    outerTint: color(raw.outerTint, null),
+    gates: (Array.isArray(raw.gates) ? raw.gates : []).map((g) => gateChecked(g, len)),
+    locked: !!raw.locked,
+  };
+}
 export function railingChecked(raw = {}, kind = "railing") {
   const fence = kind === "fence";
   const styles = fence ? FENCE_STYLES : RAILING_STYLES;
@@ -300,6 +348,8 @@ export function roofChecked(raw) {
     overhang: num(raw.overhang, 0, 200, d.overhang),
     height: num(raw.height, 0, 150, d.height),
     ridgeAxis: raw.ridgeAxis === "z" ? "z" : "x",
+    highSide: raw.highSide === "-" ? "-" : "+",
+    ceiling: raw.ceiling !== false,
     material: texture(raw.material, d.material),
     tint: color(raw.tint, null),
     visible: raw.visible !== false,
@@ -334,6 +384,8 @@ export function polygonChecked(raw = {}, kind = "outdoor") {
   if (kind === "outdoor") {
     out.type = ["deck", "pool", "path"].includes(raw.type) ? raw.type : "deck";
     out.height = num(raw.height, -300, 300, out.type === "pool" ? -150 : out.type === "path" ? 3 : 15);
+    out.open = !!raw.open;
+    out.postSize = num(raw.postSize, 8, 40, 15);
   }
   return out;
 }
@@ -342,22 +394,28 @@ export function projectChecked(raw) {
   const buildings = (Array.isArray(raw.buildings) ? raw.buildings : []).map(buildingChecked);
   if (!buildings.length) buildings.push(freshBuilding("", [0, 0]));
   const ids = new Set();
-  const check = (id) => {
-    if (ids.has(id)) throw new Error("invalid");
-    ids.add(id);
+  // duplicate ids (a half-saved project) get a fresh id instead of rejecting the file
+  const check = (obj) => {
+    if (ids.has(obj.id)) obj.id = uid("id");
+    ids.add(obj.id);
   };
   for (const b of buildings) {
-    check(b.id);
+    check(b);
     for (const s of b.storeys) {
-      check(s.id);
-      for (const list of [s.floorGroups, s.walls, s.stairs, s.railings, s.objects]) for (const it of list) check(it.id);
-      for (const w of s.walls) for (const o of w.openings) check(o.id);
+      check(s);
+      for (const list of [s.floorGroups, s.walls, s.stairs, s.railings, s.objects]) for (const it of list) check(it);
+      for (const w of s.walls) for (const o of w.openings) check(o);
     }
   }
   const fences = (Array.isArray(raw.fences) ? raw.fences : []).map((f) => railingChecked(f, "fence"));
   for (const f of fences) {
-    check(f.id);
-    for (const g of f.gates) check(g.id);
+    check(f);
+    for (const g of f.gates) check(g);
+  }
+  const siteWalls = (Array.isArray(raw.siteWalls) ? raw.siteWalls : []).map(siteWallChecked);
+  for (const w of siteWalls) {
+    check(w);
+    for (const g of w.gates) check(g);
   }
   const view = raw.view && typeof raw.view === "object" ? raw.view : {};
   const activeBuilding = buildings.find((b) => b.id === view.activeBuilding) || buildings[0];
@@ -375,6 +433,7 @@ export function projectChecked(raw) {
     outdoor: (Array.isArray(raw.outdoor) ? raw.outdoor : []).map((p) => polygonChecked(p, "outdoor")),
     gardenPatches: (Array.isArray(raw.gardenPatches) ? raw.gardenPatches : []).map((p) => polygonChecked(p, "garden")),
     fences,
+    siteWalls,
     objects: (Array.isArray(raw.objects) ? raw.objects : []).map(placementChecked),
     view: {
       cutaway: !!view.cutaway,
@@ -439,7 +498,11 @@ export function locate(project, id) {
   for (const g of project.gardenPatches) if (g.id === id) return { type: "garden", item: g, list: project.gardenPatches };
   for (const f of project.fences) {
     if (f.id === id) return { type: "fence", item: f, list: project.fences };
-    for (const g of f.gates) if (g.id === id) return { type: "gate", item: g, fence: f, list: f.gates };
+    for (const g of f.gates) if (g.id === id) return { type: "gate", item: g, fence: f, host: f, list: f.gates };
+  }
+  for (const w of project.siteWalls || []) {
+    if (w.id === id) return { type: "siteWall", item: w, list: project.siteWalls };
+    for (const g of w.gates) if (g.id === id) return { type: "gate", item: g, siteWall: w, host: w, list: w.gates };
   }
   for (const building of project.buildings) {
     if (building.id === id) return { type: "building", item: building, building };
@@ -460,7 +523,7 @@ export function locate(project, id) {
 export function isLocked(project, id) {
   const hit = locate(project, id);
   if (!hit) return false;
-  return !!(hit.item.locked || hit.wall?.locked || hit.fence?.locked || hit.storey?.locked || hit.building?.locked);
+  return !!(hit.item.locked || hit.wall?.locked || hit.fence?.locked || hit.siteWall?.locked || hit.storey?.locked || hit.building?.locked);
 }
 export function wallLength(w) {
   return Math.hypot(w.b[0] - w.a[0], w.b[1] - w.a[1]);

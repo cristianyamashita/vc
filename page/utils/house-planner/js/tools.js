@@ -11,16 +11,17 @@ import { propObject, propBounds } from "./props.js";
 import { ghostMaterial } from "./materials.js";
 import { buildStairs, defaultRise } from "./build/stairs.js";
 import { DEFAULT_MATERIAL } from "./build/outdoor.js";
+import { buildSiteWall } from "./build/sitewall.js";
 import { buildRailing, railingOffset, nearestOnPolyline, pointAlong, clampGate, DEFAULT_TEXTURE } from "./build/railing.js";
 
 export const TAB_TOOLS = {
   terrain: ["select", "raise", "lower", "flatten", "smooth"],
   floors: ["select", "paint", "erase", "rect"],
   walls: ["select", "draw", "railing"],
-  openings: ["select", "add"],
+  openings: ["select", "add", "gate"],
   stairs: ["select", "place"],
   outdoor: ["select", "polygon"],
-  garden: ["select", "polygon", "fence", "gate"],
+  garden: ["select", "polygon", "fence", "siteWall"],
   objects: ["select", "place"],
 };
 const DEG = Math.PI / 180;
@@ -134,6 +135,7 @@ export class Tools {
         else this.wallClick(e);
         break;
       case "openings":
+        if (tool === "gate") return this.gateClick(e);
         if (!storey) return;
         this.openingClick(e);
         break;
@@ -146,8 +148,7 @@ export class Tools {
         break;
       case "outdoor":
       case "garden":
-        if (tool === "fence") this.lineClick(e);
-        else if (tool === "gate") this.gateClick(e);
+        if (tool === "fence" || tool === "siteWall") this.lineClick(e);
         else this.polygonClick(e);
         break;
     }
@@ -165,8 +166,7 @@ export class Tools {
         break;
       case "outdoor":
       case "garden":
-        if (tool === "fence") this.lineGhost(e);
-        else if (tool === "gate") this.gateGhost(e);
+        if (tool === "fence" || tool === "siteWall") this.lineGhost(e);
         else this.polygonGhost(e);
         break;
       case "terrain":
@@ -186,7 +186,8 @@ export class Tools {
         else this.wallGhost(e);
         break;
       case "openings":
-        this.openingGhost(e);
+        if (tool === "gate") this.gateGhost(e);
+        else this.openingGhost(e);
         break;
       case "objects":
         this.placeGhost(e);
@@ -583,11 +584,12 @@ export class Tools {
 
   /** Railing (building-local, on the active storey's floor) or fence (world, on the ground)? */
   get lineKind() {
-    return this.app.state.tab === "garden" ? "fence" : "railing";
+    if (this.app.state.tab !== "garden") return "railing";
+    return this.tool === "siteWall" ? "siteWall" : "fence";
   }
   /** Snapped cm point for the line being drawn: magnet to ends, grid, Shift axis lock. */
   linePoint(e) {
-    const fence = this.lineKind === "fence";
+    const fence = this.lineKind !== "railing";
     const storey = this.app.storey(), building = this.app.building();
     let x, z;
     const ends = [];
@@ -597,6 +599,7 @@ export class Tools {
       x = hit.x * CM;
       z = hit.z * CM;
       for (const f of this.app.project.fences) ends.push(...f.points);
+      for (const w of this.app.project.siteWalls) ends.push(...w.points);
     } else {
       const p = this.app.scene.pickPlane(e, (storey.elevation + this.activeOffset()) * M);
       if (!p) return null;
@@ -627,6 +630,13 @@ export class Tools {
   }
   /** The item being drawn, with the pending style. */
   pendingLine(points) {
+    if (this.lineKind === "siteWall") {
+      const last = this.app.project.siteWalls[this.app.project.siteWalls.length - 1];
+      return {
+        id: uid("sw"), name: "", points, thickness: last?.thickness ?? 20, height: last?.height ?? 200, top: this.app.state.pendingWallTop,
+        stepLength: last?.stepLength ?? 100, material: last?.material ?? "plaster", tint: last?.tint ?? null, outerMaterial: last?.outerMaterial ?? null, outerTint: last?.outerTint ?? null, gates: [], locked: false,
+      };
+    }
     const fence = this.lineKind === "fence";
     const style = fence ? this.app.state.pendingFenceStyle : this.app.state.pendingRailingStyle;
     const list = fence ? this.app.project.fences : this.app.storey().railings;
@@ -659,10 +669,14 @@ export class Tools {
     this.line = null;
     this.clearGhost();
     if (pts.length < 2 || polylineLength(pts) < 5) return this.app.toast(this.app.t("lineNeed2"));
-    const fence = this.lineKind === "fence";
+    const kind = this.lineKind;
+    const fence = kind !== "railing";
     const item = this.pendingLine(pts.map(([x, z]) => [x, z]));
     this.app.checkpoint();
-    if (fence) {
+    if (kind === "siteWall") {
+      this.app.project.siteWalls.push(item);
+      this.app.changed({ rebuild: "site" });
+    } else if (fence) {
       this.app.project.fences.push(item);
       this.app.changed({ rebuild: "site" });
     } else {
@@ -670,12 +684,12 @@ export class Tools {
       this.app.changed({ rebuild: "building", buildingId: this.app.building().id });
     }
     this.app.select(item.id, { keepTool: true });
-    this.app.toast(this.app.t(fence ? "fenceDone" : "railingDone"));
+    this.app.toast(this.app.t(kind === "siteWall" ? "siteWallDone" : fence ? "fenceDone" : "railingDone"));
   }
   lineGhost(e) {
     const p = this.linePoint(e);
     if (!p) return this.clearGhost();
-    const fence = this.lineKind === "fence";
+    const fence = this.lineKind !== "railing";
     const storey = this.app.storey(), building = this.app.building();
     const committed = this.line || [];
     const pts = [...committed, p];
@@ -689,7 +703,9 @@ export class Tools {
       outer.userData.key = key;
       if (committed.length >= 2) {
         const item = pending;
-        const g = fence
+        const g = this.lineKind === "siteWall"
+          ? buildSiteWall(item, this.app.terrain, { ghost: true })
+          : fence
           ? buildRailing(item, "fence", { heightAt: (x, z) => this.app.terrain.heightAt(x, z), ghost: ghostMaterial("#008f7d") })
           : buildRailing(item, "railing", { baseY: storey.elevation + railingOffset(item, storey, this.app.project.grid.tile), ghost: ghostMaterial("#008f7d") });
         outer.add(g);
@@ -730,14 +746,16 @@ export class Tools {
   // ------------------------------------------------------------- gates
 
   /** Fence under the pointer: {fence, s (cm along it), point}. */
+  /** A fence or site wall under the pointer (both take gates). */
   fenceUnderPointer(e) {
     const meshes = [];
     this.app.siteGroup?.traverse((o) => {
-      if (o.userData.kind === "fence" && o.isMesh) meshes.push(o);
+      if ((o.userData.kind === "fence" || o.userData.kind === "siteWall") && o.isMesh && !o.userData.gateLeaf) meshes.push(o);
     });
     const hit = this.app.scene.pickObjects(e, meshes, false)[0];
     if (!hit) return null;
-    const fence = this.app.project.fences.find((f) => f.id === hit.object.userData.id);
+    const id = hit.object.userData.id;
+    const fence = this.app.project.fences.find((f) => f.id === id) || this.app.project.siteWalls.find((w) => w.id === id);
     if (!fence) return null;
     const near = nearestOnPolyline(fence.points, hit.point.x * CM, hit.point.z * CM);
     if (!near) return null;

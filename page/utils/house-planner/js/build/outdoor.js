@@ -201,6 +201,66 @@ function buildPolygonMeshes(poly, kind, terrain, pts) {
     return group;
   }
   // deck
+  if (poly.open) return openDeck(group, poly, kind, pts, levels, terrain);
   group.add(solidMesh(extrude(shapeOf(pts), levels.bottom, levels.top), poly, kind));
   return group;
+}
+const DECK_SLAB = 8, DECK_RIM = 20, RIM_T = 4, POST_GAP = 200, POST_GRID = 250, POST_BURY = 20, MAX_POSTS = 400;
+/** Deck as a thin slab on wooden posts that reach the ground. */
+function openDeck(group, poly, kind, pts, levels, terrain) {
+  const top = levels.top, under = top - DECK_SLAB;
+  const parts = [extrude(shapeOf(pts), under, top)];
+  for (let i = 0; i < pts.length; i++) {
+    const [ax, az] = pts[i], [bx, bz] = pts[(i + 1) % pts.length];
+    const len = Math.hypot(bx - ax, bz - az);
+    if (len < 1) continue;
+    const g = new THREE.BoxGeometry(len * M, DECK_RIM * M, RIM_T * M);
+    g.rotateY(-Math.atan2(bz - az, bx - ax));
+    g.translate(((ax + bx) / 2) * M, (under - DECK_RIM / 2) * M, ((az + bz) / 2) * M);
+    parts.push(g);
+  }
+  const flat = parts.map((g) => (g.index ? g.toNonIndexed() : g)); // extrude is non-indexed, boxes are indexed
+  group.add(solidMesh(mergeGeometries(flat, false), poly, kind));
+  parts.forEach((g) => g.dispose());
+  // posts: polygon corners (inset), along edges, and a grid inside large decks
+  const ps = poly.postSize || 15;
+  const inner = insetPolygon(pts, ps / 2 + 1) || pts;
+  const spots = [];
+  for (let i = 0; i < inner.length; i++) {
+    const [ax, az] = inner[i], [bx, bz] = inner[(i + 1) % inner.length];
+    const n = Math.max(1, Math.ceil(Math.hypot(bx - ax, bz - az) / POST_GAP));
+    for (let k = 0; k < n; k++) spots.push([ax + ((bx - ax) * k) / n, az + ((bz - az) * k) / n]);
+  }
+  const b = polygonBounds(inner);
+  for (let x = b.minX + POST_GRID / 2; x < b.maxX; x += POST_GRID)
+    for (let z = b.minZ + POST_GRID / 2; z < b.maxZ; z += POST_GRID)
+      if (pointInPolygon(x, z, inner) && edgeDistance(x, z, inner) > 80) spots.push([x, z]);
+  const posts = [];
+  for (const [x, z] of spots.slice(0, MAX_POSTS)) {
+    const ground = terrain.heightAt(x, z) - POST_BURY;
+    const h = under - ground;
+    if (h < 5) continue;
+    const g = new THREE.BoxGeometry(ps * M, h * M, ps * M);
+    g.translate(x * M, (ground + h / 2) * M, z * M);
+    posts.push(g);
+  }
+  if (posts.length) {
+    const mesh = new THREE.Mesh(mergeGeometries(posts, false), surfaceMaterial({ material: "planks" }));
+    posts.forEach((g) => g.dispose());
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    mesh.userData = { kind, id: poly.id };
+    group.add(mesh);
+  }
+  return group;
+}
+function edgeDistance(x, z, pts) {
+  let best = Infinity;
+  for (let i = 0; i < pts.length; i++) {
+    const [ax, az] = pts[i], [bx, bz] = pts[(i + 1) % pts.length];
+    const dx = bx - ax, dz = bz - az, l2 = dx * dx + dz * dz || 1;
+    const u = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / l2));
+    best = Math.min(best, Math.hypot(x - (ax + dx * u), z - (az + dz * u)));
+  }
+  return best;
 }
