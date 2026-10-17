@@ -17,6 +17,10 @@ export const OPENING_PRESETS = {
   "door-double": { type: "door", width: 160, height: 210, sill: 0 },
   "door-sliding": { type: "door", width: 200, height: 210, sill: 0 },
   "door-garage": { type: "door", width: 240, height: 220, sill: 0 },
+  "passage-single": { type: "door", width: 90, height: 210, sill: 0, passage: true },
+  "passage-double": { type: "door", width: 160, height: 210, sill: 0, passage: true },
+  "arch-single": { type: "door", width: 90, height: 220, sill: 0, passage: true, arch: true },
+  "arch-double": { type: "door", width: 160, height: 240, sill: 0, passage: true, arch: true },
   "window-small": { type: "window", width: 60, height: 60, sill: 150 },
   "window-casement": { type: "window", width: 120, height: 120, sill: 90 },
   "window-wide": { type: "window", width: 180, height: 120, sill: 90 },
@@ -318,6 +322,7 @@ export function stairsChecked(raw = {}) {
     cutFloorAbove: raw.cutFloorAbove !== false,
     railing: ["none", "left", "right", "both"].includes(raw.railing) ? raw.railing : "none",
     railingStyle: raw.railingStyle === "metal" ? "metal" : "wood",
+    base: raw.base === "open" ? "open" : "solid",
     locked: !!raw.locked,
   };
 }

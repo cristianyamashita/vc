@@ -58,12 +58,31 @@ export function stairsBounds(st) {
   }
   return b;
 }
+const TREAD_T = 6, LANDING_T = 12, STRINGER_W = 8; // cm, open-base stairs
 export function stairsGeometry(st) {
-  const parts = stairsBoxes(st).map((b) => {
-    const g = new THREE.BoxGeometry((b.x1 - b.x0) * M, b.top * M, (b.z1 - b.z0) * M);
-    g.translate(((b.x0 + b.x1) / 2) * M, (b.top / 2) * M, ((b.z0 + b.z1) / 2) * M);
-    return g;
-  });
+  const boxes = stairsBoxes(st);
+  const parts = [];
+  const solid = (b, y0, y1) => {
+    const g = new THREE.BoxGeometry((b.x1 - b.x0) * M, (y1 - y0) * M, (b.z1 - b.z0) * M);
+    g.translate(((b.x0 + b.x1) / 2) * M, ((y0 + y1) / 2) * M, ((b.z0 + b.z1) / 2) * M);
+    parts.push(g);
+  };
+  if (st.base !== "open") {
+    for (const b of boxes) solid(b, 0, b.top);
+  } else {
+    // treads and landings as slabs, with sawtooth stringers under both edges of each tread
+    const { riser } = stairsSteps(st);
+    boxes.forEach((b) => {
+      const t = b.landing ? LANDING_T : TREAD_T;
+      solid(b, b.top - t, b.top);
+      if (b.landing) return;
+      const alongX = b.x1 - b.x0 < b.z1 - b.z0; // a tread is shallow along its flight
+      const y0 = Math.max(0, b.top - riser - t), y1 = b.top - t;
+      if (y1 - y0 < 1) return;
+      if (alongX) for (const z of [b.z0, b.z1 - STRINGER_W]) solid({ x0: b.x0, x1: b.x1, z0: z, z1: z + STRINGER_W }, y0, y1);
+      else for (const x of [b.x0, b.x1 - STRINGER_W]) solid({ x0: x, x1: x + STRINGER_W, z0: b.z0, z1: b.z1 }, y0, y1);
+    });
+  }
   const geo = mergeGeometries(parts, false);
   parts.forEach((g) => g.dispose());
   return geo;

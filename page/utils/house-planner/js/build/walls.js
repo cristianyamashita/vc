@@ -3,6 +3,7 @@
 // window itself is drawn as frame + leaf (vertex-coloured) + glass. Light
 // passes through the hole and the glass (which casts no shadow).
 import * as THREE from "three";
+import { OPENING_PRESETS } from "../schema.js";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { surfaceMaterial, glassMaterial } from "../materials.js";
 import { M } from "../scene.js";
@@ -115,8 +116,10 @@ export function buildWall(wall, storey, walls, tile = 50, { doorsOpen = false } 
     span(u0, u1, top, H); // lintel
     if (op.sill > 0) span(u0, u1, 0, op.sill);
     cursor = Math.max(cursor, u1);
+    const preset = OPENING_PRESETS[op.preset] || {};
+    if (preset.arch) group.add(archFill(op, T, top, twoFaced ? side : 0, wall, storey));
     leafGeometry(op, T, top - op.sill, leaf, glass, doorsOpen && op.type === "door", swing);
-    if (wall.trim)
+    if (wall.trim && !preset.arch)
       for (const s of [-1, 1]) {
         const z = s * (T / 2 + 0.6), h = top - op.sill + TRIM;
         box(TRIM, h, 1.2, u0 - TRIM / 2, op.sill + h / 2 - (op.sill > 0 ? TRIM / 2 : 0), z, op.frameColor, leaf);
@@ -175,7 +178,29 @@ export function buildWall(wall, storey, walls, tile = 50, { doorsOpen = false } 
  * (local ±Z); sliding doors slide one panel over the other and garage
  * doors lift under the lintel.
  */
+/**
+ * Mesh filling the corners above an arched passage: the part of the
+ * lintel's underside between the semicircle and the rectangular cut.
+ */
+function archFill(op, T, top, side, wall, storey) {
+  const r = op.width / 2, cx = op.offset + r, yb = top - r;
+  const shape = new THREE.Shape();
+  shape.moveTo((cx - r) * M, yb * M);
+  shape.lineTo((cx - r) * M, top * M);
+  shape.lineTo((cx + r) * M, top * M);
+  shape.lineTo((cx + r) * M, yb * M);
+  shape.absarc(cx * M, yb * M, r * M, 0, Math.PI, false);
+  const geo = new THREE.ExtrudeGeometry(shape, { depth: T * M, bevelEnabled: false });
+  geo.translate(0, 0, (-T / 2) * M);
+  const mesh = new THREE.Mesh(geo, surfaceMaterial({ material: wall.material, tint: wall.tint }));
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  mesh.userData = { kind: "wall", id: wall.id, storeyId: storey.id };
+  void side;
+  return mesh;
+}
 function leafGeometry(op, T, h, leaf, glass, open = false, swing = -1) {
+  if (OPENING_PRESETS[op.preset]?.passage) return; // an open passage: no frame, no leaf
   const cx = op.offset + op.width / 2, y0 = op.sill, w = op.width;
   const fd = Math.min(T, Math.max(8, T * 0.9)); // frame depth
   const fc = op.frameColor, lc = op.leafColor;
@@ -265,7 +290,7 @@ export function doorSwing(op, wall, storey, tile = 50) {
   const leaves = [];
   if (op.preset === "door-double") {
     leaves.push({ hinge: u0, length: op.width / 2, dir: 1 }, { hinge: u1, length: op.width / 2, dir: -1 });
-  } else if (op.preset !== "door-sliding" && op.preset !== "door-garage") {
+  } else if (op.preset !== "door-sliding" && op.preset !== "door-garage" && !OPENING_PRESETS[op.preset]?.passage) {
     leaves.push(op.flip ? { hinge: u1, length: op.width, dir: -1 } : { hinge: u0, length: op.width, dir: 1 });
   }
   return { swing, leaves };

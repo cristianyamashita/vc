@@ -520,6 +520,7 @@ export class PropsPanel {
         this.select(st, "turn", [["left", t("turnLeft")], ["right", t("turnRight")]], { label: t("turn") }),
         this.select(st, "railing", [["none", t("none")], ["left", t("turnLeft")], ["right", t("turnRight")], ["both", t("both")]], { label: t("stairRailing") }),
         this.select(st, "railingStyle", [["wood", t("style_wood")], ["metal", t("style_metal")]], { label: t("style") }),
+        this.select(st, "base", [["solid", t("base_solid")], ["open", t("base_open")]], { label: t("stairBase") }),
         n("at", 0, "X"), n("at", 1, "Z"),
         this.number(st, "rotation", { min: -360, max: 360, unit: "°", step: 15 }),
       ]),
