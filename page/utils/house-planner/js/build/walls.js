@@ -7,6 +7,7 @@ import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { surfaceMaterial, glassMaterial } from "../materials.js";
 import { M } from "../scene.js";
 import { wallLength } from "../schema.js";
+import { tileKey } from "./slabs.js";
 
 const FRAME = 6; // cm
 const MATERIAL_INVISIBLE = new THREE.MeshBasicMaterial({ visible: false });
@@ -23,6 +24,27 @@ export function clampOpening(op, wall) {
   op.width = Math.min(op.width, Math.max(30, len));
   op.offset = Math.max(0, Math.min(len - op.width, op.offset));
   return op;
+}
+/**
+ * Which side of the wall faces outdoors: +1 for local +Z (the right of
+ * a→b seen from above), −1 for local −Z. The side over a floor tile of the
+ * storey is the inside; with none or both, +Z. `flipOuter` swaps.
+ */
+export function outerSide(wall, storey, tile = 50) {
+  const tiles = new Set();
+  for (const fg of storey.floorGroups) for (const [x, z] of fg.tiles) tiles.add(tileKey(x, z));
+  let side = 1;
+  if (tiles.size) {
+    const L = wallLength(wall) || 1;
+    const dx = (wall.b[0] - wall.a[0]) / L, dz = (wall.b[1] - wall.a[1]) / L;
+    const mx = (wall.a[0] + wall.b[0]) / 2, mz = (wall.a[1] + wall.b[1]) / 2;
+    const reach = wall.thickness / 2 + Math.min(40, tile * 0.6);
+    const over = (sign) => tiles.has(tileKey(Math.floor((mx - dz * sign * reach) / tile), Math.floor((mz + dx * sign * reach) / tile)));
+    const plus = over(1), minus = over(-1);
+    if (plus && !minus) side = -1;
+    else if (minus && !plus) side = 1;
+  }
+  return wall.flipOuter ? -side : side;
 }
 /** How far each end extends to meet other walls' ends at a corner. */
 function cornerExtension(wall, walls) {
@@ -57,7 +79,7 @@ function box(w, h, d, x, y, z, color, list) {
  * Build one wall as a Group in building-local metres. userData kinds:
  * wall (the solid), opening (hit box per opening).
  */
-export function buildWall(wall, storey, walls) {
+export function buildWall(wall, storey, walls, tile = 50) {
   const H = wallHeight(wall, storey);
   const T = wall.thickness;
   const L = wallLength(wall);
@@ -67,14 +89,20 @@ export function buildWall(wall, storey, walls) {
   group.userData = { kind: "wallGroup", id: wall.id };
   if (L < 1) return group;
   const [e0, e1] = cornerExtension(wall, walls);
-  const solid = [], leaf = [], glass = [];
+  const solid = [], outer = [], leaf = [], glass = [];
+  // Two faces: the wall is split along its length into two half-thickness
+  // boxes when the outer side has its own texture or colour.
+  const twoFaced = !!(wall.outerMaterial || wall.outerTint);
+  const side = twoFaced ? outerSide(wall, storey, tile) : 0;
   const openings = wall.openings
     .map((op) => clampOpening({ ...op }, wall))
     .sort((a, b) => a.offset - b.offset);
   let cursor = -e0;
   const span = (u0, u1, y0, y1) => {
     if (u1 - u0 < 0.1 || y1 - y0 < 0.1) return;
-    box(u1 - u0, y1 - y0, T, (u0 + u1) / 2, (y0 + y1) / 2, 0, null, solid);
+    if (!twoFaced) return box(u1 - u0, y1 - y0, T, (u0 + u1) / 2, (y0 + y1) / 2, 0, null, solid);
+    box(u1 - u0, y1 - y0, T / 2, (u0 + u1) / 2, (y0 + y1) / 2, (-side * T) / 4, null, solid);
+    box(u1 - u0, y1 - y0, T / 2, (u0 + u1) / 2, (y0 + y1) / 2, (side * T) / 4, null, outer);
   };
   for (const op of openings) {
     const u0 = op.offset, u1 = op.offset + op.width;
@@ -98,6 +126,15 @@ export function buildWall(wall, storey, walls) {
     mesh.castShadow = true;
     mesh.receiveShadow = true;
     mesh.userData = { kind: "wall", id: wall.id, storeyId: storey.id };
+    group.add(mesh);
+  }
+  if (outer.length) {
+    const geo = mergeGeometries(outer, false);
+    outer.forEach((g) => g.dispose());
+    const mesh = new THREE.Mesh(geo, surfaceMaterial({ material: wall.outerMaterial ?? wall.material, tint: wall.outerTint ?? wall.tint }));
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    mesh.userData = { kind: "wall", id: wall.id, storeyId: storey.id, outer: true };
     group.add(mesh);
   }
   if (leaf.length) {

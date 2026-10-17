@@ -20,6 +20,9 @@ export class Tree {
       case "floorGroup": return `${t("floor")} ${index + 1}`;
       case "wall": return `${t("wall")} ${index + 1}`;
       case "opening": return `${t(item.type === "door" ? "door" : "window")} ${index + 1}`;
+      case "stairs": return `${t("stairs")} ${index + 1} · ${t(`shape_${item.shape}`)}`;
+      case "outdoor": return `${t(item.type)} ${index + 1}`;
+      case "garden": return `${t("gardenPatch")} ${index + 1}`;
       case "object": {
         const doc = item.inline || propDocSync(item.prop);
         return doc ? doc.name[lang] || doc.name.en || item.prop : item.prop || t("object");
@@ -48,6 +51,10 @@ export class Tree {
     row("terrain", "terrain", t("terrain"), 0, { icon: "⛰", lockable: true, locked: project.terrain.locked, always: true });
     row("site", "site", `${t("siteObjects")} (${project.objects.length})`, 0, { icon: "🌳", children: "site", always: true });
     if (open("site")) project.objects.forEach((o, i) => row(o.id, "object", this.label("object", o, i), 1, { icon: "▫", lockable: true, locked: o.locked }));
+    row("outdoorList", "site", `${t("outdoor")} (${project.outdoor.length})`, 0, { icon: "🪵", children: "outdoor", always: true });
+    if (open("outdoor")) project.outdoor.forEach((d, i) => row(d.id, "outdoor", this.label("outdoor", d, i), 1, { icon: d.type === "pool" ? "💧" : d.type === "path" ? "〰" : "▭", lockable: true, locked: d.locked }));
+    row("gardenList", "site", `${t("garden")} (${project.gardenPatches.length})`, 0, { icon: "🌿", children: "garden", always: true });
+    if (open("garden")) project.gardenPatches.forEach((g, i) => row(g.id, "garden", this.label("garden", g, i), 1, { icon: "▧", lockable: true, locked: g.locked }));
     project.buildings.forEach((b, bi) => {
       const bkey = `b:${b.id}`;
       row(b.id, "building", this.label("building", b, bi), 0, { icon: "🏠", children: bkey, lockable: true, locked: b.locked, active: b.id === state.activeBuilding, always: true });
@@ -67,6 +74,9 @@ export class Tree {
             row(w.id, "wall", this.label("wall", w, i), 3, { icon: "▬", lockable: true, locked: w.locked });
             w.openings.forEach((o, oi) => row(o.id, "opening", this.label("opening", o, oi), 4, { icon: o.type === "door" ? "🚪" : "🪟", lockable: true, locked: o.locked }));
           });
+        const stkey = `st:${s.id}`;
+        row(`group:${stkey}`, "group", `${t("stairs")} (${s.stairs.length})`, 2, { children: stkey, always: true });
+        if (open(stkey)) s.stairs.forEach((st, i) => row(st.id, "stairs", this.label("stairs", st, i), 3, { icon: "🪜", lockable: true, locked: st.locked }));
         const okey = `o:${s.id}`;
         row(`group:${okey}`, "group", `${t("objects")} (${s.objects.length})`, 2, { children: okey, always: true });
         if (open(okey)) s.objects.forEach((o, i) => row(o.id, "object", this.label("object", o, i), 3, { icon: "▫", lockable: true, locked: o.locked }));

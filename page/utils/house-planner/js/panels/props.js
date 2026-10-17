@@ -3,6 +3,8 @@ import { OPENING_PRESETS, STOREY_PRESETS, isLocked, wallLength } from "../schema
 import { textureIds, textureIndex } from "../materials.js";
 import { Sun } from "../sun.js";
 import { propDocSync } from "../props.js";
+import { stairsSteps } from "../build/stairs.js";
+import { polygonLevels } from "../build/outdoor.js";
 
 export class PropsPanel {
   constructor(app, root) {
@@ -146,6 +148,8 @@ export class PropsPanel {
       case "wall": return this.renderWall(found);
       case "opening": return this.renderOpening(found);
       case "object": return this.renderObject(found);
+      case "stairs": return this.renderStairs(found);
+      case "outdoor": case "garden": return this.renderPolygon(found);
     }
   }
   renderProject() {
@@ -313,7 +317,13 @@ export class PropsPanel {
         this.number(w, "thickness", { min: 5, max: 100 }),
         this.number(w, "height", { min: 30, max: 1500, nullable: true, label: `${t("height")} (${storey.height})` }),
       ]),
-      this.section(t("surface"), [this.material(w, "material"), this.color(w, "tint", { nullable: false })]),
+      this.section(t("innerSide"), [this.material(w, "material"), this.color(w, "tint", { nullable: false })]),
+      this.section(t("outerSide"), [
+        this.material(w, "outerMaterial", { label: `${t("texture")} (${t("sameAsInner")})` }),
+        this.color(w, "outerTint"),
+        this.check(w, "flipOuter"),
+        this.el("p", { class: "hint", text: t("outerHint") }),
+      ]),
       this.section(null, [
         this.button(t("addOpening"), () => {
           app.select(w.id);
@@ -350,6 +360,83 @@ export class PropsPanel {
       ]),
       this.section(t("colors"), [this.color(o, "frameColor", { nullable: false }), this.color(o, "leafColor", { nullable: false }), this.color(o, "glassColor", { nullable: false })]),
       this.section(null, [this.lockRow(o, o.id), this.button(t("delete"), () => app.deleteSelected(), "danger")]),
+    );
+  }
+  renderStairs({ item: st, building }) {
+    const app = this.app, t = app.t;
+    this.scope = "building";
+    const info = stairsSteps(st);
+    const n = (key, i, label, opts = {}) => this.vec(st, key, i, { label, ...opts });
+    this.root.append(
+      this.section(null, [
+        this.text(st, "name"),
+        this.select(st, "shape", [["straight", t("shape_straight")], ["L", t("shape_L")], ["U", t("shape_U")]], { label: t("shape") }),
+        this.select(st, "turn", [["left", t("turnLeft")], ["right", t("turnRight")]], { label: t("turn") }),
+        n("at", 0, "X"), n("at", 1, "Z"),
+        this.number(st, "rotation", { min: -360, max: 360, unit: "°", step: 15 }),
+      ]),
+      this.section(t("size"), [
+        this.number(st, "width", { min: 60, max: 300 }),
+        this.number(st, "rise", { min: 30, max: 1000 }),
+        this.number(st, "stepHeight", { min: 10, max: 25, step: 0.5 }),
+        this.number(st, "treadDepth", { min: 20, max: 40 }),
+        this.el("p", { class: "hint", text: t("stepsInfo", { n: info.steps, r: Math.round(info.riser * 10) / 10 }) }),
+        this.check(st, "cutFloorAbove"),
+      ]),
+      this.section(t("surface"), [this.material(st, "material"), this.color(st, "tint")]),
+      this.section(null, [this.button(t("duplicate"), () => app.duplicateSelected()), this.lockRow(st, st.id), this.button(t("delete"), () => app.deleteSelected(), "danger")]),
+    );
+    void building;
+  }
+  renderPolygon({ item: poly, type }) {
+    const app = this.app, t = app.t;
+    this.scope = "site";
+    const levels = polygonLevels(poly, type, app.terrain);
+    const pointRows = poly.points.map((pt, i) => {
+      const row = this.el("div", { class: "ptrow" });
+      const mk = (idx) => {
+        const input = this.el("input", { type: "number", step: 1, value: pt[idx], disabled: this.locked ? "" : null });
+        input.addEventListener("change", () => {
+          const v = Number(input.value);
+          if (!Number.isFinite(v) || v === pt[idx]) return;
+          app.checkpoint();
+          pt[idx] = Math.max(-1e5, Math.min(1e5, v));
+          app.changed({ rebuild: "site" });
+        });
+        return input;
+      };
+      const del = this.el("button", { class: "mini", type: "button", text: "×", title: t("removePoint"), disabled: this.locked || poly.points.length <= 3 ? "" : null });
+      del.addEventListener("click", () => {
+        app.checkpoint();
+        poly.points.splice(i, 1);
+        app.changed({ rebuild: "site" });
+      });
+      row.append(this.el("span", { class: "flabel", text: `${i + 1}` }), mk(0), mk(1), del);
+      return row;
+    });
+    const addPoint = this.button(`+ ${t("addPoint")}`, () => {
+      const n = poly.points.length;
+      const a = poly.points[n - 1], b = poly.points[0];
+      app.checkpoint();
+      poly.points.push([Math.round((a[0] + b[0]) / 2), Math.round((a[1] + b[1]) / 2)]);
+      app.changed({ rebuild: "site" });
+    });
+    addPoint.disabled = this.locked || poly.points.length >= 200;
+    const main = [this.text(poly, "name")];
+    if (type === "outdoor") {
+      main.push(this.select(poly, "type", [["deck", t("deck")], ["pool", t("pool")], ["path", t("path")]], { label: t("type") }));
+      if (poly.type === "deck") main.push(this.number(poly, "height", { min: -300, max: 300, label: t("deckHeight") }));
+      else if (poly.type === "pool") {
+        const proxy = { get v() { return Math.abs(poly.height); }, set v(x) { poly.height = -Math.abs(x); } };
+        main.push(this.number(proxy, "v", { min: 30, max: 300, label: t("poolDepth") }));
+      }
+    }
+    if (levels) main.push(this.el("p", { class: "hint", text: `${t("topLevel")}: ${Math.round(levels.top)} cm · ${t("bottomLevel")}: ${Math.round(levels.bottom)} cm` }));
+    this.root.append(
+      this.section(null, main),
+      this.section(t("surface"), [this.material(poly, "material"), this.color(poly, "tint")]),
+      this.section(`${t("points")} (${poly.points.length})`, [...pointRows, addPoint, this.el("p", { class: "hint", text: t("pointsHint") })]),
+      this.section(null, [this.button(t("duplicate"), () => app.duplicateSelected()), this.lockRow(poly, poly.id), this.button(t("delete"), () => app.deleteSelected(), "danger")]),
     );
   }
   renderObject({ item: o, building }) {

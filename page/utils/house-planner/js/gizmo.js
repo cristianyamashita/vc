@@ -68,14 +68,22 @@ export class Gizmo {
     this.control.setScaleSnap(snap ? 0.05 : null);
   }
   setMode(mode) {
+    const modes = this.target?.modes;
+    if (modes && !modes.includes(mode)) return;
     this.mode = mode;
     this.control.setMode(mode);
     this.control.setSpace(mode === "rotate" ? "local" : "world");
+    this.applyAxes();
     this.app.scene.requestRender();
   }
-  /** Attach to a placement: group (world child of parent), placement doc. */
-  attach(group, placement, parent, { lockedOnly = false, modes = null } = {}) {
-    this.target = { group, placement, parent, modes };
+  /**
+   * Attach to a placement: group (child of parent), placement doc. An
+   * `adapter` {planar, modes, apply(group, snap), rebuild} writes other
+   * document shapes (stairs: at[2] + yaw; polygons: shifted points).
+   */
+  attach(group, placement, parent, { lockedOnly = false, adapter = null } = {}) {
+    const modes = adapter?.modes || null;
+    this.target = { group, placement, parent, adapter, modes, baseY: group.position.y };
     this.refreshHighlight();
     if (lockedOnly) {
       this.control.detach();
@@ -84,9 +92,16 @@ export class Gizmo {
     this.syncProxy();
     this.control.attach(this.proxy);
     if (modes && !modes.includes(this.mode)) this.setMode(modes[0]);
-    this.control.showX = this.control.showY = this.control.showZ = true;
-    if (modes && modes.includes("rotateY") && this.mode === "rotate") this.control.showX = this.control.showZ = false;
+    this.applyAxes();
     this.app.scene.requestRender();
+  }
+  /** Planar targets slide on XZ and turn about Y only. */
+  applyAxes() {
+    const c = this.control;
+    c.showX = c.showY = c.showZ = true;
+    if (!this.target?.adapter?.planar) return;
+    if (this.mode === "translate") c.showY = false;
+    if (this.mode === "rotate") c.showX = c.showZ = false;
   }
   detach() {
     this.target = null;
@@ -115,16 +130,28 @@ export class Gizmo {
     const local = new THREE.Matrix4().compose(this.proxy.position, this.proxy.quaternion, this.proxy.scale).premultiply(inv);
     local.decompose(group.position, group.quaternion, group.scale);
     group.rotation.setFromQuaternion(group.quaternion, "YXZ");
+    if (this.target.adapter?.planar) {
+      group.position.y = this.target.baseY;
+      group.rotation.set(0, group.rotation.y, 0);
+      group.scale.set(1, 1, 1);
+    }
     this.refreshHighlight();
     this.app.scene.requestRender();
   }
   /** Write the group's local transform into the document, snapped. */
   commit(final = false) {
     if (!this.target) return;
-    const { group, placement } = this.target;
+    const { group, placement, adapter } = this.target;
     const snap = this.app.state.snap;
     const step = snap ? this.app.project.grid.snap : 0.1;
     const turn = snap ? 15 : 0.5;
+    if (adapter) {
+      adapter.apply(group, { step, turn, snapTo });
+      this.syncProxy();
+      this.refreshHighlight();
+      if (final) this.app.changed({ rebuild: adapter.rebuild || "none", buildingId: adapter.buildingId || null });
+      return;
+    }
     placement.at = [snapTo(group.position.x * CM, step), snapTo(group.position.y * CM, step), snapTo(group.position.z * CM, step)].map((v) => Math.round(v * 10) / 10);
     placement.rotation = [snapTo(group.rotation.x / DEG, turn), snapTo(group.rotation.y / DEG, turn), snapTo(group.rotation.z / DEG, turn)].map((v) => Math.round(v * 10) / 10);
     if (this.mode === "scale") {

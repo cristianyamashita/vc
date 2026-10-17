@@ -3,14 +3,68 @@
 // clamp the ground under their slabs (a "foundation") without touching the
 // stored heights: `setClamp` gives a function (xcm, zcm) -> max height.
 import * as THREE from "three";
-import { surfaceMaterial } from "./materials.js";
+import { TriplanarMaterial, textureIndex, textureTile } from "./materials.js";
 import { M } from "./scene.js";
+import { pointInPolygon } from "./geom.js";
+
+// Pools cut the ground: the terrain shaders discard fragments inside the
+// pool polygons (world metres), in the colour pass and in the shadow pass.
+const CUT_MAX = 160, CUT_POLYS = 8;
+const CUT_PARS = /* glsl */ `
+uniform vec2 uCutPts[${CUT_MAX}];
+uniform int uCutStart[${CUT_POLYS}];
+uniform int uCutLen[${CUT_POLYS}];
+uniform int uCutCount;
+varying vec3 vCutPos;
+bool cutInside( vec2 p ) {
+  for ( int k = 0; k < ${CUT_POLYS}; k ++ ) {
+    if ( k >= uCutCount ) break;
+    int start = uCutStart[ k ];
+    int len = uCutLen[ k ];
+    bool inside = false;
+    for ( int i = 0; i < ${CUT_MAX}; i ++ ) {
+      if ( i >= len ) break;
+      vec2 a = uCutPts[ start + i ];
+      vec2 b = uCutPts[ start + ( i + 1 == len ? 0 : i + 1 ) ];
+      if ( ( a.y > p.y ) != ( b.y > p.y ) && p.x < ( b.x - a.x ) * ( p.y - a.y ) / ( b.y - a.y ) + a.x ) inside = ! inside;
+    }
+    if ( inside ) return true;
+  }
+  return false;
+}
+`;
+function withCut(mat, cut, key) {
+  const base = mat.onBeforeCompile;
+  mat.onBeforeCompile = (shader, renderer) => {
+    base?.call(mat, shader, renderer);
+    shader.uniforms.uCutPts = cut.pts;
+    shader.uniforms.uCutStart = cut.start;
+    shader.uniforms.uCutLen = cut.len;
+    shader.uniforms.uCutCount = cut.count;
+    shader.vertexShader = shader.vertexShader
+      .replace("#include <common>", "#include <common>\nvarying vec3 vCutPos;")
+      .replace("#include <project_vertex>", "#include <project_vertex>\nvCutPos = ( modelMatrix * vec4( transformed, 1.0 ) ).xyz;");
+    shader.fragmentShader = shader.fragmentShader
+      .replace("#include <common>", `#include <common>\n${CUT_PARS}`)
+      .replace("#include <clipping_planes_fragment>", "#include <clipping_planes_fragment>\nif ( uCutCount > 0 && cutInside( vCutPos.xz ) ) discard;");
+  };
+  mat.customProgramCacheKey = () => key;
+  return mat;
+}
 
 export class Terrain {
   constructor() {
     this.mesh = null;
     this.doc = null;
     this.clamp = null;
+    this.cutPolys = [];
+    this.cut = {
+      pts: { value: new Float32Array(CUT_MAX * 2) },
+      start: { value: new Int32Array(CUT_POLYS) },
+      len: { value: new Int32Array(CUT_POLYS) },
+      count: { value: 0 },
+    };
+    this.depthMaterial = withCut(new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking }), this.cut, "depth-cut");
   }
   build(doc) {
     this.doc = doc;
@@ -34,6 +88,7 @@ export class Terrain {
     geo.setIndex(indices);
     this.dispose();
     this.mesh = new THREE.Mesh(geo, this.material());
+    this.mesh.customDepthMaterial = this.depthMaterial;
     this.mesh.receiveShadow = true;
     this.mesh.castShadow = true;
     this.mesh.userData = { kind: "terrain", id: "terrain" };
@@ -42,14 +97,46 @@ export class Terrain {
     return this.mesh;
   }
   material() {
-    return surfaceMaterial({ material: this.doc.material, tint: this.doc.tint });
+    const id = textureIndex[this.doc.material] ? this.doc.material : null;
+    const color = new THREE.Color(this.doc.tint || "#ffffff").getHex();
+    const m = id
+      ? new TriplanarMaterial({ textureId: id, tile: textureTile(id), color, roughness: 1, metalness: textureIndex[id].metal || 0 })
+      : new THREE.MeshStandardMaterial({ color, roughness: 0.9, metalness: 0 });
+    return withCut(m, this.cut, id ? "triplanar-cut" : "standard-cut");
   }
   refreshMaterial() {
-    if (this.mesh) this.mesh.material = this.material();
+    if (!this.mesh) return;
+    this.mesh.material.dispose();
+    this.mesh.material = this.material();
   }
+  /** Polygons (world cm) where the ground is not drawn (pools). */
+  setCutouts(polys) {
+    const { pts, start, len } = this.cut;
+    pts.value.fill(0);
+    this.cutPolys = [];
+    let k = 0;
+    for (const poly of polys) {
+      const n = this.cutPolys.length;
+      if (n >= CUT_POLYS || poly.length < 3 || k + poly.length > CUT_MAX) continue;
+      start.value[n] = k;
+      len.value[n] = poly.length;
+      for (const [x, z] of poly) {
+        pts.value[k * 2] = x * M;
+        pts.value[k * 2 + 1] = z * M;
+        k++;
+      }
+      this.cutPolys.push(poly);
+    }
+    this.cut.count.value = this.cutPolys.length;
+  }
+  /** Is this world cm point inside a cut-out (pool)? */
+  isCut(x, z) {
+    return this.cutPolys.some((p) => pointInPolygon(x, z, p));
+  }
+  /** Returns true when any shown height changed. */
   setClamp(fn) {
     this.clamp = fn;
-    this.update();
+    return this.update();
   }
   /** Displayed height (cm) at a vertex index: stored height limited by the clamp. */
   shownHeight(x, z) {
@@ -59,23 +146,28 @@ export class Terrain {
     const px = (x / n - 0.5) * this.doc.width, pz = (z / n - 0.5) * this.doc.depth;
     return Math.min(h, this.clamp(px, pz));
   }
-  /** Push stored heights (and clamp) into the mesh. */
+  /** Push stored heights (and clamp) into the mesh; true when anything moved. */
   update() {
-    if (!this.mesh) return;
+    if (!this.mesh) return false;
     const n = this.doc.resolution;
     const pos = this.mesh.geometry.attributes.position;
+    const prev = this.shown && this.shown.length === (n + 1) * (n + 1) ? this.shown : null;
     this.shown = new Float32Array((n + 1) * (n + 1));
+    let changed = !prev;
     for (let z = 0; z <= n; z++)
       for (let x = 0; x <= n; x++) {
         const k = z * (n + 1) + x;
         const h = this.shownHeight(x, z);
+        if (prev && prev[k] !== h) changed = true;
         this.shown[k] = h;
         pos.setY(k, h * M);
       }
+    if (!changed) return false;
     pos.needsUpdate = true;
     this.mesh.geometry.computeVertexNormals();
     this.mesh.geometry.computeBoundingSphere();
     this.mesh.geometry.computeBoundingBox();
+    return true;
   }
   /** Bilinear displayed height (cm) at world cm coordinates. */
   heightAt(xcm, zcm) {
@@ -160,6 +252,7 @@ export class Terrain {
   dispose() {
     if (this.mesh) {
       this.mesh.geometry.dispose();
+      this.mesh.material.dispose();
       this.mesh = null;
     }
   }

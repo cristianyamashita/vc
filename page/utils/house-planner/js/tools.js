@@ -9,15 +9,17 @@ import { tileKey, floorTop } from "./build/slabs.js";
 import { nearestOnWall, clampOpening, wallHeight } from "./build/walls.js";
 import { propObject, propBounds } from "./props.js";
 import { ghostMaterial } from "./materials.js";
+import { buildStairs, defaultRise } from "./build/stairs.js";
+import { DEFAULT_MATERIAL } from "./build/outdoor.js";
 
 export const TAB_TOOLS = {
   terrain: ["select", "raise", "lower", "flatten", "smooth"],
   floors: ["select", "paint", "erase", "rect"],
   walls: ["select", "draw"],
   openings: ["select", "add"],
-  stairs: ["select"],
-  outdoor: ["select"],
-  garden: ["select"],
+  stairs: ["select", "place"],
+  outdoor: ["select", "polygon"],
+  garden: ["select", "polygon"],
   objects: ["select", "place"],
 };
 const DEG = Math.PI / 180;
@@ -29,6 +31,8 @@ export class Tools {
     this.down = null; // {x, y, button, moved}
     this.stroke = null; // per-drag state
     this.chain = null; // wall drawing start [x,z]
+    this.poly = null; // polygon points being drawn (world cm)
+    this.lastMove = null; // last pointer event, to redraw ghosts
     this.ghost = new THREE.Group();
     app.scene.overlay.add(this.ghost);
     this.hoverWall = null;
@@ -36,10 +40,14 @@ export class Tools {
     this.canvas.addEventListener("pointermove", (e) => this.onMove(e));
     this.canvas.addEventListener("pointerup", (e) => this.onUp(e));
     this.canvas.addEventListener("pointerleave", () => this.clearGhost());
-    this.canvas.addEventListener("dblclick", () => this.endChain());
+    this.canvas.addEventListener("dblclick", () => {
+      if (this.poly) this.closePolygon();
+      else this.endChain();
+    });
     this.canvas.addEventListener("contextmenu", (e) => {
       e.preventDefault();
       if (this.chain) this.endChain();
+      else if (this.poly) this.closePolygon();
     });
   }
   get tool() {
@@ -47,9 +55,21 @@ export class Tools {
   }
   reset() {
     this.chain = null;
+    this.poly = null;
     this.stroke = null;
     this.down = null;
     this.clearGhost();
+  }
+  /** Something to cancel with Esc (wall chain or polygon)? */
+  get busy() {
+    return !!(this.chain || this.poly);
+  }
+  cancel() {
+    if (this.chain) return this.endChain();
+    if (this.poly) {
+      this.poly = null;
+      this.clearGhost();
+    }
   }
   endChain() {
     if (!this.chain) return;
@@ -111,14 +131,30 @@ export class Tools {
       case "objects":
         this.placeClick(e);
         break;
+      case "stairs":
+        if (!storey || isLocked(this.app.project, storey.id)) return this.app.toast(this.app.t("lockedItem"));
+        this.stairsClick(e);
+        break;
+      case "outdoor":
+      case "garden":
+        this.polygonClick(e);
+        break;
     }
   }
   onMove(e) {
     if (this.down && (Math.abs(e.clientX - this.down.x) > 3 || Math.abs(e.clientY - this.down.y) > 3)) this.down.moved = true;
     if (this.app.gizmo.dragging) return;
+    this.lastMove = e;
     const tool = this.tool;
     if (tool === "select") return;
     switch (this.app.state.tab) {
+      case "stairs":
+        this.stairsGhost(e);
+        break;
+      case "outdoor":
+      case "garden":
+        this.polygonGhost(e);
+        break;
       case "terrain":
         if (this.stroke && this.down) this.brush(e);
         else this.brushGhost(e);
@@ -461,11 +497,151 @@ export class Tools {
   }
   rotateGhost(delta) {
     this.app.state.ghostYaw = (this.app.state.ghostYaw + delta + 360) % 360;
+    if (this.app.state.tab === "stairs") {
+      if (this.lastMove) this.stairsGhost(this.lastMove);
+      return;
+    }
     const g = this.ghost.children[0];
     if (g) {
       g.rotation.y = this.app.state.ghostYaw * DEG;
       this.app.scene.requestRender();
     }
+  }
+
+  // ------------------------------------------------------------ stairs
+
+  /** Stairs about to be placed (building-local yaw = ghost yaw + building rotation). */
+  pendingStairs() {
+    const storey = this.app.storey(), building = this.app.building();
+    const last = storey.stairs[storey.stairs.length - 1];
+    return {
+      id: uid("sr"), name: "", shape: this.app.state.pendingStairShape, at: [0, 0],
+      rotation: (this.app.state.ghostYaw + building.rotation + 360) % 360,
+      width: last?.width ?? 100, rise: defaultRise(building, storey), stepHeight: last?.stepHeight ?? 18, treadDepth: last?.treadDepth ?? 28,
+      turn: last?.turn ?? "left", material: last?.material ?? "woodFloor", tint: last?.tint ?? null, cutFloorAbove: true, locked: false,
+    };
+  }
+  stairsPoint(e) {
+    const storey = this.app.storey(), building = this.app.building();
+    const p = this.app.scene.pickPlane(e, storey.elevation * M);
+    if (!p) return null;
+    const l = this.app.toLocal(building, p);
+    const snap = this.app.state.snap ? this.app.project.grid.snap : 1;
+    return [Math.round(l.x / snap) * snap, Math.round(l.z / snap) * snap];
+  }
+  stairsGhost(e) {
+    const p = this.stairsPoint(e);
+    if (!p) return this.clearGhost();
+    const storey = this.app.storey(), building = this.app.building();
+    const st = this.pendingStairs();
+    st.at = p;
+    const key = `${st.shape}|${st.width}|${st.rise}|${st.stepHeight}|${st.treadDepth}|${st.turn}|${st.rotation}|${storey.id}`;
+    let outer = this.ghost.children[0];
+    if (!outer || outer.userData.key !== key) {
+      outer = new THREE.Group();
+      outer.userData.key = key;
+      outer.add(buildStairs(st, storey, ghostMaterial("#008f7d")));
+      this.app.applyBuildingTransform(outer, building);
+      this.setGhost(outer);
+    }
+    outer.children[0].position.set(p[0] * M, storey.elevation * M, p[1] * M);
+    this.app.scene.requestRender();
+  }
+  stairsClick(e) {
+    const p = this.stairsPoint(e);
+    if (!p) return;
+    const st = this.pendingStairs();
+    st.at = p;
+    this.app.checkpoint();
+    this.app.storey().stairs.push(st);
+    this.app.changed({ rebuild: "building", buildingId: this.app.building().id });
+    this.app.select(st.id, { keepTool: true });
+    this.app.toast(this.app.t("placed"));
+  }
+
+  // ---------------------------------------------------------- polygons
+
+  /** World cm point on the ground (terrain hit, else the y=0 plane), snapped. */
+  groundPoint(e) {
+    const hit = this.terrainHit(e) || this.app.scene.pickPlane(e, 0);
+    if (!hit) return null;
+    const snap = this.app.state.snap ? this.app.project.grid.snap : 1;
+    const x = Math.round((hit.x * CM) / snap) * snap, z = Math.round((hit.z * CM) / snap) * snap;
+    if (this.poly?.length && e.shiftKey) {
+      const last = this.poly[this.poly.length - 1];
+      return Math.abs(x - last[0]) > Math.abs(z - last[1]) ? [x, last[1]] : [last[0], z];
+    }
+    return [x, z];
+  }
+  polygonClick(e) {
+    const p = this.groundPoint(e);
+    if (!p) return;
+    if (!this.poly) this.poly = [];
+    const last = this.poly[this.poly.length - 1];
+    if (last && Math.hypot(last[0] - p[0], last[1] - p[1]) < 2) return;
+    // clicking the first point again closes the shape
+    if (this.poly.length >= 3 && Math.hypot(this.poly[0][0] - p[0], this.poly[0][1] - p[1]) < 15) return this.closePolygon();
+    this.poly.push(p);
+    this.polygonGhost(e);
+  }
+  closePolygon() {
+    const pts = this.poly;
+    if (!pts) return;
+    if (pts.length < 3) {
+      this.app.toast(this.app.t("polygonNeed3"));
+      return;
+    }
+    this.poly = null;
+    this.clearGhost();
+    const kind = this.app.state.tab === "garden" ? "garden" : "outdoor";
+    const id = uid(kind === "garden" ? "g" : "d");
+    const item = { id, name: "", points: pts.map(([x, z]) => [x, z]), material: null, tint: null, locked: false };
+    if (kind === "garden") item.material = this.app.state.pendingGardenMaterial || DEFAULT_MATERIAL.garden;
+    else {
+      item.type = this.app.state.pendingOutdoorType;
+      item.material = DEFAULT_MATERIAL[item.type];
+      item.height = item.type === "pool" ? -150 : item.type === "path" ? 3 : 15;
+    }
+    this.app.checkpoint();
+    (kind === "garden" ? this.app.project.gardenPatches : this.app.project.outdoor).push(item);
+    this.app.changed({ rebuild: "site" });
+    this.app.select(id, { keepTool: true });
+    this.app.toast(this.app.t("placed"));
+  }
+  polygonGhost(e) {
+    const p = this.groundPoint(e);
+    if (!p) return this.clearGhost();
+    const pts = [...(this.poly || []), p];
+    const group = new THREE.Group();
+    const lift = 4;
+    const v = (q) => new THREE.Vector3(q[0] * M, (this.app.terrain.heightAt(q[0], q[1]) + lift) * M, q[1] * M);
+    const dotGeo = new THREE.SphereGeometry(0.1, 10, 8);
+    const mat = ghostMaterial("#008f7d");
+    for (const q of pts) {
+      const dot = new THREE.Mesh(dotGeo, mat);
+      dot.position.copy(v(q));
+      group.add(dot);
+    }
+    if (pts.length >= 2) {
+      const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints([...pts, pts[0]].map(v)), new THREE.LineBasicMaterial({ color: 0x008f7d, depthTest: false }));
+      line.renderOrder = 25;
+      group.add(line);
+      const last = pts[pts.length - 2];
+      this.app.showMeasure(`${Math.round(Math.hypot(p[0] - last[0], p[1] - last[1]))} cm`);
+    }
+    if (pts.length >= 3) {
+      const shape = new THREE.Shape(pts.map(([x, z]) => new THREE.Vector2(x * M, -z * M)));
+      const fill = new THREE.Mesh(new THREE.ShapeGeometry(shape), ghostMaterial("#ffffff"));
+      fill.geometry.rotateX(-Math.PI / 2);
+      fill.material.side = THREE.DoubleSide;
+      fill.material.opacity = 0.4;
+      fill.material.depthTest = false;
+      fill.renderOrder = 24;
+      const ys = pts.map((q) => this.app.terrain.heightAt(q[0], q[1]));
+      fill.position.y = (Math.max(...ys) + lift) * M;
+      group.add(fill);
+    }
+    this.setGhost(group);
   }
 }
 export { propBounds };
