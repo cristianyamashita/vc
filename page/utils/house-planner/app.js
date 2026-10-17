@@ -1827,10 +1827,12 @@ class App {
         break;
       case "save": await this.saveNow(); this.toast(t("saved")); break;
       case "saveAs": {
+        const name = prompt(t("saveAsName"), `${this.project.name || t("untitled")} (2)`);
+        if (name === null) break;
         await this.saveNow();
         const copy = clone(this.project);
         copy.id = uid("p");
-        copy.name = `${copy.name || t("untitled")} (2)`;
+        copy.name = name.trim() || `${this.project.name || t("untitled")} (2)`;
         await store.saveProject(copy);
         this.setProject(projectChecked(copy));
         this.queueSave();

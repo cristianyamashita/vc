@@ -2,7 +2,7 @@
 export const TEXT = {
   en: {
     title: "House Planner",
-    project: "Project", projectName: "Name", new: "New", open: "Open", save: "Save", saveAs: "Save as copy", export: "Export JSON", import: "Import JSON",
+    project: "Project", projectName: "Name", new: "New", open: "Open", save: "Save", saveAs: "Save as copy", saveAsName: "Name of the copy:", export: "Export JSON", import: "Import JSON",
     saved: "Saved", saving: "Saving…", unsaved: "Not saved", projects: "Saved projects", noProjects: "No saved projects yet.", delete: "Delete", cancel: "Cancel", close: "Close", confirmDelete: "Delete this item?", confirmDeleteProject: "Delete project \"{name}\"?", untitled: "Untitled house",
     terrain: "Terrain", floors: "Floors", walls: "Walls", openings: "Openings", stairs: "Stairs", outdoor: "Outdoor", garden: "Garden", objects: "Objects",
     select: "Select", raise: "Raise", lower: "Lower", flatten: "Flatten", smooth: "Smooth", paint: "Paint", erase: "Erase", rect: "Rectangle", draw: "Draw wall", add: "Add", place: "Place",
@@ -79,7 +79,7 @@ export const TEXT = {
   },
   pt: {
     title: "Planejador de casas",
-    project: "Projeto", projectName: "Nome", new: "Novo", open: "Abrir", save: "Salvar", saveAs: "Salvar como cópia", export: "Exportar JSON", import: "Importar JSON",
+    project: "Projeto", projectName: "Nome", new: "Novo", open: "Abrir", save: "Salvar", saveAs: "Salvar como cópia", saveAsName: "Nome da cópia:", export: "Exportar JSON", import: "Importar JSON",
     saved: "Salvo", saving: "Salvando…", unsaved: "Não salvo", projects: "Projetos salvos", noProjects: "Nenhum projeto salvo ainda.", delete: "Excluir", cancel: "Cancelar", close: "Fechar", confirmDelete: "Excluir este item?", confirmDeleteProject: "Excluir o projeto \"{name}\"?", untitled: "Casa sem nome",
     terrain: "Terreno", floors: "Pisos", walls: "Paredes", openings: "Aberturas", stairs: "Escadas", outdoor: "Externo", garden: "Jardim", objects: "Objetos",
     select: "Selecionar", raise: "Levantar", lower: "Abaixar", flatten: "Aplanar", smooth: "Suavizar", paint: "Pintar", erase: "Apagar", rect: "Retângulo", draw: "Desenhar parede", add: "Adicionar", place: "Posicionar",
@@ -156,7 +156,7 @@ export const TEXT = {
   },
   ja: {
     title: "ハウスプランナー",
-    project: "プロジェクト", projectName: "名前", new: "新規", open: "開く", save: "保存", saveAs: "コピーとして保存", export: "JSONを書き出す", import: "JSONを読み込む",
+    project: "プロジェクト", projectName: "名前", new: "新規", open: "開く", save: "保存", saveAs: "コピーとして保存", saveAsName: "コピーの名前:", export: "JSONを書き出す", import: "JSONを読み込む",
     saved: "保存済み", saving: "保存中…", unsaved: "未保存", projects: "保存済みプロジェクト", noProjects: "保存されたプロジェクトはありません。", delete: "削除", cancel: "キャンセル", close: "閉じる", confirmDelete: "この項目を削除しますか？", confirmDeleteProject: "プロジェクト「{name}」を削除しますか？", untitled: "無題の家",
     terrain: "地形", floors: "床", walls: "壁", openings: "開口部", stairs: "階段", outdoor: "屋外", garden: "庭", objects: "オブジェクト",
     select: "選択", raise: "盛り上げ", lower: "掘り下げ", flatten: "平らにする", smooth: "なめらか", paint: "塗る", erase: "消す", rect: "矩形", draw: "壁を描く", add: "追加", place: "配置",
