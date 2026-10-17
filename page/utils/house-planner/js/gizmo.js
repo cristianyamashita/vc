@@ -72,7 +72,7 @@ export class Gizmo {
     if (modes && !modes.includes(mode)) return;
     this.mode = mode;
     this.control.setMode(mode);
-    this.control.setSpace(mode === "rotate" ? "local" : "world");
+    this.control.setSpace(this.target?.adapter?.space || (mode === "rotate" ? "local" : "world"));
     this.applyAxes();
     this.app.scene.requestRender();
   }
@@ -99,7 +99,15 @@ export class Gizmo {
   applyAxes() {
     const c = this.control;
     c.showX = c.showY = c.showZ = true;
-    if (!this.target?.adapter?.planar) return;
+    const adapter = this.target?.adapter;
+    if (!adapter) return;
+    if (adapter.axes && this.mode === "translate") {
+      c.showX = !!adapter.axes.x;
+      c.showY = !!adapter.axes.y;
+      c.showZ = !!adapter.axes.z;
+      return;
+    }
+    if (!adapter.planar) return;
     if (this.mode === "translate") c.showY = false;
     if (this.mode === "rotate") c.showX = c.showZ = false;
   }
@@ -136,6 +144,7 @@ export class Gizmo {
       group.scale.set(1, 1, 1);
     }
     this.refreshHighlight();
+    this.app.dims?.show(this.app.dims.group);
     this.app.scene.requestRender();
   }
   /** Write the group's local transform into the document, snapped. */

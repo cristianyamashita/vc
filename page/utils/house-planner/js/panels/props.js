@@ -141,6 +141,15 @@ export class PropsPanel {
     if (!found) return this.renderProject();
     const head = this.el("div", { class: "phead" }, [this.el("span", { class: "ptype", text: t(found.type) }), this.locked ? this.el("span", { class: "tag", text: `🔒 ${t("lockedShort")}` }) : null]);
     root.append(head);
+    const caps = app.state.caps || [];
+    const icons = { translate: "↔", rotate: "⟳", scale: "⤢" };
+    if (caps.length || found.type !== "sun")
+      root.append(
+        this.el("div", { class: "row-actions modes" }, [
+          ...["translate", "rotate", "scale"].filter((m) => caps.includes(m)).map((m) => this.el("button", { class: `btn ${app.state.transformMode === m ? "on" : ""}`, type: "button", text: `${icons[m]} ${t(m)}`, onclick: () => app.setTransformMode(m) })),
+          this.el("button", { class: `btn ${app.dims.enabled ? "on" : ""}`, type: "button", text: `📏 ${t("dims")}`, onclick: () => app.toggleDims() }),
+        ]),
+      );
     switch (found.type) {
       case "terrain": return this.renderTerrain(found.item);
       case "sun": return this.renderSun(found.item);

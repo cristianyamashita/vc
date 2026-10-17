@@ -35,10 +35,14 @@ export function buildFloorGroup(fg, storey, tile, skip = null) {
   });
   const geo = mergeGeometries(parts, false);
   parts.forEach((g) => g.dispose());
+  geo.computeBoundingBox();
+  const cx = (geo.boundingBox.min.x + geo.boundingBox.max.x) / 2, cz = (geo.boundingBox.min.z + geo.boundingBox.max.z) / 2;
+  geo.translate(-cx, 0, -cz);
   const mesh = new THREE.Mesh(geo, surfaceMaterial({ material: fg.material, tint: fg.tint, offset: 2 }));
+  mesh.position.set(cx, 0, cz);
   mesh.castShadow = true;
   mesh.receiveShadow = true;
-  mesh.userData = { kind: "floorGroup", id: fg.id, storeyId: storey.id };
+  mesh.userData = { kind: "floorGroup", id: fg.id, storeyId: storey.id, origin: [cx, cz] };
   return mesh;
 }
 /** Bounding box (cm, building-local) of every tile on every storey. */

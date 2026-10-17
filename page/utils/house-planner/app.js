@@ -15,6 +15,7 @@ import { loadTextureIndex, setTextureReadyCallback, textureIndex } from "./js/ma
 import { loadCatalog, catalog, getPropDoc, propObject, searchCatalog, registerCustom, customIds, propDocSync } from "./js/props.js";
 import { thumbnail } from "./js/thumbs.js";
 import { PropEditor } from "./js/propedit.js";
+import { Dims } from "./js/dims.js";
 import { buildFloorGroup, floorTop, floorThickness, tileSet, tileKey, splitTiles } from "./js/build/slabs.js";
 import { buildWall } from "./js/build/walls.js";
 import { buildStairs, stairsCutQuads, tilesUnderQuads } from "./js/build/stairs.js";
@@ -33,7 +34,7 @@ class App {
     this.lang = prefs.lang;
     this.t = makeT(() => this.lang);
     this.project = freshProject();
-    this.state = { tab: "floors", tool: "select", selection: null, activeBuilding: null, activeStorey: null, activeFloorGroup: null, pendingPreset: "door-single", pendingProp: null, ghostYaw: 0, pendingStairShape: "straight", pendingOutdoorType: "deck", pendingGardenMaterial: DEFAULT_MATERIAL.garden, snap: prefs.snap !== false, orbitOverride: false };
+    this.state = { tab: "floors", tool: "select", selection: null, activeBuilding: null, activeStorey: null, activeFloorGroup: null, pendingPreset: "door-single", pendingProp: null, ghostYaw: 0, pendingStairShape: "straight", pendingOutdoorType: "deck", pendingGardenMaterial: DEFAULT_MATERIAL.garden, snap: prefs.snap !== false, orbitOverride: false, transformMode: null, caps: [] };
     this.buildingGroups = new Map();
     this.storeyGroups = new Map();
     this.objectGroups = new Map();
@@ -53,6 +54,8 @@ class App {
     this.tree = new Tree(this, $("#tree"));
     this.propsPanel = new PropsPanel(this, $("#props"));
     this.editor = new PropEditor(this);
+    this.dims = new Dims(this);
+    this.scene.onFrame = () => this.dims.update();
     this.history = new History(() => this.project, (p) => this.restore(p));
     this.history.onChange(() => this.refreshHistoryButtons());
     setTextureReadyCallback(() => this.scene.requestRender());
@@ -520,6 +523,7 @@ class App {
   }
   refreshAll() {
     if (this.editor?.active) return this.editor.refreshPanels();
+    this.renderSelectionBar();
     this.tree.render();
     this.propsPanel.render();
     this.refreshSelectors();
@@ -541,11 +545,14 @@ class App {
   // -------------------------------------------------------- selection
 
   select(id, { keepTool = false } = {}) {
+    if (id !== this.state.selection) this.state.transformMode = null;
     this.state.selection = id;
     const found = id ? this.locate(id) : null;
     if (!found) {
       this.state.selection = null;
+      this.state.caps = [];
       this.gizmo.detach();
+      this.dims.hide();
     } else {
       if (found.storey && found.type !== "storey") {
         if (found.storey.id !== this.state.activeStorey) {
@@ -565,18 +572,17 @@ class App {
     }
     this.refreshAll();
   }
-  attachSelection(found) {
+  /** Modes the selection can be transformed with, and its scene group. */
+  transformTarget(found) {
     const id = found.item.id ?? found.type;
-    if (found.type === "object") {
-      const g = this.objectGroups.get(id);
-      const parent = found.storey ? this.storeyGroups.get(found.storey.id) : this.siteGroup;
-      if (g && parent) this.gizmo.attach(g, found.item, parent, { lockedOnly: isLocked(this.project, id) });
-      return;
-    }
-    if (found.type === "stairs") {
-      const g = this.findGroup(this.buildingGroups.get(found.building.id), "stairsGroup", id);
-      const parent = this.storeyGroups.get(found.storey.id);
-      if (g && parent) {
+    const locked = found.type !== "sun" && found.type !== "terrain" && isLocked(this.project, id);
+    const T = (group, parent, placement, adapter, modes) => (group && parent ? { group, parent, placement, adapter, modes, locked } : null);
+    const bGroup = found.building ? this.buildingGroups.get(found.building.id) : null;
+    const sGroup = found.storey ? this.storeyGroups.get(found.storey.id) : null;
+    switch (found.type) {
+      case "object":
+        return T(this.objectGroups.get(id), found.storey ? sGroup : this.siteGroup, found.item, null, ["translate", "rotate", "scale"]);
+      case "stairs": {
         const st = found.item, buildingId = found.building.id;
         const adapter = {
           planar: true, modes: ["translate", "rotate"], rebuild: "building", buildingId,
@@ -587,13 +593,10 @@ class App {
             group.rotation.set(0, st.rotation * DEG, 0);
           },
         };
-        this.gizmo.attach(g, st, parent, { lockedOnly: isLocked(this.project, id), adapter });
+        return T(this.findGroup(bGroup, "stairsGroup", id), sGroup, st, adapter, adapter.modes);
       }
-      return;
-    }
-    if (found.type === "outdoor" || found.type === "garden") {
-      const g = this.findGroup(this.siteGroup, `${found.type}Group`, id);
-      if (g) {
+      case "outdoor":
+      case "garden": {
         const poly = found.item;
         const adapter = {
           planar: true, modes: ["translate"], rebuild: "site",
@@ -605,29 +608,139 @@ class App {
             group.userData.origin = [ox + dx, oz + dz];
           },
         };
-        this.gizmo.attach(g, poly, this.siteGroup, { lockedOnly: isLocked(this.project, id), adapter });
+        return T(this.findGroup(this.siteGroup, `${found.type}Group`, id), this.siteGroup, poly, adapter, adapter.modes);
       }
+      case "floorGroup": {
+        const fg = found.item, tile = this.project.grid.tile, buildingId = found.building.id;
+        const adapter = {
+          planar: true, modes: ["translate", "rotate"], rebuild: "building", buildingId,
+          apply: (group) => {
+            const [ox, oz] = (group.userData.origin || [0, 0]).map((v) => v * CM); // metres -> cm
+            const dx = Math.round((group.position.x * CM - ox) / tile), dz = Math.round((group.position.z * CM - oz) / tile);
+            const q = ((Math.round(group.rotation.y / (Math.PI / 2)) % 4) + 4) % 4;
+            if (q) {
+              const xs = fg.tiles.map((t) => t[0]), zs = fg.tiles.map((t) => t[1]);
+              const cx = (Math.min(...xs) + Math.max(...xs) + 1) / 2, cz = (Math.min(...zs) + Math.max(...zs) + 1) / 2;
+              for (let k = 0; k < q; k++)
+                fg.tiles = fg.tiles.map(([x, z]) => {
+                  const u = x + 0.5 - cx, v = z + 0.5 - cz; // quarter turn about Y: x' = z, z' = -x
+                  return [Math.floor(cx + v), Math.floor(cz - u)];
+                });
+            }
+            if (dx || dz) fg.tiles = fg.tiles.map(([x, z]) => [x + dx, z + dz]);
+            group.position.set(ox * M, group.position.y, oz * M);
+            group.rotation.set(0, 0, 0);
+          },
+        };
+        return T(this.findGroup(bGroup, "floorGroup", id), sGroup, fg, adapter, adapter.modes);
+      }
+      case "wall": {
+        const w = found.item, buildingId = found.building.id;
+        const adapter = {
+          planar: true, modes: ["translate", "rotate"], rebuild: "building", buildingId,
+          apply: (group, { step, turn, snapTo }) => {
+            const L = Math.hypot(w.b[0] - w.a[0], w.b[1] - w.a[1]);
+            const theta0 = Math.atan2(w.b[1] - w.a[1], w.b[0] - w.a[0]);
+            const ax = snapTo(group.position.x * CM, step), az = snapTo(group.position.z * CM, step);
+            // only a rotate drag changes the angle, by a snapped delta
+            const delta = this.gizmo.mode === "rotate" ? snapTo((-group.rotation.y - theta0) / DEG, turn) * DEG : 0;
+            const theta = theta0 + delta;
+            w.a = [r1(ax), r1(az)];
+            w.b = [r1(ax + Math.cos(theta) * L), r1(az + Math.sin(theta) * L)];
+            group.position.set(w.a[0] * M, group.position.y, w.a[1] * M);
+            group.rotation.set(0, -theta, 0);
+          },
+        };
+        return T(this.findGroup(bGroup, "wallGroup", id), sGroup, w, adapter, adapter.modes);
+      }
+      case "opening": {
+        const op = found.item, wall = found.wall, buildingId = found.building.id;
+        const adapter = {
+          planar: true, modes: ["translate"], rebuild: "building", buildingId, space: "local", axes: { x: true, y: false, z: false },
+          apply: (group, { step, snapTo }) => {
+            const L = Math.hypot(wall.b[0] - wall.a[0], wall.b[1] - wall.a[1]);
+            op.offset = r1(Math.max(0, Math.min(L - op.width, snapTo(group.position.x * CM - op.width / 2, step))));
+            group.position.set((op.offset + op.width / 2) * M, group.position.y, 0);
+            group.rotation.set(0, 0, 0);
+          },
+        };
+        const hit = this.findGroup(bGroup, "opening", id);
+        return T(hit, hit?.parent, op, adapter, adapter.modes);
+      }
+      case "building": {
+        const b = found.item;
+        const adapter = {
+          planar: true, modes: ["translate", "rotate"], rebuild: "all",
+          apply: (group, { step, turn, snapTo }) => {
+            b.at = [r1(snapTo(group.position.x * CM, step)), r1(snapTo(group.position.z * CM, step))];
+            if (this.gizmo.mode === "rotate") {
+              const delta = snapTo(-group.rotation.y / DEG - b.rotation, turn);
+              b.rotation = r1((((b.rotation + delta) % 360) + 360) % 360);
+            }
+            this.applyBuildingTransform(group, b);
+          },
+        };
+        return T(bGroup, this.scene.world, b, adapter, adapter.modes);
+      }
+      case "storey":
+        return sGroup ? { group: sGroup, parent: bGroup, placement: found.item, adapter: null, modes: [], locked } : null;
+      default:
+        return null;
+    }
+  }
+  attachSelection(found) {
+    const target = this.transformTarget(found);
+    this.state.caps = target && !target.locked ? target.modes : [];
+    this.dims.show(target?.group || (found.type === "terrain" ? this.terrain.mesh : null));
+    if (!target) {
+      this.gizmo.detach();
       return;
     }
-    this.gizmo.control.detach();
-    let obj = null;
-    if (found.type === "wall" || found.type === "opening") {
-      const g = this.buildingGroups.get(found.building.id);
-      g?.traverse((o) => {
-        if (!obj && o.userData.kind === found.type && o.userData.id === id) obj = o;
-      });
-    } else if (found.type === "floorGroup") {
-      const g = this.buildingGroups.get(found.building.id);
-      g?.traverse((o) => {
-        if (!obj && o.userData.kind === "floorGroup" && o.userData.id === id) obj = o;
-      });
-    } else if (found.type === "building") obj = this.buildingGroups.get(id);
-    else if (found.type === "storey") obj = this.storeyGroups.get(id);
-    if (obj) {
-      this.gizmo.highlight.setFromObject(obj);
+    const mode = this.state.transformMode;
+    if (!mode || !this.state.caps.includes(mode)) {
+      this.gizmo.control.detach();
+      this.gizmo.target = null;
+      this.gizmo.highlight.setFromObject(target.group);
       this.gizmo.highlight.visible = true;
-    } else this.gizmo.highlight.visible = false;
-    this.scene.requestRender();
+      this.scene.requestRender();
+      return;
+    }
+    this.gizmo.mode = mode;
+    this.gizmo.attach(target.group, target.placement, target.parent, { lockedOnly: target.locked, adapter: target.adapter });
+    this.gizmo.setMode(mode);
+  }
+  /** Mode buttons: null hides the handles, a mode shows them (toggle). */
+  setTransformMode(mode) {
+    if (this.editor?.active) {
+      this.gizmo.setMode(mode);
+      this.editor.renderToolbar();
+      return;
+    }
+    this.state.transformMode = this.state.transformMode === mode ? null : mode;
+    const found = this.state.selection && this.locate(this.state.selection);
+    if (found) this.attachSelection(found);
+    this.renderSelectionBar();
+    this.propsPanel.render();
+  }
+  toggleDims() {
+    this.dims.setEnabled(!this.dims.enabled);
+    this.renderSelectionBar();
+    this.propsPanel.render();
+  }
+  /** Row above the tree: move / rotate / scale / measures for the selection. */
+  renderSelectionBar() {
+    const host = $("#sel-actions"), t = this.t;
+    const found = this.state.selection && this.locate(this.state.selection);
+    if (!found) {
+      host.hidden = true;
+      return;
+    }
+    const icons = { translate: "↔", rotate: "⟳", scale: "⤢" };
+    const caps = this.state.caps || [];
+    host.hidden = false;
+    host.innerHTML =
+      ["translate", "rotate", "scale"].map((m) => `<button class="tb small ${this.state.transformMode === m ? "on" : ""}" data-mode="${m}" ${caps.includes(m) ? "" : "disabled"} title="${esc(t(m))}">${icons[m]} ${esc(t(m))}</button>`).join("") +
+      `<button class="tb small ${this.dims.enabled ? "on" : ""}" data-dims title="${esc(t("dims"))}">📏</button>`;
   }
   findGroup(root, kind, id) {
     let out = null;
@@ -859,6 +972,11 @@ class App {
       this.tree.render();
     });
     $("#catalog-search").addEventListener("input", () => this.renderCatalog());
+    $("#sel-actions").addEventListener("click", (e) => {
+      const m = e.target.closest("[data-mode]");
+      if (m && !m.disabled) return this.setTransformMode(m.dataset.mode);
+      if (e.target.closest("[data-dims]")) this.toggleDims();
+    });
     $("#catalog-category").addEventListener("change", (e) => {
       prefs.catalogCategory = e.target.value;
       savePrefs();
@@ -1013,9 +1131,9 @@ class App {
         break;
       case "Delete": case "Backspace": this.deleteSelected(); break;
       case "v": case "V": this.setTool("select"); break;
-      case "w": case "W": this.gizmo.setMode("translate"); break;
-      case "e": case "E": this.gizmo.setMode("rotate"); break;
-      case "r": case "R": this.gizmo.setMode("scale"); break;
+      case "w": case "W": this.setTransformMode("translate"); break;
+      case "e": case "E": this.setTransformMode("rotate"); break;
+      case "r": case "R": this.setTransformMode("scale"); break;
       case "[": this.tools.rotateGhost(-15); break;
       case "]": this.tools.rotateGhost(15); break;
       case "f": case "F": this.fitAll(); break;
