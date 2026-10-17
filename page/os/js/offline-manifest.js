@@ -1278,6 +1278,7 @@
     "utils/house-planner/js/build/outdoor.js",
     "utils/house-planner/js/build/railing.js",
     "utils/house-planner/js/build/roof.js",
+    "utils/house-planner/js/build/room.js",
     "utils/house-planner/js/build/sitewall.js",
     "utils/house-planner/js/build/slabs.js",
     "utils/house-planner/js/build/stairs.js",
@@ -1292,12 +1293,17 @@
     "utils/house-planner/js/i18n.js",
     "utils/house-planner/js/materials.js",
     "utils/house-planner/js/multi.js",
+    "utils/house-planner/js/night.js",
+    "utils/house-planner/js/notes.js",
     "utils/house-planner/js/panels/props.js",
     "utils/house-planner/js/panels/tree.js",
     "utils/house-planner/js/plan2d.js",
     "utils/house-planner/js/prefs.js",
     "utils/house-planner/js/propedit.js",
     "utils/house-planner/js/props.js",
+    "utils/house-planner/js/quantities.js",
+    "utils/house-planner/js/roomlabels.js",
+    "utils/house-planner/js/rooms.js",
     "utils/house-planner/js/scene.js",
     "utils/house-planner/js/schema.js",
     "utils/house-planner/js/share.js",
@@ -1694,6 +1700,6 @@
     "models/tinyyolov2-7.onnx",
     "models/yolov8n-coco.onnx"
   ],
-  "version": "01384a1b600a"
+  "version": "dd4ef58e9064"
 };
 })(typeof self !== "undefined" ? self : window);
