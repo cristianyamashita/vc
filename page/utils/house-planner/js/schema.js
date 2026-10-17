@@ -173,6 +173,7 @@ export function wallChecked(raw = {}) {
     tint: color(raw.tint, "#f2ede4"),
     outerMaterial: texture(raw.outerMaterial, null),
     outerTint: color(raw.outerTint, null),
+    flipOuter: !!raw.flipOuter,
     locked: !!raw.locked,
     openings: (Array.isArray(raw.openings) ? raw.openings : []).map((o) => openingChecked(o, len)),
   };

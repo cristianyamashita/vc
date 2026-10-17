@@ -219,6 +219,16 @@ export function glassMaterial(tint = "#bcd8e6", opacity = 0.35) {
   cache.set(key, m);
   return m;
 }
+/** Translucent pool water (shared). */
+export function waterMaterial(tint = "#2d9cc4") {
+  const key = `water|${tint}`;
+  let m = cache.get(key);
+  if (m) return m;
+  m = new THREE.MeshPhysicalMaterial({ color: tint, transparent: true, opacity: 0.62, roughness: 0.08, metalness: 0, depthWrite: false, side: THREE.DoubleSide });
+  m.userData.shared = true;
+  cache.set(key, m);
+  return m;
+}
 /** Transparent material for part groups of a prop (vertex colours). */
 export function partGlassMaterial(opacity) {
   const key = `partglass|${opacity}`;

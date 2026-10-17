@@ -11,17 +11,19 @@ import { Tools, TAB_TOOLS } from "./js/tools.js";
 import { Tree } from "./js/panels/tree.js";
 import { PropsPanel } from "./js/panels/props.js";
 import { History } from "./js/history.js";
-import { loadTextureIndex, setTextureReadyCallback } from "./js/materials.js";
+import { loadTextureIndex, setTextureReadyCallback, textureIndex } from "./js/materials.js";
 import { loadCatalog, catalog, getPropDoc, propObject, searchCatalog, registerCustom } from "./js/props.js";
 import { buildFloorGroup, floorTop, floorThickness, tileSet, tileKey, splitTiles } from "./js/build/slabs.js";
 import { buildWall } from "./js/build/walls.js";
+import { buildStairs, stairsCutQuads, tilesUnderQuads } from "./js/build/stairs.js";
+import { buildPolygon, DEFAULT_MATERIAL } from "./js/build/outdoor.js";
 import * as store from "./js/store.js";
 import { freshProject, freshBuilding, freshStorey, locate, isLocked, uid, clone, OPENING_PRESETS, projectChecked } from "./js/schema.js";
 
 const DEG = Math.PI / 180;
 const $ = (s, r = document) => r.querySelector(s);
 const TABS = ["terrain", "floors", "walls", "openings", "stairs", "outdoor", "garden", "objects"];
-const SOON = new Set(["stairs", "outdoor", "garden"]);
+const DEFAULT_TOOL = { terrain: "raise", floors: "paint", walls: "draw", openings: "add", stairs: "place", outdoor: "polygon", garden: "polygon", objects: "place" };
 
 class App {
   constructor() {
@@ -29,7 +31,7 @@ class App {
     this.lang = prefs.lang;
     this.t = makeT(() => this.lang);
     this.project = freshProject();
-    this.state = { tab: "floors", tool: "select", selection: null, activeBuilding: null, activeStorey: null, activeFloorGroup: null, pendingPreset: "door-single", pendingProp: null, ghostYaw: 0, snap: prefs.snap !== false, orbitOverride: false };
+    this.state = { tab: "floors", tool: "select", selection: null, activeBuilding: null, activeStorey: null, activeFloorGroup: null, pendingPreset: "door-single", pendingProp: null, ghostYaw: 0, pendingStairShape: "straight", pendingOutdoorType: "deck", pendingGardenMaterial: DEFAULT_MATERIAL.garden, snap: prefs.snap !== false, orbitOverride: false };
     this.buildingGroups = new Map();
     this.storeyGroups = new Map();
     this.objectGroups = new Map();
@@ -70,7 +72,7 @@ class App {
       console.warn("load failed", err);
     }
     this.setProject(project || freshProject(this.t("untitled")), { fit: true });
-    this.setTab(TABS.includes(prefs.tab) && !SOON.has(prefs.tab) ? prefs.tab : "floors");
+    this.setTab(TABS.includes(prefs.tab) ? prefs.tab : "floors");
     this.translateAll();
   }
 
@@ -232,12 +234,13 @@ class App {
   }
   duplicateSelected() {
     const found = this.state.selection && this.locate(this.state.selection);
-    if (!found || found.type !== "object") return;
+    if (!found || !["object", "stairs", "outdoor", "garden"].includes(found.type)) return;
     this.checkpoint();
     const copy = clone(found.item);
-    copy.id = uid("ob");
-    copy.at[0] += 50;
+    copy.id = uid(found.type === "object" ? "ob" : found.type === "stairs" ? "sr" : found.type === "garden" ? "g" : "d");
     copy.locked = false;
+    if (copy.points) copy.points = copy.points.map(([x, z]) => [x + 50, z + 50]);
+    else copy.at[0] += 50;
     found.list.push(copy);
     this.changed({ rebuild: found.building ? "building" : "site", buildingId: found.building?.id });
     this.select(copy.id);
@@ -267,6 +270,7 @@ class App {
     this.objectGroups.clear();
     if (this.terrain.mesh) this.terrain.dispose();
     this.scene.world.add(this.terrain.build(this.project.terrain));
+    this.terrain.setClamp(this.project.terrain.flattenUnderBuildings ? this.makeClamp() : null);
     this.siteGroup = new THREE.Group();
     this.siteGroup.name = "site";
     this.scene.world.add(this.siteGroup);
@@ -299,10 +303,11 @@ class App {
       const sg = new THREE.Group();
       sg.userData = { kind: "storeyGroup", id: s.id };
       for (const fg of s.floorGroups) {
-        const mesh = buildFloorGroup(fg, s, this.project.grid.tile);
+        const mesh = buildFloorGroup(fg, s, this.project.grid.tile, this.stairWells(b, s, fg));
         if (mesh) sg.add(mesh);
       }
-      for (const w of s.walls) sg.add(buildWall(w, s, s.walls));
+      for (const w of s.walls) sg.add(buildWall(w, s, s.walls, this.project.grid.tile));
+      for (const st of s.stairs) sg.add(buildStairs(st, s));
       for (const o of s.objects) sg.add(this.makeObjectGroup(o, s.elevation));
       group.add(sg);
       this.storeyGroups.set(s.id, sg);
@@ -312,13 +317,33 @@ class App {
     this.applyVisibility();
     if (!quiet) this.afterSceneChange();
   }
+  /** Tiles of a floor group left open by stairs from the storeys below. */
+  stairWells(b, s, fg) {
+    const quads = [];
+    const underside = floorTop(s, fg) - floorThickness(s, fg);
+    for (const lower of b.storeys) {
+      if (lower.elevation >= s.elevation) continue;
+      for (const st of lower.stairs) if (st.cutFloorAbove) quads.push(...stairsCutQuads(st, lower, underside));
+    }
+    return quads.length ? tilesUnderQuads(fg.tiles, quads, this.project.grid.tile) : null;
+  }
   rebuildSite({ quiet = false } = {}) {
     if (!this.siteGroup) return;
     for (const c of [...this.siteGroup.children]) {
       this.siteGroup.remove(c);
       this.objectGroups.delete(c.userData.id);
+      if (c.userData.kind !== "object") c.traverse((o) => o.isMesh && o.geometry.dispose());
     }
+    this.terrain.setCutouts(this.project.outdoor.filter((p) => p.type === "pool" && p.points.length >= 3).map((p) => p.points));
     for (const o of this.project.objects) this.siteGroup.add(this.makeObjectGroup(o, 0));
+    for (const d of this.project.outdoor) {
+      const g = buildPolygon(d, "outdoor", this.terrain);
+      if (g) this.siteGroup.add(g);
+    }
+    for (const gp of this.project.gardenPatches) {
+      const g = buildPolygon(gp, "garden", this.terrain);
+      if (g) this.siteGroup.add(g);
+    }
     if (!quiet) this.afterSceneChange();
   }
   makeObjectGroup(o, baseY) {
@@ -372,7 +397,8 @@ class App {
   }
   /** Sun fit, roofs, terrain clamp, grid, render. */
   afterSceneChange() {
-    this.terrain.setClamp(this.project.terrain.flattenUnderBuildings ? this.makeClamp() : null);
+    // the ground under slabs moved: paths and patches follow it
+    if (this.terrain.setClamp(this.project.terrain.flattenUnderBuildings ? this.makeClamp() : null)) this.rebuildSite({ quiet: true });
     const box = new THREE.Box3();
     for (const g of this.buildingGroups.values()) box.union(new THREE.Box3().setFromObject(g));
     if (this.siteGroup?.children.length) box.union(new THREE.Box3().setFromObject(this.siteGroup));
@@ -458,6 +484,7 @@ class App {
     if (terrain) {
       this.terrain.update();
       this.sun.place();
+      if (this.project.outdoor.length || this.project.gardenPatches.length) this.rebuildSite({ quiet: true });
     }
     if (this.state.selection) {
       const found = this.locate(this.state.selection);
@@ -540,6 +567,42 @@ class App {
       if (g && parent) this.gizmo.attach(g, found.item, parent, { lockedOnly: isLocked(this.project, id) });
       return;
     }
+    if (found.type === "stairs") {
+      const g = this.findGroup(this.buildingGroups.get(found.building.id), "stairsGroup", id);
+      const parent = this.storeyGroups.get(found.storey.id);
+      if (g && parent) {
+        const st = found.item, buildingId = found.building.id;
+        const adapter = {
+          planar: true, modes: ["translate", "rotate"], rebuild: "building", buildingId,
+          apply: (group, { step, turn, snapTo }) => {
+            st.at = [snapTo(group.position.x * CM, step), snapTo(group.position.z * CM, step)].map(r1);
+            st.rotation = r1(((snapTo(group.rotation.y / DEG, turn) % 360) + 360) % 360);
+            group.position.set(st.at[0] * M, group.position.y, st.at[1] * M);
+            group.rotation.set(0, st.rotation * DEG, 0);
+          },
+        };
+        this.gizmo.attach(g, st, parent, { lockedOnly: isLocked(this.project, id), adapter });
+      }
+      return;
+    }
+    if (found.type === "outdoor" || found.type === "garden") {
+      const g = this.findGroup(this.siteGroup, `${found.type}Group`, id);
+      if (g) {
+        const poly = found.item;
+        const adapter = {
+          planar: true, modes: ["translate"], rebuild: "site",
+          apply: (group, { step, snapTo }) => {
+            const [ox, oz] = group.userData.origin || [0, 0];
+            const dx = snapTo(group.position.x * CM - ox, step), dz = snapTo(group.position.z * CM - oz, step);
+            if (dx || dz) poly.points = poly.points.map(([x, z]) => [r1(x + dx), r1(z + dz)]);
+            group.position.set((ox + dx) * M, 0, (oz + dz) * M);
+            group.userData.origin = [ox + dx, oz + dz];
+          },
+        };
+        this.gizmo.attach(g, poly, this.siteGroup, { lockedOnly: isLocked(this.project, id), adapter });
+      }
+      return;
+    }
     this.gizmo.control.detach();
     let obj = null;
     if (found.type === "wall" || found.type === "opening") {
@@ -560,16 +623,24 @@ class App {
     } else this.gizmo.highlight.visible = false;
     this.scene.requestRender();
   }
+  findGroup(root, kind, id) {
+    let out = null;
+    root?.traverse((o) => {
+      if (!out && o.userData.kind === kind && o.userData.id === id) out = o;
+    });
+    return out;
+  }
   pickSelect(event) {
     const hits = this.scene.ray(event).intersectObjects(this.scene.world.children, true);
     for (const h of hits) {
       let o = h.object, visible = true;
       for (let p = o; p; p = p.parent) if (!p.visible) visible = false;
       if (!visible) continue;
+      if (o.userData.kind === "terrain" && this.terrain.isCut(h.point.x * CM, h.point.z * CM)) continue; // ground inside a pool
       let kind = null, id = null;
       for (let p = o; p && !kind; p = p.parent) {
         const k = p.userData.kind;
-        if (["terrain", "floorGroup", "wall", "opening", "object"].includes(k)) {
+        if (["terrain", "floorGroup", "wall", "opening", "object", "stairs", "outdoor", "garden"].includes(k)) {
           kind = k;
           id = p.userData.id;
         } else if (k === "leaf" || k === "glass") {
@@ -592,25 +663,23 @@ class App {
   // --------------------------------------------------------- tabs/tools
 
   setTab(tab) {
-    if (SOON.has(tab)) return this.toast(this.t("comingSoon"));
     this.state.tab = tab;
     prefs.tab = tab;
     savePrefs();
     $$("#tabs button").forEach((b) => b.classList.toggle("on", b.dataset.tab === tab));
     const tools = TAB_TOOLS[tab];
-    const def = tab === "terrain" ? "raise" : tab === "floors" ? "paint" : tab === "walls" ? "draw" : tab === "openings" ? "add" : tab === "objects" ? "place" : "select";
+    const def = DEFAULT_TOOL[tab] || "select";
     if (tab === "terrain") this.state.selection = "terrain";
     else if (this.state.selection === "terrain") this.state.selection = null;
     this.setTool(tools.includes(def) ? def : "select");
-    void tools;
   }
   setTool(tool) {
     this.state.tool = tool;
     this.tools.reset();
     this.scene.setToolActive(tool !== "select");
-    if (tool !== "select" && this.state.selection && this.locate(this.state.selection)?.type === "object") {
+    if (tool !== "select") {
       this.gizmo.control.detach();
-    } else if (tool === "select" && this.state.selection) {
+    } else if (this.state.selection) {
       const f = this.locate(this.state.selection);
       if (f) this.attachSelection(f);
     }
@@ -647,6 +716,33 @@ class App {
       sel.value = this.state.pendingPreset;
       sel.addEventListener("change", () => (this.state.pendingPreset = sel.value));
       extra.append(sel);
+    } else if (tab === "stairs") {
+      const sel = document.createElement("select");
+      sel.innerHTML = ["straight", "L", "U"].map((k) => `<option value="${k}">${esc(t(`shape_${k}`))}</option>`).join("");
+      sel.value = this.state.pendingStairShape;
+      sel.addEventListener("change", () => {
+        this.state.pendingStairShape = sel.value;
+        this.tools.clearGhost();
+      });
+      const hint = document.createElement("label");
+      hint.textContent = t("rotateGhost");
+      extra.append(sel, hint);
+    } else if (tab === "outdoor") {
+      const sel = document.createElement("select");
+      sel.innerHTML = ["deck", "pool", "path"].map((k) => `<option value="${k}">${esc(t(k))}</option>`).join("");
+      sel.value = this.state.pendingOutdoorType;
+      sel.addEventListener("change", () => (this.state.pendingOutdoorType = sel.value));
+      const hint = document.createElement("label");
+      hint.textContent = t("polygonHint");
+      extra.append(sel, hint);
+    } else if (tab === "garden") {
+      const sel = document.createElement("select");
+      sel.innerHTML = Object.keys(textureIndex).map((k) => `<option value="${k}">${esc(textureIndex[k].name[this.lang] || k)}</option>`).join("");
+      sel.value = this.state.pendingGardenMaterial;
+      sel.addEventListener("change", () => (this.state.pendingGardenMaterial = sel.value));
+      const hint = document.createElement("label");
+      hint.textContent = t("polygonHint");
+      extra.append(sel, hint);
     } else if (tab === "objects") {
       const hint = document.createElement("label");
       hint.textContent = this.state.pendingProp ? `${this.state.pendingProp.name[this.lang] || this.state.pendingProp.name.en} · ${t("rotateGhost")}` : t("catalog");
@@ -846,9 +942,13 @@ class App {
     switch (e.key) {
       case "?": $("#help-dialog").showModal(); break;
       case "Escape":
-        if (this.tools.chain) this.tools.endChain();
+        if (this.tools.busy) this.tools.cancel();
         else if (this.state.tool !== "select") this.setTool("select");
         else this.select(null);
+        break;
+      case "Enter":
+        if (this.tools.poly) this.tools.closePolygon();
+        else return;
         break;
       case "Delete": case "Backspace": this.deleteSelected(); break;
       case "v": case "V": this.setTool("select"); break;

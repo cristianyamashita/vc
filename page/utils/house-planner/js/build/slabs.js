@@ -19,12 +19,16 @@ export function floorTop(storey, fg) {
 export function floorThickness(storey, fg) {
   return fg.thickness ?? storey.slabThickness;
 }
-/** Mesh for one floor group, or null when it has no tiles. */
-export function buildFloorGroup(fg, storey, tile) {
-  if (!fg.tiles.length) return null;
+/**
+ * Mesh for one floor group, or null when it has no tiles. `skip` holds
+ * tile keys left open (stair wells from the storey below).
+ */
+export function buildFloorGroup(fg, storey, tile, skip = null) {
+  const tiles = skip?.size ? fg.tiles.filter(([x, z]) => !skip.has(tileKey(x, z))) : fg.tiles;
+  if (!tiles.length) return null;
   const t = tile * M, thick = floorThickness(storey, fg) * M;
   const top = floorTop(storey, fg) * M;
-  const parts = fg.tiles.map(([x, z]) => {
+  const parts = tiles.map(([x, z]) => {
     const g = new THREE.BoxGeometry(t, thick, t);
     g.translate((x + 0.5) * t, top - thick / 2, (z + 0.5) * t);
     return g;
