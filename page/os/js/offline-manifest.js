@@ -1290,6 +1290,7 @@
     "utils/house-planner/js/history.js",
     "utils/house-planner/js/i18n.js",
     "utils/house-planner/js/materials.js",
+    "utils/house-planner/js/multi.js",
     "utils/house-planner/js/panels/props.js",
     "utils/house-planner/js/panels/tree.js",
     "utils/house-planner/js/plan2d.js",
@@ -1298,12 +1299,15 @@
     "utils/house-planner/js/props.js",
     "utils/house-planner/js/scene.js",
     "utils/house-planner/js/schema.js",
+    "utils/house-planner/js/share.js",
     "utils/house-planner/js/store.js",
     "utils/house-planner/js/sun.js",
+    "utils/house-planner/js/templates.js",
     "utils/house-planner/js/terrain.js",
     "utils/house-planner/js/three",
     "utils/house-planner/js/three/addons/controls/OrbitControls.js",
     "utils/house-planner/js/three/addons/controls/TransformControls.js",
+    "utils/house-planner/js/three/addons/exporters/GLTFExporter.js",
     "utils/house-planner/js/three/addons/geometries/RoundedBoxGeometry.js",
     "utils/house-planner/js/three/addons/utils/BufferGeometryUtils.js",
     "utils/house-planner/js/thumbs.js",
@@ -1580,6 +1584,7 @@
     "https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/controls/OrbitControls.js",
     "https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/controls/TransformControls.js",
     "https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/environments/RoomEnvironment.js",
+    "https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/exporters/GLTFExporter.js",
     "https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/geometries/DecalGeometry.js",
     "https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/geometries/RoundedBoxGeometry.js",
     "https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/libs/draco/draco_decoder.js",
@@ -1687,6 +1692,6 @@
     "models/tinyyolov2-7.onnx",
     "models/yolov8n-coco.onnx"
   ],
-  "version": "3f40f099584b"
+  "version": "01384a1b600a"
 };
 })(typeof self !== "undefined" ? self : window);

@@ -82,7 +82,73 @@ export function buildStairs(st, storey, material = null) {
   mesh.receiveShadow = true;
   mesh.userData = { kind: "stairs", id: st.id, storeyId: storey.id };
   group.add(mesh);
+  if (st.railing && st.railing !== "none" && !material) {
+    const rail = new THREE.Mesh(railingGeometry(st), surfaceMaterial({ tint: st.railingStyle === "metal" ? "#4a5054" : "#8d6e4f", roughness: 0.6 }));
+    rail.castShadow = true;
+    rail.userData = { kind: "stairs", id: st.id, storeyId: storey.id, railing: true };
+    group.add(rail);
+  }
   return group;
+}
+const RAIL_H = 90, RAIL_EVERY = 2;
+/** Posts and a handrail along the outer edge(s) of each flight. */
+export function railingGeometry(st) {
+  const boxes = stairsBoxes(st);
+  const parts = [];
+  const thick = st.railingStyle === "metal" ? 3 : 5;
+  const post = (x, y0, z, y1) => {
+    const g = new THREE.CylinderGeometry((thick / 2) * M, (thick / 2) * M, (y1 - y0) * M, 8);
+    g.translate(x * M, ((y0 + y1) / 2) * M, z * M);
+    parts.push(g);
+  };
+  const bar = (a, b) => {
+    const from = new THREE.Vector3(a[0], a[1], a[2]).multiplyScalar(M), to = new THREE.Vector3(b[0], b[1], b[2]).multiplyScalar(M);
+    const len = from.distanceTo(to);
+    if (len < 0.01) return;
+    const g = new THREE.CylinderGeometry((thick / 2) * M, (thick / 2) * M, len, 8);
+    g.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), to.clone().sub(from).normalize()));
+    g.translate((from.x + to.x) / 2, (from.y + to.y) / 2, (from.z + to.z) / 2);
+    parts.push(g);
+  };
+  const treads = boxes.filter((b) => !b.landing);
+  const sides = st.railing === "both" ? [-1, 1] : [st.railing === "left" ? -1 : 1];
+  // flights: runs of treads moving in one direction
+  const flights = [];
+  let cur = null;
+  for (const b of treads) {
+    const c = [(b.x0 + b.x1) / 2, b.top, (b.z0 + b.z1) / 2];
+    if (cur && cur.boxes.length) {
+      const p = cur.boxes[cur.boxes.length - 1].c;
+      const d = [c[0] - p[0], c[2] - p[2]];
+      const dir = [Math.sign(d[0]), Math.sign(d[1])];
+      if (cur.dir && (cur.dir[0] !== dir[0] || cur.dir[1] !== dir[1])) cur = null;
+      else cur.dir = cur.dir || dir;
+    }
+    if (!cur) {
+      cur = { boxes: [], dir: null };
+      flights.push(cur);
+    }
+    cur.boxes.push({ c, b });
+  }
+  for (const f of flights) {
+    const dir = f.dir || [1, 0];
+    const n = [-dir[1], dir[0]]; // left of the ascending direction
+    for (const side of sides) {
+      const pts = [];
+      f.boxes.forEach(({ c, b }, i) => {
+        const half = dir[0] !== 0 ? (b.z1 - b.z0) / 2 : (b.x1 - b.x0) / 2;
+        const x = c[0] + n[0] * side * (half - thick), z = c[2] + n[1] * side * (half - thick);
+        if (i % RAIL_EVERY === 0 || i === f.boxes.length - 1) {
+          post(x, c[1], z, c[1] + RAIL_H);
+          pts.push([x, c[1] + RAIL_H, z]);
+        }
+      });
+      for (let i = 0; i < pts.length - 1; i++) bar(pts[i], pts[i + 1]);
+    }
+  }
+  const geo = mergeGeometries(parts, false);
+  parts.forEach((g) => g.dispose());
+  return geo;
 }
 /**
  * Building-local footprint quads of the steps that leave less than

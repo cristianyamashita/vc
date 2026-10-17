@@ -207,6 +207,7 @@ def extract_from_text(source: Path, text: str, buckets: dict[str, set[str]]) -> 
 # BufferGeometryUtils, and half a dependency graph is no better than none.
 IMPORTMAP_CDN = (
     "https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/loaders/GLTFLoader.js",
+    "https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/exporters/GLTFExporter.js",
     "https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/utils/BufferGeometryUtils.js",
     "https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/renderers/CSS2DRenderer.js",
     "https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/controls/OrbitControls.js",

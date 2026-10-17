@@ -100,8 +100,10 @@ export function buildWall(wall, storey, walls, tile = 50, { doorsOpen = false } 
     .map((op) => clampOpening({ ...op }, wall))
     .sort((a, b) => a.offset - b.offset);
   let cursor = -e0;
+  const SKIRT = 7, SKIRT_T = 1.2, TRIM = 5;
   const span = (u0, u1, y0, y1) => {
     if (u1 - u0 < 0.1 || y1 - y0 < 0.1) return;
+    if (wall.skirting && y0 === 0) for (const s of [-1, 1]) box(u1 - u0, SKIRT, SKIRT_T, (u0 + u1) / 2, SKIRT / 2, s * (T / 2 + SKIRT_T / 2), "#e9e3d8", leaf);
     if (!twoFaced) return box(u1 - u0, y1 - y0, T, (u0 + u1) / 2, (y0 + y1) / 2, 0, null, solid);
     box(u1 - u0, y1 - y0, T / 2, (u0 + u1) / 2, (y0 + y1) / 2, (-side * T) / 4, null, solid);
     box(u1 - u0, y1 - y0, T / 2, (u0 + u1) / 2, (y0 + y1) / 2, (side * T) / 4, null, outer);
@@ -114,6 +116,14 @@ export function buildWall(wall, storey, walls, tile = 50, { doorsOpen = false } 
     if (op.sill > 0) span(u0, u1, 0, op.sill);
     cursor = Math.max(cursor, u1);
     leafGeometry(op, T, top - op.sill, leaf, glass, doorsOpen && op.type === "door", swing);
+    if (wall.trim)
+      for (const s of [-1, 1]) {
+        const z = s * (T / 2 + 0.6), h = top - op.sill + TRIM;
+        box(TRIM, h, 1.2, u0 - TRIM / 2, op.sill + h / 2 - (op.sill > 0 ? TRIM / 2 : 0), z, op.frameColor, leaf);
+        box(TRIM, h, 1.2, u1 + TRIM / 2, op.sill + h / 2 - (op.sill > 0 ? TRIM / 2 : 0), z, op.frameColor, leaf);
+        box(op.width + TRIM * 2, TRIM, 1.2, (u0 + u1) / 2, top + TRIM / 2, z, op.frameColor, leaf);
+        if (op.sill > 0) box(op.width + TRIM * 2, TRIM, 1.2, (u0 + u1) / 2, op.sill - TRIM / 2, z, op.frameColor, leaf);
+      }
     // hit box
     const hit = new THREE.Mesh(new THREE.BoxGeometry(op.width * M, (top - op.sill) * M, (T + 4) * M), MATERIAL_INVISIBLE);
     hit.position.set((u0 + u1) / 2 * M, ((op.sill + top) / 2) * M, 0);

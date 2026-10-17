@@ -209,6 +209,8 @@ export function wallChecked(raw = {}) {
     tint: color(raw.tint, "#f2ede4"),
     outerMaterial: texture(raw.outerMaterial, null),
     outerTint: color(raw.outerTint, null),
+    skirting: !!raw.skirting,
+    trim: !!raw.trim,
     flipOuter: !!raw.flipOuter,
     locked: !!raw.locked,
     openings: (Array.isArray(raw.openings) ? raw.openings : []).map((o) => openingChecked(o, len)),
@@ -251,6 +253,8 @@ export function stairsChecked(raw = {}) {
     material: texture(raw.material, "woodFloor"),
     tint: color(raw.tint, null),
     cutFloorAbove: raw.cutFloorAbove !== false,
+    railing: ["none", "left", "right", "both"].includes(raw.railing) ? raw.railing : "none",
+    railingStyle: raw.railingStyle === "metal" ? "metal" : "wood",
     locked: !!raw.locked,
   };
 }

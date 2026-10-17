@@ -83,7 +83,7 @@ export class Gizmo {
    */
   attach(group, placement, parent, { lockedOnly = false, adapter = null } = {}) {
     const modes = adapter?.modes || null;
-    this.target = { group, placement, parent, adapter, modes, baseY: group.position.y };
+    this.target = { group, placement, parent, adapter, modes, baseY: group.position.y, startAt: placement?.at ? placement.at.slice() : null };
     this.refreshHighlight();
     if (lockedOnly) {
       this.control.detach();
@@ -166,6 +166,10 @@ export class Gizmo {
     if (this.mode === "scale") {
       const grain = snap ? 0.05 : 0.01;
       placement.scale = group.scale.toArray().map((v) => Math.round(Math.max(0.05, Math.min(50, snapTo(v, grain))) * 100) / 100);
+    }
+    if (final && this.target.startAt && this.app.extrasFollow) {
+      this.app.extrasFollow(this.target.startAt, placement.at);
+      this.target.startAt = placement.at.slice();
     }
     group.position.fromArray(placement.at.map((v) => v * M));
     group.rotation.set(placement.rotation[0] * DEG, placement.rotation[1] * DEG, placement.rotation[2] * DEG, "YXZ");
