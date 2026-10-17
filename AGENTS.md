@@ -8,6 +8,7 @@ These instructions apply to the entire repository.
 - Keep page-specific behavior inside that page file unless there is already a shared local asset that the page must use.
 - Exception: `page/os/` is a multi-file desktop shell (`index.html` plus local CSS/JS). Do not fold it into a single HTML file.
 - Exception: dedicated game folders under `page/game/<slug>/` (`index.html` plus local CSS/JS). Do not fold these into a single HTML file.
+- Exception: `page/utils/house-planner/` is a multi-file 3D planner (`index.html` plus local CSS/JS modules). Do not fold it into a single HTML file.
 - When adding or registering cards in `page/index.html`, include a visible `#NNN` sequence number for each card based on the order the card was first added to the index. If multiple cards share the same commit date and time, continue numbering them sequentially in the page order for that addition.
 - The numbers in `cardSequenceByHref` are contiguous from `#001`, so the last number equals the number of cards on the page. When cards are removed or merged, delete their entries and renumber the remaining cards, keeping their relative order. A new card gets the next number after the current last one.
 

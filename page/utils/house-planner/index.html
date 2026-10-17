@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+  <head>
+    <link rel="icon" href="../../assets/icons/ico/utils-house-planner.ico" type="image/x-icon">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#008f7d">
+    <title>House Planner</title>
+    <link rel="stylesheet" href="styles.css">
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.module.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <div class="app">
+      <div class="topbar">
+        <img class="appicon" src="../../assets/icons/svg/utils-house-planner.svg" alt="">
+        <h1 data-i18n="title">House Planner</h1>
+        <div class="menu">
+          <button id="project-btn" class="tb" data-i18n="project">Project</button>
+          <div id="project-menu" class="dropdown" hidden>
+            <button data-action="new" data-i18n="new">New</button>
+            <button data-action="open" data-i18n="open">Open</button>
+            <button data-action="save" data-i18n="save">Save</button>
+            <button data-action="saveAs" data-i18n="saveAs">Save as copy</button>
+            <button data-action="export" data-i18n="export">Export JSON</button>
+            <button data-action="import" data-i18n="import">Import JSON</button>
+          </div>
+        </div>
+        <nav class="tabs" id="tabs">
+          <button data-tab="terrain" data-i18n="terrain">Terrain</button>
+          <button data-tab="floors" data-i18n="floors">Floors</button>
+          <button data-tab="walls" data-i18n="walls">Walls</button>
+          <button data-tab="openings" data-i18n="openings">Openings</button>
+          <button data-tab="stairs" data-i18n="stairs" class="soon">Stairs</button>
+          <button data-tab="outdoor" data-i18n="outdoor" class="soon">Outdoor</button>
+          <button data-tab="garden" data-i18n="garden" class="soon">Garden</button>
+          <button data-tab="objects" data-i18n="objects">Objects</button>
+        </nav>
+        <span class="spacer"></span>
+        <span id="save-status" class="status"></span>
+        <button id="undo-btn" class="tb icon" data-tip="undo">↶</button>
+        <button id="redo-btn" class="tb icon" data-tip="redo">↷</button>
+        <button id="help-btn" class="tb icon" data-tip="help">?</button>
+        <select id="lang-switcher" aria-label="Language">
+          <option value="en">EN</option>
+          <option value="pt">PT</option>
+          <option value="ja">JA</option>
+        </select>
+        <button id="theme-switcher" class="tb icon" aria-label="Theme">◐</button>
+      </div>
+      <div class="toolbar">
+        <div id="tools" class="tools"></div>
+        <div id="tool-extra" class="tools"></div>
+        <span class="spacer"></span>
+        <div class="tools">
+          <button id="snap-btn" class="tb small" data-i18n="snap">Snap</button>
+          <button id="cutaway-btn" class="tb small" data-i18n="cutaway">Cutaway</button>
+          <button id="view-3d" class="tb small on" data-i18n="view3d">3D</button>
+          <button id="view-top" class="tb small" data-i18n="viewTop">Top</button>
+          <button id="fit-btn" class="tb small" data-i18n="fit">Fit</button>
+        </div>
+      </div>
+      <main class="workspace">
+        <aside class="panel left">
+          <div class="prow">
+            <select id="building-select" aria-label="Building"></select>
+            <button id="add-building" class="tb small" data-tip="addBuilding">+</button>
+          </div>
+          <div class="prow">
+            <select id="storey-select" aria-label="Storey"></select>
+          </div>
+          <input id="tree-search" type="search" data-placeholder="search" placeholder="Search…">
+          <div id="tree" class="tree"></div>
+          <div id="catalog" class="catalog" hidden>
+            <div class="prow">
+              <select id="catalog-category"></select>
+            </div>
+            <input id="catalog-search" type="search" data-placeholder="search" placeholder="Search…">
+            <div id="catalog-list" class="catalog-list"></div>
+          </div>
+        </aside>
+        <section id="viewport" class="viewport">
+          <canvas id="view"></canvas>
+          <div id="measure" class="measure" hidden></div>
+          <div id="toast" class="toast" hidden></div>
+        </section>
+        <aside class="panel right">
+          <div id="props" class="props"></div>
+        </aside>
+      </main>
+    </div>
+
+    <dialog id="help-dialog">
+      <div class="dialog-title"><span data-i18n="helpTitle">How to use</span><button class="tb icon" data-close data-tip="close">×</button></div>
+      <div class="dialog-body">
+        <p data-i18n="helpIntro"></p>
+        <p data-i18n="helpTabs"></p>
+        <p data-i18n="helpGizmo"></p>
+        <p data-i18n="helpSun"></p>
+        <p data-i18n="helpStorage"></p>
+        <p class="keys" data-i18n="helpKeys"></p>
+      </div>
+    </dialog>
+    <dialog id="projects-dialog">
+      <div class="dialog-title"><span data-i18n="projects">Saved projects</span><button class="tb icon" data-close data-tip="close">×</button></div>
+      <div class="dialog-body" id="projects-list"></div>
+    </dialog>
+    <input id="import-file" type="file" accept="application/json,.json" hidden>
+    <script type="module" src="app.js"></script>
+  </body>
+</html>
