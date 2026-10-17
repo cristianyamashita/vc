@@ -26,6 +26,7 @@ import { buildRoomFinish } from "./js/build/room.js";
 import { computeQuantities, quantitiesCSV, formatQuantity, unitLabel, columnLabel, COLUMNS } from "./js/quantities.js";
 import { selectedItems, canJoin, copySelection, pasteClipboard, arrange, Ruler } from "./js/multi.js";
 import { makeTemplate, TEMPLATE_IDS } from "./js/templates.js";
+import { pointInPolygon } from "./js/geom.js";
 import { shareLink, readShareHash, exportGLB } from "./js/share.js";
 import { buildFloorGroup, buildFoundation, floorTop, floorThickness, tileSet, tileKey, splitTiles } from "./js/build/slabs.js";
 import { mergeProject } from "./js/merge.js";
@@ -90,6 +91,7 @@ class App {
     this.ruler = new Ruler(this);
     this.extraHelpers = new Map();
     this.scene.onFrame = () => {
+      this.updateCompass();
       this.dims.update();
       this.notes.update();
       this.night.frame();
@@ -161,6 +163,7 @@ class App {
     this.history.clear();
     this.gizmo.detach();
     this.dirty = false;
+    document.title = this.t("title");
     this.rebuildAll();
     if (project.view.camera) this.scene.restoreCamera(project.view.camera);
     else if (fit) this.fitAll();
@@ -289,6 +292,10 @@ class App {
     } else {
       this.project.objects.push(placement);
       this.changed({ rebuild: "site" });
+    }
+    if (doc.id) {
+      prefs.recentProps = [doc.id, ...(prefs.recentProps || []).filter((id) => id !== doc.id)].slice(0, 24);
+      savePrefs();
     }
     this.toast(`${this.t("placed")}: ${doc.name[this.lang] || doc.name.en}`);
   }
@@ -464,6 +471,36 @@ class App {
       this.roomsByStorey.set(s.id, pairs);
     }
     return pairs;
+  }
+  /** Display name of a room: its own, else one guessed from the furniture inside, else "Room n". */
+  roomName(room, storey) {
+    return roomLabel(room, storey, this.t, room.name ? "" : this.roomAutoName(room, storey));
+  }
+  roomAutoName(room, storey) {
+    const face = this.roomFace(room.id);
+    if (!face) return "";
+    if (!this.categoryById) this.categoryById = new Map(catalog.props.map((p) => [p.id, p.category]));
+    const score = {};
+    const add = (k, w) => (score[k] = (score[k] || 0) + w);
+    let wet = false;
+    for (const o of storey.objects) {
+      if (!pointInPolygon(o.at[0], o.at[2], face.polygon)) continue;
+      const id = o.prop || o.inline?.id || "";
+      const cat = o.inline?.category || this.categoryById.get(id) || "";
+      if (cat === "vehicles") add("garage", 3);
+      if (/toilet|bath-vanity|shower|bathtub|bidet/.test(id)) add("bathroom", 3);
+      if (/shower|bathtub/.test(id)) wet = true;
+      if (/washing-machine|dryer|laundry|ironing/.test(id)) add("laundry", 3);
+      if (cat === "kitchen" || /stove|kitchen-|fridge/.test(id)) add("kitchen", 2);
+      if (/(^|-)bed($|-)|bunk|crib|cradle/.test(id)) add("bedroom", 3);
+      if (cat === "sports") add(/pool-table|cue-rack|dart|foosball|arcade|ping-pong/.test(id) ? "games" : "gym", 2);
+      if (cat === "office") add("office", 2);
+      if (cat === "dining") add("dining", 1);
+      if (cat === "living") add("living", 1);
+    }
+    const best = Object.entries(score).sort((a, b) => b[1] - a[1])[0];
+    if (!best) return storey.stairs.some((st) => pointInPolygon(st.at[0], st.at[1], face.polygon)) ? this.t("room_hall") : "";
+    return this.t(`room_${best[0] === "bathroom" && !wet ? "lavatory" : best[0]}`);
   }
   roomFace(id) {
     for (const pairs of this.roomsByStorey.values()) for (const p of pairs) if (p.room.id === id) return p.face;
@@ -709,6 +746,22 @@ class App {
     const l = g ? g.worldToLocal(v.clone()) : v.clone();
     return { x: l.x * CM, y: l.y * CM, z: l.z * CM };
   }
+  /** The needle follows the camera: north is -Z (the top of the plan). */
+  updateCompass() {
+    const az = this.scene.view === "top" || this.walk.active ? (this.walk.active ? this.scene.camera.rotation.y : 0) : this.scene.controls.getAzimuthalAngle();
+    if (az === this.compassAngle) return;
+    this.compassAngle = az;
+    $("#compass .needle").style.transform = `rotate(${az}rad)`;
+  }
+  /** Turn the camera to look north, keeping its distance and height. */
+  faceNorth() {
+    if (this.walk.active || this.scene.view === "top") return;
+    const c = this.scene.controls, p = this.scene.camera.position;
+    const r = Math.hypot(p.x - c.target.x, p.z - c.target.z);
+    p.set(c.target.x, p.y, c.target.z + r);
+    c.update();
+    this.scene.requestRender();
+  }
   fitAll() {
     if (this.walk.active) this.setView("3d");
     this.scene.fit(this.sceneBounds);
@@ -775,6 +828,7 @@ class App {
   queueSave() {
     this.dirty = true;
     $("#save-status").textContent = `● ${this.t("unsaved")}`;
+    document.title = `● ${this.t("title")}`;
   }
   async saveNow() {
     this.project.view.camera = this.scene.cameraState();
@@ -783,6 +837,7 @@ class App {
       this.dirty = false;
       this.maybeSaveVersion();
       $("#save-status").textContent = this.t("saved");
+      document.title = this.t("title");
     } catch (err) {
       console.warn(err);
       $("#save-status").textContent = `● ${this.t("unsaved")}`;
@@ -1367,11 +1422,15 @@ class App {
     const t = this.t, lang = this.lang;
     const cat = $("#catalog-category");
     const cats = Object.entries(catalog.categories);
-    cat.innerHTML = [`<option value="all">${esc(t("allCategories"))}</option>`, ...cats.map(([id, n]) => `<option value="${id}">${esc(n[lang] || n.en)}</option>`)].join("");
+    cat.innerHTML = [`<option value="all">${esc(t("allCategories"))}</option>`, `<option value="recent">${esc(t("recent"))}</option>`, ...cats.map(([id, n]) => `<option value="${id}">${esc(n[lang] || n.en)}</option>`)].join("");
     cat.value = prefs.catalogCategory || "all";
     if (cat.value !== prefs.catalogCategory) cat.value = "all";
     const q = $("#catalog-search").value;
-    const items = searchCatalog(q, cat.value);
+    let items = searchCatalog(q, cat.value === "recent" ? "all" : cat.value);
+    if (cat.value === "recent") {
+      const order = prefs.recentProps || [];
+      items = items.filter((p) => order.includes(p.id)).sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
+    }
     const list = $("#catalog-list");
     list.innerHTML = items.length
       ? items.map((p) => `<div class="citem ${this.state.pendingProp?.id === p.id ? "on" : ""}" data-prop="${p.id}"><img class="cthumb" alt="" data-thumb="${p.id}"><span class="cname">${esc(p.name[lang] || p.name.en)}</span><span class="ccat">${esc(catalog.categories[p.category]?.[lang] || p.category)}</span><span class="cacts"><button class="mini" data-edit="${p.id}" title="${esc(t(p.custom ? "editObject" : "editCopy"))}">✎</button>${p.custom ? `<button class="mini" data-delprop="${p.id}" title="${esc(t("delete"))}">🗑</button>` : ""}</span></div>`).join("")
@@ -1464,6 +1523,7 @@ class App {
       this.tree.render();
     });
     $("#catalog-search").addEventListener("input", () => this.renderCatalog());
+    $("#compass").addEventListener("click", () => this.faceNorth());
     $("#sel-actions").addEventListener("click", (e) => {
       const m = e.target.closest("[data-mode]");
       if (m && !m.disabled) return this.setTransformMode(m.dataset.mode);
@@ -1673,7 +1733,7 @@ class App {
       objectName: (o) => this.objectName(o),
       wellTiles: (fg) => this.stairWells(b, s, fg),
       rooms: this.roomsOf(s),
-      roomName: (room) => roomLabel(room, s, this.t),
+      roomName: (room) => this.roomName(room, s),
     });
     const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
     const idx = b.storeys.indexOf(s) + 1;
@@ -1689,7 +1749,7 @@ class App {
       objectName: (o) => this.objectName(o) || o.prop || t("object"),
       buildingName: (b, i) => b.name || `${t("building")} ${i + 1}`,
       storeyName: (s, i) => s.name || `${t("storey")} ${i + 1}`,
-      roomName: (room, s) => roomLabel(room, s, t),
+      roomName: (room, s) => this.roomName(room, s),
       roomsOf: (s) => this.roomsOf(s),
       wellTiles: (b, s, fg) => this.stairWells(b, s, fg),
     });
@@ -1776,7 +1836,7 @@ class App {
     }
     if (mod && e.key.toLowerCase() === "s") {
       e.preventDefault();
-      this.saveNow();
+      this.saveNow().then(() => this.toast(this.t("saved")));
       return;
     }
     if (mod && e.key.toLowerCase() === "c") {

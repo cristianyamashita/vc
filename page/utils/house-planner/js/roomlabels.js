@@ -34,7 +34,7 @@ export class RoomLabels {
       el.className = `room-label ${app.state.selection === room.id ? "selected" : ""}`;
       el.dataset.room = room.id;
       el.innerHTML = `<span class="rn"></span><span class="ra"></span>`;
-      el.querySelector(".rn").textContent = roomLabel(room, s, app.t);
+      el.querySelector(".rn").textContent = app.roomName(room, s);
       el.querySelector(".ra").textContent = formatArea(face.area, app.lang);
       this.host.append(el);
       const y = app.roomFloorY(b, s, face) + LIFT;

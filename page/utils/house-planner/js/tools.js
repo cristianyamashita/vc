@@ -26,6 +26,7 @@ export const TAB_TOOLS = {
   objects: ["select", "place", "note", "kitchen", "light"],
 };
 const DEG = Math.PI / 180;
+const WALL_SNAP = 30; // cm: objects this close to a wall turn and sit against it
 
 export class Tools {
   constructor(app) {
@@ -499,6 +500,8 @@ export class Tools {
       if (!found) return null;
       const mount = this.app.state.pendingProp?.mount;
       const top = mount === "ceiling" ? found.storey.elevation + found.storey.height : floorTop(found.storey, found.item);
+      const snapped = !mount && this.app.state.snap ? this.wallSnap(found.building, found.storey, hit.point, this.app.state.pendingProp) : null;
+      if (snapped) return { point: snapped.point, building: found.building, storey: found.storey, top, yaw: snapped.yaw, snapped: true };
       return { point: hit.point, building: found.building, storey: found.storey, top };
     }
     if (ud.kind === "wall") {
@@ -508,6 +511,43 @@ export class Tools {
       return { point: hit.point.clone().addScaledVector(n, 0.01), building: found.building, storey: found.storey, top: hit.point.y * CM, yaw: (Math.atan2(n.x, n.z) * 180) / Math.PI };
     }
     return { point: hit.point, building: null, storey: null, top: this.app.terrain.heightAt(hit.point.x * CM, hit.point.z * CM) };
+  }
+  /**
+   * Magnet: an object dropped within WALL_SNAP cm of a wall turns its back
+   * to it and slides flush against the face. Returns {point (world m), yaw
+   * (world deg)} or null.
+   */
+  wallSnap(building, storey, point, doc) {
+    const g = this.app.buildingGroup(building.id);
+    if (!g || !doc) return null;
+    const l = this.app.toLocal(building, point);
+    let best = null;
+    for (const w of storey.walls) {
+      const dx = w.b[0] - w.a[0], dz = w.b[1] - w.a[1];
+      const len = Math.hypot(dx, dz);
+      if (len < 1) continue;
+      const u = ((l.x - w.a[0]) * dx + (l.z - w.a[1]) * dz) / (len * len);
+      if (u < 0 || u > 1) continue;
+      const px = w.a[0] + dx * u, pz = w.a[1] + dz * u;
+      const d = Math.hypot(l.x - px, l.z - pz);
+      const gap = d - w.thickness / 2;
+      if (gap > WALL_SNAP || (best && gap >= best.gap)) continue;
+      const side = Math.sign((l.x - px) * dz - (l.z - pz) * dx) || 1; // which face the point is on
+      const nx = (side * dz) / len, nz = (-side * dx) / len; // from the wall towards the point
+      best = { gap, px, pz, nx, nz, half: w.thickness / 2 };
+    }
+    if (!best) return null;
+    // the back of a prop: -X when its long side runs along Z (sofas, beds,
+    // TVs), else -Z (toilets, fridges, sinks)
+    const bounds = propBounds(doc);
+    const longZ = bounds.max.x - bounds.min.x < bounds.max.z - bounds.min.z;
+    const back = Math.max(0, -(longZ ? bounds.min.x : bounds.min.z) * CM);
+    const dist = best.half + back + 1;
+    const lx = best.px + best.nx * dist, lz = best.pz + best.nz * dist;
+    const world = g.localToWorld(new THREE.Vector3(lx * M, l.y * M, lz * M));
+    const local = longZ ? Math.atan2(-best.nz, best.nx) : Math.atan2(best.nx, best.nz);
+    const yaw = (((local * 180) / Math.PI) % 360 + building.rotation + 720) % 360;
+    return { point: world, yaw };
   }
   placeGhost(e) {
     const doc = this.app.state.pendingProp;
@@ -524,13 +564,10 @@ export class Tools {
       g.userData.docRef = doc;
       this.setGhost(g);
     }
-    const snap = this.app.state.snap ? this.app.project.grid.snap * M : 0;
+    const snap = this.app.state.snap && !target.snapped ? this.app.project.grid.snap * M : 0;
     const sx = snap ? Math.round(target.point.x / snap) * snap : target.point.x;
     const sz = snap ? Math.round(target.point.z / snap) * snap : target.point.z;
     g.position.set(sx, target.top * M, sz);
-    if (target.yaw != null) this.app.state.ghostYaw = Math.round(target.yaw / 15) * 15;
-    if (target.yaw != null) this.app.state.ghostYaw = Math.round(target.yaw / 15) * 15;
-    if (target.yaw != null) this.app.state.ghostYaw = Math.round(target.yaw / 15) * 15;
     if (target.yaw != null) this.app.state.ghostYaw = Math.round(target.yaw / 15) * 15;
     g.rotation.set(0, this.app.state.ghostYaw * DEG, 0);
     this.app.scene.requestRender();
@@ -540,7 +577,7 @@ export class Tools {
     if (!doc) return;
     const target = this.placeTarget(e);
     if (!target) return;
-    const snap = this.app.state.snap ? this.app.project.grid.snap : 0;
+    const snap = this.app.state.snap && !target.snapped ? this.app.project.grid.snap : 0;
     const wx = snap ? Math.round((target.point.x * CM) / snap) * snap : target.point.x * CM;
     const wz = snap ? Math.round((target.point.z * CM) / snap) * snap : target.point.z * CM;
     this.app.addObject(doc, { wx, wz, top: target.top, building: target.building, storey: target.storey, yaw: this.app.state.ghostYaw });

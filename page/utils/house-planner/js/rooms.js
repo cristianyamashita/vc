@@ -208,8 +208,8 @@ export function freshRoom() {
   return { id: uid("rm"), name: "", polygonKey: "", centroid: [0, 0], floorMaterial: null, floorTint: null, ceilingTint: null, locked: false };
 }
 /** Display name: the given one or "Room n" by position in the storey list. */
-export function roomLabel(room, storey, t) {
-  return room.name || `${t("room")} ${(storey.rooms || []).indexOf(room) + 1}`;
+export function roomLabel(room, storey, t, auto = "") {
+  return room.name || auto || `${t("room")} ${(storey.rooms || []).indexOf(room) + 1}`;
 }
 export function formatArea(cm2, lang) {
   return `${(cm2 / 10000).toLocaleString(lang, { maximumFractionDigits: 1 })} m²`;

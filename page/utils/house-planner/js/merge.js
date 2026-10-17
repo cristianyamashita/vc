@@ -10,6 +10,7 @@ import { planeHeight } from "./terrain.js";
 const DEG = Math.PI / 180;
 export const GAP = 300; // cm between the current content and the added one
 const MARGIN = 200; // cm of ground kept around content when the lot grows
+const SEAM = 250; // cm on each side of the join blended between the two lots
 
 /** Bilinear grid height (cm, without the slope plane) of a terrain document. */
 export function gridHeightAt(t, x, z) {
@@ -78,13 +79,20 @@ export function mergeProject(target, source, { extendTerrain = false, tile = 50 
     const width = Math.min(50000, tt.width + st.width), depth = Math.max(tt.depth, st.depth);
     const edge = -width / 2 + tt.width; // the source lot begins here
     // both slopes are baked into the heights; the wide lot starts level
-    const sample = (x, z) => {
-      if (x <= edge) {
-        const sx = x + st.width / 2;
-        return inside(tt, sx, z) ? gridHeightAt(tt, sx, z) + planeHeight(tt, sx, z) : 0;
-      }
+    const left = (x, z) => {
+      const sx = x + st.width / 2;
+      return inside(tt, sx, z) ? gridHeightAt(tt, sx, z) + planeHeight(tt, sx, z) : 0;
+    };
+    const right = (x, z) => {
       const sx = x - tt.width / 2;
       return inside(st, sx, z) ? gridHeightAt(st, sx, z) + planeHeight(st, sx, z) : 0;
+    };
+    // a ramp SEAM cm wide hides the step between the two lots
+    const sample = (x, z) => {
+      if (x <= edge - SEAM) return left(x, z);
+      if (x >= edge + SEAM) return right(x, z);
+      const k = (x - (edge - SEAM)) / (2 * SEAM);
+      return left(Math.min(x, edge), z) * (1 - k) + right(Math.max(x, edge), z) * k;
     };
     shiftProject(T, -st.width / 2, 0);
     shiftProject(S, tt.width / 2, 0);
