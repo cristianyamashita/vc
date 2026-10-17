@@ -645,8 +645,10 @@ export class PropsPanel {
         }),
         this.number(g, "offset", { min: 0, max: len, after: clamp, label: t("position") }),
         this.number(g, "width", { min: 60, max: 600, after: clamp }),
+        this.number(g, "open", { min: 0, max: 100, step: 5, unit: "%", label: t("gateOpen") }),
         this.el("p", { class: "hint", text: t("gateSlideHint") }),
       ]),
+      this.section(t("surface"), [this.material(g, "material"), this.color(g, "tint")]),
       this.section(null, [this.lockRow(g, g.id), this.button(t("delete"), () => app.deleteSelected(), "danger")]),
     );
   }

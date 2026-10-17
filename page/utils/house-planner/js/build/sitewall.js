@@ -39,7 +39,8 @@ export function buildSiteWall(wall, terrain, { ghost = null } = {}) {
   const hAt = (x, z) => terrain.heightAt(x, z);
   const inner = new Shell(), outer = new Shell();
   const useOuter = !!(wall.outerMaterial || wall.outerTint);
-  const leaf = [], hits = [];
+  const leaf = new Map(); // texture id -> leaf geometries
+  const hits = [];
   const gates = (wall.gates || []).map((g) => clampGate({ ...g }, wall)).sort((a, b) => a.offset - b.offset);
   const v = (p, y) => [p[0] - ox, y, p[1] - oz];
   const segs = segments(pts);
@@ -122,7 +123,9 @@ export function buildSiteWall(wall, terrain, { ghost = null } = {}) {
       const a = pointAlong(pts, g.offset), b = pointAlong(pts, g.offset + g.width);
       const A = { v: new THREE.Vector3(a.x - ox, hAt(a.x, a.z), a.z - oz), dx: a.dx, dz: a.dz };
       const B = { v: new THREE.Vector3(b.x - ox, hAt(b.x, b.z), b.z - oz), dx: b.dx, dz: b.dz };
-      gateGeometry(g, A, B, g.width, H, "metal", wall, leaf);
+      const key = g.material || "";
+      if (!leaf.has(key)) leaf.set(key, []);
+      gateGeometry(g, A, B, g.width, H, "metal", wall, leaf.get(key));
       if (!ghost) {
         const hit = new THREE.Mesh(new THREE.BoxGeometry(g.width * M, H * M, (t + 10) * M), MATERIAL_INVISIBLE);
         hit.position.set(((A.v.x + B.v.x) / 2) * M, (Math.max(A.v.y, B.v.y) + H / 2) * M, ((A.v.z + B.v.z) / 2) * M);
@@ -149,11 +152,12 @@ export function buildSiteWall(wall, terrain, { ghost = null } = {}) {
   };
   if (inner.pos.length) add(inner.geometry(), surfaceMaterial({ material: wall.material, tint: wall.tint }));
   if (useOuter && outer.pos.length) add(outer.geometry(), surfaceMaterial({ material: wall.outerMaterial || wall.material, tint: wall.outerTint || wall.tint }), { outer: true });
-  if (leaf.length) {
-    const geo = mergeGeometries(leaf, false);
-    leaf.forEach((g) => g.dispose());
+  for (const [key, list] of leaf) {
+    if (!list.length) continue;
+    const geo = mergeGeometries(list, false);
+    list.forEach((g) => g.dispose());
     geo.scale(M, M, M);
-    add(geo, surfaceMaterial({ vertexColors: true, roughness: 0.6 }), { gateLeaf: true });
+    add(geo, surfaceMaterial({ material: key || null, vertexColors: true, roughness: 0.6 }), { gateLeaf: true });
   }
   for (const h of hits) group.add(h);
   return group;

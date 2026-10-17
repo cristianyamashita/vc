@@ -180,7 +180,8 @@ export function buildRailing(item, kind, { baseY = 0, heightAt = null, storeyId 
     const p = pointAlong(pts, s);
     return { v: new THREE.Vector3(p.x - ox, base(p.x, p.z), p.z - oz), dx: p.dx, dz: p.dz };
   };
-  const solid = [], glass = [], gates = [];
+  const solid = [], glass = [];
+  const gates = new Map(); // texture id ("" = none) -> geometries
   const hits = [];
   const st = stations(item, kind);
   // posts
@@ -206,7 +207,9 @@ export function buildRailing(item, kind, { baseY = 0, heightAt = null, storeyId 
     if (L < 1) continue;
     const A = at(a.s), B = at(b.s);
     if (a.gate) {
-      gateGeometry(a.gate, A, B, L, H, style, item, gates);
+      const key = a.gate.material || "";
+      if (!gates.has(key)) gates.set(key, []);
+      gateGeometry(a.gate, A, B, L, H, style, item, gates.get(key));
       const hit = new THREE.Mesh(new THREE.BoxGeometry(L * M, H * M, 24 * M), MATERIAL_INVISIBLE);
       const mid = new THREE.Vector3().addVectors(A.v, B.v).multiplyScalar(0.5);
       hit.position.set(mid.x * M, (Math.max(A.v.y, B.v.y) + H / 2) * M, mid.z * M);
@@ -291,7 +294,7 @@ export function buildRailing(item, kind, { baseY = 0, heightAt = null, storeyId 
     group.add(mesh);
   };
   if (solid.length) tag(new THREE.Mesh(finish(solid), ghost || surfaceMaterial({ material: item.material, tint: item.tint || DEFAULT_TINT[style] || "#ffffff" })));
-  if (gates.length) tag(new THREE.Mesh(finish(gates), ghost || surfaceMaterial({ vertexColors: true, roughness: 0.6 })));
+  for (const [key, list] of gates) if (list.length) tag(new THREE.Mesh(finish(list), ghost || surfaceMaterial({ material: key || null, vertexColors: true, roughness: 0.6 })));
   if (glass.length) {
     const mesh = new THREE.Mesh(finish(glass), ghost || glassMaterial("#bcd8e6"));
     mesh.castShadow = false;
@@ -305,35 +308,49 @@ export function buildRailing(item, kind, { baseY = 0, heightAt = null, storeyId 
 }
 
 /** A level gate (single, double or sliding) across the bay from A to B. */
+/** Default leaf colour for a gate on a fence/railing of `style`. */
+export function gateColor(gate, style, item) {
+  if (gate.tint) return gate.tint;
+  return ["picket", "ranch", "wood"].includes(style) ? item.tint || DEFAULT_TINT[style] : GATE_COLOR;
+}
+/**
+ * Gate leaves across the bay from A to B. `gate.open` (0–100 %) swings
+ * hinged leaves about their post (90° fully open) or slides a sliding
+ * gate along its track.
+ */
 export function gateGeometry(gate, A, B, L, H, style, item, list) {
-  const color = ["picket", "ranch", "wood"].includes(style) ? item.tint || DEFAULT_TINT[style] : GATE_COLOR;
+  const color = gateColor(gate, style, item);
   const P = A.v.clone();
   P.y = Math.max(A.v.y, B.v.y);
   const f = vertFrame(P, A.dx, A.dz);
+  const open = Math.max(0, Math.min(1, (gate.open || 0) / 100));
+  const hinged = (u, sign) =>
+    f.clone().multiply(new THREE.Matrix4().makeTranslation(u, 0, 0)).multiply(new THREE.Matrix4().makeRotationY(sign * open * (Math.PI / 2))).multiply(new THREE.Matrix4().makeTranslation(-u, 0, 0));
   const top = H - 2, bottom = 8;
-  const leaf = (u0, u1, wv = 0) => {
+  const leaf = (u0, u1, wv = 0, frame = f) => {
     const w = u1 - u0, cu = (u0 + u1) / 2;
-    box(list, f, 4, top - bottom, 3, u0 + 2, (top + bottom) / 2, wv, color);
-    box(list, f, 4, top - bottom, 3, u1 - 2, (top + bottom) / 2, wv, color);
-    box(list, f, w, 4, 3, cu, top - 2, wv, color);
-    box(list, f, w, 4, 3, cu, bottom + 2, wv, color);
+    box(list, frame, 4, top - bottom, 3, u0 + 2, (top + bottom) / 2, wv, color);
+    box(list, frame, 4, top - bottom, 3, u1 - 2, (top + bottom) / 2, wv, color);
+    box(list, frame, w, 4, 3, cu, top - 2, wv, color);
+    box(list, frame, w, 4, 3, cu, bottom + 2, wv, color);
     if (style === "picket" || style === "wood") {
       const n = Math.max(1, Math.floor((w - 8) / 10));
       const step = (w - 8) / (n + 1);
-      for (let k = 1; k <= n; k++) box(list, f, 6, top - bottom - 2, 1.6, u0 + 4 + step * k, (top + bottom) / 2, wv + 1.2, color);
+      for (let k = 1; k <= n; k++) box(list, frame, 6, top - bottom - 2, 1.6, u0 + 4 + step * k, (top + bottom) / 2, wv + 1.2, color);
     } else {
       const n = Math.max(1, Math.floor((w - 8) / 11));
       const step = (w - 8) / (n + 1);
-      for (let k = 1; k <= n; k++) box(list, f, 1.6, top - bottom - 6, 1.6, u0 + 4 + step * k, (top + bottom) / 2, wv, color);
-      box(list, f, w - 8, 1.5, 1.5, cu, (top + bottom) / 2, wv, color); // middle brace
+      for (let k = 1; k <= n; k++) box(list, frame, 1.6, top - bottom - 6, 1.6, u0 + 4 + step * k, (top + bottom) / 2, wv, color);
+      box(list, frame, w - 8, 1.5, 1.5, cu, (top + bottom) / 2, wv, color); // middle brace
     }
   };
   if (gate.type === "double") {
-    leaf(3, L / 2 - 1.5);
-    leaf(L / 2 + 1.5, L - 3);
+    leaf(3, L / 2 - 1.5, 0, hinged(3, 1));
+    leaf(L / 2 + 1.5, L - 3, 0, hinged(L - 3, -1));
   } else if (gate.type === "sliding") {
-    leaf(2, L - 2, 12);
+    const slid = f.clone().multiply(new THREE.Matrix4().makeTranslation(open * (L - 4), 0, 0));
+    leaf(2, L - 2, 12, slid);
     box(list, f, L * 1.5, 2, 4, L * 0.75, 1, 12, color); // ground track past the gate
     box(list, f, 6, H - 4, 6, L - 2, (H - 4) / 2, 18, color); // guide post
-  } else leaf(3, L - 3);
+  } else leaf(3, L - 3, 0, hinged(3, 1));
 }

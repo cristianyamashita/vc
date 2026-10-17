@@ -318,6 +318,9 @@ export function gateChecked(raw = {}, length = 1e5) {
     offset: num(raw.offset, 0, length, 0),
     width: num(raw.width, 60, 600, GATE_WIDTHS[type] ?? 100),
     type,
+    material: texture(raw.material, null),
+    tint: color(raw.tint, null),
+    open: num(raw.open, 0, 100, 0),
     locked: !!raw.locked,
   };
 }
