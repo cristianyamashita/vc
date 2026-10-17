@@ -864,6 +864,90 @@ def household():
     return docs
 
 
+
+# -------------------------------------------------------------- main house
+
+
+def mainhouse():
+    """Generated props for the main-house samples: outdoor living, walk-in closet, master bath."""
+    docs = {}
+    DARK, WOOD, GLASS, CHROME, GREY, WHITE, RATTAN, CUSHION = "#1c1e22", "#8a6a48", "#9fc3d2", "#9aa0a8", "#6f767f", "#f2f0ea", "#6b5a46", "#d8d2c6"
+    cyl = "cylinder"
+
+    def doc(pid, name, cat, boxes, footprint, tags, light=None, mount=None):
+        d = {"kind": "prop", "version": 1, "id": pid, "name": name, "footprint": footprint, "source": {"type": "boxes", "boxes": boxes}}
+        if light:
+            d["light"] = light
+        if mount:
+            d["mount"] = mount
+        docs[pid] = (d, tags, cat)
+
+    doc("fire-pit", {"en": "Fire pit table", "pt": "Mesa com fogueira", "ja": "ファイヤーピット"}, "garden", [
+        box(1.2, 0.4, 0.6, 0, 0.2, 0, "#3a3d42", shape="rounded"),
+        box(0.7, 0.03, 0.3, 0, 0.41, 0, DARK),
+        box(0.5, 0.3, 0.2, 0, 0.55, 0, "#ff9a3c", shape="cone", opacity=0.8),
+        box(0.3, 0.2, 0.14, 0.1, 0.5, 0.02, "#ffd166", shape="cone", opacity=0.8),
+    ], [1.2, 0.6], ("fire pit outdoor fireplace patio", "fogueira lareira externa", "焚き火 屋外"),
+        light={"color": "#ffb366", "intensity": 1.8, "distance": 5, "at": [0, 0.6, 0]})
+    sofa = [box(2.4, 0.3, 0.9, 0, 0.3, 0, RATTAN, shape="rounded"), box(2.4, 0.12, 0.9, 0, 0.5, 0, CUSHION, shape="rounded"),
+            box(2.4, 0.5, 0.2, 0, 0.6, -0.35, RATTAN, shape="rounded"), box(2.3, 0.4, 0.14, 0, 0.72, -0.33, CUSHION, shape="rounded"),
+            box(0.9, 0.3, 1.6, -0.75, 0.3, 0.35, RATTAN, shape="rounded"), box(0.9, 0.12, 1.6, -0.75, 0.5, 0.35, CUSHION, shape="rounded"),
+            box(0.2, 0.5, 1.6, -1.1, 0.6, 0.35, RATTAN, shape="rounded"),
+            box(0.4, 0.12, 0.4, 0.3, 0.6, 0.0, "#3b6fa0", shape="rounded"), box(0.4, 0.12, 0.4, -0.6, 0.62, 0.3, "#e0a526", shape="rounded")]
+    doc("outdoor-sofa", {"en": "Outdoor corner sofa", "pt": "Sofá de canto externo", "ja": "アウトドアソファ"}, "garden", sofa, [2.4, 2.0],
+        ("outdoor sofa rattan patio lounge", "sofa externo rattan varanda", "ソファ 屋外 ラタン"))
+    dset = [box(2.4, 0.05, 1.0, 0, 0.74, 0, "#4a3b2e", shape="rounded"), box(0.08, 0.72, 0.9, -1.1, 0.36, 0, DARK), box(0.08, 0.72, 0.9, 1.1, 0.36, 0, DARK)]
+    for x in (-0.9, -0.3, 0.3, 0.9):
+        for z, back in ((-0.75, -0.95), (0.75, 0.95)):
+            dset.append(box(0.45, 0.05, 0.42, x, 0.45, z, "#3a3d42", shape="rounded"))
+            dset.append(box(0.45, 0.45, 0.04, x, 0.68, back, "#3a3d42", shape="rounded"))
+            dset.append(box(0.04, 0.45, 0.04, x - 0.19, 0.22, z - 0.17, DARK)); dset.append(box(0.04, 0.45, 0.04, x + 0.19, 0.22, z - 0.17, DARK))
+            dset.append(box(0.04, 0.45, 0.04, x - 0.19, 0.22, z + 0.17, DARK)); dset.append(box(0.04, 0.45, 0.04, x + 0.19, 0.22, z + 0.17, DARK))
+    dset.append(box(0.2, 0.2, 0.2, 0, 0.84, 0, "#2f9e6b", shape="sphere"))
+    doc("outdoor-dining-set", {"en": "Outdoor dining set (8)", "pt": "Mesa externa com 8 cadeiras", "ja": "屋外ダイニングセット（8人）"}, "garden", dset, [2.6, 2.1],
+        ("outdoor dining table chairs patio gourmet", "mesa externa cadeiras varanda gourmet", "屋外 ダイニング テーブル"))
+    ok = [box(3.0, 0.9, 0.65, 0, 0.45, 0, "#3a3d42"), box(3.1, 0.05, 0.7, 0, 0.925, 0, "#8c8578"),
+          box(0.5, 0.02, 0.4, -1.0, 0.95, 0.05, CHROME, shape="rounded"), box(0.03, 0.25, 0.03, -1.0, 1.07, -0.15, CHROME, shape=cyl),
+          box(0.8, 0.25, 0.5, 0.6, 1.0, 0, DARK, shape="rounded"), box(0.8, 0.02, 0.5, 0.6, 1.13, 0, GREY),
+          box(0.8, 0.15, 0.05, 0.6, 1.2, -0.25, DARK), box(0.9, 0.9, 0.5, 0.6, 1.9, -0.1, "#4b5059", shape="cone"),
+          box(1.4, 0.4, 0.02, -0.4, 0.5, 0.33, "#2b2e33")]
+    doc("outdoor-kitchen", {"en": "Outdoor kitchen", "pt": "Churrasqueira com bancada", "ja": "アウトドアキッチン"}, "garden", ok, [3.1, 0.7],
+        ("outdoor kitchen barbecue grill sink counter gourmet", "churrasqueira pia bancada area gourmet", "屋外 キッチン グリル"))
+    rail = [box(2.4, 0.03, 0.6, 0, 2.2, 0.3, WOOD), box(2.4, 0.03, 0.6, 0, 0.03, 0.3, WOOD), box(0.03, 2.2, 0.6, -1.2, 1.1, 0.3, WOOD), box(0.03, 2.2, 0.6, 1.2, 1.1, 0.3, WOOD),
+            box(2.3, 0.02, 0.02, 0, 1.75, 0.3, CHROME, shape=cyl, axis="x"), box(2.4, 0.03, 0.6, 0, 0.9, 0.3, WOOD), box(2.4, 0.03, 0.6, 0, 0.5, 0.3, WOOD)]
+    cols = ("#2b2e33", "#f2f0ea", "#3b6fa0", "#8d8b85", "#4a1f2a", "#2f5a2a", "#c9b28a", "#1c1e22", "#d9d6cd")
+    for k in range(14):
+        rail.append(box(0.12, 0.75, 0.36, -1.1 + k * 0.17, 1.35, 0.3, cols[k % len(cols)], shape="rounded"))
+    for k in range(6):
+        rail.append(box(0.3, 0.1, 0.25, -1.0 + k * 0.4, 0.62, 0.3, cols[(k + 3) % len(cols)], shape="rounded"))
+        rail.append(box(0.1, 0.08, 0.3, -1.0 + k * 0.4, 0.14, 0.3, cols[(k + 5) % len(cols)], shape="rounded"))
+    doc("closet-rail", {"en": "Walk-in closet rail", "pt": "Módulo de closet com roupas", "ja": "ウォークインクローゼット棚"}, "bedroom", rail, [2.4, 0.6],
+        ("closet wardrobe clothes rail hanging shelves", "closet guarda-roupa roupas cabides", "クローゼット 衣類"), mount=None)
+    doc("closet-island", {"en": "Closet island", "pt": "Ilha de closet", "ja": "クローゼットアイランド"}, "bedroom", [
+        box(1.2, 0.9, 0.6, 0, 0.45, 0, WOOD, shape="rounded"), box(1.22, 0.03, 0.62, 0, 0.92, 0, "#d8d4cc"),
+        box(0.5, 0.02, 0.4, 0, 0.6, 0.31, "#6b4830"), box(0.5, 0.02, 0.4, 0, 0.3, 0.31, "#6b4830"),
+        box(0.15, 0.15, 0.15, 0.3, 1.0, 0, "#2f9e6b", shape="sphere"),
+    ], [1.2, 0.6], ("closet island drawers", "ilha closet gavetas", "クローゼット 引き出し"))
+    doc("double-vanity", {"en": "Double vanity", "pt": "Bancada com duas cubas", "ja": "ダブル洗面台"}, "bathroom", [
+        box(2.0, 0.5, 0.55, 0, 0.55, 0, WOOD, shape="rounded"), box(2.1, 0.04, 0.6, 0, 0.82, 0, "#d8d4cc"),
+        box(0.45, 0.14, 0.38, -0.5, 0.9, 0, WHITE, shape="rounded"), box(0.45, 0.14, 0.38, 0.5, 0.9, 0, WHITE, shape="rounded"),
+        box(0.03, 0.2, 0.03, -0.5, 1.0, -0.22, CHROME, shape=cyl), box(0.03, 0.2, 0.03, 0.5, 1.0, -0.22, CHROME, shape=cyl),
+        box(2.0, 0.7, 0.02, 0, 1.6, -0.28, "#c7d6e0"), box(2.0, 0.03, 0.08, 0, 1.97, -0.25, "#ffe9b0", opacity=0.9),
+    ], [2.1, 0.6], ("vanity sink basin double bathroom mirror", "bancada pia duas cubas banheiro espelho", "洗面台 ダブル 鏡"),
+        light={"color": "#fff1cc", "intensity": 1.0, "distance": 3, "at": [0, 1.95, -0.1]})
+    doc("japanese-tub", {"en": "Japanese soaking tub", "pt": "Banheira japonesa (ofurô)", "ja": "浴槽（ユニットバス）"}, "bathroom", [
+        box(1.4, 0.75, 1.4, 0, 0.375, 0, "#b9a27d"), box(1.2, 0.05, 1.2, 0, 0.7, 0, "#4e9fd0", opacity=0.7),
+        box(1.5, 0.05, 1.5, 0, 0.775, 0, WOOD), box(1.2, 0.5, 1.2, 0, 0.5, 0, "#3f6fa0", opacity=0.3),
+        box(0.03, 0.4, 0.03, 0, 0.95, -0.6, CHROME, shape=cyl), box(0.25, 0.02, 0.02, 0, 1.14, -0.5, CHROME, shape=cyl, axis="z"),
+    ], [1.5, 1.5], ("ofuro soaking tub bath japanese", "ofuro banheira japonesa", "浴槽 お風呂"))
+    doc("entrance-canopy", {"en": "Entrance canopy", "pt": "Marquise de entrada", "ja": "玄関庇"}, "decor", [
+        box(2.4, 0.12, 1.4, 0, 2.6, 0.7, "#2f3236"), box(2.4, 0.03, 1.4, 0, 2.53, 0.7, WOOD),
+        box(0.1, 2.6, 0.1, -1.1, 1.3, 1.3, "#2f3236"), box(0.1, 2.6, 0.1, 1.1, 1.3, 1.3, "#2f3236"),
+    ], [2.4, 1.4], ("canopy porch roof entrance awning", "marquise entrada cobertura", "庇 玄関"),
+        light={"color": "#ffe3b0", "intensity": 1.4, "distance": 4, "at": [0, 2.45, 0.7]}, mount="wall")
+    return docs
+
+
 # ------------------------------------------------------------------ build
 
 
@@ -929,7 +1013,7 @@ def main() -> None:
             # generated vehicles follow the first motorcycle in the catalog order
             for gid, (gdoc, gtags) in generated.items():
                 write(props_dir, manifest, gid, gdoc["name"], "vehicles", tags_for("vehicles", gdoc["name"], gtags), gdoc["source"]["boxes"], gdoc["footprint"])
-    for gid, (gdoc, gtags, gcat) in {**leisure(), **household()}.items():
+    for gid, (gdoc, gtags, gcat) in {**leisure(), **household(), **mainhouse()}.items():
         write(props_dir, manifest, gid, gdoc["name"], gcat, tags_for(gcat, gdoc["name"], gtags), gdoc["source"]["boxes"], gdoc["footprint"], gdoc.get("light"), gdoc.get("mount"))
     (OUT / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=1) + "\n")
     total = sum(p["parts"] for p in manifest["props"])

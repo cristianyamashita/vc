@@ -168,6 +168,8 @@
     "assets/house-planner/props/chest-of-drawers.json",
     "assets/house-planner/props/child-bed.json",
     "assets/house-planner/props/chopper.json",
+    "assets/house-planner/props/closet-island.json",
+    "assets/house-planner/props/closet-rail.json",
     "assets/house-planner/props/clothesline.json",
     "assets/house-planner/props/coat-rack.json",
     "assets/house-planner/props/coffee-machine.json",
@@ -197,6 +199,7 @@
     "assets/house-planner/props/dog-house.json",
     "assets/house-planner/props/doormat.json",
     "assets/house-planner/props/double-bed.json",
+    "assets/house-planner/props/double-vanity.json",
     "assets/house-planner/props/downlight.json",
     "assets/house-planner/props/dressing-table.json",
     "assets/house-planner/props/dryer.json",
@@ -204,6 +207,7 @@
     "assets/house-planner/props/dumbbell-rack.json",
     "assets/house-planner/props/dumbbell.json",
     "assets/house-planner/props/engine-hoist.json",
+    "assets/house-planner/props/entrance-canopy.json",
     "assets/house-planner/props/eucalyptus.json",
     "assets/house-planner/props/exercise-ball.json",
     "assets/house-planner/props/exercise-bike.json",
@@ -211,6 +215,7 @@
     "assets/house-planner/props/fern.json",
     "assets/house-planner/props/filing-cabinet.json",
     "assets/house-planner/props/fire-hydrant.json",
+    "assets/house-planner/props/fire-pit.json",
     "assets/house-planner/props/fireplace.json",
     "assets/house-planner/props/flatpack-stack.json",
     "assets/house-planner/props/floor-cushion.json",
@@ -243,6 +248,7 @@
     "assets/house-planner/props/iron-bed.json",
     "assets/house-planner/props/ironing-board.json",
     "assets/house-planner/props/jacuzzi.json",
+    "assets/house-planner/props/japanese-tub.json",
     "assets/house-planner/props/jetski.json",
     "assets/house-planner/props/kettle.json",
     "assets/house-planner/props/kettlebell-set.json",
@@ -291,6 +297,9 @@
     "assets/house-planner/props/office-safe.json",
     "assets/house-planner/props/old-books.json",
     "assets/house-planner/props/ottoman.json",
+    "assets/house-planner/props/outdoor-dining-set.json",
+    "assets/house-planner/props/outdoor-kitchen.json",
+    "assets/house-planner/props/outdoor-sofa.json",
     "assets/house-planner/props/pallet-rack.json",
     "assets/house-planner/props/pallet.json",
     "assets/house-planner/props/palm-tree.json",
@@ -1377,6 +1386,7 @@
     "utils/house-planner/js/quantities.js",
     "utils/house-planner/js/roomlabels.js",
     "utils/house-planner/js/rooms.js",
+    "utils/house-planner/js/samples/main-house.js",
     "utils/house-planner/js/scene.js",
     "utils/house-planner/js/schema.js",
     "utils/house-planner/js/share.js",
@@ -1773,6 +1783,6 @@
     "models/tinyyolov2-7.onnx",
     "models/yolov8n-coco.onnx"
   ],
-  "version": "e608cda23632"
+  "version": "3e3ea552288e"
 };
 })(typeof self !== "undefined" ? self : window);

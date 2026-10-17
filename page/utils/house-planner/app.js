@@ -491,11 +491,13 @@ class App {
       if (/shower|bathtub/.test(id)) wet = true;
       if (/washing-machine|dryer|laundry|ironing/.test(id)) add("laundry", 3);
       if (cat === "kitchen" || /stove|kitchen-|fridge/.test(id)) add("kitchen", 2);
-      if (/(^|-)bed($|-)|bunk|crib|cradle/.test(id)) add("bedroom", 3);
+      if (/(^|-)bed($|-)|bunk|crib|cradle/.test(id)) add("bedroom", 6);
+      if (/closet|wardrobe/.test(id)) add("closet", 2);
+      if (cat === "storage") add("storage", 2);
       if (cat === "sports") add(/pool-table|cue-rack|dart|foosball|arcade|ping-pong/.test(id) ? "games" : "gym", 2);
       if (cat === "office") add("office", 2);
-      if (cat === "dining") add("dining", 1);
-      if (cat === "living") add("living", 1);
+      if (/dining-table|dining-chair|round-table|refectory/.test(id)) add("dining", 2);
+      if (/sofa|(^|-)tv($|-)|coffee-table|armchair|fireplace|^rug$/.test(id)) add("living", 2);
     }
     const best = Object.entries(score).sort((a, b) => b[1] - a[1])[0];
     if (!best) return storey.stairs.some((st) => pointInPolygon(st.at[0], st.at[1], face.polygon)) ? this.t("room_hall") : "";

@@ -1,7 +1,8 @@
 // Ready-made houses: generated projects (cm) built from rectangular rooms.
 import { freshProject, freshStorey, uid, projectChecked, TILE, OPENING_PRESETS } from "./schema.js";
+import { mainHouse, mainHouseSingle } from "./samples/main-house.js";
 
-const TEMPLATES = ["studio", "house2br", "twoStorey", "garageLeisure"];
+const TEMPLATES = ["studio", "house2br", "twoStorey", "garageLeisure", "mainHouse", "mainHouseSingle"];
 export const TEMPLATE_IDS = TEMPLATES;
 
 /** Rooms are {x, z, w, d} rectangles in building cm; walls are deduplicated. */
@@ -53,26 +54,26 @@ function tiles(x0, z0, x1, z1) {
   for (let z = Math.floor(z0 / TILE); z < Math.ceil(z1 / TILE); z++) for (let x = Math.floor(x0 / TILE); x < Math.ceil(x1 / TILE); x++) out.push([x, z]);
   return out;
 }
-function slab(storey, x0, z0, x1, z1, material, tint = null) {
+export function slab(storey, x0, z0, x1, z1, material, tint = null) {
   storey.floorGroups.push({ id: uid("fg"), name: "", offset: 0, thickness: null, material, tint, tiles: tiles(x0, z0, x1, z1), locked: false });
 }
 const DARK_OPENING = { frameColor: "#2b2e33", leafColor: "#3a3d42", glassColor: "#a9c9d9" };
-function wall(storey, a, b, { thickness = 20, tint = "#ebe6de", material = null, outerMaterial = null, outerTint = null, skirting = true, openings = [] } = {}) {
+export function wall(storey, a, b, { thickness = 20, tint = "#ebe6de", material = null, outerMaterial = null, outerTint = null, skirting = true, openings = [], flipOuter = false } = {}) {
   const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
   const ops = openings.map((o) => {
     const p = OPENING_PRESETS[o.preset];
     const width = o.width ?? p.width;
     return { id: uid("op"), preset: o.preset, type: p.type, offset: Math.max(0, Math.min(len - width, o.at)), width, height: o.height ?? p.height, sill: o.sill ?? p.sill, flip: !!o.flip, ...DARK_OPENING, ...(o.colors || {}), locked: false };
   });
-  storey.walls.push({ id: uid("w"), name: "", a, b, thickness, height: null, material, tint, outerMaterial, outerTint, skirting, trim: true, flipOuter: false, locked: false, openings: ops });
+  storey.walls.push({ id: uid("w"), name: "", a, b, thickness, height: null, material, tint, outerMaterial, outerTint, skirting, trim: true, flipOuter, locked: false, openings: ops });
 }
-function place(storey, prop, x, z, yaw = 0, y = 0) {
+export function place(storey, prop, x, z, yaw = 0, y = 0) {
   storey.objects.push({ id: uid("ob"), name: "", prop, inline: null, at: [x, y, z], rotation: [0, yaw, 0], scale: [1, 1, 1], tint: null, material: null, locked: false });
 }
-function railing(storey, points, { height = 110, style = "glass" } = {}) {
+export function railing(storey, points, { height = 110, style = "glass" } = {}) {
   storey.railings.push({ id: uid("rl"), name: "", points, height, style, postSpacing: 150, material: null, tint: null, locked: false });
 }
-function paving(p, points, material, tint = null, height = 3) {
+export function paving(p, points, material, tint = null, height = 3) {
   p.outdoor.push({ id: uid("d"), name: "", type: "path", points, material, tint, height, open: false, postSize: 15, depth: 80, width: 120, lights: false, locked: false });
 }
 
@@ -211,6 +212,11 @@ export function makeTemplate(id, name) {
     b.roof.type = "hip";
   } else if (id === "garageLeisure") {
     return garageLeisure(p, b, g);
+  } else if (id === "mainHouse" || id === "mainHouseSingle") {
+    (id === "mainHouse" ? mainHouse : mainHouseSingle)(p, b, g);
+    p.sun = { ...p.sun, city: "saopaulo", latitude: -23.5, useTime: true, time: 17.5, month: 4 };
+    p.view.activeStorey = g.id;
+    return projectChecked(p);
   } else {
     addRooms(g, [
       { x: 0, z: 0, w: 500, d: 500, openings: [{ type: "door", side: "s", at: 60 }, { type: "window", side: "w", width: 240, preset: "window-picture", at: 130 }] }, // living
