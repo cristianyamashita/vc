@@ -36,7 +36,8 @@ export class PropsPanel {
       this.app.checkpoint();
       obj[key] = v;
       after?.(v);
-      this.app.changed({ rebuild: this.scope });
+      this.app.changed({ rebuild: this.scope, panels: false });
+      this.app.tree.render();
     });
     return this.field(label ?? this.app.t(key), input, unit);
   }
@@ -89,7 +90,8 @@ export class PropsPanel {
         this.colorCheckpoint = true;
       }
       obj[key] = input.value;
-      this.app.changed({ rebuild: rebuild ?? this.scope, save: false });
+      input.classList.remove("empty");
+      this.app.changed({ rebuild: rebuild ?? this.scope, save: false, panels: false });
     });
     input.addEventListener("change", () => {
       this.colorCheckpoint = false;
@@ -223,7 +225,7 @@ export class PropsPanel {
         }
         sun[key] = Number(input.value);
         out.textContent = `${sun[key]}${unit}`;
-        app.changed({ rebuild: "none", light: true, save: false });
+        app.changed({ rebuild: "none", light: true, save: false, panels: false });
       });
       input.addEventListener("change", () => {
         cp = false;

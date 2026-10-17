@@ -472,7 +472,7 @@ class App {
    * terrain | light | none. buildingId defaults to the selection's building
    * or the active one.
    */
-  changed({ rebuild = "building", buildingId = null, light = false, terrain = false, save = true } = {}) {
+  changed({ rebuild = "building", buildingId = null, light = false, terrain = false, save = true, panels = true } = {}) {
     if (rebuild === "all") this.rebuildAll();
     else if (rebuild === "building") {
       const id = buildingId || this.locate(this.state.selection)?.building?.id || this.building().id;
@@ -498,7 +498,8 @@ class App {
       } else this.attachSelection(found);
     }
     this.scene.requestRender();
-    this.refreshAll();
+    if (panels) this.refreshAll();
+    else this.refreshHistoryButtons();
     if (save) this.queueSave();
   }
   queueSave() {
