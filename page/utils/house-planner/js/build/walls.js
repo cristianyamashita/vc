@@ -47,7 +47,7 @@ export function outerSide(wall, storey, tile = 50) {
   return wall.flipOuter ? -side : side;
 }
 /** How far each end extends to meet other walls' ends at a corner. */
-function cornerExtension(wall, walls) {
+export function cornerExtension(wall, walls) {
   const ext = [0, 0];
   for (const other of walls) {
     if (other === wall) continue;
@@ -79,7 +79,7 @@ function box(w, h, d, x, y, z, color, list) {
  * Build one wall as a Group in building-local metres. userData kinds:
  * wall (the solid), opening (hit box per opening).
  */
-export function buildWall(wall, storey, walls, tile = 50) {
+export function buildWall(wall, storey, walls, tile = 50, { doorsOpen = false } = {}) {
   const H = wallHeight(wall, storey);
   const T = wall.thickness;
   const L = wallLength(wall);
@@ -93,7 +93,9 @@ export function buildWall(wall, storey, walls, tile = 50) {
   // Two faces: the wall is split along its length into two half-thickness
   // boxes when the outer side has its own texture or colour.
   const twoFaced = !!(wall.outerMaterial || wall.outerTint);
-  const side = twoFaced ? outerSide(wall, storey, tile) : 0;
+  const outward = outerSide(wall, storey, tile);
+  const side = twoFaced ? outward : 0;
+  const swing = -outward; // doors open towards the inside
   const openings = wall.openings
     .map((op) => clampOpening({ ...op }, wall))
     .sort((a, b) => a.offset - b.offset);
@@ -111,7 +113,7 @@ export function buildWall(wall, storey, walls, tile = 50) {
     span(u0, u1, top, H); // lintel
     if (op.sill > 0) span(u0, u1, 0, op.sill);
     cursor = Math.max(cursor, u1);
-    leafGeometry(op, T, top - op.sill, leaf, glass);
+    leafGeometry(op, T, top - op.sill, leaf, glass, doorsOpen && op.type === "door", swing);
     // hit box
     const hit = new THREE.Mesh(new THREE.BoxGeometry(op.width * M, (top - op.sill) * M, (T + 4) * M), MATERIAL_INVISIBLE);
     hit.position.set((u0 + u1) / 2 * M, ((op.sill + top) / 2) * M, 0);
@@ -157,8 +159,13 @@ export function buildWall(wall, storey, walls, tile = 50) {
   return group;
 }
 
-/** Frame, leaf and glass for one opening, in the wall's local frame (cm). */
-function leafGeometry(op, T, h, leaf, glass) {
+/**
+ * Frame, leaf and glass for one opening, in the wall's local frame (cm).
+ * With `open`, door leaves swing 90° about their hinge towards `swing`
+ * (local ±Z); sliding doors slide one panel over the other and garage
+ * doors lift under the lintel.
+ */
+function leafGeometry(op, T, h, leaf, glass, open = false, swing = -1) {
   const cx = op.offset + op.width / 2, y0 = op.sill, w = op.width;
   const fd = Math.min(T, Math.max(8, T * 0.9)); // frame depth
   const fc = op.frameColor, lc = op.leafColor;
@@ -186,6 +193,13 @@ function leafGeometry(op, T, h, leaf, glass) {
   switch (op.preset) {
     case "door-double": {
       const lw = iw / 2 - 1;
+      if (open) {
+        for (const s of [-1, 1]) {
+          box(4, ih - 1, lw, cx + s * (iw / 2 - 2), y0 + ih / 2, (swing * lw) / 2, lc, leaf);
+          box(8, 12, 2.5, cx + s * (iw / 2 - 2), y0 + 100, swing * (lw - 8), "#c8c0a8", leaf);
+        }
+        break;
+      }
       box(lw, ih - 1, 4, cx - lw / 2 - 1, y0 + ih / 2, 0, lc, leaf);
       box(lw, ih - 1, 4, cx + lw / 2 + 1, y0 + ih / 2, 0, lc, leaf);
       box(2.5, 12, 6, cx - 8, y0 + 100, 3 * dir, "#c8c0a8", leaf);
@@ -195,7 +209,7 @@ function leafGeometry(op, T, h, leaf, glass) {
     case "door-sliding": {
       const lw = iw / 2 + 2;
       for (const s of [-1, 1]) {
-        const px = cx + (s * lw) / 2 - s;
+        const px = cx + (s * lw) / 2 - s + (open && s === -dir ? dir * (lw - 2) : 0);
         box(FRAME * 0.7, ih, 3, px - (s * lw) / 2 + (s * FRAME * 0.35), y0 + ih / 2, s * 2.2, fc, leaf);
         box(FRAME * 0.7, ih, 3, px + (s * lw) / 2 - (s * FRAME * 0.35), y0 + ih / 2, s * 2.2, fc, leaf);
         box(lw, FRAME * 0.7, 3, px, y0 + ih - FRAME * 0.35, s * 2.2, fc, leaf);
@@ -207,12 +221,22 @@ function leafGeometry(op, T, h, leaf, glass) {
       break;
     }
     case "door-garage": {
+      if (open) {
+        box(iw, 4, ih - 1, cx, y0 + ih - 2, (swing * (ih - 1)) / 2, lc, leaf);
+        break;
+      }
       box(iw, ih - 1, 4, cx, y0 + ih / 2, 0, lc, leaf);
       const rows = 4;
       for (let i = 1; i < rows; i++) box(iw, 1.5, 5, cx, y0 + (ih * i) / rows, 0, "#6b5a46", leaf);
       break;
     }
     default: {
+      if (open) {
+        const hx = cx - (iw / 2) * dir; // hinge at the jamb opposite the handle
+        box(4, ih - 1, iw - 1, hx + 2 * dir, y0 + ih / 2, (swing * (iw - 1)) / 2, lc, leaf);
+        box(8, 12, 2.5, hx + 2 * dir, y0 + 100, swing * (iw - 1 - 8), "#c8c0a8", leaf);
+        break;
+      }
       box(iw - 1, ih - 1, 4, cx, y0 + ih / 2, 0, lc, leaf);
       box(2.5, 12, 6, cx + (iw / 2 - 8) * dir, y0 + 100, 3 * dir, "#c8c0a8", leaf);
       box(2.5, 12, 6, cx + (iw / 2 - 8) * dir, y0 + 100, -3 * dir, "#c8c0a8", leaf);
@@ -220,6 +244,22 @@ function leafGeometry(op, T, h, leaf, glass) {
   }
 }
 
+/**
+ * How a door swings, for the 2D plan: leaves as {hinge (cm along the
+ * wall from a), length, dir (+1 towards b)} and the side (local ±Z) they
+ * open to. Sliding and garage doors return no leaves.
+ */
+export function doorSwing(op, wall, storey, tile = 50) {
+  const swing = -outerSide(wall, storey, tile);
+  const u0 = op.offset, u1 = op.offset + op.width;
+  const leaves = [];
+  if (op.preset === "door-double") {
+    leaves.push({ hinge: u0, length: op.width / 2, dir: 1 }, { hinge: u1, length: op.width / 2, dir: -1 });
+  } else if (op.preset !== "door-sliding" && op.preset !== "door-garage") {
+    leaves.push(op.flip ? { hinge: u1, length: op.width, dir: -1 } : { hinge: u0, length: op.width, dir: 1 });
+  }
+  return { swing, leaves };
+}
 /** Point on a wall (building-local cm) nearest to p; returns {u, dist}. */
 export function nearestOnWall(wall, px, pz) {
   const dx = wall.b[0] - wall.a[0], dz = wall.b[1] - wall.a[1];

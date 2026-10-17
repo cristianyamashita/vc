@@ -102,6 +102,7 @@ export class Tools {
   // ----------------------------------------------------------- pointer
 
   onDown(e) {
+    if (this.app.walk?.active) return;
     if (e.button !== 0 || this.app.gizmo.dragging || this.app.gizmo.hovering) return;
     if (this.app.state.orbitOverride) return;
     this.down = { x: e.clientX, y: e.clientY, moved: false };
@@ -152,6 +153,7 @@ export class Tools {
     }
   }
   onMove(e) {
+    if (this.app.walk?.active) return;
     if (this.down && (Math.abs(e.clientX - this.down.x) > 3 || Math.abs(e.clientY - this.down.y) > 3)) this.down.moved = true;
     if (this.app.gizmo.dragging || this.app.editor?.active) return;
     this.lastMove = e;
@@ -192,6 +194,7 @@ export class Tools {
     }
   }
   onUp(e) {
+    if (this.app.walk?.active) return;
     if (e.button !== 0) return;
     const down = this.down;
     this.down = null;

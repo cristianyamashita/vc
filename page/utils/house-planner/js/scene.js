@@ -47,6 +47,9 @@ export class Scene3D {
     this.pointer = new THREE.Vector2();
     this.needsRender = true;
     this.onFrame = null;
+    this.onTick = null; // called every frame with the elapsed seconds (walk mode)
+    this.lastTime = 0;
+    this.walking = false; // orbit controls stand still while walking
     this.resize();
     new ResizeObserver(() => this.resize()).observe(host);
     this.loop = this.loop.bind(this);
@@ -108,12 +111,12 @@ export class Scene3D {
   requestRender() {
     this.needsRender = true;
   }
-  loop() {
+  loop(now = 0) {
     requestAnimationFrame(this.loop);
-    const moved = this.controls.update();
-    if (this.view === "top") {
-      // Orbit's dolly on an orthographic camera changes zoom; keep it.
-    }
+    const dt = Math.min(0.1, Math.max(0, (now - this.lastTime) / 1000));
+    this.lastTime = now;
+    if (this.walking) this.onTick?.(dt);
+    const moved = this.walking ? false : this.controls.update();
     if (moved || this.needsRender) {
       this.needsRender = false;
       this.onFrame?.();
@@ -162,6 +165,42 @@ export class Scene3D {
   pickObjects(event, objects, recursive = true) {
     if (!objects.length) return [];
     return this.ray(event).intersectObjects(objects, recursive);
+  }
+  /**
+   * Walk mode: the perspective camera is driven directly; the orbit
+   * controls are disabled and the camera and target are restored on exit.
+   */
+  setWalking(on) {
+    if (on === this.walking) return;
+    this.walking = on;
+    if (on) {
+      this.saved = { view: this.view, pos: this.perspective.position.clone(), quat: this.perspective.quaternion.clone(), target: this.controls.target.clone() };
+      if (this.view !== "3d") {
+        this.view = "3d";
+        this.camera = this.perspective;
+        this.resize();
+      }
+      this.controls.enabled = false;
+    } else {
+      this.controls.enabled = true;
+      const s = this.saved;
+      if (s) {
+        this.perspective.position.copy(s.pos);
+        this.perspective.quaternion.copy(s.quat);
+        this.controls.target.copy(s.target);
+        this.view = "3d";
+        if (s.view !== "3d") this.setView(s.view);
+        else this.makeControls();
+      }
+      this.saved = null;
+    }
+    this.requestRender();
+  }
+  /** Render now and return the canvas as a PNG blob. */
+  capture() {
+    this.onFrame?.();
+    this.renderer.render(this.scene, this.camera);
+    return new Promise((resolve) => this.canvas.toBlob(resolve, "image/png"));
   }
   cameraState() {
     return { pos: this.perspective.position.toArray().map((v) => v * CM), target: this.controls.target.toArray().map((v) => v * CM) };
