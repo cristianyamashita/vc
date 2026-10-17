@@ -1,5 +1,5 @@
 // Right panel: properties of the selection, built from small field helpers.
-import { OPENING_PRESETS, STOREY_PRESETS, ROOF_TYPES, RAILING_STYLES, FENCE_STYLES, GATE_TYPES, GATE_WIDTHS, isLocked, wallLength, polylineLength } from "../schema.js";
+import { OPENING_PRESETS, STOREY_PRESETS, ROOF_PRESETS, CITIES, ROOF_TYPES, RAILING_STYLES, FENCE_STYLES, GATE_TYPES, GATE_WIDTHS, WALL_TOPS, isLocked, wallLength, polylineLength } from "../schema.js";
 import { textureIds, textureIndex } from "../materials.js";
 import { Sun } from "../sun.js";
 import { propDocSync, customIds } from "../props.js";
@@ -147,8 +147,8 @@ export class PropsPanel {
     if (caps.length || found.type !== "sun")
       root.append(
         this.el("div", { class: "row-actions modes" }, [
-          ...["translate", "rotate", "scale"].filter((m) => caps.includes(m)).map((m) => this.el("button", { class: `btn mode ${app.state.transformMode === m ? "on" : ""}`, type: "button", onclick: () => app.setTransformMode(m) }, [this.el("span", { class: "mico", text: icons[m] }), this.el("span", { class: "mlabel", text: t(m) })])),
-          this.el("button", { class: `btn mode ${app.dims.enabled ? "on" : ""}`, type: "button", onclick: () => app.toggleDims() }, [this.el("span", { class: "mico", text: "📏" }), this.el("span", { class: "mlabel", text: t("dims") })]),
+          ...["translate", "rotate", "scale"].filter((m) => caps.includes(m)).map((m) => this.el("button", { class: `btn mode ${app.state.transformMode === m ? "on" : ""}`, type: "button", onclick: () => app.setTransformMode(m) }, [this.el("span", { class: "mico", text: icons[m] }), this.el("span", { class: "mlabel", text: `${t(m)} (${{ translate: "W", rotate: "E", scale: "R" }[m]})` })])),
+          this.el("button", { class: `btn mode ${app.dims.enabled ? "on" : ""}`, type: "button", onclick: () => app.toggleDims() }, [this.el("span", { class: "mico", text: "📏" }), this.el("span", { class: "mlabel", text: `${t("dims")} (M)` })]),
         ]),
       );
     switch (found.type) {
@@ -164,6 +164,7 @@ export class PropsPanel {
       case "outdoor": case "garden": return this.renderPolygon(found);
       case "railing": case "fence": return this.renderRailing(found);
       case "gate": return this.renderGate(found);
+      case "siteWall": return this.renderSiteWall(found);
     }
   }
   renderProject() {
@@ -256,7 +257,15 @@ export class PropsPanel {
       ]),
       this.section(t("timeOfDay"), [
         range("time", 0, 24, 0.25, " h", !sun.useTime),
-        this.number(sun, "latitude", { min: -70, max: 70, unit: "°", label: t("latitude") }),
+        this.select(sun, "city", [...CITIES.map((c) => [c.id, c.name[app.lang] || c.name.en]), ["custom", t("custom")]], {
+          label: t("city"),
+          rebuild: "light",
+          after: (v) => {
+            const c = CITIES.find((x) => x.id === v);
+            if (c) sun.latitude = c.lat;
+          },
+        }),
+        this.number(sun, "latitude", { min: -70, max: 70, unit: "°", label: t("latitude"), after: () => (sun.city = "custom") }),
         this.select(sun, "month", months, { label: t("month"), rebuild: "light" }),
       ]),
       this.section(t("light"), [range("intensity", 0, 3, 0.05, "×"), this.check(sun, "shadows", { rebuild: "light" })]),
@@ -282,13 +291,29 @@ export class PropsPanel {
     const app = this.app, t = app.t, roof = b.roof;
     const buildingLocked = this.locked;
     this.locked = buildingLocked || roof.locked;
-    const sloped = roof.type === "gable" || roof.type === "hip";
+    const sloped = roof.type === "gable" || roof.type === "hip" || roof.type === "shed";
     const fields = [this.select(roof, "type", ROOF_TYPES.map((k) => [k, t(`roof_${k}`)]), { label: t("roofType") })];
     if (roof.type !== "none") {
       if (sloped) fields.push(this.number(roof, "pitch", { min: 5, max: 60, unit: "°" }), this.select(roof, "ridgeAxis", [["x", t("ridge_x")], ["z", t("ridge_z")]], { label: t("ridgeAxis") }));
+      if (roof.type === "shed") fields.push(this.select(roof, "highSide", [["+", t("highSide_plus")], ["-", t("highSide_minus")]], { label: t("highSide") }));
       fields.push(this.number(roof, "overhang", { min: 0, max: 200 }));
       if (roof.type === "flat") fields.push(this.number(roof, "height", { min: 0, max: 150, label: t("parapet") }));
-      fields.push(this.material(roof, "material"), this.color(roof, "tint"));
+      const preset = { v: ROOF_PRESETS.find((p) => p.material === roof.material)?.id || "" };
+      fields.push(
+        this.select(preset, "v", [...ROOF_PRESETS.map((p) => [p.id, t(`roofPreset_${p.id}`)]), ["", t("custom")]], {
+          label: t("roofPreset"),
+          after: (v) => {
+            const p = ROOF_PRESETS.find((x) => x.id === v);
+            if (p) {
+              roof.material = p.material;
+              roof.tint = p.tint || null;
+            }
+          },
+        }),
+        this.material(roof, "material"),
+        this.color(roof, "tint"),
+        this.check(roof, "ceiling", { label: t("roofCeiling") }),
+      );
     }
     const lockBtn = this.button(roof.locked ? `🔒 ${t("unlock")}` : `🔓 ${t("lock")}`, () => app.toggleLock(`roof:${b.id}`), roof.locked ? "on" : "");
     lockBtn.disabled = buildingLocked;
@@ -470,7 +495,10 @@ export class PropsPanel {
     const main = [this.text(poly, "name")];
     if (type === "outdoor") {
       main.push(this.select(poly, "type", [["deck", t("deck")], ["pool", t("pool")], ["path", t("path")]], { label: t("type") }));
-      if (poly.type === "deck") main.push(this.number(poly, "height", { min: -300, max: 300, label: t("deckHeight") }));
+      if (poly.type === "deck") {
+        main.push(this.number(poly, "height", { min: -300, max: 300, label: t("deckHeight") }), this.check(poly, "open", { label: t("deckOpen"), rebuild: "site" }));
+        if (poly.open) main.push(this.number(poly, "postSize", { min: 8, max: 40 }));
+      }
       else if (poly.type === "pool") {
         const proxy = { get v() { return Math.abs(poly.height); }, set v(x) { poly.height = -Math.abs(x); } };
         main.push(this.number(proxy, "v", { min: 30, max: 300, label: t("poolDepth") }));
@@ -500,7 +528,7 @@ export class PropsPanel {
     if (fence) {
       actions.push(this.button(t("addGate"), () => {
         app.select(r.id);
-        app.setTab("garden");
+        app.setTab("openings");
         app.setTool("gate");
       }));
     }
@@ -511,8 +539,37 @@ export class PropsPanel {
       this.section(null, [...actions, this.button(t("duplicate"), () => app.duplicateSelected()), this.lockRow(r, r.id), this.button(t("delete"), () => app.deleteSelected(), "danger")]),
     );
   }
-  renderGate({ item: g, fence }) {
+  renderSiteWall({ item: w }) {
     const app = this.app, t = app.t;
+    this.scope = "site";
+    const main = [
+      this.text(w, "name"),
+      this.number(w, "height", { min: 30, max: 400 }),
+      this.number(w, "thickness", { min: 10, max: 60 }),
+      this.select(w, "top", WALL_TOPS.map((k) => [k, t(`top_${k}`)]), { label: t("wallTop") }),
+      this.el("p", { class: "hint", text: `${t("length")}: ${Math.round(polylineLength(w.points))} cm` }),
+    ];
+    if (w.top === "stepped") main.splice(4, 0, this.number(w, "stepLength", { min: 50, max: 500 }));
+    this.root.append(
+      this.section(null, main),
+      this.section(t("surface"), [this.material(w, "material"), this.color(w, "tint")]),
+      this.section(t("outerFace"), [this.material(w, "outerMaterial"), this.color(w, "outerTint")]),
+      this.pointsSection(w, { rebuild: "site", min: 2, closed: false, hint: t("lineEditHint"), buildingId: null }),
+      this.section(null, [
+        this.button(t("addGate"), () => {
+          app.select(w.id);
+          app.setTab("openings");
+          app.setTool("gate");
+        }),
+        this.button(t("duplicate"), () => app.duplicateSelected()),
+        this.lockRow(w, w.id),
+        this.button(t("delete"), () => app.deleteSelected(), "danger"),
+      ]),
+    );
+  }
+  renderGate({ item: g, host }) {
+    const app = this.app, t = app.t;
+    const fence = host;
     this.scope = "site";
     const len = polylineLength(fence.points);
     const clamp = () => clampGate(g, fence);

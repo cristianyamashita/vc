@@ -21,3 +21,13 @@ Each folder holds the 1K colour map (`color.jpg`) and OpenGL normal map (`normal
 | `plaster` | https://ambientcg.com/view?id=Plaster001 | CC0 1.0 |
 | `bricks` | https://ambientcg.com/view?id=Bricks101 | CC0 1.0 |
 | `metalPlate` | https://ambientcg.com/view?id=DiamondPlate009 | CC0 1.0 |
+| `woodLight` | https://ambientcg.com/view?id=WoodFloor040 | CC0 1.0 |
+| `woodDark` | https://ambientcg.com/view?id=Wood051 | CC0 1.0 |
+| `bricksRed` | https://ambientcg.com/view?id=Bricks054 | CC0 1.0 |
+| `bricksOrange` | https://ambientcg.com/view?id=Bricks029 | CC0 1.0 |
+| `stone` | https://ambientcg.com/view?id=Rock050 | CC0 1.0 |
+| `marble` | https://ambientcg.com/view?id=Marble012 | CC0 1.0 |
+| `stoneTiles` | https://ambientcg.com/view?id=Tiles049 | CC0 1.0 |
+| `azulejo` | https://ambientcg.com/view?id=Tiles099 | CC0 1.0 |
+| `roofTiles` | https://ambientcg.com/view?id=RoofingTiles010 | CC0 1.0 |
+| `fiberCement` | https://ambientcg.com/view?id=CorrugatedSteel005 | CC0 1.0 |

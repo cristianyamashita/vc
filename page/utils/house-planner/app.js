@@ -20,17 +20,26 @@ import { buildFloorGroup, floorTop, floorThickness, tileSet, tileKey, splitTiles
 import { buildWall } from "./js/build/walls.js";
 import { buildStairs, stairsCutQuads, tilesUnderQuads } from "./js/build/stairs.js";
 import { buildPolygon, DEFAULT_MATERIAL } from "./js/build/outdoor.js";
+import { buildSiteWall } from "./js/build/sitewall.js";
 import { buildRoof } from "./js/build/roof.js";
 import { buildRailing, railingOffset } from "./js/build/railing.js";
 import { Walk } from "./js/walk.js";
 import { renderPlan } from "./js/plan2d.js";
 import { propBounds } from "./js/props.js";
 import * as store from "./js/store.js";
-import { freshProject, freshBuilding, freshStorey, locate, isLocked, uid, clone, OPENING_PRESETS, projectChecked, findBuilding, topStorey, RAILING_STYLES, FENCE_STYLES, GATE_TYPES } from "./js/schema.js";
+import { freshProject, freshBuilding, freshStorey, locate, isLocked, uid, clone, OPENING_PRESETS, projectChecked, findBuilding, topStorey, RAILING_STYLES, FENCE_STYLES, GATE_TYPES, WALL_TOPS } from "./js/schema.js";
 
 const DEG = Math.PI / 180;
 const $ = (s, r = document) => r.querySelector(s);
 const TABS = ["terrain", "floors", "walls", "openings", "stairs", "outdoor", "garden", "objects"];
+// Keyboard shortcuts shown in parentheses on labels. Global ones are unique;
+// tool keys are per tab (only the active tab's tools listen).
+const HOTKEYS = {
+  menu: { new: "N", open: "O", save: "S", saveAs: "Shift+S", export: "X", import: "I", exportPlan: "P", exportView: "Shift+P" },
+  view: { "snap-btn": "G", "cutaway-btn": "C", "doors-btn": "B", "view-3d": "Q", "view-top": "T", "view-walk": "K", "fit-btn": "F" },
+  modes: { translate: "W", rotate: "E", scale: "R", dims: "M" },
+  tools: { select: "V", raise: "A", lower: "Z", flatten: "L", smooth: "U", paint: "A", erase: "Z", rect: "L", draw: "A", railing: "L", add: "A", gate: "L", place: "A", polygon: "A", fence: "L", siteWall: "U" },
+};
 const DEFAULT_TOOL = { terrain: "raise", floors: "paint", walls: "draw", openings: "add", stairs: "place", outdoor: "polygon", garden: "polygon", objects: "place" };
 
 class App {
@@ -39,7 +48,7 @@ class App {
     this.lang = prefs.lang;
     this.t = makeT(() => this.lang);
     this.project = freshProject();
-    this.state = { tab: "floors", tool: "select", selection: null, activeBuilding: null, activeStorey: null, activeFloorGroup: null, pendingPreset: "door-single", pendingProp: null, ghostYaw: 0, pendingStairShape: "straight", pendingOutdoorType: "deck", pendingGardenMaterial: DEFAULT_MATERIAL.garden, pendingRailingStyle: "glass", pendingFenceStyle: "picket", pendingGateType: "single", snap: prefs.snap !== false, orbitOverride: false, transformMode: null, caps: [] };
+    this.state = { tab: "floors", tool: "select", selection: null, activeBuilding: null, activeStorey: null, activeFloorGroup: null, pendingPreset: "door-single", pendingProp: null, ghostYaw: 0, pendingStairShape: "straight", pendingOutdoorType: "deck", pendingGardenMaterial: DEFAULT_MATERIAL.garden, pendingRailingStyle: "glass", pendingFenceStyle: "picket", pendingGateType: "single", pendingWallTop: "follow", snap: prefs.snap !== false, orbitOverride: false, transformMode: null, caps: [] };
     this.buildingGroups = new Map();
     this.storeyGroups = new Map();
     this.roofGroups = new Map();
@@ -193,6 +202,16 @@ class App {
     const top = b.storeys.reduce((m, s) => Math.max(m, s.elevation + s.height), 0);
     const prev = { elevation: 0, height: top };
     const s = freshStorey(prev, preset);
+    if (preset === "attic") {
+      // start from the storey below: same floor and knee walls, no openings
+      const below = b.storeys.reduce((m, x) => (x.elevation + x.height > m.elevation + m.height ? x : m), b.storeys[0]);
+      s.floorGroups = below.floorGroups.map((fg) => ({ ...clone(fg), id: uid("fg"), name: "", locked: false }));
+      s.walls = below.walls.map((w) => ({ ...clone(w), id: uid("w"), name: "", height: null, openings: [], locked: false }));
+      if (b.roof) {
+        b.roof.ceiling = false;
+        if (b.roof.type === "none" || b.roof.type === "flat") b.roof.type = "gable";
+      }
+    }
     b.storeys.push(s);
     b.storeys.sort((x, y) => x.elevation - y.elevation);
     this.setActive(b.id, s.id);
@@ -248,10 +267,10 @@ class App {
   }
   duplicateSelected() {
     const found = this.state.selection && this.locate(this.state.selection);
-    if (!found || !["object", "stairs", "outdoor", "garden", "railing", "fence"].includes(found.type)) return;
+    if (!found || !["object", "stairs", "outdoor", "garden", "railing", "fence", "siteWall"].includes(found.type)) return;
     this.checkpoint();
     const copy = clone(found.item);
-    copy.id = uid({ object: "ob", stairs: "sr", garden: "g", outdoor: "d", railing: "rl", fence: "fe" }[found.type]);
+    copy.id = uid({ object: "ob", stairs: "sr", garden: "g", outdoor: "d", railing: "rl", fence: "fe", siteWall: "sw" }[found.type]);
     copy.locked = false;
     if (copy.gates) for (const g of copy.gates) g.id = uid("gt");
     if (copy.points) copy.points = copy.points.map(([x, z]) => [x + 50, z + 50]);
@@ -386,6 +405,7 @@ class App {
       if (g) this.siteGroup.add(g);
     }
     for (const f of this.project.fences) this.siteGroup.add(buildRailing(f, "fence", { heightAt: (x, z) => this.terrain.heightAt(x, z) }));
+    for (const w of this.project.siteWalls) this.siteGroup.add(buildSiteWall(w, this.terrain));
     if (!quiet) this.afterSceneChange();
   }
   makeObjectGroup(o, baseY) {
@@ -519,6 +539,21 @@ class App {
     if (this.walk.active) this.setView("3d");
     this.scene.fit(this.sceneBounds);
   }
+  /** World bounding box of the selection's scene group, or null. */
+  selectionBox(found = this.state.selection && this.locate(this.state.selection)) {
+    if (!found) return null;
+    const target = this.transformTarget(found);
+    if (!target?.group) return null;
+    const box = new THREE.Box3().setFromObject(target.group);
+    return box.isEmpty() ? null : box;
+  }
+  /** F: frame the selection from the current angle, or everything. */
+  frameSelection() {
+    if (this.walk.active) return;
+    const box = this.selectionBox();
+    if (box) this.scene.fit(box, { keepDirection: true });
+    else this.fitAll();
+  }
 
   // ---------------------------------------------------------- changes
 
@@ -547,7 +582,7 @@ class App {
     if (terrain) {
       this.terrain.update();
       this.sun.place();
-      if (this.project.outdoor.length || this.project.gardenPatches.length || this.project.fences.length) this.rebuildSite({ quiet: true });
+      if (this.project.outdoor.length || this.project.gardenPatches.length || this.project.fences.length || this.project.siteWalls.length) this.rebuildSite({ quiet: true });
     }
     if (this.state.selection) {
       const found = this.locate(this.state.selection);
@@ -601,7 +636,8 @@ class App {
   // -------------------------------------------------------- selection
 
   select(id, { keepTool = false } = {}) {
-    if (id !== this.state.selection) this.state.transformMode = null;
+    const changedId = id !== this.state.selection;
+    if (changedId) this.state.transformMode = null;
     this.state.selection = id;
     const found = id ? this.locate(id) : null;
     if (!found) {
@@ -624,6 +660,10 @@ class App {
       }
       if (found.type === "floorGroup") this.state.activeFloorGroup = found.item.id;
       this.attachSelection(found);
+      if (changedId && !this.walk?.active && found.type !== "sun" && found.type !== "terrain") {
+        const box = this.selectionBox(found);
+        if (box) this.scene.centerOn(box.getCenter(new THREE.Vector3()));
+      }
       if (!keepTool && found.type !== "sun" && found.type !== "terrain" && this.state.tool !== "select") this.setTool("select");
     }
     this.refreshAll();
@@ -763,6 +803,28 @@ class App {
         const root = fence ? this.siteGroup : bGroup;
         return T(this.findGroup(root, `${found.type}Group`, id), fence ? this.siteGroup : sGroup, item, adapter, adapter.modes);
       }
+      case "siteWall": {
+        const item = found.item;
+        const adapter = {
+          planar: true, modes: ["translate", "rotate"], rebuild: "site",
+          apply: (group, { step, turn, snapTo }) => {
+            const [ox, oz] = group.userData.origin || item.points[0] || [0, 0];
+            const dx = snapTo(group.position.x * CM - ox, step), dz = snapTo(group.position.z * CM - oz, step);
+            const ang = this.gizmo.mode === "rotate" ? snapTo(-group.rotation.y / DEG, turn) * DEG : 0;
+            if (dx || dz || ang) {
+              const c = Math.cos(ang), sn = Math.sin(ang);
+              item.points = item.points.map(([x, z]) => {
+                const rx = x - ox, rz = z - oz;
+                return [r1(ox + dx + rx * c - rz * sn), r1(oz + dz + rx * sn + rz * c)];
+              });
+            }
+            group.position.set((ox + dx) * M, group.position.y, (oz + dz) * M);
+            group.rotation.set(0, 0, 0);
+            group.userData.origin = [ox + dx, oz + dz];
+          },
+        };
+        return T(this.findGroup(this.siteGroup, "siteWallGroup", id), this.siteGroup, item, adapter, adapter.modes);
+      }
       case "gate": {
         const hit = this.findGroup(this.siteGroup, "gate", id);
         return hit ? { group: hit, parent: hit.parent, placement: found.item, adapter: null, modes: [], locked } : null;
@@ -824,8 +886,8 @@ class App {
     const caps = this.state.caps || [];
     host.hidden = false;
     host.innerHTML =
-      ["translate", "rotate", "scale"].map((m) => `<button class="tb mode ${this.state.transformMode === m ? "on" : ""}" data-mode="${m}" ${caps.includes(m) ? "" : "disabled"} title="${esc(t(m))}"><span class="mico">${icons[m]}</span><span class="mlabel">${esc(t(m))}</span></button>`).join("") +
-      `<button class="tb mode ${this.dims.enabled ? "on" : ""}" data-dims title="${esc(t("dims"))}"><span class="mico">📏</span><span class="mlabel">${esc(t("dims"))}</span></button>`;
+      ["translate", "rotate", "scale"].map((m) => `<button class="tb mode ${this.state.transformMode === m ? "on" : ""}" data-mode="${m}" ${caps.includes(m) ? "" : "disabled"} title="${esc(t(m))} (${HOTKEYS.modes[m]})"><span class="mico">${icons[m]}</span><span class="mlabel">${esc(t(m))}</span></button>`).join("") +
+      `<button class="tb mode ${this.dims.enabled ? "on" : ""}" data-dims title="${esc(t("dims"))} (${HOTKEYS.modes.dims})"><span class="mico">📏</span><span class="mlabel">${esc(t("dims"))}</span></button>`;
   }
   findGroup(root, kind, id) {
     let out = null;
@@ -844,7 +906,7 @@ class App {
       let kind = null, id = null;
       for (let p = o; p && !kind; p = p.parent) {
         const k = p.userData.kind;
-        if (["terrain", "floorGroup", "wall", "opening", "object", "stairs", "outdoor", "garden", "roof", "railing", "fence", "gate"].includes(k)) {
+        if (["terrain", "floorGroup", "wall", "opening", "object", "stairs", "outdoor", "garden", "roof", "railing", "fence", "gate", "siteWall"].includes(k)) {
           kind = k;
           id = p.userData.id;
         } else if (k === "leaf" || k === "glass") {
@@ -897,7 +959,7 @@ class App {
   refreshToolbar() {
     const t = this.t, tab = this.state.tab, tool = this.state.tool;
     const host = $("#tools");
-    host.innerHTML = TAB_TOOLS[tab].map((k) => `<button class="tb small ${k === tool ? "on" : ""}" data-tool="${k}">${esc(t(k))}</button>`).join("");
+    host.innerHTML = TAB_TOOLS[tab].map((k) => `<button class="tb small ${k === tool ? "on" : ""}" data-tool="${k}">${esc(t(k))}${hk(HOTKEYS.tools[k])}</button>`).join("");
     const extra = $("#tool-extra");
     extra.innerHTML = "";
     if (tab === "floors") {
@@ -938,7 +1000,18 @@ class App {
       const hint = document.createElement("label");
       hint.textContent = t("lineHint");
       extra.append(sel, hint);
-    } else if (tab === "garden" && tool === "gate") {
+    } else if (tab === "garden" && tool === "siteWall") {
+      const sel = document.createElement("select");
+      sel.innerHTML = WALL_TOPS.map((k) => `<option value="${k}">${esc(t(`top_${k}`))}</option>`).join("");
+      sel.value = this.state.pendingWallTop;
+      sel.addEventListener("change", () => {
+        this.state.pendingWallTop = sel.value;
+        this.tools.clearGhost();
+      });
+      const hint = document.createElement("label");
+      hint.textContent = t("lineHint");
+      extra.append(sel, hint);
+    } else if (tab === "openings" && tool === "gate") {
       const sel = document.createElement("select");
       sel.innerHTML = GATE_TYPES.map((k) => `<option value="${k}">${esc(t(`gate_${k}`))}</option>`).join("");
       sel.value = this.state.pendingGateType;
@@ -1315,10 +1388,10 @@ class App {
       case "r": case "R": this.setTransformMode("scale"); break;
       case "[": this.tools.rotateGhost(-15); break;
       case "]": this.tools.rotateGhost(15); break;
-      case "f": case "F": this.fitAll(); break;
+      case "f": case "F": this.frameSelection(); break;
       default:
         if (/^[1-8]$/.test(e.key)) this.setTab(TABS[Number(e.key) - 1]);
-        else return;
+        else if (!this.runHotkey(e)) return;
     }
     e.preventDefault();
   }
@@ -1386,6 +1459,33 @@ class App {
   translateAll() {
     translate(document, this.t);
     document.title = this.t("title");
+    $$("#tabs button").forEach((b, i) => (b.innerHTML = `${esc(this.t(b.dataset.i18n))}${hk(i + 1)}`));
+    for (const [action, key] of Object.entries(HOTKEYS.menu)) {
+      const b = $(`#project-menu [data-action="${action}"]`);
+      if (b) b.innerHTML = `${esc(this.t(b.dataset.i18n))}${hk(key)}`;
+    }
+    for (const [id, key] of Object.entries(HOTKEYS.view)) {
+      const b = $(`#${id}`);
+      if (b) b.innerHTML = `${esc(this.t(b.dataset.i18n))}${hk(key)}`;
+    }
+  }
+  /** Single-letter shortcuts for menus, views and the active tab's tools. */
+  runHotkey(e) {
+    if (e.key.length !== 1) return false;
+    const key = e.key.toUpperCase();
+    if (e.shiftKey) {
+      if (key === "S") return this.projectAction("saveAs"), true;
+      if (key === "P") return this.projectAction("exportView"), true;
+      return false;
+    }
+    const menu = Object.entries(HOTKEYS.menu).find(([, k]) => k === key);
+    if (menu) return this.projectAction(menu[0]), true;
+    const view = Object.entries(HOTKEYS.view).find(([, k]) => k === key);
+    if (view) return $(`#${view[0]}`).click(), true;
+    if (key === HOTKEYS.modes.dims) return this.toggleDims(), true;
+    const tool = TAB_TOOLS[this.state.tab].find((k) => HOTKEYS.tools[k] === key);
+    if (tool) return this.setTool(tool), true;
+    return false;
   }
   toast(msg) {
     const el = $("#toast");
@@ -1410,6 +1510,7 @@ import { propDocSync as propDocSyncLocal } from "./js/props.js";
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 const r1 = (v) => Math.round(v * 10) / 10;
+const hk = (key) => (key ? ` <span class="hk">(${esc(String(key))})</span>` : "");
 function downloadBlob(blob, filename) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
