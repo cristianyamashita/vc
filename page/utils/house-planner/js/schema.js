@@ -25,6 +25,7 @@ export const STOREY_PRESETS = [
   { id: "basement", elevation: -250, height: 250 },
 ];
 export const TILE = 50;
+export const ROOF_TYPES = ["none", "flat", "gable", "hip"];
 
 let counter = 0;
 export function uid(prefix = "id") {
@@ -91,9 +92,12 @@ export function freshStorey(prev, preset = "ground", name = "") {
     floorGroups: [], walls: [], stairs: [], objects: [],
   };
 }
+export function freshRoof() {
+  return { type: "gable", pitch: 30, overhang: 40, height: 20, ridgeAxis: "x", material: "planks", tint: null, visible: true, locked: false };
+}
 export function freshBuilding(name = "", at = [0, 0]) {
   const ground = freshStorey(null, "ground");
-  return { id: uid("b"), name, at, rotation: 0, locked: false, roofShadow: true, storeys: [ground] };
+  return { id: uid("b"), name, at, rotation: 0, locked: false, roofShadow: true, roof: freshRoof(), storeys: [ground] };
 }
 export function freshProject(name = "") {
   const b = freshBuilding("", [0, 0]);
@@ -251,6 +255,21 @@ export function storeyChecked(raw = {}, index = 0) {
     objects: (Array.isArray(raw.objects) ? raw.objects : []).map(placementChecked),
   };
 }
+export function roofChecked(raw) {
+  const d = freshRoof();
+  raw = raw && typeof raw === "object" ? raw : {};
+  return {
+    type: ROOF_TYPES.includes(raw.type) ? raw.type : d.type,
+    pitch: num(raw.pitch, 5, 60, d.pitch),
+    overhang: num(raw.overhang, 0, 200, d.overhang),
+    height: num(raw.height, 0, 150, d.height),
+    ridgeAxis: raw.ridgeAxis === "z" ? "z" : "x",
+    material: texture(raw.material, d.material),
+    tint: color(raw.tint, null),
+    visible: raw.visible !== false,
+    locked: !!raw.locked,
+  };
+}
 export function buildingChecked(raw = {}) {
   const storeys = (Array.isArray(raw.storeys) ? raw.storeys : []).map(storeyChecked);
   if (!storeys.length) storeys.push(freshStorey(null, "ground"));
@@ -262,6 +281,7 @@ export function buildingChecked(raw = {}) {
     rotation: num(raw.rotation, -360, 360, 0),
     locked: !!raw.locked,
     roofShadow: raw.roofShadow !== false,
+    roof: roofChecked(raw.roof),
     storeys,
   };
 }
@@ -399,4 +419,8 @@ export function wallLength(w) {
 }
 export function storeyTop(storey) {
   return storey.elevation + storey.height;
+}
+/** The highest storey of a building (storeys are kept sorted by elevation). */
+export function topStorey(building) {
+  return building.storeys.reduce((top, s) => (!top || storeyTop(s) > storeyTop(top) ? s : top), null);
 }

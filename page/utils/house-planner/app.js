@@ -19,8 +19,9 @@ import { buildFloorGroup, floorTop, floorThickness, tileSet, tileKey, splitTiles
 import { buildWall } from "./js/build/walls.js";
 import { buildStairs, stairsCutQuads, tilesUnderQuads } from "./js/build/stairs.js";
 import { buildPolygon, DEFAULT_MATERIAL } from "./js/build/outdoor.js";
+import { buildRoof } from "./js/build/roof.js";
 import * as store from "./js/store.js";
-import { freshProject, freshBuilding, freshStorey, locate, isLocked, uid, clone, OPENING_PRESETS, projectChecked } from "./js/schema.js";
+import { freshProject, freshBuilding, freshStorey, locate, isLocked, uid, clone, OPENING_PRESETS, projectChecked, findBuilding, topStorey } from "./js/schema.js";
 
 const DEG = Math.PI / 180;
 const $ = (s, r = document) => r.querySelector(s);
@@ -36,6 +37,7 @@ class App {
     this.state = { tab: "floors", tool: "select", selection: null, activeBuilding: null, activeStorey: null, activeFloorGroup: null, pendingPreset: "door-single", pendingProp: null, ghostYaw: 0, pendingStairShape: "straight", pendingOutdoorType: "deck", pendingGardenMaterial: DEFAULT_MATERIAL.garden, snap: prefs.snap !== false, orbitOverride: false };
     this.buildingGroups = new Map();
     this.storeyGroups = new Map();
+    this.roofGroups = new Map();
     this.objectGroups = new Map();
     this.saveTimer = null;
     this.customProps = [];
@@ -249,6 +251,14 @@ class App {
     this.select(copy.id);
   }
   toggleLock(id) {
+    if (id.startsWith("roof:")) {
+      const b = findBuilding(this.project, id.slice(5));
+      if (!b) return;
+      this.checkpoint();
+      b.roof.locked = !b.roof.locked;
+      this.changed({ rebuild: "none" });
+      return;
+    }
     const found = this.locate(id);
     if (!found) return;
     this.checkpoint();
@@ -257,6 +267,15 @@ class App {
     if (this.state.selection === id) this.select(id, { keepTool: true });
   }
   toggleVisible(id) {
+    if (id.startsWith("roof:")) {
+      const b = findBuilding(this.project, id.slice(5));
+      if (!b) return;
+      b.roof.visible = !b.roof.visible;
+      this.applyVisibility();
+      this.refreshAll();
+      this.queueSave();
+      return;
+    }
     const found = this.locate(id);
     if (!found || found.type !== "storey") return;
     found.item.visible = !found.item.visible;
@@ -290,6 +309,7 @@ class App {
     });
     g.parent?.remove(g);
     this.buildingGroups.delete(id);
+    this.roofGroups.delete(id);
   }
   applyBuildingTransform(group, b) {
     group.position.set(b.at[0] * M, 0, b.at[1] * M);
@@ -314,6 +334,11 @@ class App {
       for (const o of s.objects) sg.add(this.makeObjectGroup(o, s.elevation));
       group.add(sg);
       this.storeyGroups.set(s.id, sg);
+    }
+    const roof = buildRoof(b, this.project.grid.tile);
+    if (roof) {
+      group.add(roof);
+      this.roofGroups.set(id, roof);
     }
     this.scene.world.add(group);
     this.buildingGroups.set(id, group);
@@ -389,14 +414,43 @@ class App {
   }
   applyVisibility() {
     const active = this.storey();
-    for (const b of this.project.buildings)
+    for (const b of this.project.buildings) {
       for (const s of b.storeys) {
         const g = this.storeyGroups.get(s.id);
         if (!g) continue;
         const cut = this.project.view.cutaway && s.elevation > active.elevation;
         g.visible = s.visible && !cut;
       }
+      const rg = this.roofGroups.get(b.id);
+      if (rg) rg.visible = this.roofShown(b);
+    }
+    this.updateSunRoofs();
     this.scene.requestRender();
+  }
+  /**
+   * Whether the real roof of a building is drawn: it hides with its top
+   * storey, in cutaway, and while a lower storey of that building is active.
+   */
+  roofShown(b) {
+    const top = topStorey(b);
+    if (!top || !b.roof || b.roof.type === "none" || !b.roof.visible || !top.visible) return false;
+    if (this.project.view.cutaway) return false;
+    if (b.id === this.state.activeBuilding && this.state.activeStorey !== top.id) return false;
+    return true;
+  }
+  /** Invisible shadow-only roofs for buildings whose real roof is not drawn. */
+  updateSunRoofs() {
+    const roofs = [];
+    for (const b of this.project.buildings) {
+      if (!b.roofShadow || this.roofShown(b) || !b.storeys.some((s) => s.walls.length)) continue;
+      const g = this.buildingGroups.get(b.id);
+      if (!g) continue;
+      const bb = new THREE.Box3().setFromObject(g);
+      if (bb.isEmpty()) continue;
+      const top = b.storeys.reduce((m, s) => Math.max(m, s.elevation + s.height), 0) * M;
+      roofs.push({ min: [bb.min.x - 0.1, 0, bb.min.z - 0.1], max: [bb.max.x + 0.1, top, bb.max.z + 0.1] });
+    }
+    this.sun.setRoofs(roofs);
   }
   /** Sun fit, roofs, terrain clamp, grid, render. */
   afterSceneChange() {
@@ -409,17 +463,7 @@ class App {
     this.sceneBounds = box;
     this.sun.fit(box);
     this.sun.apply(this.project.sun);
-    const roofs = [];
-    for (const b of this.project.buildings) {
-      if (!b.roofShadow || !b.storeys.some((s) => s.walls.length)) continue;
-      const g = this.buildingGroups.get(b.id);
-      if (!g) continue;
-      const bb = new THREE.Box3().setFromObject(g);
-      if (bb.isEmpty()) continue;
-      const top = b.storeys.reduce((m, s) => Math.max(m, s.elevation + s.height), 0) * M;
-      roofs.push({ min: [bb.min.x - 0.1, 0, bb.min.z - 0.1], max: [bb.max.x + 0.1, top, bb.max.z + 0.1] });
-    }
-    this.sun.setRoofs(roofs);
+    this.updateSunRoofs();
     this.scene.requestRender();
   }
   makeClamp() {
@@ -645,7 +689,7 @@ class App {
       let kind = null, id = null;
       for (let p = o; p && !kind; p = p.parent) {
         const k = p.userData.kind;
-        if (["terrain", "floorGroup", "wall", "opening", "object", "stairs", "outdoor", "garden"].includes(k)) {
+        if (["terrain", "floorGroup", "wall", "opening", "object", "stairs", "outdoor", "garden", "roof"].includes(k)) {
           kind = k;
           id = p.userData.id;
         } else if (k === "leaf" || k === "glass") {

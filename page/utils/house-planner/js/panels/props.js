@@ -1,5 +1,5 @@
 // Right panel: properties of the selection, built from small field helpers.
-import { OPENING_PRESETS, STOREY_PRESETS, isLocked, wallLength } from "../schema.js";
+import { OPENING_PRESETS, STOREY_PRESETS, ROOF_TYPES, isLocked, wallLength } from "../schema.js";
 import { textureIds, textureIndex } from "../materials.js";
 import { Sun } from "../sun.js";
 import { propDocSync, customIds } from "../props.js";
@@ -254,13 +254,37 @@ export class PropsPanel {
     const presetSel = this.el("select", {}, STOREY_PRESETS.map((p) => this.el("option", { value: p.id, text: t(`preset_${p.id}`) })));
     presetSel.value = "upper";
     this.root.append(
-      this.section(null, [this.text(b, "name"), this.vec(b, "at", 0, { label: "X" }), this.vec(b, "at", 1, { label: "Z" }), this.number(b, "rotation", { min: -360, max: 360, unit: "°" }), this.check(b, "roofShadow", { rebuild: "light" })]),
+      this.section(null, [this.text(b, "name"), this.vec(b, "at", 0, { label: "X" }), this.vec(b, "at", 1, { label: "Z" }), this.number(b, "rotation", { min: -360, max: 360, unit: "°" })]),
+      this.section(t("roof"), this.roofFields(b)),
       this.section(t("storeys"), [
         this.el("div", { class: "row-actions" }, [presetSel, this.button(`+ ${t("addStorey")}`, () => app.addStorey(b.id, presetSel.value))]),
         this.el("p", { class: "hint", text: t("storeyHint") }),
       ]),
       this.section(null, [this.lockRow(b, b.id), this.button(t("deleteBuilding"), () => app.deleteSelected(), "danger")]),
     );
+  }
+  /** Roof fields of a building; the roof has its own lock. */
+  roofFields(b) {
+    const app = this.app, t = app.t, roof = b.roof;
+    const buildingLocked = this.locked;
+    this.locked = buildingLocked || roof.locked;
+    const sloped = roof.type === "gable" || roof.type === "hip";
+    const fields = [this.select(roof, "type", ROOF_TYPES.map((k) => [k, t(`roof_${k}`)]), { label: t("roofType") })];
+    if (roof.type !== "none") {
+      if (sloped) fields.push(this.number(roof, "pitch", { min: 5, max: 60, unit: "°" }), this.select(roof, "ridgeAxis", [["x", t("ridge_x")], ["z", t("ridge_z")]], { label: t("ridgeAxis") }));
+      fields.push(this.number(roof, "overhang", { min: 0, max: 200 }));
+      if (roof.type === "flat") fields.push(this.number(roof, "height", { min: 0, max: 150, label: t("parapet") }));
+      fields.push(this.material(roof, "material"), this.color(roof, "tint"));
+    }
+    const lockBtn = this.button(roof.locked ? `🔒 ${t("unlock")}` : `🔓 ${t("lock")}`, () => app.toggleLock(`roof:${b.id}`), roof.locked ? "on" : "");
+    lockBtn.disabled = buildingLocked;
+    this.locked = buildingLocked;
+    fields.push(
+      this.check(roof, "visible", { label: t("roofVisible"), allowLocked: true, rebuild: "none", after: () => app.applyVisibility() }),
+      this.check(b, "roofShadow", { rebuild: "light" }),
+      this.el("div", { class: "row-actions" }, [lockBtn]),
+    );
+    return fields;
   }
   renderStorey({ item: s, building }) {
     const app = this.app, t = app.t;

@@ -59,6 +59,7 @@ export class Tree {
       const bkey = `b:${b.id}`;
       row(b.id, "building", this.label("building", b, bi), 0, { icon: "🏠", children: bkey, lockable: true, locked: b.locked, active: b.id === state.activeBuilding, always: true });
       if (!open(bkey)) return;
+      row(`roof:${b.id}`, "roof", `${t("roof")} · ${t(`roof_${b.roof.type}`)}`, 1, { icon: "⌂", lockable: true, locked: b.roof.locked, visibleToggle: true, visible: b.roof.visible, hidden: !b.roof.visible });
       b.storeys.forEach((s, si) => {
         const skey = `s:${s.id}`;
         const sLocked = b.locked || s.locked;
@@ -110,7 +111,7 @@ export class Tree {
     if (!row) return;
     const id = row.dataset.id, type = row.dataset.type;
     if (type === "group" || type === "site") return;
-    this.app.select(id);
+    this.app.select(type === "roof" ? id.slice(5) : id);
   }
 }
 function escapeHtml(s) {
