@@ -667,6 +667,30 @@ window.OSCatalog = (function () {
     }
   },
   {
+    "id": "utils-house-planner",
+    "href": "utils/house-planner/index.html",
+    "icon": "../assets/icons/svg/utils-house-planner.svg",
+    "kind": "site",
+    "uninstallable": true,
+    "defaultInstalled": false,
+    "channel": "stable",
+    "tag": {
+      "en": "3D",
+      "pt": "3D",
+      "ja": "3D"
+    },
+    "name": {
+      "en": "House Planner",
+      "pt": "Planejador de casas",
+      "ja": "ハウスプランナー"
+    },
+    "desc": {
+      "en": "Design a whole house in centimetres: sculpt the terrain, paint floors and storeys, draw walls with doors and windows, place furniture with a 3D gizmo and watch the sun cast light through the openings.",
+      "pt": "Desenhe uma casa completa em centímetros: esculpa o terreno, pinte pisos e andares, trace paredes com portas e janelas, posicione móveis com um gizmo 3D e veja o sol entrar pelas aberturas.",
+      "ja": "家全体をセンチ単位で設計。地形を造形し、床と階を塗り、ドアや窓付きの壁を描き、3Dギズモで家具を配置し、開口部から差し込む太陽光を確認できます。"
+    }
+  },
+  {
     "id": "utils-whiteboards",
     "href": "utils/whiteboards.html",
     "icon": "../assets/icons/svg/utils-whiteboards.svg",

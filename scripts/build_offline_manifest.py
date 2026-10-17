@@ -243,6 +243,9 @@ def seed_globs(buckets: dict[str, set[str]]) -> None:
         "assets/images/**/*.*",
         # Planner presets are addressed through their runtime JSON manifest.
         "assets/environment-planner/**/*.json",
+        # House Planner catalog and CC0 textures, fetched by id at runtime.
+        "assets/house-planner/**/*.json",
+        "assets/house-planner/textures/**/*.jpg",
         "models/**/*.*",
         # Game sound effects are fetched by name at runtime, so nothing in the
         # source text points at them for the scanner to find.
