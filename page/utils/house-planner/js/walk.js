@@ -95,6 +95,10 @@ export class Walk {
       this.app.setView("3d");
       return true;
     }
+    if (e.key === "PageUp" || e.key === "PageDown") {
+      this.changeStorey(e.key === "PageUp" ? 1 : -1);
+      return true;
+    }
     const k = MOVE_KEYS[e.key];
     if (k) this.keys.add(k);
     else if (e.key === "Shift") this.keys.add("Shift");
@@ -206,6 +210,71 @@ export class Walk {
     const terrain = this.app.terrain;
     if (terrain.isCut(wx, wz)) return null;
     return terrain.heightAt(wx, wz);
+  }
+  /** Storeys of the building from the lowest up. */
+  storeys() {
+    return [...this.building.storeys].sort((a, b) => a.elevation - b.elevation);
+  }
+  /** The storey above (+1) or below (-1) the one the walker is on, or null. */
+  neighbour(dir) {
+    const list = this.storeys();
+    return list[list.indexOf(this.storey) + dir] || null;
+  }
+  /** Floor top (world cm) of `storey` under building-local cm, or null when it has no floor there (or a stair well). */
+  floorOf(storey, lx, lz) {
+    const tile = this.app.project.grid.tile;
+    const tx = Math.floor(lx / tile), tz = Math.floor(lz / tile);
+    let best = null;
+    for (const fg of storey.floorGroups) {
+      if (!fg.tiles.some(([x, z]) => x === tx && z === tz)) continue;
+      if (this.app.stairWells(this.building, storey, fg)?.has(tileKey(tx, tz))) continue;
+      const h = floorTop(storey, fg);
+      if (best === null || h > best) best = h;
+    }
+    return best;
+  }
+  /**
+   * Take the stairs in one go: move the walker to the storey above (+1) or
+   * below (-1). It stays where it is when that storey has floor under the
+   * same spot, otherwise it steps onto the nearest floor tile of that storey.
+   */
+  changeStorey(dir) {
+    if (!this.active) return false;
+    const target = this.neighbour(dir);
+    if (!target) return false;
+    const tile = this.app.project.grid.tile;
+    const [lx, lz] = this.toLocal(this.feet.x, this.feet.z);
+    const from = this.storey;
+    this.storey = target; // blocked() looks at the walls of the storey we land on
+    const here = this.floorOf(target, lx, lz);
+    if (here !== null && !this.blocked(this.feet.x, this.feet.z)) this.feet.y = here;
+    else {
+      let best = null;
+      for (const fg of target.floorGroups) {
+        const wells = this.app.stairWells(this.building, target, fg);
+        for (const [x, z] of fg.tiles) {
+          if (wells?.has(tileKey(x, z))) continue;
+          const cx = (x + 0.5) * tile, cz = (z + 0.5) * tile;
+          const d = Math.hypot(cx - lx, cz - lz);
+          if (best && d >= best.d) continue;
+          const [wx, wz] = this.toWorld(cx, cz);
+          if (this.blocked(wx, wz)) continue;
+          best = { d, wx, wz, y: floorTop(target, fg) };
+        }
+      }
+      if (!best) {
+        this.storey = from;
+        return false;
+      }
+      this.feet.x = best.wx;
+      this.feet.z = best.wz;
+      this.feet.y = best.y;
+    }
+    this.eyeY = this.feet.y + EYE;
+    this.applyCamera();
+    this.app.setActive(this.building.id, target.id);
+    this.scene.requestRender();
+    return true;
   }
   /** The storey of the building whose floor the walker stands on. */
   storeyAt(h) {

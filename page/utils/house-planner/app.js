@@ -206,6 +206,20 @@ class App {
     this.applyVisibility();
     this.refreshAll();
     this.queueSave();
+    if (this.walk.active) this.updateWalkTools();
+  }
+  /** Floor above / below buttons of the walk mode: which storey they lead to, and the one the walker is on. */
+  updateWalkTools() {
+    const host = $("#walk-tools");
+    if (host.hidden || !this.walk.active) return;
+    const b = this.walk.building;
+    const name = (s) => `${s.name || `${this.t("storey")} ${b.storeys.indexOf(s) + 1}`} · ${s.elevation} cm`;
+    const up = this.walk.neighbour(1), down = this.walk.neighbour(-1);
+    $("#walk-up").disabled = !up;
+    $("#walk-up").title = up ? name(up) : "";
+    $("#walk-down").disabled = !down;
+    $("#walk-down").title = down ? name(down) : "";
+    $("#walk-storey").textContent = name(this.walk.storey);
   }
   activeFloorGroup() {
     const s = this.storey();
@@ -1582,6 +1596,8 @@ class App {
     });
     $("#storey-select").addEventListener("change", (e) => this.setActive(this.building().id, e.target.value));
     $("#add-building").addEventListener("click", () => this.addBuilding());
+    $("#walk-up").addEventListener("click", () => this.walk.changeStorey(1));
+    $("#walk-down").addEventListener("click", () => this.walk.changeStorey(-1));
     $("#tree-collapse").addEventListener("click", () => this.tree.collapseAll());
     $("#tree-expand").addEventListener("click", () => this.tree.expandAll());
     $("#tree-search").addEventListener("input", (e) => {
@@ -1701,6 +1717,8 @@ class App {
     $("#view-top").classList.toggle("on", view === "top");
     $("#view-walk").classList.toggle("on", view === "walk");
     $("#walk-hint").hidden = view !== "walk";
+    $("#walk-tools").hidden = view !== "walk";
+    this.updateWalkTools();
     $("#viewport").classList.toggle("walking", view === "walk");
     this.roomLabels.refresh();
   }
