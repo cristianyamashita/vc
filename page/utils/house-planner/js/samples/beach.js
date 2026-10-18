@@ -66,9 +66,10 @@ function outdoors(p) {
   patch(p, rect(-2200, 690, 2200, 1750), "sand", "#e2d3ad");
   pond(p, rect(-2200, 1650, 2200, 2200), { depth: 150, height: 20, tint: "#cfbf9a" });
   // deck on posts in front of the house, boardwalk down to the water
-  deck(p, rect(-800, 300, 800, 700), { height: LAWN + 2, open: true, tint: "#c9a87a" });
-  deck(p, rect(-60, 950, 60, 1550), { height: 50, open: true, tint: "#c9a87a" });
-  const DECK = LAWN; // top of the deck on posts
+  // a deck stands at the highest ground under it plus its height: level with the house floor at the lawn edge, on posts over the slope
+  deck(p, rect(-800, 300, 800, 700), { height: 3, open: true, tint: "#c9a87a" });
+  deck(p, rect(-60, 950, 60, 1550), { height: 8, open: true, tint: "#c9a87a" });
+  const DECK = LAWN + 3; // top of the deck on posts
   lot(p, "outdoor-sofa", -450, 400, "n", 0, DECK); lot(p, "outdoor-dining-set", 350, 500, "n", 0, DECK); lot(p, "lounger", -600, 600, "n", 0, DECK); lot(p, "lounger", -380, 600, "n", 0, DECK);
   lot(p, "fire-pit", -450, 560, "n", 0, DECK); for (const x of [-760, 760]) lot(p, "planter", x, 660, "n", 0, DECK);
   for (const x of [-700, -350, 350, 700]) lot(p, "garden-bollard", x, 685, "n", 0, DECK);
