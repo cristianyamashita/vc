@@ -3,7 +3,7 @@
 // side of each catalog object, so chairs face their table and headboards
 // touch the wall), stairs, lights, lot polygons and terrain shaping.
 // Building coordinates are cm, x to the east and z to the south; north is -z.
-import { uid } from "../schema.js";
+import { uid, freshStorey } from "../schema.js";
 import { slab, wall, place, railing } from "../templates.js";
 void place;
 
@@ -221,6 +221,7 @@ export const PROPS = {
   "solar-panel": [-86, 86, -51, 51, "-z", 50],
   "mailbox": [-12, 15, -22, 22, "-z", 125],
   "dog-house": [-71, 71, -45, 70, "-z", 88],
+  "cat-tree": [-35, 32, -30, 28, "-z", 114],
   "garden-shed": [-110, 110, -85, 85, "-z", 223],
   "bird-bath": [-25, 25, -25, 25, "-z", 84],
   "trampoline": [-125, 125, -125, 125, "-z", 260],
@@ -348,6 +349,13 @@ export function stairs(st, at, rotation, { shape = "U", width = 100, rise = 300,
 }
 export const rail = railing;
 
+/** Another building on the lot (one ground storey) with its own roof: wings around a courtyard get separate roofs. */
+export function building(p, at, { roof = {}, height = 300, name = "" } = {}) {
+  const b = { id: uid("b"), name, at, rotation: 0, locked: false, roofShadow: true, roof: { type: "hip", pitch: 25, overhang: 60, height: 20, ridgeAxis: "x", material: "roofTiles", tint: "#c8653f", visible: false, locked: false, ceiling: true, ...roof }, storeys: [freshStorey(null, "ground")] };
+  b.storeys[0].height = height;
+  p.buildings.push(b);
+  return b;
+}
 // ---- lot (world cm)
 /** Terrain height (cm) at world cm, like Terrain.heightAt: bilinear over the stored heights plus the slope plane. */
 export function groundAt(p, x, z) {

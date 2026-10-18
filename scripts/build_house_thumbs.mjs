@@ -61,14 +61,16 @@ for (const id of ids) {
     app.scene.grid.visible = false;
     app.scene.renderer.setPixelRatio(2);
     app.scene.resize();
-    // frame the main building with some of the lot around it, not the whole terrain
+    // frame the buildings with some of the lot around them, not the whole terrain
     const THREE = await import("three");
-    const box = new THREE.Box3().setFromObject(app.buildingGroup(app.project.buildings[0].id));
+    const box = new THREE.Box3();
+    for (const bld of app.project.buildings) box.union(new THREE.Box3().setFromObject(app.buildingGroup(bld.id)));
     const size = box.getSize(new THREE.Vector3());
-    box.expandByVector(new THREE.Vector3(size.x * 0.3 + 4, 0, size.z * 0.3 + 4));
+    box.expandByVector(new THREE.Vector3(size.x * 0.15 + 3, 0, size.z * 0.15 + 3));
     app.scene.fit(box);
+    // fit() frames the bounding sphere for the vertical field of view; the thumbnail is wide, so come closer
     const c = app.scene.controls, cam = app.scene.perspective;
-    const d = cam.position.clone().sub(c.target);
+    const d = cam.position.clone().sub(c.target).multiplyScalar(0.68);
     d.y *= 0.75;
     cam.position.copy(c.target).add(d);
     c.update();

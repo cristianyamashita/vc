@@ -449,6 +449,9 @@
     "assets/house-planner/templates/mainHouseSingleXL.png",
     "assets/house-planner/templates/mainHouseXL.png",
     "assets/house-planner/templates/mansion.png",
+    "assets/house-planner/templates/mansionCoastal.png",
+    "assets/house-planner/templates/mansionCourtyard.png",
+    "assets/house-planner/templates/mansionEstate.png",
     "assets/house-planner/templates/studio.png",
     "assets/house-planner/templates/twoStorey.png",
     "assets/house-planner/textures/asphalt/color.jpg",
@@ -1405,6 +1408,9 @@
     "utils/house-planner/js/samples/hillside.js",
     "utils/house-planner/js/samples/kit.js",
     "utils/house-planner/js/samples/main-house.js",
+    "utils/house-planner/js/samples/mansion-coastal.js",
+    "utils/house-planner/js/samples/mansion-courtyard.js",
+    "utils/house-planner/js/samples/mansion-estate.js",
     "utils/house-planner/js/samples/mansion.js",
     "utils/house-planner/js/scene.js",
     "utils/house-planner/js/schema.js",
@@ -1802,6 +1808,6 @@
     "models/tinyyolov2-7.onnx",
     "models/yolov8n-coco.onnx"
   ],
-  "version": "5b9803ca84de"
+  "version": "5f281e322b36"
 };
 })(typeof self !== "undefined" ? self : window);
