@@ -413,6 +413,7 @@ export class PropsPanel {
           app.setTab("floors");
           app.setTool("paint");
         }),
+        this.button(t("addOuterWalls"), () => app.addOuterWalls(fg.id)),
         this.button(t("mergeInto"), () => app.mergeFloorGroups(fg.id)),
         this.button(t("splitGroup"), () => app.splitFloorGroup(fg.id)),
         this.lockRow(fg, fg.id),

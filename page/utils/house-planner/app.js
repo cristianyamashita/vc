@@ -40,7 +40,7 @@ import { Walk } from "./js/walk.js";
 import { renderPlan } from "./js/plan2d.js";
 import { propBounds } from "./js/props.js";
 import * as store from "./js/store.js";
-import { freshProject, freshBuilding, freshStorey, freshNote, freshLight, locate, isLocked, uid, clone, OPENING_PRESETS, OUTDOOR_TYPES, projectChecked, findBuilding, topStorey, RAILING_STYLES, FENCE_STYLES, GATE_TYPES, WALL_TOPS } from "./js/schema.js";
+import { freshProject, freshBuilding, freshStorey, freshNote, freshLight, locate, isLocked, uid, clone, wallChecked, OPENING_PRESETS, OUTDOOR_TYPES, projectChecked, findBuilding, topStorey, RAILING_STYLES, FENCE_STYLES, GATE_TYPES, WALL_TOPS } from "./js/schema.js";
 
 const DEG = Math.PI / 180;
 const $ = (s, r = document) => r.querySelector(s);
@@ -230,6 +230,65 @@ class App {
     this.state.activeFloorGroup = fg.id;
     this.changed({ rebuild: "none" });
     this.select(fg.id, { keepTool: true });
+  }
+  /**
+   * Walls around a floor group: every boundary edge of its tiles that no
+   * wall already runs along becomes a new exterior wall. Returns how many
+   * walls were added.
+   */
+  addOuterWalls(fgId) {
+    const found = this.locate(fgId);
+    if (!found || found.type !== "floorGroup") return 0;
+    const { item: fg, storey } = found;
+    if (isLocked(found)) return this.toast(this.t("lockedItem")), 0;
+    const tile = this.project.grid.tile;
+    const set = tileSet(fg);
+    const runs = []; // {axis: "x"|"z", at, from, to} in cm
+    const edges = { x: new Map(), z: new Map() }; // horizontal runs keyed by z, vertical by x
+    const mark = (map, key, v) => (map.get(key) || map.set(key, []).get(key)).push(v);
+    for (const [x, z] of fg.tiles) {
+      if (!set.has(tileKey(x, z - 1))) mark(edges.x, z, x);
+      if (!set.has(tileKey(x, z + 1))) mark(edges.x, z + 1, x);
+      if (!set.has(tileKey(x - 1, z))) mark(edges.z, x, z);
+      if (!set.has(tileKey(x + 1, z))) mark(edges.z, x + 1, z);
+    }
+    for (const axis of ["x", "z"])
+      for (const [at, list] of edges[axis]) {
+        const sorted = [...new Set(list)].sort((a, b) => a - b);
+        let start = sorted[0], prev = sorted[0];
+        for (const v of sorted.slice(1).concat([null])) {
+          if (v === prev + 1) {
+            prev = v;
+            continue;
+          }
+          runs.push({ axis, at: at * tile, from: start * tile, to: (prev + 1) * tile });
+          start = prev = v;
+        }
+      }
+    // subtract the stretches an existing wall already covers
+    const covered = (run) => {
+      const spans = [];
+      for (const w of storey.walls) {
+        const horizontal = Math.abs(w.a[1] - w.b[1]) < 1, vertical = Math.abs(w.a[0] - w.b[0]) < 1;
+        if (run.axis === "x" && horizontal && Math.abs(w.a[1] - run.at) <= Math.max(15, w.thickness)) spans.push([Math.min(w.a[0], w.b[0]), Math.max(w.a[0], w.b[0])]);
+        if (run.axis === "z" && vertical && Math.abs(w.a[0] - run.at) <= Math.max(15, w.thickness)) spans.push([Math.min(w.a[1], w.b[1]), Math.max(w.a[1], w.b[1])]);
+      }
+      let pieces = [[run.from, run.to]];
+      for (const [s0, s1] of spans) pieces = pieces.flatMap(([p0, p1]) => (s1 <= p0 || s0 >= p1 ? [[p0, p1]] : [[p0, Math.max(p0, s0)], [Math.min(p1, s1), p1]]));
+      return pieces.filter(([p0, p1]) => p1 - p0 >= tile);
+    };
+    const added = [];
+    for (const run of runs)
+      for (const [p0, p1] of covered(run)) {
+        const a = run.axis === "x" ? [p0, run.at] : [run.at, p0], b = run.axis === "x" ? [p1, run.at] : [run.at, p1];
+        added.push(wallChecked({ a, b, thickness: 20 }));
+      }
+    if (!added.length) return this.toast(this.t("outerWallsNone")), 0;
+    this.checkpoint();
+    storey.walls.push(...added);
+    this.changed({ rebuild: "building", buildingId: found.building.id });
+    this.toast(this.t("outerWallsAdded", { n: added.length }));
+    return added.length;
   }
   mergeFloorGroups(targetId) {
     const s = this.storey();
