@@ -247,6 +247,8 @@ def seed_globs(buckets: dict[str, set[str]]) -> None:
         # House Planner catalog and CC0 textures, fetched by id at runtime.
         "assets/house-planner/**/*.json",
         "assets/house-planner/textures/**/*.jpg",
+        # Template thumbnails (scripts/build_house_thumbs.mjs), named by template id at runtime.
+        "assets/house-planner/templates/*.png",
         "models/**/*.*",
         # Game sound effects are fetched by name at runtime, so nothing in the
         # source text points at them for the scanner to find.

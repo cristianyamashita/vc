@@ -438,6 +438,19 @@
     "assets/house-planner/props/wooden-barrel.json",
     "assets/house-planner/props/workbench.json",
     "assets/house-planner/props/yoga-mat.json",
+    "assets/house-planner/templates/beach.png",
+    "assets/house-planner/templates/cellarAttic.png",
+    "assets/house-planner/templates/farmhouse.png",
+    "assets/house-planner/templates/garageLeisure.png",
+    "assets/house-planner/templates/hillside.png",
+    "assets/house-planner/templates/house2br.png",
+    "assets/house-planner/templates/mainHouse.png",
+    "assets/house-planner/templates/mainHouseSingle.png",
+    "assets/house-planner/templates/mainHouseSingleXL.png",
+    "assets/house-planner/templates/mainHouseXL.png",
+    "assets/house-planner/templates/mansion.png",
+    "assets/house-planner/templates/studio.png",
+    "assets/house-planner/templates/twoStorey.png",
     "assets/house-planner/textures/asphalt/color.jpg",
     "assets/house-planner/textures/asphalt/normal.jpg",
     "assets/house-planner/textures/azulejo/color.jpg",
@@ -1386,7 +1399,13 @@
     "utils/house-planner/js/quantities.js",
     "utils/house-planner/js/roomlabels.js",
     "utils/house-planner/js/rooms.js",
+    "utils/house-planner/js/samples/beach.js",
+    "utils/house-planner/js/samples/cellar-attic.js",
+    "utils/house-planner/js/samples/farmhouse.js",
+    "utils/house-planner/js/samples/hillside.js",
+    "utils/house-planner/js/samples/kit.js",
     "utils/house-planner/js/samples/main-house.js",
+    "utils/house-planner/js/samples/mansion.js",
     "utils/house-planner/js/scene.js",
     "utils/house-planner/js/schema.js",
     "utils/house-planner/js/share.js",
@@ -1783,6 +1802,6 @@
     "models/tinyyolov2-7.onnx",
     "models/yolov8n-coco.onnx"
   ],
-  "version": "3e3ea552288e"
+  "version": "5b9803ca84de"
 };
 })(typeof self !== "undefined" ? self : window);

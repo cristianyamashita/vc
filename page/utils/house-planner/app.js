@@ -2023,7 +2023,8 @@ class App {
   openTemplatesDialog() {
     const t = this.t;
     const host = $("#templates-list");
-    host.innerHTML = `<div class="plist">${TEMPLATE_IDS.map((id) => `<div class="pitem"><span class="pname">${esc(t(`template_${id}`))}</span><span class="pdate">${esc(t(`template_${id}_desc`))}</span><button class="tb small" data-template="${id}">${esc(t("new"))}</button><button class="tb small" data-template-add="${id}">${esc(t("addToProject"))}</button></div>`).join("")}</div>`;
+    host.innerHTML = `<div class="plist">${TEMPLATE_IDS.map((id) => `<div class="pitem tpl"><img class="tthumb" src="../../assets/house-planner/templates/${id}.png" alt="" loading="lazy" width="160" height="100"><span class="pname">${esc(t(`template_${id}`))}</span><span class="pdate">${esc(t(`template_${id}_desc`))}</span><span class="tacts"><button class="tb small" data-template="${id}">${esc(t("new"))}</button><button class="tb small" data-template-add="${id}">${esc(t("addToProject"))}</button></span></div>`).join("")}</div>`;
+    for (const img of host.querySelectorAll("img.tthumb")) img.addEventListener("error", () => img.classList.add("missing"), { once: true });
     host.onclick = async (e) => {
       const add = e.target.closest("[data-template-add]");
       if (add) {
