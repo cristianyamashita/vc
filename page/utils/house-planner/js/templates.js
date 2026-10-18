@@ -1,5 +1,6 @@
 // Ready-made houses: generated projects (cm) built from rectangular rooms.
 import { freshProject, freshStorey, uid, projectChecked, TILE, OPENING_PRESETS } from "./schema.js";
+import { floor, ext, inn, D, PS, SL, WN, WS, WP, along, corner, put, lights, stairs as makeStairs, rail, lot as lotObject } from "./samples/kit.js";
 import { mainHouse, mainHouseSingle } from "./samples/main-house.js";
 import { hillside } from "./samples/hillside.js";
 import { farmhouse } from "./samples/farmhouse.js";
@@ -9,49 +10,6 @@ import { mansion } from "./samples/mansion.js";
 
 const TEMPLATES = ["studio", "house2br", "twoStorey", "garageLeisure", "mainHouse", "mainHouseXL", "mainHouseSingle", "mainHouseSingleXL", "mansion", "hillside", "farmhouse", "cellarAttic", "beach"];
 export const TEMPLATE_IDS = TEMPLATES;
-
-/** Rooms are {x, z, w, d} rectangles in building cm; walls are deduplicated. */
-function addRooms(storey, rooms, { material = "woodFloor" } = {}) {
-  const tiles = [];
-  const edges = new Map();
-  const key = (a, b) => [a, b].map((p) => p.join(",")).sort().join("|");
-  for (const r of rooms) {
-    for (let z = Math.floor(r.z / TILE); z < Math.ceil((r.z + r.d) / TILE); z++)
-      for (let x = Math.floor(r.x / TILE); x < Math.ceil((r.x + r.w) / TILE); x++) tiles.push([x, z]);
-    const c = [[r.x, r.z], [r.x + r.w, r.z], [r.x + r.w, r.z + r.d], [r.x, r.z + r.d]];
-    c.forEach((a, i) => {
-      const b = c[(i + 1) % 4];
-      const k = key(a, b);
-      if (!edges.has(k)) edges.set(k, { a, b, rooms: [] });
-      edges.get(k).rooms.push(r);
-    });
-  }
-  // split shared long edges: walls are per edge as drawn (rooms share whole sides in these templates)
-  const seen = new Set();
-  storey.floorGroups.push({ id: uid("fg"), name: "", offset: 0, thickness: null, material, tint: null, tiles: tiles.filter(([x, z]) => !seen.has(`${x},${z}`) && seen.add(`${x},${z}`)), locked: false });
-  for (const { a, b, rooms: rs } of edges.values()) {
-    const wall = { id: uid("w"), name: "", a, b, thickness: rs.length > 1 ? 15 : 20, height: null, material: null, tint: "#f2ede4", outerMaterial: null, outerTint: null, locked: false, openings: [] };
-    storey.walls.push(wall);
-    for (const r of rs) for (const op of r.openings || []) if (op.side === sideOf(r, a, b)) wall.openings.push(opening(op, a, b, r));
-  }
-  return storey;
-}
-function sideOf(r, a, b) {
-  if (a[1] === b[1]) return a[1] === r.z ? "n" : "s";
-  return a[0] === r.x ? "w" : "e";
-}
-/** Opening on a side: offset is measured along the wall from its first point. */
-function opening(op, a, b, r) {
-  const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
-  const along = op.at ?? len / 2 - (op.width ?? 90) / 2;
-  const preset = op.preset || (op.type === "window" ? "window-casement" : "door-single");
-  const width = op.width ?? (op.type === "window" ? 120 : 90);
-  const height = op.height ?? (op.type === "window" ? 120 : 210);
-  return { id: uid("op"), preset, type: op.type, offset: Math.max(0, Math.min(len - width, along)), width, height, sill: op.type === "window" ? 90 : 0, flip: false, frameColor: "#776750", leafColor: "#b99673", glassColor: "#bcd8e6", locked: false };
-}
-function objects(storey, list) {
-  for (const [prop, x, z, yaw = 0] of list) storey.objects.push({ id: uid("ob"), name: "", prop, inline: null, at: [x, 0, z], rotation: [0, yaw, 0], scale: [1, 1, 1], tint: null, material: null, locked: false });
-}
 
 // ---- free-form helpers (cm, building-local) for the larger samples
 function tiles(x0, z0, x1, z1) {
@@ -124,7 +82,7 @@ export function garageLeisureBuilding(b, g) {
   for (const x of [1100, 1500]) place(g, "spot-rail", x, 200, 0, 320);
   place(g, "downlight", 1350, 100, 0, 320); place(g, "downlight", 1350, 300, 0, 320);
   // lavatory, shower, entry hall, kitchenette
-  place(g, "toilet", 947, 480, 0); place(g, "washbasin-pedestal", 1100, 568, 0); place(g, "wall-mirror", 1100, 590, 90, 110); place(g, "shower-stall", 1285, 535, 180);
+  place(g, "toilet", 947, 480, 0); place(g, "washbasin-pedestal", 1100, 568, 180); place(g, "wall-mirror", 1100, 590, 90, 110); place(g, "shower-stall", 1285, 535, 180);
   place(g, "ceiling-flush", 1025, 510, 0, 320); place(g, "ceiling-flush", 1250, 510, 0, 320);
   place(g, "planter", 1460, 575, 0); place(g, "ceiling-flush", 1425, 510, 0, 320);
   place(g, "kitchen-sink", 1580, 560, 180); place(g, "kitchen-fridge", 1750, 555, 180); place(g, "coffee-machine", 1660, 585, 180, 94);
@@ -159,12 +117,12 @@ export function garageLeisureBuilding(b, g) {
   for (const x of [150, 400]) place(up, "downlight", x, 200, 0, 300);
   for (const x of [150, 400]) place(up, "downlight", x, 450, 0, 300);
   // hall and lavatory
-  place(up, "toilet", 797, 540, 0); place(up, "washbasin-pedestal", 870, 565, 0); place(up, "wall-mirror", 760, 540, 0, 110); place(up, "ceiling-flush", 875, 540, 0, 300);
+  place(up, "toilet", 797, 540, 0); place(up, "washbasin-pedestal", 870, 565, 180); place(up, "wall-mirror", 760, 540, 0, 110); place(up, "ceiling-flush", 875, 540, 0, 300);
   place(up, "houseplant", 970, 360, 0); place(up, "ceiling-flush", 875, 160, 0, 300);
   // office
-  place(up, "wall-shelves", 1250, 12, 0, 150); place(up, "wall-shelves", 1550, 12, 0, 150); place(up, "sideboard", 1400, 40, 90);
+  place(up, "wall-shelves", 1250, 12, 0, 150); place(up, "wall-shelves", 1550, 12, 0, 150); place(up, "sideboard", 1400, 40, 270);
   place(up, "armchair-lounge", 1200, 200, 180); place(up, "armchair-lounge", 1200, 420, 0); place(up, "coffee-table", 1200, 310, 90);
-  place(up, "round-rug", 1200, 310, 0); place(up, "desk", 1580, 310, 0); place(up, "office-chair", 1650, 310, 270);
+  place(up, "round-rug", 1200, 310, 0); place(up, "desk", 1580, 310, 0); place(up, "office-chair", 1650, 310, 180);
   place(up, "laptop", 1570, 310, 90, 74); place(up, "filing-cabinet", 1745, 60, 270);
   place(up, "houseplant", 1040, 40, 0); place(up, "houseplant", 1050, 560, 0); place(up, "houseplant", 1760, 560, 0);
   for (const x of [1200, 1550]) for (const z of [170, 430]) place(up, "downlight", x, z, 0, 300);
@@ -198,31 +156,109 @@ function garageLeisure(p, b, g) {
   return projectChecked(p);
 }
 
+
+const LIGHT = { outerMaterial: "plaster", outerTint: "#e9e4da" };
+const H = 300;
+/** Studio flat (7 × 4 m): one room with the bed, a sofa corner and the kitchen along the back wall, bathroom beside. */
+function studio(p, b, g) {
+  floor(g, 0, 0, 500, 400, "woodFloor", null);
+  floor(g, 500, 0, 700, 250, "tiles", "#d8d4cc");
+  ext(g, [0, 0], [700, 0], [WN(280, 180), WS(600)], LIGHT);
+  ext(g, [700, 0], [700, 250], [], LIGHT);
+  ext(g, [700, 250], [500, 250], [], LIGHT);
+  ext(g, [500, 250], [500, 400], [], LIGHT);
+  ext(g, [500, 400], [0, 400], [D(105)], LIGHT);
+  ext(g, [0, 400], [0, 0], [WN(200, 120)], LIGHT);
+  inn(g, [500, 0], [500, 250], [D(105)]);
+  along(g, "double-bed", "w", 13, 170); along(g, "nightstand", "w", 13, 280); along(g, "wardrobe", "n", 13, 100);
+  put(g, "sofa-two-seat", 330, 200, "w"); along(g, "wall-tv", "e", 487, 230, { y: 110 }); put(g, "side-table", 420, 200, "n"); put(g, "round-rug", 300, 200, "n");
+  along(g, "kitchen-fridge", "s", 387, 440); along(g, "kitchen-stove", "s", 387, 345); along(g, "kitchen-sink", "s", 387, 225);
+  corner(g, "shower-stall", 687, 13, "ne"); along(g, "toilet", "s", 237, 540); along(g, "washbasin-pedestal", "e", 687, 190); along(g, "wall-mirror", "e", 687, 190, { y: 110 });
+  put(g, "pendant-lamp", 250, 200, "n", H); put(g, "ceiling-flush", 600, 130, "n", H); put(g, "doormat", 105, 360, "n");
+  b.roof.type = "flat";
+}
+/** 2-bedroom house (8 × 8 m): living, kitchen with a table, hall, bathroom and two bedrooms. */
+function house2br(p, b, g) {
+  floor(g, 0, 0, 800, 800, "woodFloor", null);
+  floor(g, 450, 0, 800, 250, "tiles", "#d8d4cc"); floor(g, 600, 250, 800, 450, "tiles", "#d8d4cc"); floor(g, 450, 250, 600, 450, "stoneTiles", "#cfc9bd");
+  ext(g, [0, 0], [800, 0], [D(90), WN(300, 120), WN(625, 120, 100, 120)], LIGHT);
+  ext(g, [800, 0], [800, 800], [WS(350), WN(560, 150)], LIGHT);
+  ext(g, [800, 800], [0, 800], [WN(600, 150), WN(300, 120)], LIGHT);
+  ext(g, [0, 800], [0, 0], [WN(625, 180), WP(225)], LIGHT);
+  inn(g, [450, 0], [450, 450], [D(125), PS(400)]); // kitchen door, passage to the hall
+  inn(g, [450, 250], [800, 250]); inn(g, [600, 250], [600, 450], [D(350)]);
+  inn(g, [0, 450], [800, 450], [D(300), D(525)]); inn(g, [400, 450], [400, 800]);
+  // living
+  along(g, "wall-tv", "e", 442, 260, { y: 110 }); along(g, "tv-bench", "e", 442, 260); put(g, "sofa-two-seat", 200, 260, "w"); put(g, "coffee-table", 310, 260, "n");
+  put(g, "armchair", 230, 80, "n"); put(g, "rug", 270, 260, "n"); put(g, "floor-lamp", 410, 60, "n"); put(g, "houseplant", 40, 410, "n"); put(g, "doormat", 90, 50, "n");
+  // kitchen with a table for four
+  along(g, "kitchen-fridge-70", "n", 13, 575); along(g, "kitchen-sink-80", "n", 13, 650); along(g, "kitchen-stove-60", "n", 13, 720); along(g, "kitchen-wall-60", "n", 13, 720, { y: 145 });
+  put(g, "table", 640, 185, "n"); put(g, "dining-chair", 550, 185, "w"); put(g, "dining-chair", 730, 185, "e"); put(g, "dining-chair", 600, 113, "n"); put(g, "dining-chair", 680, 113, "n");
+  put(g, "kettle", 690, 40, "n", 94); put(g, "dish-rack", 580, 40, "n", 94);
+  // hall and bathroom
+  along(g, "picture", "n", 257, 525, { y: 150 });
+  corner(g, "shower-stall", 787, 257, "ne"); along(g, "toilet", "e", 787, 405); along(g, "washbasin-pedestal", "s", 442, 650); along(g, "wall-mirror", "s", 442, 650, { y: 110 });
+  // bedrooms
+  along(g, "double-bed", "s", 787, 170); along(g, "nightstand", "s", 787, 40); along(g, "nightstand", "s", 787, 300); along(g, "wardrobe", "n", 457, 110);
+  along(g, "study-desk", "e", 392, 650); put(g, "dining-chair", 280, 650, "w"); put(g, "rug", 170, 600, "n");
+  along(g, "single-bed", "e", 787, 700); along(g, "desk", "n", 457, 700); put(g, "office-chair", 700, 590, "s"); along(g, "wardrobe", "w", 407, 700); along(g, "bookshelf", "s", 787, 540); put(g, "round-rug", 600, 650, "n");
+  lights(g, H, [[225, 225], [625, 125], [525, 350], [700, 350], [200, 625], [600, 625]]);
+  lotObject(p, "sedan", 1100, 200, 90); lotObject(p, "oak-tree", -500, 900);
+  b.roof.type = "hip";
+}
+/** Two-storey house (8 × 6 m): living with the stairs, dining, kitchen, lavatory and laundry below; two bedrooms, office and bathroom above. */
+function twoStorey(p, b, g) {
+  floor(g, 0, 0, 800, 600, "woodFloor", null);
+  floor(g, 500, 0, 800, 400, "tiles", "#d8d4cc");
+  ext(g, [0, 0], [800, 0], [WN(120, 150), WN(650, 120, 100, 120)], LIGHT);
+  ext(g, [800, 0], [800, 600], [WS(325), WN(500, 150)], LIGHT);
+  ext(g, [800, 600], [0, 600], [WN(650, 180), D(300), WN(430, 120)], LIGHT);
+  ext(g, [0, 600], [0, 0], [WN(520, 150), WS(80)], LIGHT);
+  inn(g, [500, 0], [500, 400], [D(150), D(325)]); // kitchen and lavatory doors
+  inn(g, [500, 250], [800, 250], [D(725)]); inn(g, [650, 250], [650, 400]); inn(g, [500, 400], [800, 400]);
+  makeStairs(g, [60, 450], 90, { shape: "U", width: 90, rise: H, turn: "right", rail: "both", railStyle: "wood" });
+  // living
+  along(g, "wall-tv", "n", 13, 330, { y: 110 }); along(g, "tv-bench", "n", 13, 330); put(g, "sofa-two-seat", 300, 200, "s"); put(g, "coffee-table", 300, 110, "n");
+  put(g, "houseplant", 60, 60, "n"); put(g, "rug", 300, 150, "n"); put(g, "floor-lamp", 440, 60, "n"); put(g, "houseplant", 460, 560, "n"); put(g, "doormat", 300, 560, "n"); put(g, "coat-rack", 400, 570, "n");
+  // dining
+  put(g, "dining-table", 650, 490, "n"); for (const x of [600, 700]) { put(g, "dining-chair", x, 435, "n"); put(g, "dining-chair", x, 545, "s"); }
+  put(g, "dining-chair", 545, 490, "w"); put(g, "dining-chair", 755, 490, "e"); put(g, "pendant-lamp", 650, 490, "n", H);
+  // kitchen, lavatory, laundry
+  along(g, "kitchen-fridge-70", "n", 13, 545); along(g, "kitchen-sink-80", "n", 13, 620); along(g, "kitchen-stove-60", "n", 13, 690); along(g, "kitchen-base-60", "n", 13, 750);
+  along(g, "kitchen-wall-60", "n", 13, 750, { y: 145 }); put(g, "microwave", 750, 40, "n", 93); put(g, "kitchen-bin", 770, 110, "e");
+  along(g, "toilet", "n", 257, 610); along(g, "washbasin-pedestal", "s", 392, 610); along(g, "wall-mirror", "s", 392, 610, { y: 110 });
+  along(g, "washing-machine", "s", 392, 690); along(g, "dryer", "s", 392, 755); along(g, "wall-shelves", "e", 787, 320, { y: 150 });
+  lights(g, H, [[300, 150], [300, 450], [650, 125], [575, 325], [725, 325]]);
+  // ---- upper floor: landing by the stairs, corridor, two bedrooms, bathroom and office
+  const up = freshStorey(g, "upper");
+  b.storeys.push(up);
+  floor(up, 0, 0, 800, 600, "woodFloor", null);
+  floor(up, 320, 400, 520, 600, "tiles", "#d8d4cc");
+  ext(up, [0, 0], [800, 0], [WN(440, 150), WN(680, 150)], LIGHT);
+  ext(up, [800, 0], [800, 600], [WN(120, 120), WN(500, 150)], LIGHT);
+  ext(up, [800, 600], [0, 600], [WN(680, 150), WS(360), WN(100, 150)], LIGHT);
+  ext(up, [0, 600], [0, 0], [WN(300, 180), WS(80)], LIGHT);
+  inn(up, [200, 0], [200, 450]); inn(up, [320, 0], [320, 300]); inn(up, [560, 0], [560, 300]);
+  inn(up, [320, 300], [800, 300], [D(500), D(620)]);
+  inn(up, [320, 400], [800, 400], [D(400), D(600)]); inn(up, [320, 400], [320, 600]); inn(up, [520, 400], [520, 600]);
+  rail(up, [[15, 338], [105, 338], [105, 450]], { height: 100, style: "wood" });
+  along(up, "single-bed", "n", 13, 375); along(up, "nightstand", "n", 13, 450); along(up, "wardrobe", "e", 552, 100); along(up, "bookshelf", "s", 292, 400); put(up, "round-rug", 440, 160, "n");
+  along(up, "double-bed", "e", 787, 120); along(up, "chest-of-drawers", "s", 292, 740); put(up, "rug", 680, 120, "e"); put(up, "houseplant", 590, 270, "n");
+  corner(up, "shower-stall", 512, 587, "se"); along(up, "toilet", "w", 327, 540); along(up, "washbasin-pedestal", "n", 407, 480); along(up, "wall-mirror", "n", 407, 480, { y: 110 });
+  along(up, "desk", "s", 587, 700); put(up, "office-chair", 700, 468, "n"); put(up, "laptop", 700, 550, "s", 75); along(up, "bookshelf", "n", 407, 720); along(up, "filing-cabinet", "s", 587, 575);
+  along(up, "bookshelf", "n", 13, 100); put(up, "houseplant", 40, 560, "n"); along(up, "picture", "s", 587, 100, { y: 150 });
+  lights(up, H, [[440, 150], [680, 150], [260, 300], [100, 525], [420, 500], [660, 500]]);
+  b.roof.type = "gable";
+}
+
 export function makeTemplate(id, name) {
   const p = freshProject(name);
   const b = p.buildings[0];
   const g = b.storeys[0];
-  if (id === "studio") {
-    addRooms(g, [
-      { x: 0, z: 0, w: 500, d: 400, openings: [{ type: "door", side: "s", at: 60 }, { type: "window", side: "n", width: 180 }] },
-      { x: 500, z: 0, w: 200, d: 250, openings: [{ type: "door", side: "w", at: 100 }, { type: "window", side: "n", width: 60, preset: "window-small" }] },
-    ]);
-    objects(g, [["sofa", 140, 300, 180], ["tv", 140, 30, 0], ["double-bed", 380, 100, 90], ["kitchen-fridge", 460, 360, 180], ["kitchen-stove", 360, 360, 180], ["kitchen-sink", 250, 360, 180], ["toilet", 650, 40, 0], ["shower-stall", 560, 60, 0], ["bath-vanity", 650, 200, 180]]);
-    b.roof.type = "flat";
-  } else if (id === "house2br") {
-    addRooms(g, [
-      { x: 0, z: 0, w: 450, d: 450, openings: [{ type: "door", side: "s", at: 60 }, { type: "window", side: "w", width: 180, at: 120 }] }, // living
-      { x: 450, z: 0, w: 350, d: 300, openings: [{ type: "door", side: "w", at: 40 }, { type: "window", side: "n", width: 120 }] }, // kitchen
-      { x: 450, z: 300, w: 350, d: 150, openings: [{ type: "door", side: "w", at: 30 }, { type: "window", side: "e", width: 60, preset: "window-small" }] }, // bathroom
-      { x: 0, z: 450, w: 400, d: 350, openings: [{ type: "door", side: "n", at: 280 }, { type: "window", side: "s", width: 150 }] }, // bedroom 1
-      { x: 400, z: 450, w: 400, d: 350, openings: [{ type: "door", side: "n", at: 40 }, { type: "window", side: "s", width: 150 }] }, // bedroom 2
-    ]);
-    objects(g, [["sofa", 120, 300, 180], ["coffee-table", 200, 220, 0], ["tv", 120, 30, 0], ["dining-table", 330, 150, 0], ["kitchen-fridge", 760, 40, 270], ["kitchen-stove", 760, 160, 270], ["kitchen-sink", 760, 250, 270], ["toilet", 760, 340, 270], ["bath-vanity", 500, 420, 180], ["double-bed", 200, 650, 180], ["wardrobe", 60, 500, 90], ["single-bed", 600, 650, 180], ["desk", 720, 500, 90]]);
-    p.objects.push({ id: uid("ob"), name: "", prop: "sedan", inline: null, at: [1100, 0, 200], rotation: [0, 90, 0], scale: [1, 1, 1], tint: null, material: null, locked: false }, { id: uid("ob"), name: "", prop: "oak-tree", inline: null, at: [-500, 0, 900], rotation: [0, 0, 0], scale: [1, 1, 1], tint: null, material: null, locked: false });
-    b.roof.type = "hip";
-  } else if (id === "garageLeisure") {
-    return garageLeisure(p, b, g);
-  } else if (id === "mansion" || id === "hillside" || id === "farmhouse" || id === "cellarAttic" || id === "beach") {
+  if (id === "studio") studio(p, b, g);
+  else if (id === "house2br") house2br(p, b, g);
+  else if (id === "garageLeisure") return garageLeisure(p, b, g);
+  else if (id === "mansion" || id === "hillside" || id === "farmhouse" || id === "cellarAttic" || id === "beach") {
     ({ mansion, hillside, farmhouse, cellarAttic, beach })[id](p, b, g);
     p.view.activeStorey = g.id;
     return projectChecked(p);
@@ -231,26 +267,7 @@ export function makeTemplate(id, name) {
     p.sun = { ...p.sun, city: "saopaulo", latitude: -23.5, useTime: true, time: 17.5, month: 4 };
     p.view.activeStorey = g.id;
     return projectChecked(p);
-  } else {
-    addRooms(g, [
-      { x: 0, z: 0, w: 500, d: 500, openings: [{ type: "door", side: "s", at: 60 }, { type: "window", side: "w", width: 240, preset: "window-picture", at: 130 }] }, // living
-      { x: 500, z: 0, w: 300, d: 350, openings: [{ type: "door", side: "w", at: 40 }, { type: "window", side: "n", width: 120 }] }, // kitchen
-      { x: 500, z: 350, w: 300, d: 150, openings: [{ type: "door", side: "w", at: 30 }, { type: "window", side: "e", width: 60, preset: "window-small" }] }, // wc
-    ]);
-    objects(g, [["sofa-three-seat", 150, 330, 180], ["coffee-table", 250, 250, 0], ["tv", 150, 30, 0], ["dining-table", 380, 150, 90], ["kitchen-fridge", 760, 40, 270], ["kitchen-stove", 760, 160, 270], ["kitchen-sink", 760, 260, 270], ["toilet", 760, 400, 270]]);
-    g.stairs.push({ id: uid("sr"), name: "", shape: "L", at: [60, 440], rotation: 0, width: 100, rise: 300, stepHeight: 18, treadDepth: 28, turn: "left", material: "woodFloor", tint: null, cutFloorAbove: true, locked: false });
-    const up = freshStorey({ elevation: 0, height: 300 }, "upper");
-    b.storeys.push(up);
-    addRooms(up, [
-      { x: 0, z: 0, w: 400, d: 250, openings: [{ type: "door", side: "s", at: 40 }, { type: "window", side: "n", width: 150 }] }, // bedroom 1
-      { x: 400, z: 0, w: 400, d: 250, openings: [{ type: "door", side: "s", at: 300 }, { type: "window", side: "n", width: 150 }] }, // bedroom 2
-      { x: 0, z: 250, w: 300, d: 250, openings: [] }, // hall
-      { x: 300, z: 250, w: 250, d: 250, openings: [{ type: "door", side: "w", at: 60 }, { type: "window", side: "s", width: 60, preset: "window-small" }] }, // bathroom
-      { x: 550, z: 250, w: 250, d: 250, openings: [{ type: "door", side: "w", at: 60 }, { type: "window", side: "s", width: 120 }] }, // office
-    ]);
-    objects(up, [["double-bed", 200, 120, 0], ["wardrobe", 60, 200, 90], ["single-bed", 600, 120, 0], ["desk", 700, 400, 90], ["office-chair", 640, 400, 270], ["toilet", 330, 460, 180], ["bath-vanity", 500, 300, 0]]);
-    b.roof.type = "gable";
-  }
+  } else twoStorey(p, b, g);
   b.roof.material = "roofTiles";
   b.roof.tint = "#c8653f";
   p.view.activeStorey = g.id;
