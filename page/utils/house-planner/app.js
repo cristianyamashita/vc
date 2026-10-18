@@ -1479,6 +1479,7 @@ class App {
     $("#catalog").hidden = !showCatalog;
     $("#tree").hidden = showCatalog;
     $("#tree-search").hidden = showCatalog;
+    $("#tree-tools").hidden = showCatalog;
     if (showCatalog) this.renderCatalog();
   }
   renderCatalog() {
@@ -1581,6 +1582,8 @@ class App {
     });
     $("#storey-select").addEventListener("change", (e) => this.setActive(this.building().id, e.target.value));
     $("#add-building").addEventListener("click", () => this.addBuilding());
+    $("#tree-collapse").addEventListener("click", () => this.tree.collapseAll());
+    $("#tree-expand").addEventListener("click", () => this.tree.expandAll());
     $("#tree-search").addEventListener("input", (e) => {
       this.tree.query = e.target.value;
       this.tree.render();

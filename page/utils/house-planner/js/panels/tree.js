@@ -41,16 +41,18 @@ export class Tree {
     const { project, state } = this.app;
     const t = this.app.t;
     const rows = [];
+    this.keys = new Set(); // every collapsible node seen in this render
     const sel = state.selection;
     const q = this.query.trim().toLowerCase();
     const row = (id, type, text, depth, opts = {}) => {
       if (q && !text.toLowerCase().includes(q) && !opts.always) return;
       const locked = opts.locked ?? false;
+      if (opts.children) this.keys.add(opts.children);
       const caret = opts.children ? `<button class="caret" data-toggle="${opts.children}" aria-label="toggle">${this.collapsed.has(opts.children) ? "▸" : "▾"}</button>` : `<span class="caret"></span>`;
       const lock = opts.lockable ? `<button class="mini ${locked ? "on" : ""}" data-lock="${id}" title="${t("lock")}">${locked ? "🔒" : "🔓"}</button>` : "";
       const eye = opts.visibleToggle ? `<button class="mini ${opts.visible ? "" : "off"}" data-eye="${id}" title="${t("visible")}">${opts.visible ? "👁" : "⊘"}</button>` : "";
       rows.push(
-        `<div class="trow ${sel === id ? "selected" : ""} ${opts.active ? "active" : ""} ${opts.hidden ? "muted" : ""}" data-id="${id}" data-type="${type}" style="--depth:${q ? 0 : depth}">${caret}<span class="ticon">${opts.icon || ""}</span><span class="tlabel">${escapeHtml(text)}</span>${eye}${lock}</div>`,
+        `<div class="trow ${sel === id ? "selected" : ""} ${opts.active ? "active" : ""} ${opts.hidden ? "muted" : ""} ${type === "group" || type === "site" ? "group" : ""}" data-id="${id}" data-type="${type}" ${opts.children ? `data-children="${opts.children}"` : ""} style="--depth:${q ? 0 : depth}">${caret}<span class="ticon">${opts.icon || ""}</span><span class="tlabel">${escapeHtml(text)}</span>${eye}${lock}</div>`,
       );
     };
     const open = (key) => q || !this.collapsed.has(key);
@@ -147,8 +149,27 @@ export class Tree {
     const row = e.target.closest(".trow");
     if (!row) return;
     const id = row.dataset.id, type = row.dataset.type;
-    if (type === "group" || type === "site") return;
+    if (type === "group" || type === "site") {
+      // a heading row toggles its children when clicked anywhere
+      if (row.dataset.children) this.toggle(row.dataset.children);
+      return;
+    }
     this.app.select(type === "roof" ? id.slice(5) : id);
+  }
+  toggle(key) {
+    if (this.collapsed.has(key)) this.collapsed.delete(key);
+    else this.collapsed.add(key);
+    this.render();
+  }
+  /** Fold every node that has children (the top-level headings stay listed). */
+  collapseAll() {
+    if (!this.keys) this.render();
+    for (const k of this.keys) this.collapsed.add(k);
+    this.render();
+  }
+  expandAll() {
+    this.collapsed.clear();
+    this.render();
   }
 }
 function escapeHtml(s) {
