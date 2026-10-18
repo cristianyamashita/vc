@@ -135,7 +135,7 @@ export const CITIES = [
   { id: "capetown", lat: -33.9, name: { en: "Cape Town", pt: "Cidade do Cabo", ja: "ケープタウン" } },
 ];
 export function freshSun() {
-  return { azimuth: 215, elevation: 48, intensity: 1.2, useTime: true, time: 14, latitude: 35.7, city: "tokyo", month: 6, shadows: true, night: false };
+  return { azimuth: 215, elevation: 48, intensity: 1.2, useTime: true, time: 14, latitude: 35.7, city: "tokyo", month: 6, shadows: true, night: false, live: false };
 }
 export const OUTDOOR_TYPES = ["deck", "pool", "path", "pond", "stream"];
 export const NOTE_COLORS = ["#e0a526", "#d9534f", "#2f9e6b", "#2a7fd0", "#8e44ad"];
@@ -212,6 +212,7 @@ export function sunChecked(raw = {}) {
     latitude: num(raw.latitude, -70, 70, d.latitude),
     city: CITIES.some((c) => c.id === raw.city) ? raw.city : "custom",
     month: int(raw.month, 1, 12, d.month),
+    live: !!raw.live,
     shadows: raw.shadows !== false,
     night: !!raw.night,
   };

@@ -89,6 +89,10 @@ class App {
     this.roomLabels = new RoomLabels(this);
     this.ruler = new Ruler(this);
     this.extraHelpers = new Map();
+    // the live clock moves the sun every five minutes (cheap: one light update)
+    setInterval(() => {
+      if (this.project?.sun.live) this.changed({ rebuild: "none", light: true, save: false, panels: false });
+    }, 5 * 60 * 1000);
     this.scene.onFrame = () => {
       this.updateCompass();
       this.dims.update();

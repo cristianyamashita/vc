@@ -55,9 +55,16 @@ export class Sun {
     this.dir = new THREE.Vector3(0, 1, 0);
   }
   /** Effective angles of a sun document. */
+  /** Time (h) and month the sun uses: the document's, or the clock's when `live`. */
+  static clock(sun) {
+    if (!sun.live) return { time: sun.time, month: sun.month };
+    const now = new Date();
+    return { time: now.getHours() + now.getMinutes() / 60, month: now.getMonth() + 1 };
+  }
   static angles(sun) {
-    if (sun.useTime) {
-      const a = sunFromTime(sun.time, sun.latitude, sun.month);
+    if (sun.useTime || sun.live) {
+      const { time, month } = Sun.clock(sun);
+      const a = sunFromTime(time, sun.latitude, month);
       return { azimuth: a.azimuth, elevation: Math.max(2, a.elevation) };
     }
     return { azimuth: sun.azimuth, elevation: sun.elevation };

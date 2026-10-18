@@ -287,12 +287,14 @@ export class PropsPanel {
     this.root.append(
       this.section(t("position"), [
         this.check(sun, "useTime", { rebuild: "light", label: t("useTime") }),
-        range("azimuth", 0, 360, 1, "°", sun.useTime),
-        range("elevation", 2, 90, 1, "°", sun.useTime),
+        range("azimuth", 0, 360, 1, "°", sun.useTime || sun.live),
+        range("elevation", 2, 90, 1, "°", sun.useTime || sun.live),
         sun.useTime ? this.el("p", { class: "hint", text: `${t("azimuth")} ${eff.azimuth}° · ${t("elevation")} ${eff.elevation}°` }) : null,
       ]),
       this.section(t("timeOfDay"), [
-        range("time", 0, 24, 0.25, " h", !sun.useTime),
+        this.check(sun, "live", { rebuild: "light", label: t("liveTime") }),
+        sun.live ? this.el("p", { class: "hint", text: `${t("time")}: ${new Date().toLocaleTimeString(app.lang, { hour: "2-digit", minute: "2-digit" })} · ${t("month")}: ${new Date().toLocaleString(app.lang, { month: "long" })} · ${t("liveHint")}` }) : null,
+        range("time", 0, 24, 0.25, " h", !sun.useTime || sun.live),
         this.select(sun, "city", [...CITIES.map((c) => [c.id, c.name[app.lang] || c.name.en]), ["custom", t("custom")]], {
           label: t("city"),
           rebuild: "light",
@@ -302,7 +304,7 @@ export class PropsPanel {
           },
         }),
         this.number(sun, "latitude", { min: -70, max: 70, unit: "°", label: t("latitude"), after: () => (sun.city = "custom") }),
-        this.select(sun, "month", months, { label: t("month"), rebuild: "light" }),
+        sun.live ? null : this.select(sun, "month", months, { label: t("month"), rebuild: "light" }),
       ]),
       this.section(t("light"), [
         range("intensity", 0, 3, 0.05, "×"),
