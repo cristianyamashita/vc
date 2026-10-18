@@ -3,9 +3,43 @@
 // block, the terrace with gourmet area, the pool deck and the lot. All
 // coordinates are building-local cm unless a `lot` helper converts them.
 import { freshStorey, uid } from "../schema.js";
-import { slab, wall, place, railing, paving } from "../templates.js";
+import { slab as rawSlab, wall as rawWall, place, railing as rawRailing, paving as rawPaving } from "../templates.js";
 
 const H1 = 320, H2 = 300; // storey heights
+// ---- scale layer: the XL variants multiply every plan coordinate by S
+// (walls, slabs, lot) while furniture keeps its distance to the wall it
+// backs onto and its size, so nothing floats away from the walls.
+let S = 1;
+let ROOMS = []; // rectangles [x0, z0, x1, z1] of the floor being built, unscaled
+const ANCHOR = 40, EDGE = 100, ALONG = 150; // cm
+// half-depth of a prop measured from its origin towards its back
+const DEPTH = { "king-bed": 111, "double-bed": 110, "single-bed": 104, "sofa-corner": 83, "sofa-three-seat": 45, "sofa-two-seat": 45, wardrobe: 36, "sliding-wardrobe": 32, "tv-bench": 21, "kitchen-counter": 38, "kitchen-sink": 38, "kitchen-stove": 38, "kitchen-hood": 40, "kitchen-fridge": 39, toilet: 23, "washbasin-pedestal": 23, "shower-stall": 55, "dressing-table": 23, "closet-rail": 30, "double-vanity": 30, "bar-stool": 21, "dining-chair": 21, "armchair-lounge": 33, nightstand: 23, "bedroom-bench": 20, "shoe-rack": 15, desk: 39, bookshelf: 17, "cube-shelf": 20, "steel-shelf": 28, "washing-machine": 31, dryer: 31, "chest-of-drawers": 24, "console-table": 17, bench: 25, "standing-mirror": 25, "outdoor-kitchen": 35, microwave: 20, "coffee-machine": 20, "office-chair": 27, "ironing-board": 20, "laundry-basket": 21 };
+const sc = (v) => v * S;
+const slab = (st, x0, z0, x1, z1, m, t) => rawSlab(st, sc(x0), sc(z0), sc(x1), sc(z1), m, t);
+const WIDE = new Set(["door-sliding", "window-wide", "window-picture"]);
+const wall = (st, a, b, opts = {}) => rawWall(st, [sc(a[0]), sc(a[1])], [sc(b[0]), sc(b[1])], { ...opts, openings: (opts.openings || []).map((o) => ({ ...o, at: sc(o.at), width: WIDE.has(o.preset) && o.width ? Math.round(sc(o.width)) : o.width })) });
+const railing = (st, pts, opts) => rawRailing(st, pts.map(([x, z]) => [sc(x), sc(z)]), opts);
+const paving = (p, pts, m, t, h) => rawPaving(p, pts, m, t, h);
+const roomOf = (x, z) => ROOMS.find(([x0, z0, x1, z1]) => x >= x0 && x <= x1 && z >= z0 && z <= z1) || ROOMS[ROOMS.length - 1];
+/** Scaled position of an object: keeps its distance to the wall it backs onto and to nearby edges. */
+function scaled(prop, x, z, back) {
+  if (S === 1) return [x, z];
+  const [x0, z0, x1, z1] = roomOf(x, z);
+  const depth = DEPTH[prop] ?? 30;
+  const near = (d) => d <= EDGE;
+  const axis = (v, lo, hi, anchoredLo, anchoredHi, along) => {
+    const dl = v - lo, dh = hi - v;
+    if (anchoredLo || (!along && near(dl))) return sc(lo) + dl;
+    if (anchoredHi || (!along && near(dh))) return sc(hi) - dh;
+    if (along) return dl <= ALONG ? sc(lo) + dl : dh <= ALONG ? sc(hi) - dh : sc(lo) + dl;
+    return sc(v);
+  };
+  const b = typeof back === "string" ? back : null;
+  const anchored = b && (b === "n" ? z - z0 - depth <= ANCHOR : b === "s" ? z1 - z - depth <= ANCHOR : b === "w" ? x - x0 - depth <= ANCHOR : x1 - x - depth <= ANCHOR);
+  if (!anchored) return [axis(x, x0, x1, false, false, false), axis(z, z0, z1, false, false, false)];
+  if (b === "n" || b === "s") return [axis(x, x0, x1, false, false, true), axis(z, z0, z1, b === "n", b === "s", false)];
+  return [axis(x, x0, x1, b === "w", b === "e", false), axis(z, z0, z1, false, false, true)];
+}
 const FACADE = { outerMaterial: "plaster", outerTint: "#3a3d42" };
 const STONE = { outerMaterial: "stone", outerTint: "#8c8578" };
 const WOOD_DOOR = { leafColor: "#6b4a2e", frameColor: "#2b2e33" };
@@ -20,11 +54,16 @@ export function yawFor(prop, back) {
   const r = BACK_X.has(prop) ? Math.atan2(-nz, nx) : Math.atan2(nx, nz);
   return (Math.round((r * 180) / Math.PI) + 360) % 360;
 }
-const put = (st, prop, x, z, back = 0, y = 0) => place(st, prop, x, z, yawFor(prop, back), y);
-const lights = (st, h, pts, prop = "downlight") => pts.forEach(([x, z]) => place(st, prop, x, z, 0, h));
+const put = (st, prop, x, z, back = 0, y = 0) => {
+  const [px, pz] = scaled(prop, x, z, back);
+  place(st, prop, px, pz, yawFor(prop, back), y);
+};
+const lights = (st, h, pts, prop = "downlight") => pts.forEach(([x, z]) => place(st, prop, sc(x), sc(z), 0, h));
 function slabExcept(st, x0, z0, x1, z1, material, tint, holes = []) {
   const T = 50;
   const tiles = [];
+  [x0, z0, x1, z1] = [sc(x0), sc(z0), sc(x1), sc(z1)];
+  holes = holes.map((h) => h.map(sc));
   for (let z = Math.floor(z0 / T); z < Math.ceil(z1 / T); z++)
     for (let x = Math.floor(x0 / T); x < Math.ceil(x1 / T); x++) {
       const cx = (x + 0.5) * T, cz = (z + 0.5) * T;
@@ -33,10 +72,11 @@ function slabExcept(st, x0, z0, x1, z1, material, tint, holes = []) {
     }
   st.floorGroups.push({ id: uid("fg"), name: "", offset: 0, thickness: null, material, tint, tiles, locked: false });
 }
+/** Lot object at building-local cm (already scaled by the caller). */
 function lotObject(p, b, prop, bx, bz, back = 0, y = 0) {
   p.objects.push({ id: uid("ob"), name: "", prop, inline: null, at: [bx + b.at[0], y, bz + b.at[1]], rotation: [0, yawFor(prop, back), 0], scale: [1, 1, 1], tint: null, material: null, locked: false });
 }
-const L = (b, pts) => pts.map(([x, z]) => [x + b.at[0], z + b.at[1]]);
+const L = (b, pts) => pts.map(([x, z]) => [sc(x) + b.at[0], sc(z) + b.at[1]]);
 
 /**
  * Social floor: guest room and bath (west), stairs or office box, laundry
@@ -45,6 +85,7 @@ const L = (b, pts) => pts.map(([x, z]) => [x + b.at[0], z + b.at[1]]);
  */
 function socialFloor(st, { office = false, wingWest = false } = {}) {
   const tiles = "#d8d4cc";
+  ROOMS = [[0, 0, 300, 380], [0, 380, 300, wingWest ? 720 : 620], [300, 0, 560, office ? 250 : 380], [560, 0, 700, 250], [700, 0, 840, 250], [840, 0, 1300, 400], [1300, 0, 1450, 280], [1450, 0, 1600, 380], [1100, 380, 1600, 800], [560, 250, 1100, 800], [300, 250, 560, 800], [0, 0, 1600, 800]];
   slabExcept(st, 0, 0, 1600, 800, "woodFloor", "#c9a579", [[0, 380, 300, wingWest ? 720 : 620], [560, 0, 840, 250], [1300, 0, 1450, 280], [1450, 0, 1600, 380]]);
   slab(st, 0, 380, 300, wingWest ? 720 : 620, "tiles", tiles);
   slab(st, 560, 0, 840, 250, "tiles", tiles);
@@ -118,6 +159,7 @@ function socialFloor(st, { office = false, wingWest = false } = {}) {
 /** Upper floor of the two-storey house: suite 2 and its bath, circulation, walk-in closet, master suite and bath, south balcony. */
 function upperFloor(up) {
   const tiles = "#d8d4cc";
+  ROOMS = [[0, 0, 300, 380], [0, 380, 300, 700], [300, 0, 640, 700], [640, 0, 1000, 450], [1000, 0, 1600, 450], [640, 450, 760, 700], [760, 450, 1600, 700], [300, 700, 1600, 830], [0, 0, 1600, 830]];
   slabExcept(up, 0, 0, 1600, 700, "woodFloor", "#c9a579", [[0, 380, 300, 700], [640, 450, 1600, 700]]);
   slab(up, 0, 380, 300, 700, "tiles", tiles); slab(up, 640, 450, 1600, 700, "tiles", tiles);
   slab(up, 300, 700, 1600, 830, "concrete", "#b9b6ad");
@@ -154,6 +196,7 @@ function upperFloor(up) {
 /** Bedroom wing of the single-storey mix, west of the social block (x -1300..0). */
 function bedroomWing(st) {
   const tiles = "#d8d4cc";
+  ROOMS = [[-1300, 0, -700, 500], [-700, 0, -450, 500], [-450, 0, 0, 500], [-1300, 500, -850, 860], [-850, 500, -700, 720], [-700, 500, -350, 720], [-350, 500, 0, 720], [-850, 720, 300, 860], [-1300, 0, 300, 860]];
   slabExcept(st, -1300, 0, 0, 860, "woodFloor", "#c9a579", [[-1300, 500, -850, 860], [-700, 500, -350, 720]]);
   slab(st, -1300, 500, -850, 860, "tiles", tiles); slab(st, -700, 500, -350, 720, "tiles", tiles);
   wall(st, [-1300, 0], [0, 0], { ...FACADE, thickness: 25, openings: [{ preset: "window-wide", at: 150, width: 300, height: 80, sill: 160 }, { preset: "window-wide", at: 970, width: 180 }] });
@@ -186,6 +229,7 @@ function bedroomWing(st) {
 /** Terrace with the gourmet area, outdoor lounge, pool deck with a bigger pool, and the lot (wall, gates, path, carport, street, garden). */
 function outdoors(p, b, { wingWest = false } = {}) {
   const tiles = "#c9c4ba";
+  ROOMS = [[-1300, 0, 1600, 900]];
   paving(p, L(b, [[300, 800], [1650, 800], [1650, 1150], [300, 1150]]), "stoneTiles", tiles);
   paving(p, L(b, wingWest ? [[-1300, 860], [300, 860], [300, 1250], [-1300, 1250]] : [[-60, 620], [300, 620], [300, 1150], [-60, 1150]]), "stoneTiles", tiles);
   paving(p, L(b, [[300, 1150], [700, 1150], [700, 1450], [300, 1450]]), "stoneTiles", tiles);
@@ -193,25 +237,26 @@ function outdoors(p, b, { wingWest = false } = {}) {
   for (const pts of [[[700, 1150], [1650, 1150], [1650, 1250], [700, 1250]], [[700, 1600], [1650, 1600], [1650, 1700], [700, 1700]], [[700, 1250], [800, 1250], [800, 1600], [700, 1600]], [[1500, 1250], [1650, 1250], [1650, 1600], [1500, 1600]]])
     p.outdoor.push({ id: uid("d"), name: "", type: "deck", points: L(b, pts), material: "planks", tint: "#b08a5a", height: 15, open: false, postSize: 15, depth: 80, width: 120, lights: false, locked: false });
   p.outdoor.push({ id: uid("d"), name: "", type: "pool", points: L(b, [[800, 1250], [1500, 1250], [1500, 1600], [800, 1600]]), material: "azulejo", tint: "#6fc3e0", height: -150, open: false, postSize: 15, depth: 80, width: 120, lights: true, locked: false });
-  // gourmet area under a pergola: outdoor kitchen against the house, big table
-  const gx = wingWest ? -200 : 150, gz = wingWest ? 900 : 668, gy = wingWest ? 1030 : 790;
+  // gourmet area under a pergola: outdoor kitchen against the house wall, big table
+  const gx = sc(wingWest ? -200 : 150), gz = sc(wingWest ? 860 : 620) + 48, gy = gz + 122;
   lotObject(p, b, "pergola", gx + 10, gy); lotObject(p, b, "outdoor-kitchen", gx, gz, "n"); lotObject(p, b, "outdoor-dining-set", gx, gy + 110);
   lotObject(p, b, "planter", gx - 180, gy + 220); lotObject(p, b, "planter", gx + 200, gy + 220);
   for (const x of [gx - 120, gx + 120]) lotObject(p, b, "pendant-lamp", x, gy + 110, 0, 250);
   // lounge by the pool and loungers on the deck
-  lotObject(p, b, "outdoor-sofa", 500, 1260, "n"); lotObject(p, b, "fire-pit", 500, 1400); lotObject(p, b, "planter", 330, 1430); lotObject(p, b, "planter", 670, 1430);
-  lotObject(p, b, "lounger", 1590, 1330, "e"); lotObject(p, b, "lounger", 1590, 1500, "e"); lotObject(p, b, "side-table", 1590, 1415); lotObject(p, b, "planter", 740, 1660);
-  for (const x of [720, 1630]) lotObject(p, b, "garden-bollard", x, 1690);
-  for (const x of [400, 900, 1400]) lotObject(p, b, "wall-sconce", x, 812, "s", 230); // on the south façade
+  lotObject(p, b, "outdoor-sofa", sc(500), sc(1150) + 110, "n"); lotObject(p, b, "fire-pit", sc(500), sc(1150) + 250); lotObject(p, b, "planter", sc(300) + 30, sc(1450) - 20); lotObject(p, b, "planter", sc(700) - 30, sc(1450) - 20);
+  const dx = sc(1650) - 60;
+  lotObject(p, b, "lounger", dx, sc(1250) + 80, "e"); lotObject(p, b, "lounger", dx, sc(1250) + 250, "e"); lotObject(p, b, "side-table", dx, sc(1250) + 165); lotObject(p, b, "planter", sc(700) + 40, sc(1700) - 40);
+  for (const x of [sc(700) + 20, sc(1650) - 20]) lotObject(p, b, "garden-bollard", x, sc(1700) - 10);
+  for (const x of [400, 900, 1400]) lotObject(p, b, "wall-sconce", sc(x), sc(800) + 12, "s", 230); // on the south façade
   // lot: wall with two gates on the east, path to the entrance, carport, street
-  const W = wingWest ? 2350 : 1650, D = wingWest ? 1500 : 1300;
-  const entryZ = 170 + b.at[1]; // lot z of the entrance door
+  const W = sc(wingWest ? 2350 : 1650), D = sc(wingWest ? 1500 : 1300);
+  const entryZ = sc(170) + b.at[1]; // lot z of the entrance door
   const north = 2 * W;
   p.siteWalls.push({ id: uid("sw"), name: "", points: [[-W, -D], [W, -D], [W, D], [-W, D], [-W, -D]], thickness: 20, height: 220, top: "straight", stepLength: 100, material: "stone", tint: "#8c8578", outerMaterial: null, outerTint: null, locked: false, gates: [
     { id: uid("gt"), offset: north + (entryZ - 55 + D), width: 110, type: "single", open: 0, material: null, tint: "#3a3d42", locked: false },
     { id: uid("gt"), offset: north + (entryZ + 300 + D), width: 300, type: "sliding", open: 0, material: null, tint: "#3a3d42", locked: false },
   ] });
-  const hx = 1600 + b.at[0]; // lot x of the house's east wall
+  const hx = sc(1600) + b.at[0]; // lot x of the house's east wall
   paving(p, [[hx, entryZ - 70], [W, entryZ - 70], [W, entryZ + 70], [hx, entryZ + 70]], "stoneTiles", tiles);
   paving(p, [[hx + 100, entryZ + 250], [W, entryZ + 250], [W, entryZ + 650], [hx + 100, entryZ + 650]], "concrete", "#b9b6ad");
   const cx = hx + 350, cz = entryZ + 450;
@@ -226,31 +271,36 @@ function outdoors(p, b, { wingWest = false } = {}) {
   const tree = (prop, x, z) => p.objects.push({ id: uid("ob"), name: "", prop, inline: null, at: [x, 0, z], rotation: [0, 0, 0], scale: [1, 1, 1], tint: null, material: null, locked: false });
   tree("tree", -W + 200, -D + 300); tree("birch-tree", -W + 250, D - 350); tree("tree", -W + 900, D - 200); tree("cypress", W - 250, D - 250); tree("tree", W - 700, -D + 200); tree("birch-tree", hx - 300, -D + 250);
   tree("tree", 0, D - 200); tree("cypress", hx + 50, D - 300);
+  if (S > 1) { tree("tree", -W + 600, -D + 250); tree("ipe-tree", -W + 500, 0); tree("birch-tree", W - 500, D - 600); }
   for (const [x, z] of [[hx + 60, entryZ + 120], [hx + 60, entryZ - 160], [W - 200, entryZ - 200], [W - 200, entryZ + 150]]) tree("bush", x, z);
   for (const [x, z] of [[-W + 200, -D + 300], [-W + 250, D - 350], [W - 250, D - 250], [0, D - 200]]) tree("garden-spike", x + 90, z + 90);
 }
 
-/** The two-storey main house: social floor below, suites above. */
-export function mainHouse(p, b, g) {
-  b.at = [-1100, -1000];
+/** The two-storey main house: social floor below, suites above. `scale` > 1 enlarges every room (XL: twice the floor area). */
+export function mainHouse(p, b, g, { scale = 1 } = {}) {
+  S = scale;
+  b.at = [-sc(1100), -sc(1000)];
   g.height = H1;
   socialFloor(g);
-  g.stairs.push({ id: uid("sr"), name: "", shape: "U", at: [320, 370], rotation: 90, width: 110, rise: H1, stepHeight: 17.8, treadDepth: 28, turn: "right", material: "woodFloor", tint: "#c9a579", cutFloorAbove: true, railing: "both", railingStyle: "metal", locked: false });
+  g.stairs.push({ id: uid("sr"), name: "", shape: "U", at: [sc(320), sc(370)], rotation: 90, width: Math.round(110 * Math.min(S, 1.2)), rise: H1, stepHeight: 17.8, treadDepth: 28, turn: "right", material: "woodFloor", tint: "#c9a579", cutFloorAbove: true, railing: "both", railingStyle: "metal", base: "solid", locked: false });
   const up = freshStorey(g, "upper");
   up.height = H2;
   b.storeys.push(up);
   upperFloor(up);
   b.roof = { ...b.roof, type: "flat", overhang: 60, height: 30, material: "concrete", tint: "#2f3236", ceiling: true };
-  p.terrain.width = 4000; p.terrain.depth = 2800; p.terrain.resolution = 60; p.terrain.heights = new Array(61 * 61).fill(0);
+  p.terrain.width = Math.round(sc(4000)); p.terrain.depth = Math.round(sc(2800)); p.terrain.resolution = 60; p.terrain.heights = new Array(61 * 61).fill(0);
   outdoors(p, b);
+  S = 1;
 }
 /** The single-storey mix: the social block plus a bedroom wing to the west. */
-export function mainHouseSingle(p, b, g) {
-  b.at = [-150, -1100];
+export function mainHouseSingle(p, b, g, { scale = 1 } = {}) {
+  S = scale;
+  b.at = [-sc(150), -sc(1100)];
   g.height = H1;
   socialFloor(g, { office: true, wingWest: true });
   bedroomWing(g);
   b.roof = { ...b.roof, type: "flat", overhang: 60, height: 30, material: "concrete", tint: "#2f3236", ceiling: true };
-  p.terrain.width = 5200; p.terrain.depth = 3400; p.terrain.resolution = 72; p.terrain.heights = new Array(73 * 73).fill(0);
+  p.terrain.width = Math.round(sc(5200)); p.terrain.depth = Math.round(sc(3400)); p.terrain.resolution = 72; p.terrain.heights = new Array(73 * 73).fill(0);
   outdoors(p, b, { wingWest: true });
+  S = 1;
 }

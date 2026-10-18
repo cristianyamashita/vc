@@ -2,7 +2,7 @@
 import { freshProject, freshStorey, uid, projectChecked, TILE, OPENING_PRESETS } from "./schema.js";
 import { mainHouse, mainHouseSingle } from "./samples/main-house.js";
 
-const TEMPLATES = ["studio", "house2br", "twoStorey", "garageLeisure", "mainHouse", "mainHouseSingle"];
+const TEMPLATES = ["studio", "house2br", "twoStorey", "garageLeisure", "mainHouse", "mainHouseXL", "mainHouseSingle", "mainHouseSingleXL"];
 export const TEMPLATE_IDS = TEMPLATES;
 
 /** Rooms are {x, z, w, d} rectangles in building cm; walls are deduplicated. */
@@ -212,8 +212,8 @@ export function makeTemplate(id, name) {
     b.roof.type = "hip";
   } else if (id === "garageLeisure") {
     return garageLeisure(p, b, g);
-  } else if (id === "mainHouse" || id === "mainHouseSingle") {
-    (id === "mainHouse" ? mainHouse : mainHouseSingle)(p, b, g);
+  } else if (id.startsWith("mainHouse")) {
+    (id.startsWith("mainHouseSingle") ? mainHouseSingle : mainHouse)(p, b, g, { scale: id.endsWith("XL") ? Math.SQRT2 : 1 });
     p.sun = { ...p.sun, city: "saopaulo", latitude: -23.5, useTime: true, time: 17.5, month: 4 };
     p.view.activeStorey = g.id;
     return projectChecked(p);
