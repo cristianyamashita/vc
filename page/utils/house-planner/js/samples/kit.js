@@ -349,8 +349,27 @@ export function stairs(st, at, rotation, { shape = "U", width = 100, rise = 300,
 export const rail = railing;
 
 // ---- lot (world cm)
-export function lot(p, prop, x, z, back = "n", y = 0) {
-  p.objects.push({ id: uid("ob"), name: "", prop, inline: null, at: [x, y, z], rotation: [0, yawFor(prop, back), 0], scale: [1, 1, 1], tint: null, material: null, locked: false });
+/** Terrain height (cm) at world cm, like Terrain.heightAt: bilinear over the stored heights plus the slope plane. */
+export function groundAt(p, x, z) {
+  const t = p.terrain;
+  if (!t?.heights?.length) return 0;
+  const n = t.resolution;
+  const u = Math.max(0, Math.min(n, (x / t.width + 0.5) * n)), v = Math.max(0, Math.min(n, (z / t.depth + 0.5) * n));
+  const ix = Math.min(n - 1, Math.floor(u)), iz = Math.min(n - 1, Math.floor(v));
+  const fx = u - ix, fz = v - iz, k = iz * (n + 1) + ix;
+  const h = t.heights, h00 = h[k], h10 = h[k + 1], h01 = h[k + n + 1], h11 = h[k + n + 2];
+  const base = fx + fz <= 1 ? h00 + (h10 - h00) * fx + (h01 - h00) * fz : h11 + (h01 - h11) * (1 - fx) + (h10 - h11) * (1 - fz);
+  const sl = t.slope;
+  const plane = sl?.percent ? -(x * Math.sin(sl.direction * DEG) - z * Math.cos(sl.direction * DEG)) * (sl.percent / 100) : 0;
+  return base + plane;
+}
+/**
+ * Object on the lot: `y` is its height above the ground at (x, z), or
+ * above `level` (an absolute cm height, e.g. the top of a deck) when given.
+ */
+export function lot(p, prop, x, z, back = "n", y = 0, level = null) {
+  const at = Math.round(((level ?? groundAt(p, x, z)) + y) * 10) / 10;
+  p.objects.push({ id: uid("ob"), name: "", prop, inline: null, at: [x, at, z], rotation: [0, yawFor(prop, back), 0], scale: [1, 1, 1], tint: null, material: null, locked: false });
 }
 export function poly(p, type, points, material, tint = null, extra = {}) {
   p.outdoor.push({ id: uid("d"), name: "", type, points, material, tint, height: 3, open: false, postSize: 15, depth: 80, width: 120, lights: false, locked: false, ...extra });

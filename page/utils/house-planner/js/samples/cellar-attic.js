@@ -128,8 +128,8 @@ function outdoors(p) {
   path(p, rect(640, -850, 960, -200), "gravel", "#c2b59b", 3);
   lot(p, "pergola", 800, -350); lot(p, "hatchback", 800, -350, 90);
   path(p, rect(-560, 450, 560, 800), "stoneTiles", "#cfc9bd");
-  lot(p, "outdoor-dining-set", 150, 630); lot(p, "bbq-grill", 450, 500, "n"); lot(p, "lounger", -400, 620, "n"); lot(p, "lounger", -200, 620, "n");
-  for (const x of [-520, 520]) lot(p, "planter", x, 480);
+  lot(p, "outdoor-dining-set", 150, 630, "n", 3); lot(p, "bbq-grill", 450, 500, "n", 3); lot(p, "lounger", -400, 620, "n", 3); lot(p, "lounger", -200, 620, "n", 3);
+  for (const x of [-520, 520]) lot(p, "planter", x, 480, "n", 3);
   for (const x of [-300, 0, 300]) lot(p, "garden-bollard", x, 820);
   // garden: lawn, flower beds, a shed, old trees, picket fence with a gate at the path
   fence(p, [[-1400, -850], [-1400, 1250], [1400, 1250], [1400, -850], [-1400, -850]], { style: "picket", height: 100, gates: [gate(2100 + 2800 + 1400 - 55, "single", "#f0ede6"), gate(2100 + 2800 + 1400 - 770 - 300, "sliding", "#f0ede6")] });

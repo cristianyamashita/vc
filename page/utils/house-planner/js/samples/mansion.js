@@ -261,7 +261,7 @@ function outdoors(p) {
   path(p, circle(0, -1650, 580), "paving", "#8a8680", 4);
   pond(p, circle(0, -1650, 170, 16), { depth: 40, height: 15, tint: "#8fa6b8" }); lot(p, "bird-bath", 0, -1650);
   path(p, rect(250, -1850, 1900, -1450), "paving", "#8a8680", 4); path(p, rect(1300, -2000, 1900, -1300), "paving", "#8a8680", 4);
-  lot(p, "convertible", 450, -1450, 180); lot(p, "sedan", -450, -1450, 0);
+  lot(p, "convertible", 450, -1450, 180, 4); lot(p, "sedan", -450, -1450, 0, 4);
   for (const z of [-2300, -2000, -1700, -1400]) { lot(p, "cypress", -700, z); lot(p, "cypress", 700, z); lot(p, "garden-bollard", -300, z); lot(p, "garden-bollard", 300, z); }
   for (const [x, z] of circle(0, -1650, 420, 12)) lot(p, "flower-bed", x, z);
   for (const x of [-1100, 1100]) lot(p, "lamp", x, -1200);
@@ -271,18 +271,18 @@ function outdoors(p) {
   path(p, rect(-1700, 400, 1700, 850), "stoneTiles", light);
   for (const r of [rect(-1000, 850, -800, 1850), rect(800, 850, 1000, 1850), rect(-800, 850, 800, 1000), rect(-800, 1700, 800, 1850)]) deck(p, r, { height: 12 });
   pool(p, rect(-800, 1000, 800, 1700), { depth: 170 });
-  path(p, rect(1000, 850, 1700, 1850), "stoneTiles", light); pool(p, rect(1050, 1000, 1500, 1400), { depth: 60, tint: "#8fd4ea" }); lot(p, "jacuzzi", 1350, 1620, "n"); lot(p, "beach-umbrella", 1150, 1620);
+  path(p, rect(1000, 850, 1700, 1850), "stoneTiles", light); pool(p, rect(1050, 1000, 1500, 1400), { depth: 60, tint: "#8fd4ea" }); lot(p, "jacuzzi", 1350, 1620, "n", 3); lot(p, "beach-umbrella", 1150, 1620, "n", 3);
   path(p, rect(-2750, 850, -2050, 2250), "stoneTiles", light); pool(p, rect(-2600, 950, -2200, 2150), { depth: 150 });
-  for (const x of [-600, -350, -100, 150, 400, 650]) lot(p, "lounger", x, 1780, "s");
-  lot(p, "beach-umbrella", -225, 1780); lot(p, "beach-umbrella", 525, 1780); for (const x of [-900, 900]) for (const z of [950, 1750]) lot(p, "planter", x, z);
+  for (const x of [-600, -350, -100, 150, 400, 650]) lot(p, "lounger", x, 1780, "s", 10);
+  lot(p, "beach-umbrella", -225, 1780, "n", 10); lot(p, "beach-umbrella", 525, 1780, "n", 10); for (const x of [-900, 900]) for (const z of [950, 1750]) lot(p, "planter", x, z, "n", 10);
   for (const x of [-1400, -800, 0, 800, 1400]) lot(p, "wall-sconce", x, 412, "s", 260);
-  lot(p, "outdoor-sofa", -1400, 600, "n"); lot(p, "outdoor-sofa", -1400, 1300, "s"); lot(p, "fire-pit", -1400, 950); lot(p, "armchair-lounge", -1650, 950, "w"); lot(p, "armchair-lounge", -1150, 950, "e");
-  lot(p, "outdoor-dining-set", 1300, 600); for (const [x, z] of [[-2000, 500], [-2000, 2200], [2000, 500]]) lot(p, "palm-tree", x, z);
+  lot(p, "outdoor-sofa", -1400, 600, "n", 3); lot(p, "outdoor-sofa", -1400, 1300, "s", 3); lot(p, "fire-pit", -1400, 950, "n", 3); lot(p, "armchair-lounge", -1650, 950, "w", 3); lot(p, "armchair-lounge", -1150, 950, "e", 3);
+  lot(p, "outdoor-dining-set", 1300, 600, "n", 3); for (const [x, z] of [[-2000, 500], [-2000, 2200], [2000, 500]]) lot(p, "palm-tree", x, z);
   for (const [x, z] of [[-1000, 1950], [1000, 1950], [-1800, 1950]]) lot(p, "palm-tree", x, z);
   // gourmet pavilion on the east, football lawn and playground beyond
   deck(p, rect(1900, 950, 2700, 1650), { height: 15 });
-  lot(p, "pergola", 2300, 1300); lot(p, "outdoor-kitchen", 2300, 1010, "n"); lot(p, "outdoor-dining-set", 2300, 1360); lot(p, "bbq-grill", 2600, 1050, "n");
-  for (const x of [2180, 2420]) lot(p, "pendant-lamp", x, 1360, "n", 250); lot(p, "string-lights", 2300, 1600, "n", 250);
+  lot(p, "pergola", 2300, 1300, "n", 13); lot(p, "outdoor-kitchen", 2300, 1010, "n", 13); lot(p, "outdoor-dining-set", 2300, 1360, "n", 13); lot(p, "bbq-grill", 2600, 1050, "n", 13);
+  for (const x of [2180, 2420]) lot(p, "pendant-lamp", x, 1360, "n", 263); lot(p, "string-lights", 2300, 1600, "n", 263);
   patch(p, rect(1800, 1900, 3200, 2600), "grass", "#5e8a3c"); lot(p, "goal", 1850, 2250, 0); lot(p, "goal", 3150, 2250, 180); lot(p, "ball", 2500, 2250);
   lot(p, "swing-set", -2900, 2400); lot(p, "slide", -2200, 2450, 0); lot(p, "sandpit", -1500, 2400); lot(p, "seesaw", -2900, 2650, 0); lot(p, "trampoline", -1000, 2500);
   for (const z of [1000, 1600, 2200]) lot(p, "garden-bollard", 1800, z); for (const x of [-2900, -1900]) lot(p, "garden-bollard", x, 800);

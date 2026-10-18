@@ -121,7 +121,7 @@ export function garageLeisureBuilding(b, g) {
   place(up, "houseplant", 970, 360, 0); place(up, "ceiling-flush", 875, 160, 0, 300);
   // office
   place(up, "wall-shelves", 1250, 12, 0, 150); place(up, "wall-shelves", 1550, 12, 0, 150); place(up, "sideboard", 1400, 40, 270);
-  place(up, "armchair-lounge", 1200, 200, 180); place(up, "armchair-lounge", 1200, 420, 0); place(up, "coffee-table", 1200, 310, 90);
+  place(up, "armchair-lounge", 1200, 200, 270); place(up, "armchair-lounge", 1200, 420, 90); place(up, "coffee-table", 1200, 310, 90);
   place(up, "round-rug", 1200, 310, 0); place(up, "desk", 1580, 310, 0); place(up, "office-chair", 1650, 310, 180);
   place(up, "laptop", 1570, 310, 90, 74); place(up, "filing-cabinet", 1745, 60, 270);
   place(up, "houseplant", 1040, 40, 0); place(up, "houseplant", 1050, 560, 0); place(up, "houseplant", 1760, 560, 0);

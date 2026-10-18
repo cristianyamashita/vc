@@ -68,10 +68,11 @@ function outdoors(p) {
   // deck on posts in front of the house, boardwalk down to the water
   deck(p, rect(-800, 300, 800, 700), { height: LAWN + 2, open: true, tint: "#c9a87a" });
   deck(p, rect(-60, 950, 60, 1550), { height: 50, open: true, tint: "#c9a87a" });
-  lot(p, "outdoor-sofa", -450, 400, "n"); lot(p, "outdoor-dining-set", 350, 500); lot(p, "lounger", -600, 600, "n"); lot(p, "lounger", -380, 600, "n");
-  lot(p, "fire-pit", -450, 560); for (const x of [-760, 760]) lot(p, "planter", x, 660);
-  for (const x of [-700, -350, 350, 700]) lot(p, "garden-bollard", x, 685);
-  lot(p, "string-lights", 0, 340, "n", 270); lot(p, "string-lights", 0, 640, "n", 270);
+  const DECK = LAWN; // top of the deck on posts
+  lot(p, "outdoor-sofa", -450, 400, "n", 0, DECK); lot(p, "outdoor-dining-set", 350, 500, "n", 0, DECK); lot(p, "lounger", -600, 600, "n", 0, DECK); lot(p, "lounger", -380, 600, "n", 0, DECK);
+  lot(p, "fire-pit", -450, 560, "n", 0, DECK); for (const x of [-760, 760]) lot(p, "planter", x, 660, "n", 0, DECK);
+  for (const x of [-700, -350, 350, 700]) lot(p, "garden-bollard", x, 685, "n", 0, DECK);
+  lot(p, "string-lights", 0, 340, "n", 270, DECK); lot(p, "string-lights", 0, 640, "n", 270, DECK);
   for (const x of [-120, 120]) { lot(p, "tiki-torch", x, 720); lot(p, "tiki-torch", x, 960); }
   // on the sand
   lot(p, "beach-umbrella", 360, 1150); lot(p, "lounger", 280, 1250, "s"); lot(p, "lounger", 450, 1250, "s"); lot(p, "beach-umbrella", -600, 1300); lot(p, "lounger", -600, 1400, "s");
