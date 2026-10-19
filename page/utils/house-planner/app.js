@@ -29,7 +29,7 @@ import { makeTemplate, TEMPLATE_IDS } from "./js/templates.js";
 import { pointInPolygon } from "./js/geom.js";
 import { shareLink, readShareHash, exportGLB } from "./js/share.js";
 import { storyStudioBundle, storyFilename } from "./js/storyset.js";
-import { buildFloorGroup, buildFoundation, floorTop, floorThickness, tileSet, tileKey, splitTiles } from "./js/build/slabs.js";
+import { buildFloorGroup, buildFoundation, floorTop, floorThickness, tileSet, tileKey, splitTiles, tilesOutline } from "./js/build/slabs.js";
 import { mergeProject } from "./js/merge.js";
 import { buildWall } from "./js/build/walls.js";
 import { buildStairs, stairsCutQuads, tilesUnderQuads } from "./js/build/stairs.js";
@@ -537,6 +537,7 @@ class App {
     }
     this.scene.world.add(group);
     this.buildingGroups.set(id, group);
+    this.refreshTerrainCuts();
     this.applyVisibility();
     if (!quiet) this.afterSceneChange();
   }
@@ -621,7 +622,7 @@ class App {
       this.objectGroups.delete(c.userData.id);
       if (c.userData.kind !== "object") c.traverse((o) => o.isMesh && o.geometry.dispose());
     }
-    this.terrain.setCutouts(this.project.outdoor.filter((p) => WATER_TYPES.includes(p.type)).map((p) => polygonOutline(p)).filter((pts) => pts.length >= 3));
+    this.refreshTerrainCuts();
     for (const o of this.project.objects) this.siteGroup.add(this.makeObjectGroup(o, 0));
     for (const l of this.project.lights || []) this.siteGroup.add(this.makeLightMarker(l, 0));
     for (const d of this.project.outdoor) {
@@ -635,6 +636,27 @@ class App {
     for (const f of this.project.fences) this.siteGroup.add(buildRailing(f, "fence", { heightAt: (x, z) => this.terrain.heightAt(x, z) }));
     for (const w of this.project.siteWalls) this.siteGroup.add(buildSiteWall(w, this.terrain));
     if (!quiet) this.afterSceneChange();
+  }
+  /** The terrain is not drawn over water nor over floors that lie below it (cellars), so an active cellar shows in cutaway. */
+  refreshTerrainCuts() {
+    const water = this.project.outdoor.filter((p) => WATER_TYPES.includes(p.type)).map((p) => polygonOutline(p)).filter((pts) => pts.length >= 3);
+    this.terrain.setCutouts(water, this.buriedFloorOutlines());
+  }
+  /** Outlines (world cm) of floor groups whose slab lies under the shown ground. */
+  buriedFloorOutlines() {
+    const out = [], tile = this.project.grid.tile;
+    for (const b of this.project.buildings) {
+      const c = Math.cos(b.rotation * DEG), sn = Math.sin(b.rotation * DEG);
+      const ground = this.groundSampler(b);
+      for (const s of b.storeys)
+        for (const fg of s.floorGroups) {
+          if (!fg.tiles.length) continue;
+          const top = floorTop(s, fg);
+          if (!fg.tiles.some(([x, z]) => ground((x + 0.5) * tile, (z + 0.5) * tile) > top + 5)) continue;
+          for (const loop of tilesOutline(fg.tiles, tile)) out.push(loop.map(([lx, lz]) => [b.at[0] + lx * c - lz * sn, b.at[1] + lx * sn + lz * c]));
+        }
+    }
+    return out;
   }
   /** Small emissive marker for a light point (selectable, movable). */
   makeLightMarker(l, baseY) {

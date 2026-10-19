@@ -87,6 +87,55 @@ export function buildingFootprint(building, tile) {
   if (!Number.isFinite(minX)) return null;
   return { minX, minZ, maxX, maxZ };
 }
+/**
+ * Outline loops (building-local cm) of a tile set: only the outer boundaries,
+ * holes are left out. Collinear points are merged.
+ */
+export function tilesOutline(tiles, tile) {
+  const edges = new Map(); // "ax,az>bx,bz" -> [a, b], directed around each tile
+  const key = (a, b) => `${a[0]},${a[1]}>${b[0]},${b[1]}`;
+  for (const [x, z] of tiles) {
+    const c = [[x, z], [x + 1, z], [x + 1, z + 1], [x, z + 1]];
+    for (let i = 0; i < 4; i++) {
+      const a = c[i], b = c[(i + 1) % 4], back = key(b, a);
+      if (edges.has(back)) edges.delete(back); // shared by a neighbour: interior
+      else edges.set(key(a, b), [a, b]);
+    }
+  }
+  const next = new Map();
+  for (const [a, b] of edges.values()) {
+    const k = `${a[0]},${a[1]}`;
+    if (!next.has(k)) next.set(k, []);
+    next.get(k).push(b);
+  }
+  const loops = [];
+  while (next.size) {
+    const [startKey, outs] = next.entries().next().value;
+    const start = startKey.split(",").map(Number);
+    const loop = [];
+    let cur = start;
+    for (let guard = 0; guard < edges.size + 1; guard++) {
+      const k = `${cur[0]},${cur[1]}`;
+      const list = next.get(k);
+      if (!list || !list.length) break;
+      const nxt = list.shift();
+      if (!list.length) next.delete(k);
+      loop.push(cur);
+      cur = nxt;
+      if (cur[0] === start[0] && cur[1] === start[1]) break;
+    }
+    if (loop.length < 4) continue;
+    let area = 0;
+    for (let i = 0; i < loop.length; i++) { const p = loop[i], q = loop[(i + 1) % loop.length]; area += p[0] * q[1] - q[0] * p[1]; }
+    if (area <= 0) continue; // a hole (tiles wind the other way round it)
+    const pts = loop.filter((p, i) => {
+      const a = loop[(i + loop.length - 1) % loop.length], b = loop[(i + 1) % loop.length];
+      return (a[0] - p[0]) * (b[1] - p[1]) - (a[1] - p[1]) * (b[0] - p[0]) !== 0;
+    });
+    loops.push(pts.map(([x, z]) => [x * tile, z * tile]));
+  }
+  return loops;
+}
 /** Tiles covered by a rectangle of building-local cm (inclusive corners). */
 export function tilesInRect(x0, z0, x1, z1, tile) {
   const out = [];

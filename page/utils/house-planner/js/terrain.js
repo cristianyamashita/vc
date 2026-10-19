@@ -137,25 +137,29 @@ export class Terrain {
     this.mesh.material = this.material();
     old.dispose();
   }
-  /** Polygons (world cm) where the ground is not drawn (pools, ponds, streams). */
-  setCutouts(polys) {
+  /**
+   * Polygons (world cm) where the ground is not drawn: `polys` are water
+   * (pools, ponds, streams: no ground to stand on, see isCut), `hidden` are
+   * floors below the ground (cellars) that the terrain would otherwise cover.
+   */
+  setCutouts(polys, hidden = []) {
     const { pts, start, len } = this.cut;
     pts.value.fill(0);
     this.cutPolys = [];
-    let k = 0;
-    for (const poly of polys) {
-      const n = this.cutPolys.length;
-      if (n >= CUT_POLYS || poly.length < 3 || k + poly.length > CUT_MAX) continue;
-      start.value[n] = k;
-      len.value[n] = poly.length;
+    let k = 0, count = 0;
+    for (const [poly, water] of [...polys.map((p) => [p, true]), ...hidden.map((p) => [p, false])]) {
+      if (count >= CUT_POLYS || poly.length < 3 || k + poly.length > CUT_MAX) continue;
+      start.value[count] = k;
+      len.value[count] = poly.length;
       for (const [x, z] of poly) {
         pts.value[k * 2] = x * M;
         pts.value[k * 2 + 1] = z * M;
         k++;
       }
-      this.cutPolys.push(poly);
+      count++;
+      if (water) this.cutPolys.push(poly);
     }
-    this.cut.count.value = this.cutPolys.length;
+    this.cut.count.value = count;
   }
   /** Is this world cm point inside a cut-out (pool)? */
   isCut(x, z) {
