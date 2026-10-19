@@ -95,6 +95,36 @@ export function clipPolygon(subject, clip) {
   }
   return out;
 }
+/** The part of `subject` on one side of the line a→b: sign 1 keeps the left side, -1 the right. */
+export function clipHalfPlane(subject, a, b, sign) {
+  const out = [];
+  const side = (p) => ((b[0] - a[0]) * (p[1] - a[1]) - (b[1] - a[1]) * (p[0] - a[0])) * sign;
+  for (let j = 0; j < subject.length; j++) {
+    const cur = subject[j], prev = subject[(j + subject.length - 1) % subject.length];
+    const sc = side(cur), sp = side(prev);
+    if (sc >= 0) {
+      if (sp < 0) out.push(intersect(prev, cur, a, b));
+      out.push(cur);
+    } else if (sp >= 0) out.push(intersect(prev, cur, a, b));
+  }
+  return out;
+}
+/**
+ * `piece` minus the convex polygon `conv`, as a list of polygons: the part
+ * outside each edge of `conv` in turn, the rest narrowed to the inside.
+ */
+export function subtractConvex(piece, conv) {
+  const sign = polygonArea(conv) > 0 ? 1 : -1;
+  const out = [];
+  let rest = piece;
+  for (let i = 0; i < conv.length && rest.length >= 3; i++) {
+    const a = conv[i], b = conv[(i + 1) % conv.length];
+    const outside = clipHalfPlane(rest, a, b, -sign);
+    if (outside.length >= 3 && Math.abs(polygonArea(outside)) > 0.5) out.push(outside);
+    rest = clipHalfPlane(rest, a, b, sign);
+  }
+  return out;
+}
 function intersect(p, q, a, b) {
   const d1 = [q[0] - p[0], q[1] - p[1]], d2 = [b[0] - a[0], b[1] - a[1]];
   const den = d1[0] * d2[1] - d1[1] * d2[0];

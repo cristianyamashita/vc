@@ -634,14 +634,18 @@ class App {
     this.refreshTerrainCuts();
     for (const o of this.project.objects) this.siteGroup.add(this.makeObjectGroup(o, 0));
     for (const l of this.project.lights || []) this.siteGroup.add(this.makeLightMarker(l, 0));
-    for (const d of this.project.outdoor) {
-      const g = buildPolygon(d, "outdoor", this.terrain);
+    // paths and patches lie on the ground at one height: where two overlap, the one placed last is the one built
+    const outdoor = this.project.outdoor, patches = this.project.gardenPatches;
+    const pathOutlines = outdoor.map((d) => (d.type === "path" ? polygonOutline(d) : null));
+    outdoor.forEach((d, i) => {
+      const cover = d.type === "path" ? pathOutlines.slice(i + 1).filter(Boolean) : [];
+      const g = buildPolygon(d, "outdoor", this.terrain, cover);
       if (g) this.siteGroup.add(g);
-    }
-    for (const gp of this.project.gardenPatches) {
-      const g = buildPolygon(gp, "garden", this.terrain);
+    });
+    patches.forEach((gp, i) => {
+      const g = buildPolygon(gp, "garden", this.terrain, patches.slice(i + 1).map((p) => p.points));
       if (g) this.siteGroup.add(g);
-    }
+    });
     for (const f of this.project.fences) this.siteGroup.add(buildRailing(f, "fence", { heightAt: (x, z) => this.terrain.heightAt(x, z) }));
     for (const w of this.project.siteWalls) this.siteGroup.add(buildSiteWall(w, this.terrain));
     if (!quiet) this.afterSceneChange();

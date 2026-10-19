@@ -6,7 +6,7 @@ import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { surfaceMaterial, waterMaterial } from "../materials.js";
 import { M } from "../scene.js";
-import { polygonArea, pointInPolygon, polygonBounds, polygonCentroid, insetPolygon, clipPolygon, dedupe } from "../geom.js";
+import { polygonArea, pointInPolygon, polygonBounds, polygonCentroid, insetPolygon, clipPolygon, subtractConvex, dedupe } from "../geom.js";
 
 export const POOL_WALL = 20; // cm
 export const POOL_WATER = 12; // cm below the rim
@@ -18,6 +18,22 @@ export const WATER_TYPES = ["pool", "pond", "stream"];
 const STREAM_WATER = 6; // cm below the bank line
 const POND_WATER_MARGIN = 2; // water never above the lowest rim point
 
+/** Triangles (convex pieces, world cm) of the polygons laid over an item, each with its bounds. */
+function coverTriangles(cover) {
+  const out = [];
+  for (const poly of cover) {
+    const pts = dedupe(poly);
+    if (pts.length < 3) continue;
+    const faces = THREE.ShapeUtils.triangulateShape(pts.map(([x, z]) => new THREE.Vector2(x, z)), []);
+    for (const [a, b, c] of faces) {
+      const tri = [pts[a], pts[b], pts[c]];
+      if (Math.abs(polygonArea(tri)) < 0.5) continue;
+      out.push({ tri, b: polygonBounds(tri) });
+    }
+  }
+  return out;
+}
+const boundsTouch = (a, b) => a.minX < b.maxX && a.maxX > b.minX && a.minZ < b.maxZ && a.maxZ > b.minZ;
 /** THREE.Shape in the XZ plane (x → x, z → −y so rotateX(−90°) maps back). */
 function shapeOf(pts) {
   const s = new THREE.Shape();
@@ -57,8 +73,9 @@ export function terrainRange(pts, terrain) {
  * triangle clips the polygon, so the skin matches the ground exactly.
  * Returns null when nothing is inside the terrain.
  */
-export function conformGeometry(pts, terrain, lift) {
+export function conformGeometry(pts, terrain, lift, cover = []) {
   const liftAt = typeof lift === "function" ? lift : () => lift;
+  const covers = coverTriangles(cover);
   const t = terrain.doc, n = t.resolution;
   const cw = t.width / n, cd = t.depth / n;
   const b = polygonBounds(pts);
@@ -71,16 +88,30 @@ export function conformGeometry(pts, terrain, lift) {
       const x0 = vx(ix), x1 = vx(ix + 1), z0 = vz(iz), z1 = vz(iz + 1);
       const tris = [[[x0, z0], [x0, z1], [x1, z0]], [[x1, z0], [x0, z1], [x1, z1]]];
       for (const tri of tris) {
-        const piece = dedupe(clipPolygon(pts, tri), 0.05);
-        if (piece.length < 3 || Math.abs(polygonArea(piece)) < 0.5) continue;
-        const faces = THREE.ShapeUtils.triangulateShape(piece.map(([x, z]) => new THREE.Vector2(x, z)), []);
-        const base = positions.length / 3;
-        for (const [x, z] of piece) positions.push(x * M, (terrain.heightAt(x, z) + liftAt(x, z)) * M, z * M);
-        for (const [a, bb, c] of faces) {
-          const p = piece[a], q = piece[bb], r = piece[c];
-          const area = (q[0] - p[0]) * (r[1] - p[1]) - (r[0] - p[0]) * (q[1] - p[1]);
-          if (area > 0) indices.push(base + a, base + c, base + bb);
-          else indices.push(base + a, base + bb, base + c);
+        const clipped = dedupe(clipPolygon(pts, tri), 0.05);
+        if (clipped.length < 3 || Math.abs(polygonArea(clipped)) < 0.5) continue;
+        // the items laid later take their area away from this one, so no two skins share the surface
+        let pieces = [clipped];
+        if (covers.length) {
+          const tb = polygonBounds(tri);
+          for (const c of covers) {
+            if (!boundsTouch(tb, c.b)) continue;
+            pieces = pieces.flatMap((p) => subtractConvex(p, c.tri));
+            if (!pieces.length) break;
+          }
+        }
+        for (const raw of pieces) {
+          const piece = dedupe(raw, 0.05);
+          if (piece.length < 3 || Math.abs(polygonArea(piece)) < 0.5) continue;
+          const faces = THREE.ShapeUtils.triangulateShape(piece.map(([x, z]) => new THREE.Vector2(x, z)), []);
+          const base = positions.length / 3;
+          for (const [x, z] of piece) positions.push(x * M, (terrain.heightAt(x, z) + liftAt(x, z)) * M, z * M);
+          for (const [a, bb, c] of faces) {
+            const p = piece[a], q = piece[bb], r = piece[c];
+            const area = (q[0] - p[0]) * (r[1] - p[1]) - (r[0] - p[0]) * (q[1] - p[1]);
+            if (area > 0) indices.push(base + a, base + c, base + bb);
+            else indices.push(base + a, base + bb, base + c);
+          }
         }
       }
     }
@@ -94,8 +125,9 @@ export function conformGeometry(pts, terrain, lift) {
   return geo;
 }
 /** Vertical skirt along the polygon edges from terrain+top to terrain+bottom. */
-function skirtGeometry(pts, terrain, top, bottom) {
+function skirtGeometry(pts, terrain, top, bottom, cover = []) {
   const outwardSign = polygonArea(pts) > 0 ? 1 : -1;
+  const covered = (x, z) => cover.some((poly) => pointInPolygon(x, z, poly));
   const positions = [], indices = [];
   for (let i = 0; i < pts.length; i++) {
     const p = pts[i], q = pts[(i + 1) % pts.length];
@@ -106,6 +138,7 @@ function skirtGeometry(pts, terrain, top, bottom) {
     for (let s = 0; s < segs; s++) {
       const a = [p[0] + ((q[0] - p[0]) * s) / segs, p[1] + ((q[1] - p[1]) * s) / segs];
       const b = [p[0] + ((q[0] - p[0]) * (s + 1)) / segs, p[1] + ((q[1] - p[1]) * (s + 1)) / segs];
+      if (cover.length && covered((a[0] + b[0]) / 2, (a[1] + b[1]) / 2)) continue; // under an item laid later
       const ha = terrain.heightAt(a[0], a[1]), hb = terrain.heightAt(b[0], b[1]);
       const base = positions.length / 3;
       positions.push(a[0] * M, (ha + top) * M, a[1] * M, a[0] * M, (ha + bottom) * M, a[1] * M, b[0] * M, (hb + bottom) * M, b[1] * M, b[0] * M, (hb + top) * M, b[1] * M);
@@ -201,12 +234,16 @@ export function polygonLevels(poly, kind, terrain) {
 /**
  * Group (world metres, at the origin) for an outdoor polygon or a garden
  * patch; null when it has fewer than 3 points. Mesh userData kind is
- * "outdoor" or "garden" with the item id.
+ * "outdoor" or "garden" with the item id. `cover` holds the outlines (world
+ * cm) of items of the same skin laid later: a path or patch is not built
+ * under them, so the last one placed is the one seen.
  */
-export function buildPolygon(poly, kind, terrain) {
+export function buildPolygon(poly, kind, terrain, cover = []) {
   const pts = kind === "garden" ? dedupe(poly.points) : polygonOutline(poly);
   if (pts.length < 3 || Math.abs(polygonArea(pts)) < 100) return null;
-  const group = buildPolygonMeshes(poly, kind, terrain, pts);
+  const b = polygonBounds(pts);
+  cover = cover.filter((c) => c.length >= 3 && boundsTouch(b, polygonBounds(c)));
+  const group = buildPolygonMeshes(poly, kind, terrain, pts, cover);
   // put the group's origin at the centroid so the gizmo sits on the shape
   const [cx, cz] = polygonCentroid(pts);
   for (const m of group.children) m.geometry.translate(-cx * M, 0, -cz * M);
@@ -214,12 +251,12 @@ export function buildPolygon(poly, kind, terrain) {
   group.userData.origin = [cx, cz];
   return group;
 }
-function buildPolygonMeshes(poly, kind, terrain, pts) {
+function buildPolygonMeshes(poly, kind, terrain, pts, cover = []) {
   const group = new THREE.Group();
   group.userData = { kind: `${kind}Group`, id: poly.id };
   const levels = polygonLevels(poly, kind, terrain);
   if (kind === "garden") {
-    const geo = conformGeometry(pts, terrain, PATCH_LIFT);
+    const geo = conformGeometry(pts, terrain, PATCH_LIFT, cover);
     if (geo) {
       const mesh = solidMesh(geo, poly, kind);
       mesh.castShadow = false;
@@ -228,7 +265,7 @@ function buildPolygonMeshes(poly, kind, terrain, pts) {
     return group;
   }
   if (poly.type === "path") {
-    const parts = [conformGeometry(pts, terrain, PATH_THICK), skirtGeometry(pts, terrain, PATH_THICK, -PATH_THICK)].filter(Boolean);
+    const parts = [conformGeometry(pts, terrain, PATH_THICK, cover), skirtGeometry(pts, terrain, PATH_THICK, -PATH_THICK, cover)].filter(Boolean);
     if (parts.length) {
       const geo = parts.length > 1 ? mergeGeometries(parts, false) : parts[0];
       if (parts.length > 1) parts.forEach((g) => g.dispose());
