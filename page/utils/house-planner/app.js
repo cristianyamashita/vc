@@ -28,6 +28,7 @@ import { selectedItems, canJoin, copySelection, pasteClipboard, arrange, Ruler }
 import { makeTemplate, TEMPLATE_IDS } from "./js/templates.js";
 import { pointInPolygon } from "./js/geom.js";
 import { shareLink, readShareHash, exportGLB } from "./js/share.js";
+import { storyStudioBundle, storyFilename } from "./js/storyset.js";
 import { buildFloorGroup, buildFoundation, floorTop, floorThickness, tileSet, tileKey, splitTiles } from "./js/build/slabs.js";
 import { mergeProject } from "./js/merge.js";
 import { buildWall } from "./js/build/walls.js";
@@ -2026,7 +2027,27 @@ class App {
         }
         break;
       }
+      case "exportStory": {
+        try {
+          store.download(JSON.stringify(this.storyStudioBundle(), null, 1), storyFilename(this.project));
+          this.toast(t("exported"));
+        } catch (err) {
+          console.warn(err);
+          this.toast(t("importError"));
+        }
+        break;
+      }
     }
+  }
+  /** The project as a Story Studio bundle (js/storyset.js): a set plus the props it needs. */
+  storyStudioBundle() {
+    return storyStudioBundle(this.project, {
+      propDoc: (id) => this.propDoc(id),
+      shipped: (id) => catalog.props.find((p) => p.id === id)?.origin === "story-studio",
+      wells: (b, s, fg) => this.stairWells(b, s, fg),
+      roomsOf: (s) => this.roomsOf(s),
+      roomLevels: (b, s, face) => ({ floorY: this.roomFloorY(b, s, face), ceilingY: this.roomCeilingY(b, s, face) }),
+    });
   }
   /** Merge another project into this one as extra buildings beside the current content (js/merge.js). */
   async addProject(source, { extendTerrain = false } = {}) {

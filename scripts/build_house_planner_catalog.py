@@ -1005,16 +1005,17 @@ def main() -> None:
             continue
         name = d.get("name") if isinstance(d.get("name"), dict) else {"en": str(d.get("name", pid))}
         name = {"en": name.get("en", pid), "pt": name.get("pt") or name.get("en", pid), "ja": name.get("ja") or name.get("en", pid)}
-        write(props_dir, manifest, pid, name, cat, tags_for(cat, name, (ten, tpt, tja)), boxes, d.get("footprint"), d.get("light"))
+        origin = "story-studio" if (SS / f"{pid}.json").exists() else "environment-planner"
+        write(props_dir, manifest, pid, name, cat, tags_for(cat, name, (ten, tpt, tja)), boxes, d.get("footprint"), d.get("light"), origin=origin)
         if pid == "wall-torch":
             for gid, (gdoc, gtags) in fixtures().items():
-                write(props_dir, manifest, gid, gdoc["name"], "lighting", tags_for("lighting", gdoc["name"], gtags), gdoc["source"]["boxes"], gdoc["footprint"], gdoc.get("light"), gdoc.get("mount"))
+                write(props_dir, manifest, gid, gdoc["name"], "lighting", tags_for("lighting", gdoc["name"], gtags), gdoc["source"]["boxes"], gdoc["footprint"], gdoc.get("light"), gdoc.get("mount"), origin="generated")
         if pid == "motorcycle":
             # generated vehicles follow the first motorcycle in the catalog order
             for gid, (gdoc, gtags) in generated.items():
-                write(props_dir, manifest, gid, gdoc["name"], "vehicles", tags_for("vehicles", gdoc["name"], gtags), gdoc["source"]["boxes"], gdoc["footprint"])
+                write(props_dir, manifest, gid, gdoc["name"], "vehicles", tags_for("vehicles", gdoc["name"], gtags), gdoc["source"]["boxes"], gdoc["footprint"], origin="generated")
     for gid, (gdoc, gtags, gcat) in {**leisure(), **household(), **mainhouse()}.items():
-        write(props_dir, manifest, gid, gdoc["name"], gcat, tags_for(gcat, gdoc["name"], gtags), gdoc["source"]["boxes"], gdoc["footprint"], gdoc.get("light"), gdoc.get("mount"))
+        write(props_dir, manifest, gid, gdoc["name"], gcat, tags_for(gcat, gdoc["name"], gtags), gdoc["source"]["boxes"], gdoc["footprint"], gdoc.get("light"), gdoc.get("mount"), origin="generated")
     (OUT / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=1) + "\n")
     total = sum(p["parts"] for p in manifest["props"])
     print(f"{len(manifest['props'])} props, {total} parts total")
@@ -1037,7 +1038,7 @@ LIGHTS = {
 MOUNTS = {"pendant-lamp": "ceiling", "hanging-bulb": "ceiling", "string-lights": "ceiling", "wall-torch": "wall", "wall-sconce": "wall", "wall-lantern": "wall", "ceiling-flush": "ceiling", "chandelier": "ceiling", "spot-rail": "ceiling"}
 
 
-def write(props_dir, manifest, pid, name, cat, tags, boxes, footprint, light=None, mount=None):
+def write(props_dir, manifest, pid, name, cat, tags, boxes, footprint, light=None, mount=None, origin="generated"):
     doc = {"kind": "prop", "version": 1, "id": pid, "name": name, "source": {"type": "boxes", "boxes": boxes}}
     if footprint:
         doc["footprint"] = footprint
@@ -1048,7 +1049,10 @@ def write(props_dir, manifest, pid, name, cat, tags, boxes, footprint, light=Non
     if mount:
         doc["mount"] = mount
     (props_dir / f"{pid}.json").write_text(json.dumps(doc, ensure_ascii=False, separators=(",", ":")))
-    manifest["props"].append({"id": pid, "name": name, "category": cat, "tags": tags, "file": f"props/{pid}.json", "parts": len(boxes)})
+    # `origin` says where the document came from: story-studio props are
+    # referenced by id when a project is exported as a Story Studio set, the
+    # others travel inside the bundle.
+    manifest["props"].append({"id": pid, "name": name, "category": cat, "tags": tags, "file": f"props/{pid}.json", "parts": len(boxes), "origin": origin})
 
 
 if __name__ == "__main__":

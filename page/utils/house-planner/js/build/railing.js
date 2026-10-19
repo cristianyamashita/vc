@@ -16,7 +16,7 @@ import { tileKey, floorTop } from "./slabs.js";
 const MATERIAL_INVISIBLE = new THREE.MeshBasicMaterial({ visible: false });
 export const DEFAULT_TINT = { glass: "#9aa3a8", wood: "#a07d55", metal: "#3b4044", masonry: "#d9d2c5", picket: "#ebe6da", ranch: "#8a6a45", hedge: "#4f7f3a" };
 export const DEFAULT_TEXTURE = { masonry: "bricks" };
-const POST = { glass: 5, wood: 9, metal: 4, masonry: 25, picket: 9, ranch: 12, hedge: 0 };
+export const POST = { glass: 5, wood: 9, metal: 4, masonry: 25, picket: 9, ranch: 12, hedge: 0 };
 const GATE_COLOR = "#4a5054";
 
 // ------------------------------------------------------------- polyline
@@ -118,7 +118,7 @@ function box(list, frame, w, h, d, u, v, wv, color = null) {
 // ------------------------------------------------------------- styles
 
 /** Base of each post along the polyline, plus the bays between them. */
-function stations(item, kind) {
+export function stations(item, kind) {
   const segs = segments(item.points);
   const out = []; // {s, seg, gate: gate starting a gate bay here | null}
   const gates = kind === "fence" ? item.gates.map((g) => clampGate({ ...g }, item)).sort((a, b) => a.offset - b.offset) : [];
