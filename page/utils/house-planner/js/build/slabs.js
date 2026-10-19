@@ -12,6 +12,19 @@ export function tileKey(x, z) {
 export function tileSet(fg) {
   return new Set(fg.tiles.map(([x, z]) => tileKey(x, z)));
 }
+/**
+ * Tile keys of a floor group that a later group of the same storey paints
+ * over: when two groups share a tile, the one placed last is the one shown.
+ */
+export function coveredTiles(storey, fg) {
+  const i = storey.floorGroups.indexOf(fg);
+  if (i < 0 || i === storey.floorGroups.length - 1) return null;
+  const later = new Set();
+  for (const g of storey.floorGroups.slice(i + 1)) for (const [x, z] of g.tiles) later.add(tileKey(x, z));
+  const out = new Set();
+  for (const [x, z] of fg.tiles) { const k = tileKey(x, z); if (later.has(k)) out.add(k); }
+  return out.size ? out : null;
+}
 /** Top surface (cm, building-relative) of a floor group. */
 export function floorTop(storey, fg) {
   return storey.elevation + fg.offset;

@@ -23,8 +23,13 @@ function tiles(x0, z0, x1, z1) {
   for (let z = Math.floor(z0 / TILE); z < Math.ceil(z1 / TILE); z++) for (let x = Math.floor(x0 / TILE); x < Math.ceil(x1 / TILE); x++) out.push([x, z]);
   return out;
 }
+/** A floor over a rectangle; it takes its tiles away from the floors laid before it (a kitchen floor over the house floor), so no two groups share a tile. */
 export function slab(storey, x0, z0, x1, z1, material, tint = null) {
-  storey.floorGroups.push({ id: uid("fg"), name: "", offset: 0, thickness: null, material, tint, tiles: tiles(x0, z0, x1, z1), locked: false });
+  const mine = tiles(x0, z0, x1, z1);
+  const keys = new Set(mine.map(([x, z]) => `${x},${z}`));
+  for (const g of storey.floorGroups) g.tiles = g.tiles.filter(([x, z]) => !keys.has(`${x},${z}`));
+  storey.floorGroups = storey.floorGroups.filter((g) => g.tiles.length);
+  storey.floorGroups.push({ id: uid("fg"), name: "", offset: 0, thickness: null, material, tint, tiles: mine, locked: false });
 }
 const DARK_OPENING = { frameColor: "#2b2e33", leafColor: "#3a3d42", glassColor: "#a9c9d9" };
 export function wall(storey, a, b, { thickness = 20, tint = "#ebe6de", material = null, outerMaterial = null, outerTint = null, skirting = true, openings = [], flipOuter = false } = {}) {

@@ -29,7 +29,7 @@ import { makeTemplate, TEMPLATE_IDS } from "./js/templates.js";
 import { pointInPolygon } from "./js/geom.js";
 import { shareLink, readShareHash, exportGLB } from "./js/share.js";
 import { storyStudioBundle, storyFilename } from "./js/storyset.js";
-import { buildFloorGroup, buildFoundation, floorTop, floorThickness, tileSet, tileKey, splitTiles, tilesOutline } from "./js/build/slabs.js";
+import { buildFloorGroup, buildFoundation, floorTop, floorThickness, tileSet, tileKey, splitTiles, tilesOutline, coveredTiles } from "./js/build/slabs.js";
 import { mergeProject } from "./js/merge.js";
 import { buildWall } from "./js/build/walls.js";
 import { buildStairs, stairsCutQuads, tilesUnderQuads } from "./js/build/stairs.js";
@@ -590,7 +590,7 @@ class App {
   roomFloorY(b, s, face) {
     const tile = this.project.grid.tile;
     const k = tileKey(Math.floor(face.labelPoint[0] / tile), Math.floor(face.labelPoint[1] / tile));
-    const fg = s.floorGroups.find((g) => g.tiles.some(([x, z]) => tileKey(x, z) === k));
+    const fg = s.floorGroups.findLast((g) => g.tiles.some(([x, z]) => tileKey(x, z) === k));
     return fg ? floorTop(s, fg) : s.elevation;
   }
   /** Underside of the slab above a room, or the storey top (minus the roof ceiling). */
@@ -599,13 +599,18 @@ class App {
     const k = tileKey(Math.floor(face.labelPoint[0] / tile), Math.floor(face.labelPoint[1] / tile));
     const above = b.storeys.filter((x) => x.elevation > s.elevation).sort((x, y) => x.elevation - y.elevation)[0];
     if (above) {
-      const fg = above.floorGroups.find((g) => g.tiles.some(([x, z]) => tileKey(x, z) === k));
+      const fg = above.floorGroups.findLast((g) => g.tiles.some(([x, z]) => tileKey(x, z) === k));
       if (fg) return floorTop(above, fg) - floorThickness(above, fg);
     }
     const top = s.elevation + s.height;
     return !above && b.roof && b.roof.type !== "none" && b.roof.ceiling !== false ? top - CEILING : top;
   }
-  /** Tiles of a floor group left open by stairs from the storeys below. */
+  /**
+   * Tiles of a floor group that are not shown: left open by stairs from the
+   * storeys below, or painted over by a later floor group of the storey (the
+   * last one placed wins, so the kitchen tiles laid over the wood floor are
+   * the only slab drawn there).
+   */
   stairWells(b, s, fg) {
     const quads = [];
     const underside = floorTop(s, fg) - floorThickness(s, fg);
@@ -613,7 +618,11 @@ class App {
       if (lower.elevation >= s.elevation) continue;
       for (const st of lower.stairs) if (st.cutFloorAbove) quads.push(...stairsCutQuads(st, lower, underside));
     }
-    return quads.length ? tilesUnderQuads(fg.tiles, quads, this.project.grid.tile) : null;
+    const wells = quads.length ? tilesUnderQuads(fg.tiles, quads, this.project.grid.tile) : null;
+    const covered = coveredTiles(s, fg);
+    if (!covered) return wells;
+    if (!wells) return covered;
+    return new Set([...wells, ...covered]);
   }
   rebuildSite({ quiet = false } = {}) {
     if (!this.siteGroup) return;
