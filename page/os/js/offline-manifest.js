@@ -675,6 +675,7 @@
     "assets/icons/ico/utils-ps2.ico",
     "assets/icons/ico/utils-regex_playground.ico",
     "assets/icons/ico/utils-slides.ico",
+    "assets/icons/ico/utils-smart-note.ico",
     "assets/icons/ico/utils-sprint.ico",
     "assets/icons/ico/utils-step_sequencer.ico",
     "assets/icons/ico/utils-terminal.ico",
@@ -860,6 +861,7 @@
     "assets/icons/png/utils-ps2.png",
     "assets/icons/png/utils-regex_playground.png",
     "assets/icons/png/utils-slides.png",
+    "assets/icons/png/utils-smart-note.png",
     "assets/icons/png/utils-sprint.png",
     "assets/icons/png/utils-step_sequencer.png",
     "assets/icons/png/utils-terminal.png",
@@ -1045,6 +1047,7 @@
     "assets/icons/svg/utils-ps2.svg",
     "assets/icons/svg/utils-regex_playground.svg",
     "assets/icons/svg/utils-slides.svg",
+    "assets/icons/svg/utils-smart-note.svg",
     "assets/icons/svg/utils-sprint.svg",
     "assets/icons/svg/utils-step_sequencer.svg",
     "assets/icons/svg/utils-terminal.svg",
@@ -1439,6 +1442,13 @@
     "utils/house-planner/styles.css",
     "utils/house-planner/three",
     "utils/slides_runner.js",
+    "utils/smart-note/app.js",
+    "utils/smart-note/js/db.js",
+    "utils/smart-note/js/editor.js",
+    "utils/smart-note/js/exporter.js",
+    "utils/smart-note/js/i18n.js",
+    "utils/smart-note/js/markdown.js",
+    "utils/smart-note/styles.css",
     "utils/three",
     "utils/three/addons/controls/OrbitControls.js",
     "utils/three/addons/environments/RoomEnvironment.js",
@@ -1606,6 +1616,7 @@
     "utils/ps2.html",
     "utils/regex_playground.html",
     "utils/slides.html",
+    "utils/smart-note/index.html",
     "utils/sprint.html",
     "utils/step_sequencer.html",
     "utils/terminal.html",
@@ -1815,6 +1826,6 @@
     "models/tinyyolov2-7.onnx",
     "models/yolov8n-coco.onnx"
   ],
-  "version": "d872b1e14e86"
+  "version": "1a962f141372"
 };
 })(typeof self !== "undefined" ? self : window);

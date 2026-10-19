@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" href="../../assets/icons/ico/utils-smart-note.ico" type="image/x-icon">
+  <title>Smart Note</title>
+  <link rel="stylesheet" href="../../assets/fontawesome/css/all.min.css">
+  <link rel="stylesheet" href="styles.css">
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-NWZDZ906DJ"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-NWZDZ906DJ');
+  </script>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand"><img src="../../assets/icons/svg/utils-smart-note.svg" alt=""><span data-i18n="title">Smart Note</span></div>
+      <button class="icon-btn" id="btn-sidebar" type="button" data-i18n-title="toggleSidebar"><i class="fa-solid fa-bars"></i></button>
+      <button class="btn primary" id="btn-new" type="button"><i class="fa-solid fa-plus"></i><span data-i18n="newPage">New page</span></button>
+      <button class="btn" id="btn-import" type="button"><i class="fa-solid fa-file-import"></i><span data-i18n="import">Import</span></button>
+      <button class="btn" id="btn-export" type="button" data-menu="export"><i class="fa-solid fa-file-export"></i><span data-i18n="export">Export</span><i class="fa-solid fa-caret-down caret"></i></button>
+      <span class="status-wrap"><span id="status" data-state="saved">Saved</span><span class="dot">·</span><span id="words">0 words</span></span>
+      <div class="tools">
+        <button class="icon-btn" id="help-btn" type="button" data-i18n-title="help"><i class="fa-solid fa-circle-question"></i></button>
+        <select id="lang-switcher" aria-label="Language">
+          <option value="en">EN</option>
+          <option value="pt">PT</option>
+          <option value="ja">JA</option>
+        </select>
+        <button class="icon-btn" id="theme-switcher" type="button" data-i18n-title="theme"><i class="fa-solid fa-sun"></i></button>
+      </div>
+    </header>
+
+    <main class="main">
+      <aside class="sidebar">
+        <div class="side-head">
+          <div class="search-wrap"><i class="fa-solid fa-magnifying-glass"></i><input id="search" type="search" data-i18n-ph="searchPh" placeholder="Search pages…"></div>
+          <button class="icon-btn sm" id="btn-new-root" type="button" data-i18n-title="newPage"><i class="fa-solid fa-plus"></i></button>
+        </div>
+        <div class="tree" id="tree"></div>
+      </aside>
+
+      <section class="editor-col">
+        <div class="toolbar" id="toolbar">
+          <button type="button" data-cmd="undo" data-i18n-title="undo"><i class="fa-solid fa-rotate-left"></i></button>
+          <button type="button" data-cmd="redo" data-i18n-title="redo"><i class="fa-solid fa-rotate-right"></i></button>
+          <span class="sep"></span>
+          <button type="button" class="insert" data-cmd="insert" data-i18n-title="insert"><i class="fa-solid fa-plus"></i><span>/</span></button>
+          <select id="block-type" data-i18n-title="blockType"></select>
+          <select id="font-family" data-i18n-title="font"></select>
+          <select id="font-size" class="narrow" data-i18n-title="size"></select>
+          <span class="sep"></span>
+          <button type="button" data-cmd="bold" data-state="bold" data-i18n-title="bold"><i class="fa-solid fa-bold"></i></button>
+          <button type="button" data-cmd="italic" data-state="italic" data-i18n-title="italic"><i class="fa-solid fa-italic"></i></button>
+          <button type="button" data-cmd="underline" data-state="underline" data-i18n-title="underline"><i class="fa-solid fa-underline"></i></button>
+          <button type="button" data-cmd="strikeThrough" data-state="strike" data-i18n-title="strike"><i class="fa-solid fa-strikethrough"></i></button>
+          <button type="button" data-cmd="code" data-state="code" data-i18n-title="inlineCode"><i class="fa-solid fa-code"></i></button>
+          <button type="button" data-cmd="color" data-menu="color" data-i18n-title="textColor"><i class="fa-solid fa-palette"></i></button>
+          <button type="button" data-cmd="hilite" data-menu="hilite" data-i18n-title="highlight"><i class="fa-solid fa-highlighter"></i></button>
+          <span class="tb-extra">
+            <span class="sep"></span>
+            <button type="button" data-cmd="justifyLeft" data-i18n-title="alignLeft"><i class="fa-solid fa-align-left"></i></button>
+            <button type="button" data-cmd="justifyCenter" data-i18n-title="alignCenter"><i class="fa-solid fa-align-center"></i></button>
+            <button type="button" data-cmd="justifyRight" data-i18n-title="alignRight"><i class="fa-solid fa-align-right"></i></button>
+            <span class="sep"></span>
+            <button type="button" data-cmd="link" data-i18n-title="link"><i class="fa-solid fa-link"></i></button>
+            <button type="button" data-cmd="clear" data-i18n-title="clearFormat"><i class="fa-solid fa-eraser"></i></button>
+          </span>
+          <button type="button" class="tb-more" data-cmd="more" data-menu="more" data-i18n-title="more"><i class="fa-solid fa-ellipsis"></i></button>
+        </div>
+        <div class="editor-scroll" id="editor-scroll">
+          <div class="page">
+            <nav class="crumbs" id="crumbs"></nav>
+            <input class="doc-title" id="doc-title" type="text" data-i18n-ph="titlePh" placeholder="Untitled" autocomplete="off" spellcheck="false">
+            <div class="editor" id="editor" contenteditable="true" spellcheck="true" data-ph="Type '/' for commands"></div>
+          </div>
+          <div class="float-bar" id="table-bar" hidden>
+            <button type="button" data-tbl="rowAbove" data-i18n-title="tblRowAbove"><i class="fa-solid fa-arrow-up"></i></button>
+            <button type="button" data-tbl="rowBelow" data-i18n-title="tblRowBelow"><i class="fa-solid fa-arrow-down"></i></button>
+            <button type="button" data-tbl="colLeft" data-i18n-title="tblColLeft"><i class="fa-solid fa-arrow-left"></i></button>
+            <button type="button" data-tbl="colRight" data-i18n-title="tblColRight"><i class="fa-solid fa-arrow-right"></i></button>
+            <span class="sep"></span>
+            <button type="button" data-tbl="header" data-i18n-title="tblHeader"><i class="fa-solid fa-heading"></i></button>
+            <span class="sep"></span>
+            <button type="button" data-tbl="delRow" data-i18n-title="tblDelRow"><i class="fa-solid fa-minus"></i><i class="fa-solid fa-grip-lines tiny"></i></button>
+            <button type="button" data-tbl="delCol" data-i18n-title="tblDelCol"><i class="fa-solid fa-minus"></i><i class="fa-solid fa-grip-lines-vertical tiny"></i></button>
+            <button type="button" class="danger" data-tbl="delTable" data-i18n-title="tblDelTable"><i class="fa-solid fa-trash-can"></i></button>
+          </div>
+          <div class="float-bar" id="fig-bar" hidden>
+            <button type="button" data-fig="w:25" data-i18n-title="figSmall">S</button>
+            <button type="button" data-fig="w:50" data-i18n-title="figMedium">M</button>
+            <button type="button" data-fig="w:75" data-i18n-title="figLarge">L</button>
+            <button type="button" data-fig="w:100" data-i18n-title="figFull"><i class="fa-solid fa-left-right"></i></button>
+            <span class="sep"></span>
+            <button type="button" data-fig="align:left" data-i18n-title="figAlignL"><i class="fa-solid fa-align-left"></i></button>
+            <button type="button" data-fig="align:center" data-i18n-title="figAlignC"><i class="fa-solid fa-align-center"></i></button>
+            <button type="button" data-fig="align:right" data-i18n-title="figAlignR"><i class="fa-solid fa-align-right"></i></button>
+            <span class="sep"></span>
+            <button type="button" class="danger" data-fig="delete" data-i18n-title="figDelete"><i class="fa-solid fa-trash-can"></i></button>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div class="slash-menu" id="slash-menu" hidden></div>
+  <div class="menu" id="menu-export" hidden>
+    <button type="button" data-exp="md"><i class="fa-brands fa-markdown"></i><span data-i18n="expMarkdown">Markdown (.md)</span></button>
+    <button type="button" data-exp="html"><i class="fa-solid fa-code"></i><span data-i18n="expHtml">HTML (.html)</span></button>
+    <button type="button" data-exp="txt"><i class="fa-solid fa-align-left"></i><span data-i18n="expText">Plain text (.txt)</span></button>
+    <button type="button" data-exp="pdf"><i class="fa-solid fa-file-pdf"></i><span data-i18n="expPdf">PDF (print)</span></button>
+    <span class="menu-sep"></span>
+    <button type="button" data-exp="json"><i class="fa-solid fa-file-code"></i><span data-i18n="expJsonPage">JSON — this page and sub-pages</span></button>
+    <button type="button" data-exp="json-all"><i class="fa-solid fa-database"></i><span data-i18n="expJsonAll">JSON — all pages</span></button>
+  </div>
+  <div class="menu" id="menu-more" hidden>
+    <button type="button" data-cmd="justifyLeft"><i class="fa-solid fa-align-left"></i><span data-i18n="alignLeft">Align left</span></button>
+    <button type="button" data-cmd="justifyCenter"><i class="fa-solid fa-align-center"></i><span data-i18n="alignCenter">Center</span></button>
+    <button type="button" data-cmd="justifyRight"><i class="fa-solid fa-align-right"></i><span data-i18n="alignRight">Align right</span></button>
+    <span class="menu-sep"></span>
+    <button type="button" data-cmd="link"><i class="fa-solid fa-link"></i><span data-i18n="link">Link</span></button>
+    <button type="button" data-cmd="clear"><i class="fa-solid fa-eraser"></i><span data-i18n="clearFormat">Clear formatting</span></button>
+  </div>
+  <div class="menu palette" id="menu-color" hidden></div>
+  <div class="menu palette" id="menu-hilite" hidden></div>
+  <input type="file" id="import-input" accept=".md,.markdown,.txt,.html,.htm,.json" multiple hidden>
+  <input type="file" id="image-input" accept="image/*" multiple hidden>
+
+  <dialog id="help">
+    <div class="dlg-head"><span id="help-title"></span><button class="icon-btn" id="help-close" type="button" data-i18n-title="close"><i class="fa-solid fa-xmark"></i></button></div>
+    <div class="dlg-body" id="help-body"></div>
+  </dialog>
+  <dialog id="confirm" class="small">
+    <div class="dlg-body"><p id="confirm-msg"></p>
+      <div class="dlg-actions"><button class="btn" id="confirm-cancel" type="button" data-i18n="cancel">Cancel</button><button class="btn danger-fill" id="confirm-ok" type="button" data-i18n="delete">Delete</button></div>
+    </div>
+  </dialog>
+  <dialog id="link-dlg" class="small">
+    <form id="link-form" class="dlg-body">
+      <label class="field"><span data-i18n="linkUrl">URL</span><input id="link-url" type="text" placeholder="https://" autocomplete="off"></label>
+      <label class="field"><span data-i18n="linkText">Text</span><input id="link-text" type="text" autocomplete="off"></label>
+      <div class="dlg-actions"><button class="btn" id="link-cancel" type="button" data-i18n="cancel">Cancel</button><button class="btn primary" type="submit" data-i18n="insertLink">Insert link</button></div>
+    </form>
+  </dialog>
+  <div class="toast" id="toast"></div>
+
+  <script src="js/i18n.js"></script>
+  <script src="js/db.js"></script>
+  <script src="js/markdown.js"></script>
+  <script src="js/editor.js"></script>
+  <script src="js/exporter.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
