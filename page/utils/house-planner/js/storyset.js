@@ -11,7 +11,7 @@
 // under buildings included); fences, walls, paths and patches are built on
 // those heights. Story Studio reads the file with Library › Import.
 import { wallLength, polylineLength, storeyTop, topStorey, OPENING_PRESETS } from "./schema.js";
-import { wallHeight, wallAngle, clampOpening, outerSide, cornerExtension } from "./build/walls.js";
+import { wallHeight, wallAngle, clampOpening, outerSide, cornerExtensions } from "./build/walls.js";
 import { stairsBoxes, stairsSteps } from "./build/stairs.js";
 import { floorTop, floorThickness, tileKey } from "./build/slabs.js";
 import { roofRect, ROOF_THICKNESS, CEILING } from "./build/roof.js";
@@ -176,7 +176,7 @@ function wallBoxes(out, wall, storey, walls, tile) {
   const theta = wallAngle(wall), c = Math.cos(theta), s = Math.sin(theta);
   const E = storey.elevation;
   const put = (w, h, d, u, y, v, fin) => out.add(w, h, d, wall.a[0] + u * c - v * s, E + y, wall.a[1] + u * s + v * c, fin, { ry: -theta });
-  const [e0, e1] = cornerExtension(wall, walls);
+  const ends = cornerExtensions(wall, storey, walls, tile);
   const twoFaced = !!(wall.outerMaterial || wall.outerTint);
   const side = twoFaced ? outerSide(wall, storey, tile) : 0;
   const inner = finish(wall.material, wall.tint, "#f2ede4");
@@ -190,7 +190,7 @@ function wallBoxes(out, wall, storey, walls, tile) {
     put(u1 - u0, y1 - y0, T / 2, (u0 + u1) / 2, (y0 + y1) / 2, (-side * T) / 4, inner);
     put(u1 - u0, y1 - y0, T / 2, (u0 + u1) / 2, (y0 + y1) / 2, (side * T) / 4, outer);
   };
-  let cursor = -e0;
+  let cursor = 0;
   for (const op of openings) {
     const u0 = op.offset, u1 = op.offset + op.width;
     const top = Math.min(H, op.sill + op.height);
@@ -219,7 +219,14 @@ function wallBoxes(out, wall, storey, walls, tile) {
         if (op.sill > 0) put(op.width + TRIM * 2, TRIM, 1.2, (u0 + u1) / 2, op.sill - TRIM / 2, z, fin);
       }
   }
-  span(cursor, L + e1, 0, H);
+  span(cursor, L, 0, H);
+  for (const [i, e] of ends.entries())
+    for (const k of [-1, 1]) {
+      if (!e[k]) continue;
+      const u0 = i === 0 ? -e[k] : L, u1 = i === 0 ? 0 : L + e[k];
+      put(u1 - u0, H, T / 2, (u0 + u1) / 2, H / 2, (k * T) / 4, twoFaced && k === side ? outer : inner);
+      if (wall.skirting) put(u1 - u0, SKIRT, SKIRT_T, (u0 + u1) / 2, SKIRT / 2, k * (T / 2 + SKIRT_T / 2), { color: "#e9e3d8" });
+    }
 }
 /** Frame, leaf and glass of a closed opening (ports leafGeometry). */
 function leafBoxes(op, T, h, put) {

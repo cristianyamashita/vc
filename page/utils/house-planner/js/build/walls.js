@@ -58,6 +58,67 @@ export function cornerExtension(wall, walls) {
   }
   return ext;
 }
+/**
+ * How far each half of a wall (local side -1 / +1) extends past each end to
+ * fill the corner with the walls sharing that end, as [{-1, 1}, {-1, 1}].
+ * A half is not extended where a partner's own body already fills the
+ * corner, nor where a partner's outer half reaches the same square (its
+ * cap would lie on the façade with the inner finish); two halves of the
+ * same finish class reaching one square leave it to the wall listed first.
+ */
+export function cornerExtensions(wall, storey, walls, tile = 50) {
+  const info = (w) => {
+    const l = wallLength(w) || 1, d = [(w.b[0] - w.a[0]) / l, (w.b[1] - w.a[1]) / l];
+    return { w, l, d, n: [-d[1], d[0]] };
+  };
+  const classOf = (w) => {
+    const two = !!(w.outerMaterial || w.outerTint), out = two ? outerSide(w, storey, tile) : 0;
+    return (s) => (two && s === out ? 1 : 0); // 1 = outer finish, 0 = inner
+  };
+  const inBody = (I, p) => {
+    const px = p[0] - I.w.a[0], pz = p[1] - I.w.a[1];
+    const t = px * I.d[0] + pz * I.d[1], v = px * I.n[0] + pz * I.n[1];
+    return t >= -0.01 && t <= I.l + 0.01 && Math.abs(v) <= I.w.thickness / 2 + 0.01;
+  };
+  const near = (p, q) => Math.hypot(p[0] - q[0], p[1] - q[1]) < 1.5;
+  const centre = (P, into, nn, s, T, e) => [P[0] - (into[0] * e) / 2 + (nn[0] * s * T) / 4, P[1] - (into[1] * e) / 2 + (nn[1] * s * T) / 4];
+  const me = info(wall), myClass = classOf(wall), myIndex = walls.indexOf(wall);
+  const out = [];
+  for (const [i, P] of [wall.a, wall.b].entries()) {
+    const into = i === 0 ? me.d : [-me.d[0], -me.d[1]];
+    const partners = [];
+    for (const o of walls) {
+      if (o === wall) continue;
+      const I = info(o);
+      if (near(o.a, P)) partners.push({ I, into: I.d });
+      else if (near(o.b, P)) partners.push({ I, into: [-I.d[0], -I.d[1]] });
+    }
+    const res = { "-1": 0, 1: 0 };
+    if (!partners.length) { out.push(res); continue; }
+    const bodies = [me, ...partners.map((p) => p.I)];
+    const halfOf = (I) => I.w.thickness / 2;
+    const ext = Math.max(...partners.map((p) => halfOf(p.I)));
+    const claims = (c, I) => !bodies.some((B) => B !== I && inBody(B, c));
+    for (const s of [-1, 1]) {
+      const c = centre(P, into, me.n, s, wall.thickness, ext);
+      if (!claims(c, me)) continue;
+      let blocked = false;
+      for (const p of partners) {
+        const pClass = classOf(p.I.w);
+        const pe = Math.max(halfOf(me), ...partners.filter((q) => q !== p).map((q) => halfOf(q.I)));
+        for (const s2 of [-1, 1]) {
+          const c2 = centre(P, p.into, p.I.n, s2, p.I.w.thickness, pe);
+          if (Math.hypot(c[0] - c2[0], c[1] - c2[1]) > (wall.thickness + p.I.w.thickness) / 8 + 0.5) continue;
+          if (!claims(c2, p.I)) continue;
+          if (pClass(s2) > myClass(s) || (pClass(s2) === myClass(s) && walls.indexOf(p.I.w) < myIndex)) blocked = true;
+        }
+      }
+      if (!blocked) res[s] = ext;
+    }
+    out.push(res);
+  }
+  return out;
+}
 function box(w, h, d, x, y, z, color, list) {
   const g = new THREE.BoxGeometry(w * M, h * M, d * M);
   g.translate(x * M, y * M, z * M);
@@ -89,7 +150,7 @@ export function buildWall(wall, storey, walls, tile = 50, { doorsOpen = false } 
   group.rotation.y = -wallAngle(wall);
   group.userData = { kind: "wallGroup", id: wall.id };
   if (L < 1) return group;
-  const [e0, e1] = cornerExtension(wall, walls);
+  const ends = cornerExtensions(wall, storey, walls, tile);
   const solid = [], outer = [], leaf = [], glass = [];
   // Two faces: the wall is split along its length into two half-thickness
   // boxes when the outer side has its own texture or colour.
@@ -100,7 +161,7 @@ export function buildWall(wall, storey, walls, tile = 50, { doorsOpen = false } 
   const openings = wall.openings
     .map((op) => clampOpening({ ...op }, wall))
     .sort((a, b) => a.offset - b.offset);
-  let cursor = -e0;
+  let cursor = 0;
   const SKIRT = 7, SKIRT_T = 1.2, TRIM = 5;
   const span = (u0, u1, y0, y1) => {
     if (u1 - u0 < 0.1 || y1 - y0 < 0.1) return;
@@ -133,7 +194,15 @@ export function buildWall(wall, storey, walls, tile = 50, { doorsOpen = false } 
     hit.userData = { kind: "opening", id: op.id, wallId: wall.id, storeyId: storey.id };
     group.add(hit);
   }
-  span(cursor, L + e1, 0, H);
+  span(cursor, L, 0, H);
+  // the corner fills past each end, one half-thickness box per side with that side's finish
+  for (const [i, e] of ends.entries())
+    for (const s of [-1, 1]) {
+      if (!e[s]) continue;
+      const u0 = i === 0 ? -e[s] : L, u1 = i === 0 ? 0 : L + e[s];
+      box(u1 - u0, H, T / 2, (u0 + u1) / 2, H / 2, (s * T) / 4, null, twoFaced && s === side ? outer : solid);
+      if (wall.skirting) box(u1 - u0, SKIRT, SKIRT_T, (u0 + u1) / 2, SKIRT / 2, s * (T / 2 + SKIRT_T / 2), "#e9e3d8", leaf);
+    }
   if (solid.length) {
     const geo = mergeGeometries(solid, false);
     solid.forEach((g) => g.dispose());
