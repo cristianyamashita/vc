@@ -10,8 +10,11 @@ import { mansion } from "./samples/mansion.js";
 import { mansionCoastal } from "./samples/mansion-coastal.js";
 import { mansionEstate } from "./samples/mansion-estate.js";
 import { mansionCourtyard } from "./samples/mansion-courtyard.js";
+import { shopping } from "./samples/shopping.js";
+import { housing } from "./samples/housing.js";
+import { village } from "./samples/village.js";
 
-const TEMPLATES = ["studio", "house2br", "twoStorey", "garageLeisure", "mainHouse", "mainHouseXL", "mainHouseSingle", "mainHouseSingleXL", "mansion", "mansionCoastal", "mansionEstate", "mansionCourtyard", "hillside", "farmhouse", "cellarAttic", "beach"];
+const TEMPLATES = ["studio", "house2br", "twoStorey", "garageLeisure", "mainHouse", "mainHouseXL", "mainHouseSingle", "mainHouseSingleXL", "mansion", "mansionCoastal", "mansionEstate", "mansionCourtyard", "hillside", "farmhouse", "cellarAttic", "beach", "shopping", "housing", "village"];
 export const TEMPLATE_IDS = TEMPLATES;
 
 // ---- free-form helpers (cm, building-local) for the larger samples
@@ -261,8 +264,8 @@ export function makeTemplate(id, name) {
   if (id === "studio") studio(p, b, g);
   else if (id === "house2br") house2br(p, b, g);
   else if (id === "garageLeisure") return garageLeisure(p, b, g);
-  else if (["mansion", "mansionCoastal", "mansionEstate", "mansionCourtyard", "hillside", "farmhouse", "cellarAttic", "beach"].includes(id)) {
-    ({ mansion, mansionCoastal, mansionEstate, mansionCourtyard, hillside, farmhouse, cellarAttic, beach })[id](p, b, g);
+  else if (["mansion", "mansionCoastal", "mansionEstate", "mansionCourtyard", "hillside", "farmhouse", "cellarAttic", "beach", "shopping", "housing", "village"].includes(id)) {
+    ({ mansion, mansionCoastal, mansionEstate, mansionCourtyard, hillside, farmhouse, cellarAttic, beach, shopping, housing, village })[id](p, b, g);
     p.view.activeStorey = g.id;
     return projectChecked(p);
   } else if (id.startsWith("mainHouse")) {

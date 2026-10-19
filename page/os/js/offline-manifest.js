@@ -444,6 +444,7 @@
     "assets/house-planner/templates/garageLeisure.png",
     "assets/house-planner/templates/hillside.png",
     "assets/house-planner/templates/house2br.png",
+    "assets/house-planner/templates/housing.png",
     "assets/house-planner/templates/mainHouse.png",
     "assets/house-planner/templates/mainHouseSingle.png",
     "assets/house-planner/templates/mainHouseSingleXL.png",
@@ -452,8 +453,10 @@
     "assets/house-planner/templates/mansionCoastal.png",
     "assets/house-planner/templates/mansionCourtyard.png",
     "assets/house-planner/templates/mansionEstate.png",
+    "assets/house-planner/templates/shopping.png",
     "assets/house-planner/templates/studio.png",
     "assets/house-planner/templates/twoStorey.png",
+    "assets/house-planner/templates/village.png",
     "assets/house-planner/textures/asphalt/color.jpg",
     "assets/house-planner/textures/asphalt/normal.jpg",
     "assets/house-planner/textures/azulejo/color.jpg",
@@ -1406,16 +1409,20 @@
     "utils/house-planner/js/samples/cellar-attic.js",
     "utils/house-planner/js/samples/farmhouse.js",
     "utils/house-planner/js/samples/hillside.js",
+    "utils/house-planner/js/samples/housing.js",
     "utils/house-planner/js/samples/kit.js",
     "utils/house-planner/js/samples/main-house.js",
     "utils/house-planner/js/samples/mansion-coastal.js",
     "utils/house-planner/js/samples/mansion-courtyard.js",
     "utils/house-planner/js/samples/mansion-estate.js",
     "utils/house-planner/js/samples/mansion.js",
+    "utils/house-planner/js/samples/shopping.js",
+    "utils/house-planner/js/samples/village.js",
     "utils/house-planner/js/scene.js",
     "utils/house-planner/js/schema.js",
     "utils/house-planner/js/share.js",
     "utils/house-planner/js/store.js",
+    "utils/house-planner/js/storyset.js",
     "utils/house-planner/js/sun.js",
     "utils/house-planner/js/templates.js",
     "utils/house-planner/js/terrain.js",
@@ -1808,6 +1815,6 @@
     "models/tinyyolov2-7.onnx",
     "models/yolov8n-coco.onnx"
   ],
-  "version": "5f281e322b36"
+  "version": "d872b1e14e86"
 };
 })(typeof self !== "undefined" ? self : window);

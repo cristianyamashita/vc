@@ -57,6 +57,9 @@ for (const id of ids) {
     const { makeTemplate } = await import("./js/templates.js");
     app.setProject(makeTemplate(id, id), { fit: true });
     for (const b of app.project.buildings) b.roof.visible = true;
+    // the roof of the active building hides while a lower storey is active: show the top one
+    const active = app.project.buildings.find((b) => b.id === app.state.activeBuilding) || app.project.buildings[0];
+    app.setActive(active.id, active.storeys.reduce((a, s) => (s.elevation > a.elevation ? s : a)).id);
     app.applyVisibility();
     app.scene.grid.visible = false;
     app.scene.renderer.setPixelRatio(2);
