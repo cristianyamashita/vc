@@ -6,16 +6,17 @@
 // garden patches, a small bulb per light point, and every placed object
 // Story Studio does not ship itself (generated, custom and inline objects;
 // the catalog items copied from Story Studio are referenced by id). The
-// document is centimetres and the bundle metres; the Story Studio ground is
-// flat, so terrain heights are not carried over. Story Studio reads the
-// file with Library › Import.
+// document is centimetres and the bundle metres. The terrain travels as the
+// set's `ground.relief` (the displayed heights: slope and the flattening
+// under buildings included); fences, walls, paths and patches are built on
+// those heights. Story Studio reads the file with Library › Import.
 import { wallLength, polylineLength, storeyTop, topStorey, OPENING_PRESETS } from "./schema.js";
 import { wallHeight, wallAngle, clampOpening, outerSide, cornerExtension } from "./build/walls.js";
 import { stairsBoxes, stairsSteps } from "./build/stairs.js";
 import { floorTop, floorThickness, tileKey } from "./build/slabs.js";
 import { roofRect, ROOF_THICKNESS, CEILING } from "./build/roof.js";
 import { segments, pointAlong, clampGate, stations, POST, DEFAULT_TINT, gateColor, railingOffset } from "./build/railing.js";
-import { polygonOutline, polygonLevels, POOL_WALL, POOL_WATER, PATH_THICK, PATCH_LIFT, MUD_TINT } from "./build/outdoor.js";
+import { polygonOutline, polygonLevels, terrainRange, POOL_WALL, POOL_WATER, PATH_THICK, PATCH_LIFT, MUD_TINT } from "./build/outdoor.js";
 import { pointInPolygon, polygonBounds, insetPolygon, dedupe } from "./geom.js";
 import { Sun } from "./sun.js";
 
@@ -24,6 +25,24 @@ const MAX_BOXES = 4000; // Story Studio's limit per prop document
 const GLASS = { color: "#bcd8e6", opacity: 0.35 };
 const CEILING_TINT = "#f1ede6";
 const FLAT_GROUND = { heightAt: () => 0 };
+/** Lowest and highest ground (cm) under a rectangle, sampled on a small grid. */
+function groundRange(heightAt, r) {
+  let lo = Infinity, hi = -Infinity;
+  for (let i = 0; i <= 2; i++)
+    for (let j = 0; j <= 2; j++) {
+      const h = heightAt(r.x0 + ((r.x1 - r.x0) * i) / 2, r.z0 + ((r.z1 - r.z0) * j) / 2);
+      lo = Math.min(lo, h);
+      hi = Math.max(hi, h);
+    }
+  return { lo, hi };
+}
+/** A skin over the ground inside the rectangles: `thick` cm from `lift` above the highest ground down past the lowest. */
+function skinBoxes(out, rects, heightAt, lift, thick, fin) {
+  for (const r of rects) {
+    const { lo, hi } = groundRange(heightAt, r);
+    rectBoxes(out, [r], lo - thick, hi + lift, fin);
+  }
+}
 
 // Planner texture → Story Studio texture (same id, another id with a tint,
 // or a plain colour when Story Studio has nothing alike).
@@ -335,15 +354,16 @@ function stairBoxes(out, st, storey) {
 // -------------------------------------------------------------- railings
 
 /** A railing or fence as boxes (same frame as its points), on a level base (ports buildRailing). */
-function railingBoxes(out, item, kind, baseY) {
+function railingBoxes(out, item, kind, baseY, heightAt = null) {
   const pts = item.points;
   if (pts.length < 2 || polylineLength(pts) < 5) return;
   const H = item.height, style = item.style, post = POST[style] ?? 5;
   const fin = finish(item.material, item.tint || DEFAULT_TINT[style] || "#ffffff");
+  const ground = heightAt || (() => 0); // fence posts stand on the ground under them
   const at = (s) => pointAlong(pts, s);
-  // box of w×h×d at (u along, v up, wv right) of a level frame at p heading (dx, dz)
+  // box of w×h×d at (u along, v up, wv right) of a level frame at p heading (dx, dz), standing on the ground
   const frame = (p, w, h, d, u, v, wv, f = fin, shape = null) =>
-    out.add(w, h, d, p.x + p.dx * u - p.dz * wv, baseY + v, p.z + p.dz * u + p.dx * wv, shape ? { ...f, shape } : f, { ry: Math.atan2(-p.dz, p.dx) });
+    out.add(w, h, d, p.x + p.dx * u - p.dz * wv, baseY + ground(p.x, p.z) + v, p.z + p.dz * u + p.dx * wv, shape ? { ...f, shape } : f, { ry: Math.atan2(-p.dz, p.dx) });
   const st = stations(item, kind);
   if (post > 0) {
     const seen = new Set();
@@ -363,12 +383,18 @@ function railingBoxes(out, item, kind, baseY) {
     if (a.end || a.seg !== b.seg) continue;
     const L = b.s - a.s;
     if (L < 1) continue;
-    const A = at(a.s);
+    const A = at(a.s), B = at(b.s);
+    const yA = baseY + ground(A.x, A.z), yB = baseY + ground(B.x, B.z);
     if (a.gate) {
-      gateBoxes(out, a.gate, A, L, H, style, item, baseY, fin);
+      gateBoxes(out, a.gate, A, L, H, style, item, Math.max(yA, yB), fin);
       continue;
     }
-    const mid = L / 2, inner = Math.max(0, L - post);
+    // the bay runs from A to B, sloping with the ground between the two posts
+    const L3 = Math.hypot(L, yB - yA);
+    const ux = (B.x - A.x) / L3, uy = (yB - yA) / L3, uz = (B.z - A.z) / L3;
+    const bay = (w, h, d, u, v, wv, f = fin, shape = null) =>
+      out.add(w, h, d, A.x + ux * u - A.dz * wv, yA + uy * u + v, A.z + uz * u + A.dx * wv, shape ? { ...f, shape } : f, { ry: Math.atan2(-uz, ux), rz: Math.asin(uy) });
+    const mid = L3 / 2, inner = Math.max(0, L3 - post);
     const uprights = (gap, w, d, v0, v1, wv = 0) => {
       const n = Math.max(0, Math.floor((inner - w) / gap));
       if (!n) return;
@@ -377,41 +403,41 @@ function railingBoxes(out, item, kind, baseY) {
     };
     switch (style) {
       case "glass":
-        frame(A, L, 4, 5, mid, H - 2, 0);
-        frame(A, Math.max(1, inner - 2), Math.max(1, H - 14), 1.2, mid, 8 + (H - 14) / 2, 0, GLASS);
+        bay(L, 4, 5, mid, H - 2, 0);
+        bay(Math.max(1, inner - 2), Math.max(1, H - 14), 1.2, mid, 8 + (H - 14) / 2, 0, GLASS);
         break;
       case "wood":
-        frame(A, L, 5, 9, mid, H - 2.5, 0);
-        frame(A, inner, 4, 6, mid, 10, 0);
+        bay(L, 5, 9, mid, H - 2.5, 0);
+        bay(inner, 4, 6, mid, 10, 0);
         uprights(10, 4, 2.2, 8, H - 5);
         break;
       case "metal":
-        frame(A, L, 4, 4, mid, H - 2, 0);
-        frame(A, inner, 3, 3, mid, 8, 0);
+        bay(L, 4, 4, mid, H - 2, 0);
+        bay(inner, 3, 3, mid, 8, 0);
         uprights(12, 1.5, 1.5, 8, H - 4);
         break;
       case "masonry": {
         const t = kind === "fence" ? 25 : 20;
-        frame(A, L, H - 4, t, mid, (H - 4) / 2, 0);
-        frame(A, L, 4, t + 6, mid, H - 2, 0);
+        bay(L, H - 4, t, mid, (H - 4) / 2, 0);
+        bay(L, 4, t + 6, mid, H - 2, 0);
         break;
       }
       case "picket":
-        frame(A, inner, 8, 3, mid, H * 0.3, -3);
-        frame(A, inner, 8, 3, mid, H * 0.8, -3);
+        bay(inner, 8, 3, mid, H * 0.3, -3);
+        bay(inner, 8, 3, mid, H * 0.8, -3);
         uprights(12, 7, 2, 3, H, 0.5);
         break;
       case "ranch":
-        frame(A, L, 12, 4, mid, H - 6, 0);
-        frame(A, L, 12, 4, mid, H * 0.62, 0);
-        frame(A, L, 12, 4, mid, H * 0.3, 0);
+        bay(L, 12, 4, mid, H - 6, 0);
+        bay(L, 12, 4, mid, H * 0.62, 0);
+        bay(L, 12, 4, mid, H * 0.3, 0);
         break;
       case "hedge": {
-        const n = Math.max(1, Math.round(L / 60));
-        const piece = L / n;
+        const n = Math.max(1, Math.round(L3 / 60));
+        const piece = L3 / n;
         for (let k = 0; k < n; k++) {
           const h = H * (k % 2 ? 0.94 : 1);
-          frame(A, piece + 8, h, 40, (k + 0.5) * piece, h / 2 - 3, 0, fin, "rounded");
+          bay(piece + 8, h, 40, (k + 0.5) * piece, h / 2 - 3, 0, fin, "rounded");
         }
         break;
       }
@@ -452,10 +478,11 @@ function gateBoxes(out, gate, A, L, H, style, item, baseY, bayFin) {
 // ------------------------------------------------------------ site walls
 
 /** A site wall on level ground (ports buildSiteWall with a flat terrain). */
-function siteWallBoxes(out, wall) {
+function siteWallBoxes(out, wall, heightAt = null) {
   const pts = wall.points;
   if (pts.length < 2) return;
-  const H = wall.height, t = wall.thickness, bottom = -30;
+  const H = wall.height, t = wall.thickness, BURY = 30;
+  const ground = heightAt || (() => 0);
   const inner = finish(wall.material, wall.tint, "#d9d2c5");
   const useOuter = !!(wall.outerMaterial || wall.outerTint);
   const outer = finish(wall.outerMaterial || wall.material, wall.outerTint || wall.tint, "#d9d2c5");
@@ -473,29 +500,57 @@ function siteWallBoxes(out, wall) {
       const last = runs.pop();
       runs.push([last[0], g.offset], [g.offset + g.width, last[1]]);
     }
+    // ground under the wall's footprint around s (both faces and the centre line)
+    const gAt = (s) => {
+      const [x, z] = P(s);
+      return [-1, 0, 1].map((k) => ground(x + (nx * k * t) / 2, z + (nz * k * t) / 2));
+    };
+    const range = (s0, s1) => {
+      let lo = Infinity, hi = -Infinity;
+      for (let i = 0; i <= 4; i++) for (const h of gAt(s0 + ((s1 - s0) * i) / 4)) { lo = Math.min(lo, h); hi = Math.max(hi, h); }
+      return { lo, hi };
+    };
+    const topA = ground(...P(seg.s0)) + H, topB = ground(...P(seg.s1)) + H;
+    // the top: on the ground under the piece ("follow"), a straight line between the
+    // segment's ends, or level steps of stepLength
+    const topAt = (s, piece) => (wall.top === "straight" ? topA + ((topB - topA) * (s - seg.s0)) / len : wall.top === "stepped" ? piece.hi + H : ground(...P(s)) + H);
+    const whole = range(seg.s0, seg.s1);
+    const level = whole.hi - whole.lo < 0.5;
     for (const [r0, r1] of runs) {
       if (r1 - r0 < 1) continue;
-      const [x, z] = P((r0 + r1) / 2);
-      if (!useOuter) out.add(r1 - r0, H - bottom, t, x, (H + bottom) / 2, z, inner, { ry });
-      else {
-        out.add(r1 - r0, H - bottom, t / 2, x + (nx * t) / 4, (H + bottom) / 2, z + (nz * t) / 4, inner, { ry });
-        out.add(r1 - r0, H - bottom, t / 2, x - (nx * t) / 4, (H + bottom) / 2, z - (nz * t) / 4, outer, { ry });
+      // pieces: one on level ground, else steps (stepped) or short lengths that follow the ground
+      const pieceLen = level ? r1 - r0 : wall.top === "stepped" ? wall.stepLength : 150;
+      const n = Math.max(1, Math.ceil((r1 - r0) / pieceLen));
+      for (let k = 0; k < n; k++) {
+        const s0 = r0 + ((r1 - r0) * k) / n, s1 = r0 + ((r1 - r0) * (k + 1)) / n;
+        const piece = range(s0, s1);
+        const bottom = piece.lo - BURY, top = topAt((s0 + s1) / 2, piece);
+        const [x, z] = P((s0 + s1) / 2);
+        if (!useOuter) out.add(s1 - s0, top - bottom, t, x, (top + bottom) / 2, z, inner, { ry });
+        else {
+          out.add(s1 - s0, top - bottom, t / 2, x + (nx * t) / 4, (top + bottom) / 2, z + (nz * t) / 4, inner, { ry });
+          out.add(s1 - s0, top - bottom, t / 2, x - (nx * t) / 4, (top + bottom) / 2, z - (nz * t) / 4, outer, { ry });
+        }
       }
     }
     const p = t + 10;
     for (const g of cuts) {
       for (const s of [g.offset - p / 2, g.offset + g.width + p / 2]) {
-        const [x, z] = P(Math.max(seg.s0, Math.min(seg.s1, s)));
-        out.add(p, H + 10 - bottom, p, x, (H + 10 + bottom) / 2, z, inner, { ry });
-        out.add(p + 6, 4, p + 6, x, H + 12, z, inner, { ry });
+        const sc = Math.max(seg.s0, Math.min(seg.s1, s));
+        const [x, z] = P(sc);
+        const piece = range(Math.max(seg.s0, sc - p / 2), Math.min(seg.s1, sc + p / 2));
+        const bottom = piece.lo - BURY, top = topAt(sc, piece) + 10;
+        out.add(p, top - bottom, p, x, (top + bottom) / 2, z, inner, { ry });
+        out.add(p + 6, 4, p + 6, x, top + 2, z, inner, { ry });
       }
-      const a = pointAlong(pts, g.offset);
-      gateBoxes(out, g, a, g.width, H, "metal", wall, 0, inner);
+      const a = pointAlong(pts, g.offset), bb = pointAlong(pts, g.offset + g.width);
+      gateBoxes(out, g, a, g.width, H, "metal", wall, Math.max(ground(a.x, a.z), ground(bb.x, bb.z)), inner);
     }
   }
   for (let i = 1; i < segs.length; i++) {
     const [x, z] = segs[i].a;
-    out.add(t + 2, H - bottom, t + 2, x, (H + bottom) / 2, z, inner);
+    const g = ground(x, z);
+    out.add(t + 2, H + BURY, t + 2, x, g + (H - BURY) / 2, z, inner);
   }
 }
 
@@ -593,13 +648,14 @@ function roofBoxes(out, building, tile) {
 // --------------------------------------------------------------- outdoor
 
 /** An outdoor polygon on level ground as boxes (world cm). */
-function outdoorBoxes(out, poly) {
+function outdoorBoxes(out, poly, terrain = null) {
   const pts = polygonOutline(poly);
   if (pts.length < 3) return;
-  const levels = polygonLevels(poly, "outdoor", FLAT_GROUND);
+  const heightAt = terrain ? (x, z) => terrain.heightAt(x, z) : () => 0;
+  const levels = polygonLevels(poly, "outdoor", terrain || FLAT_GROUND);
   const fin = finish(poly.material, poly.tint, "#a07d55");
-  const rects = polygonRects(pts);
-  if (poly.type === "path") return rectBoxes(out, rects, -PATH_THICK, PATH_THICK, fin);
+  const rects = polygonRects(pts, terrain ? 50 : 25);
+  if (poly.type === "path") return skinBoxes(out, rects, heightAt, PATH_THICK, PATH_THICK, fin);
   if (poly.type === "pool") {
     const inner = insetPolygon(pts, POOL_WALL);
     const water = { material: "water", color: "#3a8aa6" };
@@ -612,9 +668,10 @@ function outdoorBoxes(out, poly) {
   if (poly.type === "pond" || poly.type === "stream") {
     const mud = finish(poly.material, poly.tint || MUD_TINT, MUD_TINT);
     const bank = insetPolygon(pts, 10);
+    const rim = terrainRange(pts, terrain || FLAT_GROUND).max;
     rectBoxes(out, rects, levels.bottom - 5, levels.bottom, mud);
-    if (bank) rectBoxes(out, polygonRects(pts, 25, [bank]), levels.bottom, 0, mud);
-    const top = Math.min(levels.top, -1);
+    if (bank) rectBoxes(out, polygonRects(pts, 25, [bank]), levels.bottom, rim, mud);
+    const top = Math.min(levels.top, rim - 1);
     rectBoxes(out, polygonRects(bank || pts), levels.bottom, top, { material: "water", color: poly.type === "stream" ? "#3f9bb8" : "#3a8aa6" });
     return;
   }
@@ -634,7 +691,11 @@ function outdoorBoxes(out, poly) {
   for (let i = 0; i < inner.length; i++) {
     const [ax, az] = inner[i], [bx, bz] = inner[(i + 1) % inner.length];
     const n = Math.max(1, Math.ceil(Math.hypot(bx - ax, bz - az) / POST_GAP));
-    for (let k = 0; k < n; k++) out.add(ps, under + POST_BURY, ps, ax + ((bx - ax) * k) / n, (under - POST_BURY) / 2, az + ((bz - az) * k) / n, fin);
+    for (let k = 0; k < n; k++) {
+      const px = ax + ((bx - ax) * k) / n, pz = az + ((bz - az) * k) / n;
+      const foot = heightAt(px, pz) - POST_BURY;
+      out.add(ps, under - foot, ps, px, (under + foot) / 2, pz, fin);
+    }
   }
 }
 
@@ -697,11 +758,14 @@ function lightDoc(l) {
  * catalog or custom document, or null), shipped(id) (true when Story Studio
  * ships that prop itself), wells(building, storey, floorGroup) (tile keys
  * left open by stairs), roomsOf(storey) ([{face, room}]), roomLevels(
- * building, storey, face) ({floorY, ceilingY}).
+ * building, storey, face) ({floorY, ceilingY}), terrain ({heightAt(x, z)
+ * in cm on the displayed ground, heights() the displayed vertex heights}).
  */
 export function storyStudioBundle(project, opts = {}) {
   const slug = slugOf(project);
   const setId = `hp-${slug}`;
+  const terrain = opts.terrain || null;
+  const heightAt = terrain ? (x, z) => terrain.heightAt(x, z) : null;
   const tile = project.grid?.tile || 50;
   const docs = new Map(); // id -> prop document
   const placements = [];
@@ -797,7 +861,7 @@ export function storyStudioBundle(project, opts = {}) {
   });
   project.outdoor.forEach((poly, i) => {
     const out = new Boxes();
-    outdoorBoxes(out, poly);
+    outdoorBoxes(out, poly, terrain);
     const kind = { deck: ["deck", "deque", "デッキ"], pool: ["pool", "piscina", "プール"], path: ["path", "caminho", "小道"], pond: ["pond", "lago", "池"], stream: ["stream", "riacho", "小川"] }[poly.type] || ["outdoor", "externo", "屋外"];
     const label = poly.name ? [poly.name, poly.name, poly.name] : kind.map((k) => `${k} ${i + 1}`);
     place(`${setId}-o${i + 1}`, title(...label), out);
@@ -805,12 +869,12 @@ export function storyStudioBundle(project, opts = {}) {
   const garden = new Boxes();
   for (const patch of project.gardenPatches) {
     const pts = dedupe(patch.points);
-    if (pts.length >= 3) rectBoxes(garden, polygonRects(pts), 0, PATCH_LIFT, finish(patch.material, patch.tint, "#9b968c"));
+    if (pts.length >= 3) skinBoxes(garden, polygonRects(pts, terrain ? 50 : 25), heightAt || (() => 0), PATCH_LIFT, 1, finish(patch.material, patch.tint, "#9b968c"));
   }
   place(`${setId}-garden`, title("garden", "jardim", "庭"), garden);
   const fences = new Boxes();
-  for (const f of project.fences) railingBoxes(fences, f, "fence", 0);
-  for (const w of project.siteWalls) siteWallBoxes(fences, w);
+  for (const f of project.fences) railingBoxes(fences, f, "fence", 0, heightAt);
+  for (const w of project.siteWalls) siteWallBoxes(fences, w, heightAt);
   place(`${setId}-fences`, title("fences and walls", "cercas e muros", "柵と塀"), fences);
   for (const o of project.objects) placeObject(o, null, 0);
   for (const l of project.lights || []) placeLight(l, null, 0);
@@ -826,6 +890,11 @@ export function storyStudioBundle(project, opts = {}) {
     light: { sun, intensity: clamp(project.sun.night ? 0.4 : project.sun.intensity, 0, 4) },
     props: placements,
   };
+  // the displayed terrain as the set's relief, when it is not level
+  const n = project.terrain.resolution;
+  const shown = terrain?.heights?.();
+  if (shown && shown.length === (n + 1) ** 2 && n >= 2 && Array.from(shown).some((h) => Math.abs(h) > 0.5))
+    set.ground.relief = { resolution: n, heights: Array.from(shown, (h) => clamp(mm(h), -30, 30)) };
   const cam = project.view?.camera;
   if (cam) {
     const d = [cam.target[0] - cam.pos[0], cam.target[1] - cam.pos[1], cam.target[2] - cam.pos[2]];

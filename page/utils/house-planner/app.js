@@ -2047,6 +2047,7 @@ class App {
       wells: (b, s, fg) => this.stairWells(b, s, fg),
       roomsOf: (s) => this.roomsOf(s),
       roomLevels: (b, s, face) => ({ floorY: this.roomFloorY(b, s, face), ceilingY: this.roomCeilingY(b, s, face) }),
+      terrain: { heightAt: (x, z) => this.terrain.heightAt(x, z), heights: () => this.terrain.shown },
     });
   }
   /** Merge another project into this one as extra buildings beside the current content (js/merge.js). */
