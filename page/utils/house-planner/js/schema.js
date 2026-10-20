@@ -160,7 +160,28 @@ export function foundationChecked(raw) {
   return { enabled: !!raw.enabled, material: texture(raw.material, "concrete"), tint: color(raw.tint, null) };
 }
 export function freshRoof() {
-  return { type: "gable", pitch: 30, overhang: 40, height: 20, ridgeAxis: "x", material: "planks", tint: null, visible: false, locked: false };
+  return { type: "gable", pitch: 30, overhang: 40, height: 20, ridgeAxis: "x", material: "planks", tint: null, visible: false, locked: false, windows: [] };
+}
+/**
+ * A roof window (skylight) on a sloped roof, in the roof's own frame: `at` is
+ * its centre along the ridge from the start of the roof rectangle, `up` the
+ * horizontal distance from the eave wall to its lower edge, `width` runs
+ * along the ridge and `length` up the slope (horizontal projection); `slope`
+ * picks the slope of a gable roof ("+" on the positive side of the span).
+ */
+export function freshRoofWindow(at = 200, up = 80) {
+  return { id: uid("rw"), slope: "+", at, up, width: 100, length: 120 };
+}
+export function roofWindowChecked(raw = {}) {
+  const d = freshRoofWindow();
+  return {
+    id: str(raw.id, d.id),
+    slope: raw.slope === "-" ? "-" : "+",
+    at: num(raw.at, -1e4, 1e5, d.at),
+    up: num(raw.up, 0, 5000, d.up),
+    width: num(raw.width, 30, 400, d.width),
+    length: num(raw.length, 30, 400, d.length),
+  };
 }
 export function freshBuilding(name = "", at = [0, 0]) {
   const ground = freshStorey(null, "ground");
@@ -460,6 +481,7 @@ export function roofChecked(raw) {
     tint: color(raw.tint, null),
     visible: raw.visible !== false,
     locked: !!raw.locked,
+    windows: (Array.isArray(raw.windows) ? raw.windows : []).slice(0, 40).map(roofWindowChecked),
   };
 }
 export function buildingChecked(raw = {}) {

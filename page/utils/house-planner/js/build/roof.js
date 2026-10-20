@@ -6,7 +6,7 @@
 // metres; the document is centimetres.
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
-import { surfaceMaterial } from "../materials.js";
+import { surfaceMaterial, glassMaterial } from "../materials.js";
 import { M } from "../scene.js";
 import { topStorey, storeyTop } from "../schema.js";
 import { tileKey, buildingFootprint } from "./slabs.js";
@@ -66,11 +66,68 @@ export class Shell {
   }
 }
 
+const FRAME_W = 6, FRAME_H = 4; // cm, skylight frame strip and its height above the roof
+/**
+ * Roof windows of one slope as rectangles in the (u, v) frame, clamped to the
+ * slope. `uWall` is the eave wall line, `dir` +1 when the slope rises with
+ * +u from there, `uTop` the ridge (or high eave), `ve0..ve1` the eave span.
+ */
+export function slopeWindows(roof, slopeKey, uWall, dir, uTop, v0, ve0, ve1) {
+  const out = [];
+  for (const w of roof.windows || []) {
+    if (roof.type === "gable" && w.slope !== slopeKey) continue;
+    let ua = uWall + dir * w.up, ub = uWall + dir * (w.up + w.length);
+    if (ua > ub) [ua, ub] = [ub, ua];
+    const lo = Math.min(uWall - dir * roof.overhang, uTop) + 4, hi = Math.max(uWall - dir * roof.overhang, uTop) - 4;
+    ua = Math.max(lo, ua); ub = Math.min(hi, ub);
+    const va = Math.max(ve0 + 4, v0 + w.at - w.width / 2), vb = Math.min(ve1 - 4, v0 + w.at + w.width / 2);
+    if (ub - ua < 10 || vb - va < 10) continue;
+    out.push({ id: w.id, ua, ub, va, vb });
+  }
+  return out;
+}
+/**
+ * One slope: top and underside as a grid of quads around the roof windows,
+ * with the reveals of each hole, its frame and its glass pane. `y(u)` is the
+ * underside height, T the vertical thickness.
+ */
+function slopeSurfaces(s, extras, P, want, y, T, ua0, ua1, ve0, ve1, windows, sign) {
+  const us = [ua0, ua1, ...windows.flatMap((w) => [w.ua, w.ub])].filter((u) => u >= Math.min(ua0, ua1) && u <= Math.max(ua0, ua1)).sort((a, b) => a - b);
+  const vs = [ve0, ve1, ...windows.flatMap((w) => [w.va, w.vb])].sort((a, b) => a - b);
+  const inHole = (u, v) => windows.some((w) => u > w.ua && u < w.ub && v > w.va && v < w.vb);
+  for (let i = 0; i + 1 < us.length; i++)
+    for (let j = 0; j + 1 < vs.length; j++) {
+      const uA = us[i], uB = us[i + 1], vA = vs[j], vB = vs[j + 1];
+      if (uB - uA < 0.5 || vB - vA < 0.5 || inHole((uA + uB) / 2, (vA + vB) / 2)) continue;
+      s.quad(P(uA, y(uA) + T, vA), P(uB, y(uB) + T, vA), P(uB, y(uB) + T, vB), P(uA, y(uA) + T, vB), UP);
+      s.quad(P(uA, y(uA), vA), P(uB, y(uB), vA), P(uB, y(uB), vB), P(uA, y(uA), vB), DOWN);
+    }
+  for (const w of windows) {
+    // reveals of the hole, facing into it
+    s.quad(P(w.ua, y(w.ua), w.va), P(w.ua, y(w.ua) + T, w.va), P(w.ua, y(w.ua) + T, w.vb), P(w.ua, y(w.ua), w.vb), want(1, 0, 0));
+    s.quad(P(w.ub, y(w.ub), w.va), P(w.ub, y(w.ub) + T, w.va), P(w.ub, y(w.ub) + T, w.vb), P(w.ub, y(w.ub), w.vb), want(-1, 0, 0));
+    for (const [v, dv] of [[w.va, 1], [w.vb, -1]]) s.quad(P(w.ua, y(w.ua), v), P(w.ub, y(w.ub), v), P(w.ub, y(w.ub) + T, v), P(w.ua, y(w.ua) + T, v), want(0, 0, dv));
+    // glass pane in the middle of the slab, frame strips standing on the roof around the hole
+    const g = (u) => y(u) + T / 2;
+    extras.glass.quad(P(w.ua, g(w.ua), w.va), P(w.ub, g(w.ub), w.va), P(w.ub, g(w.ub), w.vb), P(w.ua, g(w.ua), w.vb), UP);
+    extras.glass.quad(P(w.ua, g(w.ua), w.va), P(w.ub, g(w.ub), w.va), P(w.ub, g(w.ub), w.vb), P(w.ua, g(w.ua), w.vb), DOWN);
+    const f = (u) => y(u) + T, strips = [[w.ua - FRAME_W, w.ua, w.va - FRAME_W, w.vb + FRAME_W], [w.ub, w.ub + FRAME_W, w.va - FRAME_W, w.vb + FRAME_W], [w.ua, w.ub, w.va - FRAME_W, w.va], [w.ua, w.ub, w.vb, w.vb + FRAME_W]];
+    for (const [a, b, c, d] of strips) {
+      const F = extras.frame;
+      F.quad(P(a, f(a) + FRAME_H, c), P(b, f(b) + FRAME_H, c), P(b, f(b) + FRAME_H, d), P(a, f(a) + FRAME_H, d), UP);
+      F.quad(P(a, f(a), c), P(a, f(a) + FRAME_H, c), P(a, f(a) + FRAME_H, d), P(a, f(a), d), want(-sign, 0, 0));
+      F.quad(P(b, f(b), c), P(b, f(b) + FRAME_H, c), P(b, f(b) + FRAME_H, d), P(b, f(b), d), want(sign, 0, 0));
+      F.quad(P(a, f(a), c), P(b, f(b), c), P(b, f(b) + FRAME_H, c), P(a, f(a) + FRAME_H, c), want(0, 0, -1));
+      F.quad(P(a, f(a), d), P(b, f(b), d), P(b, f(b) + FRAME_H, d), P(a, f(a) + FRAME_H, d), want(0, 0, 1));
+    }
+  }
+}
 /**
  * Sloped roof over a rectangle. Work in a frame where u runs across the
- * span and v along the ridge; `P` maps it back to building x/z.
+ * span and v along the ridge; `P` maps it back to building x/z. `extras`
+ * collects the roof windows' glass and frames (gable and shed roofs).
  */
-function slopedGeometry(roof, rect, base) {
+function slopedGeometry(roof, rect, base, extras = { glass: new Shell(), frame: new Shell() }) {
   const alongX = roof.ridgeAxis !== "z";
   const P = (u, y, v) => (alongX ? [v, y, u] : [u, y, v]);
   const want = (du, dy, dv) => new THREE.Vector3(...(alongX ? [dv, dy, du] : [du, dy, dv]));
@@ -88,8 +145,7 @@ function slopedGeometry(roof, rect, base) {
     const uL = dir > 0 ? u0 : u1, uH = dir > 0 ? u1 : u0;
     const y = (u) => base + dir * (u - uL) * tan;
     const uLe = uL - dir * o, uHe = uH + dir * o;
-    s.quad(P(uLe, y(uLe) + T, ve0), P(uHe, y(uHe) + T, ve0), P(uHe, y(uHe) + T, ve1), P(uLe, y(uLe) + T, ve1), UP);
-    s.quad(P(uLe, y(uLe), ve0), P(uHe, y(uHe), ve0), P(uHe, y(uHe), ve1), P(uLe, y(uLe), ve1), DOWN);
+    slopeSurfaces(s, extras, P, want, y, T, uLe, uHe, ve0, ve1, slopeWindows(roof, "+", uL, dir, uHe, v0, ve0, ve1), 1);
     for (const [ue, d] of [[uLe, -dir], [uHe, dir]])
       s.quad(P(ue, y(ue), ve0), P(ue, y(ue) + T, ve0), P(ue, y(ue) + T, ve1), P(ue, y(ue), ve1), want(d, 0, 0));
     for (const [ve, dv] of [[ve0, -1], [ve1, 1]])
@@ -107,9 +163,9 @@ function slopedGeometry(roof, rect, base) {
   }
   if (roof.type === "gable") {
     for (const [ue, dir] of [[ue0, -1], [ue1, 1]]) {
-      // top and underside of one slope
-      s.quad(P(ue, yE + T, ve0), P(uc, yR + T, ve0), P(uc, yR + T, ve1), P(ue, yE + T, ve1), UP);
-      s.quad(P(ue, yE, ve0), P(uc, yR, ve0), P(uc, yR, ve1), P(ue, yE, ve1), DOWN);
+      // top and underside of one slope, around its roof windows
+      const y = (u) => yE + Math.abs(u - ue) * tan;
+      slopeSurfaces(s, extras, P, want, y, T, ue, uc, ve0, ve1, slopeWindows(roof, dir > 0 ? "+" : "-", dir > 0 ? u1 : u0, -dir, uc, v0, ve0, ve1), 1);
       // eave fascia
       s.quad(P(ue, yE, ve0), P(ue, yE + T, ve0), P(ue, yE + T, ve1), P(ue, yE, ve1), want(dir, 0, 0));
       // slab ends
@@ -190,12 +246,26 @@ export function buildRoof(building, tile = 50) {
   const base = storeyTop(storey);
   const group = new THREE.Group();
   group.userData = { kind: "roofGroup", id: building.id };
-  const geo = roof.type === "flat" ? flatGeometry(roof, rect, base) : slopedGeometry(roof, rect, base);
+  const extras = { glass: new Shell(), frame: new Shell() };
+  const geo = roof.type === "flat" ? flatGeometry(roof, rect, base) : slopedGeometry(roof, rect, base, extras);
   const mesh = new THREE.Mesh(geo, surfaceMaterial({ material: roof.material, tint: roof.tint }));
   mesh.castShadow = true;
   mesh.receiveShadow = true;
   mesh.userData = { kind: "roof", id: building.id };
   group.add(mesh);
+  if (extras.frame.pos.length) {
+    const f = new THREE.Mesh(extras.frame.geometry(), surfaceMaterial({ tint: "#3a3d42", roughness: 0.5 }));
+    f.castShadow = true;
+    f.receiveShadow = true;
+    f.userData = { kind: "roof", id: building.id };
+    group.add(f);
+    const g = new THREE.Mesh(extras.glass.geometry(), glassMaterial());
+    g.castShadow = false; // the sun comes in through the glass
+    g.receiveShadow = true;
+    g.renderOrder = 10;
+    g.userData = { kind: "roof", id: building.id, glass: true };
+    group.add(g);
+  }
   const ceiling = roof.ceiling === false ? null : ceilingGeometry(storey, tile, base);
   if (ceiling) {
     const c = new THREE.Mesh(ceiling, surfaceMaterial({ tint: CEILING_TINT }));

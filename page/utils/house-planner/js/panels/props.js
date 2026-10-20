@@ -1,6 +1,7 @@
 // Right panel: properties of the selection, built from small field helpers.
 import { arrange } from "../multi.js";
-import { OPENING_PRESETS, STOREY_PRESETS, ROOF_PRESETS, CITIES, ROOF_TYPES, RAILING_STYLES, FENCE_STYLES, GATE_TYPES, GATE_WIDTHS, WALL_TOPS, OUTDOOR_TYPES, NOTE_COLORS, isLocked, wallLength, polylineLength } from "../schema.js";
+import { OPENING_PRESETS, STOREY_PRESETS, ROOF_PRESETS, CITIES, ROOF_TYPES, RAILING_STYLES, FENCE_STYLES, GATE_TYPES, GATE_WIDTHS, WALL_TOPS, OUTDOOR_TYPES, NOTE_COLORS, isLocked, wallLength, polylineLength, freshRoofWindow } from "../schema.js";
+import { roofRect } from "../build/roof.js";
 import { textureIds, textureIndex } from "../materials.js";
 import { textureControl } from "../textures.js";
 import { Sun } from "../sun.js";
@@ -358,6 +359,7 @@ export class PropsPanel {
         this.color(roof, "tint"),
         this.check(roof, "ceiling", { label: t("roofCeiling") }),
       );
+      if (roof.type === "gable" || roof.type === "shed") fields.push(...this.roofWindowFields(b));
     }
     const lockBtn = this.button(roof.locked ? `🔒 ${t("unlock")}` : `🔓 ${t("lock")}`, () => app.toggleLock(`roof:${b.id}`), roof.locked ? "on" : "");
     lockBtn.disabled = buildingLocked;
@@ -368,6 +370,41 @@ export class PropsPanel {
       this.el("div", { class: "row-actions" }, [lockBtn]),
     );
     return fields;
+  }
+  /** Roof windows (skylights) of a gable or shed roof: one block of fields per window and a button to add one. */
+  roofWindowFields(b) {
+    const app = this.app, t = app.t, roof = b.roof;
+    roof.windows ||= [];
+    const rect = roofRect(b, app.project.grid.tile);
+    const alongX = roof.ridgeAxis !== "z";
+    const ridge = rect ? (alongX ? rect.maxX - rect.minX : rect.maxZ - rect.minZ) : 400;
+    const out = [this.el("p", { class: "hint", text: t("roofWindowHint") })];
+    roof.windows.forEach((w, i) => {
+      const fields = [];
+      if (roof.type === "gable") fields.push(this.select(w, "slope", [["+", t("highSide_plus")], ["-", t("highSide_minus")]], { label: t("rwSlope") }));
+      fields.push(
+        this.number(w, "at", { min: 0, max: Math.max(100, Math.round(ridge)), label: t("rwAt") }),
+        this.number(w, "up", { min: 0, max: 3000, label: t("rwUp") }),
+        this.number(w, "width", { min: 30, max: 400 }),
+        this.number(w, "length", { min: 30, max: 400 }),
+        this.el("div", { class: "row-actions" }, [this.button(t("delete"), () => {
+          if (this.locked) return;
+          app.checkpoint();
+          roof.windows.splice(i, 1);
+          app.changed({ rebuild: "building", buildingId: b.id });
+        }, "danger")]),
+      );
+      out.push(this.el("div", { class: "subsection" }, [this.el("p", { class: "hint", text: `${t("roofWindow")} ${i + 1}` }), ...fields]));
+    });
+    const add = this.button(`+ ${t("addRoofWindow")}`, () => {
+      if (this.locked) return;
+      app.checkpoint();
+      roof.windows.push(freshRoofWindow(Math.round(ridge / 2), 80));
+      app.changed({ rebuild: "building", buildingId: b.id });
+    });
+    add.disabled = this.locked;
+    out.push(this.el("div", { class: "row-actions" }, [add]));
+    return out;
   }
   renderStorey({ item: s, building }) {
     const app = this.app, t = app.t;

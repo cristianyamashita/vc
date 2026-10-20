@@ -68,6 +68,7 @@ export function computeQuantities(project, names) {
       const slope = roof.type === "flat" ? 1 : 1 / Math.cos(roof.pitch * DEG);
       const top = topStorey(b);
       add(bn, top ? storeyName(top, b.storeys.indexOf(top)) : "", "roof", t(`roof_${roof.type}`), mat(roof.material), "m2", (w * d * slope) / 1e4);
+      if (roof.type === "gable" || roof.type === "shed") for (const rw of roof.windows || []) add(bn, top ? storeyName(top, b.storeys.indexOf(top)) : "", "windows", t("roofWindow"), "", "pcs", 1);
     }
   });
   for (const w of project.siteWalls || []) add(site, "", "siteWalls", "", mat(w.material), "m", polylineLength(w.points) / 100);

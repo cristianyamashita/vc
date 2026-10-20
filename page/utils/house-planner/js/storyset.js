@@ -14,7 +14,7 @@ import { wallLength, polylineLength, storeyTop, topStorey, OPENING_PRESETS } fro
 import { wallHeight, wallAngle, clampOpening, outerSide, cornerExtensions } from "./build/walls.js";
 import { stairsBoxes, stairsSteps } from "./build/stairs.js";
 import { floorTop, floorThickness, tileKey } from "./build/slabs.js";
-import { roofRect, ROOF_THICKNESS, CEILING } from "./build/roof.js";
+import { roofRect, ROOF_THICKNESS, CEILING, slopeWindows } from "./build/roof.js";
 import { segments, pointAlong, clampGate, stations, POST, DEFAULT_TINT, gateColor, railingOffset } from "./build/railing.js";
 import { polygonOutline, polygonLevels, terrainRange, POOL_WALL, POOL_WATER, PATH_THICK, PATCH_LIFT, MUD_TINT } from "./build/outdoor.js";
 import { pointInPolygon, polygonBounds, insetPolygon, dedupe } from "./geom.js";
@@ -597,13 +597,21 @@ function roofBoxes(out, building, tile) {
   const ue0 = u0 - o, ue1 = u1 + o, ve0 = v0 - o, ve1 = v1 + o;
   const yE = base - o * tan, yR = base + half * tan;
   /** Sloped slab: its underside's midpoint at (um, ym, vm), rising with +u (`rising` 1) or −u (−1) when `axis` is "u", else with ±v. */
-  const slab = (axis, rising, um, ym, vm, len, wide) => {
+  const slab = (axis, rising, um, ym, vm, len, wide, thick = RT, f = fin) => {
     const alongU = axis === "u";
-    const uu = um - (alongU ? rising * sin * (RT / 2) : 0), vv = vm - (alongU ? 0 : rising * sin * (RT / 2));
+    const uu = um - (alongU ? rising * sin * (thick / 2) : 0), vv = vm - (alongU ? 0 : rising * sin * (thick / 2));
     const [x, z] = P(uu, vv);
     const risesAlongX = alongU ? alongX === false : alongX === true;
     const w = risesAlongX ? len : wide, d = risesAlongX ? wide : len;
-    out.add(w, RT, d, x, ym + cos * (RT / 2), z, fin, risesAlongX ? { rz: rising * pitch } : { rx: -rising * pitch });
+    out.add(w, thick, d, x, ym + cos * (thick / 2), z, f, risesAlongX ? { rz: rising * pitch } : { rx: -rising * pitch });
+  };
+  /** Roof windows of a slope as glass panes with a dark frame just above the slab (the slab itself stays whole). */
+  const panes = (slopeKey, uWall, dir, uTop, yAt, rising) => {
+    for (const w of slopeWindows(roof, slopeKey, uWall, dir, uTop, v0, ve0, ve1)) {
+      const um = (w.ua + w.ub) / 2, vm = (w.va + w.vb) / 2, ym = yAt(um) + RT * cos + 2;
+      slab("u", rising, um, ym, vm, (w.ub - w.ua) / cos + 12, w.vb - w.va + 12, 3, { color: "#3a3d42" });
+      slab("u", rising, um, ym + 3, vm, (w.ub - w.ua) / cos, w.vb - w.va, 1.5, GLASS);
+    }
   };
   /** Upright box in the (u, v) frame. */
   const upright = (uA, uB, vA, vB, yA, yB, f = fin) => {
@@ -617,6 +625,7 @@ function roofBoxes(out, building, tile) {
     const y = (u) => base + dir * (u - uL) * tan;
     const uLe = uL - dir * o, uHe = uH + dir * o;
     slab("u", dir, (uLe + uHe) / 2, (y(uLe) + y(uHe)) / 2, (ve0 + ve1) / 2, Math.abs(uHe - uLe) / cos, ve1 - ve0);
+    panes("+", uL, dir, uHe, y, dir);
     upright(uH - GABLE_END / 2, uH + GABLE_END / 2, v0, v1, base, y(uH));
     for (const v of [v0, v1])
       for (let k = 0; k < N; k++) {
@@ -629,6 +638,8 @@ function roofBoxes(out, building, tile) {
   if (roof.type === "gable") {
     slab("u", 1, (ue0 + uc) / 2, (yE + yR) / 2, (ve0 + ve1) / 2, (uc - ue0) / cos, ve1 - ve0);
     slab("u", -1, (ue1 + uc) / 2, (yE + yR) / 2, (ve0 + ve1) / 2, (ue1 - uc) / cos, ve1 - ve0);
+    panes("-", u0, 1, uc, (u) => yE + (u - ue0) * tan, 1);
+    panes("+", u1, -1, uc, (u) => yE + (ue1 - u) * tan, -1);
     for (const v of [v0, v1])
       for (let k = 0; k < N; k++) {
         const ya = base + ((yR - base) * k) / N, yb = base + ((yR - base) * (k + 1)) / N;
