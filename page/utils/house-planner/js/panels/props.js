@@ -415,7 +415,8 @@ export class PropsPanel {
     const alongX = roof.ridgeAxis !== "z";
     const span = rect ? (alongX ? rect.maxZ - rect.minZ : rect.maxX - rect.minX) : 400;
     const ridge = rect ? (alongX ? rect.maxX - rect.minX : rect.maxZ - rect.minZ) : 400;
-    const ends = [["-", t("rwEnd_minus")], ["+", t("rwEnd_plus")], ...(roof.type === "shed" ? [["high", t("rwEnd_high")]] : [])];
+    // on a one-slope roof the big vertical wall comes first (and is the default); the two ends are triangles
+    const ends = roof.type === "shed" ? [["high", t("rwEnd_high")], ["-", t("rwEnd_tri_minus")], ["+", t("rwEnd_tri_plus")]] : [["-", t("rwEnd_minus")], ["+", t("rwEnd_plus")]];
     const out = [this.el("p", { class: "hint", text: t("gableWindowHint") })];
     roof.endWindows.forEach((w, i) => {
       out.push(this.el("div", { class: "subsection" }, [
@@ -436,7 +437,9 @@ export class PropsPanel {
     const add = this.button(`+ ${t("addGableWindow")}`, () => {
       if (this.locked) return;
       app.checkpoint();
-      roof.endWindows.push(freshEndWindow(Math.round(span / 2), 40));
+      const w = freshEndWindow(Math.round((roof.type === "shed" ? ridge : span) / 2), 40);
+      if (roof.type === "shed") w.end = "high";
+      roof.endWindows.push(w);
       app.changed({ rebuild: "building", buildingId: b.id });
     });
     add.disabled = this.locked;
