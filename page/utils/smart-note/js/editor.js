@@ -171,7 +171,20 @@ window.SNEditor = function createEditor(opts) {
       const line = getLine(r.startContainer);
       if (line) caret = { i: allLines().indexOf(line), o: textBefore(line, r).length };
     }
-    return { html: root.innerHTML, caret };
+    return { html: cleanHtml(), caret };
+  }
+  function cleanHtml() {
+    if (!root.querySelector('.sel')) return root.innerHTML;
+    const clone = root.cloneNode(true);
+    clone.querySelectorAll('.sel').forEach((el) => el.classList.remove('sel'));
+    return clone.innerHTML;
+  }
+  function resolveAssets() {
+    root.querySelectorAll('figure[data-asset] img, img[data-asset]').forEach((img) => {
+      if (img.getAttribute('src')) return;
+      const id = img.closest('figure[data-asset]') ? img.closest('figure').dataset.asset : img.dataset.asset;
+      if (opts.resolveAsset) Promise.resolve(opts.resolveAsset(id)).then((url) => { if (url && !img.getAttribute('src')) img.src = url; });
+    });
   }
   function commit() {
     const snap = snapshot();
@@ -183,8 +196,10 @@ window.SNEditor = function createEditor(opts) {
     hist.idx = hist.stack.length - 1;
   }
   function restore(snap) {
+    selectedFigure = null;
     root.innerHTML = snap.html;
     normalize();
+    resolveAssets();
     if (snap.caret && snap.caret.i >= 0) {
       const line = allLines()[snap.caret.i];
       if (line) { try { caretAt(line, snap.caret.o); } catch (e) { caretIn(line, true); } }
@@ -1030,12 +1045,10 @@ window.SNEditor = function createEditor(opts) {
   function setHtml(html) {
     closeSlash();
     clearSelectedFigure();
+    selectedFigure = null;
     root.innerHTML = html || '';
     normalize();
-    root.querySelectorAll('figure[data-asset] img, img[data-asset]').forEach((img) => {
-      const id = img.closest('figure[data-asset]') ? img.closest('figure').dataset.asset : img.dataset.asset;
-      if (opts.resolveAsset) Promise.resolve(opts.resolveAsset(id)).then((url) => { if (url) img.src = url; });
-    });
+    resolveAssets();
     hist.stack = [{ html: root.innerHTML, caret: null }];
     hist.idx = 0;
     notifyState();
@@ -1087,6 +1100,7 @@ window.SNEditor = function createEditor(opts) {
     openMenuAtCaret, insertPageLinkBlock, refreshPageLinks, wordCount, flushChange, commit, saveSel, restoreSel,
     focus: () => root.focus(), closeSlash, positionSlash, isSlashOpen: () => slash.open,
     selectedText: () => { const r = getRange(); return r ? r.toString() : ''; },
+    clearSelection: clearSelectedFigure,
     unlink: () => exec('unlink'),
   };
 };

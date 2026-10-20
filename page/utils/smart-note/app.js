@@ -111,6 +111,7 @@
     if (!docs.has(id)) return;
     if (currentId && currentId !== id) { editor.flushChange(); await saveNow(); }
     currentId = id;
+    hideBars();
     prefs.lastDoc = id;
     savePrefs();
     const d = docs.get(id);
@@ -288,13 +289,17 @@
       });
     }
   }
+  function hideBars() {
+    ['table-bar', 'fig-bar'].forEach((id) => { const bar = $(id); bar.hidden = true; bar._target = null; });
+  }
   function positionBar(bar, target) {
-    if (!target) { bar.hidden = true; bar._target = null; return; }
+    if (!target || !target.isConnected || !editorEl.contains(target)) { bar.hidden = true; bar._target = null; return; }
+    const r = target.getBoundingClientRect();
+    if (!r.width && !r.height) { bar.hidden = true; bar._target = null; return; }
     bar._target = target;
     bar.hidden = false;
     const scroll = $('editor-scroll');
     const sr = scroll.getBoundingClientRect();
-    const r = target.getBoundingClientRect();
     let top = r.top - sr.top + scroll.scrollTop - bar.offsetHeight - 6;
     if (r.top - sr.top < bar.offsetHeight + 8) top = r.bottom - sr.top + scroll.scrollTop + 6;
     const left = Math.max(8, Math.min(r.left - sr.left + scroll.scrollLeft, scroll.clientWidth - bar.offsetWidth - 8));
@@ -303,6 +308,21 @@
   }
   $('editor-scroll').addEventListener('scroll', () => {
     ['table-bar', 'fig-bar'].forEach((id) => { const bar = $(id); if (!bar.hidden && bar._target && bar._target.isConnected) positionBar(bar, bar._target); else if (!bar.hidden) bar.hidden = true; });
+    if (editor.isSlashOpen()) editor.positionSlash();
+  });
+  // The floating bars only make sense while the editor owns the focus.
+  document.addEventListener('mousedown', (e) => {
+    if (e.target.closest('#editor, #toolbar, .float-bar, .menu, dialog')) return;
+    hideBars();
+    editor.clearSelection();
+  });
+  document.addEventListener('focusin', (e) => {
+    if (e.target === editorEl || e.target.closest('#editor, #toolbar, .float-bar, .menu, dialog')) return;
+    hideBars();
+    editor.clearSelection();
+  });
+  window.addEventListener('resize', () => {
+    ['table-bar', 'fig-bar'].forEach((id) => { const bar = $(id); if (!bar.hidden) positionBar(bar, bar._target); });
     if (editor.isSlashOpen()) editor.positionSlash();
   });
   $('table-bar').addEventListener('mousedown', (e) => e.preventDefault());
