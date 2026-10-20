@@ -554,7 +554,7 @@ class App {
   roomName(room, storey) {
     return roomLabel(room, storey, this.t, room.name ? "" : this.roomAutoName(room, storey));
   }
-  roomAutoName(room, storey) {
+  roomAutoName(room, storey, t = this.t) {
     const face = this.roomFace(room.id);
     if (!face) return "";
     if (!this.categoryById) this.categoryById = new Map(catalog.props.map((p) => [p.id, p.category]));
@@ -579,8 +579,8 @@ class App {
       if (/sofa|(^|-)tv($|-)|coffee-table|armchair|fireplace|^rug$/.test(id)) add("living", 2);
     }
     const best = Object.entries(score).sort((a, b) => b[1] - a[1])[0];
-    if (!best) return storey.stairs.some((st) => pointInPolygon(st.at[0], st.at[1], face.polygon)) ? this.t("room_hall") : "";
-    return this.t(`room_${best[0] === "bathroom" && !wet ? "lavatory" : best[0]}`);
+    if (!best) return storey.stairs.some((st) => pointInPolygon(st.at[0], st.at[1], face.polygon)) ? t("room_hall") : "";
+    return t(`room_${best[0] === "bathroom" && !wet ? "lavatory" : best[0]}`);
   }
   roomFace(id) {
     for (const pairs of this.roomsByStorey.values()) for (const p of pairs) if (p.room.id === id) return p.face;
