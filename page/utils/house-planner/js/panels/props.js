@@ -638,7 +638,11 @@ export class PropsPanel {
         item.points.splice(i, 1);
         changed();
       });
-      row.append(this.el("span", { class: "flabel", text: `${i + 1}` }), mk(0), mk(1), del);
+      const marked = app.state.markedPoint?.id === item.id && app.state.markedPoint.index === i;
+      const num = this.el("button", { class: `pbtn ${marked ? "on" : ""}`, type: "button", text: `${i + 1}`, title: t("markPoint") });
+      num.addEventListener("click", () => app.markPoint(item.id, i));
+      if (marked) row.classList.add("marked");
+      row.append(num, mk(0), mk(1), del);
       return row;
     });
     const addPoint = this.button(`+ ${t("addPoint")}`, () => {

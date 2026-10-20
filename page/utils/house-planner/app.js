@@ -33,7 +33,7 @@ import { buildFloorGroup, buildFoundation, floorTop, floorThickness, tileSet, ti
 import { mergeProject } from "./js/merge.js";
 import { buildWall } from "./js/build/walls.js";
 import { buildStairs, stairsCutQuads, tilesUnderQuads } from "./js/build/stairs.js";
-import { buildPolygon, polygonOutline, DEFAULT_MATERIAL, WATER_TYPES } from "./js/build/outdoor.js";
+import { buildPolygon, polygonOutline, polygonLevels, DEFAULT_MATERIAL, WATER_TYPES } from "./js/build/outdoor.js";
 import { buildSiteWall } from "./js/build/sitewall.js";
 import { buildRoof, CEILING } from "./js/build/roof.js";
 import { buildRailing, railingOffset } from "./js/build/railing.js";
@@ -61,7 +61,7 @@ class App {
     this.lang = prefs.lang;
     this.t = makeT(() => this.lang);
     this.project = freshProject();
-    this.state = { tab: "floors", tool: "select", selection: null, activeBuilding: null, activeStorey: null, activeFloorGroup: null, pendingPreset: "door-single", pendingProp: null, ghostYaw: 0, pendingStairShape: "straight", pendingOutdoorType: "deck", pendingStreamWidth: 120, pendingGardenMaterial: DEFAULT_MATERIAL.garden, pendingRailingStyle: "glass", pendingFenceStyle: "picket", pendingGateType: "single", pendingWallTop: "follow", extra: new Set(), pendingKitchenUnit: "base", kitchenFinish: { material: null, tint: "#ece7dd" }, snap: prefs.snap !== false, orbitOverride: false, transformMode: null, caps: [] };
+    this.state = { tab: "floors", tool: "select", selection: null, activeBuilding: null, activeStorey: null, activeFloorGroup: null, pendingPreset: "door-single", pendingProp: null, ghostYaw: 0, pendingStairShape: "straight", pendingOutdoorType: "deck", pendingStreamWidth: 120, pendingGardenMaterial: DEFAULT_MATERIAL.garden, pendingRailingStyle: "glass", pendingFenceStyle: "picket", pendingGateType: "single", pendingWallTop: "follow", extra: new Set(), pendingKitchenUnit: "base", kitchenFinish: { material: null, tint: "#ece7dd" }, snap: prefs.snap !== false, orbitOverride: false, transformMode: null, caps: [], markedPoint: null };
     this.buildingGroups = new Map();
     this.storeyGroups = new Map();
     this.roofGroups = new Map();
@@ -933,6 +933,7 @@ class App {
         this.gizmo.detach();
       } else this.attachSelection(found);
     }
+    if (this.state.markedPoint) this.updatePointMarker();
     this.scene.requestRender();
     if (panels) this.refreshAll();
     else this.refreshHistoryButtons();
@@ -1025,6 +1026,55 @@ class App {
     }
     this.scene.requestRender();
   }
+  /**
+   * Point n of a polygon or polyline (outdoor item, garden patch, fence,
+   * site wall, railing) shown with an orange pin in the 3D view, so the
+   * row being edited in the panel is easy to find; the same number again
+   * hides it. Cleared when the selection changes.
+   */
+  markPoint(id, index) {
+    const m = this.state.markedPoint;
+    this.state.markedPoint = m && m.id === id && m.index === index ? null : { id, index };
+    this.updatePointMarker();
+    this.propsPanel.render();
+  }
+  updatePointMarker() {
+    const m = this.state.markedPoint;
+    const found = m && this.locate(m.id);
+    const pt = found?.item?.points?.[m.index];
+    if (!pt) {
+      this.state.markedPoint = null;
+      if (this.pointMarker) this.pointMarker.visible = false;
+      this.scene.requestRender();
+      return;
+    }
+    if (!this.pointMarker) {
+      const g = new THREE.Group();
+      const mat = new THREE.MeshBasicMaterial({ color: 0xff7a1a, depthTest: false, transparent: true, opacity: 0.95 });
+      const ball = new THREE.Mesh(new THREE.SphereGeometry(0.14, 16, 12), mat);
+      const pin = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 1.5, 8), mat);
+      pin.position.y = 0.75;
+      const top = new THREE.Mesh(new THREE.SphereGeometry(0.09, 12, 10), mat);
+      top.position.y = 1.5;
+      for (const x of [ball, pin, top]) x.renderOrder = 30;
+      g.add(ball, pin, top);
+      g.userData = { kind: "pointMarker" };
+      this.scene.overlay.add(g);
+      this.pointMarker = g;
+    }
+    let [x, z] = pt, y;
+    if (found.building) {
+      const b = found.building, c = Math.cos(b.rotation * DEG), sn = Math.sin(b.rotation * DEG);
+      y = (found.storey?.elevation ?? 0) + (found.storey ? railingOffset(found.item, found.storey, this.project.grid.tile) : 0);
+      [x, z] = [b.at[0] + x * c - z * sn, b.at[1] + x * sn + z * c];
+    } else {
+      const levels = found.type === "outdoor" || found.type === "garden" ? polygonLevels(found.item, found.type, this.terrain) : null;
+      y = levels && !levels.water ? levels.top : this.terrain.heightAt(x, z) + 3;
+    }
+    this.pointMarker.position.set(x * M, y * M, z * M);
+    this.pointMarker.visible = true;
+    this.scene.requestRender();
+  }
   /** The primary placement moved by the gizmo: move the extras by the same delta. */
   extrasFollow(from, to) {
     if (!this.state.extra.size || !from || !to) return;
@@ -1041,6 +1091,7 @@ class App {
   select(id, { keepTool = false } = {}) {
     const changedId = id !== this.state.selection;
     if (changedId) this.state.extra.clear();
+    if (changedId && this.state.markedPoint) { this.state.markedPoint = null; this.updatePointMarker(); }
     if (changedId) this.state.transformMode = null;
     this.state.selection = id;
     const found = id ? this.locate(id) : null;
