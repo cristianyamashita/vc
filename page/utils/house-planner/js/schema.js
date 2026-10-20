@@ -160,7 +160,7 @@ export function foundationChecked(raw) {
   return { enabled: !!raw.enabled, material: texture(raw.material, "concrete"), tint: color(raw.tint, null) };
 }
 export function freshRoof() {
-  return { type: "gable", pitch: 30, overhang: 40, height: 20, ridgeAxis: "x", material: "planks", tint: null, visible: false, locked: false, windows: [] };
+  return { type: "gable", pitch: 30, overhang: 40, height: 20, ridgeAxis: "x", material: "planks", tint: null, visible: false, locked: false, windows: [], endWindows: [] };
 }
 /**
  * A roof window (skylight) on a sloped roof, in the roof's own frame: `at` is
@@ -171,6 +171,26 @@ export function freshRoof() {
  */
 export function freshRoofWindow(at = 200, up = 80) {
   return { id: uid("rw"), slope: "+", at, up, width: 100, length: 120 };
+}
+/**
+ * A window in a gable end wall (the vertical triangle under a gable or shed
+ * roof) or in the high wall of a shed roof: `end` is "-" or "+" for the two
+ * ends along the ridge, "high" for the shed's high wall; `at` runs along
+ * that wall from its start, `up` from the top of the storey.
+ */
+export function freshEndWindow(at = 200, up = 40) {
+  return { id: uid("ew"), end: "-", at, up, width: 100, height: 80 };
+}
+export function endWindowChecked(raw = {}) {
+  const d = freshEndWindow();
+  return {
+    id: str(raw.id, d.id),
+    end: raw.end === "+" || raw.end === "high" ? raw.end : "-",
+    at: num(raw.at, -1e4, 1e5, d.at),
+    up: num(raw.up, 0, 2000, d.up),
+    width: num(raw.width, 30, 400, d.width),
+    height: num(raw.height, 30, 300, d.height),
+  };
 }
 export function roofWindowChecked(raw = {}) {
   const d = freshRoofWindow();
@@ -482,6 +502,7 @@ export function roofChecked(raw) {
     visible: raw.visible !== false,
     locked: !!raw.locked,
     windows: (Array.isArray(raw.windows) ? raw.windows : []).slice(0, 40).map(roofWindowChecked),
+    endWindows: (Array.isArray(raw.endWindows) ? raw.endWindows : []).slice(0, 40).map(endWindowChecked),
   };
 }
 export function buildingChecked(raw = {}) {

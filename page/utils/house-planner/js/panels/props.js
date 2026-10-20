@@ -1,6 +1,6 @@
 // Right panel: properties of the selection, built from small field helpers.
 import { arrange } from "../multi.js";
-import { OPENING_PRESETS, STOREY_PRESETS, ROOF_PRESETS, CITIES, ROOF_TYPES, RAILING_STYLES, FENCE_STYLES, GATE_TYPES, GATE_WIDTHS, WALL_TOPS, OUTDOOR_TYPES, NOTE_COLORS, isLocked, wallLength, polylineLength, freshRoofWindow } from "../schema.js";
+import { OPENING_PRESETS, STOREY_PRESETS, ROOF_PRESETS, CITIES, ROOF_TYPES, RAILING_STYLES, FENCE_STYLES, GATE_TYPES, GATE_WIDTHS, WALL_TOPS, OUTDOOR_TYPES, NOTE_COLORS, isLocked, wallLength, polylineLength, freshRoofWindow, freshEndWindow } from "../schema.js";
 import { roofRect } from "../build/roof.js";
 import { textureIds, textureIndex } from "../materials.js";
 import { textureControl } from "../textures.js";
@@ -359,7 +359,8 @@ export class PropsPanel {
         this.color(roof, "tint"),
         this.check(roof, "ceiling", { label: t("roofCeiling") }),
       );
-      if (roof.type === "gable" || roof.type === "shed") fields.push(...this.roofWindowFields(b));
+      if (roof.type === "gable" || roof.type === "shed" || roof.type === "hip") fields.push(...this.roofWindowFields(b));
+      if (roof.type === "gable" || roof.type === "shed") fields.push(...this.endWindowFields(b));
     }
     const lockBtn = this.button(roof.locked ? `🔒 ${t("unlock")}` : `🔓 ${t("lock")}`, () => app.toggleLock(`roof:${b.id}`), roof.locked ? "on" : "");
     lockBtn.disabled = buildingLocked;
@@ -381,7 +382,7 @@ export class PropsPanel {
     const out = [this.el("p", { class: "hint", text: t("roofWindowHint") })];
     roof.windows.forEach((w, i) => {
       const fields = [];
-      if (roof.type === "gable") fields.push(this.select(w, "slope", [["+", t("highSide_plus")], ["-", t("highSide_minus")]], { label: t("rwSlope") }));
+      if (roof.type !== "shed") fields.push(this.select(w, "slope", [["+", t("highSide_plus")], ["-", t("highSide_minus")]], { label: t("rwSlope") }));
       fields.push(
         this.number(w, "at", { min: 0, max: Math.max(100, Math.round(ridge)), label: t("rwAt") }),
         this.number(w, "up", { min: 0, max: 3000, label: t("rwUp") }),
@@ -400,6 +401,42 @@ export class PropsPanel {
       if (this.locked) return;
       app.checkpoint();
       roof.windows.push(freshRoofWindow(Math.round(ridge / 2), 80));
+      app.changed({ rebuild: "building", buildingId: b.id });
+    });
+    add.disabled = this.locked;
+    out.push(this.el("div", { class: "row-actions" }, [add]));
+    return out;
+  }
+  /** Windows in the gable end walls (and the high wall of a shed roof). */
+  endWindowFields(b) {
+    const app = this.app, t = app.t, roof = b.roof;
+    roof.endWindows ||= [];
+    const rect = roofRect(b, app.project.grid.tile);
+    const alongX = roof.ridgeAxis !== "z";
+    const span = rect ? (alongX ? rect.maxZ - rect.minZ : rect.maxX - rect.minX) : 400;
+    const ridge = rect ? (alongX ? rect.maxX - rect.minX : rect.maxZ - rect.minZ) : 400;
+    const ends = [["-", t("rwEnd_minus")], ["+", t("rwEnd_plus")], ...(roof.type === "shed" ? [["high", t("rwEnd_high")]] : [])];
+    const out = [this.el("p", { class: "hint", text: t("gableWindowHint") })];
+    roof.endWindows.forEach((w, i) => {
+      out.push(this.el("div", { class: "subsection" }, [
+        this.el("p", { class: "hint", text: `${t("gableWindow")} ${i + 1}` }),
+        this.select(w, "end", ends, { label: t("rwEnd") }),
+        this.number(w, "at", { min: 0, max: Math.max(100, Math.round(w.end === "high" ? ridge : span)), label: t("rwAlong") }),
+        this.number(w, "up", { min: 0, max: 2000, label: t("rwAbove") }),
+        this.number(w, "width", { min: 30, max: 400 }),
+        this.number(w, "height", { min: 30, max: 300 }),
+        this.el("div", { class: "row-actions" }, [this.button(t("delete"), () => {
+          if (this.locked) return;
+          app.checkpoint();
+          roof.endWindows.splice(i, 1);
+          app.changed({ rebuild: "building", buildingId: b.id });
+        }, "danger")]),
+      ]));
+    });
+    const add = this.button(`+ ${t("addGableWindow")}`, () => {
+      if (this.locked) return;
+      app.checkpoint();
+      roof.endWindows.push(freshEndWindow(Math.round(span / 2), 40));
       app.changed({ rebuild: "building", buildingId: b.id });
     });
     add.disabled = this.locked;

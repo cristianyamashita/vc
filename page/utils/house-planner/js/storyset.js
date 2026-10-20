@@ -626,6 +626,14 @@ function roofBoxes(out, building, tile) {
     const uLe = uL - dir * o, uHe = uH + dir * o;
     slab("u", dir, (uLe + uHe) / 2, (y(uLe) + y(uHe)) / 2, (ve0 + ve1) / 2, Math.abs(uHe - uLe) / cos, ve1 - ve0);
     panes("+", uL, dir, uHe, y, dir);
+    for (const w of roof.endWindows || []) {
+      const lo = w.end === "high" ? v0 : Math.min(uL, uH), hi = w.end === "high" ? v1 : Math.max(uL, uH);
+      const a0 = Math.max(lo + 6, lo + w.at - w.width / 2), a1 = Math.min(hi - 6, lo + w.at + w.width / 2), ya = base + Math.max(4, w.up);
+      const top = w.end === "high" ? y(uH) : Math.min(y(a0), y(a1)), yb = Math.min(ya + w.height, top - 6);
+      if (a1 - a0 < 10 || yb - ya < 10) continue;
+      if (w.end === "high") upright(uH - GABLE_END / 2 - 2, uH + GABLE_END / 2 + 2, a0, a1, ya, yb, GLASS);
+      else { const v = w.end === "+" ? v1 : v0; upright(a0, a1, v - GABLE_END / 2 - 2, v + GABLE_END / 2 + 2, ya, yb, GLASS); }
+    }
     upright(uH - GABLE_END / 2, uH + GABLE_END / 2, v0, v1, base, y(uH));
     for (const v of [v0, v1])
       for (let k = 0; k < N; k++) {
@@ -640,6 +648,13 @@ function roofBoxes(out, building, tile) {
     slab("u", -1, (ue1 + uc) / 2, (yE + yR) / 2, (ve0 + ve1) / 2, (ue1 - uc) / cos, ve1 - ve0);
     panes("-", u0, 1, uc, (u) => yE + (u - ue0) * tan, 1);
     panes("+", u1, -1, uc, (u) => yE + (ue1 - u) * tan, -1);
+    for (const w of roof.endWindows || []) {
+      const a0 = Math.max(u0 + 6, u0 + w.at - w.width / 2), a1 = Math.min(u1 - 6, u0 + w.at + w.width / 2), ya = base + Math.max(4, w.up);
+      const under = (u) => base + (half - Math.abs(u - uc)) * tan, yb = Math.min(ya + w.height, Math.min(under(a0), under(a1)) - 6);
+      if (a1 - a0 < 10 || yb - ya < 10) continue;
+      const v = w.end === "+" ? v1 : v0;
+      upright(a0, a1, v - GABLE_END / 2 - 2, v + GABLE_END / 2 + 2, ya, yb, GLASS);
+    }
     for (const v of [v0, v1])
       for (let k = 0; k < N; k++) {
         const ya = base + ((yR - base) * k) / N, yb = base + ((yR - base) * (k + 1)) / N;
@@ -651,6 +666,18 @@ function roofBoxes(out, building, tile) {
   // hip: trapezoids on the long sides, triangles on the ends, in strips
   let vr0 = v0 + half, vr1 = v1 - half;
   if (vr1 < vr0) vr0 = vr1 = (v0 + v1) / 2;
+  if (vr1 - vr0 >= 1) {
+    for (const w of slopeWindows(roof, "-", u0, 1, uc, v0, vr0, vr1)) {
+      const um = (w.ua + w.ub) / 2, vm = (w.va + w.vb) / 2, ym = yE + (um - ue0) * tan + RT * cos + 2;
+      slab("u", 1, um, ym, vm, (w.ub - w.ua) / cos + 12, w.vb - w.va + 12, 3, { color: "#3a3d42" });
+      slab("u", 1, um, ym + 3, vm, (w.ub - w.ua) / cos, w.vb - w.va, 1.5, GLASS);
+    }
+    for (const w of slopeWindows(roof, "+", u1, -1, uc, v0, vr0, vr1)) {
+      const um = (w.ua + w.ub) / 2, vm = (w.va + w.vb) / 2, ym = yE + (ue1 - um) * tan + RT * cos + 2;
+      slab("u", -1, um, ym, vm, (w.ub - w.ua) / cos + 12, w.vb - w.va + 12, 3, { color: "#3a3d42" });
+      slab("u", -1, um, ym + 3, vm, (w.ub - w.ua) / cos, w.vb - w.va, 1.5, GLASS);
+    }
+  }
   for (const [ue, rising] of [[ue0, 1], [ue1, -1]])
     for (let k = 0; k < N; k++) {
       const fm = (k + 0.5) / N;

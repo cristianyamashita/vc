@@ -123,9 +123,53 @@ function slopeSurfaces(s, extras, P, want, y, T, ua0, ua1, ve0, ve1, windows, si
   }
 }
 /**
+ * A vertical wall piece of the roof (a gable end triangle or the high wall
+ * of a shed roof) with its windows. The wall lies in a plane spanned by `a`
+ * (along the wall) and y; `pt(a, y, off)` maps a point at `off` cm across
+ * the wall (0 at its middle) to building coordinates, `across(sign)` is the
+ * normal for that side and `along(sign)` the normal along the wall.
+ * `poly` is the wall outline in (a, y), `yTop(a)` the roof underside above
+ * `a`; windows come as {at, up, width, height} with `at` from `aStart`.
+ */
+function endWall(s, extras, pt, across, along, poly, yTop, aStart, aEnd, base, outward, windows) {
+  const holes = [];
+  for (const w of windows) {
+    const ua = Math.max(aStart + 6, aStart + w.at - w.width / 2), ub = Math.min(aEnd - 6, aStart + w.at + w.width / 2);
+    const ya = base + Math.max(4, w.up), yb = Math.min(ya + w.height, Math.min(yTop(ua), yTop(ub)) - 6);
+    if (ub - ua >= 10 && yb - ya >= 10 && !holes.some((h) => ua < h.ub && ub > h.ua && ya < h.yb && yb > h.ya)) holes.push({ ua, ub, ya, yb });
+  }
+  const shape = new THREE.Shape(poly.map(([a, y]) => new THREE.Vector2(a, y)));
+  for (const h of holes) shape.holes.push(new THREE.Path([[h.ua, h.ya], [h.ub, h.ya], [h.ub, h.yb], [h.ua, h.yb]].map(([a, y]) => new THREE.Vector2(a, y))));
+  const geo = new THREE.ShapeGeometry(shape).toNonIndexed();
+  const v = geo.attributes.position;
+  for (const side of [-1, 1]) {
+    const off = (side * GABLE_END) / 2;
+    for (let i = 0; i < v.count; i += 3) s.tri(pt(v.getX(i), v.getY(i), off), pt(v.getX(i + 1), v.getY(i + 1), off), pt(v.getX(i + 2), v.getY(i + 2), off), across(side));
+  }
+  geo.dispose();
+  const o0 = -GABLE_END / 2, o1 = GABLE_END / 2;
+  for (const h of holes) {
+    // reveals, facing into the hole
+    s.quad(pt(h.ua, h.ya, o0), pt(h.ua, h.yb, o0), pt(h.ua, h.yb, o1), pt(h.ua, h.ya, o1), along(1));
+    s.quad(pt(h.ub, h.ya, o0), pt(h.ub, h.yb, o0), pt(h.ub, h.yb, o1), pt(h.ub, h.ya, o1), along(-1));
+    s.quad(pt(h.ua, h.ya, o0), pt(h.ub, h.ya, o0), pt(h.ub, h.ya, o1), pt(h.ua, h.ya, o1), UP);
+    s.quad(pt(h.ua, h.yb, o0), pt(h.ub, h.yb, o0), pt(h.ub, h.yb, o1), pt(h.ua, h.yb, o1), DOWN);
+    for (const side of [-1, 1]) extras.glass.quad(pt(h.ua, h.ya, 0), pt(h.ub, h.ya, 0), pt(h.ub, h.yb, 0), pt(h.ua, h.yb, 0), across(side));
+    // frame strips standing on the outer face
+    const F = extras.frame, oA = outward * o1, oB = outward * (o1 + FRAME_H);
+    for (const [a, b, c, d] of [[h.ua - FRAME_W, h.ua, h.ya - FRAME_W, h.yb + FRAME_W], [h.ub, h.ub + FRAME_W, h.ya - FRAME_W, h.yb + FRAME_W], [h.ua, h.ub, h.ya - FRAME_W, h.ya], [h.ua, h.ub, h.yb, h.yb + FRAME_W]]) {
+      F.quad(pt(a, c, oB), pt(b, c, oB), pt(b, d, oB), pt(a, d, oB), across(outward));
+      F.quad(pt(a, c, oA), pt(a, d, oA), pt(a, d, oB), pt(a, c, oB), along(-1));
+      F.quad(pt(b, c, oA), pt(b, d, oA), pt(b, d, oB), pt(b, c, oB), along(1));
+      F.quad(pt(a, c, oA), pt(b, c, oA), pt(b, c, oB), pt(a, c, oB), DOWN);
+      F.quad(pt(a, d, oA), pt(b, d, oA), pt(b, d, oB), pt(a, d, oB), UP);
+    }
+  }
+}
+/**
  * Sloped roof over a rectangle. Work in a frame where u runs across the
  * span and v along the ridge; `P` maps it back to building x/z. `extras`
- * collects the roof windows' glass and frames (gable and shed roofs).
+ * collects the windows' glass and frames (sloped roofs).
  */
 function slopedGeometry(roof, rect, base, extras = { glass: new Shell(), frame: new Shell() }) {
   const alongX = roof.ridgeAxis !== "z";
@@ -150,15 +194,14 @@ function slopedGeometry(roof, rect, base, extras = { glass: new Shell(), frame: 
       s.quad(P(ue, y(ue), ve0), P(ue, y(ue) + T, ve0), P(ue, y(ue) + T, ve1), P(ue, y(ue), ve1), want(d, 0, 0));
     for (const [ve, dv] of [[ve0, -1], [ve1, 1]])
       s.quad(P(uLe, y(uLe), ve), P(uHe, y(uHe), ve), P(uHe, y(uHe) + T, ve), P(uLe, y(uLe) + T, ve), want(0, 0, dv));
-    for (const side of [-1, 1]) {
-      const uw = uH + (side * GABLE_END) / 2;
-      s.quad(P(uw, base, v0), P(uw, base, v1), P(uw, y(uH), v1), P(uw, y(uH), v0), want(side, 0, 0));
+    const ends = roof.endWindows || [];
+    // the high wall: a rectangle across the span's high side, windows placed along the ridge from v0
+    endWall(s, extras, (a, yy, off) => P(uH + off, yy, a), (sign) => want(sign, 0, 0), (sign) => want(0, 0, sign), [[v0, base], [v1, base], [v1, y(uH)], [v0, y(uH)]], () => y(uH), v0, v1, base, dir, ends.filter((w) => w.end === "high"));
+    // the two triangular ends, windows placed from the low eave wall
+    for (const [v, dv, key] of [[v0, -1, "-"], [v1, 1, "+"]]) {
+      const tri = dir > 0 ? [[uL, base], [uH, base], [uH, y(uH)]] : [[uH, y(uH)], [uH, base], [uL, base]];
+      endWall(s, extras, (a, yy, off) => P(a, yy, v + off), (sign) => want(0, 0, sign), (sign) => want(sign, 0, 0), tri, (a) => y(a), Math.min(uL, uH), Math.max(uL, uH), base, dv, ends.filter((w) => w.end === key));
     }
-    for (const [v, dv] of [[v0, -1], [v1, 1]])
-      for (const side of [-1, 1]) {
-        const vv = v + (side * GABLE_END) / 2;
-        s.tri(P(uL, base, vv), P(uH, base, vv), P(uH, y(uH), vv), want(0, 0, side));
-      }
     return s.geometry();
   }
   if (roof.type === "gable") {
@@ -172,21 +215,34 @@ function slopedGeometry(roof, rect, base, extras = { glass: new Shell(), frame: 
       for (const [ve, dv] of [[ve0, -1], [ve1, 1]])
         s.quad(P(ue, yE, ve), P(uc, yR, ve), P(uc, yR + T, ve), P(ue, yE + T, ve), want(0, 0, dv));
     }
-    // gable end walls (triangles under the slopes, as thick as a wall)
-    for (const [v, dv] of [[v0, -1], [v1, 1]])
-      for (const side of [-1, 1])
-        s.tri(P(u0, base, v + (side * GABLE_END) / 2), P(uc, yR, v + (side * GABLE_END) / 2), P(u1, base, v + (side * GABLE_END) / 2), want(0, 0, side));
+    // gable end walls (triangles under the slopes, as thick as a wall), with their windows placed from u0
+    const yUnder = (u) => base + (half - Math.abs(u - uc)) * tan;
+    for (const [v, dv, key] of [[v0, -1, "-"], [v1, 1, "+"]])
+      endWall(s, extras, (a, yy, off) => P(a, yy, v + off), (sign) => want(0, 0, sign), (sign) => want(sign, 0, 0), [[u0, base], [u1, base], [uc, yR]], yUnder, u0, u1, base, dv, (roof.endWindows || []).filter((w) => w.end === key));
   } else {
     // hip: the ridge is shortened by the half span at each end
     let vr0 = v0 + half, vr1 = v1 - half;
     if (vr1 < vr0) vr0 = vr1 = (v0 + v1) / 2;
     for (const dy of [T, 0]) {
       const w = dy ? UP : DOWN;
-      s.quad(P(ue0, yE + dy, ve0), P(ue0, yE + dy, ve1), P(uc, yR + dy, vr1), P(uc, yR + dy, vr0), w);
-      s.quad(P(ue1, yE + dy, ve0), P(ue1, yE + dy, ve1), P(uc, yR + dy, vr1), P(uc, yR + dy, vr0), w);
       s.tri(P(ue0, yE + dy, ve0), P(ue1, yE + dy, ve0), P(uc, yR + dy, vr0), w);
       s.tri(P(ue0, yE + dy, ve1), P(ue1, yE + dy, ve1), P(uc, yR + dy, vr1), w);
+      if (vr1 - vr0 < 1) {
+        s.quad(P(ue0, yE + dy, ve0), P(ue0, yE + dy, ve1), P(uc, yR + dy, vr1), P(uc, yR + dy, vr0), w);
+        s.quad(P(ue1, yE + dy, ve0), P(ue1, yE + dy, ve1), P(uc, yR + dy, vr1), P(uc, yR + dy, vr0), w);
+      } else {
+        // the two long slopes: a triangle at each end, the middle rectangle takes the roof windows
+        for (const ue of [ue0, ue1]) {
+          s.tri(P(ue, yE + dy, ve0), P(ue, yE + dy, vr0), P(uc, yR + dy, vr0), w);
+          s.tri(P(ue, yE + dy, ve1), P(ue, yE + dy, vr1), P(uc, yR + dy, vr1), w);
+        }
+      }
     }
+    if (vr1 - vr0 >= 1)
+      for (const [ue, dir] of [[ue0, -1], [ue1, 1]]) {
+        const y = (u) => yE + Math.abs(u - ue) * tan;
+        slopeSurfaces(s, extras, P, want, y, T, ue, uc, vr0, vr1, slopeWindows(roof, dir > 0 ? "+" : "-", dir > 0 ? u1 : u0, -dir, uc, v0, vr0, vr1), 1);
+      }
     s.quad(P(ue0, yE, ve0), P(ue0, yE + T, ve0), P(ue0, yE + T, ve1), P(ue0, yE, ve1), want(-1, 0, 0));
     s.quad(P(ue1, yE, ve0), P(ue1, yE + T, ve0), P(ue1, yE + T, ve1), P(ue1, yE, ve1), want(1, 0, 0));
     s.quad(P(ue0, yE, ve0), P(ue0, yE + T, ve0), P(ue1, yE + T, ve0), P(ue1, yE, ve0), want(0, 0, -1));
