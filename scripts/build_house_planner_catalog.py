@@ -6,7 +6,8 @@ Planner objects as a fallback), generates the vehicle props, assigns a
 category and language-independent tags to each, and writes
 page/assets/house-planner/manifest.json plus props/<id>.json.
 
-Usage: python3 scripts/build_house_planner_catalog.py
+Usage: python3 scripts/build_house_planner_catalog.py            (full rebuild, needs the story-studio library)
+       python3 scripts/build_house_planner_catalog.py --append   (only the generated props, into the existing catalog)
 """
 from __future__ import annotations
 
@@ -37,6 +38,7 @@ CATEGORIES = {
     "street": {"en": "Street", "pt": "Rua", "ja": "街路"},
     "sports": {"en": "Sports & gym", "pt": "Esporte e academia", "ja": "スポーツ"},
     "storage": {"en": "Garage & storage", "pt": "Garagem e depósito", "ja": "ガレージ・収納"},
+    "animals": {"en": "Animals", "pt": "Animais", "ja": "動物"},
 }
 
 # Category synonyms, added as tags to every item of the category.
@@ -56,6 +58,7 @@ CATEGORY_TAGS = {
     "street": ("street road city", "rua estrada cidade", "街路 道路 街"),
     "sports": ("sport gym fitness", "esporte academia", "スポーツ ジム 運動"),
     "storage": ("garage storage tools", "garagem deposito ferramentas", "ガレージ 収納 道具"),
+    "animals": ("animal pet farm", "animal bicho fazenda", "動物 ペット 農場"),
 }
 
 # id -> (category, extra tags en, pt, ja). Items live in story-studio unless
@@ -868,6 +871,197 @@ def household():
 # -------------------------------------------------------------- main house
 
 
+def animals():
+    """Generated farm animals and pets, facing +x, standing on the ground."""
+    docs = {}
+    cyl, rnd, sph = "cylinder", "rounded", "sphere"
+
+    def doc(pid, name, boxes, footprint, tags):
+        docs[pid] = ({"kind": "prop", "version": 1, "id": pid, "name": name, "footprint": footprint, "source": {"type": "boxes", "boxes": boxes}}, tags, "animals")
+
+    def legs(parts, xs, zs, y, h, r, color, hoof=None):
+        for x in xs:
+            for z in zs:
+                parts.append(box(r, h, r, x, y, z, color, shape=cyl))
+                if hoof:
+                    parts.append(box(r * 1.1, 0.06, r * 1.1, x, 0.03, z, hoof, shape=cyl))
+
+    def eyes(parts, x, y, dz, r=0.035):
+        for z in (-dz, dz):
+            parts.append(box(r, r, r, x, y, z, "#1c1e22", shape=sph))
+
+    # ---- cow: white with black patches, horns, pink muzzle and udder
+    WHITE, BLACK, PINK, HORN = "#f3efe6", "#2b2a28", "#e8b7ad", "#d9c7a3"
+    cow = [box(1.5, 0.78, 0.68, 0, 0.98, 0, WHITE, shape=rnd)]
+    for x, y, z, w, h in ((0.3, 1.05, 0.33, 0.5, 0.36), (-0.4, 1.1, 0.33, 0.42, 0.3), (-0.15, 0.95, -0.33, 0.55, 0.4), (0.45, 1.2, -0.33, 0.3, 0.26), (-0.1, 1.36, 0.05, 0.5, 0.04)):
+        cow.append(box(w, h, 0.06 if abs(z) > 0.2 else 0.4, x, y, z, BLACK, shape=rnd))
+    cow += [
+        box(0.4, 0.4, 0.4, 0.8, 1.05, 0, WHITE, shape=rnd, rz=-0.4),  # neck
+        box(0.46, 0.34, 0.32, 1.08, 1.02, 0, WHITE, shape=rnd),  # head
+        box(0.2, 0.22, 0.28, 1.32, 0.94, 0, PINK, shape=rnd),  # muzzle
+        box(0.2, 0.14, 0.06, 1.0, 1.06, 0.2, BLACK, shape=rnd),  # patch on the head
+        box(0.05, 0.16, 0.05, 1.0, 1.26, 0.17, HORN, shape=cyl, rx=-0.5), box(0.05, 0.16, 0.05, 1.0, 1.26, -0.17, HORN, shape=cyl, rx=0.5),
+        box(0.08, 0.06, 0.16, 0.96, 1.12, 0.24, WHITE), box(0.08, 0.06, 0.16, 0.96, 1.12, -0.24, WHITE),  # ears
+        box(0.32, 0.22, 0.3, -0.25, 0.6, 0, PINK, shape=sph),  # udder
+        box(0.05, 0.55, 0.05, -0.78, 0.9, 0, WHITE, shape=cyl, rz=0.15), box(0.1, 0.1, 0.1, -0.82, 0.62, 0, BLACK, shape=sph),  # tail
+    ]
+    eyes(cow, 1.26, 1.1, 0.14)
+    legs(cow, (-0.5, 0.5), (-0.22, 0.22), 0.32, 0.64, 0.13, WHITE, BLACK)
+    doc("cow", {"en": "Cow", "pt": "Vaca", "ja": "牛"}, cow, [2.3, 0.68], ("cow cattle farm milk", "vaca gado leite fazenda", "牛 乳牛 農場"))
+
+    # ---- goat: brown, horns bent back, beard, short upright tail
+    GOAT, GDARK = "#8d7b68", "#5a4a3a"
+    goat = [
+        box(0.82, 0.44, 0.38, 0, 0.56, 0, GOAT, shape=rnd),
+        box(0.16, 0.38, 0.16, 0.44, 0.74, 0, GOAT, shape=rnd, rz=-0.6),  # neck
+        box(0.28, 0.2, 0.17, 0.62, 0.92, 0, GOAT, shape=rnd), box(0.12, 0.13, 0.13, 0.76, 0.88, 0, "#7a6854", shape=rnd),  # head, muzzle
+        box(0.05, 0.12, 0.05, 0.72, 0.77, 0, GDARK),  # beard
+        box(0.04, 0.22, 0.04, 0.55, 1.08, 0.06, GDARK, shape=cyl, rz=0.6), box(0.04, 0.22, 0.04, 0.55, 1.08, -0.06, GDARK, shape=cyl, rz=0.6),  # horns
+        box(0.05, 0.06, 0.16, 0.56, 0.96, 0.15, GOAT, rx=0.4), box(0.05, 0.06, 0.16, 0.56, 0.96, -0.15, GOAT, rx=-0.4),  # ears
+        box(0.05, 0.14, 0.05, -0.42, 0.74, 0, GOAT, rz=0.7),  # tail
+    ]
+    eyes(goat, 0.7, 0.96, 0.08, 0.03)
+    legs(goat, (-0.3, 0.3), (-0.12, 0.12), 0.2, 0.4, 0.07, GOAT, GDARK)
+    doc("goat", {"en": "Goat", "pt": "Bode", "ja": "ヤギ"}, goat, [1.2, 0.38], ("goat billy farm", "bode cabra fazenda", "ヤギ 山羊 農場"))
+
+    # ---- sheep: fluffy cream wool, dark face and legs
+    WOOL, FACE = "#efe9dd", "#3a3632"
+    sheep = [box(0.9, 0.56, 0.52, 0, 0.56, 0, WOOL, shape=rnd)]
+    for x, y, z in ((0.3, 0.74, 0.2), (-0.3, 0.76, -0.18), (0.05, 0.8, 0), (-0.38, 0.5, 0.2), (0.35, 0.45, -0.22), (0, 0.5, 0.28), (-0.1, 0.52, -0.28)):
+        sheep.append(box(0.36, 0.34, 0.34, x, y, z, WOOL, shape=sph))
+    sheep += [
+        box(0.26, 0.22, 0.18, 0.56, 0.64, 0, FACE, shape=rnd), box(0.22, 0.2, 0.26, 0.5, 0.76, 0, WOOL, shape=sph),  # face, wool cap
+        box(0.04, 0.05, 0.12, 0.5, 0.7, 0.13, FACE, rx=0.5), box(0.04, 0.05, 0.12, 0.5, 0.7, -0.13, FACE, rx=-0.5),  # ears
+    ]
+    eyes(sheep, 0.66, 0.68, 0.07, 0.03)
+    legs(sheep, (-0.3, 0.3), (-0.16, 0.16), 0.16, 0.32, 0.07, FACE)
+    doc("sheep", {"en": "Sheep", "pt": "Ovelha", "ja": "羊"}, sheep, [1.2, 0.52], ("sheep lamb wool farm", "ovelha carneiro la fazenda", "羊 ヒツジ 農場"))
+
+    # ---- dog: golden, standing / sitting / lying
+    DOG, DDARK, NOSE, COLLAR = "#c8954f", "#a8743a", "#1c1e22", "#c0392b"
+
+    def dog_head(parts, x, y, tilt=0.0):
+        parts += [
+            box(0.26, 0.22, 0.22, x, y, 0, DOG, shape=rnd, rz=tilt), box(0.15, 0.11, 0.13, x + 0.15, y - 0.05, 0, DDARK, shape=rnd),
+            box(0.05, 0.05, 0.05, x + 0.23, y - 0.03, 0, NOSE, shape=sph),
+            box(0.06, 0.15, 0.04, x - 0.04, y - 0.02, 0.12, DDARK, rz=0.2), box(0.06, 0.15, 0.04, x - 0.04, y - 0.02, -0.12, DDARK, rz=0.2),  # ears
+            box(0.2, 0.05, 0.2, x - 0.1, y - 0.12, 0, COLLAR, shape="torus", tube=0.25),
+        ]
+        eyes(parts, x + 0.1, y + 0.04, 0.07, 0.03)
+
+    dog = [box(0.56, 0.3, 0.26, 0, 0.44, 0, DOG, shape=rnd), box(0.2, 0.22, 0.2, 0.3, 0.52, 0, DOG, shape=rnd, rz=-0.5),
+           box(0.32, 0.04, 0.04, -0.4, 0.52, 0, DOG, shape=cyl, axis="x", rz=0.55)]
+    dog_head(dog, 0.46, 0.62)
+    legs(dog, (-0.2, 0.2), (-0.09, 0.09), 0.15, 0.3, 0.07, DOG)
+    doc("dog", {"en": "Dog (standing)", "pt": "Cachorro (em pé)", "ja": "犬（立ち）"}, dog, [0.95, 0.26], ("dog puppy pet standing", "cachorro cao pet em pe", "犬 ペット"))
+
+    dog = [box(0.3, 0.42, 0.26, 0.02, 0.34, 0, DOG, shape=rnd, rz=0.3),  # chest and back, sitting up
+           box(0.34, 0.2, 0.32, -0.1, 0.1, 0, DOG, shape=rnd),  # haunches on the ground
+           box(0.22, 0.09, 0.08, -0.02, 0.045, 0.17, DOG, shape=rnd), box(0.22, 0.09, 0.08, -0.02, 0.045, -0.17, DOG, shape=rnd),  # hind legs folded forward
+           box(0.07, 0.34, 0.07, 0.15, 0.17, 0.09, DOG, shape=cyl), box(0.07, 0.34, 0.07, 0.15, 0.17, -0.09, DOG, shape=cyl),  # front legs
+           box(0.3, 0.04, 0.04, -0.3, 0.04, 0.12, DOG, shape=cyl, axis="x", ry=0.5)]
+    dog_head(dog, 0.16, 0.66)
+    doc("dog-sitting", {"en": "Dog (sitting)", "pt": "Cachorro (sentado)", "ja": "犬（お座り）"}, dog, [0.7, 0.34], ("dog puppy pet sitting", "cachorro cao pet sentado", "犬 ペット お座り"))
+
+    dog = [box(0.58, 0.2, 0.3, 0, 0.13, 0, DOG, shape=rnd),
+           box(0.26, 0.06, 0.07, 0.34, 0.04, 0.1, DOG, shape=rnd), box(0.26, 0.06, 0.07, 0.34, 0.04, -0.1, DOG, shape=rnd),  # front legs out
+           box(0.2, 0.1, 0.1, -0.2, 0.06, 0.18, DOG, shape=rnd), box(0.2, 0.1, 0.1, -0.2, 0.06, -0.18, DOG, shape=rnd),  # hind legs tucked
+           box(0.3, 0.04, 0.04, -0.4, 0.04, 0.06, DOG, shape=cyl, axis="x", ry=0.3)]
+    dog_head(dog, 0.42, 0.2)
+    doc("dog-lying", {"en": "Dog (lying)", "pt": "Cachorro (deitado)", "ja": "犬（伏せ）"}, dog, [0.95, 0.4], ("dog puppy pet lying down", "cachorro cao pet deitado", "犬 ペット 伏せ"))
+
+    # ---- cat: orange tabby, standing / sitting / lying
+    CAT, STRIPE, CPINK = "#d6903c", "#b26f26", "#e8b7ad"
+
+    def cat_head(parts, x, y):
+        parts += [
+            box(0.15, 0.13, 0.14, x, y, 0, CAT, shape=rnd),
+            box(0.05, 0.06, 0.03, x - 0.01, y + 0.085, 0.045, CAT, shape="cone"), box(0.05, 0.06, 0.03, x - 0.01, y + 0.085, -0.045, CAT, shape="cone"),  # ears
+            box(0.03, 0.02, 0.03, x + 0.08, y - 0.02, 0, CPINK, shape=sph),  # nose
+            box(0.06, 0.03, 0.02, x, y + 0.04, 0, STRIPE, shape=rnd),  # forehead stripe
+        ]
+        eyes(parts, x + 0.05, y + 0.02, 0.04, 0.025)
+
+    def cat_stripes(parts, x0, y, z, w, n=3):
+        for k in range(n):
+            parts.append(box(0.025, 0.09, w, x0 + k * 0.08, y, z, STRIPE, shape=rnd))
+
+    cat = [box(0.36, 0.16, 0.14, 0, 0.2, 0, CAT, shape=rnd), box(0.03, 0.3, 0.03, -0.24, 0.32, 0, CAT, shape=cyl, rz=0.4)]
+    cat_stripes(cat, -0.1, 0.24, 0, 0.145)
+    cat_head(cat, 0.24, 0.27)
+    legs(cat, (-0.13, 0.13), (-0.05, 0.05), 0.08, 0.16, 0.035, CAT)
+    doc("cat", {"en": "Cat (standing)", "pt": "Gato (em pé)", "ja": "猫（立ち）"}, cat, [0.6, 0.14], ("cat kitten pet standing", "gato gatinho pet em pe", "猫 ペット"))
+
+    cat = [box(0.2, 0.26, 0.16, 0, 0.16, 0, CAT, shape=rnd, rz=0.25), box(0.22, 0.1, 0.2, -0.04, 0.05, 0, CAT, shape=rnd),
+           box(0.035, 0.18, 0.035, 0.08, 0.09, 0.05, CAT, shape=cyl), box(0.035, 0.18, 0.035, 0.08, 0.09, -0.05, CAT, shape=cyl),
+           box(0.22, 0.03, 0.22, -0.08, 0.015, 0.1, CAT, shape="torus", tube=0.14)]  # tail curled on the ground
+    cat_stripes(cat, -0.05, 0.2, 0, 0.165, 2)
+    cat_head(cat, 0.06, 0.34)
+    doc("cat-sitting", {"en": "Cat (sitting)", "pt": "Gato (sentado)", "ja": "猫（お座り）"}, cat, [0.4, 0.3], ("cat kitten pet sitting", "gato gatinho pet sentado", "猫 ペット お座り"))
+
+    cat = [box(0.36, 0.11, 0.18, 0, 0.06, 0, CAT, shape=rnd), box(0.03, 0.26, 0.03, -0.3, 0.02, 0.06, CAT, shape=cyl, axis="x", ry=0.4),
+           box(0.14, 0.04, 0.04, 0.2, 0.02, 0.08, CAT, shape=rnd), box(0.14, 0.04, 0.04, 0.2, 0.02, -0.08, CAT, shape=rnd)]
+    cat_stripes(cat, -0.1, 0.08, 0, 0.185)
+    cat_head(cat, 0.22, 0.11)
+    doc("cat-lying", {"en": "Cat (lying)", "pt": "Gato (deitado)", "ja": "猫（伏せ）"}, cat, [0.6, 0.18], ("cat kitten pet lying down", "gato gatinho pet deitado", "猫 ペット 伏せ"))
+    return docs
+
+
+def garden_steps():
+    """Generated outdoor stairs for raised garden areas: the flight climbs towards +x, the top edge at +x."""
+    docs = {}
+    STONE, STONE_DARK, WOOD, WOOD_DARK, POST = "#b8b2a6", "#9d968a", "#b08a5a", "#8a6a48", "#6f5a44"
+
+    def doc(pid, name, boxes, footprint, tags):
+        docs[pid] = ({"kind": "prop", "version": 1, "id": pid, "name": name, "footprint": footprint, "source": {"type": "boxes", "boxes": boxes}}, tags, "garden")
+
+    def stone(n, width=1.2, tread=0.32, riser=0.15):
+        parts = []
+        L = n * tread
+        for k in range(n):
+            top = (k + 1) * riser
+            x = -L / 2 + k * tread + tread / 2
+            parts.append(box(tread, top, width, x, top / 2, 0, STONE))
+            parts.append(box(tread, 0.03, width, x, top - 0.015, 0, STONE_DARK if k % 2 else "#c4beb2"))
+        for z in (-width / 2 - 0.06, width / 2 + 0.06):  # cheek walls stepping up with the flight
+            for k in range(n):
+                top = (k + 1) * riser + 0.05
+                x = -L / 2 + k * tread + tread / 2
+                parts.append(box(tread, top, 0.12, x, top / 2, z, STONE_DARK))
+        return parts, [L, width + 0.24]
+
+    def wooden(n, width=1.1, tread=0.28, riser=0.17, rail=True):
+        parts = []
+        L = n * tread
+        ang = math.atan2(riser, tread)
+        slen = math.hypot(L, n * riser)
+        for z in (-width / 2 + 0.05, width / 2 - 0.05):  # stringers
+            parts.append(box(slen, 0.22, 0.05, 0, n * riser / 2 - 0.02, z, WOOD_DARK, rz=ang))
+        for k in range(n):
+            top = (k + 1) * riser
+            x = -L / 2 + k * tread + tread / 2
+            parts.append(box(tread + 0.03, 0.04, width, x, top - 0.02, 0, WOOD))
+            parts.append(box(0.03, riser - 0.05, width - 0.1, x - tread / 2, top - riser / 2 - 0.02, 0, WOOD_DARK))
+        if rail:
+            for z in (-width / 2 - 0.04, width / 2 + 0.04):
+                for k in (0, n):
+                    x = -L / 2 + k * tread
+                    y0 = k * riser
+                    parts.append(box(0.07, 0.95, 0.07, x, y0 + 0.475, z, POST))
+                mid = n * riser / 2
+                parts.append(box(slen, 0.05, 0.06, 0, mid + 0.92, z, POST, rz=ang))
+                parts.append(box(slen, 0.04, 0.04, 0, mid + 0.5, z, POST, rz=ang))
+        return parts, [L + 0.1, width + 0.16 if rail else width]
+
+    for n, pid, en, pt, ja in ((3, "garden-steps-3", "Garden steps (3)", "Degraus de jardim (3)", "庭の階段（3段）"), (6, "garden-steps-6", "Garden steps (6)", "Degraus de jardim (6)", "庭の階段（6段）"), (10, "garden-steps-10", "Garden steps (10)", "Degraus de jardim (10)", "庭の階段（10段）")):
+        parts, fp = stone(n)
+        doc(pid, {"en": en, "pt": pt, "ja": ja}, parts, fp, ("stairs steps outdoor stone slope terrace", "escada degraus externa pedra barranco", "階段 屋外 石"))
+    for n, pid, en, pt, ja in ((5, "deck-stairs-5", "Deck stairs (5)", "Escada de deck (5)", "デッキ階段（5段）"), (8, "deck-stairs-8", "Deck stairs (8)", "Escada de deck (8)", "デッキ階段（8段）")):
+        parts, fp = wooden(n)
+        doc(pid, {"en": en, "pt": pt, "ja": ja}, parts, fp, ("stairs steps outdoor wood deck railing", "escada degraus externa madeira deck corrimao", "階段 屋外 木 デッキ"))
+    return docs
+
+
 def mainhouse():
     """Generated props for the main-house samples: outdoor living, walk-in closet, master bath."""
     docs = {}
@@ -982,7 +1176,38 @@ def load_source(pid: str):
     return None
 
 
+def generated_groups():
+    return {**leisure(), **household(), **mainhouse(), **animals(), **garden_steps()}
+
+
+def append_generated() -> None:
+    """Write only the generated props into the existing catalog (no story-studio library needed):
+    known ids are replaced in place, new ones follow the last item of their category."""
+    props_dir = OUT / "props"
+    manifest = json.loads((OUT / "manifest.json").read_text())
+    manifest["categories"] = CATEGORIES
+    for gid, (gdoc, gtags, gcat) in generated_groups().items():
+        entry = {"id": gid, "name": gdoc["name"], "category": gcat, "tags": tags_for(gcat, gdoc["name"], gtags), "file": f"props/{gid}.json", "parts": len(gdoc["source"]["boxes"]), "origin": "generated"}
+        fresh = {"kind": "prop", "version": 1, "id": gid, "name": gdoc["name"], "source": gdoc["source"]}
+        for k in ("footprint", "light", "mount"):
+            if gdoc.get(k):
+                fresh[k] = gdoc[k]
+        (props_dir / f"{gid}.json").write_text(json.dumps(fresh, ensure_ascii=False, separators=(",", ":")))
+        props = manifest["props"]
+        at = next((i for i, p in enumerate(props) if p["id"] == gid), None)
+        if at is not None:
+            props[at] = entry
+            continue
+        last = max((i for i, p in enumerate(props) if p["category"] == gcat), default=len(props) - 1)
+        props.insert(last + 1, entry)
+    (OUT / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=1) + "\n")
+    print(f"{len(manifest['props'])} props")
+
+
 def main() -> None:
+    import sys
+    if "--append" in sys.argv:
+        return append_generated()
     props_dir = OUT / "props"
     props_dir.mkdir(parents=True, exist_ok=True)
     for old in props_dir.glob("*.json"):
@@ -1014,7 +1239,7 @@ def main() -> None:
             # generated vehicles follow the first motorcycle in the catalog order
             for gid, (gdoc, gtags) in generated.items():
                 write(props_dir, manifest, gid, gdoc["name"], "vehicles", tags_for("vehicles", gdoc["name"], gtags), gdoc["source"]["boxes"], gdoc["footprint"], origin="generated")
-    for gid, (gdoc, gtags, gcat) in {**leisure(), **household(), **mainhouse()}.items():
+    for gid, (gdoc, gtags, gcat) in generated_groups().items():
         write(props_dir, manifest, gid, gdoc["name"], gcat, tags_for(gcat, gdoc["name"], gtags), gdoc["source"]["boxes"], gdoc["footprint"], gdoc.get("light"), gdoc.get("mount"), origin="generated")
     (OUT / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=1) + "\n")
     total = sum(p["parts"] for p in manifest["props"])
