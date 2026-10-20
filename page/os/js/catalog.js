@@ -691,6 +691,30 @@ window.OSCatalog = (function () {
     }
   },
   {
+    "id": "utils-smart-note",
+    "href": "utils/smart-note/index.html",
+    "icon": "../assets/icons/svg/utils-smart-note.svg",
+    "kind": "site",
+    "uninstallable": true,
+    "defaultInstalled": false,
+    "channel": "stable",
+    "tag": {
+      "en": "Productivity",
+      "pt": "Produtividade",
+      "ja": "生産性"
+    },
+    "name": {
+      "en": "Smart Note",
+      "pt": "Smart Note",
+      "ja": "Smart Note"
+    },
+    "desc": {
+      "en": "Block notepad with a Notion-style \"/\" command menu: headings, lists, to-dos, tables, images, callouts, fonts and links to sub-pages. Saved in IndexedDB; import and export Markdown, HTML, text, PDF and JSON.",
+      "pt": "Bloco de notas por blocos com menu de comandos \"/\" ao estilo Notion: títulos, listas, tarefas, tabelas, imagens, destaques, fontes e links para subpáginas. Salvo no IndexedDB; importa e exporta Markdown, HTML, texto, PDF e JSON.",
+      "ja": "Notion風の「/」コマンドメニューを備えたブロック型メモ帳。見出し、リスト、ToDo、表、画像、コールアウト、フォント、サブページへのリンク。IndexedDBに保存し、Markdown、HTML、テキスト、PDF、JSONでインポート/エクスポートできます。"
+    }
+  },
+  {
     "id": "utils-whiteboards",
     "href": "utils/whiteboards.html",
     "icon": "../assets/icons/svg/utils-whiteboards.svg",
