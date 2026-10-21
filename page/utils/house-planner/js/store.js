@@ -1,10 +1,9 @@
-// IndexedDB: HousePlannerDB v2 with `projects`, `props` (custom objects),
-// `thumbs` and `textures` (custom texture images as blobs). Registered in
-// page/utils/backup.html.
+// IndexedDB: HousePlannerDB v3 with projects, custom objects and textures,
+// plus user-saved ready-made houses. Registered in page/utils/backup.html.
 import { projectChecked, propChecked, clone, uid, freshBuilding, freshStorey, OPENING_PRESETS, TILE, registerTextureId, customTextureChecked } from "./schema.js";
 
 const DB = "HousePlannerDB";
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 let dbPromise = null;
 
 export function openDB() {
@@ -18,6 +17,7 @@ export function openDB() {
       if (!db.objectStoreNames.contains("thumbs")) db.createObjectStore("thumbs", { keyPath: "id" });
       if (!db.objectStoreNames.contains("textures")) db.createObjectStore("textures", { keyPath: "id" });
       if (!db.objectStoreNames.contains("versions")) db.createObjectStore("versions", { keyPath: "id" });
+      if (!db.objectStoreNames.contains("houses")) db.createObjectStore("houses", { keyPath: "id" });
     };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
@@ -81,6 +81,16 @@ export async function loadVersion(id) {
   return row ? projectChecked(row.data) : null;
 }
 export const deleteVersion = (id) => storeDelete("versions", id);
+
+// ------------------------------------------------------ ready-made houses
+
+export async function listSavedHouses() {
+  return (await storeAll("houses")).sort((a, b) => a.name.localeCompare(b.name));
+}
+export function saveHouse(house) {
+  house.updatedAt = new Date().toISOString();
+  return storeWrite("houses", clone(house));
+}
 
 
 // ----------------------------------------------------------------- props

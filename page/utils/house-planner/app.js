@@ -25,7 +25,7 @@ import { syncRooms, roomLabel } from "./js/rooms.js";
 import { buildRoomFinish } from "./js/build/room.js";
 import { computeQuantities, quantitiesCSV, formatQuantity, unitLabel, columnLabel, COLUMNS } from "./js/quantities.js";
 import { selectedItems, canJoin, copySelection, pasteClipboard, arrange, Ruler } from "./js/multi.js";
-import { makeTemplate, TEMPLATE_IDS } from "./js/templates.js";
+import { makeTemplate, makeReadyHouse, makeSavedHouse, TEMPLATE_IDS, HOUSE_TEMPLATE_IDS } from "./js/templates.js";
 import { pointInPolygon } from "./js/geom.js";
 import { shareLink, readShareHash, exportGLB } from "./js/share.js";
 import { storyStudioBundle, storyFilename } from "./js/storyset.js";
@@ -2091,6 +2091,7 @@ class App {
       case "exportView": await this.exportView(); break;
       case "open": await this.openProjectsDialog(); break;
       case "template": this.openTemplatesDialog(); break;
+      case "readyHouses": await this.openReadyHousesDialog(); break;
       case "versions": await this.openVersionsDialog(); break;
       case "share": {
         try {
@@ -2149,6 +2150,89 @@ class App {
     this.queueSave();
     this.toast(this.t("addedToProject"));
   }
+  captureBuildingThumbnail(building) {
+    const scene = this.scene, group = this.buildingGroup(building.id);
+    if (!group) throw new Error("The selected building is not in the scene.");
+    const camera = {
+      view: scene.view,
+      perspectivePosition: scene.perspective.position.clone(), perspectiveQuaternion: scene.perspective.quaternion.clone(),
+      orthoPosition: scene.ortho.position.clone(), orthoQuaternion: scene.ortho.quaternion.clone(),
+      target: scene.controls.target.clone(), orthoSpan: scene.ortho.userData.span,
+    };
+    const worldVisibility = scene.world.children.map((child) => [child, child.visible]);
+    const active = { building: this.state.activeBuilding, storey: this.state.activeStorey, projectBuilding: this.project.view.activeBuilding, projectStorey: this.project.view.activeStorey, cutaway: this.project.view.cutaway };
+    const storeyVisibility = building.storeys.map((storey) => storey.visible);
+    const roofVisibility = building.roof.visible;
+    const overlayVisibility = scene.overlay.visible, gridVisibility = scene.grid.visible, roofGroupVisibility = this.sun.roofs.visible;
+    try {
+      const top = topStorey(building);
+      this.state.activeBuilding = this.project.view.activeBuilding = building.id;
+      this.state.activeStorey = this.project.view.activeStorey = top.id;
+      this.project.view.cutaway = false;
+      building.storeys.forEach((storey) => { storey.visible = true; });
+      building.roof.visible = true;
+      this.applyVisibility();
+      for (const child of scene.world.children) child.visible = child === group;
+      scene.overlay.visible = false;
+      scene.grid.visible = false;
+      this.sun.roofs.visible = false;
+      const bounds = new THREE.Box3().setFromObject(group);
+      if (bounds.isEmpty()) throw new Error("The selected building is empty.");
+      const size = bounds.getSize(new THREE.Vector3());
+      bounds.expandByVector(new THREE.Vector3(size.x * 0.12 + 0.25, size.y * 0.08 + 0.1, size.z * 0.12 + 0.25));
+      scene.fit(bounds);
+      scene.renderer.render(scene.scene, scene.camera);
+      const canvas = document.createElement("canvas");
+      canvas.width = 384;
+      canvas.height = 240;
+      const context = canvas.getContext("2d");
+      context.drawImage(scene.canvas, 0, 0, canvas.width, canvas.height);
+      return canvas.toDataURL("image/png");
+    } finally {
+      building.storeys.forEach((storey, index) => { storey.visible = storeyVisibility[index]; });
+      building.roof.visible = roofVisibility;
+      this.state.activeBuilding = active.building;
+      this.state.activeStorey = active.storey;
+      this.project.view.activeBuilding = active.projectBuilding;
+      this.project.view.activeStorey = active.projectStorey;
+      this.project.view.cutaway = active.cutaway;
+      for (const [child, visible] of worldVisibility) child.visible = visible;
+      scene.overlay.visible = overlayVisibility;
+      scene.grid.visible = gridVisibility;
+      this.applyVisibility();
+      this.sun.roofs.visible = roofGroupVisibility;
+      scene.perspective.position.copy(camera.perspectivePosition);
+      scene.perspective.quaternion.copy(camera.perspectiveQuaternion);
+      scene.ortho.position.copy(camera.orthoPosition);
+      scene.ortho.quaternion.copy(camera.orthoQuaternion);
+      scene.ortho.userData.span = camera.orthoSpan;
+      if (camera.view === "top") scene.resize();
+      scene.controls.target.copy(camera.target);
+      scene.controls.update();
+      scene.requestRender();
+    }
+  }
+  async saveBuildingAsHouse(buildingId) {
+    const building = this.project.buildings.find((item) => item.id === buildingId);
+    if (!building) return;
+    const answer = prompt(this.t("readyHouseName"), building.name || "");
+    if (answer === null) return;
+    const name = answer.trim().slice(0, 60);
+    if (!name) return;
+    try {
+      const savedBuilding = clone(building);
+      savedBuilding.name = name;
+      savedBuilding.at = [0, 0];
+      const baseElevation = Math.min(...savedBuilding.storeys.map((storey) => storey.elevation));
+      for (const storey of savedBuilding.storeys) storey.elevation -= baseElevation;
+      const thumbnail = this.captureBuildingThumbnail(building);
+      await store.saveHouse({ id: uid("house"), name, building: savedBuilding, thumbnail });
+      this.toast(this.t("readyHouseSaved"));
+    } catch (err) {
+      console.warn("save house", err);
+      this.toast(this.t("readyHouseSaveFailed"));
+    }
+  }
   openTemplatesDialog() {
     const t = this.t;
     const host = $("#templates-list");
@@ -2170,6 +2254,31 @@ class App {
       this.queueSave();
     };
     $("#templates-dialog").showModal();
+  }
+  async openReadyHousesDialog() {
+    const t = this.t;
+    const host = $("#ready-houses-list");
+    const saved = await store.listSavedHouses();
+    const builtins = HOUSE_TEMPLATE_IDS.map((id) => `<div class="pitem tpl"><img class="tthumb" src="../../assets/house-planner/templates/house-${id}.png" alt="" loading="lazy" width="160" height="100"><span class="pname">${esc(t(`template_${id}`))}</span><span class="tacts"><button class="tb small" data-ready-house="${id}">${esc(t("add"))}</button></span></div>`).join("");
+    const savedRows = saved.map((house) => `<div class="pitem tpl"><img class="tthumb" src="${esc(house.thumbnail || "")}" alt="" loading="lazy" width="160" height="100"><span class="pname">${esc(house.name)}</span><span class="tacts"><button class="tb small" data-saved-house="${esc(house.id)}">${esc(t("add"))}</button></span></div>`).join("");
+    host.innerHTML = `<div class="plist">${builtins}${savedRows}</div>`;
+    for (const img of host.querySelectorAll("img.tthumb")) img.addEventListener("error", () => img.classList.add("missing"), { once: true });
+    host.onclick = async (e) => {
+      const button = e.target.closest("[data-ready-house]");
+      if (button) {
+        const id = button.dataset.readyHouse;
+        $("#ready-houses-dialog").close();
+        await this.addProject(makeReadyHouse(id, t(`template_${id}`)));
+        return;
+      }
+      const savedButton = e.target.closest("[data-saved-house]");
+      if (!savedButton) return;
+      const house = saved.find((item) => item.id === savedButton.dataset.savedHouse);
+      if (!house) return;
+      $("#ready-houses-dialog").close();
+      await this.addProject(makeSavedHouse(house));
+    };
+    $("#ready-houses-dialog").showModal();
   }
   /** Keep a version at most every 10 minutes of saving. */
   async maybeSaveVersion(force = false, label = "") {

@@ -322,7 +322,7 @@ export class PropsPanel {
     const presetSel = this.el("select", {}, STOREY_PRESETS.map((p) => this.el("option", { value: p.id, text: t(`preset_${p.id}`) })));
     presetSel.value = "upper";
     this.root.append(
-      this.section(null, [this.text(b, "name"), this.vec(b, "at", 0, { label: "X" }), this.vec(b, "at", 1, { label: "Z" }), this.number(b, "rotation", { min: -360, max: 360, unit: "°" })]),
+      this.section(null, [this.text(b, "name"), this.vec(b, "at", 0, { label: "X" }), this.vec(b, "at", 1, { label: "Z" }), this.number(b, "rotation", { min: -360, max: 360, unit: "°" }), this.button(t("saveBuilding"), () => app.saveBuildingAsHouse(b.id))]),
       this.section(t("roof"), this.roofFields(b)),
       this.section(t("storeys"), [
         this.el("div", { class: "row-actions" }, [presetSel, this.button(`+ ${t("addStorey")}`, () => app.addStorey(b.id, presetSel.value))]),

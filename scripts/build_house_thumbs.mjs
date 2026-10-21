@@ -4,7 +4,9 @@
 // template. Opens the page headless with Playwright (Chromium), loads each
 // template and captures the 3D view.
 //
-//   node scripts/build_house_thumbs.mjs [--only=id,id] [--three=<dir>] [--size=384x240]
+//   node scripts/build_house_thumbs.mjs [--only=id,id] [--houses=true] [--three=<dir>] [--size=384x240]
+// --houses=true renders ready-house previews as house-<id>.png.
+// --view=top renders a furnished cutaway plan instead of the exterior.
 //
 // --three points at an unpacked three@0.164.1 npm package when the CDN is
 // not reachable (its files are served in place of cdn.jsdelivr.net).
@@ -22,8 +24,9 @@ const [width, height] = (args.size || "384x240").split("x").map(Number);
 const require = createRequire(import.meta.url);
 let playwright;
 try { playwright = require("playwright"); } catch { playwright = require(process.env.PLAYWRIGHT_MODULE || "playwright"); }
-const { TEMPLATE_IDS } = await import(pathToFileURL(path.join(ROOT, "page", "utils", "house-planner", "js", "templates.js")));
-const ids = args.only ? args.only.split(",") : TEMPLATE_IDS;
+const { TEMPLATE_IDS, HOUSE_TEMPLATE_IDS } = await import(pathToFileURL(path.join(ROOT, "page", "utils", "house-planner", "js", "templates.js")));
+const houseMode = args.houses === "true" || args.houses === "1";
+const ids = args.only ? args.only.split(",") : houseMode ? HOUSE_TEMPLATE_IDS : TEMPLATE_IDS;
 
 const MIME = { ".html": "text/html", ".js": "application/javascript", ".css": "text/css", ".json": "application/json", ".png": "image/png", ".jpg": "image/jpeg", ".svg": "image/svg+xml", ".ico": "image/x-icon" };
 const server = http.createServer((req, res) => {
@@ -52,11 +55,23 @@ await page.waitForFunction(() => window.HousePlanner?.project && document.queryS
 await page.waitForTimeout(1500);
 fs.mkdirSync(OUT, { recursive: true });
 for (const id of ids) {
-  await page.evaluate(async (id) => {
+  await page.evaluate(async ({ id, houseMode, topView }) => {
     const app = window.HousePlanner;
-    const { makeTemplate } = await import("./js/templates.js");
-    app.setProject(makeTemplate(id, id), { fit: true });
-    for (const b of app.project.buildings) b.roof.visible = true;
+    const { makeTemplate, makeReadyHouse } = await import("./js/templates.js");
+    const project = houseMode ? makeReadyHouse(id, id) : makeTemplate(id, id);
+    // Resolve furniture before framing/capture, instead of photographing the
+    // wireframe placeholders while the catalog documents are still loading.
+    const { getPropDoc } = await import("./js/props.js");
+    const props = new Set([...project.objects, ...project.buildings.flatMap((b) => b.storeys.flatMap((s) => s.objects))].map((o) => o.prop).filter(Boolean));
+    await Promise.all([...props].map((prop) => getPropDoc(prop)));
+    if (topView) {
+      project.view.cutaway = true;
+      project.view.doorsOpen = true;
+      for (const b of project.buildings) for (const s of b.storeys) for (const w of s.walls) w.height = 120;
+      app.scene.renderer.shadowMap.enabled = false;
+    }
+    app.setProject(project, { fit: true });
+    for (const b of app.project.buildings) b.roof.visible = !topView;
     // the roof of the active building hides while a lower storey is active: show the top one
     const active = app.project.buildings.find((b) => b.id === app.state.activeBuilding) || app.project.buildings[0];
     app.setActive(active.id, active.storeys.reduce((a, s) => (s.elevation > a.elevation ? s : a)).id);
@@ -69,6 +84,15 @@ for (const id of ids) {
     const box = new THREE.Box3();
     for (const bld of app.project.buildings) box.union(new THREE.Box3().setFromObject(app.buildingGroup(bld.id)));
     const size = box.getSize(new THREE.Vector3());
+    if (topView) {
+      app.setView("top");
+      app.scene.fit(box);
+      const host = document.querySelector("#view");
+      app.scene.ortho.userData.span = Math.max(size.z, size.x * host.clientHeight / host.clientWidth) * 1.12;
+      app.scene.resize();
+      app.scene.requestRender();
+      return;
+    }
     box.expandByVector(new THREE.Vector3(size.x * 0.15 + 3, 0, size.z * 0.15 + 3));
     app.scene.fit(box);
     // fit() frames the bounding sphere for the vertical field of view; the thumbnail is wide, so come closer
@@ -78,11 +102,11 @@ for (const id of ids) {
     cam.position.copy(c.target).add(d);
     c.update();
     app.scene.requestRender();
-  }, id);
+  }, { id, houseMode, topView: args.view === "top" });
   await page.waitForTimeout(1200);
-  const file = path.join(OUT, `${id}.png`);
+  const file = path.join(OUT, `${houseMode ? "house-" : ""}${id}.png`);
   await page.locator("#view").screenshot({ path: file });
-  console.log(`${id} → ${path.relative(ROOT, file)} (${Math.round(fs.statSync(file).size / 1024)} KB)`);
+  console.log(`${houseMode ? "house-" : ""}${id} → ${path.relative(ROOT, file)} (${Math.round(fs.statSync(file).size / 1024)} KB)`);
 }
 await browser.close();
 server.close();

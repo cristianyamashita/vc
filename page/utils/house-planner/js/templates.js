@@ -13,9 +13,13 @@ import { mansionCourtyard } from "./samples/mansion-courtyard.js";
 import { shopping } from "./samples/shopping.js";
 import { housing } from "./samples/housing.js";
 import { village } from "./samples/village.js";
+import { grandFamilyEstate } from "./samples/grand-family-estate.js";
+import { galleryHall } from "./samples/gallery-hall.js";
 
 const TEMPLATES = ["studio", "house2br", "twoStorey", "garageLeisure", "mainHouse", "mainHouseXL", "mainHouseSingle", "mainHouseSingleXL", "mansion", "mansionCoastal", "mansionEstate", "mansionCourtyard", "hillside", "farmhouse", "cellarAttic", "beach", "shopping", "housing", "village"];
 export const TEMPLATE_IDS = TEMPLATES;
+// Residential plans that can be added to an existing scene as house-only content.
+export const HOUSE_TEMPLATE_IDS = ["studio", "house2br", "twoStorey", "mainHouse", "mainHouseXL", "mainHouseSingle", "mainHouseSingleXL", "mansion", "mansionCoastal", "mansionEstate", "mansionCourtyard", "grandFamilyEstate", "galleryHall", "hillside", "farmhouse", "cellarAttic", "beach"];
 
 // ---- free-form helpers (cm, building-local) for the larger samples
 function tiles(x0, z0, x1, z1) {
@@ -282,5 +286,64 @@ export function makeTemplate(id, name) {
   b.roof.material = "roofTiles";
   b.roof.tint = "#c8653f";
   p.view.activeStorey = g.id;
+  return projectChecked(p);
+}
+
+/** Build a residential sample without its terrain, garden, or separate garages and outbuildings. */
+export function makeReadyHouse(id, name) {
+  if (!HOUSE_TEMPLATE_IDS.includes(id)) throw new Error(`Unknown house template: ${id}`);
+  const houseOnly = { grandFamilyEstate, galleryHall }[id];
+  if (houseOnly) {
+    const p = freshProject(name);
+    const b = p.buildings[0];
+    houseOnly(p, b, b.storeys[0]);
+    b.name = name;
+    p.view.activeBuilding = b.id;
+    p.view.activeStorey = b.storeys[0].id;
+    return projectChecked(p);
+  }
+  const p = makeTemplate(id, name);
+  const houseBuildings = { mansionCoastal: 3, mansionEstate: 3, mansionCourtyard: 3 }[id] || 1;
+  p.buildings = p.buildings.slice(0, houseBuildings);
+  p.outdoor = [];
+  p.gardenPatches = [];
+  p.fences = [];
+  p.siteWalls = [];
+  p.objects = [];
+  p.notes = [];
+  p.lights = [];
+  p.view.activeBuilding = p.buildings[0].id;
+  p.view.activeStorey = p.buildings[0].storeys[0].id;
+  return projectChecked(p);
+}
+
+/** Convert a saved building into a fresh project fragment with unique item ids. */
+export function makeSavedHouse(saved) {
+  const p = freshProject(saved.name);
+  const b = structuredClone(saved.building);
+  const newId = (item, prefix) => { item.id = uid(prefix); };
+  newId(b, "b");
+  b.name = saved.name;
+  b.at = [0, 0];
+  const baseElevation = Math.min(...b.storeys.map((s) => s.elevation));
+  for (const w of b.roof.windows || []) newId(w, "rw");
+  for (const w of b.roof.endWindows || []) newId(w, "ew");
+  for (const s of b.storeys) {
+    newId(s, "st");
+    s.elevation -= baseElevation;
+    for (const fg of s.floorGroups) newId(fg, "fg");
+    for (const w of s.walls) {
+      newId(w, "w");
+      for (const opening of w.openings) newId(opening, "op");
+    }
+    for (const stair of s.stairs) newId(stair, "sr");
+    for (const railing of s.railings) newId(railing, "rl");
+    for (const object of s.objects) newId(object, "ob");
+    for (const light of s.lights || []) newId(light, "lt");
+    for (const room of s.rooms) newId(room, "rm");
+  }
+  p.buildings = [b];
+  p.view.activeBuilding = b.id;
+  p.view.activeStorey = b.storeys[0].id;
   return projectChecked(p);
 }
