@@ -150,7 +150,7 @@ try {
   await page.keyboard.press("Delete");
   assert.equal(await page.evaluate(() => visiblePanelCount(current())), 2);
   assert.equal(
-    await page.evaluate(() => current().panels.filter((p) => p.image).length),
+    await page.evaluate(() => current().panels.flatMap(panelImages).length),
     3,
   );
   const seamAfter = await pixel(500, 300);
@@ -192,7 +192,7 @@ try {
     0,
   );
   assert.equal(
-    await page.evaluate(() => current().panels.filter((p) => p.image).length),
+    await page.evaluate(() => current().panels.flatMap(panelImages).length),
     3,
   );
   assert.deepEqual((await snapshot()).balloons, original.balloons);
@@ -233,7 +233,7 @@ try {
   await page.locator("#confirm-yes").click();
   assert.equal(await page.evaluate(() => visiblePanelCount(current())), 1);
   assert.equal(
-    await page.evaluate(() => current().panels.filter((p) => p.image).length),
+    await page.evaluate(() => current().panels.flatMap(panelImages).length),
     0,
   );
   // Diagonals from corner to corner can move too, adding vertices as needed.

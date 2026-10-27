@@ -138,7 +138,7 @@ try {
   await page.waitForFunction(() => !saving);
   const source = await archive(page);
   assert.equal(source.format, "vc-comic-studio-project");
-  assert.equal(source.version, 1);
+  assert.equal(source.version, 2);
   assert.equal(source.assets.length, 2, "shared images are embedded once");
   assert.equal(source.project.issues.length, 2);
   assert.equal(source.project.issues[0].pages.length, 2);
