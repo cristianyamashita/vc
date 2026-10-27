@@ -1,0 +1,4190 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Comic Studio</title>
+    <link
+      rel="icon"
+      href="../../assets/icons/ico/utils-comic-studio.ico"
+      type="image/x-icon"
+    />
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #edf0ef;
+        --surface: #fff;
+        --ink: #233b38;
+        --muted: #71837f;
+        --line: #d8e1de;
+        --accent: #008f7d;
+        --wash: #e4f4ef;
+        --stage: #d9e1de;
+        --danger: #bd4651;
+      }
+      :root[data-theme="dark"] {
+        color-scheme: dark;
+        --bg: #151d1c;
+        --surface: #1e2927;
+        --ink: #e2eeea;
+        --muted: #9aafa7;
+        --line: #344541;
+        --accent: #50c5af;
+        --wash: #253f38;
+        --stage: #111a18;
+        --danger: #ff8790;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+        overflow: hidden;
+      }
+      body {
+        font:
+          12px system-ui,
+          sans-serif;
+        color: var(--ink);
+        background: var(--bg);
+      }
+      button,
+      input,
+      select,
+      textarea {
+        font: inherit;
+        color: inherit;
+      }
+      button,
+      select,
+      input[type="number"],
+      input[type="text"] {
+        height: 30px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: var(--surface);
+        padding: 4px 8px;
+        min-width: 0;
+      }
+      button {
+        cursor: pointer;
+        white-space: nowrap;
+      }
+      button:hover:not(:disabled) {
+        border-color: var(--accent);
+        background: var(--wash);
+      }
+      button:disabled {
+        opacity: 0.4;
+        cursor: default;
+      }
+      button.primary,
+      button.active {
+        background: var(--accent);
+        color: var(--surface);
+        border-color: var(--accent);
+      }
+      button.danger {
+        color: var(--danger);
+      }
+      button.icon {
+        min-width: 30px;
+        padding: 3px 7px;
+        font-size: 16px;
+      }
+      button:focus-visible,
+      select:focus-visible,
+      input:focus-visible,
+      textarea:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+      }
+      [hidden] {
+        display: none !important;
+      }
+      .app {
+        height: 100%;
+        display: grid;
+        grid-template-rows: 44px minmax(0, 1fr);
+      }
+      .topbar {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 0 12px;
+        border-bottom: 1px solid var(--line);
+        background: var(--surface);
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        white-space: nowrap;
+      }
+      .brand img {
+        width: 18px;
+        height: 18px;
+      }
+      .brand strong {
+        font-size: 15px;
+        font-weight: 650;
+      }
+      .spacer {
+        flex: 1;
+      }
+      .workbench {
+        display: grid;
+        grid-template-columns: 184px minmax(0, 1fr) 208px;
+        min-height: 0;
+      }
+      .library,
+      .inspector {
+        background: var(--surface);
+        min-height: 0;
+        overflow: auto;
+        padding: 12px;
+      }
+      .library {
+        border-right: 1px solid var(--line);
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .inspector {
+        border-left: 1px solid var(--line);
+      }
+      .section-label {
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.09em;
+        text-transform: uppercase;
+        color: var(--muted);
+        margin: 0 0 6px;
+      }
+      .row {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+      }
+      .row > select,
+      .row > .grow {
+        flex: 1;
+        min-width: 0;
+      }
+      .row + .row {
+        margin-top: 6px;
+      }
+      label {
+        display: block;
+        color: var(--muted);
+        margin: 10px 0 5px;
+      }
+      select.full,
+      button.full,
+      input.full {
+        width: 100%;
+      }
+      .page-list {
+        flex: 1;
+        min-height: 60px;
+        overflow: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        padding: 2px;
+      }
+      .page-card {
+        height: 88px;
+        flex-shrink: 0;
+        padding: 6px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        text-align: left;
+        background: var(--bg);
+        position: relative;
+      }
+      .page-card.active {
+        background: var(--wash);
+        color: var(--ink);
+        box-shadow: 0 0 0 1px var(--accent);
+      }
+      .page-card.drag-over {
+        border: 2px dashed var(--accent);
+      }
+      .page-card canvas {
+        width: 49px;
+        height: 69px;
+        background: #fff;
+        border: 1px solid var(--line);
+      }
+      .page-card .number {
+        font-size: 15px;
+        font-weight: 650;
+        display: block;
+      }
+      .page-card .small {
+        display: block;
+        color: var(--muted);
+        font-size: 10px;
+        margin-top: 5px;
+      }
+      .page-tools {
+        border-top: 1px solid var(--line);
+        padding-top: 8px;
+      }
+      .editor {
+        min-width: 0;
+        min-height: 0;
+        display: grid;
+        grid-template-rows: 40px minmax(0, 1fr) 26px;
+      }
+      .toolbar {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 10px;
+        border-bottom: 1px solid var(--line);
+        overflow-x: auto;
+      }
+      .toolbar button {
+        height: 28px;
+      }
+      .stage {
+        min-height: 0;
+        overflow: hidden;
+        position: relative;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 14px;
+        background-color: var(--stage);
+        background-image: radial-gradient(var(--line) 1px, transparent 1px);
+        background-size: 16px 16px;
+      }
+      #sheet {
+        display: block;
+        background: white;
+        box-shadow: 0 6px 28px #0003;
+        touch-action: none;
+        outline: none;
+      }
+      #sheet:focus-visible {
+        outline: 2px solid var(--accent);
+      }
+      .empty {
+        position: absolute;
+        text-align: center;
+        max-width: 240px;
+        color: var(--muted);
+        padding: 14px;
+      }
+      .empty p {
+        line-height: 1.6;
+      }
+      .statusbar {
+        padding: 5px 10px;
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        color: var(--muted);
+        font-size: 10px;
+        border-top: 1px solid var(--line);
+      }
+      #save-status.error {
+        color: var(--danger);
+      }
+      h2 {
+        font-size: 13px;
+        margin: 0 0 12px;
+        font-weight: 650;
+      }
+      .inspector section + section {
+        margin-top: 16px;
+        padding-top: 12px;
+        border-top: 1px solid var(--line);
+      }
+      .hint {
+        color: var(--muted);
+        font-size: 11px;
+        line-height: 1.5;
+      }
+      .chip {
+        padding: 3px 6px;
+        background: var(--wash);
+        border-radius: 4px;
+        color: var(--accent);
+        font-size: 10px;
+      }
+      input[type="range"] {
+        width: 100%;
+        accent-color: var(--accent);
+        margin: 4px 0;
+      }
+      textarea {
+        width: 100%;
+        height: 92px;
+        resize: vertical;
+        min-height: 60px;
+        max-height: 220px;
+        background: var(--bg);
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        padding: 8px;
+        line-height: 1.5;
+      }
+      .two {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+      }
+      .two input,
+      .two select {
+        width: 100%;
+      }
+      input[type="color"] {
+        height: 30px;
+        width: 100%;
+        border: 1px solid var(--line);
+        background: var(--surface);
+        padding: 2px;
+        border-radius: 5px;
+      }
+      dialog {
+        width: min(540px, calc(100% - 24px));
+        max-height: calc(100% - 24px);
+        overflow: auto;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        color: var(--ink);
+        background: var(--surface);
+        padding: 18px;
+        box-shadow: 0 20px 80px #0005;
+      }
+      dialog::backdrop {
+        background: #0c252b80;
+        backdrop-filter: blur(3px);
+      }
+      dialog h2 {
+        font-size: 16px;
+      }
+      .dialog-title {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        margin-bottom: 12px;
+      }
+      .dialog-title h2 {
+        margin: 0;
+      }
+      dialog p,
+      dialog li {
+        line-height: 1.7;
+        color: var(--muted);
+      }
+      dialog li {
+        margin-bottom: 9px;
+      }
+      dialog .actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        margin-top: 18px;
+      }
+      #toast {
+        position: fixed;
+        bottom: 40px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: var(--ink);
+        color: var(--surface);
+        border-radius: 8px;
+        padding: 10px 14px;
+        max-width: 80vw;
+        z-index: 10;
+        box-shadow: 0 3px 14px #0003;
+        pointer-events: none;
+      }
+      .mode-badge {
+        font-size: 10px;
+        color: var(--muted);
+        white-space: nowrap;
+      }
+      #export-progress {
+        display: block;
+        min-height: 20px;
+        color: var(--accent);
+        margin-top: 12px;
+      }
+      .compact-title {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      body.busy .workbench {
+        pointer-events: none;
+        opacity: 0.65;
+      }
+      @media (max-width: 719px) {
+        .workbench {
+          grid-template-columns: 134px minmax(0, 1fr);
+          grid-template-rows: minmax(0, 1fr) 170px;
+        }
+        .library {
+          grid-row: 1 / 3;
+          padding: 8px;
+        }
+        .inspector {
+          grid-column: 2;
+          grid-row: 2;
+          border-top: 1px solid var(--line);
+          padding: 10px;
+        }
+        .inspector section + section {
+          margin-top: 8px;
+          padding-top: 8px;
+        }
+        .brand strong {
+          font-size: 13px;
+        }
+        .topbar {
+          padding: 0 8px;
+          gap: 5px;
+        }
+        .toolbar {
+          padding: 4px;
+          gap: 4px;
+        }
+        .page-card {
+          gap: 6px;
+        }
+        .page-card canvas {
+          width: 38px;
+          height: 54px;
+        }
+        .page-card .small {
+          display: none;
+        }
+        .stage {
+          padding: 9px;
+        }
+        .topbar .export-label {
+          display: none;
+        }
+        .mode-badge {
+          display: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <div class="topbar">
+        <div class="brand">
+          <img
+            src="../../assets/icons/svg/utils-comic-studio.svg"
+            alt=""
+          /><strong data-i18n="title">Comic Studio</strong>
+        </div>
+        <span class="spacer"></span
+        ><button id="export-open">
+          <span>↗ </span><span data-i18n="export">Export</span></button
+        ><button id="help-open" class="icon" data-title="help">?</button
+        ><select id="lang-switcher" aria-label="Language">
+          <option value="en">EN</option>
+          <option value="pt">PT</option>
+          <option value="ja">JA</option></select
+        ><button id="theme-switcher" class="icon" data-title="theme">◐</button>
+      </div>
+      <div class="workbench">
+        <aside class="library">
+          <div>
+            <div class="row">
+              <div class="section-label grow" data-i18n="project">Project</div>
+              <button
+                id="project-file-open"
+                class="icon"
+                data-title="projectFiles"
+              >
+                ⇅
+              </button>
+            </div>
+            <div class="row">
+              <select id="project-select" data-title="project"></select
+              ><button id="project-new" class="icon" data-title="newProject">
+                +
+              </button>
+            </div>
+            <div class="row">
+              <button id="project-rename" class="grow" data-i18n="rename">
+                Rename</button
+              ><button
+                id="project-delete"
+                class="icon danger"
+                data-title="deleteProject"
+              >
+                ×
+              </button>
+            </div>
+            <label for="project-format" data-i18n="sheetFormat"
+              >Page format</label
+            >
+            <select id="project-format" class="full"></select>
+          </div>
+          <div>
+            <div class="section-label" data-i18n="issue">Issue</div>
+            <div class="row">
+              <select id="issue-select" data-title="issue"></select
+              ><button id="issue-new" class="icon" data-title="newIssue">
+                +
+              </button>
+            </div>
+            <div class="row">
+              <button id="issue-rename" class="grow" data-i18n="rename">
+                Rename</button
+              ><button
+                id="issue-delete"
+                class="icon danger"
+                data-title="deleteIssue"
+              >
+                ×
+              </button>
+            </div>
+          </div>
+          <div class="row">
+            <span class="section-label grow" data-i18n="pages">Pages</span
+            ><button id="page-new" class="icon" data-title="addPage">+</button>
+          </div>
+          <div class="page-list" id="page-list"></div>
+          <div class="page-tools">
+            <select id="page-action" class="full" data-title="pageActions">
+              <option value="" data-i18n="pageActions">Page actions…</option>
+              <option value="before" data-i18n="insertBefore">
+                Insert before
+              </option>
+              <option value="after" data-i18n="insertAfter">
+                Insert after
+              </option>
+              <option value="duplicate" data-i18n="duplicate">Duplicate</option>
+              <option value="delete" data-i18n="deletePage">Delete page</option>
+            </select>
+            <div class="row">
+              <button id="page-up" class="icon" data-title="moveUp">↑</button
+              ><select id="page-position" data-title="moveTo"></select
+              ><button id="page-down" class="icon" data-title="moveDown">
+                ↓
+              </button>
+            </div>
+          </div>
+        </aside>
+        <main class="editor">
+          <div class="toolbar">
+            <button id="mode-edit" class="active" data-i18n="compose">
+              Compose</button
+            ><button id="mode-cut" data-i18n="cuts">Cuts</button
+            ><span class="spacer"></span
+            ><button id="undo" class="icon" data-title="undo">↶</button
+            ><button id="redo" class="icon" data-title="redo">↷</button>
+          </div>
+          <div class="stage" id="stage">
+            <canvas
+              id="sheet"
+              width="840"
+              height="1188"
+              tabindex="0"
+              data-title="canvas"
+            ></canvas>
+            <div id="empty" class="empty" hidden>
+              <h2 data-i18n="emptyTitle">Your next story starts here</h2>
+              <p data-i18n="emptyText">
+                Create a project and an issue, then add a page.
+              </p>
+              <button id="empty-create" class="primary" data-i18n="start">
+                Create a project
+              </button>
+            </div>
+          </div>
+          <div class="statusbar">
+            <span id="page-status"></span><span class="spacer"></span
+            ><span id="save-status" role="status"></span>
+          </div>
+        </main>
+        <aside class="inspector">
+          <section id="layout-tools" hidden>
+            <h2 data-i18n="layout">Page layout</h2>
+            <div class="row">
+              <button id="cut-draw" class="grow active" data-i18n="drawCuts">
+                Draw</button
+              ><button id="cut-edit" class="grow" data-i18n="editCuts">
+                Edit
+              </button>
+            </div>
+            <div id="cut-selection-tools" hidden>
+              <label for="cut-select" data-i18n="cutLine">Cut</label>
+              <select id="cut-select" class="full"></select>
+              <button
+                id="cut-remove"
+                class="full danger"
+                style="margin-top: 8px"
+                data-i18n="deleteCut"
+              >
+                Delete selected cut
+              </button>
+            </div>
+            <span
+              id="cut-mode-badge"
+              class="chip"
+              style="display: inline-block; margin-top: 10px"
+              data-i18n="cutBadge"
+              >Edge → edge</span
+            ><label for="gutter" data-i18n="gutter">Panel spacing</label
+            ><input id="gutter" type="range" min="0" max="32" step="2" />
+            <div class="row">
+              <span class="hint" id="gutter-value"></span
+              ><span class="spacer"></span
+              ><span class="hint" id="sheet-format-label"></span>
+            </div>
+            <label for="reuse-page" data-i18n="reuseFrom"
+              >Reuse cuts from page</label
+            >
+            <div class="row">
+              <select id="reuse-page"></select
+              ><button id="reuse" data-i18n="apply">Apply</button>
+            </div>
+            <button
+              id="reset-layout"
+              class="full"
+              style="margin-top: 12px"
+              data-i18n="resetCuts"
+            >
+              Reset cuts
+            </button>
+          </section>
+          <section id="compose-tools">
+            <h2 id="selection-title" data-i18n="panel">Panel</h2>
+            <div id="balloon-layers" hidden>
+              <label for="balloon-layer" data-i18n="balloonLayers"
+                >Balloons: back → front</label
+              >
+              <select id="balloon-layer" class="full"></select>
+            </div>
+            <div id="image-tools">
+              <button id="image-add" class="primary full" data-i18n="addImage">
+                Add image</button
+              ><label for="image-zoom" data-i18n="zoom">Zoom</label
+              ><input
+                id="image-zoom"
+                type="range"
+                min="0.25"
+                max="5"
+                step="0.01"
+              />
+              <div class="row">
+                <span id="zoom-value" class="hint">100%</span
+                ><span class="spacer"></span
+                ><button id="image-fit" data-i18n="fit">Reset</button>
+              </div>
+              <div class="two">
+                <div>
+                  <label for="image-x">X</label
+                  ><input
+                    id="image-x"
+                    type="number"
+                    min="-3000"
+                    max="3000"
+                    step="5"
+                  />
+                </div>
+                <div>
+                  <label for="image-y">Y</label
+                  ><input
+                    id="image-y"
+                    type="number"
+                    min="-3000"
+                    max="3000"
+                    step="5"
+                  />
+                </div>
+              </div>
+              <button
+                id="image-remove"
+                class="full danger"
+                style="margin-top: 10px"
+                data-i18n="removeImage"
+              >
+                Remove image
+              </button>
+            </div>
+            <div id="balloon-tools" hidden>
+              <label for="balloon-text" data-i18n="text">Text</label
+              ><textarea id="balloon-text" maxlength="1200"></textarea>
+              <div class="two">
+                <div>
+                  <label for="balloon-width" data-i18n="width">Width</label
+                  ><input id="balloon-width" type="number" min="80" max="780" />
+                </div>
+                <div>
+                  <label for="balloon-height" data-i18n="height">Height</label
+                  ><input
+                    id="balloon-height"
+                    type="number"
+                    min="60"
+                    max="1080"
+                  />
+                </div>
+              </div>
+              <div class="two">
+                <div>
+                  <label for="balloon-font" data-i18n="fontSize"
+                    >Text size</label
+                  ><input id="balloon-font" type="number" min="12" max="80" />
+                </div>
+                <div>
+                  <label for="balloon-color" data-i18n="fill">Fill</label
+                  ><input id="balloon-color" type="color" />
+                </div>
+              </div>
+              <label for="balloon-kind" data-i18n="style">Style</label
+              ><select id="balloon-kind" class="full"></select>
+              <div class="row" style="margin-top: 10px">
+                <button
+                  id="balloon-back"
+                  class="grow"
+                  data-i18n="back"
+                  data-title="sendBack"
+                >
+                  Back</button
+                ><button
+                  id="balloon-front"
+                  class="grow"
+                  data-i18n="front"
+                  data-title="sendFront"
+                >
+                  Front</button
+                ><button
+                  id="balloon-remove"
+                  class="icon danger"
+                  data-title="deleteBalloon"
+                >
+                  ×
+                </button>
+              </div>
+            </div>
+          </section>
+          <section id="add-balloon-tools">
+            <h2 data-i18n="balloons">Balloons</h2>
+            <select
+              id="new-balloon-kind"
+              class="full"
+              data-title="style"
+            ></select
+            ><button
+              id="balloon-add"
+              class="full"
+              style="margin-top: 8px"
+              data-i18n="addBalloon"
+            >
+              + Add balloon
+            </button>
+          </section>
+        </aside>
+      </div>
+    </div>
+    <input
+      type="file"
+      id="image-file"
+      accept="image/png,image/jpeg,image/webp,image/gif,image/avif"
+      hidden
+    />
+    <dialog id="help-dialog">
+      <div class="dialog-title">
+        <h2 data-i18n="helpTitle">Making a comic</h2>
+        <button class="icon" data-close="help-dialog" data-title="close">
+          ×
+        </button>
+      </div>
+      <ol>
+        <li data-i18n="helpOrganize"></li>
+        <li data-i18n="helpFormats"></li>
+        <li data-i18n="helpCuts"></li>
+        <li data-i18n="helpImages"></li>
+        <li data-i18n="helpBalloons"></li>
+        <li data-i18n="helpExport"></li>
+        <li data-i18n="helpProjectFile"></li>
+      </ol>
+      <p data-i18n="helpKeys"></p>
+      <p data-i18n="helpStorage"></p>
+      <a
+        href="../backup.html"
+        target="_blank"
+        rel="noopener"
+        data-i18n="openBackup"
+      ></a>
+    </dialog>
+    <dialog id="name-dialog">
+      <form id="name-form">
+        <h2 id="name-title"></h2>
+        <input
+          id="name-input"
+          class="full"
+          type="text"
+          maxlength="100"
+          required
+          autocomplete="off"
+        />
+        <div id="name-format-group" hidden>
+          <label for="name-format" data-i18n="sheetFormat">Page format</label>
+          <select id="name-format" class="full"></select>
+        </div>
+        <div class="actions">
+          <button type="button" data-close="name-dialog" data-i18n="cancel">
+            Cancel</button
+          ><button type="submit" class="primary" data-i18n="save">Save</button>
+        </div>
+      </form>
+    </dialog>
+    <dialog id="confirm-dialog">
+      <h2 data-i18n="confirmTitle">Confirm</h2>
+      <p id="confirm-text"></p>
+      <div class="actions">
+        <button data-close="confirm-dialog" data-i18n="cancel">Cancel</button
+        ><button id="confirm-yes" class="danger" data-i18n="continue">
+          Continue
+        </button>
+      </div>
+    </dialog>
+    <dialog id="export-dialog">
+      <div class="dialog-title">
+        <h2 data-i18n="export">Export</h2>
+        <button data-close="export-dialog" class="icon" data-title="close">
+          ×
+        </button>
+      </div>
+      <label for="export-type" data-i18n="format">Format</label
+      ><select id="export-type" class="full">
+        <option value="png" data-i18n="pagePNG">Current page · PNG</option>
+        <option value="pdf" data-i18n="pagePDF">Current page · PDF</option>
+        <option value="issue" data-i18n="issuePDF">Entire issue · PDF</option>
+      </select>
+      <p id="export-dimensions"></p>
+      <p data-i18n="exportInfo"></p>
+      <span id="export-progress" role="status"></span>
+      <div class="actions">
+        <button id="export-run" class="primary" data-i18n="download">
+          Download
+        </button>
+      </div>
+    </dialog>
+    <dialog id="project-file-dialog">
+      <div class="dialog-title">
+        <h2 data-i18n="projectFiles">Import / export project</h2>
+        <button
+          id="project-file-close"
+          class="icon"
+          data-close="project-file-dialog"
+          data-title="close"
+        >
+          ×
+        </button>
+      </div>
+      <p data-i18n="projectFileInfo"></p>
+      <div class="actions">
+        <button id="project-file-import" data-i18n="importProjectJSON">
+          Import JSON
+        </button>
+        <button
+          id="project-file-export"
+          class="primary"
+          data-i18n="exportProjectJSON"
+        >
+          Export JSON
+        </button>
+      </div>
+      <p id="project-file-status" role="status" aria-live="polite"></p>
+    </dialog>
+    <input
+      type="file"
+      id="project-file-input"
+      accept=".json,application/json"
+      hidden
+    />
+    <div id="toast" role="status" hidden></div>
+    <script>
+      "use strict";
+      const $ = (id) => document.getElementById(id),
+        W = 840,
+        H = 1188,
+        M = 36;
+      // Logical pixels use 4 units per millimeter; exports render at 3×.
+      const PAGE_FORMATS = {
+        portrait: {
+          w: 840,
+          h: 1188,
+          mmW: 210,
+          mmH: 297,
+          label: "formatPortrait",
+        },
+        landscape: {
+          w: 1188,
+          h: 840,
+          mmW: 297,
+          mmH: 210,
+          label: "formatLandscape",
+        },
+        // B5 ISO / JIS dimensions: https://printersetup.ext.hp.com/ts/manual/Samsung%20M2070%20Series/English/manual/BABCHFBC.htm
+        b5Portrait: {
+          w: 704,
+          h: 1000,
+          mmW: 176,
+          mmH: 250,
+          label: "formatB5Portrait",
+        },
+        b5Landscape: {
+          w: 1000,
+          h: 704,
+          mmW: 250,
+          mmH: 176,
+          label: "formatB5Landscape",
+        },
+        b5JisPortrait: {
+          w: 728,
+          h: 1028,
+          mmW: 182,
+          mmH: 257,
+          label: "formatB5JisPortrait",
+        },
+        b5JisLandscape: {
+          w: 1028,
+          h: 728,
+          mmW: 257,
+          mmH: 182,
+          label: "formatB5JisLandscape",
+        },
+        stripVertical: {
+          w: 600,
+          h: 1800,
+          mmW: 150,
+          mmH: 450,
+          label: "formatStripVertical",
+        },
+        stripHorizontal: {
+          w: 1800,
+          h: 600,
+          mmW: 450,
+          mmH: 150,
+          label: "formatStripHorizontal",
+        },
+      };
+      function pageSize(pg = current()) {
+        return (
+          PAGE_FORMATS[pg?.format || project()?.format] || PAGE_FORMATS.portrait
+        );
+      }
+      function formatOptions() {
+        return Object.entries(PAGE_FORMATS).map(([id, size]) => [
+          id,
+          t(size.label),
+        ]);
+      }
+      const I18N = {
+        en: {
+          drawCuts: "Draw",
+          editCuts: "Edit",
+          cutLine: "Cut",
+          selectCut: "Select a cut…",
+          deleteCut: "Delete selected cut",
+          cutEditBadge: "Drag a line or its endpoints",
+          cutMoveInvalid:
+            "This move would collapse a panel. Try a smaller adjustment.",
+          projectFiles: "Import / export project",
+          importProjectJSON: "Import JSON",
+          exportProjectJSON: "Export JSON",
+          projectFileInfo:
+            "One editable project in a JSON file, with all issues, pages, balloons and original images. Import creates a new project without replacing existing ones.",
+          helpProjectFile:
+            "The ⇅ button beside Project imports and exports a complete editable project as .comic.json. Images are embedded once, including those shared by several panels. The import validates the file and creates a separate project; when the name already exists, a number is added. Files up to 256 MB are supported.",
+          projectFileImages: "Images",
+          projectFileWorking: "Preparing project…",
+          projectFileExported: "Project exported, including its images.",
+          projectFileImported: "Project imported:",
+          projectFileFailed:
+            "Could not complete the transfer. Check available storage and try again.",
+          invalidProjectFile:
+            "This is not a valid Comic Studio project file. Nothing was imported.",
+          projectFileVersion:
+            "This project file version is not supported. Nothing was imported.",
+          projectFileTooLarge:
+            "The project file exceeds the 256 MB limit, or contains an image larger than 40 MB.",
+          projectFileMissingImage:
+            "The file is missing an image used by a panel. Nothing was imported.",
+          projectFileInvalidImage:
+            "An embedded image is damaged or cannot be decoded. Nothing was imported.",
+          formatB5Portrait: "Vertical · B5 ISO",
+          formatB5Landscape: "Horizontal · B5 ISO",
+          formatB5JisPortrait: "Vertical · B5 JIS",
+          formatB5JisLandscape: "Horizontal · B5 JIS",
+          sheetFormat: "Page format",
+          formatPortrait: "Vertical · A4",
+          formatLandscape: "Horizontal · A4",
+          formatStripVertical: "Vertical strip · 1:3",
+          formatStripHorizontal: "Horizontal strip · 3:1",
+          helpFormats:
+            "The page format belongs to the project and applies to every issue. Choose A4 or B5 portrait / landscape (B5 ISO: 176 × 250 mm; B5 JIS: 182 × 257 mm), or a 1:3 vertical / 3:1 horizontal strip (150 × 450 mm or 450 × 150 mm). Changing it adapts existing panel cuts and positions while preserving images and text. Review image framing afterwards. New pages inherit the project format, and exports use its dimensions.",
+          title: "Comic Studio",
+          project: "Project",
+          issue: "Issue",
+          pages: "Pages",
+          rename: "Rename",
+          newProject: "New project",
+          newIssue: "New issue",
+          deleteProject: "Delete project",
+          deleteIssue: "Delete issue",
+          addPage: "Add page after selection",
+          pageActions: "Page actions…",
+          insertBefore: "Insert before",
+          insertAfter: "Insert after",
+          duplicate: "Duplicate",
+          deletePage: "Delete page",
+          moveUp: "Move page up",
+          moveDown: "Move page down",
+          moveTo: "Move to page",
+          compose: "Compose",
+          cuts: "Cuts",
+          undo: "Undo (Ctrl/⌘ Z)",
+          redo: "Redo (Ctrl/⌘ Shift Z)",
+          canvas:
+            "Comic page. Drag edges to cut; drag images and balloons to position them.",
+          emptyTitle: "Your next story starts here",
+          emptyText: "Create a project and an issue, then add a page.",
+          start: "Create a project",
+          layout: "Page layout",
+          cutBadge: "Edge → edge",
+          gutter: "Panel spacing",
+          reuseFrom: "Reuse cuts from page",
+          apply: "Apply",
+          resetCuts: "Delete all cuts",
+          panel: "Panel",
+          addImage: "Add / replace image",
+          zoom: "Zoom",
+          fit: "Reset",
+          removeImage: "Remove image",
+          text: "Text",
+          width: "Width",
+          height: "Height",
+          fontSize: "Text size",
+          fill: "Fill",
+          style: "Style",
+          back: "To back",
+          front: "To front",
+          sendBack: "Send behind all other balloons",
+          sendFront: "Bring in front of all other balloons",
+          balloonLayers: "Balloons: back → front",
+          chooseBalloon: "Select a balloon…",
+          deleteBalloon: "Delete balloon",
+          balloons: "Balloons",
+          addBalloon: "+ Add balloon",
+          speech: "Speech",
+          thought: "Thought",
+          expression: "Expression",
+          shout: "Shout",
+          narration: "Narration",
+          help: "Help (?)",
+          theme: "Switch light / dark theme",
+          helpTitle: "Making a comic",
+          helpOrganize:
+            "Create named projects and issues. The + button adds a page after the selected one. Use Page actions to insert before or duplicate. Drag a page onto another to place it there, or use the arrows and position selector. Numbers always follow the reading order.",
+          helpCuts:
+            "In Cuts, drag a straight line from a margin or existing panel edge to another edge. Diagonals and cuts across several panels work too. Endpoints snap to nearby edges; a cut must fully divide at least one panel. Reuse cuts copies only the layout from a page in this issue. Replacing a layout clears panel images and can be undone. To adjust an existing cut, choose Edit, select the line and drag it; the endpoint handles change its angle. Delete removes the selected divider and its spacing, preserving images in their original editable areas and leaving balloons untouched. Collinear segments are edited together. Delete all cuts also keeps all artwork. These actions support undo and redo.",
+          helpImages:
+            "In Compose, click a panel and add a local image, drop an image on it, or paste an image from the clipboard. Drag to reposition; use the zoom slider or mouse wheel to zoom. X and Y adjust the offset. Images are clipped inside the panels.",
+          helpBalloons:
+            "Choose a balloon style and add it. Drag the body to move, the square handle to resize, and the circular handle to aim the tail. Edit text, size and fill in the sidebar. Text automatically shrinks to fit. To front / To back changes the order between balloons; it is visible where they overlap. The layer selector also selects hidden balloons. Buttons are disabled when a balloon is already at that end of the stack. Balloons can overlap panels.",
+          helpExport:
+            "Export the current page as PNG or PDF, or the issue as one PDF in reading order. Exports use the project’s page format at 3× resolution, without selection marks or empty-panel labels. Export works offline.",
+          helpKeys:
+            "Shortcuts: ? opens help; Ctrl/⌘ Z undoes; Ctrl/⌘ Shift Z redoes; Delete removes the selected cut in Cuts, or the selected image or balloon in Compose; arrows move it (Shift for larger steps). Undo history is per page for this session.",
+          helpStorage:
+            "Everything stays in this browser. Projects, issues, pages and original image files are stored in IndexedDB. Use Backup to keep a copy or move to another browser. Closing during a save may lose the latest change.",
+          openBackup: "Open Backup",
+          close: "Close",
+          cancel: "Cancel",
+          save: "Save",
+          confirmTitle: "Confirm",
+          continue: "Continue",
+          export: "Export",
+          format: "Format",
+          pagePNG: "Current page · PNG",
+          pagePDF: "Current page · PDF",
+          issuePDF: "Entire issue · PDF",
+          exportInfo:
+            "Images and text are flattened into the exported artwork.",
+          download: "Download",
+          page: "Page",
+          panels: "panels",
+          saved: "Saved locally",
+          saving: "Saving…",
+          saveError: "Not saved — retry",
+          loadError: "Could not open storage. Reload to retry.",
+          imageError: "Could not read this image. Try PNG, JPEG or WebP.",
+          missingImage:
+            "An image could not be loaded. Restore it from Backup or replace it before exporting.",
+          cutError: "Connect two edges to divide a panel.",
+          cutStart: "Start on a margin or panel edge.",
+          cutSuccess: "Panel layout updated",
+          reuseConfirm:
+            "Replace this layout? Panel images will be removed; balloons will remain. You can undo this change.",
+          deleteConfirm:
+            "Delete this item and all its contents? This cannot be undone.",
+          deletePageConfirm:
+            "Delete this page and its contents? This cannot be undone.",
+          noPages: "No pages",
+          noProjects: "No projects",
+          noIssues: "No issues",
+          noSource: "No other pages",
+          balloonDefault: "Your text",
+          exporting: "Preparing page",
+          exportDone: "Export ready",
+          exportError: "Export failed. Check available memory and try again.",
+          storageChanged:
+            "Storage changed in another tab. Reload this page before editing.",
+          choosePanel: "Select a panel",
+          imageHint: "Add image",
+          language: "Language",
+          issueDefault: "Issue",
+          projectDefault: "Project",
+          position: "Position",
+          imageBusy: "Loading image…",
+          tooLarge: "Image is too large (maximum 40 MB / 60 megapixels).",
+        },
+        pt: {
+          drawCuts: "Desenhar",
+          editCuts: "Editar",
+          cutLine: "Corte",
+          selectCut: "Selecionar corte…",
+          deleteCut: "Apagar corte selecionado",
+          cutEditBadge: "Arraste a linha ou as pontas",
+          cutMoveInvalid:
+            "Esse movimento eliminaria um quadro. Tente um ajuste menor.",
+          projectFiles: "Importar / exportar projeto",
+          importProjectJSON: "Importar JSON",
+          exportProjectJSON: "Exportar JSON",
+          projectFileInfo:
+            "Um projeto editável em um arquivo JSON, com todas as edições, páginas, balões e imagens originais. A importação cria um novo projeto sem substituir os existentes.",
+          helpProjectFile:
+            "O botão ⇅ ao lado de Projeto importa e exporta um projeto editável completo em .comic.json. Cada imagem é incluída uma única vez, mesmo quando usada em vários quadros. A importação valida o arquivo e cria um projeto separado; se o nome já existir, acrescenta um número. São aceitos arquivos de até 256 MB.",
+          projectFileImages: "Imagens",
+          projectFileWorking: "Preparando projeto…",
+          projectFileExported: "Projeto exportado com as imagens.",
+          projectFileImported: "Projeto importado:",
+          projectFileFailed:
+            "Não foi possível concluir a transferência. Verifique o espaço disponível e tente novamente.",
+          invalidProjectFile:
+            "Este não é um arquivo de projeto válido do Estúdio de HQ. Nada foi importado.",
+          projectFileVersion:
+            "Esta versão do arquivo de projeto não é compatível. Nada foi importado.",
+          projectFileTooLarge:
+            "O arquivo excede o limite de 256 MB ou contém uma imagem maior que 40 MB.",
+          projectFileMissingImage:
+            "Falta no arquivo uma imagem usada em um quadro. Nada foi importado.",
+          projectFileInvalidImage:
+            "Uma imagem incluída está danificada ou não pode ser lida. Nada foi importado.",
+          formatB5Portrait: "Vertical · B5 ISO",
+          formatB5Landscape: "Horizontal · B5 ISO",
+          formatB5JisPortrait: "Vertical · B5 JIS",
+          formatB5JisLandscape: "Horizontal · B5 JIS",
+          sheetFormat: "Formato da folha",
+          formatPortrait: "Vertical · A4",
+          formatLandscape: "Horizontal · A4",
+          formatStripVertical: "Tira vertical · 1:3",
+          formatStripHorizontal: "Tira horizontal · 3:1",
+          helpFormats:
+            "O formato da folha pertence ao projeto e vale para todas as edições. Escolha A4 ou B5 vertical / horizontal (B5 ISO: 176 × 250 mm; B5 JIS: 182 × 257 mm), ou uma tira vertical 1:3 / horizontal 3:1 (150 × 450 mm ou 450 × 150 mm). Ao trocar, os cortes e as posições existentes são adaptados, mantendo imagens e textos. Revise o enquadramento das imagens depois da troca. Novas páginas herdam o formato do projeto, e a exportação respeita suas dimensões.",
+          title: "Estúdio de HQ",
+          project: "Projeto",
+          issue: "Edição",
+          pages: "Páginas",
+          rename: "Renomear",
+          newProject: "Novo projeto",
+          newIssue: "Nova edição",
+          deleteProject: "Excluir projeto",
+          deleteIssue: "Excluir edição",
+          addPage: "Adicionar página após a selecionada",
+          pageActions: "Ações da página…",
+          insertBefore: "Inserir antes",
+          insertAfter: "Inserir depois",
+          duplicate: "Duplicar",
+          deletePage: "Excluir página",
+          moveUp: "Mover página para cima",
+          moveDown: "Mover página para baixo",
+          moveTo: "Mover para a página",
+          compose: "Compor",
+          cuts: "Cortes",
+          undo: "Desfazer (Ctrl/⌘ Z)",
+          redo: "Refazer (Ctrl/⌘ Shift Z)",
+          canvas:
+            "Página de quadrinhos. Arraste entre bordas para cortar; arraste imagens e balões para posicionar.",
+          emptyTitle: "Sua próxima história começa aqui",
+          emptyText:
+            "Crie um projeto e uma edição, depois adicione uma página.",
+          start: "Criar um projeto",
+          layout: "Divisões da folha",
+          cutBadge: "Borda → borda",
+          gutter: "Espaço entre quadros",
+          reuseFrom: "Reusar cortes da página",
+          apply: "Aplicar",
+          resetCuts: "Apagar todos os cortes",
+          panel: "Quadro",
+          addImage: "Adicionar / trocar imagem",
+          zoom: "Zoom",
+          fit: "Redefinir",
+          removeImage: "Remover imagem",
+          text: "Texto",
+          width: "Largura",
+          height: "Altura",
+          fontSize: "Tamanho do texto",
+          fill: "Fundo",
+          style: "Estilo",
+          back: "Ao fundo",
+          front: "À frente",
+          sendBack: "Enviar para trás de todos os outros balões",
+          sendFront: "Trazer para a frente de todos os outros balões",
+          balloonLayers: "Balões: fundo → frente",
+          chooseBalloon: "Selecionar balão…",
+          deleteBalloon: "Excluir balão",
+          balloons: "Balões",
+          addBalloon: "+ Adicionar balão",
+          speech: "Fala",
+          thought: "Pensamento",
+          expression: "Expressão",
+          shout: "Grito",
+          narration: "Narração",
+          help: "Ajuda (?)",
+          theme: "Alternar tema claro / escuro",
+          helpTitle: "Montando sua HQ",
+          helpOrganize:
+            "Crie projetos e edições com nomes. O botão + insere uma página após a selecionada. Em Ações da página, insira antes ou duplique. Arraste uma página sobre outra para ocupar sua posição, ou use as setas e o seletor de posição. Os números sempre seguem a ordem de leitura.",
+          helpCuts:
+            "Em Cortes, arraste uma linha reta de uma margem ou borda de quadro até outra borda. Também funciona na diagonal e atravessando vários quadros. As pontas se encaixam nas bordas próximas; o corte precisa dividir pelo menos um quadro inteiro. Reusar cortes copia somente as divisões de outra página desta edição. Substituir as divisões remove as imagens dos quadros e pode ser desfeito. Para ajustar um corte, escolha Editar, selecione a linha e arraste; as alças nas pontas mudam a inclinação. Apagar remove o contorno e o espaço da divisão, preservando as imagens nas suas áreas editáveis e mantendo os balões. Segmentos alinhados são editados juntos. Apagar todos os cortes também mantém toda a arte. Essas ações podem ser desfeitas e refeitas.",
+          helpImages:
+            "Em Compor, clique em um quadro e adicione uma imagem local, solte um arquivo sobre ele ou cole uma imagem da área de transferência. Arraste para posicionar; use o controle de zoom ou a roda do mouse para ampliar. X e Y ajustam o deslocamento. As imagens ficam recortadas dentro dos quadros.",
+          helpBalloons:
+            "Escolha um estilo e adicione o balão. Arraste o corpo para mover, a alça quadrada para redimensionar e a alça circular para apontar a cauda. Edite texto, tamanho e fundo no painel lateral. O texto diminui automaticamente para caber. À frente / Ao fundo muda a ordem entre balões; o efeito aparece onde eles se sobrepõem. O seletor de camadas também permite selecionar balões escondidos. Os botões ficam desativados quando o balão já está naquela extremidade da pilha. Balões podem atravessar quadros.",
+          helpExport:
+            "Exporte a página atual em PNG ou PDF, ou toda a edição em um PDF na ordem de leitura. A exportação usa o formato do projeto com resolução 3×, sem marcas de seleção ou rótulos dos quadros vazios. Funciona sem internet.",
+          helpKeys:
+            "Atalhos: ? abre a ajuda; Ctrl/⌘ Z desfaz; Ctrl/⌘ Shift Z refaz; Delete apaga o corte selecionado em Cortes, ou a imagem / balão em Compor; setas movem (Shift aumenta o passo). O histórico é por página e dura esta sessão.",
+          helpStorage:
+            "Tudo fica neste navegador. Projetos, edições, páginas e arquivos originais das imagens são salvos no IndexedDB. Use Backup para guardar uma cópia ou trocar de navegador. Fechar durante o salvamento pode perder a última alteração.",
+          openBackup: "Abrir Backup",
+          close: "Fechar",
+          cancel: "Cancelar",
+          save: "Salvar",
+          confirmTitle: "Confirmar",
+          continue: "Continuar",
+          export: "Exportar",
+          format: "Formato",
+          pagePNG: "Página atual · PNG",
+          pagePDF: "Página atual · PDF",
+          issuePDF: "Edição inteira · PDF",
+          exportInfo: "Imagens e textos são reunidos na arte exportada.",
+          download: "Baixar",
+          page: "Página",
+          panels: "quadros",
+          saved: "Salvo localmente",
+          saving: "Salvando…",
+          saveError: "Não salvo — tentar novamente",
+          loadError:
+            "Não foi possível abrir o armazenamento. Recarregue para tentar novamente.",
+          imageError: "Não foi possível ler a imagem. Tente PNG, JPEG ou WebP.",
+          missingImage:
+            "Uma imagem não pôde ser carregada. Restaure pelo Backup ou troque a imagem antes de exportar.",
+          cutError: "Conecte duas bordas para dividir um quadro.",
+          cutStart: "Comece na margem ou na borda de um quadro.",
+          cutSuccess: "Divisões atualizadas",
+          reuseConfirm:
+            "Substituir as divisões? As imagens dos quadros serão removidas; os balões serão mantidos. É possível desfazer.",
+          deleteConfirm:
+            "Excluir este item e todo o conteúdo? Esta ação não pode ser desfeita.",
+          deletePageConfirm:
+            "Excluir esta página e seu conteúdo? Esta ação não pode ser desfeita.",
+          noPages: "Sem páginas",
+          noProjects: "Sem projetos",
+          noIssues: "Sem edições",
+          noSource: "Sem outras páginas",
+          balloonDefault: "Seu texto",
+          exporting: "Preparando página",
+          exportDone: "Exportação pronta",
+          exportError:
+            "Falha ao exportar. Verifique a memória disponível e tente novamente.",
+          storageChanged:
+            "O armazenamento mudou em outra aba. Recarregue antes de editar.",
+          choosePanel: "Selecione um quadro",
+          imageHint: "Adicionar imagem",
+          language: "Idioma",
+          issueDefault: "Edição",
+          projectDefault: "Projeto",
+          position: "Posição",
+          imageBusy: "Carregando imagem…",
+          tooLarge: "Imagem muito grande (máximo 40 MB / 60 megapixels).",
+        },
+        ja: {
+          drawCuts: "描く",
+          editCuts: "編集",
+          cutLine: "分割線",
+          selectCut: "分割線を選択…",
+          deleteCut: "選択した線を削除",
+          cutEditBadge: "線や端点をドラッグ",
+          cutMoveInvalid:
+            "この移動ではコマがつぶれます。移動量を小さくしてください。",
+          projectFiles: "プロジェクトの読み込み・書き出し",
+          importProjectJSON: "JSONを読み込む",
+          exportProjectJSON: "JSONを書き出す",
+          projectFileInfo:
+            "全巻、ページ、吹き出し、元の画像を一つのJSONファイルに保存します。読み込み時は既存のプロジェクトを置き換えず、新しいプロジェクトを作成します。",
+          helpProjectFile:
+            "プロジェクト横の⇅ボタンで、編集可能なプロジェクト全体を.comic.json形式で読み込み・書き出しできます。複数のコマで共有する画像も一度だけ埋め込みます。読み込み時はファイルを検証し、別のプロジェクトを作成します。同名の場合は番号を付けます。ファイルの上限は256 MBです。",
+          projectFileImages: "画像",
+          projectFileWorking: "プロジェクトを準備中…",
+          projectFileExported: "画像を含むプロジェクトを書き出しました。",
+          projectFileImported: "読み込んだプロジェクト：",
+          projectFileFailed:
+            "転送を完了できませんでした。空き容量を確認して再試行してください。",
+          invalidProjectFile:
+            "有効なコミック工房のプロジェクトファイルではありません。何も読み込んでいません。",
+          projectFileVersion:
+            "このプロジェクトファイルのバージョンには対応していません。何も読み込んでいません。",
+          projectFileTooLarge:
+            "ファイルが256 MBを超えているか、40 MBを超える画像が含まれています。",
+          projectFileMissingImage:
+            "コマで使われている画像がファイルにありません。何も読み込んでいません。",
+          projectFileInvalidImage:
+            "埋め込み画像が壊れているか、読み取れません。何も読み込んでいません。",
+          formatB5Portrait: "縦 · B5 ISO",
+          formatB5Landscape: "横 · B5 ISO",
+          formatB5JisPortrait: "縦 · B5 JIS",
+          formatB5JisLandscape: "横 · B5 JIS",
+          sheetFormat: "用紙の形式",
+          formatPortrait: "縦 · A4",
+          formatLandscape: "横 · A4",
+          formatStripVertical: "縦長の漫画 · 1:3",
+          formatStripHorizontal: "横長の漫画 · 3:1",
+          helpFormats:
+            "用紙の形式はプロジェクト内のすべての巻に適用されます。A4・B5の縦・横（B5 ISO：176 × 250 mm、B5 JIS：182 × 257 mm）、または縦長1:3・横長3:1（150 × 450 mm・450 × 150 mm）を選べます。変更すると画像と文字を残して既存のコマ割りと配置を調整します。変更後に画像の見切れ方を確認してください。新規ページはプロジェクトの形式を引き継ぎ、書き出しにも同じ寸法を使います。",
+          title: "コミック工房",
+          project: "プロジェクト",
+          issue: "巻",
+          pages: "ページ",
+          rename: "名前変更",
+          newProject: "新規プロジェクト",
+          newIssue: "新しい巻",
+          deleteProject: "プロジェクトを削除",
+          deleteIssue: "巻を削除",
+          addPage: "選択ページの後に追加",
+          pageActions: "ページ操作…",
+          insertBefore: "前に挿入",
+          insertAfter: "後に挿入",
+          duplicate: "複製",
+          deletePage: "ページを削除",
+          moveUp: "ページを前へ",
+          moveDown: "ページを後へ",
+          moveTo: "移動先のページ",
+          compose: "編集",
+          cuts: "コマ割り",
+          undo: "元に戻す (Ctrl/⌘ Z)",
+          redo: "やり直す (Ctrl/⌘ Shift Z)",
+          canvas:
+            "漫画ページ。枠から枠へドラッグして分割し、画像や吹き出しをドラッグして配置します。",
+          emptyTitle: "ここから物語を始めましょう",
+          emptyText: "プロジェクトと巻を作成し、ページを追加してください。",
+          start: "プロジェクトを作成",
+          layout: "ページのコマ割り",
+          cutBadge: "枠 → 枠",
+          gutter: "コマの間隔",
+          reuseFrom: "コマ割りのコピー元",
+          apply: "適用",
+          resetCuts: "すべての分割線を削除",
+          panel: "コマ",
+          addImage: "画像を追加・変更",
+          zoom: "拡大率",
+          fit: "リセット",
+          removeImage: "画像を削除",
+          text: "テキスト",
+          width: "幅",
+          height: "高さ",
+          fontSize: "文字サイズ",
+          fill: "背景色",
+          style: "種類",
+          back: "最背面へ",
+          front: "最前面へ",
+          sendBack: "他のすべての吹き出しの後ろへ移動",
+          sendFront: "他のすべての吹き出しの前へ移動",
+          balloonLayers: "吹き出し：背面 → 前面",
+          chooseBalloon: "吹き出しを選択…",
+          deleteBalloon: "吹き出しを削除",
+          balloons: "吹き出し",
+          addBalloon: "+ 吹き出しを追加",
+          speech: "セリフ",
+          thought: "心の声",
+          expression: "感情",
+          shout: "叫び",
+          narration: "ナレーション",
+          help: "ヘルプ (?)",
+          theme: "ライト・ダーク切替",
+          helpTitle: "漫画の作り方",
+          helpOrganize:
+            "名前付きのプロジェクトと巻を作成します。＋で選択ページの後に追加します。ページ操作から前への挿入や複製もできます。ページを別のページへドラッグするか、矢印や移動先の選択で並べ替えます。番号は読む順番に更新されます。",
+          helpCuts:
+            "コマ割りモードで余白の枠や既存のコマの枠から別の枠まで直線を引きます。斜めの線や複数のコマを横切る線にも対応します。端点は近くの枠に吸着し、少なくとも一つのコマを完全に分割する必要があります。同じ巻のページ番号を選んでコマ割りだけをコピーできます。置き換えるとコマ内の画像が消えますが、元に戻せます。既存の線は「編集」で選択してドラッグでき、端点のハンドルで角度を変えられます。削除すると線と間隔がなくなり、画像は元の編集可能な領域に残り、吹き出しも変わりません。同一直線上の線はまとめて編集します。「すべての分割線を削除」でも作品は残ります。元に戻す・やり直すに対応します。",
+          helpImages:
+            "編集モードでコマを選び、画像を追加・ドロップするかクリップボードから貼り付けます。ドラッグで位置、スライダーやホイールで拡大率を調整します。XとYでも位置を指定できます。画像はコマの内側に切り抜かれます。",
+          helpBalloons:
+            "種類を選んで吹き出しを追加します。本体をドラッグして移動、四角いハンドルでサイズ変更、丸いハンドルでしっぽの向きを変えられます。サイドバーで文字・サイズ・色を編集します。文字は自動で縮小して収まります。最前面・最背面で吹き出しの重なり順を変更し、重なった部分に効果が現れます。レイヤー選択で隠れた吹き出しも選べます。すでに端にある場合、その方向のボタンは無効になります。コマをまたぐ配置もできます。",
+          helpExport:
+            "現在のページをPNGやPDF、巻全体を読む順番で一つのPDFに出力します。プロジェクトの用紙形式を3倍の解像度で書き出し、選択枠や空のコマのラベルは含みません。オフラインでも使えます。",
+          helpKeys:
+            "ショートカット：? でヘルプ、Ctrl/⌘ Zで元に戻す、Ctrl/⌘ Shift Zでやり直す、Deleteでコマ割りモードの選択線、編集モードの画像・吹き出しを削除、矢印で移動（Shiftで大きく移動）。履歴はページごとに、このセッション中だけ保存されます。",
+          helpStorage:
+            "すべてこのブラウザー内に保存します。プロジェクト、巻、ページと画像の元ファイルはIndexedDBに保存します。バックアップでコピーや別のブラウザーへの移行ができます。保存中に閉じると最新の変更が失われる場合があります。",
+          openBackup: "バックアップを開く",
+          close: "閉じる",
+          cancel: "キャンセル",
+          save: "保存",
+          confirmTitle: "確認",
+          continue: "続行",
+          export: "書き出し",
+          format: "形式",
+          pagePNG: "現在のページ · PNG",
+          pagePDF: "現在のページ · PDF",
+          issuePDF: "巻全体 · PDF",
+          exportInfo: "画像と文字を一枚の画像として書き出します。",
+          download: "ダウンロード",
+          page: "ページ",
+          panels: "コマ",
+          saved: "保存済み",
+          saving: "保存中…",
+          saveError: "未保存 — 再試行",
+          loadError: "ストレージを開けませんでした。再読み込みしてください。",
+          imageError: "画像を読み込めません。PNG、JPEG、WebPをお試しください。",
+          missingImage:
+            "読み込めない画像があります。バックアップから復元するか画像を変更してから書き出してください。",
+          cutError: "二つの枠をつないでコマを分割してください。",
+          cutStart: "余白やコマの枠から始めてください。",
+          cutSuccess: "コマ割りを更新しました",
+          reuseConfirm:
+            "コマ割りを置き換えますか？画像は削除され、吹き出しは残ります。元に戻すことができます。",
+          deleteConfirm: "この項目と内容をすべて削除しますか？元に戻せません。",
+          deletePageConfirm: "このページと内容を削除しますか？元に戻せません。",
+          noPages: "ページなし",
+          noProjects: "プロジェクトなし",
+          noIssues: "巻なし",
+          noSource: "他のページがありません",
+          balloonDefault: "テキスト",
+          exporting: "ページを準備中",
+          exportDone: "書き出し完了",
+          exportError:
+            "書き出しに失敗しました。メモリを確認して再試行してください。",
+          storageChanged:
+            "別のタブでデータが変更されました。編集前に再読み込みしてください。",
+          choosePanel: "コマを選択",
+          imageHint: "画像を追加",
+          language: "言語",
+          issueDefault: "巻",
+          projectDefault: "プロジェクト",
+          position: "位置",
+          imageBusy: "画像を読み込み中…",
+          tooLarge: "画像が大きすぎます（最大40 MB・6000万画素）。",
+        },
+      };
+      const clone = (x) => structuredClone(x),
+        uid = () => crypto.randomUUID(),
+        clamp = (n, a, b) => Math.max(a, Math.min(b, n));
+      let prefs = {};
+      try {
+        prefs = JSON.parse(localStorage.getItem("comicStudio.prefs.v1")) || {};
+      } catch {}
+      let lang = ["en", "pt", "ja"].includes(prefs.lang)
+        ? prefs.lang
+        : (navigator.language || "en").slice(0, 2);
+      if (!I18N[lang]) lang = "en";
+      let theme = prefs.theme || "light",
+        db,
+        projects = [],
+        selection = { ...prefs.selection },
+        mode = "edit",
+        selectedPanel = null,
+        selectedBalloon = null,
+        selectedCutKey = null,
+        cutSelectionPage = null,
+        cutAction = "draw",
+        gesture = null,
+        ready = false,
+        saving = 0,
+        saveFailed = false,
+        stale = false,
+        exportBusy = false;
+      const images = new Map(),
+        histories = new Map(),
+        kinds = ["speech", "thought", "expression", "shout", "narration"];
+      const project = () => projects.find((x) => x.id === selection.project),
+        issue = () => project()?.issues.find((x) => x.id === selection.issue),
+        current = () => issue()?.pages.find((x) => x.id === selection.page),
+        panel = () => current()?.panels.find((x) => x.id === selectedPanel),
+        balloon = () =>
+          current()?.balloons.find((x) => x.id === selectedBalloon),
+        t = (k) => I18N[lang][k] || I18N.en[k] || k;
+      function savePrefs() {
+        try {
+          localStorage.setItem(
+            "comicStudio.prefs.v1",
+            JSON.stringify({ lang, theme, selection }),
+          );
+        } catch {}
+      }
+      function message(key) {
+        $("toast").textContent = t(key);
+        $("toast").hidden = false;
+        clearTimeout(message.timer);
+        message.timer = setTimeout(() => ($("toast").hidden = true), 4500);
+      }
+      function txDone(tx) {
+        return new Promise((resolve, reject) => {
+          tx.oncomplete = resolve;
+          tx.onabort = tx.onerror = () =>
+            reject(tx.error || Error("Transaction failed"));
+        });
+      }
+      function request(req) {
+        return new Promise((resolve, reject) => {
+          req.onsuccess = () => resolve(req.result);
+          req.onerror = () => reject(req.error);
+        });
+      }
+      const channel =
+        typeof BroadcastChannel !== "undefined"
+          ? new BroadcastChannel("comicStudio.v1")
+          : null;
+      channel?.addEventListener("message", () => {
+        stale = true;
+        document.body.classList.add("busy");
+        message("storageChanged");
+        $("save-status").textContent = t("storageChanged");
+      });
+      async function collectUnusedAssets() {
+        if (importing || !ready || stale) return;
+        const used = new Set(),
+          scan = (pg) =>
+            pg.panels.forEach((p) => {
+              if (p.image) used.add(p.image.asset);
+            });
+        projects.forEach((p) => p.issues.forEach((i) => i.pages.forEach(scan)));
+        histories.forEach((h) => [...h.undo, ...h.redo].forEach(scan));
+        const tx = db.transaction("assets", "readwrite"),
+          done = txDone(tx),
+          cursor = tx.objectStore("assets").openKeyCursor();
+        cursor.onsuccess = () => {
+          const c = cursor.result;
+          if (!c) return;
+          if (!used.has(c.primaryKey)) {
+            tx.objectStore("assets").delete(c.primaryKey);
+            images.delete(c.primaryKey);
+          }
+          c.continue();
+        };
+        await done;
+      }
+      function forgetPages(pages) {
+        pages.forEach((pg) => histories.delete(pg.id));
+      }
+      function saveStatus() {
+        const el = $("save-status");
+        el.textContent = t(
+          saveFailed ? "saveError" : saving ? "saving" : "saved",
+        );
+        el.classList.toggle("error", saveFailed);
+        el.style.cursor = saveFailed ? "pointer" : "";
+      }
+      async function persist() {
+        if (!ready || stale) return;
+        const snapshot = clone(projects);
+        saving++;
+        saveStatus();
+        savePrefs();
+        try {
+          const tx = db.transaction("projects", "readwrite");
+          const done = txDone(tx),
+            store = tx.objectStore("projects");
+          store.clear();
+          snapshot.forEach((p) => store.put(p));
+          await done;
+          saveFailed = false;
+          channel?.postMessage("changed");
+          collectUnusedAssets().catch(console.error);
+        } catch (e) {
+          console.error(e);
+          saveFailed = true;
+        } finally {
+          saving--;
+          saveStatus();
+        }
+      }
+      $("save-status").onclick = () => {
+        if (saveFailed) persist();
+      };
+      window.addEventListener("beforeunload", (e) => {
+        if (saving || saveFailed || importing) {
+          e.preventDefault();
+          e.returnValue = "";
+        }
+      });
+      function blankPanel(format = project()?.format || "portrait") {
+        const { w: W, h: H } = PAGE_FORMATS[format] || PAGE_FORMATS.portrait;
+        return {
+          id: uid(),
+          points: [
+            { x: M, y: M },
+            { x: W - M, y: M },
+            { x: W - M, y: H - M },
+            { x: M, y: H - M },
+          ],
+          image: null,
+        };
+      }
+      function blankPage(format = project()?.format || "portrait") {
+        return {
+          id: uid(),
+          format,
+          gutter: 12,
+          panels: [blankPanel(format)],
+          balloons: [],
+        };
+      }
+      // Adapt panel geometry, but keep image and balloon aspect ratios intact.
+      // History snapshots are adapted too, so page undo cannot restore a foreign format.
+      function resizePageFormat(pg, format) {
+        const old = pageSize(pg),
+          next = PAGE_FORMATS[format];
+        if (!next || pg.format === format) return;
+        const sx = (next.w - 2 * M) / (old.w - 2 * M),
+          sy = (next.h - 2 * M) / (old.h - 2 * M),
+          map = (p) => ({ x: M + (p.x - M) * sx, y: M + (p.y - M) * sy });
+        for (const panel of pg.panels) {
+          panel.points = panel.points.map(map);
+          if (panel.image) {
+            if (panel.image.frame) {
+              const frame = panel.image.frame,
+                origin = map(frame);
+              panel.image.frame = {
+                x: origin.x,
+                y: origin.y,
+                w: frame.w * sx,
+                h: frame.h * sy,
+              };
+            }
+            panel.image.x *= sx;
+            panel.image.y *= sy;
+          }
+        }
+        if (pg.removedCuts)
+          pg.removedCuts = pg.removedCuts.map((c) => ({
+            a: map(c.a),
+            b: map(c.b),
+          }));
+        pg.format = format;
+        for (const b of pg.balloons) {
+          const center = map({ x: b.x + b.w / 2, y: b.y + b.h / 2 }),
+            tail = map({ x: b.x + b.tail.x, y: b.y + b.tail.y });
+          // Keep lettering and balloon sizes stable when changing aspect ratio;
+          // only shrink a balloon if it cannot fit on the new sheet.
+          const scale = Math.min(1, (next.w - 20) / b.w, (next.h - 20) / b.h);
+          b.w *= scale;
+          b.h *= scale;
+          b.font = clamp(Math.round(b.font * scale), 12, 80);
+          b.x = center.x - b.w / 2;
+          b.y = center.y - b.h / 2;
+          keepBalloon(b, pg);
+          b.tail = {
+            x: clamp(tail.x, 4, next.w - 4) - b.x,
+            y: clamp(tail.y, 4, next.h - 4) - b.y,
+          };
+        }
+      }
+      $("project-format").onchange = (e) => {
+        const p = project(),
+          format = e.target.value;
+        if (!p || !PAGE_FORMATS[format] || p.format === format) return;
+        endGesture(true);
+        for (const edition of p.issues)
+          for (const pg of edition.pages) {
+            resizePageFormat(pg, format);
+            const h = histories.get(pg.id);
+            if (h)
+              [...h.undo, ...h.redo].forEach((snapshot) =>
+                resizePageFormat(snapshot, format),
+              );
+          }
+        p.format = format;
+        changed(true);
+      };
+      function normalizeSelection() {
+        // Startup renders before IndexedDB finishes; preserve the saved selection.
+        if (!ready) return;
+        let p = project() || projects[0];
+        selection.project = p?.id;
+        let i = issue() || p?.issues[0];
+        selection.issue = i?.id;
+        let pg = current() || i?.pages[0];
+        selection.page = pg?.id;
+        if (!pg?.panels.some((x) => x.id === selectedPanel))
+          selectedPanel = pg?.panels[0]?.id;
+        if (!pg?.balloons.some((x) => x.id === selectedBalloon))
+          selectedBalloon = null;
+      }
+      function options(el, items, value, empty) {
+        el.replaceChildren();
+        if (!items.length) el.add(new Option(t(empty), ""));
+        for (const [id, name] of items) el.add(new Option(name, id));
+        el.value = value ?? "";
+      }
+      function localize() {
+        document.documentElement.lang = lang;
+        document.documentElement.dataset.theme = theme;
+        document.title = t("title");
+        $("lang-switcher").value = lang;
+        $("lang-switcher").setAttribute("aria-label", t("language"));
+        document
+          .querySelectorAll("[data-i18n]")
+          .forEach((el) => (el.textContent = t(el.dataset.i18n)));
+        document.querySelectorAll("[data-title]").forEach((el) => {
+          el.title = t(el.dataset.title);
+          el.setAttribute("aria-label", t(el.dataset.title));
+        });
+        for (const id of ["new-balloon-kind", "balloon-kind"]) {
+          const val = $(id).value;
+          options(
+            $(id),
+            kinds.map((k) => [k, t(k)]),
+            val || "speech",
+          );
+        }
+        const newFormat = $("name-format").value;
+        options($("name-format"), formatOptions(), newFormat || "portrait");
+        updateExportDimensions();
+        renderUI();
+        savePrefs();
+      }
+      function renderUI() {
+        normalizeSelection();
+        const p = project(),
+          i = issue(),
+          pg = current();
+        options(
+          $("project-select"),
+          projects.map((x) => [x.id, x.name]),
+          p?.id,
+          "noProjects",
+        );
+        options(
+          $("issue-select"),
+          (p?.issues || []).map((x) => [x.id, x.name]),
+          i?.id,
+          "noIssues",
+        );
+        options($("project-format"), formatOptions(), p?.format || "portrait");
+        $("sheet-format-label").textContent = t(pageSize(pg).label);
+        for (const id of [
+          "project-rename",
+          "project-delete",
+          "issue-new",
+          "project-format",
+        ])
+          $(id).disabled = !p;
+        for (const id of ["issue-rename", "issue-delete", "page-new"])
+          $(id).disabled = !i;
+        for (const id of [
+          "page-action",
+          "page-position",
+          "mode-cut",
+          "mode-edit",
+          "export-open",
+        ])
+          $(id).disabled = !pg;
+        $("page-up").disabled = !pg || i.pages[0] === pg;
+        $("page-down").disabled = !pg || i.pages.at(-1) === pg;
+        $("sheet").hidden = !pg;
+        $("empty").hidden = !!pg;
+        $("empty-create").textContent = t(
+          !p ? "start" : !i ? "newIssue" : "addPage",
+        );
+        $("page-status").textContent = pg
+          ? `${t("page")} ${i.pages.indexOf(pg) + 1} / ${i.pages.length} · ${visiblePanelCount(pg)} ${t("panels")}`
+          : t("noPages");
+        options(
+          $("page-position"),
+          (i?.pages || []).map((x, n) => [
+            String(n),
+            `${t("position")} ${n + 1}`,
+          ]),
+          pg ? String(i.pages.indexOf(pg)) : null,
+          "noPages",
+        );
+        options(
+          $("reuse-page"),
+          (i?.pages || []).flatMap((x, n) =>
+            x.id === pg?.id ? [] : [[x.id, `${t("page")} ${n + 1}`]],
+          ),
+          i?.pages.find((x) => x.id !== pg?.id)?.id,
+          "noSource",
+        );
+        $("reuse").disabled = !i || i.pages.length < 2;
+        $("mode-edit").classList.toggle("active", mode === "edit");
+        $("mode-cut").classList.toggle("active", mode === "cut");
+        $("layout-tools").hidden = mode !== "cut" || !pg;
+        $("compose-tools").hidden = mode !== "edit" || !pg;
+        $("add-balloon-tools").hidden = mode !== "edit" || !pg;
+        $("sheet").style.cursor = mode === "cut" ? "crosshair" : "default";
+        renderPages();
+        syncInspector();
+        updateHistory();
+        resizeSheet();
+        render();
+        saveStatus();
+        if (pg && ready)
+          ensureImages(pg)
+            .then(() => {
+              if (current() === pg) render();
+            })
+            .catch(() => message("missingImage"));
+      }
+      function renderPages() {
+        const list = $("page-list");
+        list.replaceChildren();
+        for (const [n, pg] of (issue()?.pages || []).entries()) {
+          const btn = document.createElement("button");
+          btn.className =
+            "page-card" + (pg.id === selection.page ? " active" : "");
+          btn.draggable = true;
+          btn.dataset.pageId = pg.id;
+          btn.setAttribute("aria-label", `${t("page")} ${n + 1}`);
+          btn.setAttribute(
+            "aria-current",
+            pg.id === selection.page ? "page" : "false",
+          );
+          const thumb = document.createElement("canvas");
+          const size = pageSize(pg),
+            thumbScale = Math.min(98 / size.w, 138 / size.h);
+          thumb.width = Math.round(size.w * thumbScale);
+          thumb.height = Math.round(size.h * thumbScale);
+          const slot = document.createElement("span");
+          slot.style.cssText =
+            "width:49px;height:69px;flex-shrink:0;display:flex;align-items:center;justify-content:center";
+          thumb.style.width = (size.w * thumbScale) / 2 + "px";
+          thumb.style.height = (size.h * thumbScale) / 2 + "px";
+          slot.append(thumb);
+          const info = document.createElement("span"),
+            number = document.createElement("span"),
+            small = document.createElement("span");
+          number.className = "number";
+          number.textContent = String(n + 1).padStart(2, "0");
+          small.className = "small";
+          small.textContent = `${visiblePanelCount(pg)} ${t("panels")}`;
+          info.append(number, small);
+          btn.append(slot, info);
+          btn.onclick = () => selectPage(pg.id);
+          btn.ondragstart = (e) => {
+            e.dataTransfer.setData("application/x-comic-page", pg.id);
+            e.dataTransfer.effectAllowed = "move";
+          };
+          btn.ondragover = (e) => {
+            if (
+              [...e.dataTransfer.types].includes("application/x-comic-page")
+            ) {
+              e.preventDefault();
+              btn.classList.add("drag-over");
+            }
+          };
+          btn.ondragleave = () => btn.classList.remove("drag-over");
+          btn.ondrop = (e) => {
+            e.preventDefault();
+            const id = e.dataTransfer.getData("application/x-comic-page");
+            const from = issue().pages.findIndex((x) => x.id === id);
+            if (from >= 0) movePage(from, n);
+            btn.classList.remove("drag-over");
+          };
+          list.append(btn);
+          drawPage(thumb.getContext("2d"), pg, thumbScale, false);
+          ensureImages(pg)
+            .then(() => {
+              if (thumb.isConnected)
+                drawPage(thumb.getContext("2d"), pg, thumbScale, false);
+            })
+            .catch(() => {});
+        }
+      }
+      function syncInspector() {
+        const pg = current(),
+          p = panel(),
+          b = balloon();
+        syncCutTools();
+        $("balloon-width").max = pageSize(pg).w - 20;
+        $("balloon-height").max = pageSize(pg).h - 20;
+        $("gutter").value = pg?.gutter ?? 12;
+        $("gutter-value").textContent = `${pg?.gutter ?? 12} px`;
+        const layers = pg?.balloons || [];
+        $("balloon-layers").hidden = !layers.length;
+        options(
+          $("balloon-layer"),
+          [
+            ["", t("chooseBalloon")],
+            ...layers.map((item, n) => [
+              item.id,
+              `${n + 1} / ${layers.length} · ${t(item.kind)} — ${item.text.replace(/\s+/g, " ").slice(0, 40)}`,
+            ]),
+          ],
+          b?.id || "",
+        );
+        const layerIndex = layers.indexOf(b);
+        $("balloon-back").disabled = layerIndex <= 0;
+        $("balloon-front").disabled =
+          layerIndex < 0 || layerIndex === layers.length - 1;
+        $("image-tools").hidden = !!b;
+        $("balloon-tools").hidden = !b;
+        $("selection-title").textContent = b
+          ? t(b.kind)
+          : p
+            ? `${t("panel")} ${panelNumbers(pg).get(p.id)}`
+            : t("choosePanel");
+        $("image-add").disabled = !p;
+        for (const id of [
+          "image-zoom",
+          "image-x",
+          "image-y",
+          "image-fit",
+          "image-remove",
+        ])
+          $(id).disabled = !p?.image;
+        $("image-zoom").value = p?.image?.zoom ?? 1;
+        $("zoom-value").textContent =
+          Math.round((p?.image?.zoom ?? 1) * 100) + "%";
+        $("image-x").value = Math.round(p?.image?.x ?? 0);
+        $("image-y").value = Math.round(p?.image?.y ?? 0);
+        if (b) {
+          $("balloon-text").value = b.text;
+          $("balloon-width").value = Math.round(b.w);
+          $("balloon-height").value = Math.round(b.h);
+          $("balloon-font").value = b.font;
+          $("balloon-color").value = b.fill;
+          $("balloon-kind").value = b.kind;
+        }
+      }
+      function selectPage(id) {
+        gesture = null;
+        selection.page = id;
+        selectedCutKey = null;
+        selectedPanel = null;
+        selectedBalloon = null;
+        renderUI();
+        savePrefs();
+        ensureImages(current())
+          .then(render)
+          .catch(() => message("missingImage"));
+      }
+      function history(pg = current()) {
+        if (!pg) return null;
+        if (!histories.has(pg.id)) histories.set(pg.id, { undo: [], redo: [] });
+        return histories.get(pg.id);
+      }
+      function checkpoint(pg = current()) {
+        const h = history(pg);
+        if (!h) return;
+        h.undo.push(clone(pg));
+        if (h.undo.length > 60) h.undo.shift();
+        h.redo = [];
+        updateHistory();
+      }
+      function updateHistory() {
+        const h = history();
+        $("undo").disabled = !h?.undo.length;
+        $("redo").disabled = !h?.redo.length;
+      }
+      function changed(full = false) {
+        persist();
+        if (full) renderUI();
+        else {
+          syncInspector();
+          render();
+          renderPages();
+          updateHistory();
+        }
+      }
+      function undo(redo = false) {
+        const pg = current(),
+          h = history();
+        if (!pg || !h) return;
+        const src = redo ? h.redo : h.undo,
+          dst = redo ? h.undo : h.redo;
+        if (!src.length) return;
+        dst.push(clone(pg));
+        const restored = src.pop();
+        Object.keys(pg).forEach((k) => delete pg[k]);
+        Object.assign(pg, restored);
+        selectedBalloon = null;
+        selectedPanel = null;
+        changed(true);
+        ensureImages(pg)
+          .then(render)
+          .catch(() => message("missingImage"));
+      }
+      let nameAction, confirmAction;
+      function askName(title, value, action, showFormat = false) {
+        nameAction = action;
+        $("name-format-group").hidden = !showFormat;
+        if (showFormat) options($("name-format"), formatOptions(), "portrait");
+        $("name-title").textContent = t(title);
+        $("name-input").value = value;
+        $("name-input").setAttribute("aria-label", t(title));
+        $("name-dialog").showModal();
+        $("name-input").select();
+      }
+      function confirmChange(key, action) {
+        confirmAction = action;
+        $("confirm-text").textContent = t(key);
+        $("confirm-dialog").showModal();
+      }
+      $("name-form").onsubmit = (e) => {
+        e.preventDefault();
+        const name = $("name-input").value.trim();
+        if (!name) return;
+        $("name-dialog").close();
+        nameAction(name);
+      };
+      $("confirm-yes").onclick = () => {
+        $("confirm-dialog").close();
+        confirmAction?.();
+      };
+      document
+        .querySelectorAll("[data-close]")
+        .forEach((b) => (b.onclick = () => $(b.dataset.close).close()));
+      function createProject() {
+        askName(
+          "newProject",
+          `${t("projectDefault")} ${projects.length + 1}`,
+          (name) => {
+            const format = $("name-format").value,
+              pg = blankPage(format),
+              i = { id: uid(), name: t("issueDefault") + " 1", pages: [pg] },
+              p = { id: uid(), name, format, issues: [i] };
+            projects.push(p);
+            selection = { project: p.id, issue: i.id, page: pg.id };
+            changed(true);
+          },
+          true,
+        );
+      }
+      function createIssue() {
+        if (!project()) return;
+        askName(
+          "newIssue",
+          `${t("issueDefault")} ${project().issues.length + 1}`,
+          (name) => {
+            const pg = blankPage(),
+              i = { id: uid(), name, pages: [pg] };
+            project().issues.push(i);
+            selection.issue = i.id;
+            selection.page = pg.id;
+            changed(true);
+          },
+        );
+      }
+      function addPage(before = false, duplicate = false) {
+        const i = issue();
+        if (!i) return;
+        const old = current(),
+          pg = duplicate && old ? clone(old) : blankPage();
+        pg.id = uid();
+        if (duplicate) {
+          pg.panels.forEach((p) => (p.id = uid()));
+          pg.balloons.forEach((b) => (b.id = uid()));
+        }
+        const at = old
+          ? i.pages.indexOf(old) + (before ? 0 : 1)
+          : i.pages.length;
+        i.pages.splice(at, 0, pg);
+        selection.page = pg.id;
+        selectedBalloon = null;
+        selectedPanel = null;
+        changed(true);
+      }
+      function movePage(from, to) {
+        const pages = issue()?.pages;
+        if (!pages || from < 0 || to < 0 || to >= pages.length || from === to)
+          return;
+        const [pg] = pages.splice(from, 1);
+        pages.splice(to, 0, pg);
+        changed(true);
+      }
+      $("project-new").onclick = createProject;
+      $("issue-new").onclick = createIssue;
+      $("empty-create").onclick = () =>
+        !project() ? createProject() : !issue() ? createIssue() : addPage();
+      $("project-rename").onclick = () =>
+        askName("rename", project().name, (name) => {
+          project().name = name;
+          changed(true);
+        });
+      $("issue-rename").onclick = () =>
+        askName("rename", issue().name, (name) => {
+          issue().name = name;
+          changed(true);
+        });
+      $("project-delete").onclick = () =>
+        confirmChange("deleteConfirm", () => {
+          project().issues.forEach((i) => forgetPages(i.pages));
+          projects = projects.filter((x) => x.id !== selection.project);
+          changed(true);
+        });
+      $("issue-delete").onclick = () =>
+        confirmChange("deleteConfirm", () => {
+          forgetPages(issue().pages);
+          project().issues = project().issues.filter(
+            (x) => x.id !== selection.issue,
+          );
+          changed(true);
+        });
+      $("project-select").onchange = (e) => {
+        selection = { project: e.target.value };
+        renderUI();
+        savePrefs();
+      };
+      $("issue-select").onchange = (e) => {
+        selection.issue = e.target.value;
+        selection.page = null;
+        renderUI();
+        savePrefs();
+      };
+      $("page-new").onclick = () => addPage();
+      $("page-action").onchange = (e) => {
+        const action = e.target.value;
+        e.target.value = "";
+        if (action === "before") addPage(true);
+        if (action === "after") addPage();
+        if (action === "duplicate") addPage(false, true);
+        if (action === "delete")
+          confirmChange("deletePageConfirm", () => {
+            const pages = issue().pages,
+              n = pages.indexOf(current());
+            histories.delete(selection.page);
+            pages.splice(n, 1);
+            selection.page = pages[Math.min(n, pages.length - 1)]?.id;
+            changed(true);
+          });
+      };
+      $("page-up").onclick = () => {
+        const n = issue().pages.indexOf(current());
+        movePage(n, n - 1);
+      };
+      $("page-down").onclick = () => {
+        const n = issue().pages.indexOf(current());
+        movePage(n, n + 1);
+      };
+      $("page-position").onchange = (e) =>
+        movePage(issue().pages.indexOf(current()), Number(e.target.value));
+      $("mode-edit").onclick = () => {
+        mode = "edit";
+        gesture = null;
+        renderUI();
+      };
+      $("mode-cut").onclick = () => {
+        mode = "cut";
+        gesture = null;
+        selectedBalloon = null;
+        renderUI();
+      };
+      $("undo").onclick = () => undo();
+      $("redo").onclick = () => undo(true);
+      $("reuse").onclick = () => {
+        const source = issue().pages.find(
+          (p) => p.id === $("reuse-page").value,
+        );
+        if (!source) return;
+        confirmChange("reuseConfirm", () => {
+          checkpoint();
+          current().panels = source.panels.map((p) => ({
+            id: uid(),
+            points: clone(p.points),
+            image: null,
+          }));
+          current().removedCuts = clone(source.removedCuts || []);
+          selectedCutKey = null;
+          current().gutter = source.gutter;
+          changed(true);
+        });
+      };
+      $("reset-layout").onclick = () => {
+        const pg = current(),
+          cuts = layoutGeometry(pg).cuts;
+        if (!cuts.length) return;
+        checkpoint();
+        pg.removedCuts = [
+          ...(pg.removedCuts || []),
+          ...cuts.map((c) => ({ a: clone(c.a), b: clone(c.b) })),
+        ];
+        selectedCutKey = null;
+        changed(true);
+      };
+      $("gutter").oninput = () => {
+        const pg = current();
+        if (!pg) return;
+        if (!$("gutter")._editing) {
+          checkpoint();
+          $("gutter")._editing = true;
+        }
+        pg.gutter = Number($("gutter").value);
+        $("gutter-value").textContent = pg.gutter + " px";
+        render();
+      };
+      $("gutter").onchange = () => {
+        $("gutter")._editing = false;
+        changed();
+      };
+      // All panels remain convex: a new segment clips the polygons it fully crosses.
+      const cross = (a, b, p) =>
+        (b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x);
+      function area(points) {
+        return (
+          Math.abs(
+            points.reduce((s, p, i) => {
+              const q = points[(i + 1) % points.length];
+              return s + p.x * q.y - q.x * p.y;
+            }, 0),
+          ) / 2
+        );
+      }
+      function bounds(points) {
+        const xs = points.map((p) => p.x),
+          ys = points.map((p) => p.y);
+        return {
+          x: Math.min(...xs),
+          y: Math.min(...ys),
+          w: Math.max(...xs) - Math.min(...xs),
+          h: Math.max(...ys) - Math.min(...ys),
+        };
+      }
+      function inside(points, p) {
+        let pos = false,
+          neg = false;
+        for (let i = 0; i < points.length; i++) {
+          const v = cross(points[i], points[(i + 1) % points.length], p);
+          if (v > 0.01) pos = true;
+          if (v < -0.01) neg = true;
+        }
+        return !(pos && neg);
+      }
+      function clip(points, a, b, sign = 1, offset = 0) {
+        const out = [];
+        for (let i = 0; i < points.length; i++) {
+          const p = points[i],
+            q = points[(i + 1) % points.length],
+            dp = cross(a, b, p) * sign - offset,
+            dq = cross(a, b, q) * sign - offset;
+          if (dp >= -1e-6) out.push({ ...p });
+          if ((dp > 0 && dq < 0) || (dp < 0 && dq > 0)) {
+            const f = dp / (dp - dq);
+            out.push({ x: p.x + (q.x - p.x) * f, y: p.y + (q.y - p.y) * f });
+          }
+        }
+        return out.filter(
+          (p, i) =>
+            !i || Math.hypot(p.x - out[i - 1].x, p.y - out[i - 1].y) > 0.01,
+        );
+      }
+      function inset(points, amount, pg = null) {
+        let out = points;
+        for (let i = 0; i < points.length; i++) {
+          const a = points[i],
+            b = points[(i + 1) % points.length];
+          out = clip(
+            out,
+            a,
+            b,
+            1,
+            (pg && isRemovedEdge(pg, a, b) ? 0 : amount) *
+              Math.hypot(b.x - a.x, b.y - a.y),
+          );
+          if (out.length < 3) return points;
+        }
+        return out;
+      }
+      function nearestEdge(pg, p) {
+        let best = null;
+        for (const e of layoutGeometry(pg).edges)
+          if (!e.hidden) {
+            const q = projectToSegment(p, e.a, e.b);
+            if (!best || q.d < best.d) best = q;
+          }
+        return best;
+      }
+      function splitPanels(pg, a, b) {
+        const dx = b.x - a.x,
+          dy = b.y - a.y,
+          len2 = dx * dx + dy * dy;
+        if (len2 < 400) return null;
+        let count = 0;
+        const result = [];
+        for (const p of pg.panels) {
+          const left = clip(p.points, a, b, 1),
+            right = clip(p.points, a, b, -1),
+            crossings = left.filter((q) => Math.abs(cross(a, b, q)) < 0.1);
+          const covered =
+            crossings.length >= 2 &&
+            crossings.every((q) => {
+              const u = ((q.x - a.x) * dx + (q.y - a.y) * dy) / len2;
+              return u >= -0.0001 && u <= 1.0001;
+            });
+          if (covered && area(left) > 500 && area(right) > 500) {
+            count++;
+            for (const points of [left, right]) {
+              const next = {
+                id: uid(),
+                points,
+                image: p.image ? clone(p.image) : null,
+              };
+              if (next.image && !next.image.frame)
+                next.image.frame = bounds(p.points);
+              result.push(next);
+            }
+          } else result.push(p);
+        }
+        return count
+          ? result.sort((a, b) => {
+              const x = bounds(a.points),
+                y = bounds(b.points);
+              return Math.round(x.y - y.y) || x.x - y.x;
+            })
+          : null;
+      }
+      // Geometry remains partitioned into convex image areas, even when their
+      // divider is removed. This keeps every original image independently editable.
+      function sameCutLine(a, b, c, d) {
+        const ab = Math.hypot(b.x - a.x, b.y - a.y),
+          cd = Math.hypot(d.x - c.x, d.y - c.y);
+        return (
+          ab > 0.001 &&
+          cd > 0.001 &&
+          Math.abs((b.x - a.x) * (d.y - c.y) - (b.y - a.y) * (d.x - c.x)) /
+            (ab * cd) <
+            1e-5 &&
+          Math.abs(cross(a, b, c)) / ab < 0.005
+        );
+      }
+      function isRemovedEdge(pg, a, b) {
+        return (pg.removedCuts || []).some((c) => sameCutLine(a, b, c.a, c.b));
+      }
+      function layoutGeometry(pg) {
+        if (!pg) return { edges: [], cuts: [], groups: [] };
+        const groups = [];
+        for (const panel of pg.panels)
+          for (let i = 0; i < panel.points.length; i++) {
+            const a = panel.points[i],
+              b = panel.points[(i + 1) % panel.points.length],
+              length = Math.hypot(b.x - a.x, b.y - a.y);
+            if (length < 0.001) continue;
+            let g = groups.find((g) => sameCutLine(a, b, g.a, g.b));
+            if (!g) {
+              let ux = (b.x - a.x) / length,
+                uy = (b.y - a.y) / length;
+              if (ux < -1e-6 || (Math.abs(ux) < 1e-6 && uy < 0)) {
+                ux = -ux;
+                uy = -uy;
+              }
+              const nx = -uy,
+                ny = ux,
+                d = nx * a.x + ny * a.y;
+              g = { a, b, ux, uy, nx, ny, d, intervals: [] };
+              groups.push(g);
+            }
+            const ta = g.ux * a.x + g.uy * a.y,
+              tb = g.ux * b.x + g.uy * b.y;
+            g.intervals.push({
+              lo: Math.min(ta, tb),
+              hi: Math.max(ta, tb),
+              owner: panel.id,
+            });
+          }
+        const edges = [],
+          cuts = [];
+        for (const g of groups) {
+          const stops = g.intervals
+            .flatMap((i) => [i.lo, i.hi])
+            .sort((a, b) => a - b)
+            .filter((x, i, all) => !i || x - all[i - 1] > 0.005);
+          const at = (t) => ({
+              x: g.ux * t + g.nx * g.d,
+              y: g.uy * t + g.ny * g.d,
+            }),
+            segments = [];
+          for (let n = 0; n < stops.length - 1; n++) {
+            const middle = (stops[n] + stops[n + 1]) / 2,
+              owners = [
+                ...new Set(
+                  g.intervals
+                    .filter(
+                      (i) => middle > i.lo - 0.001 && middle < i.hi + 0.001,
+                    )
+                    .map((i) => i.owner),
+                ),
+              ];
+            if (!owners.length) continue;
+            const edge = {
+              a: at(stops[n]),
+              b: at(stops[n + 1]),
+              owners,
+              outer: owners.length === 1,
+              hidden: false,
+            };
+            edge.hidden = !edge.outer && isRemovedEdge(pg, edge.a, edge.b);
+            edges.push(edge);
+            if (!edge.outer) segments.push(edge);
+          }
+          if (segments.length && !segments[0].hidden) {
+            const a = segments[0].a,
+              b = segments.at(-1).b;
+            cuts.push({
+              a,
+              b,
+              segments,
+              key: [g.ux, g.uy, g.d].map((x) => x.toFixed(5)).join(":"),
+            });
+          }
+        }
+        return { edges, cuts, groups };
+      }
+      function panelNumbers(pg, geometry = layoutGeometry(pg)) {
+        const roots = new Map(pg.panels.map((p) => [p.id, p.id]));
+        const root = (id) => {
+          while (roots.get(id) !== id) id = roots.get(id);
+          return id;
+        };
+        for (const e of geometry.edges)
+          if (e.hidden)
+            for (const id of e.owners.slice(1))
+              roots.set(root(id), root(e.owners[0]));
+        const numbers = new Map(),
+          result = new Map();
+        for (const p of pg.panels) {
+          const id = root(p.id);
+          if (!numbers.has(id)) numbers.set(id, numbers.size + 1);
+          result.set(p.id, numbers.get(id));
+        }
+        return result;
+      }
+      function visiblePanelCount(pg) {
+        return new Set(panelNumbers(pg).values()).size;
+      }
+      function selectedCut(pg = current()) {
+        return layoutGeometry(pg).cuts.find((c) => c.key === selectedCutKey);
+      }
+      function projectToSegment(pos, a, b, limit = true) {
+        const dx = b.x - a.x,
+          dy = b.y - a.y,
+          l = dx * dx + dy * dy;
+        let t = l ? ((pos.x - a.x) * dx + (pos.y - a.y) * dy) / l : 0;
+        if (limit) t = clamp(t, 0, 1);
+        const point = { x: a.x + t * dx, y: a.y + t * dy };
+        return { ...point, d: Math.hypot(pos.x - point.x, pos.y - point.y) };
+      }
+      function hitCut(pos, pg = current()) {
+        let best = null;
+        for (const c of layoutGeometry(pg).cuts) {
+          const d = Math.min(
+            ...c.segments.map((e) => projectToSegment(pos, e.a, e.b).d),
+          );
+          if (!best || d < best.d) best = { ...c, d };
+        }
+        return best && best.d <= threshold() ? best : null;
+      }
+      function syncCutTools() {
+        if (cutSelectionPage !== current()?.id) {
+          selectedCutKey = null;
+          cutSelectionPage = current()?.id;
+        }
+        const cuts = layoutGeometry(current()).cuts;
+        if (!cuts.some((c) => c.key === selectedCutKey)) selectedCutKey = null;
+        options(
+          $("cut-select"),
+          [
+            ["", t("selectCut")],
+            ...cuts.map((c, i) => [c.key, `${t("cutLine")} ${i + 1}`]),
+          ],
+          selectedCutKey || "",
+        );
+        $("cut-draw").classList.toggle("active", cutAction === "draw");
+        $("cut-edit").classList.toggle("active", cutAction === "edit");
+        $("cut-selection-tools").hidden = cutAction !== "edit";
+        $("cut-remove").disabled = !selectedCutKey;
+        $("reset-layout").disabled = !cuts.length;
+        $("cut-mode-badge").textContent = t(
+          cutAction === "draw" ? "cutBadge" : "cutEditBadge",
+        );
+      }
+      $("cut-draw").onclick = () => {
+        endGesture(true);
+        cutAction = "draw";
+        selectedCutKey = null;
+        syncCutTools();
+        render();
+      };
+      $("cut-edit").onclick = () => {
+        endGesture(true);
+        cutAction = "edit";
+        syncCutTools();
+        render();
+      };
+      $("cut-select").onchange = (e) => {
+        selectedCutKey = e.target.value || null;
+        render();
+        syncCutTools();
+      };
+      function removeSelectedCut() {
+        const c = selectedCut();
+        if (!c) return;
+        checkpoint();
+        current().removedCuts = [
+          ...(current().removedCuts || []),
+          { a: clone(c.a), b: clone(c.b) },
+        ];
+        selectedCutKey = null;
+        changed(true);
+      }
+      $("cut-remove").onclick = removeSelectedCut;
+      function planNewCut(pg, a, b) {
+        if (Math.hypot(b.x - a.x, b.y - a.y) < 20) return null;
+        const removedCuts = (pg.removedCuts || []).filter(
+          (c) => !sameCutLine(a, b, c.a, c.b),
+        );
+        const panels = splitPanels(pg, a, b);
+        return panels || removedCuts.length !== (pg.removedCuts || []).length
+          ? { panels: panels || pg.panels, removedCuts }
+          : null;
+      }
+      // Recover a binary cut tree from existing polygons. Re-clipping that tree
+      // handles T junctions, diagonal cuts and corners without losing a panel ID.
+      function buildCutTree(
+        pg,
+        region = blankPanel(pg.format).points,
+        panels = pg.panels,
+      ) {
+        if (panels.length === 1)
+          return Math.abs(area(region) - area(panels[0].points)) < 0.1
+            ? { id: panels[0].id }
+            : null;
+        for (const cut of layoutGeometry({ ...pg, panels, removedCuts: [] })
+          .cuts) {
+          const left = [],
+            right = [];
+          let crosses = false;
+          for (const p of panels) {
+            const distances = p.points.map(
+              (q) =>
+                cross(cut.a, cut.b, q) /
+                Math.hypot(cut.b.x - cut.a.x, cut.b.y - cut.a.y),
+            );
+            const positive = distances.some((d) => d > 0.005),
+              negative = distances.some((d) => d < -0.005);
+            if (positive && negative) {
+              crosses = true;
+              break;
+            }
+            (positive ? left : right).push(p);
+          }
+          if (crosses || !left.length || !right.length) continue;
+          const l = clip(region, cut.a, cut.b, 1),
+            r = clip(region, cut.a, cut.b, -1);
+          if (l.length < 3 || r.length < 3) continue;
+          const leftTree = buildCutTree(pg, l, left),
+            rightTree = buildCutTree(pg, r, right);
+          if (leftTree && rightTree)
+            return { a: cut.a, b: cut.b, left: leftTree, right: rightTree };
+        }
+        return null;
+      }
+      function planCutMove(pg, tree, cut, line) {
+        if (!tree || Math.hypot(line.b.x - line.a.x, line.b.y - line.a.y) < 20)
+          return null;
+        if (
+          (line.b.x - line.a.x) * (cut.b.x - cut.a.x) +
+            (line.b.y - line.a.y) * (cut.b.y - cut.a.y) <=
+          0
+        )
+          return null;
+        const shapes = new Map();
+        function visit(node, region) {
+          if (region.length < 3) return false;
+          if (node.id) {
+            shapes.set(node.id, region);
+            return true;
+          }
+          const moved = sameCutLine(node.a, node.b, cut.a, cut.b),
+            a = moved ? line.a : node.a,
+            b = moved ? line.b : node.b;
+          return (
+            visit(node.left, clip(region, a, b, 1)) &&
+            visit(node.right, clip(region, a, b, -1))
+          );
+        }
+        if (!visit(tree, blankPanel(pg.format).points)) return null;
+        const panels = [];
+        for (const p of pg.panels) {
+          const points = shapes.get(p.id);
+          if (!points || area(points) < Math.min(500, area(p.points) * 0.5))
+            return null;
+          const next = { ...clone(p), points };
+          if (next.image && !next.image.frame)
+            next.image.frame = bounds(p.points);
+          panels.push(next);
+        }
+        const candidate = { ...pg, panels };
+        const nextCut = layoutGeometry(candidate).cuts.find((c) =>
+          sameCutLine(c.a, c.b, line.a, line.b),
+        );
+        return nextCut ? { panels, key: nextCut.key } : null;
+      }
+      function translatedCut(cut, dx, dy) {
+        const len = Math.hypot(cut.b.x - cut.a.x, cut.b.y - cut.a.y),
+          nx = -(cut.b.y - cut.a.y) / len,
+          ny = (cut.b.x - cut.a.x) / len;
+        const offset = dx * nx + dy * ny;
+        return {
+          a: { x: cut.a.x + nx * offset, y: cut.a.y + ny * offset },
+          b: { x: cut.b.x + nx * offset, y: cut.b.y + ny * offset },
+        };
+      }
+      function cutEndpoint(pg, cut, which, pos) {
+        const old = cut[which];
+        const candidates = layoutGeometry(pg).groups.filter(
+          (g) =>
+            !sameCutLine(g.a, g.b, cut.a, cut.b) &&
+            projectToSegment(old, g.a, g.b, false).d < 0.01,
+        );
+        const projected = candidates
+          .map((g) => projectToSegment(pos, g.a, g.b, false))
+          .sort((a, b) => a.d - b.d)[0];
+        return {
+          a: clone(cut.a),
+          b: clone(cut.b),
+          [which]: projected ? { x: projected.x, y: projected.y } : pos,
+        };
+      }
+      function beginCutMove(pos) {
+        let c = selectedCut(),
+          handle = null;
+        if (c)
+          for (const which of ["a", "b"])
+            if (
+              Math.hypot(pos.x - c[which].x, pos.y - c[which].y) < threshold()
+            )
+              handle = which;
+        if (!handle) c = hitCut(pos);
+        selectedCutKey = c?.key || null;
+        if (c)
+          gesture = {
+            type: "move-cut",
+            start: pos,
+            cut: c,
+            handle,
+            original: clone(current()),
+            tree: buildCutTree(current()),
+            valid: true,
+            moved: false,
+          };
+        syncCutTools();
+        render();
+      }
+      function updateCutMove(pos) {
+        const g = gesture;
+        if (Math.hypot(pos.x - g.start.x, pos.y - g.start.y) < 2 && !g.moved)
+          return;
+        const line = g.handle
+          ? cutEndpoint(g.original, g.cut, g.handle, pos)
+          : translatedCut(g.cut, pos.x - g.start.x, pos.y - g.start.y);
+        const candidate = planCutMove(g.original, g.tree, g.cut, line);
+        g.moved = true;
+        g.valid = !!candidate;
+        g.line = line;
+        g.changed = !sameCutLine(line.a, line.b, g.cut.a, g.cut.b);
+        current().panels = candidate ? candidate.panels : g.original.panels;
+        selectedCutKey = candidate ? candidate.key : g.cut.key;
+        render();
+        syncCutTools();
+      }
+      function finishCutMove(g, cancel) {
+        if (cancel || !g.valid || !g.changed) {
+          current().panels = g.original.panels;
+          selectedCutKey = g.cut.key;
+          if (!cancel && !g.valid) message("cutMoveInvalid");
+          render();
+          syncCutTools();
+          return;
+        }
+        checkpoint(g.original);
+        $("toast").hidden = true;
+        changed(true);
+      }
+      function nudgeCut(dx, dy) {
+        const c = selectedCut();
+        if (!c) return;
+        const pg = current(),
+          line = translatedCut(c, dx, dy);
+        if (sameCutLine(line.a, line.b, c.a, c.b)) return;
+        const candidate = planCutMove(pg, buildCutTree(pg), c, line);
+        if (!candidate) {
+          message("cutMoveInvalid");
+          return;
+        }
+        checkpoint();
+        pg.panels = candidate.panels;
+        selectedCutKey = candidate.key;
+        $("toast").hidden = true;
+        changed(true);
+      }
+
+      function polygonPath(ctx, points) {
+        ctx.beginPath();
+        points.forEach((p, i) =>
+          i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y),
+        );
+        ctx.closePath();
+      }
+      async function loadImage(id) {
+        if (images.has(id)) return images.get(id).promise;
+        const entry = { image: null, promise: null };
+        entry.promise = (async () => {
+          const rec = await request(
+            db.transaction("assets").objectStore("assets").get(id),
+          );
+          if (!rec?.blob) throw Error("Missing image");
+          const img = await decodeImage(rec.blob);
+          entry.image = img;
+          return img;
+        })().catch((e) => {
+          images.delete(id);
+          throw e;
+        });
+        images.set(id, entry);
+        return entry.promise;
+      }
+      async function decodeImage(blob) {
+        const url = URL.createObjectURL(blob);
+        try {
+          const img = new Image();
+          img.src = url;
+          await img.decode();
+          return img;
+        } finally {
+          URL.revokeObjectURL(url);
+        }
+      }
+      async function ensureImages(pg) {
+        if (pg)
+          await Promise.all(
+            [
+              ...new Set(
+                pg.panels.filter((p) => p.image).map((p) => p.image.asset),
+              ),
+            ].map(loadImage),
+          );
+      }
+      let importing = 0;
+      async function importImage(
+        file,
+        targetPage = current(),
+        targetPanel = panel(),
+      ) {
+        if (!targetPage || !targetPanel || !ready || stale || !file) return;
+        importing++;
+        message("imageBusy");
+        try {
+          if (file.size > 40 * 1024 * 1024) throw Error("tooLarge");
+          const img = await decodeImage(file);
+          if (img.naturalWidth * img.naturalHeight > 60000000)
+            throw Error("tooLarge");
+          const id = uid(),
+            tx = db.transaction("assets", "readwrite"),
+            done = txDone(tx);
+          tx.objectStore("assets").put({ id, blob: file });
+          await done;
+          images.set(id, { image: img, promise: Promise.resolve(img) });
+          if (
+            !projects.some((p) =>
+              p.issues.some((i) => i.pages.includes(targetPage)),
+            ) ||
+            !targetPage.panels.includes(targetPanel)
+          )
+            return;
+          checkpoint(targetPage);
+          targetPanel.image = { asset: id, zoom: 1, x: 0, y: 0 };
+          if (current() === targetPage) {
+            selectedPanel = targetPanel.id;
+            selectedBalloon = null;
+            mode = "edit";
+          }
+          changed(true);
+          $("toast").hidden = true;
+        } catch (e) {
+          console.error(e);
+          message(e.message === "tooLarge" ? "tooLarge" : "imageError");
+        } finally {
+          importing--;
+        }
+      }
+      $("image-add").onclick = () => {
+        $("image-file")._target = { page: current(), panel: panel() };
+        $("image-file").click();
+      };
+      $("image-file").onchange = (e) => {
+        const target = e.target._target;
+        importImage(e.target.files[0], target?.page, target?.panel);
+        e.target.value = "";
+      };
+      function editImage(fn) {
+        if (!panel()?.image) return;
+        checkpoint();
+        fn(panel().image);
+        changed();
+      }
+      $("image-fit").onclick = () =>
+        editImage((im) => {
+          delete im.frame;
+          Object.assign(im, { zoom: 1, x: 0, y: 0 });
+        });
+      $("image-remove").onclick = () => {
+        if (!panel()?.image) return;
+        checkpoint();
+        panel().image = null;
+        changed();
+      };
+      for (const [id, key] of [
+        ["image-x", "x"],
+        ["image-y", "y"],
+      ])
+        $(id).onchange = () => {
+          const n = Number($(id).value);
+          if (Number.isFinite(n))
+            editImage((im) => (im[key] = clamp(n, -3000, 3000)));
+        };
+      $("image-zoom").oninput = () => {
+        if (!panel()?.image) return;
+        if (!$("image-zoom")._editing) {
+          checkpoint();
+          $("image-zoom")._editing = true;
+        }
+        panel().image.zoom = Number($("image-zoom").value);
+        $("zoom-value").textContent =
+          Math.round(panel().image.zoom * 100) + "%";
+        render();
+      };
+      $("image-zoom").onchange = () => {
+        $("image-zoom")._editing = false;
+        changed();
+      };
+      function addBalloon() {
+        const pg = current(),
+          { w: W, h: H } = pageSize(pg);
+        if (!pg) return;
+        checkpoint();
+        const box = panel()
+            ? bounds(panel().points)
+            : { x: 150, y: 150, w: 400, h: 400 },
+          b = {
+            id: uid(),
+            kind: $("new-balloon-kind").value,
+            x: clamp(box.x + 20, 20, W - 280),
+            y: clamp(box.y + 20, 20, H - 210),
+            w: 260,
+            h: 150,
+            tail: { x: 210, y: 205 },
+            font: 30,
+            fill: "#ffffff",
+            text: t("balloonDefault"),
+          };
+        pg.balloons.push(b);
+        selectedBalloon = b.id;
+        changed();
+      }
+      $("balloon-add").onclick = addBalloon;
+      function keepBalloon(b, pg = current()) {
+        const { w: W, h: H } = pageSize(pg);
+        b.w = clamp(b.w, 80, W - 20);
+        b.h = clamp(b.h, 60, H - 20);
+        b.x = clamp(b.x, 4, W - b.w - 4);
+        b.y = clamp(b.y, 4, H - b.h - 4);
+      }
+      function editBalloon(fn) {
+        const b = balloon();
+        if (!b) return;
+        checkpoint();
+        fn(b);
+        keepBalloon(b);
+        changed();
+      }
+      $("balloon-text").onfocus = () => {
+        $("balloon-text")._editing = false;
+      };
+      $("balloon-text").oninput = () => {
+        const b = balloon();
+        if (!b) return;
+        if (!$("balloon-text")._editing) {
+          checkpoint();
+          $("balloon-text")._editing = true;
+        }
+        b.text = $("balloon-text").value;
+        render();
+        persist();
+      };
+      $("balloon-text").onblur = () => {
+        $("balloon-text")._editing = false;
+        renderPages();
+      };
+      for (const [id, key, min, max] of [
+        ["balloon-width", "w", 80, Infinity],
+        ["balloon-height", "h", 60, Infinity],
+        ["balloon-font", "font", 12, 80],
+      ])
+        $(id).onchange = () => {
+          const v = Number($(id).value);
+          if (Number.isFinite(v))
+            editBalloon((b) => (b[key] = clamp(v, min, max)));
+        };
+      $("balloon-color").onchange = () =>
+        editBalloon((b) => (b.fill = $("balloon-color").value));
+      $("balloon-kind").onchange = () =>
+        editBalloon((b) => (b.kind = $("balloon-kind").value));
+      $("balloon-remove").onclick = () => {
+        if (!balloon()) return;
+        checkpoint();
+        current().balloons = current().balloons.filter(
+          (b) => b.id !== selectedBalloon,
+        );
+        selectedBalloon = null;
+        changed();
+      };
+      $("balloon-layer").onchange = (e) => {
+        selectedBalloon = e.target.value || null;
+        syncInspector();
+        render();
+      };
+      for (const [id, front] of [
+        ["balloon-front", true],
+        ["balloon-back", false],
+      ])
+        $(id).onclick = () => {
+          const b = balloon();
+          if (!b) return;
+          const all = current().balloons;
+          const index = all.indexOf(b);
+          if (index === (front ? all.length - 1 : 0)) return;
+          checkpoint();
+          all.splice(index, 1);
+          front ? all.push(b) : all.unshift(b);
+          changed();
+        };
+      function drawBalloon(ctx, b) {
+        ctx.save();
+        ctx.translate(b.x, b.y);
+        ctx.fillStyle = b.fill;
+        ctx.strokeStyle = "#15231f";
+        ctx.lineWidth = 2.8;
+        ctx.lineJoin = "round";
+        const { w, h } = b,
+          rx = w / 2,
+          ry = h / 2;
+        if (b.kind === "speech") {
+          ctx.beginPath();
+          const angle = Math.atan2(b.tail.y - ry, b.tail.x - rx),
+            a1 = angle - 0.19,
+            a2 = angle + 0.19;
+          ctx.moveTo(
+            rx + Math.cos(a1) * rx * 0.8,
+            ry + Math.sin(a1) * ry * 0.8,
+          );
+          ctx.lineTo(b.tail.x, b.tail.y);
+          ctx.lineTo(
+            rx + Math.cos(a2) * rx * 0.8,
+            ry + Math.sin(a2) * ry * 0.8,
+          );
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+        }
+        if (b.kind === "thought") {
+          for (const f of [0.82, 0.58, 0.36]) {
+            ctx.beginPath();
+            ctx.ellipse(
+              rx + (b.tail.x - rx) * f,
+              ry + (b.tail.y - ry) * f,
+              4 + (1 - f) * 16,
+              4 + (1 - f) * 12,
+              0,
+              0,
+              Math.PI * 2,
+            );
+            ctx.fill();
+            ctx.stroke();
+          }
+        }
+        ctx.beginPath();
+        if (b.kind === "narration") {
+          ctx.rect(0, 0, w, h);
+        } else if (b.kind === "thought") {
+          const n = 16;
+          for (let i = 0; i < n; i++) {
+            const a = (i / n) * Math.PI * 2,
+              na = ((i + 1) / n) * Math.PI * 2,
+              mid = (a + na) / 2,
+              p = {
+                x: rx + Math.cos(a) * rx * 0.88,
+                y: ry + Math.sin(a) * ry * 0.88,
+              };
+            if (!i) ctx.moveTo(p.x, p.y);
+            ctx.quadraticCurveTo(
+              rx + Math.cos(mid) * rx * 1.13,
+              ry + Math.sin(mid) * ry * 1.13,
+              rx + Math.cos(na) * rx * 0.88,
+              ry + Math.sin(na) * ry * 0.88,
+            );
+          }
+        } else if (["shout", "expression"].includes(b.kind)) {
+          const n = b.kind === "shout" ? 28 : 20;
+          for (let i = 0; i < n; i++) {
+            const a = (i / n) * Math.PI * 2,
+              r =
+                i % 2
+                  ? 0.73 +
+                    (b.kind === "expression" ? 0.05 * Math.sin(i * 2) : 0)
+                  : 1;
+            const x = rx + Math.cos(a) * rx * r,
+              y = ry + Math.sin(a) * ry * r;
+            i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+          }
+        } else {
+          ctx.ellipse(rx, ry, rx, ry, 0, 0, Math.PI * 2);
+        }
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        const insetX = b.kind === "narration" ? 0.08 : 0.2,
+          insetY = b.kind === "narration" ? 0.12 : 0.22,
+          tw = w * (1 - 2 * insetX),
+          th = h * (1 - 2 * insetY);
+        let size = b.font,
+          lines = [];
+        const wrap = () => {
+          ctx.font = `${b.kind === "shout" ? "800" : "600"} ${size}px system-ui, sans-serif`;
+          const result = [];
+          for (const para of b.text.split("\n")) {
+            let line = "";
+            const tokens = para.match(
+              /[\u3000-\u9fff\uf900-\ufaff\u3040-\u30ff]|[^\s\u3000-\u9fff\uf900-\ufaff\u3040-\u30ff]+[ \t]*|[ \t]+/gu,
+            ) || [""];
+            for (const token of tokens) {
+              if (ctx.measureText(line + token).width <= tw) {
+                line += token;
+                continue;
+              }
+              if (line.trim()) {
+                result.push(line.trimEnd());
+                line = "";
+              }
+              for (const ch of token) {
+                if (ctx.measureText(line + ch).width > tw && line) {
+                  result.push(line);
+                  line = "";
+                }
+                line += ch;
+              }
+            }
+            result.push(line.trimEnd());
+          }
+          return result;
+        };
+        do {
+          lines = wrap();
+          if (lines.length * size * 1.25 <= th) break;
+          size--;
+        } while (size >= 1);
+        ctx.fillStyle = contrast(b.fill);
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(w * insetX, h * insetY, tw, th);
+        ctx.clip();
+        lines.forEach((line, i) =>
+          ctx.fillText(
+            line,
+            w / 2,
+            h / 2 + (i - (lines.length - 1) / 2) * size * 1.25,
+            tw,
+          ),
+        );
+        ctx.restore();
+        ctx.restore();
+      }
+      function contrast(hex) {
+        const n = parseInt(hex.slice(1), 16);
+        return (n >> 16) * 0.299 +
+          ((n >> 8) & 255) * 0.587 +
+          (n & 255) * 0.114 >
+          145
+          ? "#15231f"
+          : "#ffffff";
+      }
+      function drawPage(ctx, pg, scale = 1, editing = false) {
+        const { w: W, h: H } = pageSize(pg);
+        ctx.setTransform(scale, 0, 0, scale, 0, 0);
+        ctx.clearRect(0, 0, W, H);
+        ctx.fillStyle = "#fff";
+        ctx.fillRect(0, 0, W, H);
+        const geometry = layoutGeometry(pg),
+          numbers = panelNumbers(pg, geometry);
+        for (const p of pg.panels) {
+          const points = inset(p.points, pg.gutter / 2, pg),
+            box = p.image?.frame || bounds(p.points);
+          ctx.save();
+          polygonPath(ctx, points);
+          ctx.fillStyle = editing ? "#f0f3f1" : "#fff";
+          ctx.fill();
+          ctx.clip();
+          const im = p.image && images.get(p.image.asset)?.image;
+          if (im) {
+            const s =
+                Math.max(box.w / im.width, box.h / im.height) * p.image.zoom,
+              iw = im.width * s,
+              ih = im.height * s;
+            ctx.drawImage(
+              im,
+              box.x + box.w / 2 - iw / 2 + p.image.x,
+              box.y + box.h / 2 - ih / 2 + p.image.y,
+              iw,
+              ih,
+            );
+          } else if (editing) {
+            ctx.fillStyle = "#899b94";
+            ctx.font = "24px system-ui";
+            ctx.textAlign = "center";
+            ctx.fillText(
+              String(numbers.get(p.id)).padStart(2, "0"),
+              box.x + box.w / 2,
+              box.y + box.h / 2 - 10,
+            );
+            ctx.font = "18px system-ui";
+            ctx.fillText(
+              t(p.image ? "missingImage" : "imageHint"),
+              box.x + box.w / 2,
+              box.y + box.h / 2 + 20,
+              Math.max(30, box.w - 40),
+            );
+          }
+          ctx.restore();
+          polygonPath(ctx, points);
+          ctx.lineWidth = 2;
+          ctx.strokeStyle = "#15231f";
+          for (let i = 0; i < points.length; i++) {
+            const a = points[i],
+              b = points[(i + 1) % points.length];
+            if (isRemovedEdge(pg, a, b)) continue;
+            ctx.beginPath();
+            ctx.moveTo(a.x, a.y);
+            ctx.lineTo(b.x, b.y);
+            ctx.stroke();
+          }
+          if (
+            editing &&
+            mode === "edit" &&
+            p.id === selectedPanel &&
+            !selectedBalloon
+          ) {
+            ctx.strokeStyle = "#008f7d";
+            ctx.lineWidth = 5;
+            polygonPath(ctx, points);
+            ctx.stroke();
+          }
+        }
+        for (const b of pg.balloons) drawBalloon(ctx, b);
+        if (editing && mode === "cut") {
+          ctx.save();
+          ctx.strokeStyle = "#008f7d88";
+          ctx.lineWidth = 2;
+          ctx.setLineDash([8, 7]);
+          for (const e of geometry.edges)
+            if (!e.hidden) {
+              ctx.beginPath();
+              ctx.moveTo(e.a.x, e.a.y);
+              ctx.lineTo(e.b.x, e.b.y);
+              ctx.stroke();
+            }
+          ctx.setLineDash([]);
+          const selected = geometry.cuts.find((c) => c.key === selectedCutKey);
+          if (selected && cutAction === "edit") {
+            ctx.strokeStyle =
+              gesture?.type === "move-cut" && !gesture.valid
+                ? "#db6e47"
+                : "#008f7d";
+            ctx.lineWidth = 6;
+            for (const e of selected.segments) {
+              ctx.beginPath();
+              ctx.moveTo(e.a.x, e.a.y);
+              ctx.lineTo(e.b.x, e.b.y);
+              ctx.stroke();
+            }
+            for (const end of [selected.a, selected.b]) {
+              ctx.beginPath();
+              ctx.arc(end.x, end.y, 10, 0, Math.PI * 2);
+              ctx.fillStyle = "#fff";
+              ctx.fill();
+              ctx.stroke();
+            }
+          }
+          ctx.restore();
+        }
+        if (editing && selectedBalloon && mode === "edit") {
+          const b = balloon();
+          if (b) {
+            ctx.strokeStyle = "#008f7d";
+            ctx.lineWidth = 2;
+            ctx.setLineDash([7, 5]);
+            ctx.strokeRect(b.x - 5, b.y - 5, b.w + 10, b.h + 10);
+            ctx.setLineDash([]);
+            ctx.fillStyle = "#008f7d";
+            ctx.fillRect(b.x + b.w - 9, b.y + b.h - 9, 18, 18);
+            if (["speech", "thought"].includes(b.kind)) {
+              ctx.beginPath();
+              ctx.arc(b.x + b.tail.x, b.y + b.tail.y, 10, 0, Math.PI * 2);
+              ctx.fill();
+              ctx.strokeStyle = "#fff";
+              ctx.stroke();
+            }
+          }
+        }
+        if (editing && gesture?.type === "cut") {
+          ctx.strokeStyle = gesture.valid ? "#008f7d" : "#db6e47";
+          ctx.lineWidth = 4;
+          ctx.setLineDash([10, 7]);
+          ctx.beginPath();
+          ctx.moveTo(gesture.a.x, gesture.a.y);
+          ctx.lineTo(gesture.b.x, gesture.b.y);
+          ctx.stroke();
+          ctx.setLineDash([]);
+          for (const p of [gesture.a, gesture.b]) {
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, 8, 0, Math.PI * 2);
+            ctx.fillStyle = ctx.strokeStyle;
+            ctx.fill();
+          }
+        }
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+      }
+      function render() {
+        const pg = current();
+        if (pg) drawPage($("sheet").getContext("2d"), pg, 1, true);
+      }
+      function resizeSheet() {
+        const { w: W, h: H } = pageSize();
+        const sheet = $("sheet");
+        if (sheet.width !== W || sheet.height !== H) {
+          sheet.width = W;
+          sheet.height = H;
+          render();
+        }
+        const r = $("stage").getBoundingClientRect(),
+          s = Math.min((r.width - 28) / W, (r.height - 28) / H);
+        $("sheet").style.width = Math.max(1, W * s) + "px";
+        $("sheet").style.height = Math.max(1, H * s) + "px";
+      }
+      new ResizeObserver(resizeSheet).observe($("stage"));
+      function point(e) {
+        const { w: W, h: H } = pageSize();
+        const r = $("sheet").getBoundingClientRect();
+        return {
+          x: ((e.clientX - r.left) * W) / r.width,
+          y: ((e.clientY - r.top) * H) / r.height,
+        };
+      }
+      function threshold() {
+        return (12 * pageSize().w) / $("sheet").getBoundingClientRect().width;
+      }
+      function hitPanel(pos) {
+        return current()?.panels.find((p) => inside(p.points, pos));
+      }
+      function hitBalloon(pos) {
+        return [...(current()?.balloons || [])]
+          .reverse()
+          .find(
+            (b) =>
+              pos.x >= b.x &&
+              pos.x <= b.x + b.w &&
+              pos.y >= b.y &&
+              pos.y <= b.y + b.h,
+          );
+      }
+      $("sheet").onpointerdown = (e) => {
+        if (e.button !== 0 || !current() || stale) return;
+        const pos = point(e);
+        $("sheet").focus();
+        $("sheet").setPointerCapture(e.pointerId);
+        if (mode === "cut") {
+          if (cutAction === "edit") {
+            beginCutMove(pos);
+            return;
+          }
+          const near = nearestEdge(current(), pos);
+          if (!near || near.d > threshold()) {
+            message("cutStart");
+            return;
+          }
+          gesture = {
+            type: "cut",
+            a: { x: near.x, y: near.y },
+            b: { x: near.x, y: near.y },
+            valid: false,
+          };
+          render();
+          return;
+        }
+        const b = balloon(),
+          tol = threshold();
+        let type;
+        if (b && Math.hypot(pos.x - b.x - b.w, pos.y - b.y - b.h) < tol)
+          type = "resize";
+        else if (
+          b &&
+          ["speech", "thought"].includes(b.kind) &&
+          Math.hypot(pos.x - b.x - b.tail.x, pos.y - b.y - b.tail.y) < tol
+        )
+          type = "tail";
+        if (type) {
+          gesture = { type, start: pos, original: clone(b), checkpoint: false };
+          return;
+        }
+        const hit = hitBalloon(pos);
+        if (hit) {
+          selectedBalloon = hit.id;
+          gesture = {
+            type: "balloon",
+            start: pos,
+            original: clone(hit),
+            checkpoint: false,
+          };
+        } else {
+          selectedBalloon = null;
+          const p = hitPanel(pos);
+          selectedPanel = p?.id;
+          if (p?.image)
+            gesture = {
+              type: "image",
+              start: pos,
+              original: clone(p.image),
+              checkpoint: false,
+            };
+        }
+        syncInspector();
+        render();
+      };
+      $("sheet").onpointermove = (e) => {
+        if (!gesture) return;
+        const pos = point(e),
+          g = gesture;
+        if (g.type === "move-cut") {
+          updateCutMove(pos);
+          return;
+        }
+        if (g.type === "cut") {
+          const near = nearestEdge(current(), pos);
+          g.b = near && near.d <= threshold() ? { x: near.x, y: near.y } : pos;
+          g.valid = near?.d <= threshold() && !!planNewCut(current(), g.a, g.b);
+          render();
+          return;
+        }
+        const dx = pos.x - g.start.x,
+          dy = pos.y - g.start.y;
+        if (!g.checkpoint && Math.hypot(dx, dy) < 2) return;
+        if (!g.checkpoint) {
+          checkpoint();
+          g.checkpoint = true;
+        }
+        const b = balloon();
+        if (g.type === "image" && panel()?.image) {
+          panel().image.x = g.original.x + dx;
+          panel().image.y = g.original.y + dy;
+        } else if (b) {
+          const { w: W, h: H } = pageSize();
+          if (g.type === "balloon") {
+            b.x = g.original.x + dx;
+            b.y = g.original.y + dy;
+            keepBalloon(b);
+          }
+          if (g.type === "resize") {
+            b.w = clamp(g.original.w + dx, 80, W - b.x - 4);
+            b.h = clamp(g.original.h + dy, 60, H - b.y - 4);
+          }
+          if (g.type === "tail") {
+            b.tail.x = clamp(pos.x, 4, W - 4) - b.x;
+            b.tail.y = clamp(pos.y, 4, H - 4) - b.y;
+          }
+        }
+        render();
+        syncInspector();
+      };
+      function endGesture(cancel = false) {
+        const g = gesture;
+        if (!g) return;
+        gesture = null;
+        if (g.type === "move-cut") {
+          finishCutMove(g, cancel);
+          return;
+        }
+        if (g.type === "cut") {
+          if (!cancel && g.valid) {
+            const next = planNewCut(current(), g.a, g.b);
+            if (next) {
+              checkpoint();
+              current().panels = next.panels;
+              current().removedCuts = next.removedCuts;
+              selectedCutKey = null;
+              selectedPanel = next.panels[0].id;
+              changed(true);
+              message("cutSuccess");
+            }
+          } else {
+            render();
+            if (!cancel) message("cutError");
+          }
+        } else if (g.checkpoint) {
+          if (cancel) {
+            if (g.type === "image") Object.assign(panel().image, g.original);
+            else Object.assign(balloon(), g.original);
+            history().undo.pop();
+            updateHistory();
+          }
+          changed();
+        }
+      }
+      $("sheet").onpointerup = () => endGesture();
+      $("sheet").onpointercancel = () => endGesture(true);
+      $("sheet").onlostpointercapture = () => endGesture(true);
+      let wheelTimer;
+      $("sheet").addEventListener(
+        "wheel",
+        (e) => {
+          if (mode !== "edit" || !panel()?.image || selectedBalloon) return;
+          e.preventDefault();
+          if (!wheelTimer) checkpoint();
+          const im = panel().image;
+          im.zoom = clamp(im.zoom * Math.exp(-e.deltaY * 0.001), 0.25, 5);
+          render();
+          syncInspector();
+          clearTimeout(wheelTimer);
+          wheelTimer = setTimeout(() => {
+            wheelTimer = null;
+            changed();
+          }, 180);
+        },
+        { passive: false },
+      );
+      $("sheet").ondragover = (e) => {
+        if ([...e.dataTransfer.types].includes("Files")) e.preventDefault();
+      };
+      $("sheet").ondrop = (e) => {
+        e.preventDefault();
+        const p = hitPanel(point(e));
+        if (p)
+          importImage(
+            [...e.dataTransfer.files].find((f) => f.type.startsWith("image/")),
+            current(),
+            p,
+          );
+      };
+      window.addEventListener("paste", (e) => {
+        if (
+          /INPUT|TEXTAREA/.test(e.target.tagName) ||
+          document.querySelector("dialog[open]")
+        )
+          return;
+        const item = [...(e.clipboardData?.items || [])].find((x) =>
+          x.type.startsWith("image/"),
+        );
+        if (item && panel()) {
+          e.preventDefault();
+          importImage(item.getAsFile());
+        }
+      });
+      window.addEventListener("keydown", (e) => {
+        if (
+          /INPUT|TEXTAREA|SELECT/.test(e.target.tagName) ||
+          document.querySelector("dialog[open]") ||
+          stale
+        )
+          return;
+        if (e.key === "?") {
+          e.preventDefault();
+          $("help-dialog").showModal();
+          return;
+        }
+        if (!current()) return;
+        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") {
+          e.preventDefault();
+          endGesture(true);
+          undo(e.shiftKey);
+          return;
+        }
+        if (e.key === "Escape") {
+          endGesture(true);
+          selectedCutKey = null;
+          selectedBalloon = null;
+          render();
+          syncInspector();
+        }
+        if (e.key === "Delete" || e.key === "Backspace") {
+          e.preventDefault();
+          if (mode === "cut") {
+            removeSelectedCut();
+            return;
+          }
+          selectedBalloon
+            ? $("balloon-remove").click()
+            : $("image-remove").click();
+        }
+        if (
+          mode === "cut" &&
+          cutAction === "edit" &&
+          selectedCutKey &&
+          ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(e.key)
+        ) {
+          e.preventDefault();
+          const step = e.shiftKey ? 10 : 2;
+          nudgeCut(
+            e.key === "ArrowLeft" ? -step : e.key === "ArrowRight" ? step : 0,
+            e.key === "ArrowUp" ? -step : e.key === "ArrowDown" ? step : 0,
+          );
+          return;
+        }
+        if (
+          ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(e.key) &&
+          mode === "edit"
+        ) {
+          const b = balloon(),
+            im = panel()?.image;
+          if (!b && !im) return;
+          e.preventDefault();
+          checkpoint();
+          const n = e.shiftKey ? 10 : 2,
+            dx = e.key === "ArrowLeft" ? -n : e.key === "ArrowRight" ? n : 0,
+            dy = e.key === "ArrowUp" ? -n : e.key === "ArrowDown" ? n : 0;
+          if (b) {
+            b.x += dx;
+            b.y += dy;
+            keepBalloon(b);
+          } else {
+            im.x += dx;
+            im.y += dy;
+          }
+          changed();
+        }
+      });
+      $("help-open").onclick = () => $("help-dialog").showModal();
+      $("lang-switcher").onchange = (e) => {
+        lang = e.target.value;
+        localize();
+      };
+      $("theme-switcher").onclick = () => {
+        theme = theme === "light" ? "dark" : "light";
+        localize();
+      };
+      window.addEventListener("message", (e) => {
+        if (
+          e.origin !== location.origin ||
+          e.source !== parent ||
+          e.data?.type !== "os-host-sync"
+        )
+          return;
+        try {
+          if (parent.OS) {
+            lang = I18N[parent.OS.lang] ? parent.OS.lang : lang;
+            theme = parent.OS.theme || theme;
+            localize();
+          }
+        } catch {}
+      });
+      // Minimal PDF writer: JPEG image XObjects on format-sized pages, byte-accurate offsets.
+      // No library or network request is needed to export the artwork.
+      async function makePDF(pages, onProgress) {
+        const enc = new TextEncoder(),
+          parts = [],
+          offsets = [0];
+        let length = 0;
+        const push = (data) => {
+          const bytes = typeof data === "string" ? enc.encode(data) : data;
+          parts.push(bytes);
+          length += bytes.length;
+        };
+        const object = (id, data) => {
+          offsets[id] = length;
+          push(`${id} 0 obj\n`);
+          push(data);
+          push("\nendobj\n");
+        };
+        push("%PDF-1.4\n%Comic Studio\n");
+        object(1, "<< /Type /Catalog /Pages 2 0 R >>");
+        object(
+          2,
+          `<< /Type /Pages /Count ${pages.length} /Kids [${pages.map((_, i) => `${3 + i * 3} 0 R`).join(" ")}] >>`,
+        );
+        for (let i = 0; i < pages.length; i++) {
+          onProgress(i + 1);
+          const canvas = await exportCanvas(pages[i]),
+            size = pageSize(pages[i]),
+            width = canvas.width,
+            height = canvas.height,
+            pdfW = Number(((size.mmW * 72) / 25.4).toFixed(3)),
+            pdfH = Number(((size.mmH * 72) / 25.4).toFixed(3));
+          const jpeg = await canvasBlob(canvas, "image/jpeg", 0.95),
+            bytes = new Uint8Array(await jpeg.arrayBuffer());
+          canvas.width = canvas.height = 1;
+          const id = 3 + i * 3;
+          object(
+            id,
+            `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pdfW} ${pdfH}] /Resources << /XObject << /Art ${id + 1} 0 R >> >> /Contents ${id + 2} 0 R >>`,
+          );
+          offsets[id + 1] = length;
+          push(
+            `${id + 1} 0 obj\n<< /Type /XObject /Subtype /Image /Width ${width} /Height ${height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${bytes.length} >>\nstream\n`,
+          );
+          push(bytes);
+          push("\nendstream\nendobj\n");
+          const commands = `q\n${pdfW} 0 0 ${pdfH} 0 0 cm\n/Art Do\nQ\n`;
+          object(
+            id + 2,
+            `<< /Length ${enc.encode(commands).length} >>\nstream\n${commands}endstream`,
+          );
+          await new Promise((resolve) => setTimeout(resolve, 0));
+        }
+        const start = length;
+        push(`xref\n0 ${offsets.length}\n0000000000 65535 f \n`);
+        for (let i = 1; i < offsets.length; i++)
+          push(String(offsets[i]).padStart(10, "0") + " 00000 n \n");
+        push(
+          `trailer\n<< /Size ${offsets.length} /Root 1 0 R >>\nstartxref\n${start}\n%%EOF`,
+        );
+        return new Blob(parts, { type: "application/pdf" });
+      }
+      function canvasBlob(canvas, type, quality) {
+        return new Promise((resolve, reject) =>
+          canvas.toBlob(
+            (blob) =>
+              blob ? resolve(blob) : reject(Error("Canvas export failed")),
+            type,
+            quality,
+          ),
+        );
+      }
+      async function exportCanvas(pg) {
+        const { w: W, h: H } = pageSize(pg);
+        await ensureImages(pg);
+        await document.fonts.ready;
+        const canvas = document.createElement("canvas");
+        canvas.width = W * 3;
+        canvas.height = H * 3;
+        drawPage(canvas.getContext("2d"), pg, 3, false);
+        return canvas;
+      }
+      function download(blob, name) {
+        const url = URL.createObjectURL(blob),
+          a = document.createElement("a");
+        a.href = url;
+        a.download = name;
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(url), 60000);
+      }
+      function updateExportDimensions() {
+        const size = pageSize();
+        $("export-dimensions").textContent =
+          `${t(size.label)} · ${size.mmW} × ${size.mmH} mm · ${size.w * 3} × ${size.h * 3} px`;
+      }
+      $("export-open").onclick = () => {
+        updateExportDimensions();
+        $("export-progress").textContent = "";
+        $("export-dialog").showModal();
+      };
+      $("export-run").onclick = async () => {
+        if (exportBusy || !current()) return;
+        exportBusy = true;
+        $("export-run").disabled = true;
+        document.body.classList.add("busy");
+        const type = $("export-type").value,
+          pg = current(),
+          edition = issue(),
+          pages = clone(type === "issue" ? edition.pages : [pg]),
+          stem = (
+            project().name +
+            " - " +
+            edition.name +
+            (type === "issue" ? "" : " - " + (edition.pages.indexOf(pg) + 1))
+          ).replace(/[\\/:*?"<>|\u0000-\u001f]/g, "_");
+        try {
+          const progress = (n) =>
+            ($("export-progress").textContent =
+              `${t("exporting")} ${n} / ${pages.length}`);
+          let blob;
+          if (type === "png") {
+            progress(1);
+            const canvas = await exportCanvas(pages[0]);
+            blob = await canvasBlob(canvas, "image/png");
+            canvas.width = canvas.height = 1;
+          } else blob = await makePDF(pages, progress);
+          download(blob, stem + (type === "png" ? ".png" : ".pdf"));
+          $("export-progress").textContent = t("exportDone");
+        } catch (e) {
+          console.error(e);
+          $("export-progress").textContent = t("exportError");
+        } finally {
+          exportBusy = false;
+          $("export-run").disabled = false;
+          if (!stale) document.body.classList.remove("busy");
+        }
+      };
+      // Portable project files embed each referenced original image once.
+      const PROJECT_FILE_FORMAT = "vc-comic-studio-project";
+      const PROJECT_FILE_VERSION = 1;
+      const MAX_PROJECT_FILE_BYTES = 256 * 1024 * 1024;
+      let projectIOBusy = false;
+      class ProjectFileError extends Error {}
+      function projectFileError(key = "invalidProjectFile") {
+        throw new ProjectFileError(key);
+      }
+      function referencedAssets(p) {
+        return new Set(
+          p.issues.flatMap((i) =>
+            i.pages.flatMap((pg) =>
+              pg.panels.flatMap((panel) =>
+                panel.image ? [panel.image.asset] : [],
+              ),
+            ),
+          ),
+        );
+      }
+      function blobToBase64(blob) {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () =>
+            resolve(reader.result.slice(reader.result.indexOf(",") + 1));
+          reader.onerror = () => reject(reader.error);
+          reader.readAsDataURL(blob);
+        });
+      }
+      async function createProjectFile(p, progress = () => {}) {
+        const snapshot = clone(p),
+          ids = [...referencedAssets(snapshot)],
+          assets = [];
+        const tx = db.transaction("assets"),
+          store = tx.objectStore("assets");
+        const records = await Promise.all(
+          ids.map((id) => request(store.get(id))),
+        );
+        let estimatedBytes = new TextEncoder().encode(
+          JSON.stringify(snapshot),
+        ).length;
+        for (let n = 0; n < records.length; n++) {
+          const record = records[n];
+          if (!(record?.blob instanceof Blob)) projectFileError("missingImage");
+          estimatedBytes += Math.ceil(record.blob.size / 3) * 4 + 256;
+          if (estimatedBytes > MAX_PROJECT_FILE_BYTES)
+            projectFileError("projectFileTooLarge");
+          progress(n + 1, records.length);
+          assets.push({
+            id: ids[n],
+            type: record.blob.type,
+            data: await blobToBase64(record.blob),
+          });
+        }
+        const blob = new Blob(
+          [
+            JSON.stringify({
+              format: PROJECT_FILE_FORMAT,
+              version: PROJECT_FILE_VERSION,
+              exportedAt: new Date().toISOString(),
+              project: snapshot,
+              assets,
+            }),
+          ],
+          { type: "application/json" },
+        );
+        if (blob.size > MAX_PROJECT_FILE_BYTES)
+          projectFileError("projectFileTooLarge");
+        return blob;
+      }
+      function validateProjectFile(raw) {
+        const object = (value) => {
+          if (!value || typeof value !== "object" || Array.isArray(value))
+            projectFileError();
+          return value;
+        };
+        const text = (value, max, nonempty = false) => {
+          if (
+            typeof value !== "string" ||
+            value.length > max ||
+            (nonempty && !value.trim())
+          )
+            projectFileError();
+          return value;
+        };
+        const list = (value, max, min = 0) => {
+          if (!Array.isArray(value) || value.length < min || value.length > max)
+            projectFileError();
+          return value;
+        };
+        const num = (value, min, max) => {
+          if (!Number.isFinite(value) || value < min || value > max)
+            projectFileError();
+          return value;
+        };
+        object(raw);
+        if (raw.format !== PROJECT_FILE_FORMAT) projectFileError();
+        if (raw.version !== PROJECT_FILE_VERSION)
+          projectFileError("projectFileVersion");
+        const source = object(raw.project);
+        if (
+          typeof source.format !== "string" ||
+          !Object.hasOwn(PAGE_FORMATS, source.format)
+        )
+          projectFileError();
+        const size = PAGE_FORMATS[source.format],
+          assetMap = new Map();
+        let bytes = 0,
+          pageCount = 0,
+          panelCount = 0,
+          balloonCount = 0;
+        for (const a of list(raw.assets, 5000)) {
+          object(a);
+          const id = text(a.id, 100, true);
+          if (assetMap.has(id)) projectFileError();
+          text(a.type, 128);
+          const data = text(a.data, Math.ceil((40 * 1024 * 1024) / 3) * 4);
+          if (!data.length || /[^A-Za-z0-9+/=]/.test(data)) projectFileError();
+          let binary;
+          try {
+            binary = atob(data);
+          } catch {
+            projectFileError();
+          }
+          bytes += binary.length;
+          if (
+            binary.length > 40 * 1024 * 1024 ||
+            bytes > MAX_PROJECT_FILE_BYTES
+          )
+            projectFileError("projectFileTooLarge");
+          const buffer = Uint8Array.from(binary, (ch) => ch.charCodeAt(0));
+          assetMap.set(id, {
+            id: uid(),
+            blob: new Blob([buffer], { type: a.type }),
+          });
+        }
+        const used = new Set();
+        const imported = {
+          id: uid(),
+          name: text(source.name, 100, true),
+          format: source.format,
+          issues: [],
+        };
+        for (const i of list(source.issues, 2000)) {
+          object(i);
+          const edition = {
+            id: uid(),
+            name: text(i.name, 100, true),
+            pages: [],
+          };
+          for (const pg of list(i.pages, 2000)) {
+            object(pg);
+            if (++pageCount > 2000 || pg.format !== source.format)
+              projectFileError();
+            const sheet = {
+              id: uid(),
+              format: source.format,
+              gutter: num(pg.gutter, 0, 32),
+              panels: [],
+              balloons: [],
+            };
+            if (pg.removedCuts !== undefined)
+              sheet.removedCuts = list(pg.removedCuts, 1000).map((c) => {
+                object(c);
+                object(c.a);
+                object(c.b);
+                const a = {
+                    x: num(c.a.x, -0.001, size.w + 0.001),
+                    y: num(c.a.y, -0.001, size.h + 0.001),
+                  },
+                  b = {
+                    x: num(c.b.x, -0.001, size.w + 0.001),
+                    y: num(c.b.y, -0.001, size.h + 0.001),
+                  };
+                if (Math.hypot(b.x - a.x, b.y - a.y) < 0.01) projectFileError();
+                return { a, b };
+              });
+            for (const p of list(pg.panels, 1000, 1)) {
+              object(p);
+              if (++panelCount > 20000) projectFileError();
+              const points = list(p.points, 128, 3).map((point) => {
+                object(point);
+                return {
+                  x: num(point.x, M - 0.001, size.w - M + 0.001),
+                  y: num(point.y, M - 0.001, size.h - M + 0.001),
+                };
+              });
+              if (
+                area(points) < 1 ||
+                points.some((a, n) => {
+                  const b = points[(n + 1) % points.length];
+                  return points.some((c) => cross(a, b, c) < -0.01);
+                })
+              )
+                projectFileError();
+              const panel = { id: uid(), points, image: null };
+              if (p.image !== null) {
+                const im = object(p.image),
+                  asset = text(im.asset, 100, true);
+                if (!assetMap.has(asset))
+                  projectFileError("projectFileMissingImage");
+                used.add(asset);
+                panel.image = {
+                  asset: assetMap.get(asset).id,
+                  zoom: num(im.zoom, 0.00001, 10000),
+                  x: num(im.x, -1e7, 1e7),
+                  y: num(im.y, -1e7, 1e7),
+                };
+                if (im.frame !== undefined) {
+                  const f = object(im.frame);
+                  panel.image.frame = {
+                    x: num(f.x, -0.001, size.w + 0.001),
+                    y: num(f.y, -0.001, size.h + 0.001),
+                    w: num(f.w, 0.001, size.w + 0.001),
+                    h: num(f.h, 0.001, size.h + 0.001),
+                  };
+                }
+              }
+              sheet.panels.push(panel);
+            }
+            for (const b of list(pg.balloons, 1000)) {
+              object(b);
+              object(b.tail);
+              if (
+                ++balloonCount > 20000 ||
+                !kinds.includes(b.kind) ||
+                typeof b.fill !== "string" ||
+                !/^#[a-f\d]{6}$/i.test(b.fill)
+              )
+                projectFileError();
+              const balloon = {
+                id: uid(),
+                kind: b.kind,
+                x: num(b.x, 0, size.w),
+                y: num(b.y, 0, size.h),
+                w: num(b.w, 1, size.w),
+                h: num(b.h, 1, size.h),
+                tail: {
+                  x: num(b.tail.x, -1e5, 1e5),
+                  y: num(b.tail.y, -1e5, 1e5),
+                },
+                font: num(b.font, 1, 80),
+                fill: b.fill,
+                text: text(b.text, 1200),
+              };
+              if (
+                balloon.x + balloon.w > size.w + 0.001 ||
+                balloon.y + balloon.h > size.h + 0.001
+              )
+                projectFileError();
+              sheet.balloons.push(balloon);
+            }
+            edition.pages.push(sheet);
+          }
+          imported.issues.push(edition);
+        }
+        if (used.size !== assetMap.size) projectFileError();
+        return { project: imported, assets: [...assetMap.values()] };
+      }
+      function uniqueProjectName(name) {
+        const names = new Set(projects.map((p) => p.name));
+        if (!names.has(name)) return name;
+        for (let n = 2; ; n++) {
+          const suffix = ` (${n})`,
+            candidate = name.slice(0, 100 - suffix.length) + suffix;
+          if (!names.has(candidate)) return candidate;
+        }
+      }
+      async function importProjectFile(file, progress = () => {}) {
+        if (file.size > MAX_PROJECT_FILE_BYTES)
+          projectFileError("projectFileTooLarge");
+        let raw;
+        try {
+          raw = JSON.parse(await file.text());
+        } catch {
+          projectFileError();
+        }
+        const imported = validateProjectFile(raw);
+        // Decode before opening a write transaction: invalid images must not leave partial data.
+        for (let n = 0; n < imported.assets.length; n++) {
+          progress(n + 1, imported.assets.length);
+          let image;
+          try {
+            image = await decodeImage(imported.assets[n].blob);
+          } catch {
+            projectFileError("projectFileInvalidImage");
+          }
+          if (image.naturalWidth * image.naturalHeight > 60000000)
+            projectFileError("tooLarge");
+        }
+        if (stale) projectFileError("storageChanged");
+        imported.project.name = uniqueProjectName(imported.project.name);
+        const tx = db.transaction(["projects", "assets"], "readwrite"),
+          done = txDone(tx);
+        try {
+          for (const asset of imported.assets)
+            tx.objectStore("assets").put(asset);
+          tx.objectStore("projects").add(imported.project);
+        } catch (error) {
+          tx.abort();
+          await done.catch(() => {});
+          throw error;
+        }
+        await done;
+        // Publish to the editor only after every image and the project have committed.
+        projects.push(imported.project);
+        selection = { project: imported.project.id };
+        selectedPanel = selectedBalloon = null;
+        gesture = null;
+        renderUI();
+        savePrefs();
+        channel?.postMessage("changed");
+        return imported.project;
+      }
+      function projectFileProgress(n, total) {
+        $("project-file-status").textContent =
+          `${t("projectFileImages")} ${n} / ${total}`;
+      }
+      async function runProjectFile(action) {
+        if (!ready || stale || projectIOBusy || exportBusy || importing) return;
+        projectIOBusy = true;
+        importing++;
+        $("project-file-status").textContent = t("projectFileWorking");
+        for (const id of [
+          "project-file-export",
+          "project-file-import",
+          "project-file-close",
+        ])
+          $(id).disabled = true;
+        document.body.classList.add("busy");
+        try {
+          await action();
+        } catch (error) {
+          console.error(error);
+          $("project-file-status").textContent = t(
+            error instanceof ProjectFileError
+              ? error.message
+              : "projectFileFailed",
+          );
+        } finally {
+          importing--;
+          projectIOBusy = false;
+          $("project-file-export").disabled = !project();
+          $("project-file-import").disabled = $("project-file-close").disabled =
+            false;
+          if (!stale) document.body.classList.remove("busy");
+        }
+      }
+      $("project-file-open").onclick = () => {
+        if (!ready || stale || exportingOrImporting()) return;
+        $("project-file-export").disabled = !project();
+        $("project-file-status").textContent = "";
+        $("project-file-dialog").showModal();
+      };
+      function exportingOrImporting() {
+        return projectIOBusy || exportBusy || importing > 0;
+      }
+      $("project-file-dialog").addEventListener("cancel", (e) => {
+        if (projectIOBusy) e.preventDefault();
+      });
+      $("project-file-export").onclick = () =>
+        runProjectFile(async () => {
+          const p = project();
+          if (!p) return;
+          const blob = await createProjectFile(p, projectFileProgress);
+          const stem = p.name.replace(/[\\/:*?"<>|\u0000-\u001f]/g, "_");
+          download(blob, stem + ".comic.json");
+          $("project-file-status").textContent = t("projectFileExported");
+        });
+      $("project-file-import").onclick = () => $("project-file-input").click();
+      $("project-file-input").onchange = (e) => {
+        const file = e.target.files[0];
+        e.target.value = "";
+        if (!file) return;
+        runProjectFile(async () => {
+          const p = await importProjectFile(file, projectFileProgress);
+          $("project-file-status").textContent =
+            `${t("projectFileImported")} ${p.name}`;
+        });
+      };
+
+      async function init() {
+        try {
+          const req = indexedDB.open("ComicStudioDB", 1);
+          req.onupgradeneeded = () => {
+            const d = req.result;
+            d.createObjectStore("projects", { keyPath: "id" });
+            d.createObjectStore("assets", { keyPath: "id" });
+          };
+          req.onblocked = () => message("storageChanged");
+          db = await request(req);
+          db.onversionchange = () => {
+            db.close();
+            stale = true;
+            document.body.classList.add("busy");
+            message("storageChanged");
+          };
+          projects = await request(
+            db.transaction("projects").objectStore("projects").getAll(),
+          );
+          // Pre-format projects keep their original portrait geometry.
+          for (const p of projects) {
+            p.format = PAGE_FORMATS[p.format] ? p.format : "portrait";
+            p.issues.forEach((i) =>
+              i.pages.forEach((pg) => {
+                pg.format = p.format;
+              }),
+            );
+          }
+          ready = true;
+          try {
+            if (parent !== window && parent.OS) {
+              lang = I18N[parent.OS.lang] ? parent.OS.lang : lang;
+              theme = parent.OS.theme || theme;
+            }
+          } catch {}
+          localize();
+          await ensureImages(current());
+          render();
+          collectUnusedAssets().catch(console.error);
+        } catch (e) {
+          console.error(e);
+          message(ready ? "missingImage" : "loadError");
+          if (!ready) {
+            document.body.classList.add("busy");
+            $("save-status").textContent = t("loadError");
+          }
+        }
+      }
+      localize();
+      init();
+    </script>
+  </body>
+</html>

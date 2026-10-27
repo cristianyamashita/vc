@@ -601,6 +601,10 @@
     // The inspector stores original GLB/glTF, binary buffers and textures as
     // ArrayBuffers; serializeValue/deserializeValue preserve those bytes.
     const KNOWN_IDB_DATABASES = [
+      // Comic Studio: projects with page formats, named issues, ordered pages and original image blobs.
+      // Portable JSON imports, removed dividers and preserved image frames use these same stores.
+      // comicStudio.prefs.v1 is included in the full localStorage backup.
+      { name: 'ComicStudioDB', version: 1, stores: ['projects', 'assets'] },
       { name: 'VC3DModelsDB', version: 1, stores: ['models'] },
       { name: 'EnvironmentPlannerDB', version: 1, stores: ['projects', 'assets'] },
       { name: 'HousePlannerDB', version: 3, stores: ['projects', 'props', 'thumbs', 'textures', 'versions', 'houses'] },
@@ -764,6 +768,12 @@
           const db = e.target.result;
           // Keep the House Planner's v3 upgrade usable when export opens a
           // pre-existing v2 database before the planner itself has loaded.
+          // Backup may be opened before Comic Studio's first launch.
+          if (name === 'ComicStudioDB') {
+            for (const sn of ['projects', 'assets']) {
+              if (!db.objectStoreNames.contains(sn)) db.createObjectStore(sn, { keyPath: 'id' });
+            }
+          }
           if (name === 'HousePlannerDB' && !db.objectStoreNames.contains('houses')) {
             db.createObjectStore('houses', { keyPath: 'id' });
           }
@@ -1058,6 +1068,7 @@
                       EnvironmentPlannerDB: { projects: 'id', assets: 'id' },
                       HousePlannerDB: { projects: 'id', props: 'id', thumbs: 'id', textures: 'id', versions: 'id', houses: 'id' },
                       SmartNoteDB: { docs: 'id', assets: 'id' },
+                      ComicStudioDB: { projects: 'id', assets: 'id' },
                       ServiceTycoonDB: { scenarios: 'id', saves: 'scenarioId' },
                       FlashcardsSRSDB: { decks: 'id', cards: 'id', settings: 'key' },
                       DesktopOSDB: { wallpapers: 'id', userApps: 'id', fsNodes: 'id', fsBlobs: 'id' },

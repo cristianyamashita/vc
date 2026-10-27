@@ -1396,6 +1396,14 @@ ICONS: dict[str, list[Shape]] = {
         c(26, 6, 2.4),
         l(26, 1.5, 26, 2.8, sw=1.2), l(30.5, 6, 29.2, 6, sw=1.2), l(29.2, 2.8, 28.3, 3.7, sw=1.2),
     ],
+    "utils-comic-studio": [
+        r(4, 4, 24, 24, rad=2),
+        r(6, 6, 9, 10, fill=DARK),
+        p([(17, 6), (26, 6), (26, 20), (17, 15)], fill=TEAL),
+        p([(6, 18), (15, 18), (26, 23), (26, 26), (6, 26)], fill=DARK),
+        e(20.8, 10.2, 3.7, 2.5),
+        p([(19, 11), (18, 15), (22, 11)]),
+    ],
     "utils-smart-note": [
         # note sheet with a folded corner, text lines and a slash command mark
         p([(6, 4), (20, 4), (26, 10), (26, 28), (6, 28)]),

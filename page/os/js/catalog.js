@@ -1099,6 +1099,30 @@ window.OSCatalog = (function () {
     }
   },
   {
+    "id": "utils-comic-studio",
+    "href": "utils/comic-studio/index.html",
+    "icon": "../assets/icons/svg/utils-comic-studio.svg",
+    "kind": "site",
+    "uninstallable": true,
+    "defaultInstalled": false,
+    "channel": "stable",
+    "tag": {
+      "en": "Editor",
+      "pt": "Editor",
+      "ja": "エディター"
+    },
+    "name": {
+      "en": "Comic Studio",
+      "pt": "Estúdio de HQ",
+      "ja": "コミック工房"
+    },
+    "desc": {
+      "en": "Create comics with projects, issues and ordered pages in vertical, horizontal or strip formats. Draw and edit cuts, place images and balloons, export PDFs, and transfer editable projects with images in JSON.",
+      "pt": "Crie quadrinhos com projetos, edições e páginas em formato vertical, horizontal ou tira. Desenhe e edite cortes, posicione imagens e balões, exporte PDFs e transfira projetos editáveis com imagens em JSON.",
+      "ja": "プロジェクト・巻・ページで縦・横・縦長・横長の漫画を作成。コマ割りの作成・編集、画像と吹き出しの配置、PDF書き出し、画像を含む編集可能なプロジェクトのJSON入出力に対応。"
+    }
+  },
+  {
     "id": "utils-docs",
     "href": "utils/docs.html",
     "icon": "../assets/icons/svg/utils-docs.svg",
