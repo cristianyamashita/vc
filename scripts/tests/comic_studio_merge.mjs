@@ -168,7 +168,7 @@ try {
   const file = await page.evaluate(async () =>
     JSON.parse(await (await createProjectFile(project())).text()),
   );
-  assert.equal(file.version, 2);
+  assert.equal(file.version, 3);
   await page.evaluate(
     async (file) =>
       importProjectFile(new File([JSON.stringify(file)], "merged.comic.json")),
