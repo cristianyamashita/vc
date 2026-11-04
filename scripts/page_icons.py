@@ -1265,6 +1265,15 @@ ICONS: dict[str, list[Shape]] = {
         c(16, 16, 5, fill=None, stroke=WHITE, sw=2),
         c(16, 16, 2, fill=DARK),
     ],
+    "misc-vision_photo_lab": [
+        r(4, 5, 24, 22, fill=None, stroke=WHITE, sw=1.5, rad=2),
+        c(16, 11, 2.5),
+        pl([(9, 15), (16, 18), (23, 15)], sw=1.5),
+        l(16, 14, 16, 21, sw=1.5),
+        pl([(11, 25), (16, 21), (21, 25)], sw=1.5),
+        c(9, 15, 1.6), c(23, 15, 1.6), c(16, 18, 1.6, fill=DARK),
+        c(11, 25, 1.4), c(21, 25, 1.4),
+    ],
     "misc-vision_motion_lab": [
         r(6, 10, 14, 12, rad=2, fill=None, stroke=WHITE, sw=2),
         r(10, 8, 6, 3, rad=1),

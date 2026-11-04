@@ -627,6 +627,7 @@
     "assets/icons/ico/misc-spin_lab.ico",
     "assets/icons/ico/misc-vision_labs.ico",
     "assets/icons/ico/misc-vision_motion_lab.ico",
+    "assets/icons/ico/misc-vision_photo_lab.ico",
     "assets/icons/ico/misc-webcam_music_controller.ico",
     "assets/icons/ico/mobile-ar_object_scanner.ico",
     "assets/icons/ico/os-about.ico",
@@ -814,6 +815,7 @@
     "assets/icons/png/misc-spin_lab.png",
     "assets/icons/png/misc-vision_labs.png",
     "assets/icons/png/misc-vision_motion_lab.png",
+    "assets/icons/png/misc-vision_photo_lab.png",
     "assets/icons/png/misc-webcam_music_controller.png",
     "assets/icons/png/mobile-ar_object_scanner.png",
     "assets/icons/png/os-about.png",
@@ -1001,6 +1003,7 @@
     "assets/icons/svg/misc-spin_lab.svg",
     "assets/icons/svg/misc-vision_labs.svg",
     "assets/icons/svg/misc-vision_motion_lab.svg",
+    "assets/icons/svg/misc-vision_photo_lab.svg",
     "assets/icons/svg/misc-webcam_music_controller.svg",
     "assets/icons/svg/mobile-ar_object_scanner.svg",
     "assets/icons/svg/os-about.svg",
@@ -1578,6 +1581,7 @@
     "misc/spin_lab.html",
     "misc/vision_labs.html",
     "misc/vision_motion_lab.html",
+    "misc/vision_photo_lab.html",
     "misc/webcam_music_controller.html",
     "mobile/ar_object_scanner.html",
     "os/apps/about/index.html",
@@ -1676,6 +1680,7 @@
     "utils/world_clocks.html"
   ],
   "cdn": [
+    "https://ai.google.dev/edge/mediapipe/solutions/vision/pose_landmarker",
     "https://ambientcg.com/view?id=Asphalt033",
     "https://ambientcg.com/view?id=Bricks029",
     "https://ambientcg.com/view?id=Bricks054",
@@ -1860,9 +1865,20 @@
     "assets/images/wp9.png"
   ],
   "models": [
+    "assets/mediapipe/LICENSE",
+    "assets/mediapipe/models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",
+    "assets/mediapipe/models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task",
+    "assets/mediapipe/models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task",
+    "assets/mediapipe/README.md",
+    "assets/mediapipe/sources.json",
+    "assets/mediapipe/tasks-vision/0.10.14/vision_bundle.mjs",
+    "assets/mediapipe/tasks-vision/0.10.14/wasm/vision_wasm_internal.js",
+    "assets/mediapipe/tasks-vision/0.10.14/wasm/vision_wasm_internal.wasm",
+    "assets/mediapipe/tasks-vision/0.10.14/wasm/vision_wasm_nosimd_internal.js",
+    "assets/mediapipe/tasks-vision/0.10.14/wasm/vision_wasm_nosimd_internal.wasm",
     "models/tinyyolov2-7.onnx",
     "models/yolov8n-coco.onnx"
   ],
-  "version": "96f07cced33c"
+  "version": "aad54f957009"
 };
 })(typeof self !== "undefined" ? self : window);

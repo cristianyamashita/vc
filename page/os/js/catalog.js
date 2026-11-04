@@ -2949,6 +2949,30 @@ window.OSCatalog = (function () {
     }
   },
   {
+    "id": "misc-vision_photo_lab",
+    "href": "misc/vision_photo_lab.html",
+    "icon": "../assets/icons/svg/misc-vision_photo_lab.svg",
+    "kind": "site",
+    "uninstallable": true,
+    "defaultInstalled": false,
+    "channel": "stable",
+    "tag": {
+      "en": "Photo landmarks",
+      "pt": "Pontos em fotos",
+      "ja": "写真のランドマーク"
+    },
+    "name": {
+      "en": "Vision Photo Lab",
+      "pt": "Vision Photo Lab",
+      "ja": "Vision Photo Lab"
+    },
+    "desc": {
+      "en": "Detect body skeletons, detailed faces and fingers in photos, with multiple people, area selection, and PNG/JSON export.",
+      "pt": "Detecte esqueletos corporais, rostos detalhados e dedos em fotos, com várias pessoas, seleção de área e exportação PNG/JSON.",
+      "ja": "写真から全身の骨格・顔・指を検出。複数人、範囲選択、PNG/JSON書き出しに対応。"
+    }
+  },
+  {
     "id": "misc-logic_circuit",
     "href": "misc/logic_circuit.html",
     "icon": "../assets/icons/svg/misc-logic_circuit.svg",

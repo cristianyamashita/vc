@@ -1,0 +1,2346 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Vision Photo Lab</title>
+    <link
+      rel="icon"
+      href="../assets/icons/ico/misc-vision_photo_lab.ico"
+      type="image/x-icon"
+    />
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #0f171a;
+        --panel: #172226;
+        --soft: #203035;
+        --border: #32454a;
+        --text: #e8f2f1;
+        --muted: #9eb3b5;
+        --accent: #008f7d;
+      }
+      :root[data-theme="light"] {
+        color-scheme: light;
+        --bg: #edf3f2;
+        --panel: #fff;
+        --soft: #f1f6f5;
+        --border: #cedcda;
+        --text: #1c3030;
+        --muted: #526d6a;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+      }
+      body {
+        overflow: hidden;
+        background: var(--bg);
+        color: var(--text);
+        font:
+          13px/1.45 system-ui,
+          -apple-system,
+          "Segoe UI",
+          "Noto Sans JP",
+          sans-serif;
+      }
+      button,
+      select,
+      input {
+        font: inherit;
+        color: inherit;
+      }
+      button,
+      select {
+        height: 30px;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        background: var(--soft);
+        padding: 0 9px;
+      }
+      button {
+        cursor: pointer;
+      }
+      button:hover:not(:disabled) {
+        border-color: var(--accent);
+      }
+      button:disabled {
+        opacity: 0.4;
+        cursor: default;
+      }
+      button[aria-pressed="true"],
+      .primary {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: white;
+      }
+      :focus-visible {
+        outline: 2px solid #40cdb5;
+        outline-offset: 2px;
+      }
+      [hidden] {
+        display: none !important;
+      }
+      .app {
+        height: 100%;
+        display: grid;
+        grid-template-rows: 44px minmax(0, 1fr);
+      }
+      .topbar {
+        height: 44px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 0 10px;
+        background: var(--panel);
+        border-bottom: 1px solid var(--border);
+        min-width: 0;
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 15px;
+        font-weight: 650;
+        white-space: nowrap;
+      }
+      .brand img {
+        width: 18px;
+        height: 18px;
+      }
+      .tools {
+        display: flex;
+        gap: 6px;
+        margin-left: auto;
+      }
+      .icon-btn {
+        width: 30px;
+        padding: 0;
+      }
+      .main {
+        min-height: 0;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 244px;
+        padding: 10px;
+        gap: 10px;
+      }
+      .workspace {
+        min-width: 0;
+        min-height: 0;
+        display: grid;
+        grid-template-rows: 34px minmax(0, 1fr) auto;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        overflow: hidden;
+      }
+      .toolbar {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 2px 6px;
+        background: var(--panel);
+        border-bottom: 1px solid var(--border);
+      }
+      .toolbar button {
+        height: 27px;
+        font-size: 12px;
+      }
+      .toolbar .zoom {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        margin-left: auto;
+      }
+      .zoom input {
+        width: 75px;
+        accent-color: var(--accent);
+      }
+      #viewport {
+        position: relative;
+        overflow: auto;
+        min-height: 0;
+        background: #090f13;
+        overscroll-behavior: contain;
+      }
+      #viewport.drag-over {
+        outline: 3px solid #40cdb5;
+        outline-offset: -3px;
+      }
+      #mat {
+        display: grid;
+        place-items: center;
+        min-width: 100%;
+        min-height: 100%;
+        width: max-content;
+        height: max-content;
+        padding: 12px;
+      }
+      #canvas {
+        display: block;
+        touch-action: none;
+        box-shadow: 0 3px 24px #0006;
+        max-width: none;
+      }
+      #canvas.draggable {
+        cursor: grab;
+      }
+      #canvas.draggable.panning {
+        cursor: grabbing;
+      }
+      #canvas.selecting {
+        cursor: crosshair;
+      }
+      .empty {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        padding: 24px;
+        text-align: center;
+        color: #a4b8bb;
+      }
+      .empty svg {
+        width: 60px;
+        height: 60px;
+        color: #3ab6a5;
+      }
+      .empty p {
+        margin: 0;
+      }
+      .statusbar {
+        padding: 7px 10px;
+        background: var(--panel);
+        border-top: 1px solid var(--border);
+        font-size: 12px;
+        color: var(--muted);
+        overflow-wrap: anywhere;
+      }
+      #status.error {
+        color: #ed886f;
+      }
+      #status[data-busy="true"]::before {
+        content: "◌ ";
+        color: #40cdb5;
+      }
+      .sidebar {
+        overflow: auto;
+        min-height: 0;
+        display: grid;
+        grid-template-rows: auto minmax(0, 1fr) auto;
+        gap: 10px;
+      }
+      .panel {
+        padding: 10px;
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+      }
+      .panel h2 {
+        font-size: 13px;
+        margin: 0 0 8px;
+      }
+      .row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        margin: 6px 0;
+      }
+      .row:last-child {
+        margin-bottom: 0;
+      }
+      .row input[type="checkbox"] {
+        accent-color: var(--accent);
+        width: 15px;
+        height: 15px;
+        margin: 0;
+      }
+      .layer {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .swatch {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--color);
+      }
+      .muted {
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .stats {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 6px;
+        text-align: center;
+      }
+      .stat {
+        background: var(--soft);
+        border-radius: 6px;
+        padding: 7px 2px;
+      }
+      .stat b {
+        display: block;
+        font-size: 20px;
+      }
+      .stat span {
+        font-size: 11px;
+        color: var(--muted);
+      }
+      .exports {
+        display: flex;
+        gap: 8px;
+      }
+      .exports button {
+        flex: 1;
+      }
+      .exports + p {
+        margin: 8px 0 0;
+      }
+      #file-info {
+        margin-top: 8px;
+        overflow-wrap: anywhere;
+      }
+      #results-info {
+        margin: 9px 0 0;
+      }
+      #point-info {
+        font-variant-numeric: tabular-nums;
+        min-height: 28px;
+        margin: 6px 0 0;
+      }
+      .sidebar > .panel:nth-child(2) {
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+      }
+      .sidebar.expressions-active > .panel:first-child h2,
+      .sidebar.expressions-active #file-info,
+      .sidebar.expressions-active #results-info {
+        display: none;
+      }
+      .sidebar.expressions-active > .panel:first-child .row {
+        margin: 0;
+      }
+      .sidebar.expressions-active .stats {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 6px;
+      }
+      .sidebar.expressions-active .stat {
+        display: flex;
+        align-items: baseline;
+        gap: 4px;
+        padding: 0;
+        background: none;
+      }
+      .sidebar.expressions-active .stat b {
+        font-size: 14px;
+      }
+      #layers-view {
+        min-height: 0;
+        overflow: auto;
+      }
+      #expressions-view {
+        flex: 1;
+        min-height: 0;
+        overflow: hidden;
+      }
+      #face-details {
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+      }
+      #face-details > :not(#expression-list) {
+        flex-shrink: 0;
+      }
+      .inspector-tabs {
+        display: flex;
+        gap: 4px;
+        margin-bottom: 8px;
+      }
+      .inspector-tabs button {
+        flex: 1;
+        min-width: 0;
+        padding: 0 6px;
+        font-size: 12px;
+      }
+      .inspector-tabs button[aria-selected="true"] {
+        background: var(--accent);
+        color: white;
+      }
+      #detection-mode {
+        max-width: 160px;
+        min-width: 0;
+      }
+      #face-index {
+        min-width: 0;
+        flex: 1;
+      }
+      #face-preview {
+        display: block;
+        width: 100%;
+        height: 128px;
+        background: #090f13;
+        border-radius: 6px;
+        cursor: zoom-in;
+      }
+      #face-quality {
+        margin: 6px 0;
+      }
+      #expression-list {
+        min-height: 0;
+        flex: 1;
+        overflow: auto;
+        scrollbar-gutter: stable;
+      }
+      .expression {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 34px;
+        column-gap: 6px;
+        margin: 6px 0;
+        font-size: 12px;
+      }
+      .expression span {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .expression output {
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+        color: var(--muted);
+      }
+      .expression progress {
+        grid-column: 1 / -1;
+        width: 100%;
+        height: 4px;
+        border: 0;
+        border-radius: 2px;
+        accent-color: var(--accent);
+      }
+      .expression progress::-webkit-progress-bar {
+        background: var(--soft);
+        border-radius: 2px;
+      }
+      .expression progress::-webkit-progress-value {
+        background: var(--accent);
+        border-radius: 2px;
+      }
+      .expression progress::-moz-progress-bar {
+        background: var(--accent);
+        border-radius: 2px;
+      }
+      .range {
+        width: 90px;
+        accent-color: var(--accent);
+      }
+      dialog {
+        background: var(--panel);
+        color: var(--text);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        width: min(560px, calc(100vw - 28px));
+        max-height: calc(100vh - 28px);
+        padding: 0;
+      }
+      dialog::backdrop {
+        background: #0009;
+      }
+      .dialog-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 10px 14px;
+        border-bottom: 1px solid var(--border);
+        font-size: 15px;
+        font-weight: 600;
+      }
+      .dialog-body {
+        padding: 12px 14px;
+        overflow: auto;
+      }
+      .dialog-body p {
+        margin: 0 0 12px;
+      }
+      .dialog-body a {
+        color: #37bca6;
+      }
+      @media (max-width: 720px) {
+        .main {
+          grid-template-columns: minmax(0, 1fr);
+          grid-template-rows: minmax(170px, 1fr) minmax(0, 180px);
+          padding: 8px;
+          gap: 8px;
+        }
+        .sidebar {
+          display: grid;
+          grid-template-columns: repeat(3, minmax(185px, 1fr));
+          grid-template-rows: minmax(0, 1fr);
+          overflow: auto;
+        }
+        .panel {
+          padding: 10px;
+        }
+        #expressions-view {
+          overflow: auto;
+        }
+        #face-details {
+          height: auto;
+        }
+        #expression-list {
+          max-height: 174px;
+          flex: none;
+        }
+
+        .brand span {
+          display: none;
+        }
+        .topbar {
+          gap: 6px;
+          padding: 0 8px;
+        }
+        .toolbar button {
+          padding: 0 6px;
+        }
+        .zoom input {
+          width: 48px;
+        }
+      }
+      @media (max-width: 390px) {
+        #zoom-label {
+          display: none;
+        }
+        .topbar button {
+          padding: 0 7px;
+        }
+        .tools {
+          gap: 4px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <header class="topbar">
+        <div class="brand">
+          <img
+            src="../assets/icons/svg/misc-vision_photo_lab.svg"
+            alt=""
+          /><span data-i18n="title">Vision Photo Lab</span>
+        </div>
+        <button id="upload" data-i18n="upload">Open photo</button
+        ><button id="analyze" class="primary" data-i18n="analyze" disabled>
+          Analyze all
+        </button>
+        <div class="tools">
+          <button id="help-btn" class="icon-btn" data-title="help">?</button
+          ><select id="lang-switcher" aria-label="Language">
+            <option value="en">EN</option>
+            <option value="pt">PT</option>
+            <option value="ja">JA</option></select
+          ><button id="theme-switcher" class="icon-btn" data-title="theme">
+            ◐
+          </button>
+        </div>
+      </header>
+      <main class="main">
+        <section class="workspace">
+          <div class="toolbar">
+            <button
+              id="select-area"
+              aria-pressed="false"
+              data-i18n="select"
+              disabled
+            >
+              Select area</button
+            ><button id="full-image" data-i18n="whole" disabled>
+              Whole photo</button
+            ><label class="zoom"
+              ><span id="zoom-label" data-i18n="zoom">Zoom</span
+              ><input
+                id="zoom"
+                type="range"
+                min="100"
+                max="400"
+                step="25"
+                value="100"
+              /><output id="zoom-value">100%</output></label
+            >
+          </div>
+          <div id="viewport">
+            <div id="mat" hidden>
+              <canvas
+                id="canvas"
+                role="img"
+                aria-label="Photo and detected landmarks"
+              ></canvas>
+            </div>
+            <div class="empty" id="empty">
+              <svg
+                viewBox="0 0 64 64"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                aria-hidden="true"
+              >
+                <rect x="6" y="9" width="52" height="46" rx="6" />
+                <circle cx="32" cy="23" r="5" />
+                <path d="M32 28v13m-12-9 12 4 12-4M32 41l-9 10m9-10 9 10" />
+                <circle cx="20" cy="32" r="2" />
+                <circle cx="44" cy="32" r="2" />
+              </svg>
+              <p data-i18n="drop">
+                Drop or paste a photo here, or open a file.
+              </p>
+              <button id="empty-upload" class="primary" data-i18n="upload">
+                Open photo
+              </button>
+            </div>
+          </div>
+          <div class="statusbar">
+            <span id="status" role="status" aria-live="polite"></span>
+          </div>
+        </section>
+        <aside class="sidebar">
+          <section class="panel">
+            <h2 data-i18n="detection">Detection</h2>
+            <label class="row"
+              ><span data-i18n="mode">Mode</span
+              ><select id="detection-mode">
+                <option value="all" data-i18n="modeAll">
+                  Body, face & hands
+                </option>
+                <option value="faces" data-i18n="modeFaces">Faces only</option>
+              </select></label
+            >
+            <label class="row"
+              ><span id="limit-label" data-i18n="limit">Maximum people</span
+              ><select id="limit">
+                <option>1</option>
+                <option>2</option>
+                <option selected>4</option>
+                <option>6</option>
+                <option>10</option>
+              </select></label
+            >
+            <div class="stats">
+              <div class="stat">
+                <b id="body-count">—</b><span data-i18n="bodies">Bodies</span>
+              </div>
+              <div class="stat">
+                <b id="face-count">—</b><span data-i18n="faces">Faces</span>
+              </div>
+              <div class="stat">
+                <b id="hand-count">—</b><span data-i18n="hands">Hands</span>
+              </div>
+            </div>
+            <p id="results-info" class="muted"></p>
+            <div id="file-info" class="muted"></div>
+          </section>
+          <section class="panel">
+            <div class="inspector-tabs" role="tablist" data-label="detection">
+              <button
+                id="layers-tab"
+                role="tab"
+                aria-controls="layers-view"
+                aria-selected="true"
+                data-i18n="layers"
+              >
+                Visible layers
+              </button>
+              <button
+                id="expressions-tab"
+                role="tab"
+                aria-controls="expressions-view"
+                aria-selected="false"
+                data-i18n="expressions"
+              >
+                Expressions
+              </button>
+            </div>
+            <div id="layers-view" role="tabpanel" aria-labelledby="layers-tab">
+              <label class="row"
+                ><span data-i18n="photo">Photo</span
+                ><input id="layer-photo" type="checkbox" checked /></label
+              ><label class="row"
+                ><span class="layer"
+                  ><i class="swatch" style="--color: #55efc4"></i
+                  ><span data-i18n="body">Body skeleton</span></span
+                ><input id="layer-body" type="checkbox" checked /></label
+              ><label class="row"
+                ><span class="layer"
+                  ><i class="swatch" style="--color: #75caff"></i
+                  ><span data-i18n="face">Face & irises</span></span
+                ><input id="layer-face" type="checkbox" checked /></label
+              ><label class="row"
+                ><span class="layer"
+                  ><i class="swatch" style="--color: #ffcd70"></i
+                  ><span data-i18n="fingers">Hands & fingers</span></span
+                ><input id="layer-hands" type="checkbox" checked /></label
+              ><label class="row"
+                ><span data-i18n="mesh">Dense face mesh</span
+                ><input id="layer-mesh" type="checkbox" checked /></label
+              ><label class="row"
+                ><span data-i18n="points">Landmark dots</span
+                ><input id="layer-points" type="checkbox" checked /></label
+              ><label class="row"
+                ><span data-i18n="visibility">Body visibility</span
+                ><input
+                  id="visibility"
+                  class="range"
+                  type="range"
+                  min="0"
+                  max="100"
+                  step="5"
+                  value="35"
+              /></label>
+              <p id="point-info" class="muted" aria-live="off"></p>
+            </div>
+            <div
+              id="expressions-view"
+              role="tabpanel"
+              aria-labelledby="expressions-tab"
+              hidden
+            >
+              <p id="face-empty" class="muted" data-i18n="faceEmpty">
+                Analyze a photo to inspect facial movements.
+              </p>
+              <div id="face-details" hidden>
+                <div class="row">
+                  <select id="face-index" data-label="chooseFace"></select
+                  ><button id="focus-face" data-i18n="focusFace">Focus</button>
+                </div>
+                <canvas
+                  id="face-preview"
+                  width="440"
+                  height="300"
+                  data-label="facePreview"
+                ></canvas>
+                <div id="face-quality" class="muted"></div>
+                <div class="row">
+                  <span class="muted" data-i18n="movements"
+                    >Estimated movements</span
+                  ><label class="layer muted"
+                    ><input id="all-expressions" type="checkbox" /><span
+                      data-i18n="allSignals"
+                      >All 52</span
+                    ></label
+                  >
+                </div>
+                <div id="expression-list"></div>
+              </div>
+            </div>
+          </section>
+          <section class="panel">
+            <div class="exports">
+              <button id="export-png" disabled>PNG</button
+              ><button id="export-json" disabled>JSON</button>
+            </div>
+          </section>
+        </aside>
+      </main>
+    </div>
+    <input
+      id="file"
+      type="file"
+      accept="image/jpeg,image/png,image/webp,image/avif,image/bmp"
+      hidden
+    />
+    <dialog id="help">
+      <div class="dialog-top">
+        <span data-i18n="help">Help</span
+        ><button id="help-close" class="icon-btn" data-title="close">×</button>
+      </div>
+      <div class="dialog-body">
+        <p data-i18n="helpStart"></p>
+        <p data-i18n="helpArea"></p>
+        <p data-i18n="helpDetails"></p>
+        <p data-i18n="helpExpressions"></p>
+        <p data-i18n="helpLimits"></p>
+        <p data-i18n="helpExport"></p>
+        <p data-i18n="helpPrivacy"></p>
+        <a
+          href="https://ai.google.dev/edge/mediapipe/solutions/vision/pose_landmarker"
+          target="_blank"
+          rel="noopener"
+          >MediaPipe — Google AI Edge</a
+        >
+      </div>
+    </dialog>
+    <script src="../os/js/embed.js"></script>
+    <script>
+      (() => {
+        "use strict";
+        const $ = (id) => document.getElementById(id);
+        const KEY = "visionPhotoLab.prefs.v1";
+        const RUNTIME = "../assets/mediapipe/tasks-vision/0.10.14";
+        const MODEL = "../assets/mediapipe/models/";
+        const texts = {
+          en: {
+            mode: "Mode",
+            modeAll: "Body, face & hands",
+            modeFaces: "Faces only",
+            analyzeFaces: "Find faces",
+            limitFaces: "Maximum faces",
+            notAnalyzed: "Not analyzed in Faces only mode",
+            noneFaces: "No faces found. Try a tighter area or a clearer photo.",
+
+            expressions: "Expressions",
+            faceSingle: "Face",
+            chooseFace: "Choose a face",
+            focusFace: "Focus",
+            facePreview: "Enlarged face and expression contours",
+            faceEmpty: "Analyze a photo to inspect facial movements.",
+            movements: "Estimated movements",
+            allSignals: "All 52",
+            faceSmall: "Small face: limited source detail.",
+            faceRefined: "Refined from the original photo",
+            refiningFace: "Refining faces and expressions…",
+            helpExpressions:
+              "Faces are reanalyzed in close-up crops of the original photo. Overlapping image tiles and body head regions help find smaller faces. The Expressions tab shows a preview and 52 facial movement activations, including smiles, eyelids, eyebrows and mouth. Percentages are model activations, not emotion probabilities. Left/right refer to the person. Small or hidden features remain uncertain.",
+            neutral: "Neutral channel",
+            browDown: "Brow lowered",
+            browInnerUp: "Inner brows raised",
+            browOuterUp: "Outer brow raised",
+            cheekPuff: "Cheeks puffed",
+            cheekSquint: "Cheek raised",
+            eyeBlink: "Eye closed",
+            eyeLookDown: "Eye looking down",
+            eyeLookIn: "Eye looking inward",
+            eyeLookOut: "Eye looking outward",
+            eyeLookUp: "Eye looking up",
+            eyeSquint: "Eye squint",
+            eyeWide: "Eye widened",
+            jawForward: "Jaw forward",
+            jawLeft: "Jaw left",
+            jawOpen: "Mouth open",
+            jawRight: "Jaw right",
+            mouthClose: "Lips closed",
+            mouthDimple: "Mouth dimple",
+            mouthFrown: "Lip corner lowered",
+            mouthFunnel: "Lips funnelled",
+            mouthLeft: "Mouth left",
+            mouthLowerDown: "Lower lip lowered",
+            mouthPress: "Lips pressed",
+            mouthPucker: "Lips puckered",
+            mouthRight: "Mouth right",
+            mouthRollLower: "Lower lip rolled inward",
+            mouthRollUpper: "Upper lip rolled inward",
+            mouthShrugLower: "Lower lip raised",
+            mouthShrugUpper: "Upper lip raised",
+            mouthSmile: "Smile",
+            mouthStretch: "Lip stretched",
+            mouthUpperUp: "Upper lip lifted",
+            noseSneer: "Nose wrinkled",
+
+            title: "Vision Photo Lab",
+            upload: "Open photo",
+            analyze: "Analyze all",
+            help: "Help",
+            theme: "Switch theme",
+            close: "Close",
+            select: "Select area",
+            whole: "Whole photo",
+            zoom: "Zoom",
+            drop: "Drop or paste a photo here, or open a file.",
+            detection: "Detection",
+            limit: "Maximum people",
+            bodies: "Bodies",
+            faces: "Faces",
+            hands: "Hands",
+            layers: "Visible layers",
+            photo: "Photo",
+            body: "Body skeleton",
+            face: "Face & irises",
+            fingers: "Hands & fingers",
+            mesh: "Dense face mesh",
+            points: "Landmark dots",
+            visibility: "Body visibility",
+            export: "Export",
+            local: "Photos are processed in this browser and are not saved.",
+            ready: "Open a photo to begin.",
+            loaded: "Photo ready. Analyze all or select an area.",
+            loading: "Opening photo…",
+            models: "Loading detection models… First use may take a moment.",
+            workingBody: "Detecting bodies…",
+            workingFace: "Detecting faces…",
+            workingHands: "Detecting hands and fingers…",
+            done: "Analysis complete.",
+            none: "No landmarks found. Try a tighter area or a clearer photo.",
+            areaHint: "Drag a rectangle over the photo, then analyze.",
+            areaReady: "Selected area ready. Start analysis.",
+            smallArea: "Select a larger area (at least 32 × 32 pixels).",
+            pending: "Settings changed. Analyze again to update results.",
+            loadError:
+              "Could not open this image. Use a JPG, PNG, WebP, AVIF or BMP.",
+            sizeError:
+              "Use a photo up to 25 MB, 32 megapixels and 8192 pixels per side.",
+            modelError:
+              "Analysis failed. Check the local model files and WebGL support. Open the page through an HTTP server, then try again.",
+            exportError: "Could not export the file. Try again.",
+            saving: "Preparing export…",
+            scopeFull: "Whole photo",
+            scopeArea: "Selected area",
+            independent:
+              "Separate detections; parts are not assigned to people.",
+            hover: "Hover over a point to inspect its coordinates.",
+            point: "Point",
+            left: "Left",
+            right: "Right",
+            language: "Language",
+            canvas: "Photo and detected landmarks",
+            helpStart:
+              "Open, drop or paste a photo (Ctrl+V / ⌘V), choose the maximum number of people (up to 10), then click Analyze all. Choose Faces only for portraits: Find faces runs just the face model, including expression analysis, without loading body or hand models. In Body, face & hands mode, all detectors run together: 33 landmarks per body, 478 per face and 21 per hand.",
+            helpArea:
+              "Use Select area and drag a rectangle to focus on a person, face or hand. The original photo stays visible. Whole photo clears the area. Each analysis replaces previous results; separate areas are not combined.",
+            helpDetails:
+              "Zoom up to 400% and drag the enlarged photo or scroll inside the image. Toggle layers, dense face mesh or landmark dots. Hover over a point to see its index and original pixel coordinates. Body visibility only filters the displayed skeleton; it does not change detection.",
+            helpLimits:
+              "Body, face and hand counts are independent, with up to twice as many hands as the people limit. Parts are not automatically assigned to the same person. Small, hidden, blurred or overlapping features may be missed. A tighter area can improve detail, but cannot recover invisible features.",
+            helpExport:
+              "PNG exports the visible layers at the original photo dimensions, without the selection rectangle. JSON contains all 52 facial movement scores and every detected landmark, including hidden layers, normalized original-image coordinates, pixel coordinates and the analyzed area. Depth is a model estimate, not a physical measurement.",
+            helpPrivacy:
+              "Photos and detection results stay in memory until you leave or open another photo. Only display preferences are stored locally and included in Backup. The MediaPipe library and models are included with this site and loaded from the same host. A local HTTP server works without internet, including on first use; opening the HTML directly as a file is not supported. Press ? for help or Escape to cancel selection.",
+          },
+          pt: {
+            mode: "Modo",
+            modeAll: "Corpo, rosto e mãos",
+            modeFaces: "Só rostos",
+            analyzeFaces: "Buscar rostos",
+            limitFaces: "Máximo de rostos",
+            notAnalyzed: "Não analisado no modo Só rostos",
+            noneFaces:
+              "Nenhum rosto encontrado. Tente uma área menor ou uma foto mais nítida.",
+
+            expressions: "Expressões",
+            faceSingle: "Rosto",
+            chooseFace: "Escolher rosto",
+            focusFace: "Ampliar",
+            facePreview: "Rosto ampliado e contornos de expressão",
+            faceEmpty: "Analise uma foto para ver os movimentos faciais.",
+            movements: "Movimentos estimados",
+            allSignals: "Todos os 52",
+            faceSmall: "Rosto pequeno: poucos detalhes na foto.",
+            faceRefined: "Refinado na foto original",
+            refiningFace: "Refinando rostos e expressões…",
+            helpExpressions:
+              "Os rostos são reanalisados em recortes ampliados da foto original. Regiões sobrepostas da imagem e áreas da cabeça indicadas pelo corpo ajudam a encontrar rostos menores. A aba Expressões mostra uma prévia e 52 ativações de movimentos, incluindo sorriso, pálpebras, sobrancelhas e boca. Os percentuais são ativações do modelo, não probabilidades de emoções. Esquerda/direita se referem à pessoa. Detalhes pequenos ou ocultos continuam incertos.",
+            neutral: "Canal neutro",
+            browDown: "Sobrancelha abaixada",
+            browInnerUp: "Sobrancelhas internas elevadas",
+            browOuterUp: "Sobrancelha externa elevada",
+            cheekPuff: "Bochechas infladas",
+            cheekSquint: "Bochecha elevada",
+            eyeBlink: "Olho fechado",
+            eyeLookDown: "Olhar para baixo",
+            eyeLookIn: "Olhar para dentro",
+            eyeLookOut: "Olhar para fora",
+            eyeLookUp: "Olhar para cima",
+            eyeSquint: "Olho semicerrado",
+            eyeWide: "Olho arregalado",
+            jawForward: "Mandíbula para frente",
+            jawLeft: "Mandíbula para esquerda",
+            jawOpen: "Boca aberta",
+            jawRight: "Mandíbula para direita",
+            mouthClose: "Lábios fechados",
+            mouthDimple: "Covinha na boca",
+            mouthFrown: "Canto da boca abaixado",
+            mouthFunnel: "Lábios em funil",
+            mouthLeft: "Boca para esquerda",
+            mouthLowerDown: "Lábio inferior abaixado",
+            mouthPress: "Lábios pressionados",
+            mouthPucker: "Lábios em bico",
+            mouthRight: "Boca para direita",
+            mouthRollLower: "Lábio inferior para dentro",
+            mouthRollUpper: "Lábio superior para dentro",
+            mouthShrugLower: "Lábio inferior elevado",
+            mouthShrugUpper: "Lábio superior elevado",
+            mouthSmile: "Sorriso",
+            mouthStretch: "Lábio esticado",
+            mouthUpperUp: "Lábio superior elevado",
+            noseSneer: "Nariz franzido",
+
+            title: "Vision Photo Lab",
+            upload: "Abrir foto",
+            analyze: "Analisar tudo",
+            help: "Ajuda",
+            theme: "Alternar tema",
+            close: "Fechar",
+            select: "Selecionar área",
+            whole: "Foto inteira",
+            zoom: "Zoom",
+            drop: "Arraste ou cole uma foto aqui, ou abra um arquivo.",
+            detection: "Detecção",
+            limit: "Máximo de pessoas",
+            bodies: "Corpos",
+            faces: "Rostos",
+            hands: "Mãos",
+            layers: "Camadas visíveis",
+            photo: "Foto",
+            body: "Esqueleto corporal",
+            face: "Rosto e íris",
+            fingers: "Mãos e dedos",
+            mesh: "Malha facial densa",
+            points: "Pontos de referência",
+            visibility: "Visibilidade corporal",
+            export: "Exportar",
+            local: "As fotos são processadas neste navegador e não são salvas.",
+            ready: "Abra uma foto para começar.",
+            loaded: "Foto pronta. Analise tudo ou selecione uma área.",
+            loading: "Abrindo foto…",
+            models: "Carregando modelos… O primeiro uso pode demorar um pouco.",
+            workingBody: "Detectando corpos…",
+            workingFace: "Detectando rostos…",
+            workingHands: "Detectando mãos e dedos…",
+            done: "Análise concluída.",
+            none: "Nenhum ponto encontrado. Tente uma área menor ou uma foto mais nítida.",
+            areaHint: "Arraste um retângulo sobre a foto e depois analise.",
+            areaReady: "Área selecionada. Inicie a análise.",
+            smallArea: "Selecione uma área maior (pelo menos 32 × 32 pixels).",
+            pending: "Configuração alterada. Analise novamente para atualizar.",
+            loadError:
+              "Não foi possível abrir a imagem. Use JPG, PNG, WebP, AVIF ou BMP.",
+            sizeError:
+              "Use uma foto de até 25 MB, 32 megapixels e 8192 pixels por lado.",
+            modelError:
+              "Falha na análise. Verifique os arquivos locais dos modelos e o suporte a WebGL. Abra a página por um servidor HTTP e tente novamente.",
+            exportError:
+              "Não foi possível exportar o arquivo. Tente novamente.",
+            saving: "Preparando exportação…",
+            scopeFull: "Foto inteira",
+            scopeArea: "Área selecionada",
+            independent:
+              "Detecções separadas; as partes não são associadas a pessoas.",
+            hover: "Passe o cursor sobre um ponto para ver suas coordenadas.",
+            point: "Ponto",
+            left: "Esquerda",
+            right: "Direita",
+            language: "Idioma",
+            canvas: "Foto e pontos detectados",
+            helpStart:
+              "Abra, arraste ou cole uma foto (Ctrl+V / ⌘V), escolha o máximo de pessoas (até 10) e clique em Analisar tudo. Para retratos, escolha Só rostos e clique em Buscar rostos: apenas o modelo facial é executado, incluindo expressões, sem carregar os modelos de corpo e mãos. No modo Corpo, rosto e mãos, os detectores executam juntos: 33 pontos por corpo, 478 por rosto e 21 por mão.",
+            helpArea:
+              "Use Selecionar área e arraste um retângulo para focar uma pessoa, rosto ou mão. A foto original continua visível. Foto inteira remove a seleção. Cada análise substitui a anterior; áreas separadas não são acumuladas.",
+            helpDetails:
+              "Amplie até 400% e arraste a foto ampliada ou role dentro da imagem. Alterne camadas, malha facial e pontos. Passe o cursor sobre um ponto para ver o índice e as coordenadas em pixels originais. A visibilidade corporal filtra apenas o esqueleto exibido, sem alterar a detecção.",
+            helpLimits:
+              "As contagens de corpos, rostos e mãos são independentes, com até o dobro de mãos do limite de pessoas. As partes não são associadas automaticamente à mesma pessoa. Detalhes pequenos, ocultos, desfocados ou sobrepostos podem não ser detectados. Uma área menor pode melhorar o detalhe, mas não revela partes invisíveis.",
+            helpExport:
+              "PNG exporta as camadas visíveis nas dimensões originais da foto, sem o retângulo de seleção. JSON contém os 52 sinais de movimentos faciais e todos os pontos detectados, inclusive camadas ocultas, coordenadas normalizadas na imagem original, pixels e área analisada. A profundidade é uma estimativa do modelo, não uma medida física.",
+            helpPrivacy:
+              "Fotos e resultados ficam na memória até sair ou abrir outra foto. Apenas preferências de exibição são salvas localmente e incluídas no Backup. A biblioteca e os modelos MediaPipe estão incluídos neste site e são carregados do próprio host. Um servidor HTTP local funciona sem internet, inclusive no primeiro uso; abrir o HTML diretamente como arquivo não é suportado. Pressione ? para ajuda ou Escape para cancelar a seleção.",
+          },
+          ja: {
+            mode: "モード",
+            modeAll: "体・顔・手",
+            modeFaces: "顔のみ",
+            analyzeFaces: "顔を検出",
+            limitFaces: "最大の顔数",
+            notAnalyzed: "顔のみモードでは解析していません",
+            noneFaces:
+              "顔が検出されませんでした。範囲を絞るか、鮮明な写真をお試しください。",
+
+            expressions: "表情",
+            faceSingle: "顔",
+            chooseFace: "顔を選択",
+            focusFace: "拡大",
+            facePreview: "拡大した顔と表情の輪郭",
+            faceEmpty: "写真を解析すると顔の動きを確認できます。",
+            movements: "推定された動き",
+            allSignals: "全52項目",
+            faceSmall: "顔が小さく、元画像の詳細が不足しています。",
+            faceRefined: "元の写真から詳細解析",
+            refiningFace: "顔と表情を詳細解析中…",
+            helpExpressions:
+              "各顔を元の写真から切り出して再解析します。重なりのある分割領域と体から推定した頭部領域で小さな顔も探します。表情タブには拡大プレビューと、笑顔・まぶた・眉・口など52種類の動きの強さを表示します。パーセントはモデルの活性値で、感情の確率ではありません。左右は本人から見た向きです。小さい部分や隠れた部分は不確実です。",
+            neutral: "中立チャンネル",
+            browDown: "眉を下げる",
+            browInnerUp: "眉の内側を上げる",
+            browOuterUp: "眉の外側を上げる",
+            cheekPuff: "頬を膨らませる",
+            cheekSquint: "頬を上げる",
+            eyeBlink: "目を閉じる",
+            eyeLookDown: "下を見る",
+            eyeLookIn: "内側を見る",
+            eyeLookOut: "外側を見る",
+            eyeLookUp: "上を見る",
+            eyeSquint: "目を細める",
+            eyeWide: "目を見開く",
+            jawForward: "顎を前に出す",
+            jawLeft: "顎を左に動かす",
+            jawOpen: "口を開ける",
+            jawRight: "顎を右に動かす",
+            mouthClose: "唇を閉じる",
+            mouthDimple: "口角を引き締める",
+            mouthFrown: "口角を下げる",
+            mouthFunnel: "唇を筒状にする",
+            mouthLeft: "口を左に動かす",
+            mouthLowerDown: "下唇を下げる",
+            mouthPress: "唇を押し合わせる",
+            mouthPucker: "唇をすぼめる",
+            mouthRight: "口を右に動かす",
+            mouthRollLower: "下唇を内側に巻く",
+            mouthRollUpper: "上唇を内側に巻く",
+            mouthShrugLower: "下唇を上げる",
+            mouthShrugUpper: "上唇を上げる",
+            mouthSmile: "笑顔",
+            mouthStretch: "唇を横に伸ばす",
+            mouthUpperUp: "上唇を上げる",
+            noseSneer: "鼻にしわを寄せる",
+
+            title: "Vision Photo Lab",
+            upload: "写真を開く",
+            analyze: "すべて解析",
+            help: "ヘルプ",
+            theme: "テーマ切替",
+            close: "閉じる",
+            select: "範囲選択",
+            whole: "写真全体",
+            zoom: "ズーム",
+            drop: "写真をドロップ・貼り付けするか、ファイルを開いてください。",
+            detection: "検出",
+            limit: "最大人数",
+            bodies: "体",
+            faces: "顔",
+            hands: "手",
+            layers: "表示レイヤー",
+            photo: "写真",
+            body: "全身の骨格",
+            face: "顔と虹彩",
+            fingers: "手と指",
+            mesh: "詳細な顔メッシュ",
+            points: "ランドマーク点",
+            visibility: "体の可視性",
+            export: "書き出し",
+            local: "写真はこのブラウザで処理され、保存されません。",
+            ready: "写真を開いてください。",
+            loaded: "写真を読み込みました。解析するか範囲を選択してください。",
+            loading: "写真を読み込み中…",
+            models: "モデルを読み込み中… 初回は時間がかかる場合があります。",
+            workingBody: "体を検出中…",
+            workingFace: "顔を検出中…",
+            workingHands: "手と指を検出中…",
+            done: "解析が完了しました。",
+            none: "点が検出されませんでした。範囲を絞るか、鮮明な写真をお試しください。",
+            areaHint: "写真上で四角形をドラッグしてから解析してください。",
+            areaReady: "範囲を選択しました。解析を開始してください。",
+            smallArea: "32 × 32ピクセル以上の範囲を選択してください。",
+            pending: "設定を変更しました。再解析してください。",
+            loadError:
+              "画像を開けませんでした。JPG、PNG、WebP、AVIF、BMPをご利用ください。",
+            sizeError:
+              "25 MB、3200万画素、各辺8192ピクセル以下の写真をご利用ください。",
+            modelError:
+              "解析に失敗しました。ローカルのモデルファイルとWebGL対応を確認し、HTTPサーバー経由でページを開いて再試行してください。",
+            exportError: "書き出せませんでした。もう一度お試しください。",
+            saving: "書き出しを準備中…",
+            scopeFull: "写真全体",
+            scopeArea: "選択範囲",
+            independent:
+              "各部位を個別に検出します。人物との対応付けは行いません。",
+            hover: "点にカーソルを合わせると座標を確認できます。",
+            point: "点",
+            left: "左",
+            right: "右",
+            language: "言語",
+            canvas: "写真と検出されたランドマーク",
+            helpStart:
+              "写真を開く・ドロップ・貼り付け（Ctrl+V / ⌘V）し、最大人数（10人まで）を選んで「すべて解析」を押します。ポートレートには「顔のみ」を選び「顔を検出」を押します。顔と表情のみを解析し、体と手のモデルは読み込みません。「体・顔・手」ではすべてを解析します。体は33点、顔は478点、手は片手21点です。",
+            helpArea:
+              "「範囲選択」で人物・顔・手を囲んで詳しく解析できます。元の写真はそのまま表示されます。「写真全体」で範囲を解除します。再解析すると前の結果は置き換わり、複数の範囲は蓄積されません。",
+            helpDetails:
+              "400%まで拡大し、拡大写真をドラッグしたり画像内をスクロールしたりできます。レイヤー、顔メッシュ、点の表示を切り替えられます。点にカーソルを合わせると番号と元画像のピクセル座標を表示します。体の可視性は骨格表示のみを絞り込み、検出結果は変えません。",
+            helpLimits:
+              "体・顔・手の件数は独立しており、手は最大人数の2倍まで検出します。部位と人物の対応付けは行いません。小さい、隠れた、不鮮明な、重なった部位は検出されない場合があります。範囲を絞ると改善する場合がありますが、見えない部位は復元できません。",
+            helpExport:
+              "PNGは表示中のレイヤーを元の写真サイズで保存し、選択枠は含みません。JSONには52種類の顔の動きの値、非表示レイヤーも含む全検出点、元画像の正規化座標、ピクセル座標、解析範囲を保存します。奥行きはモデルの推定値で、実測値ではありません。",
+            helpPrivacy:
+              "写真と結果はページを閉じるか別の写真を開くまでメモリ内に保持します。表示設定のみローカルに保存し、バックアップに含めます。MediaPipeのライブラリとモデルはこのサイトに同梱され、同じホストから読み込みます。ローカルHTTPサーバーなら初回からネット接続なしで動作します。HTMLファイルを直接開く方法には対応していません。?キーでヘルプ、Escapeキーで範囲選択をキャンセルできます。",
+          },
+        };
+        let lang = "en",
+          prefs = {};
+        try {
+          lang =
+            localStorage.getItem("app_lang") || navigator.language.slice(0, 2);
+          prefs = JSON.parse(localStorage.getItem(KEY) || "{}") || {};
+          document.documentElement.dataset.theme =
+            localStorage.getItem("app_theme") === "light" ? "light" : "dark";
+        } catch {}
+        if (!texts[lang]) lang = "en";
+        if (["all", "faces"].includes(prefs.mode))
+          $("detection-mode").value = prefs.mode;
+        const layerNames = ["photo", "body", "face", "hands", "mesh", "points"];
+        for (const name of layerNames)
+          if (typeof prefs[name] === "boolean")
+            $("layer-" + name).checked = prefs[name];
+        if ([1, 2, 4, 6, 10].includes(prefs.limit))
+          $("limit").value = prefs.limit;
+        if (Number.isFinite(prefs.visibility))
+          $("visibility").value = Math.max(0, Math.min(100, prefs.visibility));
+        let image = null,
+          fileName = "",
+          results = null,
+          region = null,
+          drag = null,
+          pan = null,
+          selectedFace = 0,
+          selecting = false,
+          busy = false,
+          statusKey = "ready",
+          statusError = false,
+          library = null,
+          resolver = null;
+        const models = {};
+        const canvas = $("canvas"),
+          ctx = canvas.getContext("2d");
+        const t = (key) => texts[lang][key] || key;
+        function status(key, error = false) {
+          statusKey = key;
+          statusError = error;
+          $("status").textContent = t(key);
+          $("status").classList.toggle("error", error);
+          $("status").dataset.busy = String(busy);
+        }
+        function save() {
+          const p = {
+            mode: $("detection-mode").value,
+            limit: Number($("limit").value),
+            visibility: Number($("visibility").value),
+          };
+          for (const n of layerNames) p[n] = $("layer-" + n).checked;
+          try {
+            localStorage.setItem(KEY, JSON.stringify(p));
+          } catch {}
+        }
+        function modeLabels() {
+          const facesOnly = $("detection-mode").value === "faces";
+          $("analyze").dataset.i18n = facesOnly ? "analyzeFaces" : "analyze";
+          $("limit-label").dataset.i18n = facesOnly ? "limitFaces" : "limit";
+          for (const id of ["analyze", "limit-label"])
+            $(id).textContent = t($(id).dataset.i18n);
+        }
+        function translate() {
+          modeLabels();
+          document.documentElement.lang = lang;
+          document.title = t("title");
+          $("lang-switcher").value = lang;
+          document
+            .querySelectorAll("[data-i18n]")
+            .forEach((e) => (e.textContent = t(e.dataset.i18n)));
+          document.querySelectorAll("[data-title]").forEach((e) => {
+            e.title = t(e.dataset.title);
+            e.setAttribute("aria-label", e.title);
+          });
+          $("lang-switcher").setAttribute("aria-label", t("language"));
+          document
+            .querySelectorAll("[data-label]")
+            .forEach((e) => e.setAttribute("aria-label", t(e.dataset.label)));
+          canvas.setAttribute("aria-label", t("canvas"));
+          $("zoom").setAttribute("aria-label", t("zoom"));
+          status(statusKey, statusError);
+          summary();
+          $("point-info").textContent = t("hover");
+        }
+        function controls() {
+          for (const id of [
+            "upload",
+            "empty-upload",
+            "file",
+            "limit",
+            "zoom",
+            "detection-mode",
+          ])
+            $(id).disabled = busy;
+          for (const id of ["analyze", "select-area", "full-image"])
+            $(id).disabled = busy || !image;
+          $("export-png").disabled = busy || !image;
+          $("export-json").disabled = busy || !results;
+          $("status").dataset.busy = String(busy);
+        }
+        function summary() {
+          for (const [id, key] of [
+            ["body-count", "bodies"],
+            ["face-count", "faces"],
+            ["hand-count", "hands"],
+          ]) {
+            const skipped = results?.mode === "faces" && key !== "faces";
+            $(id).textContent = results && !skipped ? results[key].length : "—";
+            $(id).title = skipped ? t("notAnalyzed") : "";
+          }
+          $("results-info").textContent = results
+            ? t(results.region ? "scopeArea" : "scopeFull") +
+              " · " +
+              t(results.mode === "faces" ? "modeFaces" : "modeAll")
+            : "";
+          renderExpressions();
+          canvas.title = image ? fileName : "";
+          $("file-info").textContent = image
+            ? fileName +
+              " · " +
+              image.naturalWidth +
+              " × " +
+              image.naturalHeight
+            : "";
+        }
+        function setSelecting(value) {
+          selecting = value;
+          drag = null;
+          pan = null;
+          canvas.classList.remove("panning");
+          $("select-area").setAttribute("aria-pressed", String(value));
+          canvas.classList.toggle("selecting", value);
+          draw();
+        }
+        function fit() {
+          if (!image) return;
+          const v = $("viewport"),
+            scale =
+              (Math.max(
+                0.001,
+                Math.min(
+                  (v.clientWidth - 24) / image.naturalWidth,
+                  (v.clientHeight - 24) / image.naturalHeight,
+                ),
+              ) *
+                Number($("zoom").value)) /
+              100;
+          canvas.style.width =
+            Math.max(1, Math.round(image.naturalWidth * scale)) + "px";
+          canvas.style.height =
+            Math.max(1, Math.round(image.naturalHeight * scale)) + "px";
+          $("zoom-value").textContent = $("zoom").value + "%";
+          canvas.classList.toggle("draggable", Number($("zoom").value) > 100);
+        }
+        async function openFile(file) {
+          if (!file || busy) return;
+          busy = true;
+          controls();
+          status("loading");
+          let url;
+          try {
+            if (file.size > 25 * 1024 * 1024) {
+              status("sizeError", true);
+              return;
+            }
+            if (
+              !/^image\/(jpeg|png|webp|avif|bmp)$/i.test(file.type) &&
+              !(/\.(jpe?g|png|webp|avif|bmp)$/i.test(file.name) && !file.type)
+            ) {
+              status("loadError", true);
+              return;
+            }
+            url = URL.createObjectURL(file);
+            const next = new Image();
+            next.src = url;
+            await next.decode();
+            const w = next.naturalWidth,
+              h = next.naturalHeight;
+            if (w > 8192 || h > 8192 || w * h > 32000000) {
+              status("sizeError", true);
+              return;
+            }
+            image = next;
+            fileName = file.name;
+            results = null;
+            selectedFace = 0;
+            region = null;
+            setSelecting(false);
+            const scale = Math.min(1, 3072 / Math.max(w, h));
+            canvas.width = Math.max(1, Math.round(w * scale));
+            canvas.height = Math.max(1, Math.round(h * scale));
+            $("mat").hidden = false;
+            $("empty").hidden = true;
+            $("zoom").value = 100;
+            $("viewport").scrollTo(0, 0);
+            fit();
+            draw();
+            summary();
+            status("loaded");
+          } catch (error) {
+            console.error(error);
+            status("loadError", true);
+          } finally {
+            if (url) URL.revokeObjectURL(url);
+            $("file").value = "";
+            busy = false;
+            controls();
+          }
+        }
+        async function vision() {
+          if (!library) library = await import(RUNTIME + "/vision_bundle.mjs");
+          if (!resolver)
+            resolver = await library.FilesetResolver.forVisionTasks(
+              RUNTIME + "/wasm",
+            );
+          return library;
+        }
+        async function getModel(kind) {
+          const lib = await vision(),
+            limit = Number($("limit").value),
+            config = {
+              body: [
+                "PoseLandmarker",
+                "pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task",
+                "numPoses",
+              ],
+              face: [
+                "FaceLandmarker",
+                "face_landmarker/face_landmarker/float16/1/face_landmarker.task",
+                "numFaces",
+              ],
+              hands: [
+                "HandLandmarker",
+                "hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task",
+                "numHands",
+              ],
+            }[kind],
+            count = kind === "hands" ? limit * 2 : limit;
+          if (models[kind]) {
+            await models[kind].setOptions({ [config[2]]: count });
+            return models[kind];
+          }
+          const options = {
+            baseOptions: { modelAssetPath: MODEL + config[1], delegate: "GPU" },
+            runningMode: "IMAGE",
+            [config[2]]: count,
+            ...(kind === "face" ? { outputFaceBlendshapes: true } : {}),
+          };
+          try {
+            models[kind] = await lib[config[0]].createFromOptions(
+              resolver,
+              options,
+            );
+          } catch {
+            options.baseOptions.delegate = "CPU";
+            models[kind] = await lib[config[0]].createFromOptions(
+              resolver,
+              options,
+            );
+          }
+          return models[kind];
+        }
+        const paint = () =>
+          new Promise((resolve) =>
+            requestAnimationFrame(() => setTimeout(resolve, 20)),
+          );
+        function mapPoints(points, r) {
+          return points.map((p) => ({
+            x: r.x + p.x * r.width,
+            y: r.y + p.y * r.height,
+            z: p.z * r.width,
+            ...(p.visibility !== undefined ? { visibility: p.visibility } : {}),
+            ...(p.presence !== undefined ? { presence: p.presence } : {}),
+          }));
+        }
+        function cropInput(r, maxEdge = 1024) {
+          const w = r.width * image.naturalWidth,
+            h = r.height * image.naturalHeight;
+          const scale = Math.min(1, maxEdge / Math.max(w, h));
+          const input = document.createElement("canvas");
+          input.width = Math.max(1, Math.round(w * scale));
+          input.height = Math.max(1, Math.round(h * scale));
+          input
+            .getContext("2d")
+            .drawImage(
+              image,
+              r.x * image.naturalWidth,
+              r.y * image.naturalHeight,
+              w,
+              h,
+              0,
+              0,
+              input.width,
+              input.height,
+            );
+          return input;
+        }
+        function bounds(points) {
+          const xs = points.map((p) => p.x),
+            ys = points.map((p) => p.y);
+          const x = Math.min(...xs),
+            y = Math.min(...ys);
+          return {
+            x,
+            y,
+            width: Math.max(...xs) - x,
+            height: Math.max(...ys) - y,
+          };
+        }
+        function faceCrop(box, scope, margin = 1.65) {
+          const side =
+            Math.max(
+              box.width * image.naturalWidth,
+              box.height * image.naturalHeight,
+            ) * margin;
+          const width = Math.min(scope.width, side / image.naturalWidth);
+          const height = Math.min(scope.height, side / image.naturalHeight);
+          return {
+            x: Math.max(
+              scope.x,
+              Math.min(
+                scope.x + scope.width - width,
+                box.x + box.width / 2 - width / 2,
+              ),
+            ),
+            y: Math.max(
+              scope.y,
+              Math.min(
+                scope.y + scope.height - height,
+                box.y + box.height / 2 - height / 2,
+              ),
+            ),
+            width,
+            height,
+          };
+        }
+        function faceOverlap(a, b) {
+          const intersection =
+            Math.max(
+              0,
+              Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x),
+            ) *
+            Math.max(
+              0,
+              Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y),
+            );
+          return (
+            intersection /
+            Math.max(
+              1e-12,
+              a.width * a.height + b.width * b.height - intersection,
+            )
+          );
+        }
+        function unpackFaces(detected, r, pass) {
+          return detected.faceLandmarks.map((p, i) => ({
+            landmarks: mapPoints(p, r),
+            blendshapes: (detected.faceBlendshapes[i]?.categories || []).map(
+              (c) => ({ categoryName: c.categoryName, score: c.score }),
+            ),
+            analysisPass: pass,
+          }));
+        }
+        async function analyzeFaces(model, input, scope, bodies, limit) {
+          const faces = unpackFaces(model.detect(input), scope, "whole");
+          const add = (candidates) => {
+            for (const face of candidates) {
+              if (faces.length >= limit) break;
+              const box = bounds(face.landmarks);
+              if (
+                !faces.some(
+                  (other) => faceOverlap(box, bounds(other.landmarks)) > 0.2,
+                )
+              )
+                faces.push(face);
+            }
+          };
+          // Pose landmarks can locate a head that is too small for the full-image face detector.
+          for (const body of bodies) {
+            if (faces.length >= limit) break;
+            const head = body.landmarks
+              .slice(0, 11)
+              .filter((p) => (p.visibility ?? 0) > 0.5);
+            if (head.length < 5) continue;
+            const box = bounds(head);
+            if (
+              box.width * image.naturalWidth < 8 ||
+              box.height * image.naturalHeight < 8
+            )
+              continue;
+            const r = faceCrop(box, scope, 3);
+            if (
+              faces.some(
+                (face) => faceOverlap(bounds(face.landmarks), r) > 0.12,
+              )
+            )
+              continue;
+            await paint();
+            add(unpackFaces(model.detect(cropInput(r)), r, "head"));
+          }
+          // Overlapping tiles recover people lost by the fixed-resolution full-image detector.
+          for (const grid of [2, 3]) {
+            const edge = Math.max(
+              scope.width * image.naturalWidth,
+              scope.height * image.naturalHeight,
+            );
+            if (faces.length >= limit || edge < (grid === 2 ? 700 : 1400))
+              continue;
+            const step = 1 / grid,
+              size = Math.min(1, step * 1.35);
+            for (let y = 0; y < grid && faces.length < limit; y++) {
+              for (let x = 0; x < grid && faces.length < limit; x++) {
+                const r = {
+                  x:
+                    scope.x +
+                    Math.min(
+                      1 - size,
+                      Math.max(0, (x + 0.5) * step - size / 2),
+                    ) *
+                      scope.width,
+                  y:
+                    scope.y +
+                    Math.min(
+                      1 - size,
+                      Math.max(0, (y + 0.5) * step - size / 2),
+                    ) *
+                      scope.height,
+                  width: size * scope.width,
+                  height: size * scope.height,
+                };
+                await paint();
+                add(unpackFaces(model.detect(cropInput(r)), r, "tile"));
+              }
+            }
+          }
+          status("refiningFace");
+          for (let i = 0; i < faces.length; i++) {
+            const original = faces[i],
+              box = bounds(original.landmarks),
+              r = faceCrop(box, scope);
+            await paint();
+            const closeup = cropInput(r);
+            const candidates = unpackFaces(model.detect(closeup), r, "refined");
+            const best = candidates.sort(
+              (a, b) =>
+                faceOverlap(bounds(b.landmarks), box) -
+                faceOverlap(bounds(a.landmarks), box),
+            )[0];
+            if (best && faceOverlap(bounds(best.landmarks), box) > 0.25) {
+              faces[i] = {
+                ...best,
+                detectedBy: original.analysisPass,
+                refinement: {
+                  region: r,
+                  input: { width: closeup.width, height: closeup.height },
+                },
+              };
+            }
+          }
+          return faces.sort(
+            (a, b) => bounds(a.landmarks).x - bounds(b.landmarks).x,
+          );
+        }
+        async function analyze() {
+          if (!image || busy) return;
+          busy = true;
+          setSelecting(false);
+          controls();
+          status("models");
+          await paint();
+          try {
+            const r = region
+              ? { ...region }
+              : { x: 0, y: 0, width: 1, height: 1 };
+            const input = cropInput(r, 2560);
+            const next = {
+              bodies: [],
+              faces: [],
+              hands: [],
+              region: region ? { ...region } : null,
+              limit: Number($("limit").value),
+              mode: $("detection-mode").value,
+              input: { width: input.width, height: input.height },
+            };
+            const passes =
+              next.mode === "faces"
+                ? [["face", "workingFace"]]
+                : [
+                    ["body", "workingBody"],
+                    ["face", "workingFace"],
+                    ["hands", "workingHands"],
+                  ];
+            for (const [kind, key] of passes) {
+              const model = await getModel(kind);
+              status(key);
+              await paint();
+              if (kind === "face") {
+                next.faces = await analyzeFaces(
+                  model,
+                  input,
+                  r,
+                  next.bodies,
+                  next.limit,
+                );
+                continue;
+              }
+              const detected = model.detect(input);
+              if (kind === "body")
+                next.bodies = detected.landmarks.map((p) => ({
+                  landmarks: mapPoints(p, r),
+                }));
+              if (kind === "hands")
+                next.hands = detected.landmarks.map((p, i) => ({
+                  landmarks: mapPoints(p, r),
+                  handedness: detected.handedness[i]?.[0]?.categoryName || null,
+                  score: detected.handedness[i]?.[0]?.score ?? null,
+                }));
+            }
+            results = next;
+            if (next.faces.length) setInspector("expressions");
+            summary();
+            draw();
+            status(
+              next.bodies.length + next.faces.length + next.hands.length
+                ? "done"
+                : next.mode === "faces"
+                  ? "noneFaces"
+                  : "none",
+            );
+          } catch (error) {
+            console.error(error);
+            status("modelError", true);
+          } finally {
+            busy = false;
+            controls();
+          }
+        }
+        const colors = {
+          bodies: "#55efc4",
+          faces: "#75caff",
+          hands: "#ffcd70",
+        };
+        function faceContours() {
+          if (!library) return [];
+          const f = library.FaceLandmarker;
+          return f.FACE_LANDMARKS_CONTOURS.concat(
+            f.FACE_LANDMARKS_LEFT_IRIS,
+            f.FACE_LANDMARKS_RIGHT_IRIS,
+          );
+        }
+        function strokeConnections(target, points, edges, width, height) {
+          target.beginPath();
+          for (const edge of edges) {
+            const a = points[edge.start],
+              b = points[edge.end];
+            if (!a || !b) continue;
+            target.moveTo(a.x * width, a.y * height);
+            target.lineTo(b.x * width, b.y * height);
+          }
+          target.stroke();
+        }
+        function signalName(name) {
+          if (name === "_neutral") return t("neutral");
+          // Jaw/mouth translations already include the direction for these channels.
+          if (["jawLeft", "jawRight", "mouthLeft", "mouthRight"].includes(name))
+            return t(name);
+          const side = name.endsWith("Left")
+            ? "left"
+            : name.endsWith("Right")
+              ? "right"
+              : null;
+          return (
+            t(side ? name.replace(/(Left|Right)$/, "") : name) +
+            (side ? " · " + t(side) : "")
+          );
+        }
+        function renderExpressions() {
+          const faces = results?.faces || [];
+          $("face-empty").hidden = faces.length > 0;
+          $("face-details").hidden = !faces.length;
+          if (!faces.length) {
+            $("expression-list").replaceChildren();
+            $("face-index").replaceChildren();
+            return;
+          }
+          selectedFace = Math.min(selectedFace, faces.length - 1);
+          $("face-index").replaceChildren(
+            ...faces.map(
+              (face, i) =>
+                new Option(t("faceSingle") + " " + (i + 1), String(i)),
+            ),
+          );
+          $("face-index").value = String(selectedFace);
+          const face = faces[selectedFace],
+            box = bounds(face.landmarks);
+          const r = faceCrop(box, { x: 0, y: 0, width: 1, height: 1 }, 1.5);
+          const preview = $("face-preview"),
+            target = preview.getContext("2d");
+          target.fillStyle = "#090f13";
+          target.fillRect(0, 0, preview.width, preview.height);
+          const sw = r.width * image.naturalWidth,
+            sh = r.height * image.naturalHeight;
+          const scale = Math.min(preview.width / sw, preview.height / sh),
+            width = sw * scale,
+            height = sh * scale;
+          const ox = (preview.width - width) / 2,
+            oy = (preview.height - height) / 2;
+          target.drawImage(
+            image,
+            r.x * image.naturalWidth,
+            r.y * image.naturalHeight,
+            sw,
+            sh,
+            ox,
+            oy,
+            width,
+            height,
+          );
+          target.save();
+          target.translate(ox, oy);
+          const points = face.landmarks.map((p) => ({
+            x: (p.x - r.x) / r.width,
+            y: (p.y - r.y) / r.height,
+          }));
+          target.strokeStyle = colors.faces;
+          target.lineWidth = 1.8;
+          strokeConnections(target, points, faceContours(), width, height);
+          target.restore();
+          $("face-quality").textContent =
+            Math.min(
+              box.width * image.naturalWidth,
+              box.height * image.naturalHeight,
+            ) < 64
+              ? t("faceSmall")
+              : face.refinement
+                ? t("faceRefined")
+                : "";
+          const all = $("all-expressions").checked;
+          const signals = face.blendshapes
+            .filter((c) => all || c.categoryName !== "_neutral")
+            .slice()
+            .sort((a, b) => b.score - a.score)
+            .slice(0, all ? 52 : 8);
+          $("expression-list").replaceChildren(
+            ...signals.map((signal) => {
+              const row = document.createElement("div");
+              row.className = "expression";
+              row.dataset.signal = signal.categoryName;
+              const label = document.createElement("span");
+              label.textContent = signalName(signal.categoryName);
+              label.title = label.textContent;
+              const score = document.createElement("output");
+              score.textContent = Math.round(signal.score * 100) + "%";
+              const bar = document.createElement("progress");
+              bar.max = 1;
+              bar.value = signal.score;
+              bar.setAttribute("aria-label", label.textContent);
+              row.append(label, score, bar);
+              return row;
+            }),
+          );
+        }
+        function setInspector(tab) {
+          document
+            .querySelector(".sidebar")
+            .classList.toggle("expressions-active", tab === "expressions");
+          for (const name of ["layers", "expressions"]) {
+            $(name + "-tab").setAttribute(
+              "aria-selected",
+              String(name === tab),
+            );
+            $(name + "-tab").tabIndex = name === tab ? 0 : -1;
+            $(name + "-view").hidden = name !== tab;
+          }
+        }
+        function focusFace() {
+          const face = results?.faces[selectedFace];
+          if (!face || busy) return;
+          const box = bounds(face.landmarks),
+            v = $("viewport");
+          const fitScale = Math.min(
+            (v.clientWidth - 24) / image.naturalWidth,
+            (v.clientHeight - 24) / image.naturalHeight,
+          );
+          $("zoom").value = Math.min(
+            400,
+            Math.max(
+              100,
+              Math.ceil(
+                180 / (box.width * image.naturalWidth * fitScale) / 0.25,
+              ) * 25,
+            ),
+          );
+          fit();
+          requestAnimationFrame(() => {
+            const c = canvas.getBoundingClientRect(),
+              r = v.getBoundingClientRect();
+            v.scrollLeft +=
+              c.left +
+              (box.x + box.width / 2) * c.width -
+              r.left -
+              v.clientWidth / 2;
+            v.scrollTop +=
+              c.top +
+              (box.y + box.height / 2) * c.height -
+              r.top -
+              v.clientHeight / 2;
+          });
+        }
+        for (const name of ["layers", "expressions"]) {
+          $(name + "-tab").onclick = () => setInspector(name);
+          $(name + "-tab").onkeydown = (e) => {
+            if (["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key)) {
+              e.preventDefault();
+              const next =
+                e.key === "Home"
+                  ? "layers"
+                  : e.key === "End"
+                    ? "expressions"
+                    : name === "layers"
+                      ? "expressions"
+                      : "layers";
+              setInspector(next);
+              $(next + "-tab").focus();
+            }
+          };
+        }
+        $("face-index").onchange = (e) => {
+          selectedFace = Number(e.target.value);
+          renderExpressions();
+        };
+        $("all-expressions").onchange = renderExpressions;
+        $("focus-face").onclick = focusFace;
+        $("face-preview").onclick = focusFace;
+        function visible(p, kind) {
+          return (
+            Number.isFinite(p.x) &&
+            Number.isFinite(p.y) &&
+            p.x >= 0 &&
+            p.x <= 1 &&
+            p.y >= 0 &&
+            p.y <= 1 &&
+            (kind !== "bodies" ||
+              (p.visibility ?? 1) >= Number($("visibility").value) / 100)
+          );
+        }
+        function connections(kind) {
+          if (!library) return [];
+          if (kind === "bodies") return library.PoseLandmarker.POSE_CONNECTIONS;
+          if (kind === "hands") return library.HandLandmarker.HAND_CONNECTIONS;
+          return faceContours();
+        }
+        function render(target, width, height) {
+          target.clearRect(0, 0, width, height);
+          target.fillStyle = "#090f13";
+          target.fillRect(0, 0, width, height);
+          if (!image) return;
+          if ($("layer-photo").checked)
+            target.drawImage(image, 0, 0, width, height);
+          if (!results) return;
+          const unit = Math.max(0.65, Math.min(width, height) / 650);
+          for (const [kind, layer] of [
+            ["bodies", "body"],
+            ["faces", "face"],
+            ["hands", "hands"],
+          ]) {
+            if (!$("layer-" + layer).checked) continue;
+            target.strokeStyle = colors[kind];
+            target.fillStyle = colors[kind];
+            target.lineWidth = (kind === "faces" ? 1.1 : 2) * unit;
+            for (const entity of results[kind]) {
+              const points = entity.landmarks;
+              if (kind === "faces" && $("layer-mesh").checked) {
+                target.save();
+                target.globalAlpha = 0.25;
+                target.lineWidth = 0.5 * unit;
+                strokeConnections(
+                  target,
+                  points,
+                  library.FaceLandmarker.FACE_LANDMARKS_TESSELATION,
+                  width,
+                  height,
+                );
+                target.restore();
+              }
+              target.beginPath();
+              for (const edge of kind === "faces"
+                ? faceContours()
+                : connections(kind)) {
+                const a = points[edge.start],
+                  b = points[edge.end];
+                if (!a || !b || !visible(a, kind) || !visible(b, kind))
+                  continue;
+                target.moveTo(a.x * width, a.y * height);
+                target.lineTo(b.x * width, b.y * height);
+              }
+              target.stroke();
+              if ($("layer-points").checked) {
+                target.beginPath();
+                for (const p of points)
+                  if (visible(p, kind)) {
+                    const radius = (kind === "faces" ? 0.85 : 2.5) * unit;
+                    target.moveTo(p.x * width + radius, p.y * height);
+                    target.arc(
+                      p.x * width,
+                      p.y * height,
+                      radius,
+                      0,
+                      Math.PI * 2,
+                    );
+                  }
+                target.fill();
+              }
+            }
+          }
+        }
+        function currentRegion() {
+          if (!drag) return region;
+          return {
+            x: Math.min(drag.start.x, drag.end.x),
+            y: Math.min(drag.start.y, drag.end.y),
+            width: Math.abs(drag.start.x - drag.end.x),
+            height: Math.abs(drag.start.y - drag.end.y),
+          };
+        }
+        function draw() {
+          render(ctx, canvas.width, canvas.height);
+          const r = currentRegion();
+          if (!image || !r) return;
+          ctx.save();
+          ctx.fillStyle = "#0007";
+          ctx.beginPath();
+          ctx.rect(0, 0, canvas.width, canvas.height);
+          ctx.rect(
+            r.x * canvas.width,
+            r.y * canvas.height,
+            r.width * canvas.width,
+            r.height * canvas.height,
+          );
+          ctx.fill("evenodd");
+          ctx.strokeStyle = "#fff";
+          ctx.lineWidth = Math.max(2, canvas.width / 800);
+          ctx.setLineDash([8, 5]);
+          ctx.strokeRect(
+            r.x * canvas.width,
+            r.y * canvas.height,
+            r.width * canvas.width,
+            r.height * canvas.height,
+          );
+          ctx.restore();
+        }
+        function pointAt(e) {
+          const r = canvas.getBoundingClientRect();
+          return {
+            x: Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)),
+            y: Math.max(0, Math.min(1, (e.clientY - r.top) / r.height)),
+          };
+        }
+        canvas.addEventListener("pointerdown", (e) => {
+          if (!image || busy || e.button !== 0 || !e.isPrimary) return;
+          if (selecting) {
+            const p = pointAt(e);
+            drag = { start: p, end: p };
+          } else if (Number($("zoom").value) > 100) {
+            pan = {
+              x: e.clientX,
+              y: e.clientY,
+              left: $("viewport").scrollLeft,
+              top: $("viewport").scrollTop,
+            };
+            canvas.classList.add("panning");
+          } else return;
+          canvas.setPointerCapture(e.pointerId);
+          draw();
+        });
+        canvas.addEventListener("pointermove", (e) => {
+          if (pan) {
+            $("viewport").scrollLeft = pan.left + pan.x - e.clientX;
+            $("viewport").scrollTop = pan.top + pan.y - e.clientY;
+            return;
+          }
+          if (drag) {
+            drag.end = pointAt(e);
+            draw();
+            return;
+          }
+          if (!results || selecting || !$("layer-points").checked) return;
+          const p = pointAt(e),
+            r = canvas.getBoundingClientRect();
+          let best = null,
+            distance = 10;
+          for (const [kind, layer] of [
+            ["bodies", "body"],
+            ["faces", "face"],
+            ["hands", "hands"],
+          ]) {
+            if (!$("layer-" + layer).checked) continue;
+            results[kind].forEach((entity, i) =>
+              entity.landmarks.forEach((q, j) => {
+                if (!visible(q, kind)) return;
+                const d = Math.hypot(
+                  (q.x - p.x) * r.width,
+                  (q.y - p.y) * r.height,
+                );
+                if (d < distance) {
+                  distance = d;
+                  best = { kind, i, j, q, hand: entity.handedness };
+                }
+              }),
+            );
+          }
+          const b = best;
+          $("point-info").textContent = b
+            ? t(b.kind) +
+              " " +
+              (b.i + 1) +
+              (b.hand ? " · " + t(b.hand === "Left" ? "left" : "right") : "") +
+              " · " +
+              t("point") +
+              " " +
+              b.j +
+              " · x " +
+              Math.round(b.q.x * image.naturalWidth) +
+              ", y " +
+              Math.round(b.q.y * image.naturalHeight) +
+              " px"
+            : t("hover");
+        });
+        canvas.addEventListener("pointerup", (e) => {
+          if (pan) {
+            pan = null;
+            canvas.classList.remove("panning");
+            if (canvas.hasPointerCapture(e.pointerId))
+              canvas.releasePointerCapture(e.pointerId);
+            return;
+          }
+          if (!drag) return;
+          drag.end = pointAt(e);
+          const r = currentRegion();
+          drag = null;
+          if (
+            r.width * image.naturalWidth >= 32 &&
+            r.height * image.naturalHeight >= 32
+          ) {
+            region = r;
+            status("areaReady");
+            setSelecting(false);
+          } else {
+            status("smallArea", true);
+            draw();
+          }
+          if (canvas.hasPointerCapture(e.pointerId))
+            canvas.releasePointerCapture(e.pointerId);
+        });
+        canvas.addEventListener("pointercancel", () => {
+          drag = null;
+          pan = null;
+          canvas.classList.remove("panning");
+          draw();
+        });
+        $("select-area").onclick = () => {
+          setSelecting(!selecting);
+          status(selecting ? "areaHint" : "loaded");
+        };
+        $("full-image").onclick = () => {
+          region = null;
+          setSelecting(false);
+          status(results ? "pending" : "loaded");
+        };
+        for (const id of ["upload", "empty-upload"])
+          $(id).onclick = () => $("file").click();
+        $("file").onchange = (e) => openFile(e.target.files[0]);
+        $("analyze").onclick = analyze;
+        const viewport = $("viewport");
+        const transferFile = (transfer) => {
+          const files = Array.from(transfer?.files || []);
+          return (
+            files.find((file) => file.type.startsWith("image/")) || files[0]
+          );
+        };
+        document.addEventListener("dragover", (e) => {
+          if (!Array.from(e.dataTransfer?.types || []).includes("Files"))
+            return;
+          e.preventDefault();
+          e.dataTransfer.dropEffect = busy ? "none" : "copy";
+          if (!busy) viewport.classList.add("drag-over");
+        });
+        document.addEventListener("dragleave", (e) => {
+          if (!e.relatedTarget) viewport.classList.remove("drag-over");
+        });
+        document.addEventListener("dragend", () =>
+          viewport.classList.remove("drag-over"),
+        );
+        document.addEventListener("drop", (e) => {
+          viewport.classList.remove("drag-over");
+          const file = transferFile(e.dataTransfer);
+          if (!file) return;
+          e.preventDefault();
+          openFile(file);
+        });
+        document.addEventListener("paste", (e) => {
+          if (
+            busy ||
+            e.target.isContentEditable ||
+            e.target.matches(
+              'textarea, input[type="text"], input[type="search"], input[type="url"], input[type="email"], input[type="password"], input[type="number"], input[type="tel"]',
+            )
+          )
+            return;
+          const item = Array.from(e.clipboardData?.items || []).find(
+            (item) => item.kind === "file" && item.type.startsWith("image/"),
+          );
+          const file = item?.getAsFile() || transferFile(e.clipboardData);
+          if (!file || !file.type.startsWith("image/")) return;
+          e.preventDefault();
+          openFile(file);
+        });
+        for (const n of layerNames)
+          $("layer-" + n).onchange = () => {
+            save();
+            draw();
+          };
+        $("visibility").oninput = () => {
+          save();
+          draw();
+        };
+        $("detection-mode").onchange = () => {
+          save();
+          modeLabels();
+          if ($("detection-mode").value === "faces")
+            setInspector("expressions");
+          if (image) status(results ? "pending" : "loaded");
+        };
+        $("limit").onchange = () => {
+          save();
+          if (image) status(results ? "pending" : "loaded");
+        };
+        $("zoom").oninput = fit;
+        new ResizeObserver(fit).observe(viewport);
+        $("lang-switcher").onchange = (e) => {
+          lang = e.target.value;
+          try {
+            localStorage.setItem("app_lang", lang);
+          } catch {}
+          translate();
+        };
+        $("theme-switcher").onclick = () => {
+          const theme =
+            document.documentElement.dataset.theme === "dark"
+              ? "light"
+              : "dark";
+          document.documentElement.dataset.theme = theme;
+          try {
+            localStorage.setItem("app_theme", theme);
+          } catch {}
+        };
+        $("help-btn").onclick = () => {
+          if (!$("help").open) $("help").showModal();
+        };
+        $("help-close").onclick = () => $("help").close();
+        document.addEventListener("keydown", (e) => {
+          if (e.key === "Escape" && selecting) {
+            setSelecting(false);
+            status(image ? "loaded" : "ready");
+          }
+          if (
+            e.key === "?" &&
+            !/INPUT|TEXTAREA|SELECT/.test(e.target.tagName)
+          ) {
+            e.preventDefault();
+            $("help-btn").click();
+          }
+        });
+        function download(blob, ext) {
+          const url = URL.createObjectURL(blob),
+            link = document.createElement("a");
+          link.href = url;
+          link.download =
+            (fileName.replace(/\.[^.]+$/, "") || "photo") + "-landmarks." + ext;
+          link.click();
+          setTimeout(() => URL.revokeObjectURL(url), 1000);
+        }
+        $("export-png").onclick = async () => {
+          if (!image || busy) return;
+          busy = true;
+          controls();
+          const old = statusKey;
+          status("saving");
+          await paint();
+          try {
+            const output = document.createElement("canvas");
+            output.width = image.naturalWidth;
+            output.height = image.naturalHeight;
+            render(output.getContext("2d"), output.width, output.height);
+            const blob = await new Promise((resolve) =>
+              output.toBlob(resolve, "image/png"),
+            );
+            if (!blob) throw Error("PNG");
+            download(blob, "png");
+            status(old);
+          } catch (error) {
+            console.error(error);
+            status("exportError", true);
+          } finally {
+            busy = false;
+            controls();
+          }
+        };
+        $("export-json").onclick = () => {
+          if (!results || busy) return;
+          try {
+            const data = {
+              schema: "vision-photo-lab/v1",
+              source: {
+                name: fileName,
+                width: image.naturalWidth,
+                height: image.naturalHeight,
+              },
+              coordinates: {
+                x: "normalized by original image width",
+                y: "normalized by original image height",
+                z: "model-relative depth scaled by analyzed region width; origins differ across detectors, not metric",
+                pixelX: "original image pixels",
+                pixelY: "original image pixels",
+                association:
+                  "Body, face and hand detections are independent; indices do not identify the same person.",
+              },
+              region: results.region,
+              modelInput: results.input,
+              maximumPeople: results.limit,
+              analysisMode: results.mode,
+              facialExpressions: {
+                type: "52 MediaPipe facial movement blendshapes",
+                scores: "activation from 0 to 1, not emotion probabilities",
+                laterality: "the subject's left and right",
+              },
+              models: {
+                package: "@mediapipe/tasks-vision@0.10.14",
+                face: "face_landmarker/float16/1",
+                ...(results.mode === "all"
+                  ? {
+                      pose: "pose_landmarker_full/float16/1",
+                      hand: "hand_landmarker/float16/1",
+                    }
+                  : {}),
+              },
+            };
+            for (const kind of ["bodies", "faces", "hands"])
+              data[kind] = results[kind].map((entity) => ({
+                ...entity,
+                landmarks: entity.landmarks.map((p, index) => ({
+                  index,
+                  ...p,
+                  pixelX: p.x * image.naturalWidth,
+                  pixelY: p.y * image.naturalHeight,
+                })),
+              }));
+            download(
+              new Blob([JSON.stringify(data, null, 2)], {
+                type: "application/json",
+              }),
+              "json",
+            );
+          } catch (error) {
+            console.error(error);
+            status("exportError", true);
+          }
+        };
+        if ($("detection-mode").value === "faces") setInspector("expressions");
+        translate();
+        controls();
+      })();
+    </script>
+  </body>
+</html>

@@ -106,10 +106,12 @@ def classify(rel: str) -> str:
     lower = path.lower()
     if path.startswith(("http://", "https://")):
         return "cdn"
-    # 3D models are big and optional, so they belong in the "full" pack with
-    # the other heavy assets rather than in "core", which every visitor who
-    # takes the collection offline downloads.
-    if lower.endswith((".onnx", ".glb", ".gltf")) or path.startswith("models/"):
+    # 3D models and the local MediaPipe runtime/models are big and optional,
+    # so they belong in the "full" pack rather than in "core", which every
+    # visitor who takes the collection offline downloads.
+    if lower.endswith((".onnx", ".glb", ".gltf")) or path.startswith(
+        ("models/", "assets/mediapipe/")
+    ):
         return "models"
     if path.startswith("assets/images/wallpaper-thumbs/"):
         return "core"
@@ -250,6 +252,8 @@ def seed_globs(buckets: dict[str, set[str]]) -> None:
         # Template thumbnails (scripts/build_house_thumbs.mjs), named by template id at runtime.
         "assets/house-planner/templates/*.png",
         "models/**/*.*",
+        # MediaPipe constructs its runtime/model URLs dynamically.
+        "assets/mediapipe/**/*",
         # Game sound effects are fetched by name at runtime, so nothing in the
         # source text points at them for the scanner to find.
         "game/**/audio/*.mp3",
@@ -285,6 +289,10 @@ def scan_text_files(buckets: dict[str, set[str]]) -> None:
         if path.suffix.lower() not in TEXT_SUFFIXES:
             continue
         if path.resolve() == OUT.resolve():
+            continue
+        # Vendored binaries, runtime comments and provenance are seeded above;
+        # their upstream URLs are attribution, not application dependencies.
+        if path.relative_to(PAGE).as_posix().startswith("assets/mediapipe/"):
             continue
         try:
             text = path.read_text(encoding="utf-8")
