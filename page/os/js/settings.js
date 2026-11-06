@@ -151,6 +151,7 @@ window.OSSettings = (function () {
       <div class="shortcut-list">
         ${shortcutRow("Ctrl+Esc", t("shortcutStart"))}
         ${shortcutRow("Ctrl+Alt+Tab", t("shortcutSwitcher"))}
+        ${shortcutRow("Ctrl+Alt+O", t("spaceView"))}
         ${shortcutRow("Alt+`", t("shortcutAppSwitch"))}
         ${shortcutRow("Ctrl+E", t("shortcutExplorer"))}
         ${shortcutRow("Ctrl+,", t("shortcutSettings"))}

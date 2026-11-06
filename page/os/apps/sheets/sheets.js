@@ -53,12 +53,15 @@ window.OSSheets = (function () {
   let condCache = new Map();
   let dialogs = null;
   let findState = null;
+  let gridObserver = null;
+  let saveVersion = 0;
+  let saveState = "saved";
   const ui = loadUi();
   const VCSH_MIME = "application/vnd.vc.sheets+json";
   const VCSH_EXT = ".vcsh";
 
   function loadUi() {
-    const def = { tab: "home", zoom: 1, showFormulas: false };
+    const def = { tab: "home", zoom: 1, showFormulas: false, compact: true };
     try {
       const raw = localStorage.getItem(UI_KEY);
       return raw ? Object.assign(def, JSON.parse(raw)) : def;
@@ -68,7 +71,7 @@ window.OSSheets = (function () {
   }
   function saveUi() {
     try {
-      localStorage.setItem(UI_KEY, JSON.stringify({ tab: ui.tab, zoom: ui.zoom, showFormulas: ui.showFormulas }));
+      localStorage.setItem(UI_KEY, JSON.stringify({ tab: ui.tab, zoom: ui.zoom, showFormulas: ui.showFormulas, compact: ui.compact }));
     } catch (_err) {}
   }
   function lang() {
@@ -149,22 +152,31 @@ window.OSSheets = (function () {
     return vcshBlob();
   }
   function persistSoon() {
-    const fs = osfs();
-    if (!fs) {
-      E.scheduleSave(api);
-      return;
-    }
-    E.scheduleSave(api);
+    const version = ++saveVersion;
+    setSaveState("saving");
     clearTimeout(fsSaveTimer);
     fsSaveTimer = setTimeout(function () {
-      persistNow().catch(function () {});
+      persistNow().then(function () {
+        if (version === saveVersion) setSaveState("saved");
+      }).catch(function () {
+        if (version === saveVersion) setSaveState("error");
+      });
     }, 400);
+  }
+  function setSaveState(state) {
+    saveState = state;
+    const indicator = root && root.querySelector(".sheets-save-state");
+    if (!indicator) return;
+    indicator.dataset.state = state;
+    indicator.textContent = t(state === "saving" ? "sheetsSaving" : state === "error" ? "sheetsSaveError" : "sheetsSavedLocal");
   }
   async function persistNow() {
     if (!api) return null;
+    const savingApi = api;
+    await E.saveWorkbook(savingApi);
+    if (savingApi !== api) return null;
     const fs = osfs();
     if (!fs) {
-      await E.saveWorkbook(api);
       return null;
     }
     await fs.ready();
@@ -567,6 +579,7 @@ window.OSSheets = (function () {
   }
   async function newBook() {
     commitEdit();
+    await persistNow();
     api = E.createWorkbook(t("sheetsBook") + " " + (1 + Math.floor(Math.random() * 90)));
     resetView();
     fsFileId = null;
@@ -576,6 +589,7 @@ window.OSSheets = (function () {
   }
   async function openBook(id) {
     commitEdit();
+    await persistNow();
     const next = await E.loadWorkbook(id);
     if (!next) return;
     api = next;
@@ -636,6 +650,7 @@ window.OSSheets = (function () {
     bind();
     renderGrid();
     syncFormula();
+    setSaveState(saveState);
   }
   function paintLive() {
     if (!root || !root.querySelector(".sheets-shell")) {
@@ -774,26 +789,41 @@ window.OSSheets = (function () {
         group(tbtn("fileImport", "sheetsImport") + tbtn("fileExportCsv", "sheetsExportCsv") + tbtn("fileExportXlsx", "sheetsExportXlsx") + tbtn("fileExportVcsh", "sheetsExportVcsh")) +
         group(tbtn("print", "sheetsPrint") + tbtn("help", "sheetsHelp"));
     }
+    if (ui.tab === "home" && ui.compact) {
+      tools = group(btn("undo", "sheetsUndo") + btn("redo", "sheetsRedo")) +
+        group(btn("paste", "sheetsPaste") + btn("pasteMenu", "sheetsPasteSpecial", "", "caret")) +
+        group(sel2("font", "sheetsFont", FONTS, "sheets-font") + sel2("size", "sheetsFontSize", FONT_SIZES.map(s => [String(s), String(s)]), "sheets-size") + btn("bold", "sheetsBold") + btn("italic", "sheetsItalic") + btn("underline", "sheetsUnderline") + btn("fillColor", "sheetsFill") + btn("fontColor", "sheetsFontColor")) +
+        group(btn("alignment", "sheetsAlignment", "", "alignLeft") + btn("wrap", "sheetsWrap") + btn("merge", "sheetsMerge")) +
+        group(sel2("format", "sheetsFormat", FORMATS.map(f => [f, t("sheetsFmt_" + f)]), "sheets-format") + btn("percent", "sheetsPercent") + btn("decLess", "sheetsDecLess")) +
+        group(btn("autosum", "sheetsAutoSum") + btn("tableStyle", "sheetsTableStyle") + btn("filterToggle", "sheetsFilter") + btn("find", "sheetsFind")) +
+        group(btn("homeMore", "more"));
+    } else if (ui.tab === "home" || ui.tab === "insert") {
+      tools += group(tbtn("tableStyle", "sheetsTableStyle"));
+    }
     return (
       '<div class="sheets-ribbon">' +
       '<div class="sheets-rtabs">' +
       '<img class="sheets-app-icon" src="../../../assets/icons/svg/os-sheets.svg" alt="">' +
+      '<input class="sheets-book-name" aria-label="' + escapeHtml(t("sheetsWorkbook")) + '" title="' + escapeHtml(t("sheetsRenameBook")) + '" value="' + escapeHtml(api.data.name) + '" maxlength="80">' +
+      '<div class="sheets-ribbon-tabs" role="group" aria-label="' + escapeHtml(t("sheetsTools")) + '">' +
       ribbonTabs() +
+      '</div>' +
       '<span class="sheets-rtabs-spacer"></span>' +
-      '<label class="sheets-book-label">' +
-      escapeHtml(t("sheetsWorkbook")) +
-      ' <input class="sheets-book-name" value="' +
-      escapeHtml(api.data.name) +
-      '" maxlength="80">' +
-      "</label>" +
+      standaloneControls() +
       '<button type="button" class="sheets-btn sheets-help-btn" data-act="help" title="' +
       escapeHtml(t("sheetsHelp")) +
       '">?</button>' +
       "</div>" +
-      '<div class="sheets-ribbon-row">' +
+      '<div class="sheets-toolbar"><div class="sheets-ribbon-row' + (ui.compact ? ' compact' : '') + '">' +
       tools +
-      "</div></div>"
+      '</div>' + btn("toggleRibbon", ui.compact ? "sheetsExpandTools" : "sheetsCompactTools") + '</div></div>'
     );
+  }
+  function standaloneControls() {
+    if (hostWin() !== window) return "";
+    return '<select id="lang-switcher" class="sheets-select" aria-label="' + escapeHtml(t("language")) + '">' +
+      ["en", "pt", "ja"].map(l => '<option value="' + l + '"' + (lang() === l ? ' selected' : '') + '>' + l.toUpperCase() + '</option>').join("") +
+      '</select><button type="button" id="theme-switcher" class="sheets-btn" data-act="theme" title="' + escapeHtml(t("theme")) + '">' + (document.documentElement.dataset.theme === "dark" ? "☀" : "◐") + '</button>';
   }
   function formulaHtml() {
     return (
@@ -849,6 +879,7 @@ window.OSSheets = (function () {
     return (
       '<div class="sheets-status">' +
       '<span class="sheets-status-mode"></span>' +
+      '<span class="sheets-save-state" role="status" aria-live="polite"></span>' +
       '<span class="sheets-status-text"></span>' +
       '<span class="sheets-status-stats"></span>' +
       '<span class="sheets-zoom">' +
@@ -1434,7 +1465,8 @@ window.OSSheets = (function () {
         parts.push(t("sheetsStatMax") + ": " + fmt(max));
       }
       if (nonEmpty > 1 || count) parts.push(t("sheetsStatCount") + ": " + nonEmpty);
-      stats.textContent = parts.join("   ");
+      stats.innerHTML = parts.map(part => '<span class="sheets-stat">' + escapeHtml(part) + '</span>').join("");
+      stats.title = parts.join(" · ");
     }
     const zv = root.querySelector(".sheets-zoom-val");
     if (zv) zv.textContent = Math.round(ui.zoom * 100) + "%";
@@ -1533,10 +1565,11 @@ window.OSSheets = (function () {
       { passive: false }
     );
     if (window.ResizeObserver) {
-      const ro = new ResizeObserver(function () {
+      if (gridObserver) gridObserver.disconnect();
+      gridObserver = new ResizeObserver(function () {
         renderGrid();
       });
-      ro.observe(body);
+      gridObserver.observe(body);
     }
     const bar = root.querySelector(".sheets-bar");
     bar.addEventListener("focus", function () {
@@ -1722,6 +1755,15 @@ window.OSSheets = (function () {
     }
   }
   function onChange(e) {
+    if (e.target.id === "lang-switcher") {
+      commitEdit();
+      window.OS.lang = e.target.value;
+      localStorage.setItem("app_lang", window.OS.lang);
+      document.documentElement.lang = window.OS.lang;
+      document.title = t("sheetsWorkbook");
+      paint();
+      return;
+    }
     const name = e.target.getAttribute && e.target.getAttribute("data-sel");
     if (!name) return;
     if (name === "format") {
@@ -3199,18 +3241,93 @@ window.OSSheets = (function () {
     api.endBatch();
   }
 
+  function showTableStyle() {
+    commitEdit();
+    const rg = workRange();
+    if ((rg.r2 - rg.r1 + 1) * (rg.c2 - rg.c1 + 1) > 20000) {
+      setStatus(t("sheetsStyleLimit"));
+      return;
+    }
+    const palettes = [
+      { id: "jade", head: "#006b5e", band: "#e3f2ed", ink: "#163b32" },
+      { id: "ocean", head: "#245a91", band: "#e8f0fa", ink: "#20384d" },
+      { id: "slate", head: "#475569", band: "#edf0f4", ink: "#283341" },
+    ];
+    const el = overlay('<div class="sheets-modal-head"><strong>' + escapeHtml(t("sheetsTableStyle")) + '</strong><button type="button" class="sheets-close-modal" aria-label="' + escapeHtml(t("close")) + '">✕</button></div>' +
+      '<p class="sheets-style-range">' + E.a1(rg.r1, rg.c1) + ':' + E.a1(rg.r2, rg.c2) + '</p>' +
+      '<label class="sheets-style-option"><input type="checkbox" class="sheets-style-header" checked>' + escapeHtml(t("sheetsStyleHeader")) + '</label>' +
+      '<label class="sheets-style-option"><input type="checkbox" class="sheets-style-bands" checked>' + escapeHtml(t("sheetsStyleBands")) + '</label>' +
+      '<div class="sheets-style-choices">' + palettes.map(p => '<button type="button" data-style-choice="' + p.id + '" style="--table-head:' + p.head + ';--table-band:' + p.band + '"><span class="sheets-style-preview" aria-hidden="true">' + '<i></i>'.repeat(12) + '</span><span>' + escapeHtml(t("sheetsStyle_" + p.id)) + '</span></button>').join("") + '</div>');
+    el.querySelectorAll("[data-style-choice]").forEach(button => {
+      button.addEventListener("click", () => {
+        const p = palettes.find(palette => palette.id === button.dataset.styleChoice);
+        const header = el.querySelector(".sheets-style-header").checked;
+        const bands = el.querySelector(".sheets-style-bands").checked;
+        const sid = sheetId();
+        api.beginBatch();
+        for (let r = rg.r1; r <= rg.r2; r++) {
+          for (let c = rg.c1; c <= rg.c2; c++) {
+            const isHeader = header && r === rg.r1;
+            api.setStyle(sid, r, c, {
+              fill: isHeader ? p.head : bands && (r - rg.r1 - (header ? 1 : 0)) % 2 === 0 ? p.band : "#ffffff",
+              color: isHeader ? "#ffffff" : p.ink,
+              bold: isHeader,
+            });
+          }
+        }
+        api.endBatch();
+        el.remove();
+        setSel(rg.r1, rg.c1, rg.r2, rg.c2);
+        afterSel();
+        setStatus(t("sheetsStyleApplied"));
+      });
+    });
+  }
+
   function run(name, el) {
     closeMenu();
     const sid = sheetId();
+    if (name === "theme") {
+      commitEdit();
+      const theme = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+      document.documentElement.dataset.theme = theme;
+      window.OS.theme = theme;
+      localStorage.setItem("app_theme", theme);
+      repaintRibbon();
+      return;
+    }
+    if (name === "toggleRibbon") {
+      commitEdit();
+      ui.compact = !ui.compact;
+      saveUi();
+      repaintRibbon();
+      return;
+    }
+    if (name === "tableStyle") return showTableStyle();
+    if (name === "alignment" || name === "homeMore") {
+      const actions = name === "alignment" ? [
+        ["alignLeft", "sheetsAlignLeft"], ["alignCenter", "sheetsAlignCenter"], ["alignRight", "sheetsAlignRight"],
+        ["valignTop", "sheetsValignTop"], ["valignMiddle", "sheetsValignMiddle"], ["valignBottom", "sheetsValignBottom"],
+      ] : [
+        ["cut", "sheetsCut"], ["copy", "sheetsCopy"], ["paintFormat", "sheetsPaintFormat"],
+        ["strike", "sheetsStrike"], ["borders", "sheetsBorders"], ["condFormat", "sheetsCondFormat"],
+        ["decMore", "sheetsDecMore"], ["currency", "sheetsCurrency"], ["autofitSelection", "sheetsFitColumns"],
+        ["insertMenu", "sheetsInsertCells"], ["deleteMenu", "sheetsDeleteCells"], ["clearMenu", "sheetsClear"],
+      ];
+      return showMenuFrom(el, actions.map(([action, key]) => [t(key), () => run(action, el)]));
+    }
+    if (name === "autofitSelection") return autofitCols(sel.c1, sel.c2);
     if (name === "fileNew") return newBook();
     if (name === "fileOpen") return showOpen();
     if (name === "fileSave") {
       if (editing) commitEdit();
       persistNow()
         .then(function () {
+          setSaveState("saved");
           setStatus(t("sheetsSaved"));
         })
         .catch(function () {
+          setSaveState("error");
           setStatus(t("sheetsExportFail"));
         });
       return;
@@ -3579,6 +3696,8 @@ window.OSSheets = (function () {
     if (!file) return;
     const name = file.name.toLowerCase();
     try {
+      commitEdit();
+      await persistNow();
       if (name.endsWith(".vcsh") || name.endsWith(".json")) {
         const data = JSON.parse(await file.text());
         api = E.fromData(data);
@@ -3659,10 +3778,20 @@ window.OSSheets = (function () {
     closeMenu();
     const el = document.createElement("div");
     el.className = "sheets-overlay";
+    el.setAttribute("role", "dialog");
+    el.setAttribute("aria-modal", "true");
     el.innerHTML = '<div class="sheets-modal">' + html + "</div>";
     root.querySelector(".sheets-shell").appendChild(el);
     el.addEventListener("click", function (e) {
       if (e.target === el || e.target.classList.contains("sheets-close-modal")) el.remove();
+    });
+    el.addEventListener("keydown", function (e) {
+      if (e.key !== "Tab") return;
+      const focusable = Array.from(el.querySelectorAll("input,select,textarea,button")).filter(node => !node.disabled && node.offsetParent !== null);
+      if (!focusable.length) return;
+      const index = focusable.indexOf(document.activeElement);
+      focusable[(index + (e.shiftKey ? -1 : 1) + focusable.length) % focusable.length].focus();
+      e.preventDefault();
     });
     const first = el.querySelector("input,select,textarea,button");
     if (first) first.focus();

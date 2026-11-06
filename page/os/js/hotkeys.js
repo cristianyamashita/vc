@@ -145,6 +145,13 @@ window.OSHotkeys = (function () {
     const shift = e.shiftKey;
     const typing = !fromFrame && typingTarget(e.target);
 
+    if (window.OSWindows.isSpaceOpen()) return false;
+    if (ctrl && alt && lower === "o") {
+      e.preventDefault();
+      window.OSWindows.toggleSpace();
+      return true;
+    }
+
     if (key === "Escape") {
       if (window.OSTray && window.OSTray.closeAll && window.OSTray.closeAll()) {
         e.preventDefault();

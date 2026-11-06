@@ -2502,6 +2502,7 @@ window.OSSheetsEngine = (function () {
 
     function notify() {
       wb.updatedAt = Date.now();
+      if (wb.batch) return;
       for (let i = 0; i < wb.listeners.length; i++) wb.listeners[i]();
     }
     function uniqueName(base) {
@@ -3325,8 +3326,10 @@ window.OSSheetsEngine = (function () {
     const tx = db.transaction(["workbooks", "meta"], "readwrite");
     tx.objectStore("workbooks").put(data);
     tx.objectStore("meta").put(meta);
-    return idbReq(tx.objectStore("workbooks").get(data.id)).then(function () {
-      return data;
+    return new Promise(function (resolve, reject) {
+      tx.oncomplete = function () { resolve(data); };
+      tx.onabort = function () { reject(tx.error || new Error("Workbook save aborted")); };
+      tx.onerror = function () { reject(tx.error || new Error("Workbook save failed")); };
     });
   }
   async function deleteWorkbook(id) {

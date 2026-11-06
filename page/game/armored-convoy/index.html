@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="pt" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="description" content="A 3D desert convoy defense game with turret combat, rockets, shields and three sectors.">
+  <title>Armored Convoy</title>
+  <link rel="icon" href="../../assets/icons/ico/game-armored-convoy.ico" type="image/x-icon">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app">
+    <div class="topbar">
+      <img class="icon" src="../../assets/icons/svg/game-armored-convoy.svg" alt="">
+      <h1 data-i18n="title">Comboio Blindado</h1>
+      <button id="restart" data-title="restart" aria-label="Reiniciar">↻</button>
+      <button id="pause" data-title="pause" aria-label="Pausar">Ⅱ</button>
+      <div class="spacer"></div>
+      <button id="sound" data-title="sound" aria-pressed="true">♪</button>
+      <button id="help-button" data-title="help">?</button>
+      <select id="lang-switcher" aria-label="Idioma"><option value="en">EN</option><option value="pt">PT</option><option value="ja">JA</option></select>
+      <button id="theme-switcher" data-title="theme">☼</button>
+    </div>
+    <main id="stage">
+      <canvas id="scene" tabindex="0" aria-label="3D game"></canvas>
+      <div class="vignette"></div>
+      <div id="hit-flash"></div>
+      <div class="hud">
+        <div class="readout integrity"><span data-i18n="integrity">Blindagem</span><strong id="hp">100</strong><div class="meter"><i id="hp-bar"></i></div></div>
+        <div class="readout"><span data-i18n="sector">Setor</span><strong id="sector">01 / 03</strong><small id="sector-name"></small></div>
+        <div class="readout"><span data-i18n="score">Pontos</span><strong id="score">0</strong><small id="best"></small></div>
+      </div>
+      <div class="objective"><span class="dot"></span><span id="objective"></span><span id="distance"></span><div class="route"><i id="route-bar"></i></div></div>
+      <div id="reticle" aria-hidden="true"><i></i><b></b></div>
+      <div id="toast" role="status"></div>
+      <div class="bottom-hud">
+        <div class="weapon"><span data-i18n="heat">Temperatura</span><div class="meter heat"><i id="heat-bar"></i></div><b id="heat-label">0%</b></div>
+        <button id="rocket-button" class="ability"><b>R</b><span data-i18n="rocket">Foguete</span><strong id="rocket-count">3</strong></button>
+        <button id="shield-button" class="ability"><b>Q</b><span data-i18n="shield">Escudo</span><strong id="shield-count">✓</strong></button>
+      </div>
+      <div class="touch-pad"><button data-key="a" aria-label="Left">◀</button><button data-key="d" aria-label="Right">▶</button></div>
+      <button class="touch-fire" id="touch-fire" data-i18n="fire">Atirar</button>
+      <div class="overlay" id="overlay">
+        <section class="briefing">
+          <div class="badge" id="overlay-badge">◈</div>
+          <h2 id="overlay-title"></h2>
+          <p id="overlay-description"></p>
+          <div id="results"></div>
+          <div id="difficulty-row"><label for="difficulty" data-i18n="difficulty">Dificuldade</label><select id="difficulty"><option value="easy" data-i18n="easy">Recruta</option><option value="normal" data-i18n="normal">Veterano</option><option value="hard" data-i18n="hard">Elite</option></select></div>
+          <div id="upgrade-options" hidden></div>
+          <button id="primary" class="primary" data-i18n="start">Iniciar missão</button>
+          <small id="record"></small>
+        </section>
+      </div>
+      <div id="load-error" class="overlay" hidden><section class="briefing"><h2 data-i18n="unavailable">3D indisponível</h2><p data-i18n="loadError">Verifique sua conexão e o suporte a WebGL.</p><button id="reload" class="primary" data-i18n="retry">Tentar novamente</button></section></div>
+    </main>
+  </div>
+  <dialog id="help">
+    <div class="dialog-top"><h2 data-i18n="helpTitle">Manual de missão</h2><button id="close-help" data-title="close">×</button></div>
+    <div id="help-content"></div>
+  </dialog>
+  <script type="module" src="game.js"></script>
+</body>
+</html>

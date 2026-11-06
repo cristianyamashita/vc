@@ -319,12 +319,13 @@ html[data-theme="light"] .desktop-empty {
   min-height: 240px;
   background: var(--window-bg);
   border: 1px solid var(--chrome-border);
-  border-radius: 8px;
-  box-shadow: var(--shadow);
+  border-radius: 14px;
+  box-shadow: 0 2px 3px #0003, 0 12px 30px #0003, 0 34px 80px #0004, inset 0 1px 0 #ffffff26;
   overflow: hidden;
   pointer-events: auto;
   color: var(--ink);
   backdrop-filter: blur(var(--glass-blur)) saturate(1.2);
+  transition: box-shadow .22s ease, outline-color .22s ease;
 }
 
 .os-window.maximized {
@@ -338,6 +339,7 @@ html[data-theme="light"] .desktop-empty {
 
 .os-window.focused {
   outline: 1px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  box-shadow: 0 1px 0 #ffffff30, 0 0 0 1px #008f7d20, 0 16px 35px #0004, 0 44px 100px #0006;
 }
 
 .titlebar {
@@ -346,7 +348,7 @@ html[data-theme="light"] .desktop-empty {
   align-items: center;
   gap: 8px;
   padding: 0 0 0 10px;
-  background: var(--titlebar);
+  background: linear-gradient(110deg, #ffffff12, transparent 55%), var(--titlebar);
   cursor: grab;
   user-select: none;
   flex-shrink: 0;
@@ -3323,4 +3325,53 @@ html[data-setup] .os-cal-flyout {
   .os-setup-title {
     font-size: 22px;
   }
+}
+
+/* Spatial desktop: solid editing plane, raised chrome, live 3D window view. */
+.space-btn {
+  display: flex; align-items: center; gap: 6px; flex-shrink: 0;
+  height: 34px; padding: 0 10px; border: 1px solid var(--chrome-border);
+  border-radius: 9px; color: var(--ink); font: 600 11px var(--font);
+  background: linear-gradient(145deg, #ffffff1a, #ffffff04);
+  box-shadow: inset 0 1px 0 #ffffff12, 0 3px 8px #0002;
+  cursor: pointer;
+}
+.space-btn:hover { background-color: var(--hover); color: var(--accent); }
+.desktop-icon img, .taskbar-pin img { filter: drop-shadow(0 5px 3px #0004); transition: transform .2s ease, filter .2s ease; }
+.desktop-icon:hover img { transform: perspective(400px) translateY(-4px) rotateY(-10deg); filter: drop-shadow(4px 10px 5px #0005); }
+.os-window.window-lifted { transform: perspective(1800px) rotateX(1deg) rotateY(-1deg); box-shadow: 8px 35px 70px #0007; }
+.window-layer.space-view {
+  position: fixed; inset: 0; z-index: 100000; pointer-events: auto;
+  overflow: hidden; isolation: isolate;
+  background: radial-gradient(ellipse at 50% 35%, #008f7d24, transparent 65%), #071315dc;
+  backdrop-filter: blur(28px) saturate(.8);
+}
+html[data-theme="light"] .window-layer.space-view { background: radial-gradient(ellipse at 50% 35%, #008f7d20, transparent 65%), #e9f3f0e8; }
+.space-view .space-window, .space-target {
+  position: absolute; left: 50% !important; top: calc(50% - 8px) !important;
+  transform: var(--space-transform); transform-origin: center;
+  z-index: var(--space-z) !important; border-radius: 14px !important;
+  transition: none;
+}
+.space-ready .space-window, .space-ready .space-target { transition: transform .32s cubic-bezier(.2,.75,.25,1), opacity .24s ease; }
+.space-view .space-window { display: flex !important; pointer-events: none; outline: none; border-width: 1px; box-shadow: 0 45px 85px #0008, 0 2px 0 #ffffff20; }
+.space-target { margin: 0; padding: 0; border: 2px solid #ffffff20; background: transparent; cursor: pointer; pointer-events: auto; }
+.space-target.space-selected { border-color: #5de0c3b0; box-shadow: 0 0 0 5px #008f7d22, 0 0 55px #008f7d20; }
+.space-target:focus-visible { outline: 3px solid #7ef2d6; outline-offset: 5px; }
+.space-view .space-away { opacity: 0; visibility: hidden; pointer-events: none; }
+.space-controls { position: absolute; inset: 0; z-index: 100000; pointer-events: none; color: var(--ink); }
+.space-top { position: absolute; top: 20px; left: 24px; right: 24px; display: flex; align-items: center; justify-content: space-between; }
+.space-top strong { font-size: 16px; letter-spacing: -.2px; }
+.space-controls button { pointer-events: auto; cursor: pointer; border: 1px solid var(--chrome-border); background: var(--chrome); color: var(--ink); border-radius: 12px; width: 38px; height: 38px; font: 24px var(--font); }
+.space-controls button:hover { background: var(--hover); }
+.space-controls .space-close { font-size: 16px; }
+.space-controls button:disabled { opacity: .3; cursor: default; }
+.space-bottom { position: absolute; bottom: 22px; left: 12px; right: 12px; display: flex; align-items: center; justify-content: center; gap: 24px; text-align: center; }
+.space-caption { font-size: 14px; font-weight: 600; }
+.space-hint { font-size: 11px; color: var(--muted); margin-top: 5px; }
+html[data-motion="reduce"] .space-window, html[data-motion="reduce"] .space-target { transition: none; }
+html[data-motion="reduce"] .window-lifted, html[data-motion="reduce"] .desktop-icon:hover img { transform: none; }
+@media (prefers-reduced-motion: reduce) {
+  .space-view .space-window, .space-target, .desktop-icon img, .os-window { transition: none; }
+  .os-window.window-lifted, .desktop-icon:hover img { transform: none; }
 }

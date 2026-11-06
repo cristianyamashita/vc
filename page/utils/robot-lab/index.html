@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#101719"><title>Robot Lab</title>
+<link rel="icon" href="../../assets/icons/ico/utils-robot-lab.ico" type="image/x-icon">
+<link rel="stylesheet" href="styles.css">
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/"}}</script>
+</head>
+<body>
+<div class="app">
+ <div class="topbar">
+  <img src="../../assets/icons/svg/utils-robot-lab.svg" width="18" height="18" alt=""><h1 data-i18n="title">Robot Lab</h1>
+  <span class="divider"></span><span class="model-label">H–01</span><span class="badge" id="dof">64 DOF</span>
+  <button id="reset-pose" data-i18n="resetPose" data-title="resetPoseTitle">↺ Neutral</button>
+  <span class="spacer"></span><span id="save-status" class="save-status" aria-live="polite"></span>
+  <details class="file-menu"><summary data-i18n="project">Project</summary><div class="dropdown">
+   <button id="export-project" data-i18n="exportProject">Export project</button><button id="import-project" data-i18n="importProject">Import project</button><button id="export-ros" data-i18n="exportROS">Export ROS trajectory</button>
+  </div></details>
+  <button id="help-btn" data-title="help" aria-label="Help">?</button><select id="lang-switcher" aria-label="Language"><option value="en">EN</option><option value="pt">PT</option><option value="ja">JA</option></select><button id="theme-switcher" data-title="theme" aria-label="Theme">◐</button>
+ </div>
+ <main class="workspace">
+  <aside class="joint-panel panel">
+   <div class="panel-heading"><h2 data-i18n="joints">Articulations</h2><span id="joint-count" class="muted">64</span></div>
+   <div class="search-wrap"><input id="joint-search" type="search" data-placeholder="search" placeholder="Find a joint…" autocomplete="off"></div>
+   <div id="joint-tree" class="joint-tree"></div>
+   <div class="panel-foot"><span class="status-dot"></span><span data-i18n="kinematic">Kinematic model</span></div>
+  </aside>
+  <section class="center">
+   <div id="viewport" class="viewport">
+    <div class="viewport-top"><span class="view-label" data-i18n="workspace">3D workspace</span><div class="view-actions"><button data-view="front" data-i18n="front">Front</button><button data-view="side" data-i18n="side">Side</button><button data-view="perspective" data-i18n="fit">Fit</button></div>
+     <details id="scene-menu" class="scene-menu"><summary data-i18n="sceneControls">Light & background</summary><div class="scene-popover">
+      <label class="scene-light-label" for="scene-light"><span data-i18n="sceneLighting">Lighting</span><output id="scene-light-value" for="scene-light">100%</output></label>
+      <input id="scene-light" type="range" min="40" max="200" step="5" value="100">
+      <label class="field"><span data-i18n="sceneBackground">Background</span><select id="scene-background"><option value="theme" data-i18n="sceneTheme">Match theme</option><option value="custom" data-i18n="sceneCustom">Custom color</option></select></label>
+      <label class="color-row scene-color"><span data-i18n="sceneColor">Background color</span><input id="scene-color" type="color" value="#72858c"></label>
+      <button id="scene-reset" data-i18n="sceneReset">Reset scene</button>
+     </div></details>
+    </div>
+    <div id="loading" role="status">Loading 3D…</div>
+    <div class="viewport-bottom"><span id="selected-label"></span><span id="collision-status" class="collision-status" role="status" hidden></span><label class="check"><input id="show-axes" type="checkbox"><span data-i18n="axes">Axes</span></label></div>
+   </div>
+   <section class="timeline panel">
+    <div class="transport"><button id="play" class="primary" data-i18n="play">Play</button><button id="stop" data-title="stop">■</button><output id="clock">0.00 / 6.00 s</output><span class="spacer"></span><label class="check"><input id="loop" type="checkbox"><span data-i18n="loop">Loop</span></label><select id="speed" data-title="speed"><option value="0.25">¼×</option><option value="0.5">½×</option><option value="1" selected>1×</option><option value="2">2×</option></select></div>
+    <input id="scrub" type="range" min="0" max="6" step="0.001" value="0" data-title="timeline">
+    <div class="timeline-heading"><h2 data-i18n="keyframes">Keyframes</h2><span id="playback-name" class="playback-name"></span><button id="exit-preview" data-i18n="capBackEditor" hidden>Back to editor</button><span class="spacer"></span><button id="capture" data-i18n="capture">+ Capture</button></div>
+    <div id="keyframes" class="keyframes"></div>
+   </section>
+  </section>
+  <aside class="inspector panel">
+   <nav class="tabs"><button data-tab="joint" class="active" data-i18n="joint">Joint</button><button data-tab="motion" data-i18n="motion">Motion</button><button data-tab="style" data-i18n="style">Finish</button><button data-tab="capture" data-i18n="capTab">Capture</button></nav>
+   <div id="tab-joint" class="tab-content">
+    <div class="section-label" data-i18n="selectedJoint">Selected joint</div><h2 id="joint-name"></h2><code id="joint-id"></code>
+    <div class="angle-readout"><input id="angle" type="number" step="0.1" aria-label="Angle"><span>°</span></div><input id="angle-slider" type="range" step="0.1" data-title="angle">
+    <div class="range-labels"><span id="limit-low"></span><span id="axis-label"></span><span id="limit-high"></span></div>
+    <div class="row"><button id="joint-zero" data-i18n="zeroJoint">Zero joint</button><button id="neutral" data-i18n="neutral">Neutral pose</button></div>
+    <details class="limits"><summary data-i18n="workingLimits">Working limits</summary><div class="form-grid"><label><span data-i18n="minimum">Minimum °</span><input id="joint-min" type="number" step="1"></label><label><span data-i18n="maximum">Maximum °</span><input id="joint-max" type="number" step="1"></label></div><label class="field"><span data-i18n="maxSpeed">Max. speed °/s</span><input id="joint-speed" type="number" min="1" max="1440"></label><button id="apply-limits" data-i18n="applyLimits">Apply limits</button></details>
+    <div class="section-head"><h2 data-i18n="poses">Pose library</h2><span id="pose-count" class="muted">0</span></div>
+    <div class="row"><input id="pose-name" maxlength="60" data-placeholder="poseName" placeholder="Pose name"><button id="save-pose" data-i18n="save">Save</button></div><div id="poses" class="pose-list"></div>
+   </div>
+   <div id="tab-motion" class="tab-content" hidden>
+    <div class="row"><select id="demo"><option value="wave" data-i18n="wave">Wave</option><option value="crouch" data-i18n="crouch">Leg cycle</option><option value="scan" data-i18n="scan">Look around</option></select><button id="load-demo" data-i18n="loadDemo">Load demo</button></div>
+    <label class="field"><span data-i18n="interpolation">Interpolation</span><select id="interpolation"><option value="smooth" data-i18n="smooth">Smooth · quintic</option><option value="linear" data-i18n="linear">Linear</option></select></label>
+    <div class="section-head"><h2 data-i18n="script">Trajectory script</h2><span class="badge">JSON</span></div>
+    <textarea id="script" spellcheck="false" aria-label="Trajectory JSON"></textarea>
+    <div class="row"><button id="apply-script" class="primary" data-i18n="applyScript">Apply script</button><button id="copy-script" data-i18n="download">Download</button></div>
+    <p id="script-status" class="script-status" role="status"></p>
+    <div class="section-head"><h2 data-i18n="frame">Selected keyframe</h2><span id="frame-number" class="badge">01</span></div>
+    <label class="field"><span data-i18n="time">Time (s)</span><input id="frame-time" type="number" min="0" max="600" step="0.1"></label>
+    <div class="row"><button id="retime" data-i18n="retime">Set time</button><button id="replace-frame" data-i18n="replaceFrame">Use pose</button><button id="delete-frame" class="danger" data-i18n="delete">Delete</button></div>
+   </div>
+   <div id="tab-capture" class="tab-content capture-panel" hidden>
+    <nav class="capture-subnav" aria-label="Capture"><button id="cap-view-record" data-i18n="capNewRecording">Record</button><button id="cap-view-saved"><span data-i18n="capSavedTab">Saved</span> <span id="cap-saved-count">0</span></button></nav>
+    <div id="cap-record-view" class="capture-view">
+    <div class="capture-scroll">
+    <div class="row capture-sources"><button id="cap-camera" data-i18n="capCamera">Camera</button><button id="cap-upload" data-i18n="capVideo">Open video</button><button id="cap-source-stop" data-title="capDisconnect">×</button></div>
+    <div class="capture-preview"><video id="cap-video" playsinline muted preload="metadata"></video><canvas id="cap-overlay" aria-hidden="true"></canvas><span id="cap-empty" data-i18n="capEmpty">Choose a camera or video</span><span id="cap-record-light" hidden>● REC</span></div>
+    <div id="cap-media-controls" class="capture-media-controls" hidden><button id="cap-media-play" data-title="capPlayVideo">▶</button><input id="cap-seek" type="range" min="0" max="1" step="0.01" value="0" data-title="capSeek"><output id="cap-media-time">0:00</output></div>
+    <p id="cap-status" class="capture-status" role="status" data-i18n="capIdle">Capture idle</p>
+    <button id="cap-resume" data-i18n="capResume" hidden>Resume tracking</button>
+    <div id="cap-quality" class="capture-quality" aria-live="polite"></div>
+    <div class="row"><select id="cap-mode" data-title="capMode"><option value="body-hands" data-i18n="capBodyHands">Body + hands</option><option value="body" data-i18n="capBody">Body</option><option value="hands" data-i18n="capHands">Hands</option></select><button id="cap-calibrate" data-i18n="capCalibrate">Calibrate</button></div>
+    <div class="capture-checks"><label class="check"><input id="cap-mirror" type="checkbox" checked><span data-i18n="capMirror">Mirror preview</span></label><label class="check"><input id="cap-preview" type="checkbox" checked><span data-i18n="capFollow">Live robot</span></label></div>
+    <details class="capture-options"><summary data-i18n="capOptions">Tracking settings</summary>
+     <label class="check"><input id="cap-swap" type="checkbox"><span data-i18n="capSwap">Swap robot sides</span></label>
+     <label class="field"><span data-i18n="capSmoothing">Smoothing</span><input id="cap-smoothing" type="range" min="0" max="0.95" step="0.05" value="0.65"></label>
+     <label class="field"><span data-i18n="capConfidence">Minimum confidence</span><input id="cap-confidence" type="range" min="0.35" max="0.9" step="0.05" value="0.55"></label>
+     <button id="cap-reset-calibration" data-i18n="capResetCalibration">Reset calibration</button>
+    </details>
+    </div>
+    <div class="capture-record-footer">
+     <div class="section-head"><h2 id="cap-record-state" data-i18n="capReadyToRecord">Ready to record</h2><output id="cap-counter">0.0 s · 0</output></div>
+     <input id="cap-name" maxlength="60" data-placeholder="capName" placeholder="Motion name">
+     <button id="cap-record" class="primary" data-i18n="capRecord">● Start recording</button>
+    </div>
+    </div>
+    <div id="cap-saved-view" class="capture-view" hidden>
+     <div id="cap-selected" class="capture-selected" hidden>
+      <div class="capture-saved-label"><span id="cap-storage-state"></span><button id="cap-retry-save" data-i18n="capRetrySave" hidden>Retry save</button></div>
+      <h2 id="cap-selected-name"></h2>
+      <div class="row capture-replay-actions"><button id="cap-use" class="primary" data-i18n="capReplay">▶ Play on robot</button><button id="cap-replay-stop" data-title="stop">■</button><button id="cap-edit" data-i18n="capEdit">Edit</button></div>
+      <p id="cap-summary" class="capture-summary" role="status"></p>
+     </div>
+     <div class="section-head capture-library-heading"><h2 data-i18n="capLibrary">Recorded motions</h2><span id="cap-take-count" class="muted">0 / 6</span></div>
+     <div id="cap-takes" class="capture-scroll"></div>
+     <button id="cap-another" data-i18n="capAnother">+ New recording</button>
+    </div>
+    <input id="cap-file" type="file" accept="video/mp4,video/webm,video/quicktime,.mp4,.m4v,.webm,.mov" hidden>
+   </div>
+   <div id="tab-style" class="tab-content" hidden>
+    <h2 data-i18n="materials">Materials</h2><div class="swatches"><button data-palette="pearl" aria-label="Pearl" style="--swatch:#e4e9e8"></button><button data-palette="stealth" aria-label="Stealth" style="--swatch:#3b454b"></button><button data-palette="copper" aria-label="Copper" style="--swatch:#bc7951"></button><button data-palette="blue" aria-label="Blue" style="--swatch:#5085b4"></button></div>
+    <label class="color-row"><span data-i18n="shell">Armor</span><input id="color-shell" type="color" value="#e4e9e8"></label><label class="color-row"><span data-i18n="accent">Accent</span><input id="color-accent" type="color" value="#00c4a4"></label><label class="color-row"><span data-i18n="structure">Structure</span><input id="color-dark" type="color" value="#252e35"></label>
+    <div class="model-card"><span class="model-mark">H–01</span><p data-i18n="modelDescription">An articulated humanoid with independent body and finger joints.</p><div><span data-i18n="control">Control</span><b data-i18n="position">Position</b></div><div><span data-i18n="units">Units</span><b>° / rad</b></div><div><span data-i18n="solver">Solver</span><b data-i18n="forward">Forward kinematics</b></div></div>
+   </div>
+  </aside>
+ </main>
+</div>
+<div id="toast" role="status" hidden></div>
+<dialog id="help"><div class="dialog-heading"><h2 data-i18n="help">Help</h2><button id="close-help" data-title="close">×</button></div><div id="help-body"></div></dialog>
+<dialog id="confirm"><form method="dialog"><p id="confirm-text"></p><div class="row"><button value="cancel" data-i18n="cancel">Cancel</button><button value="ok" class="primary" data-i18n="continue">Continue</button></div></form></dialog>
+<dialog id="cap-rename-dialog"><form method="dialog"><label class="field"><span data-i18n="capName">Motion name</span><input id="cap-rename-name" maxlength="60" required></label><div class="row"><button value="cancel" formnovalidate data-i18n="cancel">Cancel</button><button value="save" class="primary" data-i18n="save">Save</button></div></form></dialog>
+<input id="file-input" type="file" accept=".json,application/json" hidden>
+<script type="module">
+let bootLang=(navigator.language||'en').slice(0,2);try{bootLang=JSON.parse(localStorage.getItem('vc.robotLab.v1'))?.lang||bootLang;}catch{}
+document.documentElement.lang=['en','pt','ja'].includes(bootLang)?bootLang:'en';
+document.getElementById('loading').textContent=({pt:'Carregando 3D…',ja:'3Dを読み込み中…'})[bootLang]||'Loading 3D…';
+import('./app.js').catch(error => { const lang=document.documentElement.lang; document.getElementById('loading').textContent=({pt:'Não foi possível carregar o 3D. Verifique a conexão e o suporte a WebGL e recarregue.',ja:'3Dを読み込めません。接続とWebGLの対応を確認して再読み込みしてください。'})[lang]||'Could not load 3D. Check the connection and WebGL support, then reload.';console.error(error); });
+</script>
+</body></html>

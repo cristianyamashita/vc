@@ -1071,6 +1071,10 @@ window.OSSheetsDialogs = function (S) {
         esc(t("sheetsHelpTip4")) +
         "</li><li>" +
         esc(t("sheetsHelpTip5")) +
+        "</li><li>" +
+        esc(t("sheetsHelpTip6")) +
+        "</li><li>" +
+        esc(t("sheetsHelpTip7")) +
         "</li></ul>" +
         "<table>" +
         rows

@@ -11,6 +11,9 @@ window.OSSheetsIcons = (function () {
   const fill = 'fill="currentColor"';
 
   const ICONS = {
+    tableStyle: svg('<rect x="2" y="2.5" width="12" height="11" rx="1.5" ' + stroke + '/><path d="M2 6h12M2 9.5h12M6 6v7M10 6v7" ' + stroke + '/><path d="M3 3.5h10v1.5H3z" ' + fill + '/>'),
+    toggleRibbon: svg('<path d="m4 5 4-3 4 3M4 11l4 3 4-3" ' + stroke + '/><path d="M3 8h10" ' + stroke + '/>'),
+    homeMore: svg('<circle cx="3" cy="8" r="1.3" ' + fill + '/><circle cx="8" cy="8" r="1.3" ' + fill + '/><circle cx="13" cy="8" r="1.3" ' + fill + '/>'),
     fileNew: svg('<path d="M4 2.5h5.5L12 5v8.5H4z" ' + stroke + '/><path d="M9.5 2.5V5H12" ' + stroke + '/>'),
     fileOpen: svg('<path d="M2.5 13V4.5h3l1.2 1.5H13.5V13z" ' + stroke + '/>'),
     fileSave: svg('<path d="M3 3h8.5L13 4.5V13H3z" ' + stroke + '/><path d="M5 3v3.5h6V3M5 13v-4h6v4" ' + stroke + '/>'),

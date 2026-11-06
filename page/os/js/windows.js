@@ -13,6 +13,7 @@ window.OSWindows = (function () {
   let writingHash = false;
   let closedThisSession = new Set();
   let layer;
+  let space = null;
   const htmlBlobs = new WeakMap();
 
   function t(key) {
@@ -446,6 +447,7 @@ window.OSWindows = (function () {
       const origX = win.x;
       const origY = win.y;
       document.body.classList.add("os-dragging");
+      win.el.classList.add("window-lifted");
       const move = (ev) => {
         const next = clampRect(origX + (ev.clientX - startX), origY + (ev.clientY - startY), win.w, win.h);
         win.x = next.x;
@@ -459,6 +461,7 @@ window.OSWindows = (function () {
         document.removeEventListener("mousemove", move);
         document.removeEventListener("mouseup", up);
         document.body.classList.remove("os-dragging");
+        win.el.classList.remove("window-lifted");
         if (window.OSHotkeys) window.OSHotkeys.snapZone(null);
         const edge = snapEdgeAt(ev.clientX, ev.clientY);
         if (edge) snap(win.id, edge);
@@ -485,6 +488,7 @@ window.OSWindows = (function () {
   }
 
   function snap(id, edge) {
+    closeSpace();
     const win = windows.get(id);
     if (!win) return;
     const area = workArea();
@@ -654,6 +658,7 @@ window.OSWindows = (function () {
   }
 
   function open(id, opts) {
+    closeSpace();
     opts = opts || {};
     // Old ids of merged pages (recent files, shortcuts) open the page that absorbed them.
     if (window.OSCatalog.resolveId && id) {
@@ -753,6 +758,7 @@ window.OSWindows = (function () {
   }
 
   function minimize(id) {
+    closeSpace();
     const win = windows.get(id);
     if (!win) return;
     win.minimized = true;
@@ -771,6 +777,7 @@ window.OSWindows = (function () {
   }
 
   function toggleMaximize(id) {
+    closeSpace();
     const win = windows.get(id);
     if (!win) return;
     win.minimized = false;
@@ -789,6 +796,7 @@ window.OSWindows = (function () {
   }
 
   function close(id) {
+    closeSpace();
     const win = windows.get(id);
     if (!win) return;
     rememberPlacement(win);
@@ -813,6 +821,7 @@ window.OSWindows = (function () {
   }
 
   function toggleTask(id) {
+    closeSpace();
     const win = windows.get(id);
     if (!win) {
       open(id);
@@ -902,6 +911,7 @@ window.OSWindows = (function () {
   }
 
   function openHtmlPreview(opts) {
+    closeSpace();
     opts = opts || {};
     const PREVIEW_ID = "studio-preview";
     const title = String(opts.title || "Preview");
@@ -951,8 +961,139 @@ window.OSWindows = (function () {
     return win;
   }
 
+  // Transform the existing frames in place: moving an iframe between parents
+  // reloads it and would discard an app's unfinished work.
+  function layoutSpace() {
+    if (!space) return;
+    const width = window.innerWidth;
+    const height = Math.max(180, window.innerHeight - 150);
+    const reduced = document.documentElement.dataset.motion === "reduce" || matchMedia("(prefers-reduced-motion: reduce)").matches;
+    space.items.forEach((item, i) => {
+      const d = i - space.index;
+      const w = parseFloat(item.win.el.style.width) || item.win.w;
+      const h = parseFloat(item.win.el.style.height) || item.win.h;
+      const base = Math.min(width * (width < 720 ? .82 : .64) / w, height * .84 / h, 1);
+      const scale = base * (d ? .76 : 1);
+      const offset = d * width * (width < 720 ? .68 : .48);
+      const transform = `perspective(1600px) translate(-50%, -50%) translateX(${offset}px) rotateY(${reduced ? 0 : d === 0 ? -3 : d > 0 ? -28 : 28}deg) scale(${scale})`;
+      [item.win.el, item.button].forEach((el, j) => {
+        el.style.setProperty("--space-transform", transform);
+        el.style.setProperty("--space-z", String(100 + (space.items.length - Math.abs(d)) * 2 + j));
+        el.classList.toggle("space-away", Math.abs(d) > 1);
+      });
+      item.button.style.width = w + "px";
+      item.button.style.height = h + "px";
+      item.button.tabIndex = d === 0 ? 0 : -1;
+      item.button.setAttribute("aria-hidden", String(Math.abs(d) > 1));
+      item.button.classList.toggle("space-selected", d === 0);
+    });
+    const current = space.items[space.index];
+    space.caption.textContent = current ? current.name + " · " + (space.index + 1) + " / " + space.items.length : t("spaceEmpty");
+    space.prev.disabled = space.index <= 0;
+    space.next.disabled = space.index >= space.items.length - 1;
+  }
+
+  function closeSpace(activateId) {
+    if (!space) return;
+    const previous = space;
+    space = null;
+    previous.items.forEach(({ win, button, inert }) => {
+      win.el.classList.remove("space-window", "space-away");
+      win.el.style.removeProperty("--space-transform");
+      win.el.style.removeProperty("--space-z");
+      win.el.inert = inert;
+      button.remove();
+    });
+    previous.controls.remove();
+    previous.background.forEach(([el, inert]) => { el.inert = inert; });
+    layer.classList.remove("space-view", "space-ready");
+    layer.removeAttribute("role");
+    layer.removeAttribute("aria-modal");
+    layer.removeAttribute("aria-label");
+    document.getElementById("space-btn").setAttribute("aria-expanded", "false");
+    if (activateId && windows.has(activateId)) {
+      const win = windows.get(activateId);
+      win.minimized = false;
+      applyRect(win);
+      setFocused(activateId);
+      const target = win.el.querySelector("iframe, .native-root button, .win-max");
+      if (target) target.focus({ preventScroll: true });
+    } else if (previous.focus && previous.focus.isConnected) previous.focus.focus({ preventScroll: true });
+  }
+
+  function stepSpace(delta) {
+    if (!space || !space.items.length) return;
+    space.index = Math.max(0, Math.min(space.items.length - 1, space.index + delta));
+    layoutSpace();
+    space.items[space.index].button.focus({ preventScroll: true });
+  }
+
+  function toggleSpace() {
+    if (space) return closeSpace();
+    if (window.OSStart) window.OSStart.close();
+    if (window.OSTray && window.OSTray.closeAll) window.OSTray.closeAll();
+    if (window.OSHotkeys) window.OSHotkeys.closeSwitcher(false);
+    const controls = document.createElement("div");
+    controls.className = "space-controls";
+    controls.innerHTML = `<div class="space-top"><strong>${t("spaceView")}</strong><button type="button" class="space-close" aria-label="${t("close")}">✕</button></div><div class="space-bottom"><button type="button" class="space-prev" aria-label="${t("spacePrevious")}">‹</button><div><div class="space-caption" aria-live="polite"></div><div class="space-hint">${t("spaceHint")}</div></div><button type="button" class="space-next" aria-label="${t("spaceNext")}">›</button></div>`;
+    space = { items: [], index: 0, controls, focus: document.activeElement, background: [] };
+    space.caption = controls.querySelector(".space-caption");
+    space.prev = controls.querySelector(".space-prev");
+    space.next = controls.querySelector(".space-next");
+    Array.from(document.body.children).forEach((el) => {
+      if (el === layer || el.tagName === "SCRIPT") return;
+      space.background.push([el, el.inert]);
+      el.inert = true;
+    });
+    Array.from(windows.values()).sort((a, b) => b.z - a.z).forEach((win) => {
+      const name = win.el.querySelector(".titlebar-title").textContent;
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "space-target";
+      button.setAttribute("aria-label", t("spaceOpen", { name }));
+      button.addEventListener("click", () => closeSpace(win.id));
+      space.items.push({ win, button, name, inert: win.el.inert });
+      win.el.inert = true;
+      win.el.classList.add("space-window");
+      layer.appendChild(button);
+    });
+    controls.querySelector(".space-close").addEventListener("click", () => closeSpace());
+    space.prev.addEventListener("click", () => stepSpace(-1));
+    space.next.addEventListener("click", () => stepSpace(1));
+    layer.appendChild(controls);
+    layer.classList.add("space-view");
+    layer.setAttribute("role", "dialog");
+    layer.setAttribute("aria-modal", "true");
+    layer.setAttribute("aria-label", t("spaceView"));
+    document.getElementById("space-btn").setAttribute("aria-expanded", "true");
+    layoutSpace();
+    // Establish the scaled positions before enabling carousel transitions.
+    void layer.offsetWidth;
+    layer.classList.add("space-ready");
+    (space.items[0] ? space.items[0].button : controls.querySelector(".space-close")).focus({ preventScroll: true });
+  }
+
+  function spaceKey(e) {
+    if (!space) return;
+    if (e.key === "Escape") closeSpace();
+    else if (e.key === "ArrowRight") stepSpace(1);
+    else if (e.key === "ArrowLeft") stepSpace(-1);
+    else if (e.key === "Home") stepSpace(-space.items.length);
+    else if (e.key === "End") stepSpace(space.items.length);
+    else if (e.key === "Tab") {
+      const focusable = Array.from(layer.querySelectorAll(".space-target[tabindex='0'], .space-controls button:not(:disabled)"));
+      const i = focusable.indexOf(document.activeElement);
+      focusable[(i + (e.shiftKey ? -1 : 1) + focusable.length) % focusable.length].focus();
+    } else return;
+    e.preventDefault();
+    e.stopPropagation();
+  }
+
   function init() {
     layer = document.getElementById("windows");
+    document.getElementById("space-btn").addEventListener("click", toggleSpace);
+    layer.addEventListener("keydown", spaceKey);
+    layer.addEventListener("click", (e) => { if (space && e.target === layer) closeSpace(); });
     window.addEventListener("resize", () => {
       windows.forEach((win) => {
         const rect = clampRect(win.x, win.y, win.w, win.h);
@@ -963,12 +1104,16 @@ window.OSWindows = (function () {
         applyRect(win);
       });
       scheduleHash();
+      layoutSpace();
     });
     window.addEventListener("hashchange", applyHashRoute);
   }
 
   return {
     init,
+    toggleSpace,
+    closeSpace,
+    isSpaceOpen: () => !!space,
     open,
     close,
     minimize,

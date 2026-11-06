@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="description" content="A complete 3D action game with keyboard, mouse and touch controls.">
+<title>Neon Tanks</title>
+<link rel="icon" href="../../assets/icons/ico/game-neon-tanks.ico" type="image/x-icon">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="app">
+<header class="topbar"><div class="brand"><img src="../../assets/icons/svg/game-neon-tanks.svg" alt=""><span data-i18n="title">Neon Tanks</span></div><button id="restart" data-i18n="newGame">New</button><button id="pause" data-i18n="pause">Pause</button><div class="tools"><button id="sound" title="Sound" aria-label="Sound">♫</button><button id="help-button" aria-label="Help">?</button><select id="lang-switcher" aria-label="Language"><option value="en">EN</option><option value="pt">PT</option><option value="ja">JA</option></select><button id="theme-switcher" aria-label="Theme">☀</button></div></header>
+<main id="stage" tabindex="0" aria-label="3D game">
+<canvas id="scene"></canvas><div class="vignette"></div><div id="damage-flash"></div>
+<div class="hud hud-top"><div class="mission glass"><div class="phase" id="phase"></div><div id="objective"></div><div class="detail" id="detail"></div></div><div class="score glass"><span data-i18n="score">Score</span><b id="score">0</b><small><span data-i18n="best">Best</span> <span id="best">0</span></small></div></div>
+<canvas id="radar" width="120" height="120" aria-label="Radar"></canvas>
+<div id="notice" role="status"></div>
+<div class="hud hud-bottom"><div class="vitals glass"><div class="bar-label"><span data-i18n="health">Health</span><b id="health-value">100</b></div><div class="bar"><i id="health-bar"></i></div><div class="bar-label"><span id="meter-label"></span><b id="meter-value"></b></div><div class="bar secondary"><i id="meter-bar"></i></div></div><div id="status" class="glass"></div></div>
+<div id="touch-controls"><div class="dpad"><button data-key="KeyW" class="up" aria-label="Forward">▲</button><button data-key="KeyA" class="left" aria-label="Left">◀</button><button data-key="KeyS" class="down" aria-label="Back">▼</button><button data-key="KeyD" class="right" aria-label="Right">▶</button></div><div class="action-pad"><button data-key="Space" data-i18n="touchDash">Dash</button><button data-key="ShiftLeft" data-i18n="touchAlt">Shield</button><button data-key="fire" class="fire" data-i18n="touchFire">Fire</button></div></div>
+<div id="overlay"><section class="overlay-card glass"><div class="emblem">◇</div><h2 id="overlay-title">Neon Tanks</h2><p id="overlay-text">Loading 3D scene…</p><div id="choices"></div><div class="overlay-actions"><button id="overlay-action" class="primary" hidden>Start</button><button id="overlay-help" data-i18n="help">Help</button></div></section></div>
+</main></div>
+<dialog id="help"><div class="dialog-title"><h2 data-i18n="title">Neon Tanks</h2><button id="help-close" aria-label="Close">×</button></div><div class="help-content"><p id="help-goal"></p><div id="help-controls"></div><p id="help-tips"></p><div class="settings"><label><span data-i18n="difficulty">Difficulty</span><select id="difficulty"><option value="easy" data-i18n="easy">Explorer</option><option value="normal" data-i18n="normal">Standard</option><option value="hard" data-i18n="hard">Veteran</option></select></label><label><span data-i18n="volume">Volume</span><input id="volume" type="range" min="0" max="100" step="5"></label><label><span data-i18n="touch">Touch controls</span><input id="touch-setting" type="checkbox"></label></div><p class="detail" data-i18n="settingsHint">Difficulty applies to a new game. Scores and preferences are saved in this browser.</p></div></dialog>
+<script type="module">
+const lang=(()=>{try{return JSON.parse(localStorage.getItem('vc-neon-tanks-v1')||'{}').lang||localStorage.getItem('app_lang')||'en'}catch{return'en'}})();
+const loading={en:'Loading 3D scene…',pt:'Carregando cena 3D…',ja:'3Dシーンを読み込み中…'};document.querySelector('#overlay-text').textContent=loading[lang]||loading.en;
+import('./game.js').catch(error=>{console.error(error);const errors={en:'The 3D scene could not load. Check your internet connection and WebGL support, then reload.',pt:'Não foi possível carregar a cena 3D. Verifique a conexão e o suporte a WebGL e recarregue.',ja:'3Dシーンを読み込めません。インターネット接続とWebGL対応を確認して再読み込みしてください。'};document.querySelector('#overlay-text').textContent=errors[lang]||errors.en;document.querySelector('#overlay-help').hidden=true;const b=document.querySelector('#overlay-action');b.hidden=false;b.textContent={en:'Reload',pt:'Recarregar',ja:'再読み込み'}[lang]||'Reload';b.onclick=()=>location.reload()});
+</script></body></html>

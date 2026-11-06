@@ -473,6 +473,30 @@ window.OSCatalog = (function () {
     }
   },
   {
+    "id": "utils-robot-lab",
+    "href": "utils/robot-lab/index.html",
+    "icon": "../assets/icons/svg/utils-robot-lab.svg",
+    "kind": "site",
+    "uninstallable": true,
+    "defaultInstalled": false,
+    "channel": "stable",
+    "tag": {
+      "en": "Robotics",
+      "pt": "Robótica",
+      "ja": "ロボティクス"
+    },
+    "name": {
+      "en": "Humanoid Robot Lab",
+      "pt": "Laboratório de Robôs Humanoides",
+      "ja": "ヒューマノイドロボットラボ"
+    },
+    "desc": {
+      "en": "Configure a 3D humanoid, save poses and motion scripts, or capture body and hand movements from a camera or local video.",
+      "pt": "Configure um humanoide 3D, salve poses e roteiros ou capture movimentos do corpo e das mãos pela câmera ou por vídeo local.",
+      "ja": "3Dヒューマノイドの関節、ポーズ、動作を編集。カメラやローカル動画から体と手の動きを記録できます。"
+    }
+  },
+  {
     "id": "utils-architecture-atlas",
     "href": "utils/architecture-atlas/index.html",
     "icon": "../assets/icons/svg/utils-architecture-atlas.svg",
@@ -1506,6 +1530,246 @@ window.OSCatalog = (function () {
       "en": "Create crease sequences and fold rigid paper panels with angular inertia and damping.",
       "pt": "Crie sequências de vincos e dobre painéis rígidos com inércia angular e amortecimento.",
       "ja": "折り目の順序を作り、角慣性と減衰で剛体紙パネルを折る。"
+    }
+  },
+  {
+    "id": "game-robot-arena",
+    "href": "game/robot-arena/index.html",
+    "icon": "../assets/icons/svg/game-robot-arena.svg",
+    "kind": "site",
+    "uninstallable": true,
+    "defaultInstalled": false,
+    "channel": "stable",
+    "tag": {
+      "en": "3D Action",
+      "pt": "Ação 3D",
+      "ja": "3Dアクション"
+    },
+    "name": {
+      "en": "Robot Arena",
+      "pt": "Arena de Robôs",
+      "ja": "ロボットアリーナ"
+    },
+    "desc": {
+      "en": "Fight five waves of robots with plasma weapons, shields, dashes, repair pickups and permanent mission upgrades.",
+      "pt": "Enfrente cinco ondas de robôs com armas de plasma, escudos, impulsos, reparos e melhorias durante a missão.",
+      "ja": "プラズマ兵器、シールド、ダッシュ、修理アイテム、任務中の強化で5波のロボットと戦います。"
+    }
+  },
+  {
+    "id": "game-rooftop-ninja",
+    "href": "game/rooftop-ninja/index.html",
+    "icon": "../assets/icons/svg/game-rooftop-ninja.svg",
+    "kind": "site",
+    "uninstallable": true,
+    "defaultInstalled": false,
+    "channel": "stable",
+    "tag": {
+      "en": "3D Action",
+      "pt": "Ação 3D",
+      "ja": "3Dアクション"
+    },
+    "name": {
+      "en": "Rooftop Ninja",
+      "pt": "Ninja dos Telhados",
+      "ja": "屋根の忍者"
+    },
+    "desc": {
+      "en": "Cross twelve rooftops with double jumps and wall runs, fight sentries with sword and shurikens, collect seals and defeat the captain.",
+      "pt": "Atravesse doze telhados com saltos duplos e corrida na parede, enfrente sentinelas com espada e shurikens, colete selos e derrote o capitão.",
+      "ja": "二段ジャンプと壁走りで12の屋根を渡り、刀と手裏剣で戦い、印を集めて隊長を倒します。"
+    }
+  },
+  {
+    "id": "game-neon-tanks",
+    "href": "game/neon-tanks/index.html",
+    "icon": "../assets/icons/svg/game-neon-tanks.svg",
+    "kind": "site",
+    "uninstallable": true,
+    "defaultInstalled": false,
+    "channel": "stable",
+    "tag": {
+      "en": "3D Action",
+      "pt": "Ação 3D",
+      "ja": "3Dアクション"
+    },
+    "name": {
+      "en": "Neon Tanks",
+      "pt": "Tanques Neon",
+      "ja": "ネオン戦車"
+    },
+    "desc": {
+      "en": "Drive through four neon battlefields with independently aimed turrets, ricocheting shells, ramps, cover and enemy tanks.",
+      "pt": "Dirija por quatro campos de batalha neon com torre independente, projéteis que ricocheteiam, rampas, cobertura e tanques inimigos.",
+      "ja": "独立した砲塔、跳弾、スロープ、遮蔽物を活用し、4つのネオン戦場で敵戦車と戦います。"
+    }
+  },
+  {
+    "id": "game-station-survival",
+    "href": "game/station-survival/index.html",
+    "icon": "../assets/icons/svg/game-station-survival.svg",
+    "kind": "site",
+    "uninstallable": true,
+    "defaultInstalled": false,
+    "channel": "stable",
+    "tag": {
+      "en": "3D Action",
+      "pt": "Ação 3D",
+      "ja": "3Dアクション"
+    },
+    "name": {
+      "en": "Station Survival",
+      "pt": "Sobrevivência na Estação Espacial",
+      "ja": "宇宙ステーション生存戦"
+    },
+    "desc": {
+      "en": "Explore a space station in first person, battle drones, collect power cells, restore three relays and reach extraction.",
+      "pt": "Explore uma estação espacial em primeira pessoa, enfrente drones, colete células de energia, restaure três relés e alcance a saída.",
+      "ja": "一人称で宇宙ステーションを探索し、ドローンと戦い、電池を集め、3基の中継装置を修復して脱出します。"
+    }
+  },
+  {
+    "id": "game-ruins-knight",
+    "href": "game/ruins-knight/index.html",
+    "icon": "../assets/icons/svg/game-ruins-knight.svg",
+    "kind": "site",
+    "uninstallable": true,
+    "defaultInstalled": false,
+    "channel": "stable",
+    "tag": {
+      "en": "3D Action",
+      "pt": "Ação 3D",
+      "ja": "3Dアクション"
+    },
+    "name": {
+      "en": "Knight of the Ruins",
+      "pt": "Cavaleiro das Ruínas",
+      "ja": "遺跡の騎士"
+    },
+    "desc": {
+      "en": "Clear three ancient chambers with sword combos, directional blocking, stamina, dodge rolls, timed traps and a guardian boss.",
+      "pt": "Conquiste três câmaras antigas com combos de espada, bloqueio direcional, resistência, esquivas, armadilhas e um chefe guardião.",
+      "ja": "剣の連撃、方向防御、スタミナ、回避、罠を駆使して3つの古代の部屋を進み、守護者に挑みます。"
+    }
+  },
+  {
+    "id": "game-drone-hunter",
+    "href": "game/drone-hunter/index.html",
+    "icon": "../assets/icons/svg/game-drone-hunter.svg",
+    "kind": "site",
+    "uninstallable": true,
+    "defaultInstalled": false,
+    "channel": "stable",
+    "tag": {
+      "en": "3D Action",
+      "pt": "Ação 3D",
+      "ja": "3Dアクション"
+    },
+    "name": {
+      "en": "Drone Hunter",
+      "pt": "Caçador de Drones",
+      "ja": "ドローンハンター"
+    },
+    "desc": {
+      "en": "Pilot a combat ship through three industrial sectors with heat-managed cannons, homing missiles, EMP pulses and a shielded boss.",
+      "pt": "Pilote uma nave por três setores industriais com canhões que aquecem, mísseis guiados, pulsos EMP e um chefe protegido por escudos.",
+      "ja": "戦闘機を操縦し、砲の温度、誘導ミサイル、EMPを管理して3区域を突破し、シールド付きのボスを倒します。"
+    }
+  },
+  {
+    "id": "game-city-monster",
+    "href": "game/city-monster/index.html",
+    "icon": "../assets/icons/svg/game-city-monster.svg",
+    "kind": "site",
+    "uninstallable": true,
+    "defaultInstalled": false,
+    "channel": "stable",
+    "tag": {
+      "en": "3D Action",
+      "pt": "Ação 3D",
+      "ja": "3Dアクション"
+    },
+    "name": {
+      "en": "Monster in the City",
+      "pt": "Monstro na Cidade",
+      "ja": "街の怪獣"
+    },
+    "desc": {
+      "en": "Demolish three city districts as a giant monster, chain destruction combos and battle tanks and helicopters with punches and stomps.",
+      "pt": "Destrua três distritos como um monstro gigante, encadeie combos de destruição e enfrente tanques e helicópteros com socos e pisões.",
+      "ja": "巨大怪獣として3地区を破壊し、連続破壊でコンボをつなぎ、パンチと踏みつけで戦車やヘリと戦います。"
+    }
+  },
+  {
+    "id": "game-pirate-island",
+    "href": "game/pirate-island/index.html",
+    "icon": "../assets/icons/svg/game-pirate-island.svg",
+    "kind": "site",
+    "uninstallable": true,
+    "defaultInstalled": false,
+    "channel": "stable",
+    "tag": {
+      "en": "3D Action",
+      "pt": "Ação 3D",
+      "ja": "3Dアクション"
+    },
+    "name": {
+      "en": "Pirate Island",
+      "pt": "Ilha dos Piratas",
+      "ja": "海賊の島"
+    },
+    "desc": {
+      "en": "Defend an island from landing parties with sword, pistol and mounted cannons. Protect the fort and choose upgrades between waves.",
+      "pt": "Defenda uma ilha de desembarques com espada, pistola e canhões. Proteja o forte e escolha melhorias entre ondas.",
+      "ja": "刀、ピストル、据え付け砲で上陸する海賊から島と砦を守り、攻撃の合間に強化を選びます。"
+    }
+  },
+  {
+    "id": "game-grapple-arena",
+    "href": "game/grapple-arena/index.html",
+    "icon": "../assets/icons/svg/game-grapple-arena.svg",
+    "kind": "site",
+    "uninstallable": true,
+    "defaultInstalled": false,
+    "channel": "stable",
+    "tag": {
+      "en": "3D Action",
+      "pt": "Ação 3D",
+      "ja": "3Dアクション"
+    },
+    "name": {
+      "en": "Grapple Arena",
+      "pt": "Arena de Gancho",
+      "ja": "グラップルアリーナ"
+    },
+    "desc": {
+      "en": "Swing between suspended platforms with rope physics, collect energy crystals and fight aerial sentinels while managing pulse energy.",
+      "pt": "Balance entre plataformas suspensas com física de corda, colete cristais e enfrente sentinelas aéreas enquanto administra a energia dos pulsos.",
+      "ja": "ロープ物理で空中の足場を渡り、エネルギー結晶を集め、パルスのエネルギーを管理しながら空中の敵と戦います。"
+    }
+  },
+  {
+    "id": "game-armored-convoy",
+    "href": "game/armored-convoy/index.html",
+    "icon": "../assets/icons/svg/game-armored-convoy.svg",
+    "kind": "site",
+    "uninstallable": true,
+    "defaultInstalled": false,
+    "channel": "stable",
+    "tag": {
+      "en": "3D Action",
+      "pt": "Ação 3D",
+      "ja": "3Dアクション"
+    },
+    "name": {
+      "en": "Armored Convoy",
+      "pt": "Comboio Blindado",
+      "ja": "装甲輸送隊"
+    },
+    "desc": {
+      "en": "Escort three trucks across a desert campaign with turret aiming, heat control, rockets, shields, supply pickups and field upgrades.",
+      "pt": "Escolte três caminhões pelo deserto com mira da torre, controle de calor, foguetes, escudos, suprimentos e melhorias de campo.",
+      "ja": "砲塔の照準、温度管理、ロケット、シールド、補給、強化を活用して砂漠を進む3台のトラックを護衛します。"
     }
   },
   {

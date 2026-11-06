@@ -22,7 +22,8 @@ ATTR_RE = re.compile(
 )
 SRCSET_RE = re.compile(r"""(?is)srcset\s*=\s*["']([^"']+)["']""")
 CSS_URL_RE = re.compile(r"""url\(\s*['"]?([^'")]+)['"]?\s*\)""")
-IMPORT_RE = re.compile(r"""(?:import(?:\s*\(|\s+)|from\s+|@import\s+)['"]([^'"]+)['"]""")
+IMPORT_RE = re.compile(r"""(?<![\w@])(?:import(?:\s*\(|\s+)|from\s+)['"]([^'"]+)['"]""")
+CSS_IMPORT_RE = re.compile(r"""@import\s+['"]([^'"]+)['"]""")
 ABS_RE = re.compile(r"""https?://[^\s"'<>)\\]+""")
 GITHUB_PREFIXES = (
     "https://cristianyamashita.github.io/vc/page/",
@@ -33,6 +34,8 @@ SKIP_HOSTS = {
     "www.github.com",
     "w3.org",
     "www.w3.org",
+    "developers.google.com",  # Documentation links, not runtime assets.
+    "moveit.picknik.ai",
     "schema.org",
     "www.schema.org",
     "www.youtube.com",
@@ -189,7 +192,14 @@ def extract_from_text(source: Path, text: str, buckets: dict[str, set[str]]) -> 
             if token:
                 found.append(token)
     found.extend(CSS_URL_RE.findall(text))
-    found.extend(IMPORT_RE.findall(text))
+    found.extend(CSS_IMPORT_RE.findall(text))
+    # Bare JS specifiers are resolved by import maps, never relative to the
+    # importing file. Keep their real CDN URLs from ABS_RE / IMPORTMAP_CDN;
+    # otherwise entries such as "robot-lab/three" become nonexistent assets.
+    found.extend(
+        ref for ref in IMPORT_RE.findall(text)
+        if ref.startswith(("./", "../", "/", "https://", "http://"))
+    )
     found.extend(ABS_RE.findall(text))
     for raw in found:
         resolved = resolve_ref(source, raw)
@@ -239,6 +249,8 @@ def seed_globs(buckets: dict[str, set[str]]) -> None:
 
     for pattern in (
         "os/**/*.js",
+        # Robot capture starts its worker with new URL(..., import.meta.url).
+        "utils/robot-lab/*.js",
         "os/**/*.css",
         "os/**/*.html",
         "assets/icons/**/*.*",
