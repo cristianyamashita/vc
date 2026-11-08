@@ -21,3 +21,9 @@ Object.assign(captureStrings.ja,{capResume:'追跡を再開',capNeutralPaused:'�
 Object.assign(captureStrings.en,{capCollisionHeld:'Motion held: no free pose within the joint limits.'});
 Object.assign(captureStrings.pt,{capCollisionHeld:'Movimento contido: sem posição livre dentro dos limites.'});
 Object.assign(captureStrings.ja,{capCollisionHeld:'可動域内に衝突しない姿勢がないため、動作を保持しています。'});
+
+Object.assign(captureStrings.en,{capAligning:'Finding the initial pose…'});
+Object.assign(captureStrings.pt,{capAligning:'Identificando a posição inicial…'});
+Object.assign(captureStrings.ja,{capAligning:'開始姿勢を検出しています…'});
+
+for(const [lang,paragraph]of Object.entries({en:'At source start, resume or seek, the first reliable detected pose aligns the robot before movement is recorded. Unseen joints start from rest instead of the previous scene. Smoothing and speed limits apply after this initial placement; collision protection remains active. Hands-only mode still uses the first palm as its relative reference.',pt:'Ao iniciar uma fonte, retomar ou buscar outro instante, a primeira pose detectada com confiança alinha o robô antes de registrar o movimento. Articulações fora do enquadramento começam em repouso, sem herdar a cena anterior. Suavização e limites de velocidade passam a valer depois desse posicionamento inicial; a proteção de colisões continua ativa. No modo Mãos, a primeira palma continua sendo a referência relativa.',ja:'入力の開始・再開・シーク時は、最初に信頼できる姿勢を検出してロボットを合わせてから動作を記録します。画面外の関節は前の場面を引き継がず休息姿勢から始まります。その後は平滑化と速度制限が適用され、衝突保護は常に有効です。手のみのモードでは最初の手のひらを相対基準にします。'}))captureStrings[lang].capHelp+='<p>'+paragraph+'</p>';

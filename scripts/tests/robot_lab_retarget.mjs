@@ -233,3 +233,17 @@ assert.throws(()=>buildCaptureProgram([{time:0,positions:allZero},{time:1,positi
 assert.throws(()=>buildCaptureProgram([{time:0,positions:allZero},{time:1,positions:{...allZero,neck_yaw:80}}],joints.map(j=>({...j,speed:.1}))),e=>e.code==='CAPTURE_LONG');
 assert.equal(samples[0].time,10,'input samples are not modified');
 console.log('PASS retarget full/seated body, palm/forearm orientation, hand association, occlusion holds, framing/calibration, limits and capture timing');
+
+// Initialization copies the detected pose before speed-limited tracking begins.
+{
+ const slow=joints.map(j=>({...j,speed:5}));
+ const tracker=createRetargeter(slow,{smoothing:.9});
+ tracker.reset({left_shoulder_pitch:80,left_knee_pitch:110});
+ const scene=handScene('left',{shoulderPitch:-70,elbow:-60,cropped:true});
+ const aligned=tracker.update(scene,0,{synchronize:true});
+ assert(Math.abs(aligned.positions.left_shoulder_pitch+70)<.001);
+ assert(Math.abs(aligned.positions.left_elbow_pitch+60)<.001);
+ const next=tracker.update(handScene('left',{shoulderPitch:-30,elbow:-60,cropped:true}),1/30);
+ assert(Math.abs(next.positions.left_shoulder_pitch-aligned.positions.left_shoulder_pitch)<=5/30+1e-8);
+ assert.equal(aligned.positions.left_knee_pitch,110,'synchronization only changes observable joints');
+}

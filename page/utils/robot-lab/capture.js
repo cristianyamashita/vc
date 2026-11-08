@@ -20,7 +20,7 @@ export function validateCaptureState(data,joints){
 export function createCapturePanel({data,t,getJoints,getPose,onPose,onFilterPose,onResetTracking,onApply,onReplay,onReplayStop,onExitReplay,getPlayback,onLive,onPersist,onChange,toast,confirmAction,download}){
  let settings={...DEFAULTS,...data.settings},clips=clone(data.clips),selectedId=clips.at(-1)?.id||null;
  let view=clips.length?'saved':'record',sessionOnly=new Set(),active=false,recording=null,lastResult=null,lastMeta=null,sourceState={source:'none',status:'idle',ready:false},statusKey='capIdle',statusError=false,destroyed=false,resetPaused=false;
- let retarget=createRetargeter(getJoints(),settings),lastQuality='',requestEpoch=0;
+ let retarget=createRetargeter(getJoints(),settings),lastQuality='',requestEpoch=0,alignPending=true;
  const video=$('cap-video'),overlay=$('cap-overlay'),ctx=overlay.getContext('2d');
  const source=createCaptureSource({video,onResults:results,onState:sourceChanged,onError:sourceError,onEnded:()=>finish()});
  function message(key,error=false){statusKey=key;statusError=error;$('cap-status').textContent=t(key);$('cap-status').classList.toggle('error',error);}
@@ -28,6 +28,7 @@ export function createCapturePanel({data,t,getJoints,getPose,onPose,onFilterPose
  function sourceError(error){finish();message(errorMessage(error),true);updateControls();}
  function sourceChanged(state){
   const oldSource=sourceState.source;sourceState=state;
+  if(state.reason==='play'&&!resetPaused)resetTracking();
   if(['seek','hidden','camera-ended','source-change','error','dispose','ended'].includes(state.reason))finish();
   if(state.source==='none'){resetPaused=false;lastResult=null;lastMeta=null;clearOverlay();renderQuality();}
   if(state.status==='loading')message('capLoading');
@@ -64,10 +65,12 @@ export function createCapturePanel({data,t,getJoints,getPose,onPose,onFilterPose
  function results(raw,meta){
   if(destroyed||resetPaused)return;
   try{
-   retarget.configure({joints:getJoints()});lastResult=retarget.update(raw,meta.timestamp/1000);
-   const corrected=onFilterPose?.(lastResult.positions);if(corrected&&!corrected.positions){lastResult.collisionAdjusted=true;lastResult.collisionBlocked=true;renderQuality();message('capCollisionHeld');return;}if(corrected){lastResult.positions=corrected.positions;lastResult.collisionAdjusted=!!corrected.adjusted;lastResult.collisionBlocked=!!corrected.blocked;}
-   lastMeta=meta;draw(raw);renderQuality();
-   if(active&&view==='record'&&settings.preview)onPose(lastResult.positions);
+   retarget.configure({joints:getJoints()});lastResult=retarget.update(raw,meta.timestamp/1000,{synchronize:alignPending});
+   if(alignPending&&!(settings.mode==='hands'?lastResult.leftHand||lastResult.rightHand:lastResult.body)){draw(raw);renderQuality();message('capAligning');return;}
+   const synchronizing=alignPending;
+   const corrected=onFilterPose?.(lastResult.positions,{synchronize:synchronizing});if(corrected&&!corrected.positions){lastResult.collisionAdjusted=true;lastResult.collisionBlocked=true;renderQuality();message('capCollisionHeld');return;}if(corrected){lastResult.positions=corrected.positions;lastResult.collisionAdjusted=!!corrected.adjusted;lastResult.collisionBlocked=!!corrected.blocked;}
+   alignPending=false;lastMeta=meta;draw(raw);renderQuality();
+   if(active&&view==='record'&&settings.preview)onPose(lastResult.positions,{synchronize:synchronizing});
    if(!lastResult.tracked)message('capNoTracking');else message(video.paused&&meta.source==='video'?(recording?'capRecordingPaused':'capPaused'):(recording?'capRecordingActive':'capPlaying'));
    if(recording){
     const stamp=meta.sourceTime;
@@ -103,7 +106,7 @@ export function createCapturePanel({data,t,getJoints,getPose,onPose,onFilterPose
   $('cap-mode').value=settings.mode;$('cap-mirror').checked=settings.mirror;$('cap-preview').checked=settings.preview;$('cap-swap').checked=settings.swapSides;$('cap-smoothing').value=settings.smoothing;$('cap-confidence').value=settings.confidence;
   document.querySelector('.capture-preview').classList.toggle('mirrored',settings.mirror);retarget.configure({...settings,joints:getJoints()});
  }
- function resetTracking(){retarget=createRetargeter(getJoints(),settings);retarget.reset(getPose());onResetTracking?.(getPose());lastResult=null;lastMeta=null;lastQuality='';clearOverlay();renderQuality();}
+ function resetTracking(){retarget=createRetargeter(getJoints(),settings);const joints=getJoints(),rest=joints.find(j=>j.collision)?.collision.neutral||{},initial=Object.fromEntries(joints.map(j=>[j.id,Math.max(j.min,Math.min(j.max,rest[j.id]??j.home??0))]));retarget.reset(initial);onResetTracking?.(initial);alignPending=true;lastResult=null;lastMeta=null;lastQuality='';clearOverlay();renderQuality();}
  function persist(){onChange();}
  function setView(next){
   if(next==='saved'&&recording){finish();return;}
@@ -213,5 +216,5 @@ export function createCapturePanel({data,t,getJoints,getPose,onPose,onFilterPose
  }
  function dispose(){if(destroyed)return;finish();source.dispose();clearInterval(timer);destroyed=true;}
  applySettings();source.setMode(settings.mode);renderClips();renderSummary();renderQuality();updateControls();
- return {setActive,restore,refreshLanguage,dispose,syncPlayback,pauseForReset,resetTracking,markPersistence:saved=>{if(saved)sessionOnly.clear();else clips.forEach(clip=>sessionOnly.add(clip.id));renderClips();renderSummary();},togglePlayback:()=>{if(resetPaused){resumeTracking();return;}if(view==='record'&&sourceState.source==='video'){if(video.paused)source.play();else source.pause();}},getData:()=>({version:1,settings:{...settings},clips:clone(clips)}),get state(){return {view,resetPaused,source:{...sourceState},recording:!!recording,frames:recording?.samples.length||0,clips:clips.length,lastResult:lastResult?{tracked:lastResult.tracked,body:lastResult.body,leftHand:lastResult.leftHand,rightHand:lastResult.rightHand,limited:lastResult.limited,collisionAdjusted:!!lastResult.collisionAdjusted,collisionBlocked:!!lastResult.collisionBlocked,framing:lastResult.coverage?.framing||'none',inferredArms:[...(lastResult.coverage?.inferredArms||[])],contacts:{hands:!!lastResult.coverage?.contacts?.hands,head:[...(lastResult.coverage?.contacts?.head||[])]}}:null};}};
+ return {setActive,restore,refreshLanguage,dispose,syncPlayback,pauseForReset,resetTracking,markPersistence:saved=>{if(saved)sessionOnly.clear();else clips.forEach(clip=>sessionOnly.add(clip.id));renderClips();renderSummary();},togglePlayback:()=>{if(resetPaused){resumeTracking();return;}if(view==='record'&&sourceState.source==='video'){if(video.paused)source.play();else source.pause();}},getData:()=>({version:1,settings:{...settings},clips:clone(clips)}),get state(){return {view,resetPaused,alignPending,source:{...sourceState},recording:!!recording,frames:recording?.samples.length||0,clips:clips.length,lastResult:lastResult?{tracked:lastResult.tracked,body:lastResult.body,leftHand:lastResult.leftHand,rightHand:lastResult.rightHand,limited:lastResult.limited,collisionAdjusted:!!lastResult.collisionAdjusted,collisionBlocked:!!lastResult.collisionBlocked,framing:lastResult.coverage?.framing||'none',inferredArms:[...(lastResult.coverage?.inferredArms||[])],contacts:{hands:!!lastResult.coverage?.contacts?.hands,head:[...(lastResult.coverage?.contacts?.head||[])]}}:null};}};
 }
