@@ -1172,6 +1172,30 @@ window.OSCatalog = (function () {
     "multiInstance": true
   },
   {
+    "id": "utils-text_fill",
+    "href": "utils/text_fill.html",
+    "icon": "../assets/icons/svg/utils-text_fill.svg",
+    "kind": "site",
+    "uninstallable": true,
+    "defaultInstalled": false,
+    "channel": "stable",
+    "tag": {
+      "en": "Productivity",
+      "pt": "Produtividade",
+      "ja": "生産性"
+    },
+    "name": {
+      "en": "Text Fill",
+      "pt": "Preenchimento",
+      "ja": "テキスト埋め込み"
+    },
+    "desc": {
+      "en": "Fill templates with @variables in projects, directories and files. Comments, line filter, replace, and JSON export, saved in this browser.",
+      "pt": "Preenche texto com variáveis @ em projetos, diretórios e arquivos. Comentários, filtro, substituição e exportação JSON, salvos neste navegador.",
+      "ja": "プロジェクト・ディレクトリ・ファイルで @変数を展開するテキストツール。コメント、フィルタ、置換、JSON の入出力に対応し、ブラウザに保存します。"
+    }
+  },
+  {
     "id": "utils-obsidian",
     "href": "utils/obsidian.html",
     "icon": "../assets/icons/svg/utils-obsidian.svg",

@@ -627,6 +627,15 @@ ICONS: dict[str, list[Shape]] = {
         l(13, 15, 21, 15, sw=1.4, stroke=DARK),
         l(13, 19, 18, 19, sw=1.4, stroke=DARK),
     ],
+    "utils-text_fill": [
+        r(5, 7, 9, 18, rad=1),
+        r(7, 11, 5, 1.6, fill=DARK),
+        r(7, 15, 5, 1.6, fill=DARK),
+        r(7, 19, 3.5, 1.6, fill=DARK),
+        p([(15.2, 13.2), (19.2, 16), (15.2, 18.8)]),
+        r(20, 7, 7, 18, rad=1),
+        r(22, 11, 3, 10, fill=DARK),
+    ],
     "utils-markdown": [
         r(8, 6, 16, 20, rad=1),
         r(11, 10, 10, 3, fill=DARK),

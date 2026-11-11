@@ -1,0 +1,1698 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" href="../assets/icons/ico/utils-text_fill.ico" type="image/x-icon">
+  <title>Text Fill</title>
+  <link rel="stylesheet" href="../assets/fontawesome/css/all.min.css">
+  <style>
+    :root {
+      --bg: #111615; --panel: #1a2120; --panel-2: #212a29; --border: #2e3a38;
+      --text: #e8efee; --muted: #8a9a97; --accent: #1fb5a0; --accent-strong: #008f7d;
+      --accent-soft: rgba(31, 181, 160, .18); --warn: #e0a84a; --neg: #e07a6a; --ok: #3fb950;
+      --mono: ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
+      --line-h: 18px; --ta-pad: 8px;
+    }
+    html[data-theme="light"] {
+      --bg: #f3f6f5; --panel: #ffffff; --panel-2: #f5f8f7; --border: #d7e0de;
+      --text: #172120; --muted: #62716e; --accent: #008f7d; --accent-strong: #006056;
+      --accent-soft: rgba(0, 143, 125, .14); --warn: #a86a08; --neg: #c0392b; --ok: #1a7f37;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
+    body {
+      background: var(--bg); color: var(--text);
+      font: 14px/1.4 system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif;
+      overflow: hidden;
+    }
+    button, input, select, textarea { font: inherit; color: inherit; }
+    .app { display: grid; grid-template-rows: auto 1fr; height: 100%; }
+
+    .topbar {
+      display: flex; align-items: center; gap: 8px; height: 44px;
+      padding: 0 8px 0 12px; background: var(--panel); border-bottom: 1px solid var(--border); min-width: 0;
+    }
+    .brand { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 15px; white-space: nowrap; }
+    .brand img { width: 18px; height: 18px; }
+    .filter-wrap { position: relative; flex: 1; max-width: 220px; min-width: 90px; }
+    .filter-wrap i { position: absolute; left: 8px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 11px; pointer-events: none; }
+    .filter-wrap input {
+      width: 100%; height: 30px; padding: 0 8px 0 26px; border: 1px solid var(--border);
+      border-radius: 6px; background: var(--panel-2); font-size: 13px;
+    }
+    .tools { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+    .icon-btn, .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+      height: 30px; padding: 0 10px; border: 1px solid var(--border); border-radius: 6px;
+      background: var(--panel-2); cursor: pointer; white-space: nowrap; font-size: 13px;
+    }
+    .icon-btn { width: 30px; padding: 0; }
+    .icon-btn:hover, .btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+    .btn:disabled, .icon-btn:disabled { opacity: .45; cursor: default; }
+    .btn.primary { background: var(--accent-strong); border-color: var(--accent-strong); color: #fff; }
+    .btn.primary:hover:not(:disabled) { color: #fff; }
+    select { height: 30px; border: 1px solid var(--border); border-radius: 6px; background: var(--panel-2); padding: 0 6px; font-size: 13px; }
+    input:focus, textarea:focus, select:focus { outline: none; border-color: var(--accent); }
+    :focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+    .main { display: flex; min-height: 0; overflow: hidden; }
+
+    .nav-column {
+      display: flex; flex-direction: column; width: 150px; min-width: 150px; max-width: 220px;
+      background: var(--panel); border-right: 1px solid var(--border); overflow: hidden;
+    }
+    .nav-column.collapsed { width: 42px; min-width: 42px; }
+    .nav-column.collapsed .column-content,
+    .nav-column.collapsed .column-title-text,
+    .nav-column.collapsed .add-btn-text { display: none; }
+    .nav-column.collapsed .column-header { justify-content: center; padding: 6px; }
+    .nav-column.collapsed .collapse-btn { transform: rotate(180deg); }
+    .column-header {
+      display: flex; align-items: center; justify-content: space-between; gap: 6px;
+      padding: 4px 8px; border-bottom: 1px solid var(--border); min-height: 32px; background: var(--bg);
+    }
+    .column-title { display: flex; align-items: center; gap: 6px; font-weight: 600; font-size: 13px; min-width: 0; }
+    .column-title i { color: var(--accent); font-size: 12px; }
+    .collapse-btn { background: none; border: none; color: var(--muted); cursor: pointer; padding: 4px; }
+    .collapse-btn:hover { color: var(--text); }
+    .column-content { flex: 1; overflow: auto; padding: 6px; }
+    .item-list { list-style: none; padding: 0; margin: 0; }
+    .item-list li {
+      display: flex; align-items: center; gap: 4px; padding: 4px 6px; border-radius: 6px;
+      cursor: pointer; margin-bottom: 2px; border: 1px solid transparent; font-size: 13px;
+    }
+    .item-list li:hover { background: var(--panel-2); }
+    .item-list li.selected { background: var(--accent-soft); border-color: var(--accent); }
+    .item-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .item-actions { display: none; gap: 1px; }
+    .item-list li:hover .item-actions { display: flex; }
+    .item-actions button {
+      background: none; border: none; color: var(--muted); cursor: pointer; padding: 2px 4px; font-size: 11px;
+    }
+    .item-actions button:hover { color: var(--text); }
+    .item-actions button.danger:hover { color: var(--neg); }
+    .add-item-btn {
+      display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%;
+      height: 30px; margin-top: 6px; background: none; border: 1px dashed var(--border);
+      border-radius: 6px; color: var(--muted); cursor: pointer; font-size: 12px;
+    }
+    .add-item-btn:hover { border-color: var(--accent); color: var(--accent); }
+    [hidden] { display: none !important; }
+
+    .content-area { flex: 1; min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
+    .content-header {
+      display: flex; align-items: center; gap: 8px; min-height: 32px; padding: 4px 10px;
+      border-bottom: 1px solid var(--border); background: var(--panel);
+    }
+    .content-path { flex: 1; min-width: 0; font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .content-path strong { color: var(--text); font-weight: 600; }
+    .save-status { font-size: 12px; color: var(--muted); }
+    .save-status.saving { color: var(--warn); }
+    .save-status.saved { color: var(--ok); }
+
+    .content-body { flex: 1; min-height: 0; padding: 8px; display: flex; overflow: hidden; }
+    .empty {
+      flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 8px; color: var(--muted); text-align: center; font-size: 13px;
+    }
+    .empty i { font-size: 22px; }
+    .editor {
+      flex: 1; min-height: 0; min-width: 0; display: grid;
+      grid-template-rows: 30% 8px 1fr 8px 22%;
+    }
+    .row-handle {
+      position: relative; z-index: 2; cursor: row-resize; background: transparent;
+    }
+    .row-handle::after {
+      content: ""; position: absolute; left: 18%; right: 18%; top: 3px; height: 2px;
+      border-radius: 1px; background: var(--border);
+    }
+    .row-handle:hover::after, .row-handle.dragging::after { background: var(--accent); }
+    body.resizing-rows { cursor: row-resize; user-select: none; }
+    body.resizing-rows textarea { pointer-events: none; }
+    .pane { display: flex; flex-direction: column; min-height: 0; min-width: 0; border: 1px solid var(--border); border-radius: 8px; background: var(--panel); overflow: hidden; }
+    .pane-head {
+      display: flex; align-items: center; gap: 8px; min-height: 28px; padding: 0 8px;
+      border-bottom: 1px solid var(--border); background: var(--panel-2); font-size: 12px; color: var(--muted);
+    }
+    .pane-head span { font-weight: 600; }
+    .pane-head .spacer { flex: 1; }
+    .pane-head .btn { height: 24px; padding: 0 8px; font-size: 12px; }
+    .split { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; min-height: 0; }
+    .ta-wrap { position: relative; flex: 1; min-height: 0; overflow: hidden; }
+    textarea.editor-ta {
+      position: relative; z-index: 1; width: 100%; height: 100%; border: 0; resize: none;
+      padding: var(--ta-pad); background: transparent; color: var(--text);
+      font-family: var(--mono); font-size: 13px; line-height: var(--line-h);
+      white-space: pre; overflow: auto;
+    }
+    textarea.editor-ta[readonly] { color: var(--muted); }
+    #notes-ta { white-space: pre-wrap; }
+    #result-ta { cursor: default; }
+    .line-hl {
+      position: absolute; left: 0; right: 0; height: var(--line-h);
+      background: var(--accent-soft); pointer-events: none; z-index: 0;
+    }
+
+    dialog {
+      width: min(480px, calc(100vw - 32px)); max-height: calc(100vh - 32px); padding: 0;
+      border: 1px solid var(--border); border-radius: 10px; background: var(--panel); color: var(--text);
+    }
+    dialog::backdrop { background: rgb(0 0 0 / 45%); }
+    .dlg-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 12px; border-bottom: 1px solid var(--border); font-weight: 600; }
+    .dlg-body { padding: 10px 12px 12px; overflow: auto; font-size: 13px; }
+    .dlg-body h3 { margin: 10px 0 4px; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+    .dlg-body p { margin: 0 0 6px; }
+    .dlg-body ul { margin: 0 0 8px; padding-left: 18px; }
+    .dlg-body li { margin: 3px 0; }
+    .dlg-body code { font-family: var(--mono); background: var(--accent-soft); color: var(--accent); padding: 0 4px; border-radius: 4px; }
+    .dlg-form { display: flex; flex-direction: column; gap: 8px; }
+    .dlg-form label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
+    .dlg-form input[type="text"] {
+      height: 32px; padding: 0 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--panel-2);
+    }
+    .modes { display: flex; gap: 12px; font-size: 13px; color: var(--text); }
+    .modes label { flex-direction: row; align-items: center; gap: 6px; color: var(--text); cursor: pointer; }
+    .dlg-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
+
+    .toast {
+      position: fixed; left: 50%; bottom: 16px; transform: translate(-50%, 20px);
+      padding: 6px 12px; border-radius: 6px; background: var(--accent-strong); color: #fff;
+      font-size: 13px; opacity: 0; pointer-events: none; transition: .2s; z-index: 20;
+    }
+    .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+    @media (max-width: 900px) {
+      .btn-label { display: none; }
+      .btn { padding: 0 8px; }
+    }
+    @media (max-width: 720px) {
+      .brand span { display: none; }
+      .nav-column { width: 120px; min-width: 120px; }
+      .nav-column.collapsed { width: 36px; min-width: 36px; }
+      .filter-wrap { max-width: 140px; }
+    }
+  </style>
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-NWZDZ906DJ"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){ dataLayer.push(arguments); }
+    gtag('js', new Date());
+    gtag('config', 'G-NWZDZ906DJ');
+  </script>
+</head>
+<body>
+  <div class="app">
+    <div class="topbar">
+      <div class="brand">
+        <img src="../assets/icons/svg/utils-text_fill.svg" alt="">
+        <span data-i18n="title">Text Fill</span>
+      </div>
+      <div class="filter-wrap">
+        <i class="fas fa-filter"></i>
+        <input id="filter-input" type="text" data-i18n-placeholder="filterPlaceholder" placeholder="Filter lines...">
+      </div>
+      <div class="tools">
+        <button id="replace-btn" class="btn" type="button" disabled>
+          <i class="fas fa-right-left"></i><span class="btn-label" data-i18n="replace">Replace</span>
+        </button>
+        <button id="export-btn" class="btn" type="button" disabled>
+          <i class="fas fa-download"></i><span class="btn-label" data-i18n="export">Export</span>
+        </button>
+        <button id="import-btn" class="btn" type="button">
+          <i class="fas fa-upload"></i><span class="btn-label" data-i18n="import">Import</span>
+        </button>
+        <input id="import-file" type="file" accept="application/json,.json" hidden>
+        <button id="help-btn" class="icon-btn" type="button" data-i18n-title="helpBtn" title="Help" aria-label="Help">
+          <i class="fas fa-question"></i>
+        </button>
+        <select id="lang-switcher">
+          <option value="en">English</option>
+          <option value="pt">Português</option>
+          <option value="ja">日本語</option>
+        </select>
+        <button id="theme-switcher" class="icon-btn" type="button" data-i18n-title="themeBtn" title="Toggle theme">
+          <i class="fas fa-moon"></i>
+        </button>
+      </div>
+    </div>
+
+    <div class="main">
+      <div class="nav-column" id="projects-column">
+        <div class="column-header">
+          <div class="column-title">
+            <i class="fas fa-folder"></i>
+            <span class="column-title-text" data-i18n="projects">Projects</span>
+          </div>
+          <button class="collapse-btn" data-target="projects-column" type="button" title="Toggle"><i class="fas fa-chevron-left"></i></button>
+        </div>
+        <div class="column-content">
+          <ul class="item-list" id="projects-list"></ul>
+          <button class="add-item-btn" id="add-project-btn" type="button">
+            <i class="fas fa-plus"></i><span class="add-btn-text" data-i18n="addProject">Add Project</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="nav-column" id="directories-column">
+        <div class="column-header">
+          <div class="column-title">
+            <i class="fas fa-folder-open"></i>
+            <span class="column-title-text" data-i18n="directories">Directories</span>
+          </div>
+          <button class="collapse-btn" data-target="directories-column" type="button" title="Toggle"><i class="fas fa-chevron-left"></i></button>
+        </div>
+        <div class="column-content">
+          <ul class="item-list" id="directories-list"></ul>
+          <button class="add-item-btn" id="add-directory-btn" type="button" hidden>
+            <i class="fas fa-plus"></i><span class="add-btn-text" data-i18n="addDirectory">Add Directory</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="nav-column" id="files-column">
+        <div class="column-header">
+          <div class="column-title">
+            <i class="fas fa-file-lines"></i>
+            <span class="column-title-text" data-i18n="files">Files</span>
+          </div>
+          <button class="collapse-btn" data-target="files-column" type="button" title="Toggle"><i class="fas fa-chevron-left"></i></button>
+        </div>
+        <div class="column-content">
+          <ul class="item-list" id="files-list"></ul>
+          <button class="add-item-btn" id="add-file-btn" type="button" hidden>
+            <i class="fas fa-plus"></i><span class="add-btn-text" data-i18n="addFile">Add File</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="content-area">
+        <div class="content-header">
+          <div class="content-path" id="content-path"></div>
+          <div class="save-status" id="save-status"></div>
+          <button id="duplicate-btn" class="btn" type="button" disabled>
+            <i class="fas fa-clone"></i><span class="btn-label" data-i18n="duplicate">Duplicate</span>
+          </button>
+        </div>
+        <div class="content-body">
+          <div class="empty" id="empty-state">
+            <i class="fas fa-file-code"></i>
+            <p data-i18n="selectFile">Select a file to edit</p>
+          </div>
+          <div class="editor" id="editor" hidden>
+            <div class="pane" id="vars-pane">
+              <div class="pane-head"><span data-i18n="variables">Variables</span></div>
+              <div class="ta-wrap">
+                <textarea id="vars-ta" class="editor-ta" wrap="off" spellcheck="false" data-i18n-placeholder="varsPlaceholder" placeholder="name: value"></textarea>
+              </div>
+            </div>
+            <div class="row-handle" id="handle-vars" data-index="0" title="Resize"></div>
+            <div class="split" id="split-pane">
+              <div class="pane">
+                <div class="pane-head"><span data-i18n="source">Text</span></div>
+                <div class="ta-wrap">
+                  <textarea id="source-ta" class="editor-ta" wrap="off" spellcheck="false" data-i18n-placeholder="sourcePlaceholder" placeholder="Use @name in the text"></textarea>
+                </div>
+              </div>
+              <div class="pane">
+                <div class="pane-head">
+                  <span data-i18n="result">Result</span>
+                  <span class="spacer"></span>
+                  <button id="affix-btn" class="btn" type="button" data-i18n-title="affix" title="Prefix / suffix">
+                    <i class="fas fa-quote-left"></i><span data-i18n="affix">Affix</span>
+                  </button>
+                  <button id="copy-btn" class="btn" type="button">
+                    <i class="fas fa-copy"></i><span data-i18n="copy">Copy</span>
+                  </button>
+                </div>
+                <div class="ta-wrap">
+                  <div class="line-hl" id="result-hl" hidden></div>
+                  <textarea id="result-ta" class="editor-ta" wrap="off" spellcheck="false" readonly></textarea>
+                </div>
+              </div>
+            </div>
+            <div class="row-handle" id="handle-notes" data-index="1" title="Resize"></div>
+            <div class="pane" id="notes-pane">
+              <div class="pane-head"><span data-i18n="notes">Notes</span></div>
+              <div class="ta-wrap">
+                <textarea id="notes-ta" class="editor-ta" spellcheck="false" data-i18n-placeholder="notesPlaceholder" placeholder="Reference or notes"></textarea>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <dialog id="help-dialog">
+    <div class="dlg-head">
+      <span data-i18n="title">Text Fill</span>
+      <button id="help-close" class="icon-btn" type="button" data-i18n-title="helpClose" title="Close" aria-label="Close">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+    <div class="dlg-body">
+      <p data-i18n="helpIntro"></p>
+      <h3 data-i18n="helpOrganizeTitle">Organizing</h3>
+      <p data-i18n="helpOrganize"></p>
+      <h3 data-i18n="helpVarsTitle">Variables</h3>
+      <p data-i18n="helpVars"></p>
+      <h3 data-i18n="helpTextTitle">Text and result</h3>
+      <p data-i18n="helpText"></p>
+      <h3 data-i18n="helpNotesTitle">Notes</h3>
+      <p data-i18n="helpNotes"></p>
+      <h3 data-i18n="helpAffixTitle">Prefix and suffix</h3>
+      <p data-i18n="helpAffix"></p>
+      <h3 data-i18n="helpFilterTitle">Filter and replace</h3>
+      <p data-i18n="helpFilter"></p>
+      <h3 data-i18n="helpIOTitle">Import and export</h3>
+      <p data-i18n="helpIO"></p>
+      <h3 data-i18n="helpShortcutsTitle">Shortcuts</h3>
+      <p data-i18n="helpShortcut"></p>
+    </div>
+  </dialog>
+
+  <dialog id="replace-dialog">
+    <div class="dlg-head">
+      <span data-i18n="replace">Replace</span>
+      <button id="replace-close" class="icon-btn" type="button" data-i18n-title="helpClose" title="Close" aria-label="Close">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+    <div class="dlg-body">
+      <form id="replace-form" class="dlg-form">
+        <label>
+          <span data-i18n="replaceFind">Find</span>
+          <input id="replace-find" type="text" autocomplete="off">
+        </label>
+        <label>
+          <span data-i18n="replaceWith">Replace with</span>
+          <input id="replace-with" type="text" autocomplete="off">
+        </label>
+        <div class="modes">
+          <label><input type="radio" name="replace-mode" value="partial" checked> <span data-i18n="replacePartial">Partial</span></label>
+          <label><input type="radio" name="replace-mode" value="whole"> <span data-i18n="replaceWhole">Whole content</span></label>
+        </div>
+        <div class="dlg-actions">
+          <button id="replace-cancel" class="btn" type="button" data-i18n="cancel">Cancel</button>
+          <button class="btn primary" type="submit" data-i18n="apply">Apply</button>
+        </div>
+      </form>
+    </div>
+  </dialog>
+
+  <dialog id="affix-dialog">
+    <div class="dlg-head">
+      <span data-i18n="affix">Affix</span>
+      <button id="affix-close" class="icon-btn" type="button" data-i18n-title="helpClose" title="Close" aria-label="Close">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+    <div class="dlg-body">
+      <div class="dlg-form">
+        <label>
+          <span data-i18n="prefix">Prefix</span>
+          <input id="affix-prefix" type="text" autocomplete="off">
+        </label>
+        <label>
+          <span data-i18n="suffix">Suffix</span>
+          <input id="affix-suffix" type="text" autocomplete="off">
+        </label>
+      </div>
+    </div>
+  </dialog>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const i18n = {
+      en: {
+        title: 'Text Fill',
+        projects: 'Projects',
+        directories: 'Directories',
+        files: 'Files',
+        addProject: 'Add Project',
+        addDirectory: 'Add Directory',
+        addFile: 'Add File',
+        filterPlaceholder: 'Filter lines...',
+        replace: 'Replace',
+        export: 'Export',
+        import: 'Import',
+        duplicate: 'Duplicate',
+        copy: 'Copy',
+        copied: 'Copied',
+        affix: 'Affix',
+        prefix: 'Prefix',
+        suffix: 'Suffix',
+        variables: 'Variables',
+        source: 'Text',
+        result: 'Result',
+        notes: 'Notes',
+        selectFile: 'Select a file to edit',
+        varsPlaceholder: 'name: value',
+        sourcePlaceholder: 'Use @name in the text',
+        notesPlaceholder: 'Reference or notes',
+        themeBtn: 'Toggle theme',
+        helpBtn: 'Help',
+        helpClose: 'Close',
+        confirmDelete: 'Delete this item and everything inside it?',
+        newProjectName: 'New Project',
+        newDirectoryName: 'New Directory',
+        newFileName: 'New File',
+        copySuffix: 'copy',
+        rename: 'Rename',
+        delete: 'Delete',
+        saving: 'Saving...',
+        saved: 'Saved',
+        enterName: 'Enter name:',
+        replaceFind: 'Find',
+        replaceWith: 'Replace with',
+        replacePartial: 'Partial',
+        replaceWhole: 'Whole content',
+        apply: 'Apply',
+        cancel: 'Cancel',
+        importError: 'This file is not a Text Fill project.',
+        helpIntro: 'Fill templates with @variables. Projects, directories and files are labels on stable IDs, and everything is saved in this browser.',
+        helpOrganizeTitle: 'Organizing',
+        helpOrganize: 'Add a project, then a directory, then a file. Hover an item to rename or delete it. Duplicate makes a new file with a new ID. Column arrows collapse the lists.',
+        helpVarsTitle: 'Variables',
+        helpVars: 'Each line is name: value. The name is the text before the first colon. Everything after that colon until # is the value; after # is a comment. Lines that start with # are comments. Names may point at other names with @. The first pass stores raw values; the second pass substitutes once, so a cycle is not expanded again.',
+        helpTextTitle: 'Text and result',
+        helpText: 'On the left, @name is replaced on the right using the expanded variables. A line whose first visible character is # stays on the left only. Scrolling one pane follows the matching line in the other, and the current left line is highlighted on the right.',
+        helpNotesTitle: 'Notes',
+        helpNotes: 'The bottom pane stores reference text for the file and is not expanded. Drag the bars between the three rows to change their height; each row can shrink to about one line.',
+        helpAffixTitle: 'Prefix and suffix',
+        helpAffix: 'The Affix button next to Copy opens a dialog with a prefix and a suffix. Closing it applies those strings to every result line. Either field can be filled, cleared or left blank.',
+        helpFilterTitle: 'Filter and replace',
+        helpFilter: 'The top filter hides unmatched lines in variables and in the result; the left text stays complete, and variables become read-only until the filter is cleared. Copy always uses the full result. Replace changes values and non-comment text lines in the open file: partial replaces a substring, whole content replaces only an exact value or exact line.',
+        helpIOTitle: 'Import and export',
+        helpIO: 'Export downloads the open project as JSON without IDs. Import always creates a new project with new IDs.',
+        helpShortcutsTitle: 'Shortcuts',
+        helpShortcut: '? opens this help when you are not typing.'
+      },
+      pt: {
+        title: 'Preenchimento',
+        projects: 'Projetos',
+        directories: 'Diretórios',
+        files: 'Arquivos',
+        addProject: 'Adicionar Projeto',
+        addDirectory: 'Adicionar Diretório',
+        addFile: 'Adicionar Arquivo',
+        filterPlaceholder: 'Filtrar linhas...',
+        replace: 'Substituir',
+        export: 'Exportar',
+        import: 'Importar',
+        duplicate: 'Duplicar',
+        copy: 'Copiar',
+        copied: 'Copiado',
+        affix: 'Afixos',
+        prefix: 'Prefixo',
+        suffix: 'Sufixo',
+        variables: 'Variáveis',
+        source: 'Texto',
+        result: 'Resultado',
+        notes: 'Anotações',
+        selectFile: 'Selecione um arquivo para editar',
+        varsPlaceholder: 'nome: valor',
+        sourcePlaceholder: 'Use @nome no texto',
+        notesPlaceholder: 'Referência ou anotações',
+        themeBtn: 'Alternar tema',
+        helpBtn: 'Ajuda',
+        helpClose: 'Fechar',
+        confirmDelete: 'Excluir este item e tudo o que está dentro?',
+        newProjectName: 'Novo Projeto',
+        newDirectoryName: 'Novo Diretório',
+        newFileName: 'Novo Arquivo',
+        copySuffix: 'cópia',
+        rename: 'Renomear',
+        delete: 'Excluir',
+        saving: 'Salvando...',
+        saved: 'Salvo',
+        enterName: 'Digite o nome:',
+        replaceFind: 'Localizar',
+        replaceWith: 'Substituir por',
+        replacePartial: 'Parcial',
+        replaceWhole: 'Conteúdo inteiro',
+        apply: 'Aplicar',
+        cancel: 'Cancelar',
+        importError: 'Este arquivo não é um projeto de Preenchimento.',
+        helpIntro: 'Preencha modelos com variáveis @. Projetos, diretórios e arquivos são só rótulos sobre IDs estáveis, e tudo fica salvo neste navegador.',
+        helpOrganizeTitle: 'Organização',
+        helpOrganize: 'Adicione um projeto, depois um diretório e depois um arquivo. Passe o mouse para renomear ou excluir. Duplicar cria um arquivo novo com outro ID. As setas recolhem as listas.',
+        helpVarsTitle: 'Variáveis',
+        helpVars: 'Cada linha é nome: valor. O nome é o texto antes do primeiro dois-pontos. O que vem depois até # é o valor; depois de # é comentário. Linhas que começam com # são comentários. Nomes podem apontar para outros com @. A primeira passagem guarda os valores crus; a segunda substitui uma vez, então um ciclo não é expandido de novo.',
+        helpTextTitle: 'Texto e resultado',
+        helpText: 'À esquerda, @nome é trocado à direita pelas variáveis já expandidas. Uma linha cujo primeiro caractere visível é # fica só à esquerda. Rolar um painel acompanha a linha correspondente no outro, e a linha atual da esquerda é destacada à direita.',
+        helpNotesTitle: 'Anotações',
+        helpNotes: 'A faixa de baixo guarda texto de referência do arquivo e não é expandida. Arraste as barras entre as três faixas para mudar a altura; cada uma pode encolher até cerca de uma linha.',
+        helpAffixTitle: 'Prefixo e sufixo',
+        helpAffix: 'O botão Afixos ao lado de Copiar abre um diálogo com prefixo e sufixo. Ao fechar, esses textos entram em cada linha do resultado. Qualquer campo pode ser preenchido, apagado ou deixado em branco.',
+        helpFilterTitle: 'Filtro e substituição',
+        helpFilter: 'O filtro do topo esconde linhas que não batem nas variáveis e no resultado; o texto da esquerda continua inteiro, e as variáveis ficam só leitura até limpar o filtro. Copiar usa sempre o resultado completo. Substituir altera valores e linhas de texto que não são comentário no arquivo aberto: parcial troca um trecho, conteúdo inteiro só troca um valor ou uma linha exatos.',
+        helpIOTitle: 'Importar e exportar',
+        helpIO: 'Exportar baixa o projeto aberto em JSON sem IDs. Importar sempre cria um projeto novo com IDs novos.',
+        helpShortcutsTitle: 'Atalhos',
+        helpShortcut: '? abre esta ajuda quando você não está digitando.'
+      },
+      ja: {
+        title: 'テキスト埋め込み',
+        projects: 'プロジェクト',
+        directories: 'ディレクトリ',
+        files: 'ファイル',
+        addProject: 'プロジェクト追加',
+        addDirectory: 'ディレクトリ追加',
+        addFile: 'ファイル追加',
+        filterPlaceholder: '行を絞り込み...',
+        replace: '置換',
+        export: '書き出し',
+        import: '読み込み',
+        duplicate: '複製',
+        copy: 'コピー',
+        copied: 'コピーしました',
+        affix: '前後',
+        prefix: '接頭',
+        suffix: '接尾',
+        variables: '変数',
+        source: 'テキスト',
+        result: '結果',
+        notes: 'メモ',
+        selectFile: '編集するファイルを選んでください',
+        varsPlaceholder: '名前: 値',
+        sourcePlaceholder: 'テキストで @名前 を使う',
+        notesPlaceholder: '参考やメモ',
+        themeBtn: 'テーマを切り替え',
+        helpBtn: 'ヘルプ',
+        helpClose: '閉じる',
+        confirmDelete: 'この項目と中身を削除しますか？',
+        newProjectName: '新規プロジェクト',
+        newDirectoryName: '新規ディレクトリ',
+        newFileName: '新規ファイル',
+        copySuffix: 'コピー',
+        rename: '名前変更',
+        delete: '削除',
+        saving: '保存中...',
+        saved: '保存済み',
+        enterName: '名前を入力:',
+        replaceFind: '検索',
+        replaceWith: '置換後',
+        replacePartial: '部分',
+        replaceWhole: '内容全体',
+        apply: '適用',
+        cancel: 'キャンセル',
+        importError: 'このファイルはテキスト埋め込みのプロジェクトではありません。',
+        helpIntro: '@変数でテンプレートを埋めます。プロジェクト・ディレクトリ・ファイルは安定した ID のラベルで、内容はこのブラウザに保存されます。',
+        helpOrganizeTitle: '整理',
+        helpOrganize: 'プロジェクト、ディレクトリ、ファイルの順に追加します。項目にマウスを乗せると名前変更や削除ができます。複製は新しい ID のファイルを作ります。列の矢印でリストを折りたためます。',
+        helpVarsTitle: '変数',
+        helpVars: '各行は 名前: 値 です。名前は最初のコロンより前、値はそのコロンから # の直前まで、# の後はコメントです。# で始まる行はコメントです。名前は @ で他の名前を参照できます。1 回目で生の値を保存し、2 回目で一度だけ置換するので、循環は再展開されません。',
+        helpTextTitle: 'テキストと結果',
+        helpText: '左側の @名前 は、展開済みの変数で右側に置換されます。先頭の見える文字が # の行は左だけに残ります。一方をスクロールすると対応する行が他方について動き、左の現在行が右で強調されます。',
+        helpNotesTitle: 'メモ',
+        helpNotes: '一番下の欄はファイルの参考テキストで、展開されません。3 つの行の間のバーをドラッグして高さを変えられます。各行はおよそ 1 行まで縮められます。',
+        helpAffixTitle: '接頭と接尾',
+        helpAffix: 'コピーの横の前後ボタンで接頭と接尾を編集します。閉じると結果の各行に付きます。空のままでも、消しても構いません。',
+        helpFilterTitle: 'フィルタと置換',
+        helpFilter: '上部のフィルタは変数と結果で一致しない行を隠します。左のテキストは完全なまま、フィルタ中は変数が読み取り専用になります。コピーは常に結果全体です。置換は開いているファイルの値とコメント以外の行を変えます。部分は部分文字列、内容全体は値または行が完全一致するときだけです。',
+        helpIOTitle: '読み込みと書き出し',
+        helpIO: '書き出しは開いているプロジェクトを ID なしの JSON で保存します。読み込みは常に新しい ID のプロジェクトを作ります。',
+        helpShortcutsTitle: 'ショートカット',
+        helpShortcut: '入力中でなければ ? でこのヘルプを開きます。'
+      }
+    };
+
+    const DB_NAME = 'TextFillDB';
+    const DB_VERSION = 1;
+    const MIN_ROW = 20;
+    const HANDLE_H = 8;
+    const DEFAULT_ROW_FRACS = [0.30, 0.47, 0.23];
+    let db = null;
+    let currentLanguage = localStorage.getItem('app_lang') || 'en';
+    let currentTheme = localStorage.getItem('app_theme') || 'dark';
+    let saveTimeout = null;
+    let syncingScroll = false;
+    let fullResult = '';
+    let toastTimer = null;
+
+    const state = {
+      selectedProjectId: null,
+      selectedDirectoryId: null,
+      selectedFileId: null,
+      projects: [],
+      directories: [],
+      files: []
+    };
+
+    const t = (key) => (i18n[currentLanguage] || i18n.en)[key] || key;
+
+    const generateId = () => Date.now().toString(36) + Math.random().toString(36).slice(2);
+
+    const escapeHtml = (str) => {
+      const div = document.createElement('div');
+      div.textContent = str == null ? '' : String(str);
+      return div.innerHTML;
+    };
+
+    const openDB = () => new Promise((resolve, reject) => {
+      const request = indexedDB.open(DB_NAME, DB_VERSION);
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => {
+        db = request.result;
+        resolve(db);
+      };
+      request.onupgradeneeded = (event) => {
+        const database = event.target.result;
+        if (!database.objectStoreNames.contains('projects')) {
+          const store = database.createObjectStore('projects', { keyPath: 'id' });
+          store.createIndex('order', 'order', { unique: false });
+        }
+        if (!database.objectStoreNames.contains('directories')) {
+          const store = database.createObjectStore('directories', { keyPath: 'id' });
+          store.createIndex('projectId', 'projectId', { unique: false });
+          store.createIndex('order', 'order', { unique: false });
+        }
+        if (!database.objectStoreNames.contains('files')) {
+          const store = database.createObjectStore('files', { keyPath: 'id' });
+          store.createIndex('directoryId', 'directoryId', { unique: false });
+          store.createIndex('order', 'order', { unique: false });
+        }
+      };
+    });
+
+    const dbAdd = (storeName, data) => new Promise((resolve, reject) => {
+      const req = db.transaction(storeName, 'readwrite').objectStore(storeName).add(data);
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+
+    const dbPut = (storeName, data) => new Promise((resolve, reject) => {
+      const req = db.transaction(storeName, 'readwrite').objectStore(storeName).put(data);
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+
+    const dbDelete = (storeName, id) => new Promise((resolve, reject) => {
+      const req = db.transaction(storeName, 'readwrite').objectStore(storeName).delete(id);
+      req.onsuccess = () => resolve();
+      req.onerror = () => reject(req.error);
+    });
+
+    const dbGetAll = (storeName) => new Promise((resolve, reject) => {
+      const req = db.transaction(storeName, 'readonly').objectStore(storeName).getAll();
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+
+    const isCommentLine = (line) => line.trimStart().startsWith('#');
+
+    const parseVariableLine = (line) => {
+      if (!line.trim() || isCommentLine(line)) return null;
+      const colon = line.indexOf(':');
+      if (colon === -1) return null;
+      const name = line.slice(0, colon).trim();
+      if (!name) return null;
+      const rest = line.slice(colon + 1);
+      const hash = rest.indexOf('#');
+      const rawValue = hash === -1 ? rest : rest.slice(0, hash);
+      const comment = hash === -1 ? '' : rest.slice(hash);
+      return { name, rawValue, value: rawValue.trim(), comment, colon };
+    };
+
+    const parseVariables = (text) => {
+      const raw = {};
+      String(text || '').split('\n').forEach((line) => {
+        const parsed = parseVariableLine(line);
+        if (parsed) raw[parsed.name] = parsed.value;
+      });
+      return raw;
+    };
+
+    const applyVars = (text, values) => {
+      const names = Object.keys(values).sort((a, b) => b.length - a.length);
+      if (!names.length) return text;
+      let out = '';
+      let i = 0;
+      const src = String(text);
+      while (i < src.length) {
+        if (src[i] === '@') {
+          const rest = src.slice(i + 1);
+          const match = names.find((n) => rest.startsWith(n));
+          if (match) {
+            out += values[match];
+            i += 1 + match.length;
+            continue;
+          }
+        }
+        out += src[i];
+        i += 1;
+      }
+      return out;
+    };
+
+    const expandVariables = (text) => {
+      const raw = parseVariables(text);
+      const expanded = {};
+      Object.keys(raw).forEach((name) => {
+        expanded[name] = applyVars(raw[name], raw);
+      });
+      return expanded;
+    };
+
+    const expandSource = (source, expanded) => {
+      return String(source || '').split('\n').filter((line) => !isCommentLine(line)).map((line) => applyVars(line, expanded)).join('\n');
+    };
+
+    const applyLineAffixes = (text, prefix, suffix) => {
+      const p = prefix == null ? '' : String(prefix);
+      const s = suffix == null ? '' : String(suffix);
+      if (!p && !s) return String(text || '');
+      return String(text || '').split('\n').map((line) => p + line + s).join('\n');
+    };
+
+    const buildResult = (file) => {
+      const expanded = expandVariables(file.variables || '');
+      const raw = expandSource(file.source || '', expanded);
+      return applyLineAffixes(raw, file.resultPrefix, file.resultSuffix);
+    };
+
+    const filterLines = (text, query) => {
+      if (!query) return text;
+      const q = query.toLowerCase();
+      return String(text || '').split('\n').filter((line) => line.toLowerCase().includes(q)).join('\n');
+    };
+
+    const sourceLineToResultLine = (sourceLines, sourceIndex) => {
+      if (sourceIndex < 0 || sourceIndex >= sourceLines.length || isCommentLine(sourceLines[sourceIndex])) return -1;
+      let resultIdx = 0;
+      for (let i = 0; i < sourceIndex; i += 1) {
+        if (!isCommentLine(sourceLines[i])) resultIdx += 1;
+      }
+      return resultIdx;
+    };
+
+    const resultLineToSourceLine = (sourceLines, resultIndex) => {
+      let resultIdx = 0;
+      for (let i = 0; i < sourceLines.length; i += 1) {
+        if (isCommentLine(sourceLines[i])) continue;
+        if (resultIdx === resultIndex) return i;
+        resultIdx += 1;
+      }
+      return -1;
+    };
+
+    const displayedIndex = (lines, index, query) => {
+      if (index < 0 || index >= lines.length) return -1;
+      if (!query) return index;
+      const q = query.toLowerCase();
+      if (!lines[index].toLowerCase().includes(q)) return -1;
+      let shown = 0;
+      for (let i = 0; i < index; i += 1) {
+        if (lines[i].toLowerCase().includes(q)) shown += 1;
+      }
+      return shown;
+    };
+
+    const replaceInVariables = (text, find, replace, mode) => {
+      return String(text || '').split('\n').map((line) => {
+        const parsed = parseVariableLine(line);
+        if (!parsed) return line;
+        let nextRaw = parsed.rawValue;
+        if (mode === 'whole') {
+          if (parsed.value === find) {
+            const lead = parsed.rawValue.match(/^\s*/)[0];
+            const trail = parsed.rawValue.match(/\s*$/)[0];
+            nextRaw = lead + replace + trail;
+          }
+        } else if (find) {
+          nextRaw = parsed.rawValue.split(find).join(replace);
+        }
+        return line.slice(0, parsed.colon + 1) + nextRaw + parsed.comment;
+      }).join('\n');
+    };
+
+    const replaceInSource = (text, find, replace, mode) => {
+      return String(text || '').split('\n').map((line) => {
+        if (isCommentLine(line)) return line;
+        if (mode === 'whole') return line === find ? replace : line;
+        return find ? line.split(find).join(replace) : line;
+      }).join('\n');
+    };
+
+    const applyI18n = () => {
+      const lang = i18n[currentLanguage] || i18n.en;
+      document.querySelectorAll('[data-i18n]').forEach((el) => {
+        if (lang[el.getAttribute('data-i18n')]) el.textContent = lang[el.getAttribute('data-i18n')];
+      });
+      document.querySelectorAll('[data-i18n-placeholder]').forEach((el) => {
+        if (lang[el.getAttribute('data-i18n-placeholder')]) el.placeholder = lang[el.getAttribute('data-i18n-placeholder')];
+      });
+      document.querySelectorAll('[data-i18n-title]').forEach((el) => {
+        const key = el.getAttribute('data-i18n-title');
+        if (lang[key]) {
+          el.title = lang[key];
+          if (el.hasAttribute('aria-label')) el.setAttribute('aria-label', lang[key]);
+        }
+      });
+      document.title = lang.title;
+      document.documentElement.lang = i18n[currentLanguage] ? currentLanguage : 'en';
+    };
+
+    const applyTheme = (theme) => {
+      document.documentElement.setAttribute('data-theme', theme);
+      themeSwitcher.querySelector('i').className = theme === 'light' ? 'fas fa-moon' : 'fas fa-sun';
+      localStorage.setItem('app_theme', theme);
+    };
+
+    const showToast = (message) => {
+      toastEl.textContent = message;
+      toastEl.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => toastEl.classList.remove('show'), 1600);
+    };
+
+    const saveUiState = () => {
+      localStorage.setItem('text_fill_state', JSON.stringify({
+        selectedProjectId: state.selectedProjectId,
+        selectedDirectoryId: state.selectedDirectoryId,
+        selectedFileId: state.selectedFileId
+      }));
+    };
+
+    const loadUiState = () => {
+      try {
+        const saved = JSON.parse(localStorage.getItem('text_fill_state') || 'null');
+        if (!saved) return;
+        state.selectedProjectId = saved.selectedProjectId || null;
+        state.selectedDirectoryId = saved.selectedDirectoryId || null;
+        state.selectedFileId = saved.selectedFileId || null;
+      } catch (e) { /* ignore */ }
+    };
+
+    const currentFile = () => state.files.find((f) => f.id === state.selectedFileId) || null;
+    const currentProject = () => state.projects.find((p) => p.id === state.selectedProjectId) || null;
+    const filterQuery = () => filterInput.value.trim();
+
+    const bindItem = (li, item, onSelect, handlers) => {
+      li.addEventListener('click', (e) => {
+        if (!e.target.closest('.item-actions')) onSelect(item.id);
+      });
+      li.querySelector('.rename-btn').addEventListener('click', () => handlers.rename(item.id));
+      li.querySelector('.delete-btn').addEventListener('click', () => handlers.remove(item.id));
+      const dup = li.querySelector('.dup-btn');
+      if (dup) dup.addEventListener('click', () => handlers.duplicate(item.id));
+    };
+
+    const makeItem = (item, selectedId, actionsHtml) => {
+      const li = document.createElement('li');
+      li.dataset.id = item.id;
+      if (item.id === selectedId) li.classList.add('selected');
+      li.innerHTML = `
+        <span class="item-name">${escapeHtml(item.name)}</span>
+        <div class="item-actions">${actionsHtml}</div>
+      `;
+      return li;
+    };
+
+    const actionButtons = (withDup) => `
+      <button class="rename-btn" title="${escapeHtml(t('rename'))}"><i class="fas fa-edit"></i></button>
+      ${withDup ? `<button class="dup-btn" title="${escapeHtml(t('duplicate'))}"><i class="fas fa-clone"></i></button>` : ''}
+      <button class="delete-btn danger" title="${escapeHtml(t('delete'))}"><i class="fas fa-trash"></i></button>
+    `;
+
+    const renderProjects = () => {
+      projectsList.innerHTML = '';
+      [...state.projects].sort((a, b) => a.order - b.order).forEach((project) => {
+        const li = makeItem(project, state.selectedProjectId, actionButtons(false));
+        bindItem(li, project, selectProject, { rename: renameProject, remove: deleteProject });
+        projectsList.appendChild(li);
+      });
+    };
+
+    const renderDirectories = () => {
+      directoriesList.innerHTML = '';
+      addDirectoryBtn.hidden = !state.selectedProjectId;
+      const items = state.directories.filter((d) => d.projectId === state.selectedProjectId).sort((a, b) => a.order - b.order);
+      items.forEach((dir) => {
+        const li = makeItem(dir, state.selectedDirectoryId, actionButtons(false));
+        bindItem(li, dir, selectDirectory, { rename: renameDirectory, remove: deleteDirectory });
+        directoriesList.appendChild(li);
+      });
+    };
+
+    const renderFiles = () => {
+      filesList.innerHTML = '';
+      addFileBtn.hidden = !state.selectedDirectoryId;
+      const items = state.files.filter((f) => f.directoryId === state.selectedDirectoryId).sort((a, b) => a.order - b.order);
+      items.forEach((file) => {
+        const li = makeItem(file, state.selectedFileId, actionButtons(true));
+        bindItem(li, file, selectFile, { rename: renameFile, remove: deleteFile, duplicate: duplicateFile });
+        filesList.appendChild(li);
+      });
+    };
+
+    const renderPath = () => {
+      const project = currentProject();
+      const dir = state.directories.find((d) => d.id === state.selectedDirectoryId);
+      const file = currentFile();
+      if (!file) {
+        contentPath.innerHTML = '';
+        return;
+      }
+      contentPath.innerHTML = `${escapeHtml(project?.name || '')} / ${escapeHtml(dir?.name || '')} / <strong>${escapeHtml(file.name)}</strong>`;
+    };
+
+    const updateActionAvailability = () => {
+      exportBtn.disabled = !state.selectedProjectId;
+      replaceBtn.disabled = !state.selectedFileId;
+      duplicateBtn.disabled = !state.selectedFileId;
+    };
+
+    const lineMetrics = () => {
+      const cs = getComputedStyle(sourceTa);
+      return {
+        lineH: parseFloat(cs.lineHeight) || 18,
+        pad: parseFloat(cs.paddingTop) || 8
+      };
+    };
+
+    const caretLine = (ta) => ta.value.slice(0, ta.selectionStart).split('\n').length - 1;
+
+    const topLine = (ta, lineH) => Math.max(0, Math.floor(ta.scrollTop / lineH));
+
+    const nearestMappedSourceLine = (sourceLines, startIndex, direction) => {
+      let i = startIndex;
+      while (i >= 0 && i < sourceLines.length) {
+        if (!isCommentLine(sourceLines[i])) return i;
+        i += direction;
+      }
+      return -1;
+    };
+
+    const updateHighlight = () => {
+      const file = currentFile();
+      if (!file) {
+        resultHl.hidden = true;
+        return;
+      }
+      const { lineH, pad } = lineMetrics();
+      const sourceLines = sourceTa.value.split('\n');
+      const resultLines = fullResult.split('\n');
+      const mapped = sourceLineToResultLine(sourceLines, caretLine(sourceTa));
+      const shown = displayedIndex(resultLines, mapped, filterQuery());
+      if (shown < 0) {
+        resultHl.hidden = true;
+        return;
+      }
+      const top = pad + shown * lineH - resultTa.scrollTop;
+      const viewH = resultTa.clientHeight;
+      if (top + lineH <= 0 || top >= viewH) {
+        resultHl.hidden = true;
+        return;
+      }
+      resultHl.hidden = false;
+      resultHl.style.height = `${lineH}px`;
+      resultHl.style.top = `${top}px`;
+    };
+
+    const setResultScrollFromSource = () => {
+      const { lineH } = lineMetrics();
+      const sourceLines = sourceTa.value.split('\n');
+      const resultLines = fullResult.split('\n');
+      let srcLine = nearestMappedSourceLine(sourceLines, topLine(sourceTa, lineH), 1);
+      if (srcLine < 0) srcLine = nearestMappedSourceLine(sourceLines, topLine(sourceTa, lineH), -1);
+      const mapped = sourceLineToResultLine(sourceLines, srcLine);
+      const shown = displayedIndex(resultLines, mapped, filterQuery());
+      if (shown < 0) return;
+      const next = Math.max(0, shown * lineH - (srcLine * lineH - sourceTa.scrollTop));
+      if (Math.abs(resultTa.scrollTop - next) > 0.5) resultTa.scrollTop = next;
+    };
+
+    const setSourceScrollFromResult = () => {
+      const { lineH } = lineMetrics();
+      const sourceLines = sourceTa.value.split('\n');
+      const resultLines = fullResult.split('\n');
+      const query = filterQuery();
+      const displayed = filterLines(fullResult, query).split('\n');
+      const vis = Math.min(topLine(resultTa, lineH), Math.max(0, displayed.length - 1));
+      let resultIdx = vis;
+      if (query) {
+        let count = 0;
+        resultIdx = -1;
+        const q = query.toLowerCase();
+        for (let i = 0; i < resultLines.length; i += 1) {
+          if (resultLines[i].toLowerCase().includes(q)) {
+            if (count === vis) { resultIdx = i; break; }
+            count += 1;
+          }
+        }
+      }
+      const srcLine = resultLineToSourceLine(sourceLines, resultIdx);
+      if (srcLine < 0) return;
+      const next = Math.max(0, srcLine * lineH - (vis * lineH - resultTa.scrollTop));
+      if (Math.abs(sourceTa.scrollTop - next) > 0.5) sourceTa.scrollTop = next;
+    };
+
+    const renderOutput = () => {
+      const file = currentFile();
+      const query = filterQuery();
+      if (!file) {
+        fullResult = '';
+        resultTa.value = '';
+        resultHl.hidden = true;
+        return;
+      }
+      fullResult = buildResult(file);
+      varsTa.value = filterLines(file.variables || '', query);
+      varsTa.readOnly = Boolean(query);
+      sourceTa.value = file.source || '';
+      notesTa.value = file.notes || '';
+      resultTa.value = filterLines(fullResult, query);
+      updateHighlight();
+    };
+
+    let rowFracs = DEFAULT_ROW_FRACS.slice();
+
+    const loadRowLayout = () => {
+      try {
+        const saved = JSON.parse(localStorage.getItem('text_fill_layout') || 'null');
+        if (saved && Array.isArray(saved.fracs) && saved.fracs.length === 3) {
+          rowFracs = saved.fracs.map(Number);
+        }
+      } catch (e) { /* ignore */ }
+    };
+
+    const saveRowLayout = () => {
+      localStorage.setItem('text_fill_layout', JSON.stringify({ fracs: rowFracs }));
+    };
+
+    const usableEditorHeight = () => Math.max(MIN_ROW * 3, editor.clientHeight - HANDLE_H * 2);
+
+    const applyRowLayout = () => {
+      if (!editor || editor.hidden || editor.clientHeight < MIN_ROW * 3) return;
+      const total = usableEditorHeight();
+      let px = rowFracs.map((f) => Math.max(MIN_ROW, f * total));
+      let extra = px.reduce((sum, n) => sum + n, 0) - total;
+      if (extra > 0) {
+        for (let i = 0; i < 3 && extra > 0.5; i += 1) {
+          const take = Math.min(px[i] - MIN_ROW, extra);
+          px[i] -= take;
+          extra -= take;
+        }
+      } else if (extra < -0.5) {
+        px[1] -= extra;
+      }
+      const sum = px.reduce((a, b) => a + b, 0) || 1;
+      rowFracs = px.map((n) => n / sum);
+      editor.style.gridTemplateRows = `${px[0]}px ${HANDLE_H}px ${px[1]}px ${HANDLE_H}px ${px[2]}px`;
+    };
+
+    const setupRowResize = () => {
+      loadRowLayout();
+      document.querySelectorAll('.row-handle').forEach((handle) => {
+        handle.addEventListener('mousedown', (e) => {
+          e.preventDefault();
+          const index = Number(handle.dataset.index);
+          const total = usableEditorHeight();
+          const start = rowFracs.map((f) => f * total);
+          const startY = e.clientY;
+          handle.classList.add('dragging');
+          document.body.classList.add('resizing-rows');
+          const onMove = (ev) => {
+            const dy = ev.clientY - startY;
+            const next = start.slice();
+            next[index] += dy;
+            next[index + 1] -= dy;
+            if (next[index] < MIN_ROW) {
+              next[index + 1] -= MIN_ROW - next[index];
+              next[index] = MIN_ROW;
+            }
+            if (next[index + 1] < MIN_ROW) {
+              next[index] -= MIN_ROW - next[index + 1];
+              next[index + 1] = MIN_ROW;
+            }
+            const sum = next.reduce((a, b) => a + b, 0) || 1;
+            rowFracs = next.map((n) => n / sum);
+            applyRowLayout();
+          };
+          const onUp = () => {
+            handle.classList.remove('dragging');
+            document.body.classList.remove('resizing-rows');
+            window.removeEventListener('mousemove', onMove);
+            window.removeEventListener('mouseup', onUp);
+            saveRowLayout();
+          };
+          window.addEventListener('mousemove', onMove);
+          window.addEventListener('mouseup', onUp);
+        });
+      });
+      window.addEventListener('resize', applyRowLayout);
+      if (typeof ResizeObserver !== 'undefined') {
+        new ResizeObserver(() => applyRowLayout()).observe(editor);
+      }
+    };
+
+    const renderEditor = () => {
+      const file = currentFile();
+      renderPath();
+      updateActionAvailability();
+      if (!file) {
+        emptyState.hidden = false;
+        editor.hidden = true;
+        fullResult = '';
+        return;
+      }
+      emptyState.hidden = true;
+      editor.hidden = false;
+      renderOutput();
+      requestAnimationFrame(applyRowLayout);
+    };
+
+    const selectProject = (projectId) => {
+      state.selectedProjectId = projectId;
+      state.selectedDirectoryId = null;
+      state.selectedFileId = null;
+      renderProjects();
+      renderDirectories();
+      renderFiles();
+      renderEditor();
+      saveUiState();
+    };
+
+    const selectDirectory = (directoryId) => {
+      state.selectedDirectoryId = directoryId;
+      state.selectedFileId = null;
+      renderDirectories();
+      renderFiles();
+      renderEditor();
+      saveUiState();
+    };
+
+    const selectFile = (fileId) => {
+      state.selectedFileId = fileId;
+      renderFiles();
+      renderEditor();
+      saveUiState();
+    };
+
+    const nextOrder = (items) => items.reduce((max, item) => Math.max(max, item.order || 0), -1) + 1;
+
+    const addProject = async () => {
+      const name = prompt(t('enterName'), t('newProjectName'));
+      if (!name || !name.trim()) return;
+      const project = { id: generateId(), name: name.trim(), order: nextOrder(state.projects) };
+      await dbAdd('projects', project);
+      state.projects.push(project);
+      renderProjects();
+      selectProject(project.id);
+    };
+
+    const renameProject = async (projectId) => {
+      const project = state.projects.find((p) => p.id === projectId);
+      if (!project) return;
+      const name = prompt(t('enterName'), project.name);
+      if (!name || !name.trim()) return;
+      project.name = name.trim();
+      await dbPut('projects', project);
+      renderProjects();
+      renderPath();
+    };
+
+    const deleteProject = async (projectId) => {
+      if (!confirm(t('confirmDelete'))) return;
+      const dirs = state.directories.filter((d) => d.projectId === projectId);
+      for (const dir of dirs) {
+        const files = state.files.filter((f) => f.directoryId === dir.id);
+        for (const file of files) await dbDelete('files', file.id);
+        await dbDelete('directories', dir.id);
+      }
+      await dbDelete('projects', projectId);
+      state.files = state.files.filter((f) => !dirs.some((d) => d.id === f.directoryId));
+      state.directories = state.directories.filter((d) => d.projectId !== projectId);
+      state.projects = state.projects.filter((p) => p.id !== projectId);
+      if (state.selectedProjectId === projectId) {
+        state.selectedProjectId = null;
+        state.selectedDirectoryId = null;
+        state.selectedFileId = null;
+      }
+      renderProjects();
+      renderDirectories();
+      renderFiles();
+      renderEditor();
+      saveUiState();
+    };
+
+    const addDirectory = async () => {
+      if (!state.selectedProjectId) return;
+      const name = prompt(t('enterName'), t('newDirectoryName'));
+      if (!name || !name.trim()) return;
+      const siblings = state.directories.filter((d) => d.projectId === state.selectedProjectId);
+      const directory = { id: generateId(), projectId: state.selectedProjectId, name: name.trim(), order: nextOrder(siblings) };
+      await dbAdd('directories', directory);
+      state.directories.push(directory);
+      renderDirectories();
+      selectDirectory(directory.id);
+    };
+
+    const renameDirectory = async (directoryId) => {
+      const directory = state.directories.find((d) => d.id === directoryId);
+      if (!directory) return;
+      const name = prompt(t('enterName'), directory.name);
+      if (!name || !name.trim()) return;
+      directory.name = name.trim();
+      await dbPut('directories', directory);
+      renderDirectories();
+      renderPath();
+    };
+
+    const deleteDirectory = async (directoryId) => {
+      if (!confirm(t('confirmDelete'))) return;
+      const files = state.files.filter((f) => f.directoryId === directoryId);
+      for (const file of files) await dbDelete('files', file.id);
+      await dbDelete('directories', directoryId);
+      state.files = state.files.filter((f) => f.directoryId !== directoryId);
+      state.directories = state.directories.filter((d) => d.id !== directoryId);
+      if (state.selectedDirectoryId === directoryId) {
+        state.selectedDirectoryId = null;
+        state.selectedFileId = null;
+      }
+      renderDirectories();
+      renderFiles();
+      renderEditor();
+      saveUiState();
+    };
+
+    const addFile = async () => {
+      if (!state.selectedDirectoryId) return;
+      const name = prompt(t('enterName'), t('newFileName'));
+      if (!name || !name.trim()) return;
+      const siblings = state.files.filter((f) => f.directoryId === state.selectedDirectoryId);
+      const file = {
+        id: generateId(),
+        directoryId: state.selectedDirectoryId,
+        name: name.trim(),
+        order: nextOrder(siblings),
+        variables: '',
+        source: '',
+        notes: '',
+        resultPrefix: '',
+        resultSuffix: '',
+        updatedAt: Date.now()
+      };
+      await dbAdd('files', file);
+      state.files.push(file);
+      renderFiles();
+      selectFile(file.id);
+    };
+
+    const renameFile = async (fileId) => {
+      const file = state.files.find((f) => f.id === fileId);
+      if (!file) return;
+      const name = prompt(t('enterName'), file.name);
+      if (!name || !name.trim()) return;
+      file.name = name.trim();
+      file.updatedAt = Date.now();
+      await dbPut('files', file);
+      renderFiles();
+      renderPath();
+    };
+
+    const deleteFile = async (fileId) => {
+      if (!confirm(t('confirmDelete'))) return;
+      await dbDelete('files', fileId);
+      state.files = state.files.filter((f) => f.id !== fileId);
+      if (state.selectedFileId === fileId) state.selectedFileId = null;
+      renderFiles();
+      renderEditor();
+      saveUiState();
+    };
+
+    const duplicateFile = async (fileId) => {
+      const file = state.files.find((f) => f.id === fileId) || currentFile();
+      if (!file) return;
+      const siblings = state.files.filter((f) => f.directoryId === file.directoryId);
+      const copy = {
+        id: generateId(),
+        directoryId: file.directoryId,
+        name: `${file.name} ${t('copySuffix')}`,
+        order: nextOrder(siblings),
+        variables: file.variables || '',
+        source: file.source || '',
+        notes: file.notes || '',
+        resultPrefix: file.resultPrefix || '',
+        resultSuffix: file.resultSuffix || '',
+        updatedAt: Date.now()
+      };
+      await dbAdd('files', copy);
+      state.files.push(copy);
+      state.selectedDirectoryId = copy.directoryId;
+      const dir = state.directories.find((d) => d.id === copy.directoryId);
+      if (dir) state.selectedProjectId = dir.projectId;
+      renderProjects();
+      renderDirectories();
+      renderFiles();
+      selectFile(copy.id);
+    };
+
+    const persistFile = async () => {
+      const file = currentFile();
+      if (!file) return;
+      saveStatus.textContent = t('saving');
+      saveStatus.className = 'save-status saving';
+      file.updatedAt = Date.now();
+      await dbPut('files', file);
+      saveStatus.textContent = t('saved');
+      saveStatus.className = 'save-status saved';
+      setTimeout(() => { if (saveStatus.classList.contains('saved')) saveStatus.textContent = ''; }, 1600);
+    };
+
+    const scheduleSave = () => {
+      clearTimeout(saveTimeout);
+      saveTimeout = setTimeout(persistFile, 400);
+    };
+
+    const captureOpenFile = () => {
+      const file = currentFile();
+      if (!file) return;
+      if (!filterQuery()) file.variables = varsTa.value;
+      file.source = sourceTa.value;
+      file.notes = notesTa.value;
+    };
+
+    const onEditorInput = () => {
+      captureOpenFile();
+      const file = currentFile();
+      if (!file) return;
+      fullResult = buildResult(file);
+      resultTa.value = filterLines(fullResult, filterQuery());
+      updateHighlight();
+      scheduleSave();
+    };
+
+    const onFilterInput = () => {
+      const file = currentFile();
+      if (file && !varsTa.readOnly) file.variables = varsTa.value;
+      renderOutput();
+    };
+
+    const exportProject = () => {
+      const project = currentProject();
+      if (!project) return;
+      const payload = {
+        kind: 'text-fill-project',
+        version: 1,
+        name: project.name,
+        directories: state.directories
+          .filter((d) => d.projectId === project.id)
+          .sort((a, b) => a.order - b.order)
+          .map((dir) => ({
+            name: dir.name,
+            files: state.files
+              .filter((f) => f.directoryId === dir.id)
+              .sort((a, b) => a.order - b.order)
+              .map((file) => ({
+                name: file.name,
+                variables: file.variables || '',
+                source: file.source || '',
+                notes: file.notes || '',
+                resultPrefix: file.resultPrefix || '',
+                resultSuffix: file.resultSuffix || ''
+              }))
+          }))
+      };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a');
+      const slug = project.name.toLowerCase().replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '') || 'project';
+      a.href = URL.createObjectURL(blob);
+      a.download = `text-fill-${slug}.json`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    };
+
+    const importProject = async (data) => {
+      if (!data || data.kind !== 'text-fill-project') throw new Error('bad');
+      const project = {
+        id: generateId(),
+        name: String(data.name || t('newProjectName')).trim() || t('newProjectName'),
+        order: nextOrder(state.projects)
+      };
+      await dbAdd('projects', project);
+      state.projects.push(project);
+      const dirs = Array.isArray(data.directories) ? data.directories : [];
+      for (let i = 0; i < dirs.length; i += 1) {
+        const srcDir = dirs[i] || {};
+        const directory = {
+          id: generateId(),
+          projectId: project.id,
+          name: String(srcDir.name || t('newDirectoryName')).trim() || t('newDirectoryName'),
+          order: i
+        };
+        await dbAdd('directories', directory);
+        state.directories.push(directory);
+        const files = Array.isArray(srcDir.files) ? srcDir.files : [];
+        for (let j = 0; j < files.length; j += 1) {
+          const srcFile = files[j] || {};
+          const file = {
+            id: generateId(),
+            directoryId: directory.id,
+            name: String(srcFile.name || t('newFileName')).trim() || t('newFileName'),
+            order: j,
+            variables: String(srcFile.variables || ''),
+            source: String(srcFile.source || ''),
+            notes: String(srcFile.notes || ''),
+            resultPrefix: String(srcFile.resultPrefix || ''),
+            resultSuffix: String(srcFile.resultSuffix || ''),
+            updatedAt: Date.now()
+          };
+          await dbAdd('files', file);
+          state.files.push(file);
+        }
+      }
+      renderProjects();
+      selectProject(project.id);
+    };
+
+    const applyReplace = () => {
+      const file = currentFile();
+      const find = replaceFind.value;
+      if (!file || !find) return;
+      const replace = replaceWith.value;
+      const mode = document.querySelector('input[name="replace-mode"]:checked')?.value || 'partial';
+      if (!filterQuery()) file.variables = varsTa.value;
+      file.source = sourceTa.value;
+      file.variables = replaceInVariables(file.variables || '', find, replace, mode);
+      file.source = replaceInSource(file.source || '', find, replace, mode);
+      renderOutput();
+      scheduleSave();
+      replaceDialog.close();
+    };
+
+    const copyResult = async () => {
+      const text = fullResult;
+      try {
+        await navigator.clipboard.writeText(text);
+      } catch (e) {
+        resultTa.value = text;
+        resultTa.select();
+        document.execCommand('copy');
+        renderOutput();
+      }
+      showToast(t('copied'));
+    };
+
+    const setupCollapse = () => {
+      document.querySelectorAll('.collapse-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          document.getElementById(btn.dataset.target).classList.toggle('collapsed');
+          const collapseState = {};
+          document.querySelectorAll('.nav-column').forEach((col) => {
+            collapseState[col.id] = col.classList.contains('collapsed');
+          });
+          localStorage.setItem('text_fill_collapse', JSON.stringify(collapseState));
+        });
+      });
+      try {
+        const saved = JSON.parse(localStorage.getItem('text_fill_collapse') || 'null');
+        if (saved) {
+          Object.entries(saved).forEach(([id, collapsed]) => {
+            const column = document.getElementById(id);
+            if (column && collapsed) column.classList.add('collapsed');
+          });
+        }
+      } catch (e) { /* ignore */ }
+    };
+
+    const langSwitcher = document.getElementById('lang-switcher');
+    const themeSwitcher = document.getElementById('theme-switcher');
+    const filterInput = document.getElementById('filter-input');
+    const replaceBtn = document.getElementById('replace-btn');
+    const exportBtn = document.getElementById('export-btn');
+    const importBtn = document.getElementById('import-btn');
+    const importFile = document.getElementById('import-file');
+    const duplicateBtn = document.getElementById('duplicate-btn');
+    const affixBtn = document.getElementById('affix-btn');
+    const copyBtn = document.getElementById('copy-btn');
+    const projectsList = document.getElementById('projects-list');
+    const directoriesList = document.getElementById('directories-list');
+    const filesList = document.getElementById('files-list');
+    const addProjectBtn = document.getElementById('add-project-btn');
+    const addDirectoryBtn = document.getElementById('add-directory-btn');
+    const addFileBtn = document.getElementById('add-file-btn');
+    const contentPath = document.getElementById('content-path');
+    const saveStatus = document.getElementById('save-status');
+    const emptyState = document.getElementById('empty-state');
+    const editor = document.getElementById('editor');
+    const varsTa = document.getElementById('vars-ta');
+    const sourceTa = document.getElementById('source-ta');
+    const notesTa = document.getElementById('notes-ta');
+    const resultTa = document.getElementById('result-ta');
+    const resultHl = document.getElementById('result-hl');
+    const helpDialog = document.getElementById('help-dialog');
+    const replaceDialog = document.getElementById('replace-dialog');
+    const affixDialog = document.getElementById('affix-dialog');
+    const affixPrefix = document.getElementById('affix-prefix');
+    const affixSuffix = document.getElementById('affix-suffix');
+    const replaceFind = document.getElementById('replace-find');
+    const replaceWith = document.getElementById('replace-with');
+    const toastEl = document.getElementById('toast');
+
+    const setupEvents = () => {
+      langSwitcher.addEventListener('change', (e) => {
+        currentLanguage = e.target.value;
+        localStorage.setItem('app_lang', currentLanguage);
+        applyI18n();
+        renderProjects();
+        renderDirectories();
+        renderFiles();
+        renderPath();
+      });
+      themeSwitcher.addEventListener('click', () => {
+        currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
+        applyTheme(currentTheme);
+      });
+      document.getElementById('help-btn').addEventListener('click', () => helpDialog.showModal());
+      document.getElementById('help-close').addEventListener('click', () => helpDialog.close());
+      helpDialog.addEventListener('click', (e) => { if (e.target === helpDialog) helpDialog.close(); });
+      document.getElementById('replace-close').addEventListener('click', () => replaceDialog.close());
+      document.getElementById('replace-cancel').addEventListener('click', () => replaceDialog.close());
+      replaceDialog.addEventListener('click', (e) => { if (e.target === replaceDialog) replaceDialog.close(); });
+      document.getElementById('affix-close').addEventListener('click', () => affixDialog.close());
+      affixDialog.addEventListener('click', (e) => { if (e.target === affixDialog) affixDialog.close(); });
+      affixDialog.addEventListener('close', () => {
+        const file = currentFile();
+        if (!file) return;
+        file.resultPrefix = affixPrefix.value;
+        file.resultSuffix = affixSuffix.value;
+        fullResult = buildResult(file);
+        resultTa.value = filterLines(fullResult, filterQuery());
+        updateHighlight();
+        scheduleSave();
+      });
+      document.addEventListener('keydown', (e) => {
+        const el = e.target;
+        const typing = el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName));
+        if (e.key === '?' && !typing && !helpDialog.open && !replaceDialog.open && !affixDialog.open) {
+          e.preventDefault();
+          helpDialog.showModal();
+        }
+      });
+      replaceBtn.addEventListener('click', () => {
+        if (!currentFile()) return;
+        replaceDialog.showModal();
+        replaceFind.focus();
+      });
+      document.getElementById('replace-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        applyReplace();
+      });
+      exportBtn.addEventListener('click', exportProject);
+      importBtn.addEventListener('click', () => importFile.click());
+      importFile.addEventListener('change', async () => {
+        const file = importFile.files[0];
+        importFile.value = '';
+        if (!file) return;
+        try {
+          await importProject(JSON.parse(await file.text()));
+        } catch (err) {
+          alert(t('importError'));
+        }
+      });
+      addProjectBtn.addEventListener('click', addProject);
+      addDirectoryBtn.addEventListener('click', addDirectory);
+      addFileBtn.addEventListener('click', addFile);
+      duplicateBtn.addEventListener('click', () => duplicateFile(state.selectedFileId));
+      affixBtn.addEventListener('click', () => {
+        const file = currentFile();
+        if (!file) return;
+        affixPrefix.value = file.resultPrefix || '';
+        affixSuffix.value = file.resultSuffix || '';
+        affixDialog.showModal();
+        affixPrefix.focus();
+      });
+      copyBtn.addEventListener('click', copyResult);
+      filterInput.addEventListener('input', onFilterInput);
+      varsTa.addEventListener('input', onEditorInput);
+      sourceTa.addEventListener('input', onEditorInput);
+      notesTa.addEventListener('input', () => {
+        const file = currentFile();
+        if (!file) return;
+        file.notes = notesTa.value;
+        scheduleSave();
+      });
+      ['keyup', 'click', 'select'].forEach((evt) => {
+        sourceTa.addEventListener(evt, updateHighlight);
+      });
+      sourceTa.addEventListener('scroll', () => {
+        if (syncingScroll) return;
+        syncingScroll = true;
+        setResultScrollFromSource();
+        updateHighlight();
+        syncingScroll = false;
+      });
+      resultTa.addEventListener('scroll', () => {
+        if (syncingScroll) return;
+        syncingScroll = true;
+        setSourceScrollFromResult();
+        updateHighlight();
+        syncingScroll = false;
+      });
+      setupCollapse();
+      setupRowResize();
+    };
+
+    const init = async () => {
+      await openDB();
+      state.projects = await dbGetAll('projects');
+      state.directories = await dbGetAll('directories');
+      state.files = await dbGetAll('files');
+      loadUiState();
+      if (state.selectedProjectId && !state.projects.find((p) => p.id === state.selectedProjectId)) {
+        state.selectedProjectId = null;
+      }
+      if (state.selectedDirectoryId && !state.directories.find((d) => d.id === state.selectedDirectoryId)) {
+        state.selectedDirectoryId = null;
+      }
+      if (state.selectedFileId && !state.files.find((f) => f.id === state.selectedFileId)) {
+        state.selectedFileId = null;
+      }
+      if (state.selectedDirectoryId) {
+        const dir = state.directories.find((d) => d.id === state.selectedDirectoryId);
+        if (dir && dir.projectId !== state.selectedProjectId) state.selectedDirectoryId = null;
+      }
+      if (state.selectedFileId) {
+        const file = state.files.find((f) => f.id === state.selectedFileId);
+        if (file && file.directoryId !== state.selectedDirectoryId) state.selectedFileId = null;
+      }
+      langSwitcher.value = currentLanguage;
+      applyI18n();
+      applyTheme(currentTheme);
+      renderProjects();
+      renderDirectories();
+      renderFiles();
+      renderEditor();
+      setupEvents();
+    };
+
+    document.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+</html>

@@ -726,6 +726,7 @@
     "assets/icons/ico/utils-terrain-generator-3d.ico",
     "assets/icons/ico/utils-test_builder.ico",
     "assets/icons/ico/utils-text_diff_studio.ico",
+    "assets/icons/ico/utils-text_fill.ico",
     "assets/icons/ico/utils-time_diff.ico",
     "assets/icons/ico/utils-time_sum.ico",
     "assets/icons/ico/utils-time_tools.ico",
@@ -925,6 +926,7 @@
     "assets/icons/png/utils-terrain-generator-3d.png",
     "assets/icons/png/utils-test_builder.png",
     "assets/icons/png/utils-text_diff_studio.png",
+    "assets/icons/png/utils-text_fill.png",
     "assets/icons/png/utils-time_diff.png",
     "assets/icons/png/utils-time_sum.png",
     "assets/icons/png/utils-time_tools.png",
@@ -1124,6 +1126,7 @@
     "assets/icons/svg/utils-terrain-generator-3d.svg",
     "assets/icons/svg/utils-test_builder.svg",
     "assets/icons/svg/utils-text_diff_studio.svg",
+    "assets/icons/svg/utils-text_fill.svg",
     "assets/icons/svg/utils-time_diff.svg",
     "assets/icons/svg/utils-time_sum.svg",
     "assets/icons/svg/utils-time_tools.svg",
@@ -1703,6 +1706,7 @@
     "utils/terrain-generator-3d.html",
     "utils/test_builder.html",
     "utils/text_diff_studio.html",
+    "utils/text_fill.html",
     "utils/time_diff.html",
     "utils/time_sum.html",
     "utils/time_tools.html",
@@ -1921,6 +1925,6 @@
     "models/tinyyolov2-7.onnx",
     "models/yolov8n-coco.onnx"
   ],
-  "version": "820888b174b2"
+  "version": "ff17af4d37f9"
 };
 })(typeof self !== "undefined" ? self : window);
