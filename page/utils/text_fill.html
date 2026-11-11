@@ -483,7 +483,7 @@
         helpOrganizeTitle: 'Organizing',
         helpOrganize: 'Add a project, then a directory, then a file. Hover an item to rename or delete it. Duplicate makes a new file with a new ID. Column arrows collapse the lists.',
         helpVarsTitle: 'Variables',
-        helpVars: 'Each line is name: value. The name is the text before the first colon. Everything after that colon until # is the value; after # is a comment. Lines that start with # are comments. Names may point at other names with @. The first pass stores raw values; the second pass substitutes once, so a cycle is not expanded again.',
+        helpVars: 'Each line is name: value. The name is the text before the first colon. Everything after that colon until # is the value; after # is a comment. Lines that start with # are comments. Names may point at other names with @. Expansion runs for 5 passes: the first keeps the raw value, and each later pass substitutes @ once. A cycle stops after the fifth pass.',
         helpTextTitle: 'Text and result',
         helpText: 'On the left, @name is replaced on the right using the expanded variables. A line whose first visible character is #, and a blank line, stay on the left only and do not receive a prefix or suffix. Scrolling one pane follows the matching line in the other, and the current left line is highlighted on the right. Word wrap is on by default for every pane; turn it off next to Duplicate to keep one line per row.',
         helpNotesTitle: 'Notes',
@@ -548,7 +548,7 @@
         helpOrganizeTitle: 'Organização',
         helpOrganize: 'Adicione um projeto, depois um diretório e depois um arquivo. Passe o mouse para renomear ou excluir. Duplicar cria um arquivo novo com outro ID. As setas recolhem as listas.',
         helpVarsTitle: 'Variáveis',
-        helpVars: 'Cada linha é nome: valor. O nome é o texto antes do primeiro dois-pontos. O que vem depois até # é o valor; depois de # é comentário. Linhas que começam com # são comentários. Nomes podem apontar para outros com @. A primeira passagem guarda os valores crus; a segunda substitui uma vez, então um ciclo não é expandido de novo.',
+        helpVars: 'Cada linha é nome: valor. O nome é o texto antes do primeiro dois-pontos. O que vem depois até # é o valor; depois de # é comentário. Linhas que começam com # são comentários. Nomes podem apontar para outros com @. A expansão faz 5 passagens: a primeira guarda o valor cru, e cada uma das seguintes substitui @ uma vez. Um ciclo para na quinta passagem.',
         helpTextTitle: 'Texto e resultado',
         helpText: 'À esquerda, @nome é trocado à direita pelas variáveis já expandidas. Uma linha cujo primeiro caractere visível é #, e uma linha em branco, ficam só à esquerda e não recebem prefixo nem sufixo. Rolar um painel acompanha a linha correspondente no outro, e a linha atual da esquerda é destacada à direita. A quebra de linha vem ligada em todas as caixas; desligue ao lado de Duplicar para manter uma linha por linha.',
         helpNotesTitle: 'Anotações',
@@ -613,7 +613,7 @@
         helpOrganizeTitle: '整理',
         helpOrganize: 'プロジェクト、ディレクトリ、ファイルの順に追加します。項目にマウスを乗せると名前変更や削除ができます。複製は新しい ID のファイルを作ります。列の矢印でリストを折りたためます。',
         helpVarsTitle: '変数',
-        helpVars: '各行は 名前: 値 です。名前は最初のコロンより前、値はそのコロンから # の直前まで、# の後はコメントです。# で始まる行はコメントです。名前は @ で他の名前を参照できます。1 回目で生の値を保存し、2 回目で一度だけ置換するので、循環は再展開されません。',
+        helpVars: '各行は 名前: 値 です。名前は最初のコロンより前、値はそのコロンから # の直前まで、# の後はコメントです。# で始まる行はコメントです。名前は @ で他の名前を参照できます。展開は 5 回までです。1 回目は生の値を保持し、その後の各回で @ を一度だけ置換します。循環は 5 回目で止まります。',
         helpTextTitle: 'テキストと結果',
         helpText: '左側の @名前 は、展開済みの変数で右側に置換されます。先頭の見える文字が # の行と空行は左だけに残り、接頭も接尾も付きません。一方をスクロールすると対応する行が他方について動き、左の現在行が右で強調されます。折り返しはすべての欄で最初からオンです。複製の横でオフにすると 1 行がそのまま 1 行になります。',
         helpNotesTitle: 'メモ',
@@ -759,13 +759,19 @@
       return out;
     };
 
+    const EXPAND_PASSES = 5;
+
     const expandVariables = (text) => {
       const raw = parseVariables(text);
-      const expanded = {};
-      Object.keys(raw).forEach((name) => {
-        expanded[name] = applyVars(raw[name], raw);
-      });
-      return expanded;
+      let current = { ...raw };
+      for (let pass = 2; pass <= EXPAND_PASSES; pass += 1) {
+        const next = {};
+        Object.keys(raw).forEach((name) => {
+          next[name] = applyVars(current[name], current);
+        });
+        current = next;
+      }
+      return current;
     };
 
     const expandSourceLines = (source, expanded) => {
