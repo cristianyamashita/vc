@@ -489,7 +489,7 @@
         helpNotesTitle: 'Notes',
         helpNotes: 'The bottom pane stores reference text for the file and is not expanded. Drag the bars between the three rows to change their height; each row can shrink to about one line.',
         helpAffixTitle: 'Prefix and suffix',
-        helpAffix: 'The Affix button next to Copy opens a dialog with a prefix and a suffix. Closing it applies those strings to every result line. Either field can be filled, cleared or left blank.',
+        helpAffix: 'The Affix button next to Copy opens a dialog with a prefix and a suffix. Closing it applies those strings to every result line. Either field can be filled, cleared or left blank, and both accept @variables.',
         helpFilterTitle: 'Filter and replace',
         helpFilter: 'The top filter hides unmatched lines in variables and in the result; the left text stays complete, and variables become read-only until the filter is cleared. Copy always uses the full result. Replace changes values and non-comment text lines in the open file: partial replaces a substring, whole content replaces only an exact value or exact line.',
         helpIOTitle: 'Import and export',
@@ -554,7 +554,7 @@
         helpNotesTitle: 'Anotações',
         helpNotes: 'A faixa de baixo guarda texto de referência do arquivo e não é expandida. Arraste as barras entre as três faixas para mudar a altura; cada uma pode encolher até cerca de uma linha.',
         helpAffixTitle: 'Prefixo e sufixo',
-        helpAffix: 'O botão Afixos ao lado de Copiar abre um diálogo com prefixo e sufixo. Ao fechar, esses textos entram em cada linha do resultado. Qualquer campo pode ser preenchido, apagado ou deixado em branco.',
+        helpAffix: 'O botão Afixos ao lado de Copiar abre um diálogo com prefixo e sufixo. Ao fechar, esses textos entram em cada linha do resultado. Qualquer campo pode ser preenchido, apagado ou deixado em branco, e os dois aceitam @variáveis.',
         helpFilterTitle: 'Filtro e substituição',
         helpFilter: 'O filtro do topo esconde linhas que não batem nas variáveis e no resultado; o texto da esquerda continua inteiro, e as variáveis ficam só leitura até limpar o filtro. Copiar usa sempre o resultado completo. Substituir altera valores e linhas de texto que não são comentário no arquivo aberto: parcial troca um trecho, conteúdo inteiro só troca um valor ou uma linha exatos.',
         helpIOTitle: 'Importar e exportar',
@@ -619,7 +619,7 @@
         helpNotesTitle: 'メモ',
         helpNotes: '一番下の欄はファイルの参考テキストで、展開されません。3 つの行の間のバーをドラッグして高さを変えられます。各行はおよそ 1 行まで縮められます。',
         helpAffixTitle: '接頭と接尾',
-        helpAffix: 'コピーの横の前後ボタンで接頭と接尾を編集します。閉じると結果の各行に付きます。空のままでも、消しても構いません。',
+        helpAffix: 'コピーの横の前後ボタンで接頭と接尾を編集します。閉じると結果の各行に付きます。空のままでも、消しても構いません。どちらも @変数 を使えます。',
         helpFilterTitle: 'フィルタと置換',
         helpFilter: '上部のフィルタは変数と結果で一致しない行を隠します。左のテキストは完全なまま、フィルタ中は変数が読み取り専用になります。コピーは常に結果全体です。置換は開いているファイルの値とコメント以外の行を変えます。部分は部分文字列、内容全体は値または行が完全一致するときだけです。',
         helpIOTitle: '読み込みと書き出し',
@@ -780,7 +780,9 @@
     const buildResult = (file) => {
       const expanded = expandVariables(file.variables || '');
       const raw = expandSource(file.source || '', expanded);
-      return applyLineAffixes(raw, file.resultPrefix, file.resultSuffix);
+      const prefix = applyVars(file.resultPrefix || '', expanded);
+      const suffix = applyVars(file.resultSuffix || '', expanded);
+      return applyLineAffixes(raw, prefix, suffix);
     };
 
     const filterLines = (text, query) => {
