@@ -485,7 +485,7 @@
         helpVarsTitle: 'Variables',
         helpVars: 'Each line is name: value. The name is the text before the first colon. Everything after that colon until # is the value; after # is a comment. Lines that start with # are comments. Names may point at other names with @. The first pass stores raw values; the second pass substitutes once, so a cycle is not expanded again.',
         helpTextTitle: 'Text and result',
-        helpText: 'On the left, @name is replaced on the right using the expanded variables. A line whose first visible character is # stays on the left only. Scrolling one pane follows the matching line in the other, and the current left line is highlighted on the right. Word wrap is on by default for every pane; turn it off next to Duplicate to keep one line per row.',
+        helpText: 'On the left, @name is replaced on the right using the expanded variables. A line whose first visible character is #, and a blank line, stay on the left only and do not receive a prefix or suffix. Scrolling one pane follows the matching line in the other, and the current left line is highlighted on the right. Word wrap is on by default for every pane; turn it off next to Duplicate to keep one line per row.',
         helpNotesTitle: 'Notes',
         helpNotes: 'The bottom pane stores reference text for the file and is not expanded. Drag the bars between the three rows to change their height; each row can shrink to about one line.',
         helpAffixTitle: 'Prefix and suffix',
@@ -550,7 +550,7 @@
         helpVarsTitle: 'Variáveis',
         helpVars: 'Cada linha é nome: valor. O nome é o texto antes do primeiro dois-pontos. O que vem depois até # é o valor; depois de # é comentário. Linhas que começam com # são comentários. Nomes podem apontar para outros com @. A primeira passagem guarda os valores crus; a segunda substitui uma vez, então um ciclo não é expandido de novo.',
         helpTextTitle: 'Texto e resultado',
-        helpText: 'À esquerda, @nome é trocado à direita pelas variáveis já expandidas. Uma linha cujo primeiro caractere visível é # fica só à esquerda. Rolar um painel acompanha a linha correspondente no outro, e a linha atual da esquerda é destacada à direita. A quebra de linha vem ligada em todas as caixas; desligue ao lado de Duplicar para manter uma linha por linha.',
+        helpText: 'À esquerda, @nome é trocado à direita pelas variáveis já expandidas. Uma linha cujo primeiro caractere visível é #, e uma linha em branco, ficam só à esquerda e não recebem prefixo nem sufixo. Rolar um painel acompanha a linha correspondente no outro, e a linha atual da esquerda é destacada à direita. A quebra de linha vem ligada em todas as caixas; desligue ao lado de Duplicar para manter uma linha por linha.',
         helpNotesTitle: 'Anotações',
         helpNotes: 'A faixa de baixo guarda texto de referência do arquivo e não é expandida. Arraste as barras entre as três faixas para mudar a altura; cada uma pode encolher até cerca de uma linha.',
         helpAffixTitle: 'Prefixo e sufixo',
@@ -615,7 +615,7 @@
         helpVarsTitle: '変数',
         helpVars: '各行は 名前: 値 です。名前は最初のコロンより前、値はそのコロンから # の直前まで、# の後はコメントです。# で始まる行はコメントです。名前は @ で他の名前を参照できます。1 回目で生の値を保存し、2 回目で一度だけ置換するので、循環は再展開されません。',
         helpTextTitle: 'テキストと結果',
-        helpText: '左側の @名前 は、展開済みの変数で右側に置換されます。先頭の見える文字が # の行は左だけに残ります。一方をスクロールすると対応する行が他方について動き、左の現在行が右で強調されます。折り返しはすべての欄で最初からオンです。複製の横でオフにすると 1 行がそのまま 1 行になります。',
+        helpText: '左側の @名前 は、展開済みの変数で右側に置換されます。先頭の見える文字が # の行と空行は左だけに残り、接頭も接尾も付きません。一方をスクロールすると対応する行が他方について動き、左の現在行が右で強調されます。折り返しはすべての欄で最初からオンです。複製の横でオフにすると 1 行がそのまま 1 行になります。',
         helpNotesTitle: 'メモ',
         helpNotes: '一番下の欄はファイルの参考テキストで、展開されません。3 つの行の間のバーをドラッグして高さを変えられます。各行はおよそ 1 行まで縮められます。',
         helpAffixTitle: '接頭と接尾',
@@ -712,6 +712,8 @@
     });
 
     const isCommentLine = (line) => line.trimStart().startsWith('#');
+    const isBlankLine = (line) => !String(line).trim();
+    const isSkippedSourceLine = (line) => isCommentLine(line) || isBlankLine(line);
 
     const parseVariableLine = (line) => {
       if (!line.trim() || isCommentLine(line)) return null;
@@ -766,23 +768,17 @@
       return expanded;
     };
 
-    const expandSource = (source, expanded) => {
-      return String(source || '').split('\n').filter((line) => !isCommentLine(line)).map((line) => applyVars(line, expanded)).join('\n');
-    };
-
-    const applyLineAffixes = (text, prefix, suffix) => {
-      const p = prefix == null ? '' : String(prefix);
-      const s = suffix == null ? '' : String(suffix);
-      if (!p && !s) return String(text || '');
-      return String(text || '').split('\n').map((line) => p + line + s).join('\n');
+    const expandSourceLines = (source, expanded) => {
+      return String(source || '').split('\n').filter((line) => !isSkippedSourceLine(line)).map((line) => applyVars(line, expanded));
     };
 
     const buildResult = (file) => {
       const expanded = expandVariables(file.variables || '');
-      const raw = expandSource(file.source || '', expanded);
+      const lines = expandSourceLines(file.source || '', expanded);
+      if (!lines.length) return '';
       const prefix = applyVars(file.resultPrefix || '', expanded);
       const suffix = applyVars(file.resultSuffix || '', expanded);
-      return applyLineAffixes(raw, prefix, suffix);
+      return lines.map((line) => prefix + line + suffix).join('\n');
     };
 
     const filterLines = (text, query) => {
@@ -792,10 +788,10 @@
     };
 
     const sourceLineToResultLine = (sourceLines, sourceIndex) => {
-      if (sourceIndex < 0 || sourceIndex >= sourceLines.length || isCommentLine(sourceLines[sourceIndex])) return -1;
+      if (sourceIndex < 0 || sourceIndex >= sourceLines.length || isSkippedSourceLine(sourceLines[sourceIndex])) return -1;
       let resultIdx = 0;
       for (let i = 0; i < sourceIndex; i += 1) {
-        if (!isCommentLine(sourceLines[i])) resultIdx += 1;
+        if (!isSkippedSourceLine(sourceLines[i])) resultIdx += 1;
       }
       return resultIdx;
     };
@@ -803,7 +799,7 @@
     const resultLineToSourceLine = (sourceLines, resultIndex) => {
       let resultIdx = 0;
       for (let i = 0; i < sourceLines.length; i += 1) {
-        if (isCommentLine(sourceLines[i])) continue;
+        if (isSkippedSourceLine(sourceLines[i])) continue;
         if (resultIdx === resultIndex) return i;
         resultIdx += 1;
       }
@@ -977,12 +973,21 @@
       duplicateBtn.disabled = !state.selectedFileId;
     };
 
-    const lineMetrics = () => {
-      const cs = getComputedStyle(sourceTa);
-      return {
-        lineH: parseFloat(cs.lineHeight) || 18,
-        pad: parseFloat(cs.paddingTop) || 8
-      };
+    const baseTaPad = () => parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--ta-pad')) || 8;
+
+    const lineBox = (ta) => {
+      const cs = getComputedStyle(ta);
+      const pad = parseFloat(cs.paddingTop) || 0;
+      const padB = parseFloat(cs.paddingBottom) || 0;
+      const cssH = parseFloat(cs.lineHeight) || 18;
+      if (ta.wrap === 'off' && ta.scrollHeight > ta.clientHeight + 1) {
+        const lines = String(ta.value).split('\n').length;
+        if (lines > 1) {
+          const lineH = (ta.scrollHeight - pad - padB) / lines;
+          if (lineH > 8 && lineH < 80) return { lineH, pad };
+        }
+      }
+      return { lineH: cssH, pad };
     };
 
     const caretLine = (ta) => ta.value.slice(0, ta.selectionStart).split('\n').length - 1;
@@ -992,7 +997,7 @@
     const nearestMappedSourceLine = (sourceLines, startIndex, direction) => {
       let i = startIndex;
       while (i >= 0 && i < sourceLines.length) {
-        if (!isCommentLine(sourceLines[i])) return i;
+        if (!isSkippedSourceLine(sourceLines[i])) return i;
         i += direction;
       }
       return -1;
@@ -1004,9 +1009,9 @@
         resultHl.hidden = true;
         return;
       }
-      const { lineH, pad } = lineMetrics();
+      const { lineH, pad } = lineBox(resultTa);
       const sourceLines = sourceTa.value.split('\n');
-      const resultLines = fullResult.split('\n');
+      const resultLines = fullResult ? fullResult.split('\n') : [];
       const mapped = sourceLineToResultLine(sourceLines, caretLine(sourceTa));
       const shown = displayedIndex(resultLines, mapped, filterQuery());
       if (shown < 0) {
@@ -1025,25 +1030,46 @@
     };
 
     const setResultScrollFromSource = () => {
-      const { lineH } = lineMetrics();
+      const src = lineBox(sourceTa);
+      const res = lineBox(resultTa);
       const sourceLines = sourceTa.value.split('\n');
-      const resultLines = fullResult.split('\n');
-      let srcLine = nearestMappedSourceLine(sourceLines, topLine(sourceTa, lineH), 1);
-      if (srcLine < 0) srcLine = nearestMappedSourceLine(sourceLines, topLine(sourceTa, lineH), -1);
-      const mapped = sourceLineToResultLine(sourceLines, srcLine);
+      const resultLines = fullResult ? fullResult.split('\n') : [];
+      const caret = caretLine(sourceTa);
+      let anchor = caret;
+      let mapped = sourceLineToResultLine(sourceLines, anchor);
+      if (mapped < 0) {
+        anchor = nearestMappedSourceLine(sourceLines, topLine(sourceTa, src.lineH), 1);
+        if (anchor < 0) anchor = nearestMappedSourceLine(sourceLines, topLine(sourceTa, src.lineH), -1);
+        if (anchor < 0) return;
+        mapped = sourceLineToResultLine(sourceLines, anchor);
+      }
       const shown = displayedIndex(resultLines, mapped, filterQuery());
-      if (shown < 0) return;
-      const next = Math.max(0, shown * lineH - (srcLine * lineH - sourceTa.scrollTop));
+      if (shown < 0) {
+        resultTa.style.paddingTop = '';
+        return;
+      }
+      const visual = src.pad + anchor * src.lineH - sourceTa.scrollTop;
+      const wanted = baseTaPad() + shown * res.lineH - visual;
+      if (wanted < -0.5) {
+        resultTa.style.paddingTop = `${baseTaPad() - wanted}px`;
+        if (resultTa.scrollTop !== 0) resultTa.scrollTop = 0;
+        return;
+      }
+      if (resultTa.style.paddingTop) resultTa.style.paddingTop = '';
+      const max = Math.max(0, resultTa.scrollHeight - resultTa.clientHeight);
+      const next = Math.min(max, Math.max(0, wanted));
       if (Math.abs(resultTa.scrollTop - next) > 0.5) resultTa.scrollTop = next;
     };
 
     const setSourceScrollFromResult = () => {
-      const { lineH } = lineMetrics();
+      const srcBox = lineBox(sourceTa);
+      const resBox = lineBox(resultTa);
+      const lineH = resBox.lineH;
       const sourceLines = sourceTa.value.split('\n');
-      const resultLines = fullResult.split('\n');
+      const resultLines = fullResult ? fullResult.split('\n') : [];
       const query = filterQuery();
-      const displayed = filterLines(fullResult, query).split('\n');
-      const vis = Math.min(topLine(resultTa, lineH), Math.max(0, displayed.length - 1));
+      const displayed = fullResult ? filterLines(fullResult, query).split('\n') : [];
+      const vis = displayed.length ? Math.min(topLine(resultTa, lineH), displayed.length - 1) : 0;
       let resultIdx = vis;
       if (query) {
         let count = 0;
@@ -1058,7 +1084,9 @@
       }
       const srcLine = resultLineToSourceLine(sourceLines, resultIdx);
       if (srcLine < 0) return;
-      const next = Math.max(0, srcLine * lineH - (vis * lineH - resultTa.scrollTop));
+      const visual = resBox.pad + vis * resBox.lineH - resultTa.scrollTop;
+      const max = Math.max(0, sourceTa.scrollHeight - sourceTa.clientHeight);
+      const next = Math.min(max, Math.max(0, srcBox.pad + srcLine * srcBox.lineH - visual));
       if (Math.abs(sourceTa.scrollTop - next) > 0.5) sourceTa.scrollTop = next;
     };
 
@@ -1068,6 +1096,7 @@
       if (!file) {
         fullResult = '';
         resultTa.value = '';
+        resultTa.style.paddingTop = '';
         resultHl.hidden = true;
         return;
       }
@@ -1077,6 +1106,11 @@
       sourceTa.value = file.source || '';
       notesTa.value = file.notes || '';
       resultTa.value = filterLines(fullResult, query);
+      if (!syncingScroll) {
+        syncingScroll = true;
+        setResultScrollFromSource();
+        syncingScroll = false;
+      }
       updateHighlight();
     };
 
@@ -1663,7 +1697,13 @@
         scheduleSave();
       });
       ['keyup', 'click', 'select'].forEach((evt) => {
-        sourceTa.addEventListener(evt, updateHighlight);
+        sourceTa.addEventListener(evt, () => {
+          if (syncingScroll) return;
+          syncingScroll = true;
+          setResultScrollFromSource();
+          updateHighlight();
+          syncingScroll = false;
+        });
       });
       sourceTa.addEventListener('scroll', () => {
         if (syncingScroll) return;
