@@ -52,6 +52,8 @@
     .btn:disabled, .icon-btn:disabled { opacity: .45; cursor: default; }
     .btn.primary { background: var(--accent-strong); border-color: var(--accent-strong); color: #fff; }
     .btn.primary:hover:not(:disabled) { color: #fff; }
+    .btn[aria-pressed="true"] { background: var(--accent-strong); border-color: var(--accent-strong); color: #fff; }
+    .btn[aria-pressed="true"]:hover:not(:disabled) { color: #fff; }
     select { height: 30px; border: 1px solid var(--border); border-radius: 6px; background: var(--panel-2); padding: 0 6px; font-size: 13px; }
     input:focus, textarea:focus, select:focus { outline: none; border-color: var(--accent); }
     :focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
@@ -145,10 +147,10 @@
       position: relative; z-index: 1; width: 100%; height: 100%; border: 0; resize: none;
       padding: var(--ta-pad); background: transparent; color: var(--text);
       font-family: var(--mono); font-size: 13px; line-height: var(--line-h);
-      white-space: pre; overflow: auto;
+      white-space: pre-wrap; overflow-wrap: anywhere; overflow: auto;
     }
+    html.wrap-off textarea.editor-ta { white-space: pre; overflow-wrap: normal; }
     textarea.editor-ta[readonly] { color: var(--muted); }
-    #notes-ta { white-space: pre-wrap; }
     #result-ta { cursor: default; }
     .line-hl {
       position: absolute; left: 0; right: 0; height: var(--line-h);
@@ -291,6 +293,9 @@
         <div class="content-header">
           <div class="content-path" id="content-path"></div>
           <div class="save-status" id="save-status"></div>
+          <button id="wrap-btn" class="btn" type="button" aria-pressed="true" data-i18n-title="wordWrap" title="Word wrap">
+            <i class="fas fa-align-left"></i><span class="btn-label" data-i18n="wordWrap">Word wrap</span>
+          </button>
           <button id="duplicate-btn" class="btn" type="button" disabled>
             <i class="fas fa-clone"></i><span class="btn-label" data-i18n="duplicate">Duplicate</span>
           </button>
@@ -304,7 +309,7 @@
             <div class="pane" id="vars-pane">
               <div class="pane-head"><span data-i18n="variables">Variables</span></div>
               <div class="ta-wrap">
-                <textarea id="vars-ta" class="editor-ta" wrap="off" spellcheck="false" data-i18n-placeholder="varsPlaceholder" placeholder="name: value"></textarea>
+                <textarea id="vars-ta" class="editor-ta" spellcheck="false" data-i18n-placeholder="varsPlaceholder" placeholder="name: value"></textarea>
               </div>
             </div>
             <div class="row-handle" id="handle-vars" data-index="0" title="Resize"></div>
@@ -312,7 +317,7 @@
               <div class="pane">
                 <div class="pane-head"><span data-i18n="source">Text</span></div>
                 <div class="ta-wrap">
-                  <textarea id="source-ta" class="editor-ta" wrap="off" spellcheck="false" data-i18n-placeholder="sourcePlaceholder" placeholder="Use @name in the text"></textarea>
+                  <textarea id="source-ta" class="editor-ta" spellcheck="false" data-i18n-placeholder="sourcePlaceholder" placeholder="Use @name in the text"></textarea>
                 </div>
               </div>
               <div class="pane">
@@ -328,7 +333,7 @@
                 </div>
                 <div class="ta-wrap">
                   <div class="line-hl" id="result-hl" hidden></div>
-                  <textarea id="result-ta" class="editor-ta" wrap="off" spellcheck="false" readonly></textarea>
+                  <textarea id="result-ta" class="editor-ta" spellcheck="false" readonly></textarea>
                 </div>
               </div>
             </div>
@@ -440,6 +445,7 @@
         export: 'Export',
         import: 'Import',
         duplicate: 'Duplicate',
+        wordWrap: 'Word wrap',
         copy: 'Copy',
         copied: 'Copied',
         affix: 'Affix',
@@ -479,7 +485,7 @@
         helpVarsTitle: 'Variables',
         helpVars: 'Each line is name: value. The name is the text before the first colon. Everything after that colon until # is the value; after # is a comment. Lines that start with # are comments. Names may point at other names with @. The first pass stores raw values; the second pass substitutes once, so a cycle is not expanded again.',
         helpTextTitle: 'Text and result',
-        helpText: 'On the left, @name is replaced on the right using the expanded variables. A line whose first visible character is # stays on the left only. Scrolling one pane follows the matching line in the other, and the current left line is highlighted on the right.',
+        helpText: 'On the left, @name is replaced on the right using the expanded variables. A line whose first visible character is # stays on the left only. Scrolling one pane follows the matching line in the other, and the current left line is highlighted on the right. Word wrap is on by default for every pane; turn it off next to Duplicate to keep one line per row.',
         helpNotesTitle: 'Notes',
         helpNotes: 'The bottom pane stores reference text for the file and is not expanded. Drag the bars between the three rows to change their height; each row can shrink to about one line.',
         helpAffixTitle: 'Prefix and suffix',
@@ -504,6 +510,7 @@
         export: 'Exportar',
         import: 'Importar',
         duplicate: 'Duplicar',
+        wordWrap: 'Quebra de linha',
         copy: 'Copiar',
         copied: 'Copiado',
         affix: 'Afixos',
@@ -543,7 +550,7 @@
         helpVarsTitle: 'Variáveis',
         helpVars: 'Cada linha é nome: valor. O nome é o texto antes do primeiro dois-pontos. O que vem depois até # é o valor; depois de # é comentário. Linhas que começam com # são comentários. Nomes podem apontar para outros com @. A primeira passagem guarda os valores crus; a segunda substitui uma vez, então um ciclo não é expandido de novo.',
         helpTextTitle: 'Texto e resultado',
-        helpText: 'À esquerda, @nome é trocado à direita pelas variáveis já expandidas. Uma linha cujo primeiro caractere visível é # fica só à esquerda. Rolar um painel acompanha a linha correspondente no outro, e a linha atual da esquerda é destacada à direita.',
+        helpText: 'À esquerda, @nome é trocado à direita pelas variáveis já expandidas. Uma linha cujo primeiro caractere visível é # fica só à esquerda. Rolar um painel acompanha a linha correspondente no outro, e a linha atual da esquerda é destacada à direita. A quebra de linha vem ligada em todas as caixas; desligue ao lado de Duplicar para manter uma linha por linha.',
         helpNotesTitle: 'Anotações',
         helpNotes: 'A faixa de baixo guarda texto de referência do arquivo e não é expandida. Arraste as barras entre as três faixas para mudar a altura; cada uma pode encolher até cerca de uma linha.',
         helpAffixTitle: 'Prefixo e sufixo',
@@ -568,6 +575,7 @@
         export: '書き出し',
         import: '読み込み',
         duplicate: '複製',
+        wordWrap: '折り返し',
         copy: 'コピー',
         copied: 'コピーしました',
         affix: '前後',
@@ -607,7 +615,7 @@
         helpVarsTitle: '変数',
         helpVars: '各行は 名前: 値 です。名前は最初のコロンより前、値はそのコロンから # の直前まで、# の後はコメントです。# で始まる行はコメントです。名前は @ で他の名前を参照できます。1 回目で生の値を保存し、2 回目で一度だけ置換するので、循環は再展開されません。',
         helpTextTitle: 'テキストと結果',
-        helpText: '左側の @名前 は、展開済みの変数で右側に置換されます。先頭の見える文字が # の行は左だけに残ります。一方をスクロールすると対応する行が他方について動き、左の現在行が右で強調されます。',
+        helpText: '左側の @名前 は、展開済みの変数で右側に置換されます。先頭の見える文字が # の行は左だけに残ります。一方をスクロールすると対応する行が他方について動き、左の現在行が右で強調されます。折り返しはすべての欄で最初からオンです。複製の横でオフにすると 1 行がそのまま 1 行になります。',
         helpNotesTitle: 'メモ',
         helpNotes: '一番下の欄はファイルの参考テキストで、展開されません。3 つの行の間のバーをドラッグして高さを変えられます。各行はおよそ 1 行まで縮められます。',
         helpAffixTitle: '接頭と接尾',
@@ -1528,6 +1536,7 @@
     const exportBtn = document.getElementById('export-btn');
     const importBtn = document.getElementById('import-btn');
     const importFile = document.getElementById('import-file');
+    const wrapBtn = document.getElementById('wrap-btn');
     const duplicateBtn = document.getElementById('duplicate-btn');
     const affixBtn = document.getElementById('affix-btn');
     const copyBtn = document.getElementById('copy-btn');
@@ -1554,6 +1563,18 @@
     const replaceFind = document.getElementById('replace-find');
     const replaceWith = document.getElementById('replace-with');
     const toastEl = document.getElementById('toast');
+    let wrapOn = localStorage.getItem('text_fill_wrap') !== '0';
+
+    const applyWrap = (on) => {
+      wrapOn = on;
+      document.documentElement.classList.toggle('wrap-off', !on);
+      document.querySelectorAll('textarea.editor-ta').forEach((ta) => {
+        ta.wrap = on ? 'soft' : 'off';
+      });
+      wrapBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
+      localStorage.setItem('text_fill_wrap', on ? '1' : '0');
+      updateHighlight();
+    };
 
     const setupEvents = () => {
       langSwitcher.addEventListener('change', (e) => {
@@ -1619,6 +1640,7 @@
       addProjectBtn.addEventListener('click', addProject);
       addDirectoryBtn.addEventListener('click', addDirectory);
       addFileBtn.addEventListener('click', addFile);
+      wrapBtn.addEventListener('click', () => applyWrap(!wrapOn));
       duplicateBtn.addEventListener('click', () => duplicateFile(state.selectedFileId));
       affixBtn.addEventListener('click', () => {
         const file = currentFile();
@@ -1685,6 +1707,7 @@
       langSwitcher.value = currentLanguage;
       applyI18n();
       applyTheme(currentTheme);
+      applyWrap(wrapOn);
       renderProjects();
       renderDirectories();
       renderFiles();
